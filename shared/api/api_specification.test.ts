@@ -59,13 +59,13 @@ function validate(specification: JsonValue) {
             }
         } else if (isObject(value)) {
             if (value.type === "object") {
-                // Rule: Require `additionalProperties: false` (or a schema is fine too) to be
-                // set on all object schemas.
+                // Rule: Require `additionalProperties: false` (or a schema is fine too) to be set
+                // on all object schemas.
                 const isAdditionalPropertiesOk =
                     value.additionalProperties === false ||
                     isObject(value.additionalProperties) ||
-                    // `additionalProperties: true` may be set if `properties` is not set. For
-                    // JSON objects with unknown schemas.
+                    // `additionalProperties: true` may be set if `properties` is not set. For JSON
+                    // objects with unknown schemas.
                     (value.additionalProperties === true && !hasOwnProperty(value, "properties"));
 
                 if (!isAdditionalPropertiesOk) {
@@ -93,8 +93,8 @@ function validate(specification: JsonValue) {
                         value.default.$ref !== "#/components/responses/Error") &&
                     // This rule doesn't apply to reusable response components.
                     !(path[0] === "components" && path[1] === "responses") &&
-                    // Responses defined in `webhooks` are implemented by third-party services.
-                    // They can return whatever error response they want.
+                    // Responses defined in `webhooks` are implemented by third-party services. They
+                    // can return whatever error response they want.
                     path[0] !== "webhooks"
                 ) {
                     addError(
@@ -104,8 +104,8 @@ function validate(specification: JsonValue) {
             }
 
             // Make sure `discriminator` schemas match our expected format. This is for
-            // compatibility with JSON Schema. You could ignore the `discriminator`
-            // property and still correctly validate with JSON Schema.
+            // compatibility with JSON Schema. You could ignore the `discriminator` property
+            // and still correctly validate with JSON Schema.
             if (isObject(value.discriminator)) {
                 if (!Array.isArray(value.oneOf)) {
                     addError(quote`\`discriminator\` must be on a \`oneOf\` schema`);
@@ -216,8 +216,8 @@ function validate(specification: JsonValue) {
                 if (keyValue === undefined) continue;
 
                 // Rule: Path segments should be `kebab-case` since that's standard for URLs.
-                // Unless we have a parameter, parameters should be `{camelCase}`.
-                // We also allow a single file extension suffix (e.g. `foo.yaml`).
+                // Unless we have a parameter, parameters should be `{camelCase}`. We also allow a
+                // single file extension suffix (e.g. `foo.yaml`).
                 if (path[0] === "paths" && path.length === 1) {
                     for (const pathSegment of (key.startsWith("/") ? key.slice(1) : key).split(
                         "/",

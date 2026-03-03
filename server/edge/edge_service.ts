@@ -99,8 +99,8 @@ async function handleFetch(
     const url = new URL(request.url);
 
     // Hitting the home page (`/`) will redirect you to the landing page if you're
-    // signed out. If you want to see the home page while signed in you can
-    // navigate to https://www.alpine.inc directly.
+    // signed out. If you want to see the home page while signed in you can navigate to
+    // https://www.alpine.inc directly.
     if (url.pathname === "/") {
         const cookieHeader = request.headers.get("cookie");
 
@@ -117,21 +117,21 @@ async function handleFetch(
         }
     }
 
-    // We implement the time API route directly in our Cloudflare Worker body and
-    // put it before all other work.
+    // We implement the time API route directly in our Cloudflare Worker body and put
+    // it before all other work.
     //
     // We use this route to implement [clock synchronization with NTP][1].
     //
-    // Normally, NTP needs the time of both server packet reception and server
-    // packet transmission to work. But Cloudflare only updates the clock during IO
-    // (not synchronous CPU work, see [security model][2]) so we only have the time
-    // at which our worker received the request. That's fine, that time can be both
-    // the server start time and server end time and we pretend like the server
-    // response was less than 1ms.
+    // Normally, NTP needs the time of both server packet reception and server packet
+    // transmission to work. But Cloudflare only updates the clock during IO (not
+    // synchronous CPU work, see [security model][2]) so we only have the time at which
+    // our worker received the request. That's fine, that time can be both the server
+    // start time and server end time and we pretend like the server response was less
+    // than 1ms.
     //
-    // So we want to respond to this route the absolute fastest Cloudflare Workers
-    // can allow so that the route time is as close to under 1ms as possible. Which
-    // is why we put this route handler first before all other processing.
+    // So we want to respond to this route the absolute fastest Cloudflare Workers can
+    // allow so that the route time is as close to under 1ms as possible. Which is why
+    // we put this route handler first before all other processing.
     //
     // Used by `synchronized_system_clock.ts`.
     //
@@ -152,9 +152,9 @@ async function handleFetch(
     if (
         appStaticManifestPaths.has(url.pathname) ||
         url.pathname.startsWith("/assets/") ||
-        // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we
-        // used Vite for compilation. Can remove once clients that expect static assets
-        // under `/build` no longer exist.
+        // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we used
+        // Vite for compilation. Can remove once clients that expect static assets under
+        // `/build` no longer exist.
         url.pathname.startsWith("/build/")
     ) {
         // In development, static assets are served by `serve-static` middleware in
@@ -188,17 +188,17 @@ async function handleFetch(
         object.writeHttpMetadata(headers);
         headers.set("etag", object.httpEtag);
 
-        // Remix fingerprints its assets so we can cache them forever. Other assets
-        // (like `favicon.ico`) are cached for a day then can be updated.
+        // Remix fingerprints its assets so we can cache them forever. Other assets (like
+        // `favicon.ico`) are cached for a day then can be updated.
         //
-        // We manually version our font assets so fonts can be cached forever too. If
-        // we need to update a font the file name will change.
+        // We manually version our font assets so fonts can be cached forever too. If we
+        // need to update a font the file name will change.
         if (
             url.pathname.startsWith("/fonts/") ||
             url.pathname.startsWith("/assets/") ||
-            // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we
-            // used Vite for compilation. Can remove once clients that expect static assets
-            // under `/build` no longer exist.
+            // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we used
+            // Vite for compilation. Can remove once clients that expect static assets under
+            // `/build` no longer exist.
             url.pathname.startsWith("/build/")
         ) {
             // - `public`: Means we can store the asset in a shared cache since they don't
@@ -211,8 +211,8 @@ async function handleFetch(
             //   depend on authorization.
             // - `max-age=86400`: The asset lives for one day.
             // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-            //   allowed to continue using it for a year as long as the cache revalidates
-            //   the asset in the background.
+            //   allowed to continue using it for a year as long as the cache revalidates the
+            //   asset in the background.
             headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
         }
 
@@ -224,10 +224,9 @@ async function handleFetch(
         return response;
     }
 
-    // Optimization: In development, any requests that load a resource from Vite
-    // should go directly to `AppService` and skip tracing. Without this, a
-    // significant number of Honeycomb events come from Vite requests in
-    // development environments.
+    // Optimization: In development, any requests that load a resource from Vite should
+    // go directly to `AppService` and skip tracing. Without this, a significant number
+    // of Honeycomb events come from Vite requests in development environments.
     if (process.env.NODE_ENV === "development" && url.pathname.startsWith("/vite/")) {
         // eslint-disable-next-line cyberworlds/no-global-fetch
         return fetch(request);
@@ -239,9 +238,9 @@ async function handleFetch(
     if (!streamName && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
 
-    // Create a new tracer for every request because we need a Honeycomb client and
-    // the Honeycomb client needs `executionContext.waitUntil()` which is request
-    // scoped. Tracers are cheap to construct so this is fine.
+    // Create a new tracer for every request because we need a Honeycomb client and the
+    // Honeycomb client needs `executionContext.waitUntil()` which is request scoped.
+    // Tracers are cheap to construct so this is fine.
     const tracer = createServerTracer({
         serviceName: "EdgeService",
         jsHost: "CloudflareWorker",
@@ -284,8 +283,8 @@ async function handleFetch(
             route = {type: "File", spaceId: pathSegments[0], fileId: pathSegments[1]};
         }
     } else if (url.pathname === "/meet-caleb") {
-        // NOTE(calebmer, 2026-01-14): Temporary route we can send people to book a
-        // meeting on my calendar. Eventually we'll probably want to delete this.
+        // NOTE(calebmer, 2026-01-14): Temporary route we can send people to book a meeting
+        // on my calendar. Eventually we'll probably want to delete this.
         routeString = "/meet-caleb";
         route = {type: "MeetCaleb"};
     } else if (!url.pathname.startsWith("/api/")) {
@@ -449,7 +448,8 @@ async function handleFetch(
                 responseHeaders.set("strict-transport-security", "max-age=3600; includeSubDomains");
             }
 
-            // If the initial response is a WebSocket, return a new response with the WebSocket and a null body.
+            // If the initial response is a WebSocket, return a new response with the WebSocket
+            // and a null body.
             const response = initialResponse.webSocket
                 ? new Response(null, {
                       status: initialResponse.status,
@@ -564,8 +564,8 @@ async function actuallyHandleFetch(
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                // Return the client's IP address as seen by Cloudflare. Used during sign in
-                // and sign up to record the IP address of the current session in our database.
+                // Return the client's IP address as seen by Cloudflare. Used during sign in and
+                // sign up to record the IP address of the current session in our database.
                 return new Response(getRequestIpAddress(request), {
                     status: 200,
                     headers: {"content-type": "plain/text"},
@@ -711,8 +711,8 @@ async function actuallyHandleFetch(
             }
 
             case "LoadTaskQueries": {
-                // Can't forward a request to upgrade to a WebSocket connection to
-                // this endpoint of `TaskRealtimeService`.
+                // Can't forward a request to upgrade to a WebSocket connection to this endpoint of
+                // `TaskRealtimeService`.
                 if (request.headers.has("upgrade"))
                     throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
 
@@ -758,8 +758,8 @@ async function actuallyHandleFetch(
                           sessionCookieToken.accountId,
                       )
                     : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                      // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                      // to simplify code.
+                      // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                      // simplify code.
                       await taskRealtimeServiceRouter.getRandomHost(routerContext, spaceId);
 
                 if (process.env.NODE_ENV !== "production") {
@@ -806,10 +806,10 @@ async function actuallyHandleFetch(
                     Context.new({
                         tracer: new TracerContextModule(span),
                         batch: BatchContextModule.new(),
-                        // These upload file endpoints can't do anything harmful with a revoked
-                        // session. Sure they can upload files to R2 but as soon as we try to make an
-                        // RPC call to `AppService` it'll fail because we check if the session was
-                        // revoked in `AppService`.
+                        // These upload file endpoints can't do anything harmful with a revoked session.
+                        // Sure they can upload files to R2 but as soon as we try to make an RPC call to
+                        // `AppService` it'll fail because we check if the session was revoked in
+                        // `AppService`.
                         actor: SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
                             "AppService",
                             sessionId,
@@ -891,11 +891,12 @@ async function actuallyHandleFetch(
                 }
             }
 
-            //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
-            // NOTE(calebmer, 2024-09-26): A minor optimization here would be to move file
-            // serving to its own subdomain. For example, `static.alpine.inc`. That way the
-            // browser wouldn't send session cookies to the subdomain. We use signed URLs
-            // to authorize file requests, we don't need cookies.
+            // TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've
+            // moved file serving to the files edge service NOTE(calebmer, 2024-09-26): A minor
+            // optimization here would be to move file serving to its own subdomain. For
+            // example, `static.alpine.inc`. That way the browser wouldn't send session cookies
+            // to the subdomain. We use signed URLs to authorize file requests, we don't need
+            // cookies.
             case "File": {
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // `FileProcessorService`. All WebSocket connection routes are enumerated above.
@@ -905,33 +906,33 @@ async function actuallyHandleFetch(
                 return fetchFile(executionContext, env, tokenAgent, request, url, span, route);
             }
 
-            //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
-            // NOTE(calebmer, 2024-10-03): The `/files/cors-proxy/:url` route is used when
-            // pasting files in content where we find that the file's source is some URL
-            // outside our space (e.g. an `<img>` with a `src` tag pointing to some domain
-            // that's not ours like https://unsplash.com). For these files we load the URL
-            // on the client then send it to `FileProcessorService` to save in our databases.
+            // TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've
+            // moved file serving to the files edge service NOTE(calebmer, 2024-10-03): The
+            // `/files/cors-proxy/:url` route is used when pasting files in content where we
+            // find that the file's source is some URL outside our space (e.g. an `<img>` with
+            // a `src` tag pointing to some domain that's not ours like https://unsplash.com).
+            // For these files we load the URL on the client then send it to
+            // `FileProcessorService` to save in our databases.
             //
-            // However, CORS is an issue here. The browser won't let us make HTTP requests
-            // to domains from JavaScript that haven't explicitly allowed our domain in an
-            // `Access-Control-Allow-Origin` header. This route is our dubious workaround.
-            // We use `EdgeService` to proxy requests to arbitrary URLs so we can load them
-            // on the client.
+            // However, CORS is an issue here. The browser won't let us make HTTP requests to
+            // domains from JavaScript that haven't explicitly allowed our domain in an
+            // `Access-Control-Allow-Origin` header. This route is our dubious workaround. We
+            // use `EdgeService` to proxy requests to arbitrary URLs so we can load them on the
+            // client.
             //
-            // A better solution might be to fetch the file in `FileProcessorService` and
-            // save it to our database from there. However, I'm currently scared about the
-            // security impact of making network requests to arbitrary domains from our EC2
-            // instances given they're in public AWS VPC subnets. So the recipient of a
-            // network request from `FileProcessorService` can figure out the IP address of our
-            // server and perhaps start to devise attacks with that information.
+            // A better solution might be to fetch the file in `FileProcessorService` and save
+            // it to our database from there. However, I'm currently scared about the security
+            // impact of making network requests to arbitrary domains from our EC2 instances
+            // given they're in public AWS VPC subnets. So the recipient of a network request
+            // from `FileProcessorService` can figure out the IP address of our server and
+            // perhaps start to devise attacks with that information.
             //
-            // Instead we have this arbitrary `GET` request proxy in `EdgeService`. It
-            // also seems dubious to me that we'd expose this proxy capability almost
-            // completely unprotected. Could bad actors make use of a free internet proxy?
-            // I'm not sure.
+            // Instead we have this arbitrary `GET` request proxy in `EdgeService`. It also
+            // seems dubious to me that we'd expose this proxy capability almost completely
+            // unprotected. Could bad actors make use of a free internet proxy? I'm not sure.
             //
-            // Anyway, CORS is annoying. This approach may be a little dubious but it
-            // works. We'll improve it later.
+            // Anyway, CORS is annoying. This approach may be a little dubious but it works.
+            // We'll improve it later.
             case "FileCorsProxy": {
                 if (request.headers.has("upgrade")) {
                     throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
@@ -953,11 +954,11 @@ async function actuallyHandleFetch(
                 }
 
                 // Let's make sure the request has a valid session cookie at least. Notably, we
-                // don't check to see whether the session is still valid. So a bad actor could
-                // be using a session cookie we've revoked and still access this endpoint.
+                // don't check to see whether the session is still valid. So a bad actor could be
+                // using a session cookie we've revoked and still access this endpoint.
                 //
-                // At least this makes this endpoint a little annoying for a bad actor to use
-                // even if it doesn't really provide any meaningful protection.
+                // At least this makes this endpoint a little annoying for a bad actor to use even
+                // if it doesn't really provide any meaningful protection.
                 const sessionCookieToken = await getSessionCookieIfExists({
                     tokenAgent,
                     cookieNameSuffix: assertExists(
@@ -983,9 +984,9 @@ async function actuallyHandleFetch(
                     headers: proxyHeaders,
                 });
 
-                // Don't allow the proxied domain to set cookies with the `set-cookie` header.
-                // This feels like it could be an attack vector though I can't currently think
-                // of an attack that would use this ability.
+                // Don't allow the proxied domain to set cookies with the `set-cookie` header. This
+                // feels like it could be an attack vector though I can't currently think of an
+                // attack that would use this ability.
                 if (response.headers.has("set-cookie")) {
                     const responseHeaders = new Headers(response.headers);
                     responseHeaders.delete("set-cookie");
@@ -1011,8 +1012,8 @@ async function actuallyHandleFetch(
 
     cast<"AppService">(route);
 
-    // Can't forward a request to upgrade to a WebSocket connection to
-    // `AppService`. All WebSocket connection routes are enumerated above.
+    // Can't forward a request to upgrade to a WebSocket connection to `AppService`.
+    // All WebSocket connection routes are enumerated above.
     if (request.headers.has("upgrade")) {
         return new Response("400 Bad Request: Can\u2019t upgrade to WebSocket connection", {
             status: 400,
@@ -1043,23 +1044,22 @@ async function actuallyHandleFetch(
         span.addData({edge: {appServiceDurationMs: appServiceEndTime - appServiceStartTime}});
     }
 
-    // We retry some transient errors in `EdgeService`. Importantly, we want to
-    // retry AWS ALB 504 errors. Or if a DynamoDB request timed out. We retry RPC
-    // transient errors on the client (since retrying a batched RPC call in
-    // `EdgeService` is rough). However, Remix requests (either document loads
-    // directly from a browser or data requests on page navigation) we want to
-    // retry in `EdgeService`. Since we don't have client control over the web
-    // browser making the request!
+    // We retry some transient errors in `EdgeService`. Importantly, we want to retry
+    // AWS ALB 504 errors. Or if a DynamoDB request timed out. We retry RPC transient
+    // errors on the client (since retrying a batched RPC call in `EdgeService` is
+    // rough). However, Remix requests (either document loads directly from a browser
+    // or data requests on page navigation) we want to retry in `EdgeService`. Since we
+    // don't have client control over the web browser making the request!
     if (!response.ok && (await shouldRetryRequest(request, url, response))) {
         for (let attemptNumber = 1; attemptNumber <= 4; attemptNumber++) {
             response = await span.withSpan("Retry request", async span => {
                 {
                     const delayMs = Math.min(2 ** attemptNumber * 20, 1000 * 10);
 
-                    // We add jitter to our exponential backoff so that many requests retried at
-                    // the same time do not cause the same resource contention which may have
-                    // caused the errors in the first place.
-                    // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
+                    // We add jitter to our exponential backoff so that many requests retried at the
+                    // same time do not cause the same resource contention which may have caused the
+                    // errors in the first place. See:
+                    // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
                     const delayMsWithJitter = Math.floor(Math.random() * delayMs);
 
                     span.addData({common: {delayDurationMs: delayMsWithJitter}});
@@ -1085,9 +1085,9 @@ async function actuallyHandleFetch(
         // If we've exhausted all retries then we'll use the last response.
     }
 
-    // If AWS ALB returns a 504 it's usually because the request timed out. Convert
-    // ALB 504 HTML errors into a format our systems understand instead of the
-    // default `text/html` format from AWS ALB.
+    // If AWS ALB returns a 504 it's usually because the request timed out. Convert ALB
+    // 504 HTML errors into a format our systems understand instead of the default
+    // `text/html` format from AWS ALB.
     //
     // See: https://repost.aws/knowledge-center/504-error-alb
     if (response.status === 504) {
@@ -1096,9 +1096,9 @@ async function actuallyHandleFetch(
         response = create504Response(url, error);
     }
 
-    // Replace the `/*` route string with the route parsed by `AppService`. Given
-    // the edge service span is usually the root span in our trace, having a more
-    // specific span name is nice for our instrumentation tools.
+    // Replace the `/*` route string with the route parsed by `AppService`. Given the
+    // edge service span is usually the root span in our trace, having a more specific
+    // span name is nice for our instrumentation tools.
     const actualRoute = response.headers.get("cyberworlds-route");
     if (actualRoute?.startsWith("/")) {
         span.addData({
@@ -1114,8 +1114,8 @@ async function actuallyHandleFetch(
         );
     }
 
-    // For HTML requests, include edge server timing information. We use this on
-    // the client to synchronize our client time with the server time. See
+    // For HTML requests, include edge server timing information. We use this on the
+    // client to synchronize our client time with the server time. See
     // `synchronized_system_clock.ts`.
     if (response.headers.get("content-type")?.includes("text/html")) {
         // `fetch()` responses are immutable so we need to clone to add a new header...
@@ -1234,10 +1234,10 @@ async function shouldRetryRequest(
     // Remix's client error response checker function:
     // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-react/data.ts#L15-L17
     //
-    // TODO(calebmer): We should probably retry Remix data requests on the client
-    // (like we do for RPC calls) and only retry Remix document (`text/html`)
-    // requests in `EdgeService` since we don't have client control over...the web
-    // browser's URL input bar.
+    // TODO(calebmer): We should probably retry Remix data requests on the client (like
+    // we do for RPC calls) and only retry Remix document (`text/html`) requests in
+    // `EdgeService` since we don't have client control over...the web browser's URL
+    // input bar.
     if (url.searchParams.has("_data") && response.headers.get("x-remix-error") != null) {
         const clonedResponse = response.clone();
 
@@ -1249,18 +1249,18 @@ async function shouldRetryRequest(
         return isTransientError(error);
     }
 
-    // `entry.server.tsx` sets this header if the response contains a transient
-    // error. Will be set on `text/html` responses whose bodies we can't reasonably
-    // parse here.
+    // `entry.server.tsx` sets this header if the response contains a transient error.
+    // Will be set on `text/html` responses whose bodies we can't reasonably parse
+    // here.
     return response.headers.get("cyberworlds-transient-error") === "yes";
 }
 
 // eslint-disable-next-line import/no-default-export
 export default {fetch: handleFetch};
 
-// We deploy our durable objects with our edge service but we think of our
-// durable objects as logically different services. We could choose in the
-// future to deploy them as separate Cloudflare Workers.
+// We deploy our durable objects with our edge service but we think of our durable
+// objects as logically different services. We could choose in the future to deploy
+// them as separate Cloudflare Workers.
 //
 // We refer to the Cloudflare Worker which proxies our `AppService` as
 // `EdgeService`. We refer to the broader collection of services owned by

@@ -1,6 +1,6 @@
 /**
- * Wait for all the data from a `ReadableStream` and return the data
- * concatenated into one `Uint8Array`.
+ * Wait for all the data from a `ReadableStream` and return the data concatenated
+ * into one `Uint8Array`.
  */
 export async function waitForReadableStreamUint8Array(
     stream: ReadableStream<Uint8Array>,

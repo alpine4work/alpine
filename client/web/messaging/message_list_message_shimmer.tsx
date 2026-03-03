@@ -7,8 +7,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";
 
-// We repeat sizes to make them appear more frequently when randomly selecting
-// a size.
+// We repeat sizes to make them appear more frequently when randomly selecting a
+// size.
 const messageShimmerSizes: Array<{
     width: Spacing;
     heightLines: number;
@@ -98,8 +98,8 @@ export function MessageListMessageShimmer<Message extends MessageModel>({
         stableRandom.randomFloat("size", index - 1, 1) < shouldMergeMessageShimmerProbability;
 
     // Set shimmer start times to the same value. That way shimmers rendered at
-    // different times (because they entered the virtualization window) will have
-    // the same animation timeline.
+    // different times (because they entered the virtualization window) will have the
+    // same animation timeline.
     useLayoutEffectWithoutServerSideWarning(() => {
         const shimmerElement = assertExists(shimmerRef.current);
         for (const animation of shimmerElement.getAnimations()) {

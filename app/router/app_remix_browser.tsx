@@ -32,15 +32,15 @@ let routerInitialized = false;
 let hmrAbortController: AbortController | undefined;
 let hmrRouterReadyResolve: ((router: Router) => void) | undefined;
 // There's a race condition with HMR where the remix:manifest is signaled before
-// the router is assigned in the RemixBrowser component. This promise gates the
-// HMR handler until the router is ready
+// the router is assigned in the RemixBrowser component. This promise gates the HMR
+// handler until the router is ready
 const hmrRouterReadyPromise = new Promise<Router>(resolve => {
-    // body of a promise is executed immediately, so this can be resolved outside
-    // of the promise body
+    // body of a promise is executed immediately, so this can be resolved outside of
+    // the promise body
     hmrRouterReadyResolve = resolve;
 }).catch(() => {
-    // This is a noop catch handler to avoid unhandled promise rejection warnings
-    // in the console. The promise is never rejected.
+    // This is a noop catch handler to avoid unhandled promise rejection warnings in
+    // the console. The promise is never rejected.
     return undefined;
 });
 
@@ -99,8 +99,8 @@ if (import.meta && import.meta.hot) {
                                     id,
                                     {
                                         ...imported,
-                                        // react-refresh takes care of updating these in-place,
-                                        // if we don't preserve existing values we'll loose state.
+                                        // react-refresh takes care of updating these in-place, if we don't preserve
+                                        // existing values we'll loose state.
                                         default: imported.default
                                             ? (window.__remixRouteModules[id]?.default ??
                                               imported.default)
@@ -135,13 +135,12 @@ if (import.meta && import.meta.hot) {
             // This is temporary API and will be more granular before release
             router._internalSetRoutes(routes);
 
-            // Wait for router to be idle before updating the manifest and route modules
-            // and triggering a react-refresh
+            // Wait for router to be idle before updating the manifest and route modules and
+            // triggering a react-refresh
             const unsubscribe = router.subscribe(state => {
                 if (state.revalidation === "idle") {
                     unsubscribe();
-                    // Abort if a new update comes in while we're waiting for the
-                    // router to be idle.
+                    // Abort if a new update comes in while we're waiting for the router to be idle.
                     if (signal.aborted) return;
                     // Ensure RouterProvider setState has flushed before re-rendering
                     setTimeout(() => {
@@ -159,22 +158,22 @@ if (import.meta && import.meta.hot) {
 /**
  * This is a fork of the [`<RemixBrowser>` component in `@remix-run/react`][1].
  *
- * We forked this component to add support for our native mobile router. We've
- * also simplified some some bits we don't need.
+ * We forked this component to add support for our native mobile router. We've also
+ * simplified some some bits we don't need.
  *
- * [1]: https://github.com/remix-run/remix/blob/a94303c7f812fdb9118d8dad065837c4a825efb8/packages/remix-react/browser.tsx#L189-L416
+ * [1]:
+ *     https://github.com/remix-run/remix/blob/a94303c7f812fdb9118d8dad065837c4a825efb8/packages/remix-react/browser.tsx#L189-L416
  */
 export function AppRemixBrowser({
     isNativeMobile,
 }: RemixBrowserProps & {isNativeMobile: boolean}): ReactElement {
     if (!router) {
-        // Hard reload if the path we tried to load is not the current path.
-        // This is usually the result of 2 rapid back/forward clicks from an
-        // external site into a Remix app, where we initially start the load for
-        // one URL and while the JS chunks are loading a second forward click moves
-        // us to a new URL.  Avoid comparing search params because of CDNs which
-        // can be configured to ignore certain params and only pathname is relevant
-        // towards determining the route matches.
+        // Hard reload if the path we tried to load is not the current path. This is
+        // usually the result of 2 rapid back/forward clicks from an external site into a
+        // Remix app, where we initially start the load for one URL and while the JS chunks
+        // are loading a second forward click moves us to a new URL. Avoid comparing search
+        // params because of CDNs which can be configured to ignore certain params and only
+        // pathname is relevant towards determining the route matches.
         const initialPathname = window.__remixContext.url;
         const hydratedPathname = window.location.pathname;
         if (initialPathname !== hydratedPathname && !window.__remixContext.isSpaMode) {
@@ -184,13 +183,13 @@ export function AppRemixBrowser({
             // eslint-disable-next-line no-console
             console.error(errorMsg);
             window.location.reload();
-            // Get out of here so the reload can happen - don't create the router
-            // since it'll then kick off unnecessary route.lazy() loads
+            // Get out of here so the reload can happen - don't create the router since it'll
+            // then kick off unnecessary route.lazy() loads
             return <></>;
         }
 
         // When single fetch is enabled, we need to suspend until the initial state
-        // snapshot is decoded into window.__remixContext.state
+        // snapshot is decoded into window.\_\_remixContext.state
         if (window.__remixContext.future.unstable_singleFetch) {
             // NOTE(calebmer): We don't currently use `unstable_singleFetch`.
             throw new UnimplementedError("`unstable_singleFetch` not supported");
@@ -208,11 +207,11 @@ export function AppRemixBrowser({
             throw new UnimplementedError("`isSpaMode` not supported");
         }
 
-        // Create a shallow clone of `loaderData` we can mutate for partial hydration.
-        // When a route exports a `clientLoader` and a `HydrateFallback`, the SSR will
-        // render the fallback so we need the client to do the same for hydration.
-        // The server loader data has already been exposed to these route `clientLoader`'s
-        // in `createClientRoutes` above, so we need to clear out the version we pass to
+        // Create a shallow clone of `loaderData` we can mutate for partial hydration. When
+        // a route exports a `clientLoader` and a `HydrateFallback`, the SSR will render
+        // the fallback so we need the client to do the same for hydration. The server
+        // loader data has already been exposed to these route `clientLoader`'s in
+        // `createClientRoutes` above, so we need to clear out the version we pass to
         // `createBrowserRouter` so it initializes and runs the client loaders.
         const hydrationData = {
             ...window.__remixContext.state,
@@ -224,8 +223,9 @@ export function AppRemixBrowser({
                 const routeId = match.route.id;
                 const route = window.__remixRouteModules[routeId];
                 const manifestRoute = window.__remixManifest.routes[routeId];
-                // Clear out the loaderData to avoid rendering the route component when the
-                // route opted into clientLoader hydration and either:
+                // Clear out the loaderData to avoid rendering the route component when the route
+                // opted into clientLoader hydration and either:
+                //
                 // - gave us a HydrateFallback
                 // - or doesn't have a server loader and we have no data to render
                 if (
@@ -239,11 +239,10 @@ export function AppRemixBrowser({
                 ) {
                     hydrationData.loaderData[routeId] = undefined;
                 } else if (manifestRoute && !manifestRoute.hasLoader) {
-                    // Since every Remix route gets a `loader` on the client side to load
-                    // the route JS module, we need to add a `null` value to `loaderData`
-                    // for any routes that don't have server loaders so our partial
-                    // hydration logic doesn't kick off the route module loaders during
-                    // hydration
+                    // Since every Remix route gets a `loader` on the client side to load the route JS
+                    // module, we need to add a `null` value to `loaderData` for any routes that don't
+                    // have server loaders so our partial hydration logic doesn't kick off the route
+                    // module loaders during hydration
                     hydrationData.loaderData[routeId] = null;
                 }
             }
@@ -269,8 +268,8 @@ export function AppRemixBrowser({
             hydrationData,
         });
 
-        // We can call initialize() immediately if the router doesn't have any
-        // loaders to run on hydration
+        // We can call initialize() immediately if the router doesn't have any loaders to
+        // run on hydration
         if (router.state.initialized) {
             routerInitialized = true;
             router.initialize();
@@ -300,8 +299,8 @@ export function AppRemixBrowser({
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useLayoutEffectWithoutServerSideWarning(() => {
-        // If we had to run clientLoaders on hydration, we delay initialization until
-        // after we've hydrated to avoid hydration issues from synchronous client loaders
+        // If we had to run clientLoaders on hydration, we delay initialization until after
+        // we've hydrated to avoid hydration issues from synchronous client loaders
         if (!routerInitialized) {
             routerInitialized = true;
             router!.initialize();

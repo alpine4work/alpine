@@ -10,8 +10,8 @@ export const NotionImporterTable = DynamoTableSchema.new({
     name: "NotionImporter",
     partitions: [
         /**
-         * Tracks individual Notion import operations. Each import represents a
-         * user uploading a Notion zip export file.
+         * Tracks individual Notion import operations. Each import represents a user
+         * uploading a Notion zip export file.
          */
         {
             name: "Import",

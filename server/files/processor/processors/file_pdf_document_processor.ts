@@ -31,9 +31,9 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
- * Create a file processor for PDF files. We process PDF files with `sharp`. We
- * use a [custom `sharp` build][1] that includes [PDFium from Chrome][2] to
- * render PDFs. Only the first page of the PDF is rendered.
+ * Create a file processor for PDF files. We process PDF files with `sharp`. We use
+ * a [custom `sharp` build][1] that includes [PDFium from Chrome][2] to render
+ * PDFs. Only the first page of the PDF is rendered.
  *
  * [1]: https://github.com/cyberworlds/sharp-libvips
  * [2]: https://pdfium.googlesource.com/pdfium
@@ -147,11 +147,11 @@ export function processPdfDocumentFile(
                     throw new InternalError("Couldn\u2019t find `width` or `height` of image file");
                 }
 
-                // We produce a JPEG preview image that's 2x bigger than the source PDF. This
-                // is so when viewing the preview image on a retina display with a scale factor
-                // of 2 it looks the same as if we directly rendered the document. Zooming in
-                // on the preview image won't look good since fundamentally we're taking a
-                // vector format (PDF) and converting it to a raster format (JPEG).
+                // We produce a JPEG preview image that's 2x bigger than the source PDF. This is so
+                // when viewing the preview image on a retina display with a scale factor of 2 it
+                // looks the same as if we directly rendered the document. Zooming in on the
+                // preview image won't look good since fundamentally we're taking a vector format
+                // (PDF) and converting it to a raster format (JPEG).
                 const scale = 2;
 
                 return {
@@ -161,22 +161,20 @@ export function processPdfDocumentFile(
                     hasAlpha: metadata.hasAlpha ?? false,
                 };
             } catch (error) {
-                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an
-                // error message for password protected PDFs. Our
+                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an error
+                // message for password protected PDFs. Our
                 // `py_pdf_sample_libreoffice_write_password.pdf` test in
-                // `file_processor_content_types.test.ts` observes occasional failures where we
-                // get the truncated error message "Input buffer has corrupt header: " instead
-                // of the full "Input buffer has corrupt header: pdfload: password required or
-                // incorrect password". So when we detect a truncated error message from
-                // `sharp` let's retry the `metadata()` call up to 10 times until we get a real
-                // error message.
+                // `file_processor_content_types.test.ts` observes occasional failures where we get
+                // the truncated error message "Input buffer has corrupt header: " instead of the
+                // full "Input buffer has corrupt header: pdfload: password required or incorrect
+                // password". So when we detect a truncated error message from `sharp` let's retry
+                // the `metadata()` call up to 10 times until we get a real error message.
                 //
-                // `previewContentPromise`'s `sharp` call is also flaky in this regard. We
-                // don't add a retry there because if we throw a proper `PermissionDeniedError`
-                // here (with a display message) and `previewContentPromise` throws a flaky
+                // `previewContentPromise`'s `sharp` call is also flaky in this regard. We don't
+                // add a retry there because if we throw a proper `PermissionDeniedError` here
+                // (with a display message) and `previewContentPromise` throws a flaky
                 // `InvalidArgumentError` then `getAggregateErrorPriority()` will pick the
-                // `PermissionDeniedError` as the error to throw since it has a
-                // `displayMessage`.
+                // `PermissionDeniedError` as the error to throw since it has a `displayMessage`.
                 //
                 // Code in `sharp` where this error message is created:
                 // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417
@@ -264,22 +262,23 @@ export function processPdfDocumentFile(
 
                 sharpInstance = sharpInstance
                     // AVIF is our preferred format for generating preview images ([source][1],
-                    // [source][2]). AVIF has full browser support, provides better compression
-                    // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+                    // [source][2]). AVIF has full browser support, provides better compression than
+                    // JPEG and WebP, and has alpha channel support (unlike JPEG).
                     //
                     // Quality 80 since:
                     //
                     // - The preview's dimensions are already 2x the original file's
-                    // - We only use this when previewing the file, when viewing the file we use a
-                    //   full PDF renderer
+                    // - We only use this when previewing the file, when viewing the file we use a full
+                    //   PDF renderer
                     //
                     // We want some compression since the extra storage cost of the preview file is
                     // bourne by us.
                     //
-                    // If we need lossless images we should use WebP instead since [AVIF is worse
-                    // at lossless compression][3].
+                    // If we need lossless images we should use WebP instead since [AVIF is worse at
+                    // lossless compression][3].
                     //
-                    // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                    // [1]:
+                    //     https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
                     // [2]: https://jakearchibald.com/2020/avif-has-landed
                     // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
                     .toFormat("avif", {quality: 80});

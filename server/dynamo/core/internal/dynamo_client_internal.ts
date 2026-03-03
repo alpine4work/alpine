@@ -1,5 +1,5 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// the `aws4fetch` module for executing any AWS commands.
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use the `aws4fetch`
+// module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client_get_item_test_counter.js";
@@ -52,24 +52,22 @@ function printDynamoClientDebugItemTypesForErrorMessage(
 }
 
 /**
- * Type-safe DynamoDB client. We initially created this abstraction when our
- * app server ran in Cloudflare Workers so couldn't use the AWS SDK. Now we
- * probably still need this class (because it implements tracing) but we can
- * call the AWS SDK directly.
+ * Type-safe DynamoDB client. We initially created this abstraction when our app
+ * server ran in Cloudflare Workers so couldn't use the AWS SDK. Now we probably
+ * still need this class (because it implements tracing) but we can call the AWS
+ * SDK directly.
  *
- * This DynamoDB client directly executes DynamoDB actions without
- * modification. The `DynamoClient` class provides a more JavaScript friendly
- * interface to DynamoDB with batching, pagination, and camelCase names instead
- * of PascalCase.
+ * This DynamoDB client directly executes DynamoDB actions without modification.
+ * The `DynamoClient` class provides a more JavaScript friendly interface to
+ * DynamoDB with batching, pagination, and camelCase names instead of PascalCase.
  */
-// NOTE(calebmer): Originally, all our server code ran on Cloudflare Workers
-// which could not use the AWS SDK. That means we had to use `aws4fetch` to
-// make requests to DynamoDB. Now that all our code that runs against DynamoDB
-// is in Node.js we could use the AWS SDK for DynamoDB but a migration doesn't
-// make sense for now.
+// NOTE(calebmer): Originally, all our server code ran on Cloudflare Workers which
+// could not use the AWS SDK. That means we had to use `aws4fetch` to make requests
+// to DynamoDB. Now that all our code that runs against DynamoDB is in Node.js we
+// could use the AWS SDK for DynamoDB but a migration doesn't make sense for now.
 //
-// This class abstraction is still useful because it adds tracing. Maybe it's
-// also slightly more efficient since it's so low level?
+// This class abstraction is still useful because it adds tracing. Maybe it's also
+// slightly more efficient since it's so low level?
 //
 // If/when we migrate there may be some retries we've had to manually implement
 // that the SDK does automatically we'd have to sus out.
@@ -90,8 +88,8 @@ export class DynamoClientInternal {
     }
 
     private async _execute<Input = never, Output = unknown>(
-        // Must pass in a `retry` function since we want to create a new span every
-        // retry attempt.
+        // Must pass in a `retry` function since we want to create a new span every retry
+        // attempt.
         retry: (error?: unknown) => never,
         span: TracerSpan,
         action: DynamoClientAction,
@@ -116,9 +114,9 @@ export class DynamoClientInternal {
 
         const abortController = new AbortController();
 
-        // As of 2025-11-17 our p99 for error free requests is 85ms. We set a timeout
-        // of 500ms so that we fail fast if something has gone wrong. Clients will
-        // retry failed requests.
+        // As of 2025-11-17 our p99 for error free requests is 85ms. We set a timeout of
+        // 500ms so that we fail fast if something has gone wrong. Clients will retry
+        // failed requests.
         const abortTimeout = !this.isLocal()
             ? createTimeout(() => {
                   abortController.abort(new DeadlineExceededError("DynamoDB request timed out"));
@@ -126,9 +124,9 @@ export class DynamoClientInternal {
                   // TODO(calebmer, 2025-12-03): Ideally this would be 500ms. Extending since it
                   // seems like DynamoDB is having a bad day.
               }, 2000)
-            : // Don't set a DynamoDB request timeout if we're using local DynamoDB. Poor CPU bound
-              // SQLite based local DynamoDB can take longer than 500ms in CI when the CPU is under
-              // heavy load.
+            : // Don't set a DynamoDB request timeout if we're using local DynamoDB. Poor CPU
+              // bound SQLite based local DynamoDB can take longer than 500ms in CI when the CPU
+              // is under heavy load.
               null;
 
         try {
@@ -152,10 +150,10 @@ export class DynamoClientInternal {
         const output: any = await response.json();
 
         if (response.status !== 200) {
-            // When talking to production DynamoDB (vs local DynamoDB), error types are of
-            // the form `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`
-            // instead of `TransactionCanceledException`. Remove the version number so we
-            // just have the error type.
+            // When talking to production DynamoDB (vs local DynamoDB), error types are of the
+            // form `com.amazonaws.dynamodb.v20120810#TransactionCanceledException` instead of
+            // `TransactionCanceledException`. Remove the version number so we just have the
+            // error type.
             if (typeof output.__type === "string" && output.__type.includes("#")) {
                 output.__type = output.__type.split("#")[1];
             }
@@ -175,18 +173,19 @@ export class DynamoClientInternal {
 
             const error = classifyDynamoError(output);
 
-            // The AWS SDK normally handles error retrying automatically but since we make
-            // a direct HTTP request we need to implement retries ourselves.
+            // The AWS SDK normally handles error retrying automatically but since we make a
+            // direct HTTP request we need to implement retries ourselves.
             //
             // > If you're not using an AWS SDK, you should retry original requests that
             // > receive server errors (5xx). However, client errors (4xx, other than a
-            // > `ThrottlingException` or a `ProvisionedThroughputExceededException`)
-            // > indicate that you need to revise the request itself to correct the problem
-            // > before trying again.
+            // > `ThrottlingException` or a `ProvisionedThroughputExceededException`) indicate
+            // > that you need to revise the request itself to correct the problem before
+            // > trying again.
             //
             // ([Source][1])
             //
-            // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
+            // [1]:
+            //     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
             if (
                 (response.status >= 500 && response.status < 600) ||
                 output.__type === "ProvisionedThroughputExceededException" ||
@@ -204,7 +203,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`GetItem`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
     public GetItem(
         tracer: TracerBase,
@@ -263,8 +263,8 @@ export class DynamoClientInternal {
                         throw error;
                     } else {
                         // In production, log an error but let the method return like normal. In case a
-                        // developer accidentally forgot to make a read strong consistency it's
-                        // probably fine to log a warning without breaking the product.
+                        // developer accidentally forgot to make a read strong consistency it's probably
+                        // fine to log a warning without breaking the product.
                         span.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
@@ -277,7 +277,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`BatchGetItem`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public BatchGetItem(
         tracer: TracerBase,
@@ -362,8 +363,8 @@ export class DynamoClientInternal {
                         throw error;
                     } else {
                         // In production, log an error but let the method return like normal. In case a
-                        // developer accidentally forgot to make a read strong consistency it's
-                        // probably fine to log a warning without breaking the product.
+                        // developer accidentally forgot to make a read strong consistency it's probably
+                        // fine to log a warning without breaking the product.
                         span.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
@@ -376,7 +377,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`PutItem`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
     public PutItem(
         tracer: TracerBase,
@@ -427,7 +429,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`DeleteItem`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
     public DeleteItem(
         tracer: TracerBase,
@@ -478,7 +481,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`BatchWriteItem`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public BatchWriteItem(
         tracer: TracerBase,
@@ -552,7 +556,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`TransactWriteItems`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public TransactWriteItems(
         tracer: TracerBase,
@@ -643,9 +648,9 @@ export class DynamoClientInternal {
                     types.TransactWriteItemsOutput
                 >(retry, span, "TransactWriteItems", {
                     ...input,
-                    // Make sure to include a `ClientRequestToken` in case the underlying
-                    // `aws4fetch` module retries the transaction. If we were using the AWS SDK
-                    // this would be handled for us. See:
+                    // Make sure to include a `ClientRequestToken` in case the underlying `aws4fetch`
+                    // module retries the transaction. If we were using the AWS SDK this would be
+                    // handled for us. See:
                     // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-best-practices
                     ClientRequestToken: input.ClientRequestToken ?? generateId(),
                     ReturnConsumedCapacity: "INDEXES",
@@ -668,7 +673,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`TransactGetItems`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
      */
     public TransactGetItems(
         tracer: TracerBase,
@@ -733,7 +739,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`Query`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
     public Query(
         tracer: TracerBase,
@@ -816,8 +823,8 @@ export class DynamoClientInternal {
                         throw error;
                     } else {
                         // In production, log an error but let the method return like normal. In case a
-                        // developer accidentally forgot to make a read strong consistency it's
-                        // probably fine to log a warning without breaking the product.
+                        // developer accidentally forgot to make a read strong consistency it's probably
+                        // fine to log a warning without breaking the product.
                         span.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
@@ -830,7 +837,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`Scan`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
     public Scan(tracer: TracerBase, input: types.ScanInput): Promise<types.ScanOutput> {
         return retryWithExponentialBackoff(retry => {
@@ -888,7 +896,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`CreateTable`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CreateTable.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CreateTable.html
      */
     public CreateTable(
         tracer: TracerBase,
@@ -924,7 +933,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`DescribeTable`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeTable.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeTable.html
      */
     public DescribeTable(
         tracer: TracerBase,
@@ -958,7 +968,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`DescribeTimeToLive`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeTimeToLive.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeTimeToLive.html
      */
     public DescribeTimeToLive(
         tracer: TracerBase,
@@ -992,7 +1003,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`UpdateTable`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTable.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTable.html
      */
     public UpdateTable(
         tracer: TracerBase,
@@ -1026,7 +1038,8 @@ export class DynamoClientInternal {
     /**
      * DynamoDB [`UpdateTimeToLive`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTimeToLive.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTimeToLive.html
      */
     public UpdateTimeToLive(
         tracer: TracerBase,
@@ -1075,8 +1088,8 @@ function getConsumedCapacityTracerEventData(
 
     const add = (consumedCapacity: types.ConsumedCapacity, key: string | null) => {
         if (key === null) {
-            // If our event data schema does not support consumed capacity for this table
-            // name then don't return any consumed capacity info.
+            // If our event data schema does not support consumed capacity for this table name
+            // then don't return any consumed capacity info.
             if (
                 !consumedCapacity.TableName ||
                 !tracerEventDataDynamoConsumedCapacityKeys.has(consumedCapacity.TableName)
@@ -1093,8 +1106,8 @@ function getConsumedCapacityTracerEventData(
                     )) {
                         const tableAndIndexName = `${consumedCapacity.TableName}_${indexName}`;
 
-                        // If this is an unrecognized index name then bail out. Don't add its
-                        // consumed capacities.
+                        // If this is an unrecognized index name then bail out. Don't add its consumed
+                        // capacities.
                         if (!tracerEventDataDynamoConsumedCapacityKeys.has(tableAndIndexName)) {
                             continue;
                         }
@@ -1108,9 +1121,9 @@ function getConsumedCapacityTracerEventData(
             key = consumedCapacity.TableName;
         }
 
-        // DynamoDB appears to use `CapacityUnits` to mean something different
-        // depending on the action. So we depend on the action giving us a hint on how
-        // to interpret an unqualified `CapacityUnits`.
+        // DynamoDB appears to use `CapacityUnits` to mean something different depending on
+        // the action. So we depend on the action giving us a hint on how to interpret an
+        // unqualified `CapacityUnits`.
         const readCapacityUnits =
             consumedCapacity.ReadCapacityUnits ??
             (capacityUnitsHint === "Read" ? consumedCapacity.CapacityUnits : undefined) ??

@@ -166,8 +166,8 @@ function TaskCollectionsInput(
         [],
     );
 
-    // Preload task collections the account has an affinity for in case they open
-    // the collections dropdown.
+    // Preload task collections the account has an affinity for in case they open the
+    // collections dropdown.
     usePreloadSearchTaskCollectionsByAffinity({isDisabled: isReadOnly});
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
@@ -210,8 +210,8 @@ function TaskCollectionsInput(
     });
 
     const comboBoxProps: ComboBoxStateOptions<TaskCollectionComboBoxItem> = {
-        // We need to know whether the combobox is open or not to decide whether we
-        // should load collection items.
+        // We need to know whether the combobox is open or not to decide whether we should
+        // load collection items.
         onOpenChange: setShouldLoadItems,
 
         menuTrigger: "focus",
@@ -238,10 +238,10 @@ function TaskCollectionsInput(
         },
 
         onBlur: event => {
-            // Chrome dispatches a "fake" blur event when the user has an element focused
-            // but then clicks on another window, focusing that window but leaving our
-            // current window visible. `blur` is dispatched but `document.activeElement`
-            // doesn't change!
+            // Chrome dispatches a "fake" blur event when the user has an element focused but
+            // then clicks on another window, focusing that window but leaving our current
+            // window visible. `blur` is dispatched but `document.activeElement` doesn't
+            // change!
             //
             // Detect this case. If we receive a `blur` event but `document.activeElement`
             // hasn't changed then escalate to a real blur.
@@ -250,13 +250,14 @@ function TaskCollectionsInput(
             }
 
             // If we're focusing an element with a popup (`role="combobox"` [implicitly has
-            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
-            // focused element will probably open its popup.
+            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly focused
+            // element will probably open its popup.
             //
             // This happens when you have this input open then switch to another input by
             // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
             //
-            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            // [1]:
+            //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
             const disableAnimationOut =
                 event.relatedTarget instanceof HTMLElement
                     ? (event.relatedTarget.ariaHasPopup ??
@@ -272,14 +273,14 @@ function TaskCollectionsInput(
         items: items ?? emptyArray,
         children: renderTaskCollectionComboBoxItem,
 
-        // No key is ever selected by the combobox. Instead when a selection occurs we
-        // add it to a list of selected values.
+        // No key is ever selected by the combobox. Instead when a selection occurs we add
+        // it to a list of selected values.
         selectedKey: null,
         onSelectionChange: key => {
             if (typeof key !== "string") return;
 
-            // Currently, accounts without space access can't edit tasks. The max
-            // permission level of `urlGrant` is `View`.
+            // Currently, accounts without space access can't edit tasks. The max permission
+            // level of `urlGrant` is `View`.
             assert(currentAccount);
 
             const shouldReturnFocusToInput = getInteractionModality() !== "pointer";
@@ -297,8 +298,8 @@ function TaskCollectionsInput(
                 );
 
                 // `flushSync()` so the `commitActionTransaction()` call (which updates some
-                // `useSyncExternalStore()`s) and React state updates render together and we
-                // don't get UI tearing.
+                // `useSyncExternalStore()`s) and React state updates render together and we don't
+                // get UI tearing.
                 flushSync(() => {
                     if (shouldReturnFocusToInput) {
                         setInputState(inputState => {
@@ -326,8 +327,8 @@ function TaskCollectionsInput(
                                     collections.getLastOrderKey(),
                                     null,
                                 ),
-                                // Provide the collection model to the store. It might be out of date. The
-                                // server will backfill the new collection once our action has been committed.
+                                // Provide the collection model to the store. It might be out of date. The server
+                                // will backfill the new collection once our action has been committed.
                                 referencedCollection: item.collectionResult.collection,
                             },
                         },
@@ -352,8 +353,8 @@ function TaskCollectionsInput(
                     const collectionId = generateId<TaskCollectionId>();
 
                     // `flushSync()` so the `commitActionTransaction()` call (which updates some
-                    // `useSyncExternalStore()`s) and React state updates render together and we
-                    // don't get UI tearing.
+                    // `useSyncExternalStore()`s) and React state updates render together and we don't
+                    // get UI tearing.
                     flushSync(() => {
                         if (shouldReturnFocusToInput) {
                             setInputState(inputState => {
@@ -439,8 +440,8 @@ function TaskCollectionsInput(
                         setInteractionModality("keyboard");
                         break;
                     }
-                    // If we are at the beginning of the combobox text input, the backspace key
-                    // will delete the last collection.
+                    // If we are at the beginning of the combobox text input, the backspace key will
+                    // delete the last collection.
                     case "Backspace": {
                         if (
                             displayCollections.length > 0 &&
@@ -467,8 +468,8 @@ function TaskCollectionsInput(
                         }
                         break;
                     }
-                    // If we are at the beginning of the combobox text input, the arrow left key
-                    // will focus a previously selected account if we have one.
+                    // If we are at the beginning of the combobox text input, the arrow left key will
+                    // focus a previously selected account if we have one.
                     case "ArrowLeft": {
                         if (
                             collectionRefs.length > 0 &&
@@ -492,10 +493,9 @@ function TaskCollectionsInput(
                         }
                         break;
                     }
-                    // If the user presses `ArrowUp` they probably got here by pressing `ArrowDown`
-                    // on a collection chip. `ArrowUp` will return them to the previous collection
-                    // chip if they're pressing Cmd-ArrowUp or they don't currently have a selected
-                    // option.
+                    // If the user presses `ArrowUp` they probably got here by pressing `ArrowDown` on
+                    // a collection chip. `ArrowUp` will return them to the previous collection chip if
+                    // they're pressing Cmd-ArrowUp or they don't currently have a selected option.
                     case "ArrowUp": {
                         if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                             event.preventDefault();
@@ -580,17 +580,15 @@ function TaskCollectionsInput(
     // When our collections input opens on mobile we need to scroll it into view if
     // it's rendered offscreen.
     //
-    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task
-    // date input is focused. Since that hooks is designed to avoid the mobile
-    // keyboard when the mobile keyboard opens. However, if the mobile keyboard is
-    // already open and the user focuses a date input then we still need to scroll
-    // the date input into view. Instead of competing with
-    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` we fully implement scroll
-    // logic for when the date input is focused here.
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task date
+    // input is focused. Since that hooks is designed to avoid the mobile keyboard when
+    // the mobile keyboard opens. However, if the mobile keyboard is already open and
+    // the user focuses a date input then we still need to scroll the date input into
+    // view. Instead of competing with `useScrollToAvoidBottomBarsAndMobileKeyboard()`
+    // we fully implement scroll logic for when the date input is focused here.
     //
-    // We have a hook that does basically the same thing in
-    // `<TaskDateInput>`. If you make a change here you should also probably make a
-    // change there.
+    // We have a hook that does basically the same thing in `<TaskDateInput>`. If you
+    // make a change here you should also probably make a change there.
     const lastIsOpenRef = useRef(comboBoxState.isOpen);
     useEffect(() => {
         if (lastIsOpenRef.current === comboBoxState.isOpen) return;
@@ -624,8 +622,8 @@ function TaskCollectionsInput(
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
-            // NOTE(calebmer, #mobile-webkit-weirdness): For some reason, and I have truly
-            // no idea, in Safari (but not in the native app!) when we call
+            // NOTE(calebmer, #mobile-webkit-weirdness): For some reason, and I have truly no
+            // idea, in Safari (but not in the native app!) when we call
             // `getBoundingClientRect()` for overlay here it gives us the position before
             // Popper.js positioning is applied. But if we call `getBoundingClientRect()`
             // directly in the effect all is fine...
@@ -648,8 +646,8 @@ function TaskCollectionsInput(
         };
 
         // This effect needs to run after `NativeMobileBridge` calls
-        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
-        // avoid the keyboard.
+        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly avoid
+        // the keyboard.
         const cleanup = subscribeToMobileKeyboardFrameChange(() => {
             cleanup();
             timeout.clear();
@@ -697,8 +695,8 @@ function TaskCollectionsInput(
                     }
                     break;
                 }
-                // Arrow keys navigate through selected accounts. Only the first selected
-                // account is focusable since you use arrow keys to navigate between accounts.
+                // Arrow keys navigate through selected accounts. Only the first selected account
+                // is focusable since you use arrow keys to navigate between accounts.
                 case "ArrowLeft": {
                     event.preventDefault();
                     event.stopPropagation();
@@ -718,8 +716,8 @@ function TaskCollectionsInput(
                     }
                     break;
                 }
-                // Arrow keys navigate through selected accounts. Only the first selected
-                // account is focusable since you use arrow keys to navigate between accounts.
+                // Arrow keys navigate through selected accounts. Only the first selected account
+                // is focusable since you use arrow keys to navigate between accounts.
                 case "ArrowRight": {
                     event.preventDefault();
                     event.stopPropagation();
@@ -737,9 +735,9 @@ function TaskCollectionsInput(
                     }
                     break;
                 }
-                // Navigate to the collection chip directly below this one. If there are
-                // multiple collection chips below this one then we pick the one closest to our
-                // current collection chip.
+                // Navigate to the collection chip directly below this one. If there are multiple
+                // collection chips below this one then we pick the one closest to our current
+                // collection chip.
                 case "ArrowDown": {
                     event.preventDefault();
                     event.stopPropagation();
@@ -822,9 +820,9 @@ function TaskCollectionsInput(
                     }
                     break;
                 }
-                // Navigate to the collection chip directly above this one. If there are
-                // multiple collection chips above this one then we pick the one closest to our
-                // current collection chip.
+                // Navigate to the collection chip directly above this one. If there are multiple
+                // collection chips above this one then we pick the one closest to our current
+                // collection chip.
                 case "ArrowUp": {
                     event.preventDefault();
                     event.stopPropagation();
@@ -892,9 +890,9 @@ function TaskCollectionsInput(
                     break;
                 }
                 default: {
-                    // If the user presses a letter then interpret that as the user trying to
-                    // replace the focused account. So delete the selected account and add the text
-                    // to our search input.
+                    // If the user presses a letter then interpret that as the user trying to replace
+                    // the focused account. So delete the selected account and add the text to our
+                    // search input.
                     if (
                         /^[0-9a-zA-Z]$/.test(event.key) &&
                         // cmd-z and cmd-shift-z shouldn't remove collection. But shift-z should.
@@ -933,11 +931,11 @@ function TaskCollectionsInput(
                     ref={collectionRefs[index]}
                     overflow="hidden"
                     height={taskCollectionChipHeight}
-                    // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field
-                    // input should have a height of 4. Use negative margin to position correctly.
+                    // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field input
+                    // should have a height of 4. Use negative margin to position correctly.
                     marginY={{desktop: "-0.5", mobile: "-1.5"}}
-                    // Use horizontal margin to properly align collection ships vertically with
-                    // other detail view input fields like assignee and due date.
+                    // Use horizontal margin to properly align collection ships vertically with other
+                    // detail view input fields like assignee and due date.
                     marginLeft="-0.5"
                     borderRadius={taskCollectionChipBorderRadius}
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
@@ -945,8 +943,8 @@ function TaskCollectionsInput(
                 >
                     <TaskCollectionChip
                         collection={collection}
-                        // The first selected account is focusable via tab and you can use arrow keys
-                        // to focus the others.
+                        // The first selected account is focusable via tab and you can use arrow keys to
+                        // focus the others.
                         tabIndex={isReadOnly ? undefined : index === 0 && isTabbable ? 0 : -1}
                         onPress={() => {
                             navigate(`/s/${space.id}/tasks/collections/${collection.id}`);
@@ -1037,8 +1035,8 @@ function TaskCollectionsInput(
                 <Box
                     overflow="hidden"
                     height={taskCollectionChipHeight}
-                    // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field
-                    // input should have a height of 4. Use negative margin to position correctly.
+                    // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field input
+                    // should have a height of 4. Use negative margin to position correctly.
                     marginY={{desktop: "-0.5", mobile: "-1.5"}}
                     marginLeft="-0.5"
                     borderRadius={taskCollectionChipBorderRadius}
@@ -1058,8 +1056,8 @@ function TaskCollectionsInput(
                             }
                         }}
                         onConfirm={inputValue => {
-                            // Currently, accounts without space access can't edit tasks. The max
-                            // permission level of `urlGrant` is `View`.
+                            // Currently, accounts without space access can't edit tasks. The max permission
+                            // level of `urlGrant` is `View`.
                             assert(currentAccount);
 
                             const collectionId = generateId<TaskCollectionId>();
@@ -1128,13 +1126,13 @@ function TaskCollectionsInput(
                     // flipping horizontally but still allow flipping vertically.
                     //
                     // Don't allow flipping vertically on mobile. Instead
-                    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` should kick in to make sure
-                    // the overlay is visible.
+                    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` should kick in to make sure the
+                    // overlay is visible.
                     fallbackPlacements={platform !== "mobile" ? ["top-start"] : []}
-                    // The overlay blocks interaction with everything outside the overlay. Except
-                    // the combobox input. We still want to render the overlay in our current
-                    // overlay scope so that it animates smoothly with scroll animations (important
-                    // on mobile when we need to avoid the keyboard).
+                    // The overlay blocks interaction with everything outside the overlay. Except the
+                    // combobox input. We still want to render the overlay in our current overlay scope
+                    // so that it animates smoothly with scroll animations (important on mobile when we
+                    // need to avoid the keyboard).
                     isBlocking={true}
                     withoutRootBlockingScope={true}
                     withoutBlockingTarget={true}
@@ -1142,12 +1140,12 @@ function TaskCollectionsInput(
                         if (document.activeElement instanceof HTMLElement)
                             document.activeElement.blur();
                     }}
-                    // Set a constant `overflowBottom` value instead of relying on the current
-                    // keyboard height (which will be updated asynchronously after `isEditing` is
-                    // true). This stops the overlay placement from jumping around while the
-                    // keyboard opens. The value was calculated based on the keyboard height in
-                    // iOS. We may need to change this constant if the keyboard height for iOS
-                    // changes or the Android keyboard height is bigger.
+                    // Set a constant `overflowBottom` value instead of relying on the current keyboard
+                    // height (which will be updated asynchronously after `isEditing` is true). This
+                    // stops the overlay placement from jumping around while the keyboard opens. The
+                    // value was calculated based on the keyboard height in iOS. We may need to change
+                    // this constant if the keyboard height for iOS changes or the Android keyboard
+                    // height is bigger.
                     overflowBottom={platform === "mobile" ? "18rem" : undefined}
                     overflowTop={navigationBarHeight}
                     overlay={
@@ -1186,12 +1184,12 @@ function TaskCollectionsInput(
                             height={inputTouchSlop.sizeWithSlop}
                             paddingY={inputTouchSlop.slop}
                             marginY={`-${inputTouchSlop.slop}`}
-                            // The width of this element is determined by nested text boxes when `inline`.
-                            // The `<input>` then uses the parent width as its own width.
+                            // The width of this element is determined by nested text boxes when `inline`. The
+                            // `<input>` then uses the parent width as its own width.
                             //
                             // We don't use `<InputWithAutoGrowingWidth>` because we want to render a custom
-                            // icon with the placeholder. Though our implementation here should closely
-                            // follow `<InputWithAutoGrowingWidth>`.
+                            // icon with the placeholder. Though our implementation here should closely follow
+                            // `<InputWithAutoGrowingWidth>`.
                             display="inline-block"
                             onKeyDown={event => {
                                 if (event.key === "Escape") {
@@ -1271,17 +1269,17 @@ function TaskCollectionsInput(
                                                 : undefined,
                                     }}
                                     // By default `<input>` elements have a `min-width` determined by the `size`
-                                    // property. We want our `<input>`s `min-width` to be determined by our CSS
-                                    // so set it to a small value as not to matter.
+                                    // property. We want our `<input>`s `min-width` to be determined by our CSS so set
+                                    // it to a small value as not to matter.
                                     // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
                                     size={1}
                                     // Use `aria-placeholder` since the placeholder text is rendered by another DOM
                                     // element with an icon.
                                     aria-placeholder={inputPlaceholder}
                                     // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
-                                    // disables these capabilities because the user has combobox suggestions.
-                                    // However, fixing typos at the OS level when typos are common (like on iOS)
-                                    // is really useful.
+                                    // disables these capabilities because the user has combobox suggestions. However,
+                                    // fixing typos at the OS level when typos are common (like on iOS) is really
+                                    // useful.
                                     autoCorrect={undefined}
                                     spellCheck={undefined}
                                     onKeyDown={event => {
@@ -1291,15 +1289,16 @@ function TaskCollectionsInput(
                                         ) {
                                             // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                             // whenever `Enter` is pressed][1] whether or not an option is focused. If an
-                                            // option isn't focused this just closes the combobox and leaves the user
-                                            // confused. Is what they typed the new value or not? It's not, you can tell
-                                            // since the avatar doesn't change. This is particularly confusing on mobile
-                                            // where the user may hit the return key expecting the first value in the menu
-                                            // to be selected. But that won't happen, the menu will just close.
+                                            // option isn't focused this just closes the combobox and leaves the user confused.
+                                            // Is what they typed the new value or not? It's not, you can tell since the avatar
+                                            // doesn't change. This is particularly confusing on mobile where the user may hit
+                                            // the return key expecting the first value in the menu to be selected. But that
+                                            // won't happen, the menu will just close.
                                             //
                                             // So intercept this case and don't call into `@react-aria/combobox`.
                                             //
-                                            // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                            // [1]:
+                                            //     https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
                                         } else {
                                             inputProps.onKeyDown?.(event);
                                         }
@@ -1427,8 +1426,8 @@ function TaskCollectionInputCreateCollectionInput({
                     title="Save collection"
                     description="Would you like to save your new collection?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

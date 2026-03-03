@@ -321,9 +321,9 @@ export function ContentEditorMobileKeyboardSubstitute({
                         selectionMarks={selectionMarks}
                         activeHighlightMark={activeHighlightMark}
                         onLinkModalOpen={onLinkModalOpen}
-                        // No animation when switching to the highlight selector. iOS has no animation
-                        // when switching keyboard types. I promise following platform convention is
-                        // the reason, not that I'm lazy.
+                        // No animation when switching to the highlight selector. iOS has no animation when
+                        // switching keyboard types. I promise following platform convention is the reason,
+                        // not that I'm lazy.
                         onHighlightSelectorOpen={() => setVariant("HighlightStyle")}
                         onSelectHighlightColor={selectHighlightColor}
                     />
@@ -343,8 +343,8 @@ export function ContentEditorMobileKeyboardSubstitute({
                 )}
             </Box>
         </Box>,
-        // Portal into the root element so we aren't affected by whatever scroll view
-        // this is rendered in.
+        // Portal into the root element so we aren't affected by whatever scroll view this
+        // is rendered in.
         portalElement,
     );
 }
@@ -445,16 +445,16 @@ function ContentEditorMobileKeyboardSubstituteStyles({
         <Box
             flexGrow="1"
             paddingBottom={
-                // If there are fewer available styles, add some padding to the end so the
-                // existing style buttons aren't too big.
+                // If there are fewer available styles, add some padding to the end so the existing
+                // style buttons aren't too big.
                 !schema.marks.highlight && !schema.nodes.checkListItem ? "4" : undefined
             }
             style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(2, 1fr)",
                 gridTemplateRows:
-                    // We need different grid layouts depending on the available styles. Documents
-                    // need 6 rows whereas task notes only need 5 rows.
+                    // We need different grid layouts depending on the available styles. Documents need
+                    // 6 rows whereas task notes only need 5 rows.
                     !schema.marks.highlight && !schema.nodes.checkListItem
                         ? "repeat(5, 1fr)"
                         : "repeat(6, 1fr)",
@@ -497,8 +497,8 @@ function ContentEditorMobileKeyboardSubstituteStyles({
                     contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver ??=
                         createPromiseResolver();
 
-                    // Blurring the editor should close our keyboard substitute so our closing
-                    // promise animation resolves.
+                    // Blurring the editor should close our keyboard substitute so our closing promise
+                    // animation resolves.
                     view.dom.blur();
 
                     const {text: selectionText, isEditable: isSelectionEditable} =
@@ -785,8 +785,8 @@ function ContentEditorMobileKeyboardSubstituteHighlightStyleButton({
             <Box
                 style={{
                     // CSS trick: Padding and margin percentages are always based on element width.
-                    // Even when setting `padding-bottom` or `margin-bottom`. In this case it
-                    // allows us to create a square when the width is dynamic.
+                    // Even when setting `padding-bottom` or `margin-bottom`. In this case it allows us
+                    // to create a square when the width is dynamic.
                     paddingBottom: "100%",
                 }}
             />
@@ -851,16 +851,16 @@ function ContentEditorMobileKeyboardSubstituteInsert({
             ref={containerRef}
             flexGrow="1"
             paddingBottom={
-                // If there are fewer available styles, add some padding to the end so the
-                // existing style buttons aren't too big.
+                // If there are fewer available styles, add some padding to the end so the existing
+                // style buttons aren't too big.
                 hasFewerRows ? "4" : undefined
             }
             style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(2, 1fr)",
                 gridTemplateRows:
-                    // We need different grid layouts depending on the available styles. Documents
-                    // need 6 rows whereas task notes only need 5 rows.
+                    // We need different grid layouts depending on the available styles. Documents need
+                    // 6 rows whereas task notes only need 5 rows.
                     hasFewerRows ? "repeat(5, 1fr)" : "repeat(6, 1fr)",
                 gridAutoFlow: "column",
                 // Simple border down the middle with gradient. Solution inspired by:
@@ -873,8 +873,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                 label="Image"
                 onPress={() => {
                     // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
-                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
-                    // usually updated in a `flushSync()`.
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is usually
+                    // updated in a `flushSync()`.
                     flushSync(() => {
                         setSelectingFilesCount(n => n + 1);
 
@@ -897,8 +897,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                 label="Video"
                 onPress={() => {
                     // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
-                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
-                    // usually updated in a `flushSync()`.
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is usually
+                    // updated in a `flushSync()`.
                     flushSync(() => {
                         setSelectingFilesCount(n => n + 1);
 
@@ -921,8 +921,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                 label="Audio"
                 onPress={() => {
                     // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
-                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
-                    // usually updated in a `flushSync()`.
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is usually
+                    // updated in a `flushSync()`.
                     flushSync(() => {
                         setSelectingFilesCount(n => n + 1);
 
@@ -945,8 +945,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                 label="File"
                 onPress={() => {
                     // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
-                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
-                    // usually updated in a `flushSync()`.
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is usually
+                    // updated in a `flushSync()`.
                     flushSync(() => {
                         setSelectingFilesCount(n => n + 1);
 

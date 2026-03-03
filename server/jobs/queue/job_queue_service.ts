@@ -137,8 +137,8 @@ export async function run({
 }) {
     const jobQueueUrl = assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option");
 
-    // In development, wait for our local SQS server to start before starting
-    // the `JobQueueService`.
+    // In development, wait for our local SQS server to start before starting the
+    // `JobQueueService`.
     {
         const parsedJobQueueUrl = new URL(jobQueueUrl);
         if (parsedJobQueueUrl.hostname === "localhost") {
@@ -216,8 +216,8 @@ export async function run({
                   ),
               );
 
-    // In tests, don't send push notifications. Otherwise in development and
-    // production set up a connection pool to APNs so we can send notifications.
+    // In tests, don't send push notifications. Otherwise in development and production
+    // set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
     if (isTestNodeEnvOrAdminScenariosScript) {
         apnsContextModule = new TestApnsContextModule();
@@ -254,8 +254,8 @@ export async function run({
                 options.slackClientSecret,
                 "`slackClientSecret` option is required in production",
             ),
-            // We do not currently set a `slackAuthRedirectOrigin` option in production,
-            // so this will default to the edge service URL.
+            // We do not currently set a `slackAuthRedirectOrigin` option in production, so
+            // this will default to the edge service URL.
             authRedirectOrigin: options.slackAuthRedirectOrigin ?? edgeServiceUrl,
         });
     } else {
@@ -297,8 +297,8 @@ export async function run({
                   return new GithubContextModule(auth.hook.bind(auth));
               })();
 
-    // TODO(calebmer): Scheduler context module implementation in development when
-    // we need it in development.
+    // TODO(calebmer): Scheduler context module implementation in development when we
+    // need it in development.
     const schedulerContextModule =
         process.env.NODE_ENV !== "production"
             ? new UnimplementedSchedulerContextModule()

@@ -98,8 +98,8 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
     const clientInfo = context.loader.getClientInfo();
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [channel, {inboxEntry, posts, initialCommentsByPostId}] = await runAllPromises([
@@ -139,9 +139,8 @@ export default function ChannelPostsRouteWrapper() {
         inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
-    // While you're viewing new posts in a channel, this accrues affinity points to
-    // the channel. Since you're taking time to pay attention to what's new in a
-    // channel.
+    // While you're viewing new posts in a channel, this accrues affinity points to the
+    // channel. Since you're taking time to pay attention to what's new in a channel.
     useSearchAffinityViewEntityInteraction(`Channel:${channel.model.id}`);
 
     const inboxContext = useInboxContext();
@@ -223,8 +222,8 @@ function ChannelPostsRoute({
         initialCommentsByPostId,
     } = useLoaderDataWithSchema(LoaderSchema);
 
-    // Shouldn't have loaded initial comments since all the posts should have
-    // collapsed comments.
+    // Shouldn't have loaded initial comments since all the posts should have collapsed
+    // comments.
     assert(initialCommentsByPostId.size === 0);
 
     const channelId = initialChannel.model.id;
@@ -273,9 +272,9 @@ function ChannelPostsRoute({
         setArchivedPostIds(() => expectedArchivedPostIds);
     }
 
-    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
-    // expanded comments on mobile. So make sure to close them all.
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+    // in a new route. `<PostListView>` will throw if you pass in `posts` with expanded
+    // comments on mobile. So make sure to close them all.
     if (platform === "mobile" && posts.hasOpenPostComments()) {
         setPosts(posts => posts.closeAllPostComments());
     }
@@ -291,15 +290,15 @@ function ChannelPostsRoute({
         return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
             if (event.entryKey !== inboxEntry.key) return;
 
-            // Wait for our inbox entry to update in realtime. The realtime update event
-            // may happen after `promise` resolves.
+            // Wait for our inbox entry to update in realtime. The realtime update event may
+            // happen after `promise` resolves.
             const waitPromise = waitForExpectedArchivedPostIds(archivedPostIds =>
                 archivedPostIds.has(event.postId),
             );
 
-            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
-            // if there's a new `latestPost` we don't know the new `contentTextSnippet` on
-            // the client.
+            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because if
+            // there's a new `latestPost` we don't know the new `contentTextSnippet` on the
+            // client.
             setArchivedPostIdsOptimistically(
                 event.promise.then(() => waitPromise).then(() => true),
                 (archivedPostIds, promiseValue) => {
@@ -331,8 +330,8 @@ function ChannelPostsRoute({
                 postId,
             });
 
-            // If we're viewing new entries and by archiving this `postId` we've archived
-            // all posts in the entry then navigate to the next entry.
+            // If we're viewing new entries and by archiving this `postId` we've archived all
+            // posts in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
                 (inboxEntry.model instanceof InboxPostCommentsEntryModel
@@ -360,15 +359,15 @@ function ChannelPostsRoute({
                 reporter.displayError("Couldn\u2019t move notification to new", error);
             });
 
-            // Wait for our inbox entry to update in realtime. The realtime update event
-            // may happen after `promise` resolves.
+            // Wait for our inbox entry to update in realtime. The realtime update event may
+            // happen after `promise` resolves.
             const waitPromise = waitForExpectedArchivedPostIds(
                 archivedPostIds => !archivedPostIds.has(postId),
             );
 
-            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
-            // if there's a new `latestPost` we don't know the new `contentTextSnippet` on
-            // the client.
+            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because if
+            // there's a new `latestPost` we don't know the new `contentTextSnippet` on the
+            // client.
             setArchivedPostIdsOptimistically(
                 promise.then(() => waitPromise).then(() => true),
                 (archivedPostIds, promiseValue) => {
@@ -415,8 +414,8 @@ function ChannelPostsRoute({
             onOptimisticPostRealtimeEventTransaction={useCallback(
                 (promise, postId, update) => {
                     setPostsOptimistically(promise, (posts, promiseValue) => {
-                        // Once `promise` resolves, use the event transaction from `promise` to update
-                        // the posts instead of our optimistic updater.
+                        // Once `promise` resolves, use the event transaction from `promise` to update the
+                        // posts instead of our optimistic updater.
                         if (promiseValue) {
                             return posts.handleEventTransaction(promiseValue);
                         }
@@ -428,8 +427,8 @@ function ChannelPostsRoute({
                         const newPostItem = {
                             ...oldPostItem,
                             // Always pretend like our optimistic update is one version higher than what's
-                            // currently in state. Once `promise` resolves then we'll update the item with
-                            // the real version.
+                            // currently in state. Once `promise` resolves then we'll update the item with the
+                            // real version.
                             version: oldPostItem.version + 1,
                             model: newPost,
                         };
@@ -446,8 +445,8 @@ function ChannelPostsRoute({
             // `navigationBar`.
             withSafeAreaInsetTop={platform !== "mobile"}
             isPostArchived={useMemo(() => {
-                // If this route was initially archived, we only let you "unarchive" the entry
-                // as a whole. You can't unarchive individual posts.
+                // If this route was initially archived, we only let you "unarchive" the entry as a
+                // whole. You can't unarchive individual posts.
                 if (initialIsArchived) return;
 
                 return (postId: PostId) => archivedPostIds.has(postId);

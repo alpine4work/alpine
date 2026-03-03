@@ -39,8 +39,8 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const createChannel = defineRpc({
     name: "createChannel",
-    // Fails if the channel already exists (when `channelId` is provided).
-    // Generates a new `channelId` otherwise.
+    // Fails if the channel already exists (when `channelId` is provided). Generates a
+    // new `channelId` otherwise.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),

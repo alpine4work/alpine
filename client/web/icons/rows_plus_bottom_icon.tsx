@@ -1,8 +1,8 @@
 import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
-// TODO(calebmer, #phosphor-v2): The updated `<RowsPlusBottom>` icon is in
-// Phosphor v2. Upgrading to v2 looks difficult so for now, inlining the SVG.
+// TODO(calebmer, #phosphor-v2): The updated `<RowsPlusBottom>` icon is in Phosphor
+// v2. Upgrading to v2 looks difficult so for now, inlining the SVG.
 export function RowsPlusBottomIcon({
     color,
     size,
@@ -32,8 +32,8 @@ export function RowsPlusBottomIcon({
             viewBox="0 0 256 256"
             fill={color ?? contextColor}
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: size ?? contextSize,
                 height: size ?? contextSize,

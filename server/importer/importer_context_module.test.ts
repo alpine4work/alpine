@@ -16,7 +16,9 @@ import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-/** Creates a mock body with the transformToByteArray method that the S3 SDK uses. */
+/**
+ * Creates a mock body with the transformToByteArray method that the S3 SDK uses.
+ */
 function createMockBody(data: Uint8Array): SdkStreamMixin {
     return {
         transformToByteArray: async () => data,
@@ -57,8 +59,8 @@ describe("ImporterContextModule", () => {
     const testBucketName = "test-import-uploads-bucket";
 
     // Note: createPresignedUploadUrl cannot be unit tested with a mock S3 client
-    // because getSignedUrl from @aws-sdk/s3-request-presigner requires a real
-    // S3Client with credential resolution. Integration tests should cover this.
+    // because getSignedUrl from @aws-sdk/s3-request-presigner requires a real S3Client
+    // with credential resolution. Integration tests should cover this.
 
     describe("readUploadedFile", () => {
         test("returns file contents from S3", async () => {
@@ -369,7 +371,8 @@ describe("ImporterContextModuleDevelopment", () => {
             expect(forked).toBeInstanceOf(ImporterDevelopmentContextModule);
             expect(forked).not.toBe(module);
 
-            // Verify they share the same workspace by writing through one and reading through other
+            // Verify they share the same workspace by writing through one and reading through
+            // other
             const testData = new Uint8Array([1, 2, 3]);
             module.writeUploadedFile("fork-test", testData);
 

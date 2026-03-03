@@ -111,8 +111,8 @@ export function SearchModal({
 
     // Immediately focus the search input.
     //
-    // If the search input has some text (e.g. from the URL) then we select that
-    // text so the user can immediately start a new search.
+    // If the search input has some text (e.g. from the URL) then we select that text
+    // so the user can immediately start a new search.
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -135,8 +135,8 @@ export function SearchModal({
         initialPeekData: null,
     });
 
-    // If the `output` changes such that our selected peek is no longer in the
-    // output then:
+    // If the `output` changes such that our selected peek is no longer in the output
+    // then:
     //
     // - If the item after the selected peek in the previous output exists move our
     //   selection to that item (e.g. when removing a suggested item)
@@ -148,9 +148,9 @@ export function SearchModal({
 
         if (selectedPeek) {
             if (output.type === "EmptyQuery" && selectedPeek.extra.entityId === "SearchFavorites") {
-                // Don't navigate away from favorites when we're viewing the affinity query.
-                // That way if an update to favorites causes the "see all" button to disappear
-                // we won't abruptly navigate the user away.
+                // Don't navigate away from favorites when we're viewing the affinity query. That
+                // way if an update to favorites causes the "see all" button to disappear we won't
+                // abruptly navigate the user away.
             } else if (!hasSearchEntityId(output, selectedPeek.extra.entityId)) {
                 const nextEntityId = getNextSearchEntityId(
                     previousOutput,
@@ -184,10 +184,10 @@ export function SearchModal({
         !!output.results;
 
     // Whenever the user selects a search result, we record a high intent affinity
-    // interaction. This is because the user opening a result from search is super
-    // high signal that this is an entity they care about. In this way search is a
-    // self reinforcing system. The more a user selects an entity, the higher the
-    // entity will appear in the user's next search.
+    // interaction. This is because the user opening a result from search is super high
+    // signal that this is an entity they care about. In this way search is a self
+    // reinforcing system. The more a user selects an entity, the higher the entity
+    // will appear in the user's next search.
     const markResultSelectAffinityInteraction = useCallback(
         (entityId: SearchEntityId) => {
             if (!isSearchAffinityEntityId(entityId)) return;
@@ -197,8 +197,8 @@ export function SearchModal({
                 entityId,
                 interaction: {type: "HighIntentUpdate"},
             }).catch(error => {
-                // Silently fail. This doesn't affect anything the user sees so we don't need
-                // to report the error to the user.
+                // Silently fail. This doesn't affect anything the user sees so we don't need to
+                // report the error to the user.
                 reporter.logErrorWithoutDisplaying(
                     "Couldn\u2019t mark search result select affinity interaction",
                     error,
@@ -215,12 +215,12 @@ export function SearchModal({
         let entityId: SearchEntityId | null = null;
 
         if (!selectedPeek) {
-            // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults`
-            // is true and there's no selected result does not select the "see all" button.
-            // But pressing down will select the first favorite item then pressing up will
-            // select the "see all" button. This is because we believe keyboard navigation
-            // to the "see all" button is significantly less likely then navigating to the
-            // first favorite item.
+            // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults` is
+            // true and there's no selected result does not select the "see all" button. But
+            // pressing down will select the first favorite item then pressing up will select
+            // the "see all" button. This is because we believe keyboard navigation to the "see
+            // all" button is significantly less likely then navigating to the first favorite
+            // item.
             if (
                 output.type === "EmptyQuery" &&
                 output.favoriteResults &&
@@ -296,16 +296,16 @@ export function SearchModal({
             maxHeight={searchModalMaxHeight}
             borderRadius={withoutBorderRadiusForDev ? "none" : "2.5"}
             withoutCloseButton={true}
-            // Don't animate the search modal open. The search modal is generally opened by
-            // a user with direct intent to search. The search modal is a critical part of
-            // the Alpine workflow. Slowing down the search workflow for even a 200ms
-            // animation will make the product feel less snappy.
+            // Don't animate the search modal open. The search modal is generally opened by a
+            // user with direct intent to search. The search modal is a critical part of the
+            // Alpine workflow. Slowing down the search workflow for even a 200ms animation
+            // will make the product feel less snappy.
             withoutOpenAnimation={true}
             onClose={onClose}
         >
             {debugOptions && (
-                // Show a debug mode indicator when we're using debug options to search. Since
-                // we may not show explanation badges on search results.
+                // Show a debug mode indicator when we're using debug options to search. Since we
+                // may not show explanation badges on search results.
                 <Box
                     position="absolute"
                     top="2"
@@ -326,9 +326,9 @@ export function SearchModal({
             <GlobalKeyDownEvent
                 onGlobalKeyDown={event => {
                     switch (event.key) {
-                        // The first escape press should clear search. The second escape press should
-                        // close the modal. It's important that this `<GlobalKeyDownEvent>` is a child
-                        // of `<Modal>`! That way we run our escape handler first.
+                        // The first escape press should clear search. The second escape press should close
+                        // the modal. It's important that this `<GlobalKeyDownEvent>` is a child of
+                        // `<Modal>`! That way we run our escape handler first.
                         case "Escape": {
                             // Let `<Modal>` handle our keypress and close the modal.
                             if (queryText === "") break;
@@ -346,11 +346,11 @@ export function SearchModal({
                             // Ignore modified arrow up/down events like cmd-down which scrolls.
                             if (isModifiedKeyboardEvent(event)) break;
 
-                            // If focus is within a text input element (e.g. we have a document peek open)
-                            // then arrow key presses are for text editing.
+                            // If focus is within a text input element (e.g. we have a document peek open) then
+                            // arrow key presses are for text editing.
                             //
-                            // However, if focus is in our search input element then arrow key presses are
-                            // for navigation.
+                            // However, if focus is in our search input element then arrow key presses are for
+                            // navigation.
                             if (
                                 document.activeElement !== inputElement &&
                                 isTextInputElement(document.activeElement)
@@ -371,11 +371,11 @@ export function SearchModal({
                             // Ignore modified arrow up/down events like cmd-down which scrolls.
                             if (isModifiedKeyboardEvent(event)) break;
 
-                            // If focus is within a text input element (e.g. we have a document peek open)
-                            // then arrow key presses are for text editing.
+                            // If focus is within a text input element (e.g. we have a document peek open) then
+                            // arrow key presses are for text editing.
                             //
-                            // However, if focus is in our search input element then arrow key presses are
-                            // for navigation.
+                            // However, if focus is in our search input element then arrow key presses are for
+                            // navigation.
                             if (
                                 document.activeElement !== inputElement &&
                                 isTextInputElement(document.activeElement)
@@ -389,12 +389,12 @@ export function SearchModal({
                             // If nothing is selected, there's nothing to open.
                             if (!selectedPeek) break;
 
-                            // Open the selected peek when `Enter` is pressed. You've probably just
-                            // selected a peek with the keyboard.
+                            // Open the selected peek when `Enter` is pressed. You've probably just selected a
+                            // peek with the keyboard.
                             //
-                            // We check `event.shiftKey` because this determines whether we open in a peek
-                            // or navigate to full screen. Therefore we want the route not to open in a
-                            // peek if `event.shiftKey` is pressed.
+                            // We check `event.shiftKey` because this determines whether we open in a peek or
+                            // navigate to full screen. Therefore we want the route not to open in a peek if
+                            // `event.shiftKey` is pressed.
                             const spacePath = convertPeekPathToSpacePath(
                                 selectedPeek.history.location,
                                 {routeLayout: event.shiftKey ? "narrow" : "wide"},
@@ -548,8 +548,8 @@ export function SearchModal({
                                         width="border"
                                         backgroundColor="grey-5-translucent"
                                         style={{
-                                            // Render border 1px down so the two semi transparent borders don't conflict
-                                            // with each other creating a single pixel that's darker where they intersect.
+                                            // Render border 1px down so the two semi transparent borders don't conflict with
+                                            // each other creating a single pixel that's darker where they intersect.
                                             top: 1,
                                         }}
                                     />
@@ -626,9 +626,9 @@ const SearchModalInput = forwardRef(function SearchModalInput(
             zIndex="10"
             width="full"
             style={{
-                // Render border with a semi-transparent box shadow so that we get a nice
-                // soft shadow effect when content from the search result list scrolls under
-                // the border instead of a hard cutoff.
+                // Render border with a semi-transparent box shadow so that we get a nice soft
+                // shadow effect when content from the search result list scrolls under the border
+                // instead of a hard cutoff.
                 boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`,
             }}
         >
@@ -645,9 +645,9 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 }}
             />
             <input
-                // NOTE(calebmer): There's no `<FocusRing>` on this input or the search modal
-                // list since it should all be obviously keyboard navigable without needing
-                // extra affordance.
+                // NOTE(calebmer): There's no `<FocusRing>` on this input or the search modal list
+                // since it should all be obviously keyboard navigable without needing extra
+                // affordance.
                 ref={ref}
                 className={sprinkles({
                     display: "block",
@@ -728,8 +728,8 @@ function SearchModalResultList({
         if (lastSelectedResultIdRef.current === selectedPeek?.extra.entityId) return;
         lastSelectedResultIdRef.current = selectedPeek?.extra.entityId;
 
-        // When a new result is selected, make sure it is visible in our scroll window. Scroll to
-        // it if it is not visible.
+        // When a new result is selected, make sure it is visible in our scroll window.
+        // Scroll to it if it is not visible.
         if (selectedPeek?.extra.entityId) {
             view.scrollToKeyIfExists(selectedPeek.extra.entityId, {withAnchor: true});
         }
@@ -745,10 +745,10 @@ function SearchModalResultList({
                 routeLayout: "wide",
             });
 
-            // If the user double clicked there may be an ongoing pending transition
-            // started by `onPressStart`. Don't switch to that transition while we're
-            // waiting on a navigation. That'll look janky since the search modal will
-            // flash the new content right before the full page navigation.
+            // If the user double clicked there may be an ongoing pending transition started by
+            // `onPressStart`. Don't switch to that transition while we're waiting on a
+            // navigation. That'll look janky since the search modal will flash the new content
+            // right before the full page navigation.
             holdPeekTransition(
                 navigate(path).then(() => {
                     markResultSelectAffinityInteraction(result.id);
@@ -760,10 +760,10 @@ function SearchModalResultList({
             });
             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-            // If the user double clicked there may be an ongoing pending transition
-            // started by `onPressStart`. Don't switch to that transition while we're
-            // waiting on a navigation. That'll look janky since the search modal will
-            // flash the new content right before the full page navigation.
+            // If the user double clicked there may be an ongoing pending transition started by
+            // `onPressStart`. Don't switch to that transition while we're waiting on a
+            // navigation. That'll look janky since the search modal will flash the new content
+            // right before the full page navigation.
             holdPeekTransition(
                 navigate(spacePath).then(() => {
                     markResultSelectAffinityInteraction(result.id);
@@ -801,11 +801,11 @@ function SearchModalResultList({
                                 >
                                     Favorites
                                     {hasMoreFavoriteResults && (
-                                        // Intentionally using [U+2219 (bullet operator)][1] instead of
-                                        // [U+2022 (bullet)][2] since the former is thinner.
+                                        // Intentionally using [U+2219 (bullet operator)][1] instead of [U+2022
+                                        // (bullet)][2] since the former is thinner.
                                         //
-                                        // A bullet separator here is nicer than parentheses like "(see all)"
-                                        // since the parentheses draw a lot of attention.
+                                        // A bullet separator here is nicer than parentheses like "(see all)" since the
+                                        // parentheses draw a lot of attention.
                                         //
                                         // [1]: https://graphemica.com/%E2%88%99
                                         // [2]: https://graphemica.com/%E2%80%A2
@@ -858,10 +858,10 @@ function SearchModalResultList({
                             <SearchEntityView
                                 result={result}
                                 isSelected={result.id === selectedPeek?.extra.entityId}
-                                // We use `onPressStart` to select so the selected style is applied immediately.
-                                // We use the selected style to indicate interaction to the user instead of an
-                                // `isPressed` style. The benefit of using selection is the previous item loses
-                                // its style.
+                                // We use `onPressStart` to select so the selected style is applied immediately. We
+                                // use the selected style to indicate interaction to the user instead of an
+                                // `isPressed` style. The benefit of using selection is the previous item loses its
+                                // style.
                                 onPressStart={() => {
                                     if (result.id !== selectedPeek?.extra.entityId) {
                                         const path = getSearchEntityPath({
@@ -898,7 +898,7 @@ function SearchModalResultList({
                                     });
 
                                     // This is very race condition prone. But it's good enough for this
-                                    // non-collaborative use case. *Shrug*
+                                    // non-collaborative use case. _Shrug_
                                     updateSearchFavoriteEntityMenuAction(
                                         space.id,
                                         result.id,
@@ -967,10 +967,10 @@ function SearchModalResultList({
                         isSelected={result.id === selectedPeek?.extra.entityId}
                         withMarginTop={isFirstItem}
                         withMarginBottom={isLastItem}
-                        // We use `onPressStart` to select so the selected style is applied immediately.
-                        // We use the selected style to indicate interaction to the user instead of an
-                        // `isPressed` style. The benefit of using selection is the previous item loses
-                        // its style.
+                        // We use `onPressStart` to select so the selected style is applied immediately. We
+                        // use the selected style to indicate interaction to the user instead of an
+                        // `isPressed` style. The benefit of using selection is the previous item loses its
+                        // style.
                         onPressStart={() => {
                             if (result.id !== selectedPeek?.extra.entityId) {
                                 const path = getSearchEntityPath({
@@ -1003,8 +1003,8 @@ function SearchModalResultList({
                         onRemoveFromSuggested={
                             output.type === "EmptyQuery"
                                 ? async () => {
-                                      // Since `output.type === "EmptyQuery"` here, `output` will return
-                                      // search affinity entities.
+                                      // Since `output.type === "EmptyQuery"` here, `output` will return search affinity
+                                      // entities.
                                       const result = output.results[index]!;
 
                                       await clearSearchEntityAffinity(context, {
@@ -1059,18 +1059,17 @@ function SearchModalResultList({
             bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
-                // Our items all have a bottom border. This is good when there's less content
-                // than room to scroll since it creates a clear shape for the last item in the
-                // list.
+                // Our items all have a bottom border. This is good when there's less content than
+                // room to scroll since it creates a clear shape for the last item in the list.
                 //
                 // However, if there are enough items to scroll then when the user has fully
-                // scrolled we want the last item to *not* have a border bottom since the
-                // bottom of the screen creates that boundary. We don't need to render an extra
-                // line in the margins.
+                // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                // the screen creates that boundary. We don't need to render an extra line in the
+                // margins.
                 //
-                // This div covers the bottom border of the last item but only when there's
-                // enough content to scroll. Otherwise the bottom border needs to be visible to
-                // visually contain the last item. To debug this it's helpful to switch the
+                // This div covers the bottom border of the last item but only when there's enough
+                // content to scroll. Otherwise the bottom border needs to be visible to visually
+                // contain the last item. To debug this it's helpful to switch the
                 // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"
@@ -1210,15 +1209,15 @@ function SearchModalPeekContent({
                     <IconButton
                         size="xs"
                         description="Expand"
-                        // TODO(calebmer): I think this is the only place in the product we name the
-                        // peek concept. For now, I'm calling it "preview". We should make sure
-                        // documentation, marketing, and other copy in the product align with this name.
-                        // If we decide to call it something else publicly, this needs to be renamed.
+                        // TODO(calebmer): I think this is the only place in the product we name the peek
+                        // concept. For now, I'm calling it "preview". We should make sure documentation,
+                        // marketing, and other copy in the product align with this name. If we decide to
+                        // call it something else publicly, this needs to be renamed.
                         tooltipContentOverride="Shift-click to open in peek"
                         pressErrorTitle="Couldn&#x2019;t expand"
-                        // We check `event.shiftKey`because this determines whether we open in a peek
-                        // or navigate to full screen. Therefore we want the route not to open in a
-                        // peek if `event.shiftKey` is pressed.
+                        // We check `event.shiftKey`because this determines whether we open in a peek or
+                        // navigate to full screen. Therefore we want the route not to open in a peek if
+                        // `event.shiftKey` is pressed.
                         onPress={async event => {
                             const spacePath = convertPeekPathToSpacePath(peek.history.location, {
                                 routeLayout: event.shiftKey ? "narrow" : "wide",
@@ -1229,8 +1228,7 @@ function SearchModalPeekContent({
                                 window.open(
                                     createPath(spacePath),
                                     "_blank",
-                                    // Important security measure. See:
-                                    // https://mathiasbynens.github.io/rel-noopener
+                                    // Important security measure. See: https://mathiasbynens.github.io/rel-noopener
                                     "noopener noreferrer",
                                 );
                             } else if (event.shiftKey) {
@@ -1260,8 +1258,8 @@ function SearchModalPeekContent({
                     peekId={peek.id}
                     layout="narrow"
                     // Don't record view interactions when looking at a search entity in the search
-                    // modal. The user is discovering an entity to open so may have pretty low
-                    // intent when looking at an entity.
+                    // modal. The user is discovering an entity to open so may have pretty low intent
+                    // when looking at an entity.
                     //
                     // This also means the "last opened" time we show for affinitive search entities
                     // won't change.
@@ -1287,8 +1285,8 @@ function SearchModalFavoritesHeaderSeeMoreButton({
         <Box
             {...pressProps}
             display="inline"
-            // We don't usually use a pointer cursor for pressable things but in this case
-            // it's not obvious this text is interactive without it.
+            // We don't usually use a pointer cursor for pressable things but in this case it's
+            // not obvious this text is interactive without it.
             cursor="pointer"
             color={isSelected ? "grey-100" : undefined}
             backgroundColor={isSelected ? "grey-5" : undefined}
@@ -1309,8 +1307,8 @@ function hasSearchEntityId(
 ): boolean {
     if (!output.results) return false;
 
-    // Handle the case when you've selected "See all" in the favorites header then
-    // hit `ArrowUp`.
+    // Handle the case when you've selected "See all" in the favorites header then hit
+    // `ArrowUp`.
     if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
         if (selectedEntityId === "SearchFavorites") {
             return true;
@@ -1345,8 +1343,8 @@ function getPreviousSearchEntityId(
 
     let previousEntityId: SearchEntityId | null = null;
 
-    // Handle the case when you've selected "See all" in the favorites header then
-    // hit `ArrowUp`.
+    // Handle the case when you've selected "See all" in the favorites header then hit
+    // `ArrowUp`.
     if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
         if (selectedEntityId === "SearchFavorites") {
             return previousEntityId;
@@ -1403,8 +1401,8 @@ function getNextSearchEntityId(
         }
     }
 
-    // Handle the case when you've selected "See all" in the favorites header then
-    // hit `ArrowDown`.
+    // Handle the case when you've selected "See all" in the favorites header then hit
+    // `ArrowDown`.
     if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
         if (selectedEntityId === "SearchFavorites") {
             return nextEntityId;

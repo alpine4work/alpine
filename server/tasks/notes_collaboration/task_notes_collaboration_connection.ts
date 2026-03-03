@@ -143,9 +143,9 @@ export class TaskNotesCollaborationConnection {
     }
 
     /**
-     * Must maintain view access to the task or else this connection is
-     * unauthorized. Edit access is optional. We will throw an error if the
-     * connection tries to make edits when they don't have edit access.
+     * Must maintain view access to the task or else this connection is unauthorized.
+     * Edit access is optional. We will throw an error if the connection tries to make
+     * edits when they don't have edit access.
      */
     public async authorize(context: WorkerSessionActionContext) {
         await authorizeTaskAccess(context, {
@@ -159,8 +159,8 @@ export class TaskNotesCollaborationConnection {
         typeof TaskNotesCollaborationProtocol
     > = {
         backfillNotes: (context, input) =>
-            // Handle procedures for this connection in sequence as a defense against
-            // race conditions.
+            // Handle procedures for this connection in sequence as a defense against race
+            // conditions.
             //
             // Though the client mostly sends messages in sequence anyway.
             this._mutex.withLock(async () => {
@@ -301,15 +301,14 @@ export class TaskNotesCollaborationConnection {
             this._messagingConnection.stopTypingInMessageInput(context, input),
 
         updateNotesContent: (context, input) =>
-            // Handle procedures for this connection in sequence as a defense against
-            // race conditions.
+            // Handle procedures for this connection in sequence as a defense against race
+            // conditions.
             //
             // Though the client mostly sends messages in sequence anyway.
             this._mutex.withLock(async () => {
-                // Make sure we have edit access to the task. If we don't have edit
-                // access and we try to update then the content manager will optimistically
-                // accept the update and when persistence fails it kills the whole durable
-                // object.
+                // Make sure we have edit access to the task. If we don't have edit access and we
+                // try to update then the content manager will optimistically accept the update and
+                // when persistence fails it kills the whole durable object.
                 if (!hasAccessLevel(this.accessLevel, "Edit")) {
                     throw new PermissionDeniedError("Can\u2019t update task notes", {
                         displayMessage:

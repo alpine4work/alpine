@@ -1,8 +1,7 @@
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 
-// We can't use `process.nextTick()` since Jest will override
-// `process.nextTick()` when `jest.useFakeTimers()` is on. But we want to wait
-// the timeout anyway.
+// We can't use `process.nextTick()` since Jest will override `process.nextTick()`
+// when `jest.useFakeTimers()` is on. But we want to wait the timeout anyway.
 const originalProcessNextTick =
     typeof process === "object" && typeof process.nextTick === "function"
         ? process.nextTick.bind(process)
@@ -13,8 +12,8 @@ const originalProcessNextTick =
  * function is designed for Node.js but falls back to `setTimeout()` in the
  * browser.
  *
- * This [implementation was taken from `dataloader`][1]. `dataloader` describes
- * how this works:
+ * This [implementation was taken from `dataloader`][1]. `dataloader` describes how
+ * this works:
  *
  * > ES6 JavaScript uses the concepts Job and JobQueue to schedule work to occur
  * > after the current execution context has completed:
@@ -25,18 +24,19 @@ const originalProcessNextTick =
  * > the current call stack ends.
  * >
  * > When calling `then` on a Promise, it enqueues a Job on a specific
- * > "PromiseJobs" JobQueue which is flushed in Node as a single Job on the
- * > global JobQueue.
+ * > "PromiseJobs" JobQueue which is flushed in Node as a single Job on the global
+ * > JobQueue.
  * >
  * > DataLoader batches all loads which occur in a single frame of execution, but
  * > should include in the batch all loads which occur during the flushing of the
  * > "PromiseJobs" JobQueue after that same execution frame.
  * >
- * > In order to avoid the DataLoader dispatch Job occuring before "PromiseJobs",
- * > A Promise Job is created with the sole purpose of enqueuing a global Job,
+ * > In order to avoid the DataLoader dispatch Job occuring before "PromiseJobs", A
+ * > Promise Job is created with the sole purpose of enqueuing a global Job,
  * > ensuring that it always occurs after "PromiseJobs" ends.
  *
- * [1]: https://github.com/graphql/dataloader/blob/a10773043d41a56bde4219c155fcf5633e6c9bcb/src/index.js#L214-L256
+ * [1]:
+ *     https://github.com/graphql/dataloader/blob/a10773043d41a56bde4219c155fcf5633e6c9bcb/src/index.js#L214-L256
  */
 export const schedulePostPromiseJob: (action: () => void) => void =
     originalProcessNextTick !== null

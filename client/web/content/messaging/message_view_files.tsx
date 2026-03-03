@@ -141,8 +141,8 @@ export function MessageViewFiles({
                         blockWidth,
                         platform,
                         spacingScale,
-                        // Smaller max height than we have for content file row nodes so tall images
-                        // don't take up too much of the screen.
+                        // Smaller max height than we have for content file row nodes so tall images don't
+                        // take up too much of the screen.
                         maxHeight: messageViewFilesFileMaxHeight,
                     });
 
@@ -169,9 +169,9 @@ export function MessageViewFiles({
                             `grid-template-columns: ${fileLayouts
                                 .map(({widthFr}) => `${widthFr}fr`)
                                 .join(" ")}`,
-                            // Left align message files instead of center aligning message files. This
-                            // matches the more conversational format of messages as opposed to the
-                            // carefully edited prose format of documents.
+                            // Left align message files instead of center aligning message files. This matches
+                            // the more conversational format of messages as opposed to the carefully edited
+                            // prose format of documents.
                             "justify-content: start",
                         ].join("; "),
                     );
@@ -225,8 +225,8 @@ export function MessageViewFiles({
                                 platform,
                                 spacingScale,
                                 isInitialAppRender,
-                                // Disable video and audio file interactivity. When pressed we should always
-                                // open the post in a peek.
+                                // Disable video and audio file interactivity. When pressed we should always open
+                                // the post in a peek.
                                 withoutInteractivity: true,
                             });
                         }
@@ -276,8 +276,8 @@ export function MessageViewFiles({
         if (previousHtmlGenerator === htmlGenerator) return;
 
         if (!previousHtmlGenerator) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (containerElement.hasChildNodes()) {
                 containerElement.firstChild!.remove();
             }
@@ -455,8 +455,8 @@ export function MessageViewFiles({
             let html: globalThis.Node = dom;
 
             // If the clipboard content was wrapped in a `<div>` with no identifying
-            // characteristics then let's unwrap the wrapper `<div>` so it won't be
-            // included in the copied output.
+            // characteristics then let's unwrap the wrapper `<div>` so it won't be included in
+            // the copied output.
             if (
                 html instanceof Element &&
                 html.tagName === "DIV" &&

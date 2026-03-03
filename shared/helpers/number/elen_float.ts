@@ -12,17 +12,17 @@ import {constructFloat, deconstructFloat} from "~/shared/helpers/number/float_re
  * String encoding of a float whose lexicographic order is the same as the
  * underlying float value's order. The format is based on the one described in
  * Peter Seymour's paper "[Efficient Lexicographic Encoding of Numbers][1]".
- * Specifically section 6 where the author describes deconstructing a float
- * into integers so it can be encoded.
+ * Specifically section 6 where the author describes deconstructing a float into
+ * integers so it can be encoded.
  *
- * Useful for databases like DynamoDB where we want to build compound keys
- * using numbers that still maintain the ordering of the underlying number.
+ * Useful for databases like DynamoDB where we want to build compound keys using
+ * numbers that still maintain the ordering of the underlying number.
  *
- * This type supports all JavaScript numbers. But for simple integers the
- * encoded string is much longer than what you'd get with `ElenInteger`. So
- * prefer using `ElenInteger` if you only need to deal with integers. This is
- * why we call this type `ElenFloat` instead of `ElenNumber`. To discourage use
- * of the proper encoding based on the kind of number you're working with.
+ * This type supports all JavaScript numbers. But for simple integers the encoded
+ * string is much longer than what you'd get with `ElenInteger`. So prefer using
+ * `ElenInteger` if you only need to deal with integers. This is why we call this
+ * type `ElenFloat` instead of `ElenNumber`. To discourage use of the proper
+ * encoding based on the kind of number you're working with.
  *
  * [1]: https://www.zanopha.com/docs/elen.pdf
  */
@@ -36,8 +36,8 @@ export function isElenFloat(string: string): string is ElenFloat {
 }
 
 /**
- * Encodes an integer into an `ElenFloat`. Even works for special values like
- * `NaN` and `Infinity`.
+ * Encodes an integer into an `ElenFloat`. Even works for special values like `NaN`
+ * and `Infinity`.
  */
 export function encodeElenFloat(number: number): ElenFloat {
     const floatRepresentation = deconstructFloat(number);
@@ -65,8 +65,8 @@ export function decodeElenFloat(elenFloat: ElenFloat): number {
 }
 
 /**
- * Decodes a string that might be an `ElenFloat` back into a JavaScript
- * number. If the string is not an `ElenFloat` then we will return null.
+ * Decodes a string that might be an `ElenFloat` back into a JavaScript number. If
+ * the string is not an `ElenFloat` then we will return null.
  */
 export function decodeElenFloatIfPossible(string: string): number | null {
     if (string.length === 0) return null;

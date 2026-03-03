@@ -10,11 +10,11 @@ import {SlackWorkspace} from "~/shared/integrations/slack/slack_space_integratio
 import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
- * Gets the Slack integration for a space with the workspace details and bot credentials, if one
- * exists.
+ * Gets the Slack integration for a space with the workspace details and bot
+ * credentials, if one exists.
  *
- * Currently we expect exactly one Slack workspace to be connected to a space and this
- * will throw if there are multiple Slack workspaces connected to the space.
+ * Currently we expect exactly one Slack workspace to be connected to a space and
+ * this will throw if there are multiple Slack workspaces connected to the space.
  */
 export async function getConnectedSlackWorkspaceIfExists(
     context: ServerActionContext,

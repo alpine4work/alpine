@@ -90,12 +90,12 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     const taskEntry = store.getTaskEntrySnapshot(taskId);
     if (!taskEntry) return null;
 
-    // This test was written before we added `actionReferencedAccountStoreById` to
-    // task entries. Discard `actionReferencedAccountStoreById` so we can avoid
-    // rewriting tests.
+    // This test was written before we added `actionReferencedAccountStoreById` to task
+    // entries. Discard `actionReferencedAccountStoreById` so we can avoid rewriting
+    // tests.
 
-    // Use a `WeakMap` to make sure we maintain referential equality if the task
-    // entry doesn't change.
+    // Use a `WeakMap` to make sure we maintain referential equality if the task entry
+    // doesn't change.
     return getOrSetDefaultMapValue(taskEntryCache, taskEntry, () => ({
         ...taskEntry,
         actions: taskEntry.actions?.map(({action}) => action) ?? null,
@@ -162,8 +162,8 @@ async function resolveLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     output: Output,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.resolveLastExecution(definition, output);
@@ -176,8 +176,8 @@ async function rejectRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     n: number,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectExecution(definition, n);
@@ -189,8 +189,8 @@ async function rejectRpcExecution<Input, Output>(
 async function rejectLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectLastExecution(definition);
@@ -4341,8 +4341,8 @@ test("backfilling tasks a store already has adds them to query", async () => {
     ]);
 });
 
-// NOTE(calebmer): This test scenario is reduced from a real scenario I was
-// seeing in my development environment with actual data.
+// NOTE(calebmer): This test scenario is reduced from a real scenario I was seeing
+// in my development environment with actual data.
 test("peek task over collection initial load scenario", () => {
     const store = new TaskClientStore({
         accountRegistry,

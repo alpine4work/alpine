@@ -103,8 +103,8 @@ export function ChannelViewAside({
     }
 
     return (
-        // Put overlays (e.g. the `<FocusRing>`) in the aside so they move smoothly
-        // inside this `position: sticky` element.
+        // Put overlays (e.g. the `<FocusRing>`) in the aside so they move smoothly inside
+        // this `position: sticky` element.
         <OverlayScopeContextProvider>
             <Box
                 position="relative"
@@ -123,9 +123,8 @@ export function ChannelViewAside({
                     onAddAccountGrantsToAccessPolicy={onAddAccountGrantsToAccessPolicy}
                 />
                 <Box
-                    // Negative margin bottom to optically align our description. Visually, the
-                    // bottom of the text in our `<ContentView>` should be the bottom of our
-                    // element.
+                    // Negative margin bottom to optically align our description. Visually, the bottom
+                    // of the text in our `<ContentView>` should be the bottom of our element.
                     marginBottom="-1.5"
                 >
                     <h3
@@ -214,10 +213,9 @@ function ChannelViewAsideDescription({channel}: {channel: ChannelModel}) {
                     channel.description.doc.resolve(0),
                     {linesAbove: 0, linesBelow: 7},
                     {
-                        // 1.125x the number of "x"s we can fit in a single line in the channel aside
-                        // (45). We want to be slightly more aggressive than the default grapheme count
-                        // (which counts the "l" character which is narrower) since we render the entire
-                        // snippet.
+                        // 1.125x the number of "x"s we can fit in a single line in the channel aside (45).
+                        // We want to be slightly more aggressive than the default grapheme count (which
+                        // counts the "l" character which is narrower) since we render the entire snippet.
                         maxLineGraphemeCount: 51,
                     },
                 ),
@@ -305,8 +303,8 @@ function ChannelViewAsideDescriptionEditor({
                     marginBottom="-1"
                     borderRadius="1.5"
                     style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                        // CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
@@ -365,8 +363,8 @@ function ChannelViewAsideDescriptionEditor({
                     title="Save channel description"
                     description="Would you like to save the channel description?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

@@ -53,30 +53,29 @@ import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_f
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
-// Run the query store eviction procedure every minute. When an item in the
-// query store is made evictable it is guaranteed to survive at least one
-// eviction call. This means items will be evicted from the query store at most
-// within two minutes of becoming evictable.
+// Run the query store eviction procedure every minute. When an item in the query
+// store is made evictable it is guaranteed to survive at least one eviction call.
+// This means items will be evicted from the query store at most within two minutes
+// of becoming evictable.
 const taskRealtimeServerEvictionMs = 1000 * 60;
 
 /**
- * The horizontally scalable task realtime server. We don't actually run the
- * HTTP server from this class (see `task_realtime_service.ts`). This class
- * manages all the logic and state associated with the server.
+ * The horizontally scalable task realtime server. We don't actually run the HTTP
+ * server from this class (see `task_realtime_service.ts`). This class manages all
+ * the logic and state associated with the server.
  *
- * Each space is routed to 1+ task realtime servers. These servers are
- * responsible for executing queries and managing realtime WebSocket
- * connections.
+ * Each space is routed to 1+ task realtime servers. These servers are responsible
+ * for executing queries and managing realtime WebSocket connections.
  */
 export class TaskRealtimeServer {
     /**
-     * If the server is currently running then our state is non-null. If the server
-     * has stopped running then state is null.
+     * If the server is currently running then our state is non-null. If the server has
+     * stopped running then state is null.
      */
     private _state: {
         /**
-         * Whether our server has been discovered yet. We consider our server
-         * discovered when all other services in our system know about it.
+         * Whether our server has been discovered yet. We consider our server discovered
+         * when all other services in our system know about it.
          *
          * When our server is discovered, `sendActionTransaction()` will be called for
          * every action we need to care about across our system. Before this promise
@@ -104,10 +103,10 @@ export class TaskRealtimeServer {
             actionHistory: this._actionHistory,
             ensureFullActionHistory: context => this._ensureFullActionHistory(context, spaceId),
             scheduleEviction: () => this._scheduledStoresForEviction.add(store),
-            // When there's an internal error handling something in the store, we destroy
-            // the store and let the next request create a fresh store. The store should
-            // also be responsible for closing any WebSocket connections that were
-            // subscribed to the store.
+            // When there's an internal error handling something in the store, we destroy the
+            // store and let the next request create a fresh store. The store should also be
+            // responsible for closing any WebSocket connections that were subscribed to the
+            // store.
             onFatalError: () => this._storeBySpaceId.delete(spaceId),
         });
 
@@ -146,16 +145,16 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Start running our server. We don't actually run the HTTP server from this
-     * class, only all the logic and state.
+     * Start running our server. We don't actually run the HTTP server from this class,
+     * only all the logic and state.
      *
-     * Must pass in a `discoveredPromise`. This promise should resolve when all
-     * other services in our system have discovered this task realtime server.
-     * Importantly, this means once the promise has resolved then
-     * `sendActionTransaction()` should be called for every new action transaction
-     * we need to care about. We may receive some calls to `query()` or
-     * `sendActionTransaction()` before we've been fully discovered. However, some
-     * server functionality must wait for the server to be discovered.
+     * Must pass in a `discoveredPromise`. This promise should resolve when all other
+     * services in our system have discovered this task realtime server. Importantly,
+     * this means once the promise has resolved then `sendActionTransaction()` should
+     * be called for every new action transaction we need to care about. We may receive
+     * some calls to `query()` or `sendActionTransaction()` before we've been fully
+     * discovered. However, some server functionality must wait for the server to be
+     * discovered.
      */
     private _start(discoveredPromise: Promise<void>) {
         assert(this._state === null);
@@ -193,8 +192,8 @@ export class TaskRealtimeServer {
         this._state = null;
         this._stopActionHistory();
 
-        // In tests, backfill when the server starts again. Restarting the server
-        // resets `clearActionHistoryForTest()`.
+        // In tests, backfill when the server starts again. Restarting the server resets
+        // `clearActionHistoryForTest()`.
         if (this._disableActionHistoryBackfillForTest === true) {
             this._disableActionHistoryBackfillForTest = false;
         }
@@ -220,8 +219,8 @@ export class TaskRealtimeServer {
                             } catch {
                                 span.addException(span);
 
-                                // Don't rethrow the error. If an eviction call fails we report it in our span
-                                // and continue.
+                                // Don't rethrow the error. If an eviction call fails we report it in our span and
+                                // continue.
                             }
                         },
                     );
@@ -231,8 +230,8 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Immediately evict all dead items from our server. You may only run this in
-     * test environments.
+     * Immediately evict all dead items from our server. You may only run this in test
+     * environments.
      */
     public evictAllForTest() {
         assert(process.env.NODE_ENV === "test");
@@ -240,9 +239,9 @@ export class TaskRealtimeServer {
         this._evict();
         this._evict();
 
-        // Dead items stay around for at least one eviction. So we need to evict twice
-        // to evict everything. Assert that once we evict twice there are no more
-        // scheduled evictions.
+        // Dead items stay around for at least one eviction. So we need to evict twice to
+        // evict everything. Assert that once we evict twice there are no more scheduled
+        // evictions.
         assert(
             this._scheduledStoresForEviction.size === 0,
             "Expected two evictions to be enough to evict everything",
@@ -250,8 +249,8 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Clear the action history in test environments. You should only do this if
-     * you know the task index has incorporated all actions and refreshed!
+     * Clear the action history in test environments. You should only do this if you
+     * know the task index has incorporated all actions and refreshed!
      */
     public clearActionHistoryForTest() {
         assert(import.meta.jest);
@@ -268,8 +267,8 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Ensure that we have a full action history for the provided space. If our
-     * server was recently discovered that means we haven't been receiving
+     * Ensure that we have a full action history for the provided space. If our server
+     * was recently discovered that means we haven't been receiving
      * `sendActionTransaction()` calls and we need to catch up.
      */
     private async _ensureFullActionHistory(
@@ -280,12 +279,12 @@ export class TaskRealtimeServer {
         const {discoveredTime} = await this._state.discoveredPromise;
         const visibleStartTime = this._actionHistory.getVisibleStartTime();
 
-        // If our history visibility window starts after we were discovered then we
-        // have already received every relevant action.
+        // If our history visibility window starts after we were discovered then we have
+        // already received every relevant action.
         //
-        // This also means we should never need to make a backfill request again for
-        // the rest of our server's lifetime. So clear the backfill promise cache to
-        // free up some memory.
+        // This also means we should never need to make a backfill request again for the
+        // rest of our server's lifetime. So clear the backfill promise cache to free up
+        // some memory.
         if (visibleStartTime >= discoveredTime) {
             this._backfillActionHistoryPromiseBySpaceId.clear();
             return;
@@ -319,21 +318,20 @@ export class TaskRealtimeServer {
                             // It's important that we read our referenced accounts with a strong read
                             // consistency to make sure our realtime server sees the correct account name.
                             //
-                            // After we've finished committing the new account name we're also guaranteed
-                            // to have commit the update name task action. So the action will always be
-                            // applied on our server after the new account name is visible with a strong
-                            // read consistency. This means we'll never miss an account name update. Actions
-                            // applied after the update name task action will always see the correct
-                            // account name.
+                            // After we've finished committing the new account name we're also guaranteed to
+                            // have commit the update name task action. So the action will always be applied on
+                            // our server after the new account name is visible with a strong read consistency.
+                            // This means we'll never miss an account name update. Actions applied after the
+                            // update name task action will always see the correct account name.
                             consistency: "Strong",
                         }),
                     ),
                 );
 
                 for (const actionTransaction of actionTransactions) {
-                    // Add the action transaction to our history but don't send it to connected
-                    // clients since the action happened in the past. If a client asks for a
-                    // backfill we will serve them one using our action history class.
+                    // Add the action transaction to our history but don't send it to connected clients
+                    // since the action happened in the past. If a client asks for a backfill we will
+                    // serve them one using our action history class.
                     this._actionHistory.addActionTransaction(actionTransaction, referencedAccounts);
                 }
             },
@@ -353,8 +351,8 @@ export class TaskRealtimeServer {
         tasks: Array<TaskIndexDoc>;
     }> {
         // Must be a system actor because we do no filtering to check whether you are
-        // allowed to see the queried tasks. Permissions filtering is done at a
-        // different level.
+        // allowed to see the queried tasks. Permissions filtering is done at a different
+        // level.
         context.actor.authorizeSystem();
 
         await authorizeSpaceAccess(context, options.spaceId);
@@ -373,8 +371,8 @@ export class TaskRealtimeServer {
         },
     ): Promise<TaskRealtimeQuerySubscription> {
         // Must be a system actor because we do no filtering to check whether you are
-        // allowed to see the queried tasks. Permissions filtering is done at a
-        // different level.
+        // allowed to see the queried tasks. Permissions filtering is done at a different
+        // level.
         context.actor.authorizeSystem();
 
         await authorizeSpaceAccess(context, options.spaceId);
@@ -392,8 +390,8 @@ export class TaskRealtimeServer {
             callbacks: TaskRealtimeTaskSubscriptionCallbacks;
         },
     ): Promise<TaskRealtimeTaskSubscription> {
-        // Must be a system actor because we do no authorization to check whether you
-        // are allowed to see the task.
+        // Must be a system actor because we do no authorization to check whether you are
+        // allowed to see the task.
         context.actor.authorizeSystem();
 
         await authorizeSpaceAccess(context, options.spaceId);
@@ -411,8 +409,8 @@ export class TaskRealtimeServer {
             callbacks: TaskRealtimeCollectionSubscriptionCallbacks;
         },
     ): Promise<TaskRealtimeCollectionSubscription> {
-        // Must be a system actor because we do no authorization to check whether you
-        // are allowed to see the collection.
+        // Must be a system actor because we do no authorization to check whether you are
+        // allowed to see the collection.
         context.actor.authorizeSystem();
 
         await authorizeSpaceAccess(context, options.spaceId);
@@ -430,8 +428,8 @@ export class TaskRealtimeServer {
             clientId: TaskRealtimeClientId | null;
         },
     ) {
-        // Must be a system actor since the action transaction doesn't include
-        // information about the actor which committed it.
+        // Must be a system actor since the action transaction doesn't include information
+        // about the actor which committed it.
         context.actor.authorizeSystem();
 
         await authorizeSpaceAccess(context, actionTransaction.spaceId);
@@ -447,12 +445,11 @@ export class TaskRealtimeServer {
                     // It's important that we read our referenced accounts with a strong read
                     // consistency to make sure our realtime server sees the correct account name.
                     //
-                    // After we've finished committing the new account name we're also guaranteed
-                    // to have commit the update name task action. So the action will always be
-                    // applied on our server after the new account name is visible with a strong
-                    // read consistency. This means we'll never miss an account name update. Actions
-                    // applied after the update name task action will always see the correct
-                    // account name.
+                    // After we've finished committing the new account name we're also guaranteed to
+                    // have commit the update name task action. So the action will always be applied on
+                    // our server after the new account name is visible with a strong read consistency.
+                    // This means we'll never miss an account name update. Actions applied after the
+                    // update name task action will always see the correct account name.
                     consistency: "Strong",
                 }),
             ),
@@ -469,14 +466,14 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Get the provided task from our realtime store. If the task is in our store
-     * we will return immediately. Otherwise we will load the task from OpenSearch
-     * and catch it up so it's up-to-date in realtime.
+     * Get the provided task from our realtime store. If the task is in our store we
+     * will return immediately. Otherwise we will load the task from OpenSearch and
+     * catch it up so it's up-to-date in realtime.
      *
-     * If the task does not exist we will throw an error. It may take a while to
-     * throw a not found error since the task might not exist *yet*. You may know
-     * about a task before it's indexed in OpenSearch. In that case we retry until
-     * a timeout is reached.
+     * If the task does not exist we will throw an error. It may take a while to throw
+     * a not found error since the task might not exist _yet_. You may know about a
+     * task before it's indexed in OpenSearch. In that case we retry until a timeout is
+     * reached.
      */
     public async getTask(
         context: TaskRealtimeSystemActionContext,
@@ -494,14 +491,14 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Get the provided collection from our realtime store. If the collection is in
-     * our store we will return immediately. Otherwise we will load the collection
-     * from OpenSearch and catch it up so it's up-to-date in realtime.
+     * Get the provided collection from our realtime store. If the collection is in our
+     * store we will return immediately. Otherwise we will load the collection from
+     * OpenSearch and catch it up so it's up-to-date in realtime.
      *
-     * If the collection does not exist we will throw an error. It may take a while
-     * to throw a not found error since the collection might not exist *yet*. You
-     * may know about a collection before it's indexed in OpenSearch. In that case
-     * we retry until a timeout is reached.
+     * If the collection does not exist we will throw an error. It may take a while to
+     * throw a not found error since the collection might not exist _yet_. You may know
+     * about a collection before it's indexed in OpenSearch. In that case we retry
+     * until a timeout is reached.
      */
     public async getCollection(
         context: TaskRealtimeSystemActionContext,
@@ -519,11 +516,11 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Authorizes that an account actor has access to a query. Throws an error if
-     * we're unauthorized.
+     * Authorizes that an account actor has access to a query. Throws an error if we're
+     * unauthorized.
      *
-     * Will use in-memory tasks/collections when available and otherwise will load
-     * from DynamoDB.
+     * Will use in-memory tasks/collections when available and otherwise will load from
+     * DynamoDB.
      */
     public async authorizeQueryAccess(
         context: TaskRealtimeActionContext,
@@ -557,11 +554,11 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Authorizes that an account actor has access to a task. Throws an error if
-     * we're unauthorized.
+     * Authorizes that an account actor has access to a task. Throws an error if we're
+     * unauthorized.
      *
-     * Will use in-memory tasks/collections when available and otherwise will load
-     * from DynamoDB.
+     * Will use in-memory tasks/collections when available and otherwise will load from
+     * DynamoDB.
      */
     public async authorizeTaskAccess(
         context: TaskRealtimeActionContext,
@@ -589,11 +586,11 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Authorizes that an account actor has access to a task. Throws an error if
-     * we're unauthorized.
+     * Authorizes that an account actor has access to a task. Throws an error if we're
+     * unauthorized.
      *
-     * Will use in-memory tasks/collections when available and otherwise will load
-     * from DynamoDB.
+     * Will use in-memory tasks/collections when available and otherwise will load from
+     * DynamoDB.
      */
     public async authorizeTaskAccessIfPossible(
         context: TaskRealtimeActionContext,
@@ -626,11 +623,11 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Authorizes that an account actor has access to a collection. Throws an error
-     * if we're unauthorized.
+     * Authorizes that an account actor has access to a collection. Throws an error if
+     * we're unauthorized.
      *
-     * Will use in-memory tasks/collections when available and otherwise will load
-     * from DynamoDB.
+     * Will use in-memory tasks/collections when available and otherwise will load from
+     * DynamoDB.
      */
     public async authorizeCollectionAccess(
         context: TaskRealtimeActionContext,
@@ -658,11 +655,11 @@ export class TaskRealtimeServer {
     }
 
     /**
-     * Authorizes that an account actor has access to a collection. Throws an error
-     * if we're unauthorized.
+     * Authorizes that an account actor has access to a collection. Throws an error if
+     * we're unauthorized.
      *
-     * Will use in-memory tasks/collections when available and otherwise will load
-     * from DynamoDB.
+     * Will use in-memory tasks/collections when available and otherwise will load from
+     * DynamoDB.
      */
     public async authorizeCollectionAccessIfPossible(
         context: TaskRealtimeActionContext,

@@ -69,8 +69,8 @@ export function getChatItemWithSubscriptionsIfExistsForAuthorization(
         return {attributesItem, accountItems, subscriptionItems};
     })();
 
-    // Add the chat item to the cache since we have the full chat attributes
-    // and account.
+    // Add the chat item to the cache since we have the full chat attributes and
+    // account.
     ChatItemAuthorizationCache.set(context, consistency, chatId, promise);
 
     return promise;

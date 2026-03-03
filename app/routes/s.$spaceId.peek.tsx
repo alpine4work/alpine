@@ -27,10 +27,10 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export default function PeekLayout() {
-    // Navigating to this route via URL will show you an error! This route can only
-    // be rendered as a child component of a peek renderer like `<PeekRemixEmbed>`.
-    // Peeks leverage Remix's routing, bundle splitting, and data loading
-    // capabilities but in a context embedded within the rest of our application.
+    // Navigating to this route via URL will show you an error! This route can only be
+    // rendered as a child component of a peek renderer like `<PeekRemixEmbed>`. Peeks
+    // leverage Remix's routing, bundle splitting, and data loading capabilities but in
+    // a context embedded within the rest of our application.
     const peekContext = usePeekContext();
     if (!peekContext)
         throw new InvalidArgumentError("May only render peek routes in an embedded peek component");
@@ -50,14 +50,14 @@ export default function PeekLayout() {
 
     let context = useAppContext();
 
-    // Add propagated event data to our tracer so that child React components
-    // log events with the right context.
+    // Add propagated event data to our tracer so that child React components log
+    // events with the right context.
     context = useMemo(() => {
         const tracer = context.tracer.getTracer();
 
-        // While server-side rendering we will have a tracer that's part of a span.
-        // Ignore this tracer and don't move propagated data around. On the client, we
-        // always expect a root tracer.
+        // While server-side rendering we will have a tracer that's part of a span. Ignore
+        // this tracer and don't move propagated data around. On the client, we always
+        // expect a root tracer.
         assert(
             typeof window === "undefined" || tracer instanceof TracerRoot,
             "Expected tracer in app context to be root tracer",
@@ -83,9 +83,9 @@ export default function PeekLayout() {
         );
         replaceContextPropagatedEventData.routeLayout = peekContext.layout;
 
-        // Move some defined IDs in `context` into `peek.context` with an "above"
-        // prefix. This disambiguates context IDs the user is interacting with from the
-        // main context IDs of the page.
+        // Move some defined IDs in `context` into `peek.context` with an "above" prefix.
+        // This disambiguates context IDs the user is interacting with from the main
+        // context IDs of the page.
         for (const key of Object.keys(tracerEventDataContextPeekMoveIntoAboveKeys)) {
             if (hasOwnProperty(replaceContextPropagatedEventData, key)) {
                 replaceContextPeekPropagatedEventData[

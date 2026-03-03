@@ -171,23 +171,22 @@ export type SearchEntity = {
     readonly assigneeId: AccountId | null;
     readonly priority: TaskPriority | null;
 
-    // Generic stateful properties that an entity may have. It's up to each entity
-    // to decide what these mean, and how they'll be relevant to a search.
+    // Generic stateful properties that an entity may have. It's up to each entity to
+    // decide what these mean, and how they'll be relevant to a search.
     readonly openness: "Open" | "Closed" | null;
     readonly activeness: "Active" | "Inactive" | null;
 
-    // The creator is the account which created the entity. `contributorIds` are
-    // the accounts which updated the entity. Contributors with value `Major`
-    // are accounts that contributed more than 20% of updates to the entity.
-    // Contributors with value `Minor` are accounts that contributed less than 20%
-    // of updates. We pick 20% as the cutoff point based on a loose application of
-    // the [pareto principle][1] (80% of the entity's meaning comes from at least
-    // 20% of the updates).
+    // The creator is the account which created the entity. `contributorIds` are the
+    // accounts which updated the entity. Contributors with value `Major` are accounts
+    // that contributed more than 20% of updates to the entity. Contributors with value
+    // `Minor` are accounts that contributed less than 20% of updates. We pick 20% as
+    // the cutoff point based on a loose application of the [pareto principle][1] (80%
+    // of the entity's meaning comes from at least 20% of the updates).
     //
-    // An account may be both a creator and contributor. For example, the creator
-    // of a document may not be the major contributor. If there will never be
-    // more than one contributor (the creator, e.g. a chat message) than
-    // `contributorIds` will be empty.
+    // An account may be both a creator and contributor. For example, the creator of a
+    // document may not be the major contributor. If there will never be more than one
+    // contributor (the creator, e.g. a chat message) than `contributorIds` will be
+    // empty.
     //
     // [1]: https://en.wikipedia.org/wiki/Pareto_principle
     readonly creatorId: AccountId | null;
@@ -201,16 +200,15 @@ export type SearchEntityEmbeddingChunk = {
 };
 
 /**
- * The search entity to use for deleted messages. We don't keep anything around
- * in the search index for deleted messages. Since unlike deleted tasks or
- * documents you can't mention a message and messages don't show up in our
- * trash feature.
+ * The search entity to use for deleted messages. We don't keep anything around in
+ * the search index for deleted messages. Since unlike deleted tasks or documents
+ * you can't mention a message and messages don't show up in our trash feature.
  */
 // NOTE(calebmer, 2025-11-06): Eventually we should have a trash feature for
-// recovering deleted tasks, task collections, documents, or anything else the
-// user might delete. Right now my idea for implementing trash is it's based on
-// the OpenSearch index. So we continue to maintain `accessPolicy`s and some
-// other metadata for deleted entities so they can be searched.
+// recovering deleted tasks, task collections, documents, or anything else the user
+// might delete. Right now my idea for implementing trash is it's based on the
+// OpenSearch index. So we continue to maintain `accessPolicy`s and some other
+// metadata for deleted entities so they can be searched.
 const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
     accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null, urlGrantLevel: null},
     createdTime: null,
@@ -230,13 +228,13 @@ const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
 };
 
 /**
- * For reference "The quick brown fox jumps over the lazy dog" is 9 tokens.
- * "How we're designing our personal task management product" is 10 tokens.
- * 32 tokens (16 tokens for title, 16 tokens for section heading) is ~6% of
- * our 512 token window for Cohere's embedding models.
+ * For reference "The quick brown fox jumps over the lazy dog" is 9 tokens. "How
+ * we're designing our personal task management product" is 10 tokens. 32 tokens
+ * (16 tokens for title, 16 tokens for section heading) is ~6% of our 512 token
+ * window for Cohere's embedding models.
  *
- * 16 tokens feels like a good balance between fitting titles without taking
- * up too much space.
+ * 16 tokens feels like a good balance between fitting titles without taking up too
+ * much space.
  */
 const searchEntityEmbeddingPreambleTitleTokenCount = 16;
 
@@ -266,18 +264,18 @@ interface TaskCollectionModelForAuthorization {
 
 /**
  * Object that controls reading of a search entity. The implementations of
- * `getSearchEntity()` for each entity type (e.g. `getDocumentSearchEntity()`)
- * do not have access to a full context object! Instead, all reads must go
- * through this class which:
+ * `getSearchEntity()` for each entity type (e.g. `getDocumentSearchEntity()`) do
+ * not have access to a full context object! Instead, all reads must go through
+ * this class which:
  *
  * 1. Tracks all dependencies read by the `getSearchEntity()` function
  * 2. Makes sure all reads use strong consistency
  *
- * It's really important that all reads use strong consistency. Or else we
- * might miss an update while executing our search indexing job. For example,
- * say you just updated your chat message. We queue an indexing job which reads
- * the chat message back. If we read the chat message with eventual consistency
- * we might get the chat message's data from before your update.
+ * It's really important that all reads use strong consistency. Or else we might
+ * miss an update while executing our search indexing job. For example, say you
+ * just updated your chat message. We queue an indexing job which reads the chat
+ * message back. If we read the chat message with eventual consistency we might get
+ * the chat message's data from before your update.
  */
 class SearchEntityReadState {
     private readonly _context: ServerSystemActionContext;
@@ -289,13 +287,13 @@ class SearchEntityReadState {
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
 
-    // Cache of accounts so if an account is mentioned multiple times we don't need
-    // to load it multiple times. We can't use the built-in `getAccount()` cache
-    // because we need to read with strong consistency.
+    // Cache of accounts so if an account is mentioned multiple times we don't need to
+    // load it multiple times. We can't use the built-in `getAccount()` cache because
+    // we need to read with strong consistency.
     //
     // It's ok to cache within the context of read state because we need strongly
-    // consistent reads after construction of read state. If we pick up an account
-    // from the `getAccount()` cache we don't have that guarantee.
+    // consistent reads after construction of read state. If we pick up an account from
+    // the `getAccount()` cache we don't have that guarantee.
     private readonly _accountPromiseById = new Map<
         AccountId,
         Promise<AccountModelWithoutSpaceData | null>
@@ -314,9 +312,9 @@ class SearchEntityReadState {
             ) => void;
         },
     ) {
-        // Makes sure all reads use strong consistency. We need strong consistency so
-        // that we don't miss recent updates when indexing. Throws an error (in
-        // development) if a read doesn't use strong consistency.
+        // Makes sure all reads use strong consistency. We need strong consistency so that
+        // we don't miss recent updates when indexing. Throws an error (in development) if
+        // a read doesn't use strong consistency.
         this._context = context.dynamo.expectStrongReadConsistency();
 
         this.tokenizer = tokenizer;
@@ -325,8 +323,8 @@ class SearchEntityReadState {
     }
 
     /**
-     * Record a dependency of the target search entity. Must be called whenever we
-     * read data for this entity.
+     * Record a dependency of the target search entity. Must be called whenever we read
+     * data for this entity.
      *
      * You can't take a dependency on every entity type. Some entity types, as an
      * optimization, we disallow taking as a dependency since it allows us to skip
@@ -362,13 +360,13 @@ class SearchEntityReadState {
     }
 
     /**
-     * Get an account by `AccountId`. Returns `AccountModelWithoutSpace` instead
-     * of `AccountModel` so that if space properties change (e.g. account is
-     * removed or account permission level changes) we don't need to re-index all
-     * content that references the account.
+     * Get an account by `AccountId`. Returns `AccountModelWithoutSpace` instead of
+     * `AccountModel` so that if space properties change (e.g. account is removed or
+     * account permission level changes) we don't need to re-index all content that
+     * references the account.
      */
-    // Arrow function form so we can pass as a function parameter
-    // (e.g. `chunkSearchContent(content, {getAccountIfExists: state.getAccountIfExists}))`)
+    // Arrow function form so we can pass as a function parameter (e.g.
+    // `chunkSearchContent(content, {getAccountIfExists: state.getAccountIfExists}))`)
     public getAccountIfExists(accountId: AccountId): Promise<AccountModelWithoutSpaceData | null> {
         this._recordDependencyId(`Account:${accountId}:WithoutSpace`);
 
@@ -400,8 +398,8 @@ class SearchEntityReadState {
     }
 
     public async getFileContentTypeIfExists(fileId: FileId): Promise<FileContentType | null> {
-        // We don't need to record a dependency on the file since file types never
-        // change! Files are immutable. We'll never need to reindex.
+        // We don't need to record a dependency on the file since file types never change!
+        // Files are immutable. We'll never need to reindex.
         const file = await getFileIfExistsAsSystem(this._context, fileId, {
             consistency: "StrongWithinCache",
         });
@@ -501,8 +499,8 @@ class SearchEntityReadState {
      * When we load a post, we also load the channel the post is in. This marks the
      * channel as a dependency of our search entity.
      *
-     * A post inherits permissions from its channel. We also use the channel name
-     * to provide context in the post's embedding chunk.
+     * A post inherits permissions from its channel. We also use the channel name to
+     * provide context in the post's embedding chunk.
      */
     public async getPostContentAndChannel(postId: PostId): Promise<{
         version: number;
@@ -517,8 +515,8 @@ class SearchEntityReadState {
             consistency: "StrongWithinCache",
         });
 
-        // If the access policy on the channel changes we need to re-index posts so
-        // they have the new access policy.
+        // If the access policy on the channel changes we need to re-index posts so they
+        // have the new access policy.
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Authorization`);
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
 
@@ -541,8 +539,8 @@ class SearchEntityReadState {
         );
         if (!contentAndChannel) return null;
 
-        // If the access policy on the channel changes we need to re-index posts so
-        // they have the new access policy.
+        // If the access policy on the channel changes we need to re-index posts so they
+        // have the new access policy.
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Authorization`);
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
 
@@ -712,8 +710,8 @@ class SearchEntityReadState {
         ] = await runAllPromises([
             getTaskFromIndex(this._context, this._context.actor.getSpaceId(), taskId),
 
-            // We ignore any errors from loading notes if the task was deleted. Since
-            // loading notes runs authorization and should throw a `NotFoundError`.
+            // We ignore any errors from loading notes if the task was deleted. Since loading
+            // notes runs authorization and should throw a `NotFoundError`.
             captureResultPromise(
                 getTaskNotesContentWithoutReferences(this._context, taskId, {
                     consistency: "StrongWithinCache",
@@ -736,8 +734,8 @@ class SearchEntityReadState {
             referencedCollections.map(collection => {
                 this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
-                // Wrap the collection model to automatically record `:Name` dependency
-                // when `getName()` is called.
+                // Wrap the collection model to automatically record `:Name` dependency when
+                // `getName()` is called.
                 const wrappedCollection: TaskCollectionModelForAuthorization = {
                     id: collection.id,
                     isDeleted: () => collection.isDeleted(),
@@ -801,8 +799,8 @@ class SearchEntityReadState {
                 referencedCollections.map(collection => {
                     this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
-                    // Wrap the collection model to automatically record `:Name` dependency
-                    // when `getName()` is called.
+                    // Wrap the collection model to automatically record `:Name` dependency when
+                    // `getName()` is called.
                     const wrappedCollection: TaskCollectionModelForAuthorization = {
                         id: collection.id,
                         isDeleted: () => collection.isDeleted(),
@@ -860,8 +858,8 @@ class SearchEntityReadState {
             referencedCollections.map(collection => {
                 this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
-                // Wrap the collection model to automatically record `:Name` dependency
-                // when `getName()` is called.
+                // Wrap the collection model to automatically record `:Name` dependency when
+                // `getName()` is called.
                 const wrappedCollection: TaskCollectionModelForAuthorization = {
                     id: collection.id,
                     isDeleted: () => collection.isDeleted(),
@@ -972,8 +970,8 @@ function getSearchEntityIndexAccessPolicy(
         accessPolicy.defaultGrant !== null ? "Space" : null;
     let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
 
-    // If we have a space default grant then the individual account grants don't
-    // matter for the search entity. Lets exclude them to save space in the index.
+    // If we have a space default grant then the individual account grants don't matter
+    // for the search entity. Lets exclude them to save space in the index.
     if (defaultGrantType !== null) {
         cast<"Space">(defaultGrantType);
         accountGrantAccountIds = new Set();
@@ -990,8 +988,8 @@ export function isSearchEntityIndexAccessPolicySubset(
     supersetAccessPolicy: SearchEntityIndexAccessPolicy,
     subsetAccessPolicy: SearchEntityIndexAccessPolicy,
 ): boolean {
-    // If the superset is shared with everyone in the space then it'll include
-    // whatever is inside the subset.
+    // If the superset is shared with everyone in the space then it'll include whatever
+    // is inside the subset.
     if (supersetAccessPolicy.defaultGrantType === "Space") return true;
 
     // If the subset is shared with everyone in the space but the superset was NOT
@@ -1004,8 +1002,8 @@ export function isSearchEntityIndexAccessPolicySubset(
     cast<null>(subsetAccessPolicy.defaultGrantType);
 
     // Make sure every subset account is also in the superset. It's fine if the
-    // superset has more accounts than the subset but every subset account must be
-    // in the superset.
+    // superset has more accounts than the subset but every subset account must be in
+    // the superset.
     for (const accountId of subsetAccessPolicy.accountGrantAccountIds) {
         if (!supersetAccessPolicy.accountGrantAccountIds.has(accountId)) {
             return false;
@@ -1020,14 +1018,13 @@ async function getSearchContentReferences(
     originEntityId: SearchEntityId,
     accessPolicy: SearchEntityIndexAccessPolicy,
     content: Node,
-    // The `seen` argument is required since it's very risky if you accidentally
-    // forget to provide the argument. Specifically when you're calling this
-    // function recursively. If there's a cycle and you forget to provide the
-    // `seen` set then we'll keep iterating forever and the function never
-    // terminates!
+    // The `seen` argument is required since it's very risky if you accidentally forget
+    // to provide the argument. Specifically when you're calling this function
+    // recursively. If there's a cycle and you forget to provide the `seen` set then
+    // we'll keep iterating forever and the function never terminates!
     //
-    // If you're not calling this function recursively you can pass in `emptySet`
-    // which would be the default if this argument were optional.
+    // If you're not calling this function recursively you can pass in `emptySet` which
+    // would be the default if this argument were optional.
     seen: ReadonlySet<SearchEntityId>,
 ): Promise<{
     getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
@@ -1052,8 +1049,8 @@ async function getSearchContentReferences(
                 ): Promise<
                     [SearchMentionEntityId, RenderContentMentionToTextSearchEntity] | null
                 > => {
-                    // If we've already seen this `entityId` then instead of loading it again
-                    // (which would cause an infinite loop), break the cycle.
+                    // If we've already seen this `entityId` then instead of loading it again (which
+                    // would cause an infinite loop), break the cycle.
                     if (seen.has(entityId)) {
                         return [
                             entityId,
@@ -1091,28 +1088,28 @@ async function getSearchContentReferences(
                     // Not much going on here.
                     // ```
                     //
-                    // Let's say document 1 is shared with Alice and Bob but document 2 is only
-                    // shared with Alice. In this case we'll index document 1 as "Check out Private
-                    // document" instead of "Check out Document 2". That's because Bob can't view
-                    // "Document 2" so we can't put the name "Document 2" in the search index since
-                    // Bob would be able to search for "Document 1" and see the name of the private
-                    // document through search!
+                    // Let's say document 1 is shared with Alice and Bob but document 2 is only shared
+                    // with Alice. In this case we'll index document 1 as "Check out Private document"
+                    // instead of "Check out Document 2". That's because Bob can't view "Document 2" so
+                    // we can't put the name "Document 2" in the search index since Bob would be able
+                    // to search for "Document 1" and see the name of the private document through
+                    // search!
                     //
-                    // This behavior is unfortunate for Alice since when she searches for
-                    // "Document 1" she'll also see "Check out Private document" in search but then
-                    // when clicking to open the document she'll see the name "Document 2" since
-                    // she has access to "Document 2".
+                    // This behavior is unfortunate for Alice since when she searches for "Document 1"
+                    // she'll also see "Check out Private document" in search but then when clicking to
+                    // open the document she'll see the name "Document 2" since she has access to
+                    // "Document 2".
                     //
                     // We believe this is an acceptable trade-off. Most of the time, if you're
-                    // mentioning an entity it'll be shared with everyone else who has access to
-                    // the thing you're referencing the entity from. Otherwise some of your
-                    // coworkers might complain they don't have access.
+                    // mentioning an entity it'll be shared with everyone else who has access to the
+                    // thing you're referencing the entity from. Otherwise some of your coworkers might
+                    // complain they don't have access.
                     //
-                    // We also want to eventually build a modal when you try referencing something
-                    // not everyone has access to which asks whether you want to broaden the
-                    // permissions of the entity you're sharing. This modal would make the edge
-                    // case where you reference something with fewer permissions than the entity
-                    // you're referencing from less common.
+                    // We also want to eventually build a modal when you try referencing something not
+                    // everyone has access to which asks whether you want to broaden the permissions of
+                    // the entity you're sharing. This modal would make the edge case where you
+                    // reference something with fewer permissions than the entity you're referencing
+                    // from less common.
                     if (!isSearchEntityIndexAccessPolicySubset(entityAccessPolicy, accessPolicy)) {
                         return [entityId, {isPrivate: true}];
                     }
@@ -1279,14 +1276,13 @@ async function getSearchMentionEntityIfExists(
 
 /**
  * Gets a `SearchEntity` object for any searchable thing in our system. This
- * function guarantees read-after-write consistency. If you've waited for a
- * write to commit then this function will read it (this means all DynamoDB
- * reads are made with strong consistency).
+ * function guarantees read-after-write consistency. If you've waited for a write
+ * to commit then this function will read it (this means all DynamoDB reads are
+ * made with strong consistency).
  *
- * While reading we may optionally register a function to perform additional
- * write actions. If we call this function as a part of the `IndexSearchEntity`
- * job then the additional writes will be run alongside updating our OpenSearch
- * index.
+ * While reading we may optionally register a function to perform additional write
+ * actions. If we call this function as a part of the `IndexSearchEntity` job then
+ * the additional writes will be run alongside updating our OpenSearch index.
  */
 export async function getSearchEntity(
     context: ServerSystemActionContext,
@@ -1370,8 +1366,8 @@ async function getAccountSearchEntity(
         media: {type: "Account", accountId},
         embeddingChunks: emptyArray,
 
-        // Doesn't make sense that an account would create itself. So mark an account
-        // has having no creator.
+        // Doesn't make sense that an account would create itself. So mark an account has
+        // having no creator.
         creatorId: null,
         contributorIds: emptyMap,
         dueDate: null,
@@ -1492,8 +1488,8 @@ export function chunkDocumentSearchContent(
 
     assert(content.firstChild?.type.name === "title");
 
-    // Create a copy of the document without its title. We add the title back in
-    // the chunk preamble of the first chunk.
+    // Create a copy of the document without its title. We add the title back in the
+    // chunk preamble of the first chunk.
     const contentWithoutTitle = content.type.create(
         content.attrs,
         content.content.content.slice(1),
@@ -1542,8 +1538,8 @@ async function getDocumentCommentSearchEntity(
         documentAccessPolicy,
     } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
 
-    // If we're running an `IndexSearchEntity` job then we also want to check if
-    // the message has timed out alongside updating the OpenSearch index.
+    // If we're running an `IndexSearchEntity` job then we also want to check if the
+    // message has timed out alongside updating the OpenSearch index.
     if (commentStream) {
         state.registerAdditionalWrite(
             createMessageStreamTimeoutAdditionalWrite(
@@ -1780,8 +1776,8 @@ async function getPostCommentSearchEntity(
         channelAccessPolicy,
     } = await state.getPostCommentPayload(postId, commentIndex);
 
-    // If we're running an `IndexSearchEntity` job then we also want to check if
-    // the message has timed out alongside updating the OpenSearch index.
+    // If we're running an `IndexSearchEntity` job then we also want to check if the
+    // message has timed out alongside updating the OpenSearch index.
     if (commentStream) {
         state.registerAdditionalWrite(
             createMessageStreamTimeoutAdditionalWrite(
@@ -1842,8 +1838,8 @@ export function sortSearchDirectChatEntityAccountIds(
     chatId: ChatId,
     originalAccountIds: Iterable<AccountId>,
 ) {
-    // Randomize the account order based on the `ChatId`. That way we should
-    // randomly select which accounts to show in the account pile.
+    // Randomize the account order based on the `ChatId`. That way we should randomly
+    // select which accounts to show in the account pile.
     const accountIds = Array.from(originalAccountIds);
     accountIds.sort(defaultCompareStrings);
 
@@ -1854,8 +1850,8 @@ export function sortSearchDirectChatEntityAccountIds(
 }
 
 /**
- * For chat room media we use an `AccountPile` and pick 2 accounts at random.
- * We try to use major contributors for those 2 accounts but if there are minor
+ * For chat room media we use an `AccountPile` and pick 2 accounts at random. We
+ * try to use major contributors for those 2 accounts but if there are minor
  * contributros too we'll include them.
  */
 export function getSearchRoomChatEntityMedia(
@@ -1884,20 +1880,20 @@ async function getChatSearchEntity(
         await state.getChatDefinitionAndMessagesSummary(chatId);
 
     if (
-        // If the chat has no messages yet, don't index any content. This means the
-        // chat won't show up in search. We don't show the chat in search until it gets
-        // its first message.
+        // If the chat has no messages yet, don't index any content. This means the chat
+        // won't show up in search. We don't show the chat in search until it gets its
+        // first message.
         (definition.type === "Direct" && !hasChatMessages(messagesSummary)) ||
-        // If a chat only has two accounts, don't index the chat. Instead you should
-        // access a 1:1 chat with another account by searching for their account entity
-        // (indexed by `getAccountSearchEntity()`).
+        // If a chat only has two accounts, don't index the chat. Instead you should access
+        // a 1:1 chat with another account by searching for their account entity (indexed
+        // by `getAccountSearchEntity()`).
         //
-        // Otherwise when you search for an account's name you'll see both your 1:1
-        // chat with them and their account which is a little weird.
+        // Otherwise when you search for an account's name you'll see both your 1:1 chat
+        // with them and their account which is a little weird.
         //
         // Also don't index the chat if it only has one account (so it's a private,
-        // personal, chat). Again if you search for your account name it'll show you
-        // the chat.
+        // personal, chat). Again if you search for your account name it'll show you the
+        // chat.
         (definition.type === "Direct" && definition.accountIds.size <= 2)
     ) {
         return {
@@ -1937,10 +1933,10 @@ async function getChatSearchEntity(
             mapIterable(definition.accountIds, accountId => state.getAccount(accountId)),
         );
 
-        // We index an alphabetically ordered list of full account names. So that we
-        // can keyword match based on full names when searching. However, it's a
-        // mouthful so when we render a chat we use a simpler format of two short names
-        // and "${n} others".
+        // We index an alphabetically ordered list of full account names. So that we can
+        // keyword match based on full names when searching. However, it's a mouthful so
+        // when we render a chat we use a simpler format of two short names and "${n}
+        // others".
         title = joinPrettyConjunctionList(
             accounts
                 .map(account => account.name)
@@ -1948,13 +1944,12 @@ async function getChatSearchEntity(
             "and",
         );
 
-        // Consider all members of the chat to be major contributors! Since the number
-        // of people in the chat will generally be small.
+        // Consider all members of the chat to be major contributors! Since the number of
+        // people in the chat will generally be small.
         //
-        // It's a little odd that only multi-user chats get this designation. If you
-        // search for "chats I'm a contributor to" (aka "my chats") you'd expect to see
-        // 1:1 chats there too but currently we don't index 1:1 chats. We only index
-        // accounts.
+        // It's a little odd that only multi-user chats get this designation. If you search
+        // for "chats I'm a contributor to" (aka "my chats") you'd expect to see 1:1 chats
+        // there too but currently we don't index 1:1 chats. We only index accounts.
         contributorIds = new Map(
             mapIterable(definition.accountIds, accountId => [accountId, "Major"]),
         );
@@ -1991,13 +1986,13 @@ async function getChatSearchEntity(
 
         createdTime,
         title,
-        // TODO: There's a title for direct chats, should we have a title version? We
-        // don't care too much about a title version here since clients don't need to
-        // update account names in realtime.
+        // TODO: There's a title for direct chats, should we have a title version? We don't
+        // care too much about a title version here since clients don't need to update
+        // account names in realtime.
         titleVersion: definition.type === "Room" ? {type: "Integer", version} : null,
         body: null,
-        // Used to search for exclusively chat rooms. Also useful in keyword search
-        // since queries like "Engineering chat room" will now match "room".
+        // Used to search for exclusively chat rooms. Also useful in keyword search since
+        // queries like "Engineering chat room" will now match "room".
         tags: definition.type === "Room" ? ["room"] : emptyArray,
         media,
         embeddingChunks: emptyArray,
@@ -2048,8 +2043,8 @@ function createMessageStreamTimeoutAdditionalWrite<Options extends {}>(
         //
         // We need to account for clock skew because message stream code schedules the
         // `IndexSearchEntity` job to always run after possible stream timeout. If the
-        // message has timed out we have to complete it here or else the message will
-        // be in an incomplete state on the client forever!
+        // message has timed out we have to complete it here or else the message will be in
+        // an incomplete state on the client forever!
         if (
             !isDatePossiblyLessThanWithUncertaintyWindow(
                 (messageStream.lastPingTime ?? messageStream.createdTime).getTime() +
@@ -2073,8 +2068,8 @@ function createMessageStreamTimeoutAdditionalWrite<Options extends {}>(
             ...options,
             partIndex: "Create",
             payload: {type: "Content", content},
-            // We're putting an error part after the message has timed out. We need to skip
-            // the time out check or this will throw an error.
+            // We're putting an error part after the message has timed out. We need to skip the
+            // time out check or this will throw an error.
             //
             // This will also complete the stream.
             isTimeoutErrorCompletion: true,
@@ -2096,8 +2091,8 @@ async function getChatMessageSearchEntity(
         state.getChatMessagePayload(chatId, messageIndex),
     ]);
 
-    // If we're running an `IndexSearchEntity` job then we also want to check if
-    // the message has timed out alongside updating the OpenSearch index.
+    // If we're running an `IndexSearchEntity` job then we also want to check if the
+    // message has timed out alongside updating the OpenSearch index.
     if (messageStream) {
         state.registerAdditionalWrite(
             createMessageStreamTimeoutAdditionalWrite(
@@ -2243,8 +2238,8 @@ function getTaskSearchEntityAccessPolicy({
 
     trackTaskDependencies(task);
 
-    // If we have a space default grant then the individual account grants don't
-    // matter for the search entity. Lets exclude them to save space in the index.
+    // If we have a space default grant then the individual account grants don't matter
+    // for the search entity. Lets exclude them to save space in the index.
     if (defaultGrantType !== null) {
         cast<"Space">(defaultGrantType);
         accountGrantAccountIds.clear();
@@ -2347,9 +2342,9 @@ async function getTaskSearchEntity(
     });
 
     // Calculate task contributors. For tasks we have discrete updates (update
-    // assignee, update priority) and continuous updates (update title, update
-    // notes). If an account has >20% contributions in either the discrete or
-    // continuous category then we consider it a major contributor.
+    // assignee, update priority) and continuous updates (update title, update notes).
+    // If an account has >20% contributions in either the discrete or continuous
+    // category then we consider it a major contributor.
     let contributorIds: Map<AccountId, "Major" | "Minor">;
     {
         const approximateActionCountByAccountId = new Map<
@@ -2410,8 +2405,8 @@ async function getTaskSearchEntity(
                 ([accountId, {continuousActionCount, discreteActionCount}]) => [
                     accountId,
                     // If the account is either above the cutoff for continuous actions or discrete
-                    // actions then we consider it to be a major contributor. It's not really fair
-                    // to compare major and discrete actions.
+                    // actions then we consider it to be a major contributor. It's not really fair to
+                    // compare major and discrete actions.
                     continuousActionCount / totalApproximateContinuousActionCount >=
                         searchEntityMajorContributorCutOff ||
                     discreteActionCount / totalApproximateDiscreteActionCount >=
@@ -2516,10 +2511,9 @@ async function getTaskCollectionSearchEntity(
         emptySet,
     );
 
-    // While task collections have no descriptions, we still want to generate
-    // embedding chunks. So if you search for "bug task collection" it'll match
-    // keyword, NLP, and semantic search to put the bugs task collection at
-    // the top.
+    // While task collections have no descriptions, we still want to generate embedding
+    // chunks. So if you search for "bug task collection" it'll match keyword, NLP, and
+    // semantic search to put the bugs task collection at the top.
     const {getEmbeddingChunks} = chunkSearchContent(collectionDescription, {
         tokenizer: state.tokenizer,
         getAccountIfExists: contentReferences.getAccountIfExists,
@@ -2581,8 +2575,8 @@ async function getTaskCommentSearchEntity(
         await runAllPromises([
             state.getTaskForAuthorization(taskId),
 
-            // Will throw a `NotFoundError` if the task was deleted. So ignore the error
-            // here if the task was deleted.
+            // Will throw a `NotFoundError` if the task was deleted. So ignore the error here
+            // if the task was deleted.
             captureResultPromise(state.getTaskCommentPayload(taskId, commentIndex)),
         ]);
 
@@ -2597,8 +2591,8 @@ async function getTaskCommentSearchEntity(
         stream: commentStream,
     } = unwrapResult(commentResult);
 
-    // If we're running an `IndexSearchEntity` job then we also want to check if
-    // the message has timed out alongside updating the OpenSearch index.
+    // If we're running an `IndexSearchEntity` job then we also want to check if the
+    // message has timed out alongside updating the OpenSearch index.
     if (commentStream) {
         state.registerAdditionalWrite(
             createMessageStreamTimeoutAdditionalWrite(

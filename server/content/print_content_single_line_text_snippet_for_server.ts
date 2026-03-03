@@ -9,13 +9,12 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Calls `printContentSingleLineTextSnippet()` to print some content using the
- * content's `ContentReferences`. However, instead of using the normalized data
- * in `AccountRegistry` and `SearchEntityRegistry` (which are only available on
- * the client) we use the immediately available data in `initialData`.
+ * content's `ContentReferences`. However, instead of using the normalized data in
+ * `AccountRegistry` and `SearchEntityRegistry` (which are only available on the
+ * client) we use the immediately available data in `initialData`.
  *
- * On the client you should use
- * `printContentSingleLineTextSnippetWithForClient()` which uses the normalized
- * `AccountRegistry` and `SearchEntityRegistry`.
+ * On the client you should use `printContentSingleLineTextSnippetWithForClient()`
+ * which uses the normalized `AccountRegistry` and `SearchEntityRegistry`.
  *
  * This is in `//server/content` so you can't import this function at all on the
  * client.

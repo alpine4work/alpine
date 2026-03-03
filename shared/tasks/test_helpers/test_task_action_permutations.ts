@@ -4403,18 +4403,18 @@ function permutator<Item>(inputArray: ReadonlyArray<Item>): Array<Array<Item>> {
 }
 
 /**
- * We have a library of `TaskAction` test cases. This function will run
- * each of our test cases. It will run the test case in every possible order
- * and with duplicates. This way we can test the commutativity and idempotency
- * properties of `TaskAction`s.
+ * We have a library of `TaskAction` test cases. This function will run each of our
+ * test cases. It will run the test case in every possible order and with
+ * duplicates. This way we can test the commutativity and idempotency properties of
+ * `TaskAction`s.
  *
  * This is in a shared file so we can run it with our OpenSearch `TaskAction`
  * implementation and our client database `TaskAction` implementation to verify
  * they have the same implementations.
  *
  * We do not use this to test committing `TaskAction`s. The `TaskAction` commit
- * function is not commutative or idempotent. Once an action has been
- * committed, then we may apply it in any order.
+ * function is not commutative or idempotent. Once an action has been committed,
+ * then we may apply it in any order.
  */
 export function testTaskActionPermutations({
     percent = 1,
@@ -4455,8 +4455,8 @@ export function testTaskActionPermutations({
     for (const testCase of taskActionTestCases) {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-        // Make sure this function returns a monotonically increasing date to
-        // avoid flaky errors.
+        // Make sure this function returns a monotonically increasing date to avoid flaky
+        // errors.
         function getNextTime() {
             return clock.now();
         }
@@ -4536,9 +4536,9 @@ export function testTaskActionPermutations({
                     const run = async () => {
                         const promises = [];
 
-                        // Run our actions in sequence. If an action calls `next()` that means it needs
-                        // to retry. It might need to retry because it's waiting on a later action. So
-                        // go apply the next action.
+                        // Run our actions in sequence. If an action calls `next()` that means it needs to
+                        // retry. It might need to retry because it's waiting on a later action. So go
+                        // apply the next action.
                         for (const action of actions) {
                             const nextPromiseResolver = createPromiseResolver();
 
@@ -4710,8 +4710,8 @@ export function testTaskActionPermutations({
     assert(Number.isInteger(partitionCount));
     assert(1 <= partitionNumber && partitionNumber <= partitionCount);
 
-    // If we are only running some percent of tests then randomly shuffle our tests
-    // and pick the first N. That will be the set of tests we run.
+    // If we are only running some percent of tests then randomly shuffle our tests and
+    // pick the first N. That will be the set of tests we run.
     const shuffledTests =
         percent < 1
             ? stableShuffleArray(

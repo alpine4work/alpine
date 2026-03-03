@@ -14,8 +14,8 @@ export const maxPostPreviewCommentAuthorCount = 5;
 
 /**
  * A post creates a thread of conversation in a channel. Users can write any
- * content they want in a post and it will be delivered to all members of a
- * channel through their inbox and feed.
+ * content they want in a post and it will be delivered to all members of a channel
+ * through their inbox and feed.
  *
  * Other users can comment on the post and have a conversation. Post comments
  * include one level of threading.
@@ -45,9 +45,9 @@ export class PostModel extends Model(
         commentAuthorCount: Schema.integer,
 
         /**
-         * Some of the authors who commented on this post. Only the first 5 or so. If
-         * the length of this array is shorter than `commentAuthorCount` then you know
-         * there are more authors we aren't including.
+         * Some of the authors who commented on this post. Only the first 5 or so. If the
+         * length of this array is shorter than `commentAuthorCount` then you know there
+         * are more authors we aren't including.
          */
         previewCommentAuthors: Schema.array(AccountModel.schema),
 
@@ -76,8 +76,7 @@ export class PostCommentModel
     )
     implements MessageModel<PostId>
 {
-    // Make sure this property is available on this type and not just the
-    // interface.
+    // Make sure this property is available on this type and not just the interface.
     public readonly isOptimistic?: undefined;
 
     public getRoomKey() {

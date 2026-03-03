@@ -116,14 +116,14 @@ function expectItems(
     if (itemCount > 0) state.getItem(0);
 
     // Get items backwards as well as forwards. We implement an optimization that
-    // allows `getItem(n + 1)` preceded by `getItem(n)` to be O(1) but that's not
-    // the case for `getItem(n - 1)` preceded by `getItem(n)`.
+    // allows `getItem(n + 1)` preceded by `getItem(n)` to be O(1) but that's not the
+    // case for `getItem(n - 1)` preceded by `getItem(n)`.
     for (let i = itemCount - 1; i >= 0; i--) {
         reversedActualItems.push(state.getItem(i));
     }
 
-    // For good measure, let's also get all our items in a random order to really
-    // make sure there are no internal iteration state bugs.
+    // For good measure, let's also get all our items in a random order to really make
+    // sure there are no internal iteration state bugs.
     for (const i of shuffledItemIndexes) {
         shuffledActualItems.push(state.getItem(i));
     }

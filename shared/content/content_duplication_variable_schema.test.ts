@@ -533,8 +533,8 @@ describe("extractContentDuplicationSchema", () => {
     });
 
     test("variable name with plain text then space then styled text extracts correct name", () => {
-        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed
-        // so variable name is "Helloworld"
+        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed so variable
+        // name is "Helloworld"
         const doc = createTestDocument([
             {
                 type: "paragraph",
@@ -554,8 +554,8 @@ describe("extractContentDuplicationSchema", () => {
     });
 
     test("variable name with plain text then space then styled text (excluding bracket) extracts correct name", () => {
-        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed
-        // so variable name is "Helloworld"
+        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed so variable
+        // name is "Helloworld"
         const doc = createTestDocument([
             {
                 type: "paragraph",
@@ -884,8 +884,8 @@ describe("applyContentDuplicationValues", () => {
     });
 
     test("replaces variable with mixed styles inside name", () => {
-        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes,
-        // so variable name is "Hello world" (with space)
+        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes, so variable
+        // name is "Hello world" (with space)
         const doc = createTestDocument([
             {
                 type: "paragraph",
@@ -906,8 +906,8 @@ describe("applyContentDuplicationValues", () => {
     });
 
     test("replaces variable with mixed styles inside name not including bracket", () => {
-        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes,
-        // so variable name is "Hello world" (with space)
+        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes, so variable
+        // name is "Hello world" (with space)
         const doc = createTestDocument([
             {
                 type: "paragraph",

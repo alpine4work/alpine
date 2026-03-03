@@ -1,8 +1,8 @@
 import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 
 /**
- * Given two AvatarModel objects, returns the latest avatar version. Tiebreaker (both
- * versions are the same or both avatars are null) always goes to avatar1.
+ * Given two AvatarModel objects, returns the latest avatar version. Tiebreaker
+ * (both versions are the same or both avatars are null) always goes to avatar1.
  */
 export function getLatestAvatarVersion(
     avatar1: AvatarModel | null,

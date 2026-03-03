@@ -55,7 +55,8 @@ import {
 import {TaskRealtimeLoadQueriesInput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 const LoaderSchema = Schema.object({
-    // Which sections have queries (Active, Overdue, DueToday, DueSoon, Closed, Remaining)
+    // Which sections have queries (Active, Overdue, DueToday, DueSoon, Closed,
+    // Remaining)
     sectionsPresent: Schema.tuple([
         Schema.boolean,
         Schema.boolean,
@@ -255,8 +256,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
 }
 
 // We use `useTaskQueryState` to handle filter/sort changes client-side without
-// loader calls. We only need to revalidate when the mode changes between
-// Sections (no sorts) and Unified (has sorts), or when the base URL changes.
+// loader calls. We only need to revalidate when the mode changes between Sections
+// (no sorts) and Unified (has sorts), or when the base URL changes.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl: originalCurrentUrl,
     nextUrl: originalNextUrl,
@@ -279,7 +280,8 @@ export default function TasksRoute() {
 
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Parse initial filters and sorts from loader data to ensure SSR/client consistency
+    // Parse initial filters and sorts from loader data to ensure SSR/client
+    // consistency
     const [initialFilters] = useState((): ReadonlyArray<TaskQueryFilter> => {
         const filtersString = searchParams.get("filter");
         if (!filtersString) return [];
@@ -304,9 +306,9 @@ export default function TasksRoute() {
 
             setSearchParams(newSearchParams, {
                 replace: true,
-                // Don't revalidate when updating search params from here. We can't use the
-                // stable `shouldRevalidate` route function because if the user navigates to
-                // a new URL we want to load new data and re-render the route.
+                // Don't revalidate when updating search params from here. We can't use the stable
+                // `shouldRevalidate` route function because if the user navigates to a new URL we
+                // want to load new data and re-render the route.
                 unstable_shouldRevalidate: false,
             });
         },
@@ -326,8 +328,8 @@ export default function TasksRoute() {
                 newSearchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
             }
 
-            // Only revalidate when mode changes (sections <-> unified).
-            // Otherwise useTaskQueryState handles sort changes client-side.
+            // Only revalidate when mode changes (sections <-> unified). Otherwise
+            // useTaskQueryState handles sort changes client-side.
             const shouldRevalidate = currentHasSort !== nextHasSort;
             setSearchParams(newSearchParams, {
                 replace: true,
@@ -337,8 +339,8 @@ export default function TasksRoute() {
         [searchParams, setSearchParams],
     );
 
-    // We don't retain here since the components that consume our queries are
-    // expected to retain them.
+    // We don't retain here since the components that consume our queries are expected
+    // to retain them.
     const {store, queries} = useTaskStoreLoaderDataWithoutRetaining();
 
     const affinityManager = useTaskClientStoreSearchAffinityManager("TaskPersonal");
@@ -444,8 +446,9 @@ function getNonActiveTaskQueriesIfExists(options: {
     browserId: BrowserId;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 }): Tuple<TaskRealtimeLoadQueriesInput["queries"][number] | null, 5> {
-    // Non-active sections (Overdue, DueToday, DueSoon, Remaining) only show OpenInactive tasks.
-    // Closed tasks are shown in their own dedicated Closed section.
+    // Non-active sections (Overdue, DueToday, DueSoon, Remaining) only show
+    // OpenInactive tasks. Closed tasks are shown in their own dedicated Closed
+    // section.
     const displayStatusFilter = createPersonalTaskViewDisplayStatusFilter(
         new Set(["OpenInactive"]),
     );

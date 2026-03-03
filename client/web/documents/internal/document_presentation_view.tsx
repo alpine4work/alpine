@@ -120,8 +120,8 @@ export function DocumentPresentationView({
         },
     });
 
-    // Ignore pointer events on link elements. If a link is clicked the link will
-    // do its own press handling.
+    // Ignore pointer events on link elements. If a link is clicked the link will do
+    // its own press handling.
     const ignorePressFromElement = (element: Element): boolean => {
         return !!element.closest(
             [linkClassName, scrollbarStyles.scrollbarThumbClassName]

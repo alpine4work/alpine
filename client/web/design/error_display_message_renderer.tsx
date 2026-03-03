@@ -54,8 +54,8 @@ export function ErrorDisplayMessageRenderer({
 
     /**
      * Context to report the rendered error in. Useful if the error was generated
-     * somewhere with a different `AppContext` than where it's rendered. For
-     * example, an error generated in a peek rendering in a toast.
+     * somewhere with a different `AppContext` than where it's rendered. For example,
+     * an error generated in a peek rendering in a toast.
      */
     reportingContext?: AppContext;
 }) {
@@ -70,11 +70,11 @@ export function ErrorDisplayMessageRenderer({
 
     const errorToReportRef = useRef({error, hasReported: false});
 
-    // We use a different implementation on the client and on the server. On the
-    // server we want to report the error synchronously in render so it can be
-    // included in the HTTP response. On the client we want to report the error in
-    // an effect. Ok to break the rules of hooks here since this branch is entirely
-    // environment dependent.
+    // We use a different implementation on the client and on the server. On the server
+    // we want to report the error synchronously in render so it can be included in the
+    // HTTP response. On the client we want to report the error in an effect. Ok to
+    // break the rules of hooks here since this branch is entirely environment
+    // dependent.
     if (!isBrowserRuntime) {
         if (!withoutReporting) {
             // If the error prop changed, then we need to log it again.
@@ -82,9 +82,9 @@ export function ErrorDisplayMessageRenderer({
                 errorToReportRef.current = {error, hasReported: false};
             }
 
-            // We report rendered errors in the React render function since we want the
-            // errors to show up in our instrumentation while server-side rendering.
-            // Server-side rendering doesn't run effects.
+            // We report rendered errors in the React render function since we want the errors
+            // to show up in our instrumentation while server-side rendering. Server-side
+            // rendering doesn't run effects.
             if (!errorToReportRef.current.hasReported) {
                 errorToReportRef.current.hasReported = true;
                 (reportingContext ?? context).react.reportRenderedError(
@@ -131,9 +131,9 @@ export function ErrorDisplayMessageRenderer({
             {prefixMessage && <>{prefixMessage} </>}
             {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
-                    // Split error message text into individual words and let any long words wrap
-                    // onto multiple lines. For example, a long email address that overflows the
-                    // current line.
+                    // Split error message text into individual words and let any long words wrap onto
+                    // multiple lines. For example, a long email address that overflows the current
+                    // line.
                     case "Text":
                     case "SensitiveText": {
                         return (
@@ -160,8 +160,8 @@ export function ErrorDisplayMessageRenderer({
                                 key={index}
                                 url={
                                     displayMessageSegment.url === errorDisplayMessage.signInLink.url
-                                        ? // Special-case `/auth/sign-in` URL to provide a `to` search param that will take us
-                                          // back to the URL which erred.
+                                        ? // Special-case `/auth/sign-in` URL to provide a `to` search param that will take
+                                          // us back to the URL which erred.
                                           `${displayMessageSegment.url}?to=${encodeURIComponent(
                                               createPath(location),
                                           )}`
@@ -169,8 +169,8 @@ export function ErrorDisplayMessageRenderer({
                                 }
                                 onClick={event => {
                                     if (NativeMobileBridge) {
-                                        // Special-case `/sign-out` so if we're in the native mobile app we'll trigger
-                                        // an app sign out.
+                                        // Special-case `/sign-out` so if we're in the native mobile app we'll trigger an
+                                        // app sign out.
                                         if (
                                             displayMessageSegment.url ===
                                             errorDisplayMessage.signOutLink.url
@@ -179,8 +179,8 @@ export function ErrorDisplayMessageRenderer({
                                             NativeMobileBridge.session.signOut();
                                         }
 
-                                        // Special-case `/switch-space` so if we're in the native mobile app we'll open
-                                        // the switch space route in app instead of in an external web browser.
+                                        // Special-case `/switch-space` so if we're in the native mobile app we'll open the
+                                        // switch space route in app instead of in an external web browser.
                                         if (
                                             displayMessageSegment.url ===
                                             errorDisplayMessage.switchSpaceLink.url
@@ -221,13 +221,13 @@ export function ErrorDisplayMessageRenderer({
                             }[fontSize]
                         }
                         style={{
-                            // HACK(calebmer): This text uses an inaccessible color. We are ok with this
-                            // since the content is meant for developers, not for end users. In fact, end
-                            // users should ignore this text! But we want the text to be included in error
-                            // message screenshots.
+                            // HACK(calebmer): This text uses an inaccessible color. We are ok with this since
+                            // the content is meant for developers, not for end users. In fact, end users
+                            // should ignore this text! But we want the text to be included in error message
+                            // screenshots.
                             //
-                            // By setting a background image Axe ignores the inaccessible text color
-                            // because it can't figure out the background color.
+                            // By setting a background image Axe ignores the inaccessible text color because it
+                            // can't figure out the background color.
                             backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
                         }}
                     >

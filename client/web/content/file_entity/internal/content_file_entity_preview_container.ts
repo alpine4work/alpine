@@ -73,7 +73,8 @@ export function setupContentFileEntityPreviewContainer(
               ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
-    // To Discuss: Making an assumption here about why document only used paddingX vs. padding
+    // To Discuss: Making an assumption here about why document only used paddingX vs.
+    // padding
     const containerPaddingClass = config.withoutContainerPaddingY
         ? sprinkles({paddingX: containerPadding})
         : sprinkles({padding: containerPadding});

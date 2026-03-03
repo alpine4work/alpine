@@ -1,19 +1,19 @@
 /**
  * This file runs a small proxy server we can pass to Bazel's `--remote_cache`
- * option in our GitHub runner. The proxy server adds an `Authorization` header
- * and redirects the request to our S3 remote cache bucket.
+ * option in our GitHub runner. The proxy server adds an `Authorization` header and
+ * redirects the request to our S3 remote cache bucket.
  *
  * This file can't use any third-party dependencies since it runs before Bazel
- * downloads our npm dependencies from `package.json`. It also runs before
- * Bazel installs Node.js so we have to use an Node.js v12 which is what's
- * installed by Ubuntu's package manager (`apt-get install nodejs`). Make sure
- * to only use JavaScript features and Node.js APIs supported by Node.js 12.
+ * downloads our npm dependencies from `package.json`. It also runs before Bazel
+ * installs Node.js so we have to use an Node.js v12 which is what's installed by
+ * Ubuntu's package manager (`apt-get install nodejs`). Make sure to only use
+ * JavaScript features and Node.js APIs supported by Node.js 12.
  *
- * How to sign requests to S3 is documented in "[Signing and authenticating
- * REST requests][1]." There's a pretty thorough specification we follow in
- * this file.
+ * How to sign requests to S3 is documented in "[Signing and authenticating REST
+ * requests][1]." There's a pretty thorough specification we follow in this file.
  *
- * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html
+ * [1]:
+ *     https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html
  */
 
 "use strict";
@@ -102,8 +102,8 @@ async function main() {
 
     // TODO(calebmer, 2024-08-15): Wish I called this bucket
     // `cyberworlds-bazel-remote-cache`. Since `bazel-remote` could refer to remote
-    // execution or remote caching. I think I named this when I was planning to use
-    // the [`bazel-remote`][1] project.
+    // execution or remote caching. I think I named this when I was planning to use the
+    // [`bazel-remote`][1] project.
     //
     // [1]: https://github.com/buchgr/bazel-remote
     const bucket = "cyberworlds-bazel-remote";
@@ -120,8 +120,8 @@ async function main() {
 
             if (!req2Headers["date"]) req2Headers["date"] = new Date().toUTCString();
 
-            // The temporary token provided to us by the instance metadata service expires
-            // more than 4 hours in the future. This is plenty of time for our test to run.
+            // The temporary token provided to us by the instance metadata service expires more
+            // than 4 hours in the future. This is plenty of time for our test to run.
             req2Headers["x-amz-security-token"] = roleCredentials.Token;
 
             // Follows the algorithm defined here:
@@ -195,8 +195,8 @@ async function main() {
     });
 
     await new Promise((resolve, reject) => {
-        // Manually inline `BAZEL_REMOTE_CACHE_PORT` from `.env.development`. We can't
-        // have any third-party dependencies in this file.
+        // Manually inline `BAZEL_REMOTE_CACHE_PORT` from `.env.development`. We can't have
+        // any third-party dependencies in this file.
         server.listen(3501, error => {
             if (error) reject(error);
             else resolve();

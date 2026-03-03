@@ -63,8 +63,8 @@ export function SettingsInvitePeopleModal({
             Array.from(
                 new Set(
                     filterMapIterable(
-                        // Comma separator, newline separator, space separator, semicolon separator,
-                        // all should work for splitting up email addresses.
+                        // Comma separator, newline separator, space separator, semicolon separator, all
+                        // should work for splitting up email addresses.
                         batchEmailString.split(/[\s,;]+/),
                         emailAddress => {
                             emailAddress = emailAddress.trim();
@@ -140,8 +140,9 @@ export function SettingsInvitePeopleModal({
     };
 
     const onCloseAndCheckSuccess = () => {
-        // We only want to call `onSuccess` if we had successful invites and are closing the modal.
-        // If there were errors, we show them in the UI and do not call `onSuccess` immediately.
+        // We only want to call `onSuccess` if we had successful invites and are closing
+        // the modal. If there were errors, we show them in the UI and do not call
+        // `onSuccess` immediately.
         if (hadSuccessfulInvites) {
             onSuccess();
         }
@@ -257,8 +258,8 @@ function SettingInvitePeopleModalError({error}: {error: unknown}) {
                     color="grey-90"
                     userSelect="text"
                     style={{
-                        // Defend against a lot of errors. Don't let the modal grow infinitely since
-                        // the modal can't scroll.
+                        // Defend against a lot of errors. Don't let the modal grow infinitely since the
+                        // modal can't scroll.
                         //
                         // Truncate after 5 lines of text. Unofficial syntax that works in all browsers
                         // except IE.

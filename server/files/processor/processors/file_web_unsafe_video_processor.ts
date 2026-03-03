@@ -36,13 +36,13 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
 /**
- * For video formats that don't have broad browser support we convert them to
- * WebM using the VP9 video codec and Opus audio codec. This is what [MDN
- * recommends for a good everyday video codec]. We save the WebM data as the
- * file's alternative so it's displayed in our file viewer instead of the file
- * itself.
+ * For video formats that don't have broad browser support we convert them to WebM
+ * using the VP9 video codec and Opus audio codec. This is what [MDN recommends for
+ * a good everyday video codec]. We save the WebM data as the file's alternative so
+ * it's displayed in our file viewer instead of the file itself.
  *
- * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
+ * [1]:
+ *     https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
  */
 export function createFileWebUnsafeVideoProcessor(
     contentType: FileWebUnsafeVideoContentType,
@@ -135,15 +135,14 @@ export async function processFileWebUnsafeVideo(
                 // data it needs with HTTP `Range` requests.
                 "-i",
                 inputUrl,
-                // Limit the number of threads for FFmpeg to reduce resource contention
-                // in `FileProcessorService`.
+                // Limit the number of threads for FFmpeg to reduce resource contention in
+                // `FileProcessorService`.
                 "-threads",
                 String(ffmpegThreadCount),
                 // Capture thumbnails from the beginning of the video.
                 //
-                // We must output to a file. We can't output to stdout when taking a screenshot
-                // or else we get the error "[avif] muxer does not support non seekable
-                // output".
+                // We must output to a file. We can't output to stdout when taking a screenshot or
+                // else we get the error "[avif] muxer does not support non seekable output".
                 ...getFfmpegImagePreviewContentOutputOptions({
                     output1Path: previewOutput1Path,
                     output2Path: previewOutput2Path,
@@ -165,14 +164,15 @@ export async function processFileWebUnsafeVideo(
                 // data it needs with HTTP `Range` requests.
                 "-i",
                 inputUrl,
-                // Limit the number of threads for FFmpeg to reduce resource contention
-                // in `FileProcessorService`.
+                // Limit the number of threads for FFmpeg to reduce resource contention in
+                // `FileProcessorService`.
                 "-threads",
                 String(ffmpegThreadCount),
-                // Convert the video file to WebM using the VP9 video codec and Opus audio
-                // codec. This is what [MDN recommends for a good everyday video codec].
+                // Convert the video file to WebM using the VP9 video codec and Opus audio codec.
+                // This is what [MDN recommends for a good everyday video codec].
                 //
-                // [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
+                // [1]:
+                //     https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
                 "-f",
                 "webm",
                 "-vcodec",
@@ -180,25 +180,24 @@ export async function processFileWebUnsafeVideo(
                 "-acodec",
                 "libopus",
                 // Enable row based multi-threading for `libvpx-vp9` encoding since it's not
-                // enabled by default.
-                // https://trac.ffmpeg.org/wiki/Encode/VP9#rowmt
+                // enabled by default. https://trac.ffmpeg.org/wiki/Encode/VP9#rowmt
                 "-row-mt",
                 "1",
-                // In unit tests, tune `libvpx-vp9` encoding to prefer speed over quality at
-                // all costs. This takes the test for
-                // `calebmer_alpine_forum_screen_recording.mov` from completing in ~30s to
-                // completing in ~2s.
+                // In unit tests, tune `libvpx-vp9` encoding to prefer speed over quality at all
+                // costs. This takes the test for `calebmer_alpine_forum_screen_recording.mov` from
+                // completing in ~30s to completing in ~2s.
                 // https://trac.ffmpeg.org/wiki/Encode/VP9#DeadlineQuality
                 ...(import.meta.jest
                     ? ["-deadline", "realtime", "-cpu-used", "8"]
-                    : // NOTE(ifitzsimmons, 2025-07-31): See benchmarks: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/mmcg93qv2zvzmnmqt3ec6vtexm
+                    : // NOTE(ifitzsimmons, 2025-07-31): See benchmarks:
+                      // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/mmcg93qv2zvzmnmqt3ec6vtexm
                       // This alleviates some of the timeout issues we've seen in production without
-                      // compromising too much on quality. We landed on this setting during Tea Time.
-                      // We did discuss changing video resolution to 1080p as well since this only
-                      // impacts the quality of embedded videos (downloading from the app downloads
-                      // the original video). We decided to continue to allow high resolution videos
-                      // and compromise on compression efficiency instead. This means the web safe
-                      // files that we store will be slightly larger.
+                      // compromising too much on quality. We landed on this setting during Tea Time. We
+                      // did discuss changing video resolution to 1080p as well since this only impacts
+                      // the quality of embedded videos (downloading from the app downloads the original
+                      // video). We decided to continue to allow high resolution videos and compromise on
+                      // compression efficiency instead. This means the web safe files that we store will
+                      // be slightly larger.
                       ["-deadline", "realtime", "-cpu-used", "6"]),
                 // Output the new video to the provided path.
                 alternativeOutputPath,
@@ -214,10 +213,10 @@ export async function processFileWebUnsafeVideo(
         let previewContentStderr = "";
         let alternativeStderr = "";
 
-        // This function checks to see if the input's duration and width/height have
-        // been written to stderr and if it has then we can resolve
-        // `previewContentPromise`. This will push an update to the user waiting on their
-        // file to upload so they can see a preview of the file in the product.
+        // This function checks to see if the input's duration and width/height have been
+        // written to stderr and if it has then we can resolve `previewContentPromise`.
+        // This will push an update to the user waiting on their file to upload so they can
+        // see a preview of the file in the product.
         const attemptResolvePreviewSize = () => {
             if (previewSizePromiseResolver.isSettled()) return;
 
@@ -225,9 +224,9 @@ export async function processFileWebUnsafeVideo(
                 const previewSize =
                     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
                         previewContentStderr,
-                        // HACK: Which content types may have an alpha channel? It's ok to return true
-                        // if the video doesn't actually have any transparent pixels but it's not ok to
-                        // return false if the video does have transparent pixels.
+                        // HACK: Which content types may have an alpha channel? It's ok to return true if
+                        // the video doesn't actually have any transparent pixels but it's not ok to return
+                        // false if the video does have transparent pixels.
                         //
                         // TODO: We should parse the pixel format out of stderr and check if the pixel
                         // format has an alpha channel.
@@ -311,13 +310,13 @@ export async function processFileWebUnsafeVideo(
                     },
                 );
 
-                // Determine which thumbnail to use. If the second thumbnail (taken at 1s) is
-                // empty then we need to use the third thumbnail (taken at 0s). If the first
-                // thumbnail (taken at 10s) is empty but not the second thumbnail then we'll
-                // use the second thumbnail (taken at 1s).
+                // Determine which thumbnail to use. If the second thumbnail (taken at 1s) is empty
+                // then we need to use the third thumbnail (taken at 0s). If the first thumbnail
+                // (taken at 10s) is empty but not the second thumbnail then we'll use the second
+                // thumbnail (taken at 1s).
                 //
-                // This way if a video is longer than 10s we'll use the 10s thumbnail.
-                // Otherwise we'll use the 1s thumbnail.
+                // This way if a video is longer than 10s we'll use the 10s thumbnail. Otherwise
+                // we'll use the 1s thumbnail.
                 let outputPath: string;
                 if (
                     /(?:^|\n)\[out#1\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
@@ -381,9 +380,9 @@ export async function processFileWebUnsafeVideo(
                         },
                     });
 
-                    // If the video duration wasn't present in the video's metadata then we wait
-                    // until FFmpeg finishes and parse the duration from `time` printed at the end
-                    // of FFmpeg's stderr.
+                    // If the video duration wasn't present in the video's metadata then we wait until
+                    // FFmpeg finishes and parse the duration from `time` printed at the end of
+                    // FFmpeg's stderr.
                     if (!previewVideoDurationPromiseResolver.isSettled()) {
                         const match = alternativeStderr
                             .trimEnd()
@@ -412,9 +411,9 @@ export async function processFileWebUnsafeVideo(
         return alternative;
     })().then(
         alternative => {
-            // All of these promise resolvers MUST have either been resolved or rejected by
-            // the end of this promise. So any promise resolvers that haven't been settled
-            // yet reject with an error as a safety mechanism.
+            // All of these promise resolvers MUST have either been resolved or rejected by the
+            // end of this promise. So any promise resolvers that haven't been settled yet
+            // reject with an error as a safety mechanism.
             if (!previewSizePromiseResolver.isSettled()) {
                 previewSizePromiseResolver.reject(
                     new InternalError("Promise resolver wasn\u2019t resolved"),

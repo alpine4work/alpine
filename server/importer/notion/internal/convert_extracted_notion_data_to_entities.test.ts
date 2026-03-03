@@ -128,9 +128,9 @@ function createTestMappedReferencesResult(config: {
     }
 
     return {
-        // Use a unique workspace ID per call to avoid deterministic ID collisions
-        // between tests. Each test gets its own "workspace" so teamspace root
-        // documents have unique IDs.
+        // Use a unique workspace ID per call to avoid deterministic ID collisions between
+        // tests. Each test gets its own "workspace" so teamspace root documents have
+        // unique IDs.
         notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
         teamspaces,
         filesToUpload: {},
@@ -837,12 +837,8 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // Simulate nested export structure:
-            // Parent/
-            //   ParentDoc abc123.md
-            //   Subdir/
-            //     NestedDoc def456.md (links to ../SiblingDoc.md)
-            //   SiblingDoc ghi789.md
+            // Simulate nested export structure: Parent/ ParentDoc abc123.md Subdir/ NestedDoc
+            // def456.md (links to ../SiblingDoc.md) SiblingDoc ghi789.md
             const mappedResult = createTestMappedReferencesResult({
                 teamspaces: [
                     {
@@ -994,9 +990,9 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // Test that .md links with parentheses in the filename are properly converted.
-            // The regex needs to handle URLs like "File%20(info)%20abc.md" where the
-            // URL-encoded parentheses should not break the match.
+            // Test that .md links with parentheses in the filename are properly converted. The
+            // regex needs to handle URLs like "File%20(info)%20abc.md" where the URL-encoded
+            // parentheses should not break the match.
             const mappedResult = createTestMappedReferencesResult({
                 teamspaces: [
                     {
@@ -1347,8 +1343,8 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // Test that a document whose title (# heading) contains parentheses
-            // is parsed correctly.
+            // Test that a document whose title (# heading) contains parentheses is parsed
+            // correctly.
             const mappedResult = createTestMappedReferencesResult({
                 teamspaces: [
                     {
@@ -1394,8 +1390,8 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // A document that has ONLY child links (no other content) should have
-            // empty body content - the Child documents section provides the structure.
+            // A document that has ONLY child links (no other content) should have empty body
+            // content - the Child documents section provides the structure.
             const mappedResult = createTestMappedReferencesResult({
                 teamspaces: [
                     {
@@ -1440,8 +1436,9 @@ describe("convertExtractedNotionDataToEntities", () => {
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
             const documentContent = parentDocument.content.doc.toJSON();
 
-            // Document should have: title, Child documents heading, and two list items with mentions
-            // The inline child links are removed since the content was ONLY child links
+            // Document should have: title, Child documents heading, and two list items with
+            // mentions The inline child links are removed since the content was ONLY child
+            // links
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -1513,8 +1510,8 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // A document with real content AND inline child links should keep the inline links.
-            // Only documents with ONLY child links have the inline content removed.
+            // A document with real content AND inline child links should keep the inline
+            // links. Only documents with ONLY child links have the inline content removed.
             const mappedResult = createTestMappedReferencesResult({
                 teamspaces: [
                     {
@@ -1558,8 +1555,8 @@ Related:
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
             const documentContent = parentDocument.content.doc.toJSON();
 
-            // Document should have: title, main content, Related text, inline mention,
-            // Child documents heading, and list item with mention
+            // Document should have: title, main content, Related text, inline mention, Child
+            // documents heading, and list item with mention
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -2029,8 +2026,9 @@ This is the actual content.`,
             const parentDoc = await getDocument(space.systemAction(), parentId);
             const documentContent = parentDoc.content.doc.toJSON();
 
-            // Document should have: title, parent link, actual content paragraph, "Child documents" heading, list items
-            // The child links section and divider should be removed
+            // Document should have: title, parent link, actual content paragraph, "Child
+            // documents" heading, list items The child links section and divider should be
+            // removed
             expect(documentContent.content[0]).toMatchObject({
                 type: "title",
                 content: [{type: "text", text: "Parent Page"}],
@@ -2648,8 +2646,8 @@ Bob,Designer`,
                 session.account.id,
             );
 
-            // Database .md wrapper file and its CSV data
-            // The .md file links to the CSV, and the CSV link gets converted to a table
+            // Database .md wrapper file and its CSV data The .md file links to the CSV, and
+            // the CSV link gets converted to a table
             const csvFileName = "Project Tasks abc12345678901234567890abcdef123.csv";
             const mdFileName = "Project Tasks abc12345678901234567890abcdef123.md";
             const unzippedFiles: Record<string, Uint8Array> = {
@@ -2972,10 +2970,10 @@ Here are some details.`,
                 session.account.id,
             );
 
-            // When a database is a child of a document in Notion exports,
-            // Notion creates a .md file for the database that links to the CSV.
-            // The parent document links to the .md file (not the CSV directly).
-            // So the database becomes its own document and the parent has a mention link.
+            // When a database is a child of a document in Notion exports, Notion creates a .md
+            // file for the database that links to the CSV. The parent document links to the
+            // .md file (not the CSV directly). So the database becomes its own document and
+            // the parent has a mention link.
             const database = new ExportedNotionDatabase("Tasks", [
                 ["Name", "Status", "Priority"],
                 ["Task 1", "Done", "High"],
@@ -3023,6 +3021,7 @@ Here are some details.`,
             });
 
             // Parent document should have:
+            //
             // - A mention link to the database .md document
             // - The body content
             // - A "Child documents" section (since database is a child)
@@ -3032,9 +3031,9 @@ Here are some details.`,
             expect(parentJson).toContain("some more content");
             expect(parentJson).toContain("Child documents"); // Child section
 
-            // The database .md file becomes its own document with table content
-            // (the .md file's CSV link is converted to an inline table)
-            // Since it's a child of "Project Overview", it also has a parent link
+            // The database .md file becomes its own document with table content (the .md
+            // file's CSV link is converted to an inline table) Since it's a child of "Project
+            // Overview", it also has a parent link
             expect(dbMdDocId).not.toBeNull();
             const dbDoc = await getDocument(space.systemAction(), dbMdDocId!);
             const dbContent = dbDoc.content.doc.toJSON();
@@ -3108,9 +3107,9 @@ Here are some details.`,
             const document = await getDocument(space.systemAction(), dbMdDocId!);
             const documentContent = document.content.doc.toJSON();
 
-            // Full-page database becomes a document with title from .md wrapper and table content
-            // (the .md file's CSV link is converted to an inline table)
-            // Verify title exists
+            // Full-page database becomes a document with title from .md wrapper and table
+            // content (the .md file's CSV link is converted to an inline table) Verify title
+            // exists
             expect(documentContent.content[0]).toMatchObject({
                 type: "title",
                 content: [{type: "text", text: "Team Members"}],
@@ -3205,7 +3204,8 @@ Sprint completed successfully.`,
             const document = await getDocument(space.systemAction(), mainDocId!);
             const documentContent = document.content.doc.toJSON();
 
-            // Main document should have: title, headings/content, mention link to database, child docs section
+            // Main document should have: title, headings/content, mention link to database,
+            // child docs section
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -3238,9 +3238,9 @@ Sprint completed successfully.`,
                 ]),
             });
 
-            // Verify the database .md document has table content
-            // (the .md file's CSV link is converted to an inline table)
-            // It also has a parent link since it's a child of "Sprint 42"
+            // Verify the database .md document has table content (the .md file's CSV link is
+            // converted to an inline table) It also has a parent link since it's a child of
+            // "Sprint 42"
             const dbDoc = await getDocument(space.systemAction(), dbMdDocId!);
             const dbDocContent = dbDoc.content.doc.toJSON();
 
@@ -3274,8 +3274,8 @@ Sprint completed successfully.`,
                 session.account.id,
             );
 
-            // Create a database with rows containing names that match child document titles
-            // In Notion, database items are child documents of the database
+            // Create a database with rows containing names that match child document titles In
+            // Notion, database items are child documents of the database
             const database = new ExportedNotionDatabase("Team Members", [
                 ["Name", "Role"],
                 ["Alice", "Engineer"],
@@ -3283,23 +3283,23 @@ Sprint completed successfully.`,
                 ["Carol", "Manager"], // Carol has no corresponding document
             ]);
 
-            // Create a parent document that has the database as a child
-            // The database items (Alice, Bob) become children of the database
+            // Create a parent document that has the database as a child The database items
+            // (Alice, Bob) become children of the database
             const aliceDoc = new ExportedNotionDocument("Alice", "Alice’s profile");
             const bobDoc = new ExportedNotionDocument("Bob", "Bob’s profile");
             const parentDoc = new ExportedNotionDocument("Team", "Team info", [database]);
 
-            // Set the database items to be children of the database by using setParent
-            // Since ExportedNotionDatabase doesn't support addChildren, we need to use
-            // the createTestMappedReferencesResult helper to set up this relationship manually
+            // Set the database items to be children of the database by using setParent Since
+            // ExportedNotionDatabase doesn't support addChildren, we need to use the
+            // createTestMappedReferencesResult helper to set up this relationship manually
 
             const zipData = createTestNotionImportZip([parentDoc, aliceDoc, bobDoc]);
             const mappedResult = assertResult(
                 unzipNotionImportAndMapReferences(zipData, importItem),
             );
 
-            // Manually set up the database-child relationship in mappedResult
-            // Find the database .md document and child document IDs
+            // Manually set up the database-child relationship in mappedResult Find the
+            // database .md document and child document IDs
             let dbPath: string | null = null;
             let aliceDocId: DocumentId | null = null;
             let bobDocId: DocumentId | null = null;
@@ -3428,8 +3428,8 @@ Sprint completed successfully.`,
             expect(aliceDocId).not.toBeNull();
             expect(bobDocId).not.toBeNull();
 
-            // Verify parent document does NOT have "Child documents" section
-            // (inline database children should only appear as table cell links)
+            // Verify parent document does NOT have "Child documents" section (inline database
+            // children should only appear as table cell links)
             const parentDoc = await getDocument(space.systemAction(), parentDocId!);
             const parentJson = JSON.stringify(parentDoc.content.doc.toJSON());
             expect(parentJson).not.toContain("Child documents");
@@ -3491,8 +3491,8 @@ Sprint completed successfully.`,
                 notionImportId,
             });
 
-            // Count total documents from the mapped result
-            // This includes regular documents + root-level CSV database documents
+            // Count total documents from the mapped result This includes regular documents +
+            // root-level CSV database documents
             let totalDocuments = 0;
             for (const teamspace of mappedResult.teamspaces) {
                 totalDocuments += Object.keys(teamspace.documents).length;
@@ -3547,8 +3547,8 @@ Sprint completed successfully.`,
                 notionImportId,
             });
 
-            // Count total documents from the mapped result
-            // This includes regular documents + root-level CSV database documents
+            // Count total documents from the mapped result This includes regular documents +
+            // root-level CSV database documents
             let totalDocuments = 0;
             for (const teamspace of mappedResult.teamspaces) {
                 totalDocuments += Object.keys(teamspace.documents).length;
@@ -3618,21 +3618,21 @@ Sprint completed successfully.`,
                 mappedResult,
             );
 
-            // The teamspace root document has title "WorkspaceName | TeamspaceName"
-            // Find it by checking all documents created in the space
-            // The root should contain a link to TopLevel but NOT to Child
+            // The teamspace root document has title "WorkspaceName | TeamspaceName" Find it by
+            // checking all documents created in the space The root should contain a link to
+            // TopLevel but NOT to Child
             const topLevelDoc = await getDocument(space.systemAction(), topLevelId);
             const topLevelJson = JSON.stringify(topLevelDoc.content.doc.toJSON());
 
-            // Child should NOT be in the teamspace root, so let's verify the child
-            // document has a parent link to TopLevel
+            // Child should NOT be in the teamspace root, so let's verify the child document
+            // has a parent link to TopLevel
             const childDoc = await getDocument(space.systemAction(), childId);
             const childJson = JSON.stringify(childDoc.content.doc.toJSON());
             expect(childJson).toContain("Parent document:");
             expect(childJson).toContain(topLevelId);
 
-            // Top-level documents should have a "Parent document:" link to the
-            // teamspace root document.
+            // Top-level documents should have a "Parent document:" link to the teamspace root
+            // document.
             expect(topLevelJson).toContain("Parent document:");
         });
 
@@ -3813,18 +3813,20 @@ Sprint completed successfully.`,
             expect(meetingParentId2).not.toBeNull();
             expect(meetingParentId1).toBe(meetingParentId2);
 
-            // Meeting parent should be different from Home parent (Meetings database vs teamspace root)
+            // Meeting parent should be different from Home parent (Meetings database vs
+            // teamspace root)
             const homeParentId = extractParentMentionId(homeData);
             expect(homeParentId).not.toBeNull();
             expect(meetingParentId1).not.toBe(homeParentId);
 
-            // Find and verify the database document has cell links to child documents
-            // The database document ID is the parent of the meetings
+            // Find and verify the database document has cell links to child documents The
+            // database document ID is the parent of the meetings
             const dbDocId = meetingParentId1;
             const dbDoc = await getDocument(space.systemAction(), dbDocId as DocumentId);
             const dbJson = JSON.stringify(dbDoc.content.doc.toJSON());
 
-            // The database document should contain mentions to the child documents in table cells
+            // The database document should contain mentions to the child documents in table
+            // cells
             expect(dbJson).toContain(meeting1Id);
             expect(dbJson).toContain(meeting2Id);
             // Mentions are parsed, so check for mention type instead of URL string
@@ -3837,8 +3839,8 @@ Sprint completed successfully.`,
         });
 
         test("hierarchy from real unzip function results in correct parent fields", async () => {
-            // This test uses the REAL unzipNotionImportAndMapReferences function
-            // to verify that the parent field is correctly set
+            // This test uses the REAL unzipNotionImportAndMapReferences function to verify
+            // that the parent field is correctly set
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -3879,7 +3881,8 @@ Sprint completed successfully.`,
             // Top Level should have no parent (it's also top-level)
             expect(topLevelDoc![1].parent).toBeNull();
 
-            // Count how many documents have parent === null (should be 2: Parent and Top Level)
+            // Count how many documents have parent === null (should be 2: Parent and Top
+            // Level)
             const topLevelCount = docs.filter(([, doc]) => doc.parent === null).length;
             expect(topLevelCount).toBe(2);
         });

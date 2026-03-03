@@ -7,8 +7,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 
 /**
- * Get and verify the `SessionTokenPayload` in the requests session cookie if
- * it exists. Otherwise return null.
+ * Get and verify the `SessionTokenPayload` in the requests session cookie if it
+ * exists. Otherwise return null.
  */
 export async function getSessionCookieIfExists({
     tokenAgent,
@@ -30,13 +30,12 @@ export async function getSessionCookieIfExists({
 
     // NOTE(calebmer, 2023-06-29): I'm changing our session cookie format to a JWT.
     // Since we're in alpha I'm removing support for the old session cookie format
-    // which used Remix's `createCookieSessionStorage()` utility. When deployed,
-    // this will sign all users out. They can sign back in as necessary.
+    // which used Remix's `createCookieSessionStorage()` utility. When deployed, this
+    // will sign all users out. They can sign back in as necessary.
     //
     // The old cookie format was a signed base64 JSON string. It had two parts. The
     // base64 JSON string part and the signature separated by a `.`. The new cookie
-    // format is a JWT. JWTs have three parts. The header, base 64 JSON, and
-    // signature.
+    // format is a JWT. JWTs have three parts. The header, base 64 JSON, and signature.
     if (token.split(".").length === 2) return null;
 
     const payload = await tokenAgent.publicSide.verifyTokenFromService("AppService", token);
@@ -54,15 +53,15 @@ export type SessionCookie = {
      * Update the session with new data.
      *
      * This method is dangerous since it allows you to change the account that's
-     * identified with our service! You must take care to authenticate accounts
-     * before changing the `SessionId`.
+     * identified with our service! You must take care to authenticate accounts before
+     * changing the `SessionId`.
      */
     readonly dangerouslySet: (token: SessionTokenPayload | null) => void;
 };
 
 /**
- * Use this to both read the session cookie and write back to the session
- * cookie. If you only need to read the session cookie then use
+ * Use this to both read the session cookie and write back to the session cookie.
+ * If you only need to read the session cookie then use
  * `getSessionCookieIfExists()`.
  */
 export async function withSessionCookie(
@@ -113,12 +112,12 @@ async function getSessionCookieSetCookieHeader(
         ? await tokenAgentPrivateSide.dangerouslySignEternalSessionToken(token)
         : "";
 
-    // If you update the cookie configuration here, you also need to update where
-    // we set the cookie in our native mobile apps. For iOS we currently construct
-    // the cookie in the file `RootTabBarController.swift`.
+    // If you update the cookie configuration here, you also need to update where we
+    // set the cookie in our native mobile apps. For iOS we currently construct the
+    // cookie in the file `RootTabBarController.swift`.
     return serialize(`session${cookieNameSuffix}`, cookieString, {
-        // The session cookie domain is not set in development because we may be
-        // accessing from a proxied domain or an IP address on a mobile device.
+        // The session cookie domain is not set in development because we may be accessing
+        // from a proxied domain or an IP address on a mobile device.
         domain: process.env.NODE_ENV === "production" ? "alpine.inc" : undefined,
         path: "/",
         httpOnly: true,

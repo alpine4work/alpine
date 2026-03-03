@@ -41,9 +41,9 @@ const mockStartTime = new Date("2023-08-07T16:00:00.000Z").getTime();
 const dayDurationMs = 1000 * 60 * 60 * 24;
 const actualStartTime = Date.now();
 
-// Start our clock at the beginning of an arbitrary day. This way when
-// filtering around the current date we won't have bugs when running these
-// tests around midnight.
+// Start our clock at the beginning of an arbitrary day. This way when filtering
+// around the current date we won't have bugs when running these tests around
+// midnight.
 const clock = new HybridLogicalClock({
     now: () => mockStartTime + (Date.now() - actualStartTime) - dayDurationMs * 4,
 });
@@ -95,9 +95,9 @@ async function testQuery(
 
     const normalizedFiltersResult = normalizeTaskQueryFilters(filters, executionContext);
 
-    // The normalized filter result should always be the same no matter the order
-    // of the `filters` array. This tells us that a `testQuery()` with any other
-    // filter ordering would produce the same result.
+    // The normalized filter result should always be the same no matter the order of
+    // the `filters` array. This tells us that a `testQuery()` with any other filter
+    // ordering would produce the same result.
     for (const filtersPermutation of permutator(filters)) {
         expect(normalizeTaskQueryFilters(filtersPermutation, executionContext)).toEqual(
             normalizedFiltersResult,
@@ -195,12 +195,12 @@ async function testQueryWithNormalizedFilters(
         .map(task => convertTaskIndexDocToModel(task))
         .filter(task => evaluateTaskQueryNormalizedFiltersForModel(filters, task));
 
-    // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches
-    // the OpenSearch filter implementation.
+    // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches the
+    // OpenSearch filter implementation.
     expect(queryTasks1).toEqual(expectedQueryTasks1);
 
-    // Make sure our JavaScript filter implementation for `TaskModel` matches
-    // the OpenSearch filter implementation.
+    // Make sure our JavaScript filter implementation for `TaskModel` matches the
+    // OpenSearch filter implementation.
     expect(
         queryTasks2.map(task => ({
             ...omitObject(task.rawData, ["title"]),

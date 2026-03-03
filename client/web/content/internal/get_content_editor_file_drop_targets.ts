@@ -48,24 +48,23 @@ export type ContentEditorFileDropTarget = {
  * ## Design notes
  *
  * When the user is hovering over a drop target, we should a line between the
- * margins of where the file will go. We do not shift the layout of the
- * document around. Shifting the layout of the document around can be very
- * disruptive while the user is moving their mouse a long distance. It also
- * breaks the user's understanding of where to move their mouse to put the file
- * in a certain position since as the layout changes based on their mouse
- * movement they need to either understand (based on technical implementation)
- * either: 1) the position BEFORE layout shift they need to go to or 2)
- * remember the position AFTER the layout shift since when they move their
- * mouse everything shifts to a new state.
+ * margins of where the file will go. We do not shift the layout of the document
+ * around. Shifting the layout of the document around can be very disruptive while
+ * the user is moving their mouse a long distance. It also breaks the user's
+ * understanding of where to move their mouse to put the file in a certain position
+ * since as the layout changes based on their mouse movement they need to either
+ * understand (based on technical implementation) either: 1) the position BEFORE
+ * layout shift they need to go to or 2) remember the position AFTER the layout
+ * shift since when they move their mouse everything shifts to a new state.
  *
  * A layout shifting design implementation is also challenging to build
  * technically.
  *
  * I (@calebmer) worked on [Airtable's Interface Designer][1] product where we
- * built a layout shifting drop target implementation. It felt wonderful when
- * it worked but there were certainly common annoyances where you'd be dragging
- * to add a small element to a page and you had a difficult time getting it to
- * the right position while the entire page was shifting around you.
+ * built a layout shifting drop target implementation. It felt wonderful when it
+ * worked but there were certainly common annoyances where you'd be dragging to add
+ * a small element to a page and you had a difficult time getting it to the right
+ * position while the entire page was shifting around you.
  *
  * [1]: https://www.airtable.com/platform/interface-designer
  */
@@ -102,8 +101,8 @@ export function getContentEditorFileDropTargets(
         for (let i = aroundIndex - 1; i >= 0; i--) {
             const node = doc.content.content[i]!;
 
-            // Ignore floating files. They're not positioned normally in the document so
-            // cause drop targets to be rendered in weird positions.
+            // Ignore floating files. They're not positioned normally in the document so cause
+            // drop targets to be rendered in weird positions.
             if (node.type.name === "fileFloat") continue;
 
             seekBackwardsCount--;
@@ -125,19 +124,18 @@ export function getContentEditorFileDropTargets(
         const pos = nextPos;
         nextPos += node.nodeSize;
 
-        // Ignore floating files. They're not positioned normally in the document so
-        // cause drop targets to be rendered in weird positions.
+        // Ignore floating files. They're not positioned normally in the document so cause
+        // drop targets to be rendered in weird positions.
         if (node.type.name === "fileFloat") {
             previousFileFloats.push({node: node, pos});
             continue;
         }
 
-        // We need the element before `startIndex` but let's not run `view.nodeDOM()`
-        // for any other elements.
+        // We need the element before `startIndex` but let's not run `view.nodeDOM()` for
+        // any other elements.
         if (blockNodeIndex < startIndex - 1) continue;
 
-        // If we're past `aroundIndex` then decrement `seekForwardsCount` until we
-        // reach 0.
+        // If we're past `aroundIndex` then decrement `seekForwardsCount` until we reach 0.
         if (blockNodeIndex > aroundIndex) {
             if (seekForwardsCount <= 0) break;
             seekForwardsCount--;
@@ -159,13 +157,13 @@ export function getContentEditorFileDropTargets(
             let dropTargetLeft = (view.dom.clientWidth - blockWidth) / 2;
             let dropTargetRight = dropTargetLeft + blockWidth;
 
-            // Scan through the `fileFloat`s above us. Check to see our drop target
-            // overlaps with any of them. If there is an overlap then update our drop
-            // target left/right so we don't draw a drop target over a `fileFloat`. This
-            // search takes advantage of a couple facts:
+            // Scan through the `fileFloat`s above us. Check to see our drop target overlaps
+            // with any of them. If there is an overlap then update our drop target left/right
+            // so we don't draw a drop target over a `fileFloat`. This search takes advantage
+            // of a couple facts:
             //
-            // - The order of `fileFloat`s in the document represents their same vertical
-            //   order on screen. So if `j < k` then we know
+            // - The order of `fileFloat`s in the document represents their same vertical order
+            //   on screen. So if `j < k` then we know
             //   `previousFileFloats[j].offsetTop + previousFileFloats[j].offsetHeight <= previousFileFloats[k].offsetTop`.
             //
             // - You can't have two `fileFloat`s at the same X position because all
@@ -179,8 +177,8 @@ export function getContentEditorFileDropTargets(
                 const fileFloatElement = view.nodeDOM(previousFileFloat.pos);
 
                 if (fileFloatElement instanceof HTMLElement) {
-                    // If this float is above the drop target then all other `previousFileFloats`
-                    // will similarly be over the drop target. So we can end iteration.
+                    // If this float is above the drop target then all other `previousFileFloats` will
+                    // similarly be over the drop target. So we can end iteration.
                     if (fileFloatElement.offsetTop + fileFloatElement.offsetHeight < dropTargetY) {
                         break;
                     }
@@ -224,11 +222,11 @@ export function getContentEditorFileDropTargets(
 
         const isDraggingFileInParent = $draggingFilePos?.parent === node;
 
-        // Create some dead space with `action: null` if we're dragging the file in
-        // this node. The dead space means if the user starts dragging a file, doesn't
-        // move their mouse much, then releases the drag will be a noop. Instead of
-        // picking a drop target that moves the file above/below the row which would be
-        // the default behavior without dead space.
+        // Create some dead space with `action: null` if we're dragging the file in this
+        // node. The dead space means if the user starts dragging a file, doesn't move
+        // their mouse much, then releases the drag will be a noop. Instead of picking a
+        // drop target that moves the file above/below the row which would be the default
+        // behavior without dead space.
         if (isDraggingFileInParent) {
             const fileElement = element.childNodes[$draggingFilePos.index()];
 
@@ -240,10 +238,10 @@ export function getContentEditorFileDropTargets(
                     offsetParent: element.offsetParent,
                     rect: {
                         // `fileElement.offsetLeft` also works here instead of looking at
-                        // `fileElement.getBoundingClientRect()`. However, `offsetLeft` rounds
-                        // positions to integers. For precisely rendering our drop target in the center
-                        // of two files we need the fractional position which `getBoundingClientRect()`
-                        // returns. Otherwise in some edge cases the drop target looks off center.
+                        // `fileElement.getBoundingClientRect()`. However, `offsetLeft` rounds positions to
+                        // integers. For precisely rendering our drop target in the center of two files we
+                        // need the fractional position which `getBoundingClientRect()` returns. Otherwise
+                        // in some edge cases the drop target looks off center.
                         //
                         // We subtract `elementRect.left` so we get a position relative to
                         // `element.offsetLeft`.
@@ -288,8 +286,8 @@ export function getContentEditorFileDropTargets(
                     element.offsetLeft +
                     // `fileRowLeftElement.offsetLeft` also works here instead of looking at
                     // `fileRowLeftElement.getBoundingClientRect()`. However, `offsetLeft` rounds
-                    // positions to integers. For precisely rendering our drop target in the center
-                    // of two files we need the fractional position which `getBoundingClientRect()`
+                    // positions to integers. For precisely rendering our drop target in the center of
+                    // two files we need the fractional position which `getBoundingClientRect()`
                     // returns. Otherwise in some edge cases the drop target looks off center.
                     //
                     // We subtract `elementRect.left` so we get a position relative to
@@ -319,12 +317,12 @@ export function getContentEditorFileDropTargets(
                 if (fileRowLeftElement instanceof HTMLElement) {
                     const dropTargetX =
                         element.offsetLeft +
-                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works
-                        // here instead of looking at `fileRowLeftElement.getBoundingClientRect()`.
-                        // However, `offsetLeft` and `offsetWidth` round positions to integers. For
-                        // precisely rendering our drop target in the center of two files we need the
-                        // fractional position which `getBoundingClientRect()` returns. Otherwise in
-                        // some edge cases the drop target looks off center.
+                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works here
+                        // instead of looking at `fileRowLeftElement.getBoundingClientRect()`. However,
+                        // `offsetLeft` and `offsetWidth` round positions to integers. For precisely
+                        // rendering our drop target in the center of two files we need the fractional
+                        // position which `getBoundingClientRect()` returns. Otherwise in some edge cases
+                        // the drop target looks off center.
                         //
                         // We subtract `elementRect.left` so we get a position relative to
                         // `element.offsetLeft`.
@@ -354,12 +352,12 @@ export function getContentEditorFileDropTargets(
                 if (fileRowLeftElement instanceof HTMLElement) {
                     const dropTargetX =
                         element.offsetLeft +
-                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works
-                        // here instead of looking at `fileRowLeftElement.getBoundingClientRect()`.
-                        // However, `offsetLeft` and `offsetWidth` round positions to integers. For
-                        // precisely rendering our drop target in the center of two files we need the
-                        // fractional position which `getBoundingClientRect()` returns. Otherwise in
-                        // some edge cases the drop target looks off center.
+                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works here
+                        // instead of looking at `fileRowLeftElement.getBoundingClientRect()`. However,
+                        // `offsetLeft` and `offsetWidth` round positions to integers. For precisely
+                        // rendering our drop target in the center of two files we need the fractional
+                        // position which `getBoundingClientRect()` returns. Otherwise in some edge cases
+                        // the drop target looks off center.
                         //
                         // We subtract `elementRect.left` so we get a position relative to
                         // `element.offsetLeft`.
@@ -395,8 +393,8 @@ export function getContentEditorFileDropTargets(
                     // here instead of looking at `fileRowRightElement.getBoundingClientRect()`.
                     // However, `offsetLeft` and `offsetWidth` round positions to integers. For
                     // precisely rendering our drop target in the center of two files we need the
-                    // fractional position which `getBoundingClientRect()` returns. Otherwise in
-                    // some edge cases the drop target looks off center.
+                    // fractional position which `getBoundingClientRect()` returns. Otherwise in some
+                    // edge cases the drop target looks off center.
                     //
                     // We subtract `elementRect.left` so we get a position relative to
                     // `element.offsetLeft`.
@@ -425,8 +423,8 @@ export function getContentEditorFileDropTargets(
             node.type.name === "table" &&
             blockNodeIndex === aroundIndex
         ) {
-            // Recusrively traverse the table cells and generate all drop targets
-            // doing this in a function
+            // Recusrively traverse the table cells and generate all drop targets doing this in
+            // a function
             addContentEditorTableFileDropTargets({
                 tableNode: node,
                 tableElement: element,
@@ -472,9 +470,9 @@ export function getContentEditorFileDropTargets(
 }
 
 /**
- * Calculates the vertical offset and spacing for file drop targets between document blocks.
- * This function handles special cases for different block types (fileRow, heading, etc.)
- * to ensure optimal visual placement of drop targets.
+ * Calculates the vertical offset and spacing for file drop targets between
+ * document blocks. This function handles special cases for different block types
+ * (fileRow, heading, etc.) to ensure optimal visual placement of drop targets.
  */
 function getContentEditorFileDropTargetY({
     previous,
@@ -511,9 +509,9 @@ function getContentEditorFileDropTargetY({
     } else {
         if (
             next === null ||
-            // If the next node is a heading then use the same behavior as if the node is
-            // at the end of a document. So we don't render the drop target in the middle
-            // of the heading's margin.
+            // If the next node is a heading then use the same behavior as if the node is at
+            // the end of a document. So we don't render the drop target in the middle of the
+            // heading's margin.
             next.node.type.name === "heading"
         ) {
             const hasStandaloneMargin =
@@ -533,8 +531,8 @@ function getContentEditorFileDropTargetY({
         }
     }
 
-    // If we are dropping adjacent to a `fileRow` then always use the file row gap
-    // to offset our drop target rect.
+    // If we are dropping adjacent to a `fileRow` then always use the file row gap to
+    // offset our drop target rect.
     if (previous.node.type.groups.includes("fileRowLike")) {
         return (
             previous.element.offsetTop +
@@ -567,8 +565,8 @@ function addContentEditorTableFileDropTargets({
     assert(tableElement);
 
     const tableRect = tableElement.getBoundingClientRect();
-    // Find all table cell elements but exclude elements that are children of a
-    // file node. File entities may recursively render content (e.g. document file
+    // Find all table cell elements but exclude elements that are children of a file
+    // node. File entities may recursively render content (e.g. document file
     // entities). The content within file entities is inert so shouldn't get any
     // interactive behaviors.
     const tableCellElements = tableElement.querySelectorAll(`td:not(.${fileClassName} td)`);
@@ -576,14 +574,14 @@ function addContentEditorTableFileDropTargets({
     const remPx = remPxBySpacingScale[spacingScale];
     const tableMap = ContentTableMap.get(tableNode);
 
-    // NOTE(rohit): If the table has problems then we don't want to add any drop targets
-    // because the table will be normalized soon.
+    // NOTE(rohit): If the table has problems then we don't want to add any drop
+    // targets because the table will be normalized soon.
     //
-    // Tables can temporarily be in an invalid state (e.g. missing cells in a row) before
-    // being normalized.
-    // Rather than throwing assertions when we encounter these invalid states, which would
-    // crash the app, we simply don't generate any drop targets. This allows us to use a
-    // direct coding style with assertions below while gracefully handling corrupted tables.
+    // Tables can temporarily be in an invalid state (e.g. missing cells in a row)
+    // before being normalized. Rather than throwing assertions when we encounter these
+    // invalid states, which would crash the app, we simply don't generate any drop
+    // targets. This allows us to use a direct coding style with assertions below while
+    // gracefully handling corrupted tables.
     if (tableMap.problems && tableMap.problems.length > 0) return;
 
     const cellPaddingX = parseRemLength(contentStyles.tableCellPaddingX) * remPx;
@@ -594,10 +592,10 @@ function addContentEditorTableFileDropTargets({
             const relativeCellPos = tableMap.positionAt(rowIndex, columnIndex);
             if (relativeCellPos === null || relativeCellPos === undefined) continue;
 
-            // relativeCellPos is the position of the cell in the table node.
-            // tablePos is the position of the table in the document.
-            // We need to add 2 to the relative cell position to get the absolute
-            // cell paragraph position where the file will be inserted.
+            // relativeCellPos is the position of the cell in the table node. tablePos is the
+            // position of the table in the document. We need to add 2 to the relative cell
+            // position to get the absolute cell paragraph position where the file will be
+            // inserted.
             const absoluteCellPos = relativeCellPos + tablePos + 2;
 
             // Calculate the index in the DOM elements array
@@ -615,9 +613,8 @@ function addContentEditorTableFileDropTargets({
             const maxDropTargetY = cellBottom - cellPaddingY;
 
             // NOTE: using direct coding style to assert that the row and cell nodes are valid
-            // instead of continuing here.
-            // We don't expect these assertions to throw because we check for table problems
-            // above. But if it does, it's better to fail fast.
+            // instead of continuing here. We don't expect these assertions to throw because we
+            // check for table problems above. But if it does, it's better to fail fast.
             const rowNode = tableNode.content.content[rowIndex];
             assert(rowNode?.type.name === "tableRow");
             const cellNode = rowNode.content.content[columnIndex];
@@ -678,6 +675,7 @@ function addContentEditorTableFileDropTargets({
             }
 
             // In order to add a bottom drop target we need to make sure:
+            //
             // - the cell is not empty
             // - the cell is not just an empty paragraph
             // - the cell has content

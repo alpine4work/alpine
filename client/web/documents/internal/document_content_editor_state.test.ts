@@ -1021,8 +1021,8 @@ test("collaborative update scenario", () => {
         expect(sendableSteps?.steps.length).toEqual(undefined);
     }
 
-    // Manually update our collab plugin's `unconfirmed` state since there's no
-    // easy way to initialize it with the `prosemirror-collab` API.
+    // Manually update our collab plugin's `unconfirmed` state since there's no easy
+    // way to initialize it with the `prosemirror-collab` API.
     // https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L43
     (editorState as any)._state.collab$.unconfirmed = collabPluginUnconfirmed;
 

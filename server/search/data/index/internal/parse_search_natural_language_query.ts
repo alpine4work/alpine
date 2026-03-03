@@ -41,9 +41,9 @@ function createView(doc: View, startTerm: Term, endTerm: Term): View {
 }
 
 /**
- * Helper for fuzzy matching individual terms. Lower cases and stems text
- * before comparing edit distance (levenshtein with transposition). Stems so
- * that we can match both plural and singular forms with the same term.
+ * Helper for fuzzy matching individual terms. Lower cases and stems text before
+ * comparing edit distance (levenshtein with transposition). Stems so that we can
+ * match both plural and singular forms with the same term.
  */
 class SearchNaturalLanguageMatchTerm {
     public static readonly my = new this("my");
@@ -164,20 +164,20 @@ const matchTerms = Object.fromEntries(
 };
 
 /**
- * Entity types that support priority filtering.
- * Currently only tasks support priority.
+ * Entity types that support priority filtering. Currently only tasks support
+ * priority.
  */
 const priorityEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set(["Task"]);
 
 /**
- * Entity types that support openness filtering (open/closed).
- * Currently only tasks support openness.
+ * Entity types that support openness filtering (open/closed). Currently only tasks
+ * support openness.
  */
 const opennessEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set(["Task"]);
 
 /**
- * Entity types that support activeness filtering (active/inactive).
- * Currently only tasks support activeness.
+ * Entity types that support activeness filtering (active/inactive). Currently only
+ * tasks support activeness.
  */
 const activenessEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = new Set([
     "Task",
@@ -206,7 +206,8 @@ const timeEnabledEntities: ReadonlySet<SearchDynamicEntityIdObject["type"]> = ne
  * treated as a modifier or as search text.
  *
  * [1]: https://en.wikipedia.org/wiki/LR_parser
- * [2]: https://github.com/graphql/graphql-js/blob/2aedf25e157d1d1c8fdfeaa4c0d2f3d9d3457dba/src/language/parser.ts#L255-L330
+ * [2]:
+ *     https://github.com/graphql/graphql-js/blob/2aedf25e157d1d1c8fdfeaa4c0d2f3d9d3457dba/src/language/parser.ts#L255-L330
  */
 class SearchNaturalLanguageParserState {
     private _doc: View;
@@ -238,8 +239,8 @@ class SearchNaturalLanguageParserState {
     }
 
     /**
-     * Peek ahead n terms without advancing the parser state.
-     * Returns the term at current position + n, or null if out of bounds.
+     * Peek ahead n terms without advancing the parser state. Returns the term at
+     * current position + n, or null if out of bounds.
      */
     public peekTerm(n: number): Term | null {
         const targetIndex = this._termIndex + n;
@@ -269,12 +270,12 @@ class SearchNaturalLanguageParserResult {
     public isLowConfidence = true;
 
     public addFilter(filter: SearchNaturalLanguageFilter) {
-        // We have low confidence the user wants natural language filters if every
-        // filter we parsed only filters on `entityTypes`. These are queries like
-        // "train documents" or simply "channels".
+        // We have low confidence the user wants natural language filters if every filter
+        // we parsed only filters on `entityTypes`. These are queries like "train
+        // documents" or simply "channels".
         //
-        // When we have low confidence natural language filters, we still apply the
-        // filters but we don't rank them as highly.
+        // When we have low confidence natural language filters, we still apply the filters
+        // but we don't rank them as highly.
         this.isLowConfidence &&=
             filter.account === null &&
             filter.time === null &&
@@ -292,16 +293,15 @@ class SearchNaturalLanguageParserResult {
 }
 
 /**
- * The machine representation of a filter described in natural language.
- * For example "messages sent by sara recently" or "my documents".
+ * The machine representation of a filter described in natural language. For
+ * example "messages sent by sara recently" or "my documents".
  *
  * The way it works is we `AND` together each top-level key. So
- * `entityTypes AND accounts AND time`. We `OR` together individual values
- * within each. So one of the `accounts.ids` fields should match, not all of
- * them.
+ * `entityTypes AND accounts AND time`. We `OR` together individual values within
+ * each. So one of the `accounts.ids` fields should match, not all of them.
  *
- * If we parse multiple filters from a query string then all the filters are
- * `OR`d together.
+ * If we parse multiple filters from a query string then all the filters are `OR`d
+ * together.
  */
 export type SearchNaturalLanguageFilter = {
     readonly entityTypes: ReadonlyArray<SearchDynamicEntityIdObject["type"]>;
@@ -334,13 +334,13 @@ export type SearchNaturalLanguageFilter = {
 /**
  * Parse a search query in our system and extract natural language filters. For
  * example: "train documents by john" will be executed as a keyword query for
- * "train" with filters for document search entities and the "john" account as
- * a contributor.
+ * "train" with filters for document search entities and the "john" account as a
+ * contributor.
  *
- * Our natural language parsing is best effort. English is a complicated
- * language! It's likely we'll get it wrong from time to time. So we recommend
- * you still do a keyword search with the control terms ("documents by john" in
- * the above query) as a fallback.
+ * Our natural language parsing is best effort. English is a complicated language!
+ * It's likely we'll get it wrong from time to time. So we recommend you still do a
+ * keyword search with the control terms ("documents by john" in the above query)
+ * as a fallback.
  *
  * Right now, English is the only supported language.
  */
@@ -349,7 +349,7 @@ export function parseSearchNaturalLanguageQuery(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        // NOTE(ifitzsimmons, #2025-10-10): A null account ID will disable *all* natural
+        // NOTE(ifitzsimmons, #2025-10-10): A null account ID will disable _all_ natural
         // language parsing of "my" search queries that reference the actor.
         // `actorAccountId` should always be null for Bots, since "ChatGPT's docs" or
         // "ChatGPT's tasks" doesn't really make sense.
@@ -444,20 +444,20 @@ function parseSearchNaturalLanguageFilters(
     while (state.term) {
         const startTerm = state.term;
 
-        // Add the terms from the start of this loop to where we parsed as a
-        // "control phrase". Control phrases we remove from the search query so they
-        // don't participate in text matching. Instead we filter based on whatever
-        // instruction was in the control phrase.
+        // Add the terms from the start of this loop to where we parsed as a "control
+        // phrase". Control phrases we remove from the search query so they don't
+        // participate in text matching. Instead we filter based on whatever instruction
+        // was in the control phrase.
         //
-        // For example: "train documents by john" turns into a keyword search for
-        // "train" and a filter for entity types of "document" by the account with the
-        // name "john".
+        // For example: "train documents by john" turns into a keyword search for "train"
+        // and a filter for entity types of "document" by the account with the name "john".
         const addControlPhrase = (startTerm: Term, endTerm: Term) => {
             controlPhrases.push(createView(doc, startTerm, endTerm));
         };
 
-        // e.g. "documents...", "messages...", "tasks...", "urgent tasks...", "open tasks..."
-        // This handles both entity types alone and premodifier + entity type patterns
+        // e.g. "documents...", "messages...", "tasks...", "urgent tasks...", "open
+        // tasks..." This handles both entity types alone and premodifier + entity type
+        // patterns
         const premodifierAndEntityType =
             parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(state, options);
         if (premodifierAndEntityType) {
@@ -501,9 +501,9 @@ function parseSearchNaturalLanguageFilters(
                 actualFilterEndTerm = state.advanceTerm();
             }
 
-            // Create one control phrase from the first supported premodifier through entity + postmodifiers
-            // If there are supported premodifiers, start from the first one
-            // If there are no supported premodifiers, start from the entity type
+            // Create one control phrase from the first supported premodifier through entity +
+            // postmodifiers If there are supported premodifiers, start from the first one If
+            // there are no supported premodifiers, start from the entity type
             const hasSupportedPremodifiers =
                 premodifierAndEntityType.supportedPremodifierRanges.length > 0;
             if (hasSupportedPremodifiers) {
@@ -518,8 +518,8 @@ function parseSearchNaturalLanguageFilters(
 
             result.addFilter(filter);
 
-            // If we got a filter with meaningful modifiers (from premodifiers or postmodifiers),
-            // we're confident the user wanted a natural language filter
+            // If we got a filter with meaningful modifiers (from premodifiers or
+            // postmodifiers), we're confident the user wanted a natural language filter
             const hasModifiers =
                 filter.account !== null ||
                 filter.time !== null ||
@@ -542,8 +542,8 @@ function parseSearchNaturalLanguageFilters(
             if (
                 !lastTerm ||
                 (lastTerm.chunk !== "Noun" &&
-                    // "all" is part of the adjective chunk. If "all" is followed by a noun chunk
-                    // then we're happy.
+                    // "all" is part of the adjective chunk. If "all" is followed by a noun chunk then
+                    // we're happy.
                     !matchTerms.all.isFuzzyMatch(lastTerm))
             ) {
                 return {hasAddedFilter: false};
@@ -551,15 +551,15 @@ function parseSearchNaturalLanguageFilters(
 
             // e.g. "my ... documents" or "john's ... documents"
             //
-            // We allow this form to support queries like "john's train documents" or
-            // "sara's closed tasks" which sound very natural. The way this works is we
-            // allow any terms between the account name and entity type as long as
-            // they're all part of the same `Noun` chunk (as determined by `compromise`).
+            // We allow this form to support queries like "john's train documents" or "sara's
+            // closed tasks" which sound very natural. The way this works is we allow any terms
+            // between the account name and entity type as long as they're all part of the same
+            // `Noun` chunk (as determined by `compromise`).
             //
-            // [Chunks represents parts of a sentence][1] (e.g. noun phrase and
-            // verb phrase).
+            // [Chunks represents parts of a sentence][1] (e.g. noun phrase and verb phrase).
             //
-            // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
+            // [1]:
+            //     https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
             while (state.term) {
                 const firstEntityTypesTerm = state.term;
 
@@ -632,13 +632,12 @@ function parseSearchNaturalLanguageFilters(
             if (matchTerms.of.isFuzzyMatch(state.term)) {
                 state.advanceTerm();
 
-                // Intentionally fallthrough! So we can parse "all of my..." or "all of
-                // john's..."
+                // Intentionally fallthrough! So we can parse "all of my..." or "all of john's..."
             } else {
-                // e.g. "all documents", "all messages", "all closed tasks", "all high priority tasks"
-                // parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible handles both
-                // plain entity types and premodifier + entity
-                // Save the term index before parsing - this is where premodifiers would start
+                // e.g. "all documents", "all messages", "all closed tasks", "all high priority
+                // tasks" parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible
+                // handles both plain entity types and premodifier + entity Save the term index
+                // before parsing - this is where premodifiers would start
                 const premodifierStartTermIndex = state.termIndex;
 
                 const premodifierAndEntityType =
@@ -658,6 +657,7 @@ function parseSearchNaturalLanguageFilters(
                     };
 
                     // Determine the filter start term:
+                    //
                     // - If there are supported premodifiers: start from the entity type
                     // - If no supported premodifiers: start from "all"
                     const entityStartTerm = assertExists(
@@ -693,8 +693,9 @@ function parseSearchNaturalLanguageFilters(
                         actualFilterEndTerm = state.advanceTerm();
                     }
 
-                    // If there are supported premodifiers, add "all" separately, then premodifiers + entity + postmodifiers
-                    // If no supported premodifiers, add "all" + entity + postmodifiers as one control phrase
+                    // If there are supported premodifiers, add "all" separately, then premodifiers +
+                    // entity + postmodifiers If no supported premodifiers, add "all" + entity +
+                    // postmodifiers as one control phrase
                     if (hasSupportedPremodifiers) {
                         // "all" is the term before the premodifier start
                         const allTerm = assertExists(state.terms[premodifierStartTermIndex - 1]);
@@ -712,8 +713,8 @@ function parseSearchNaturalLanguageFilters(
 
                     result.addFilter(filter);
 
-                    // If we got a filter starting with "all" like "all documents" then we're
-                    // confident the user wanted a natural language filter.
+                    // If we got a filter starting with "all" like "all documents" then we're confident
+                    // the user wanted a natural language filter.
                     result.isLowConfidence = false;
                     continue;
                 }
@@ -727,8 +728,8 @@ function parseSearchNaturalLanguageFilters(
                     activeness: null,
                 });
                 if (hasAddedFilter) {
-                    // If we got a filter starting with "all" like "all documents" then we're
-                    // confident the user wanted a natural language filter.
+                    // If we got a filter starting with "all" like "all documents" then we're confident
+                    // the user wanted a natural language filter.
                     result.isLowConfidence = false;
                 }
                 continue;
@@ -739,18 +740,19 @@ function parseSearchNaturalLanguageFilters(
         if (matchTerms.my.isFuzzyMatch(state.term)) {
             state.advanceTerm();
             if (!actorAccount) {
-                // If we don't have an actor account then we can't parse a "my" query.
-                // This is because we don't know who the user is. However, it's possible
-                // that a Bot queries something like "Documents containing text my weekend
-                // plans". In this case, we should just continue so the bot can search for
-                // documents containing the text "my weekend plans".
-                // In other words, we should no treat the term "my" as control text.
+                // If we don't have an actor account then we can't parse a "my" query. This is
+                // because we don't know who the user is. However, it's possible that a Bot queries
+                // something like "Documents containing text my weekend plans". In this case, we
+                // should just continue so the bot can search for documents containing the text "my
+                // weekend plans". In other words, we should no treat the term "my" as control
+                // text.
                 continue;
             }
 
-            // e.g. "my documents", "my messages", "my high priority tasks", "my open active tasks"
-            // parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible handles both plain entity types and premodifier + entity
-            // Save the term index before parsing - this is where premodifiers would start
+            // e.g. "my documents", "my messages", "my high priority tasks", "my open active
+            // tasks" parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible
+            // handles both plain entity types and premodifier + entity Save the term index
+            // before parsing - this is where premodifiers would start
             const premodifierStartTermIndex = state.termIndex;
 
             const premodifierAndEntityType =
@@ -770,6 +772,7 @@ function parseSearchNaturalLanguageFilters(
                 };
 
                 // Determine the filter start term:
+                //
                 // - If there are supported premodifiers: start from the entity type
                 // - If no supported premodifiers: start from "my"
                 const entityStartTerm = assertExists(
@@ -805,8 +808,9 @@ function parseSearchNaturalLanguageFilters(
                     actualFilterEndTerm = state.advanceTerm();
                 }
 
-                // If there are supported premodifiers, add "my" separately, then premodifiers + entity + postmodifiers
-                // If no supported premodifiers, add "my" + entity + postmodifiers as one control phrase
+                // If there are supported premodifiers, add "my" separately, then premodifiers +
+                // entity + postmodifiers If no supported premodifiers, add "my" + entity +
+                // postmodifiers as one control phrase
                 if (hasSupportedPremodifiers) {
                     // "my" is the term before the premodifier start
                     const myTerm = assertExists(state.terms[premodifierStartTermIndex - 1]);
@@ -843,14 +847,14 @@ function parseSearchNaturalLanguageFilters(
         // e.g. "john's..." or "sara smith's..."
         const accounts = parseAccountsByNameIfPossible(state, options);
         if (accounts) {
-            // Skip any empty tokens that might have been created by the NLP library
-            // (e.g., for possessive forms like "john's" which can split into "john's" + "")
+            // Skip any empty tokens that might have been created by the NLP library (e.g., for
+            // possessive forms like "john's" which can split into "john's" + "")
             while (state.term && state.term.text.trim() === "") {
                 state.advanceTerm();
             }
 
-            // Track the last term before modifiers - this is after skipping empty tokens
-            // We use termIndex - 1 which points to the last empty token or the last account term
+            // Track the last term before modifiers - this is after skipping empty tokens We
+            // use termIndex - 1 which points to the last empty token or the last account term
             const lastAccountTermIndex = state.termIndex - 1;
             const lastAccountTerm = assertExists(state.terms[lastAccountTermIndex]);
 
@@ -874,6 +878,7 @@ function parseSearchNaturalLanguageFilters(
                 };
 
                 // Determine the filter start term:
+                //
                 // - If there are supported premodifiers: start from the entity type
                 // - If no supported premodifiers: start from the account name
                 const entityStartTerm = assertExists(
@@ -909,8 +914,9 @@ function parseSearchNaturalLanguageFilters(
                     actualFilterEndTerm = state.advanceTerm();
                 }
 
-                // If there are supported premodifiers, add account name separately, then premodifiers + entity + postmodifiers
-                // If no supported premodifiers, add account name + entity + postmodifiers as one control phrase
+                // If there are supported premodifiers, add account name separately, then
+                // premodifiers + entity + postmodifiers If no supported premodifiers, add account
+                // name + entity + postmodifiers as one control phrase
                 if (hasSupportedPremodifiers) {
                     // Account name as separate control phrase
                     addControlPhrase(startTerm, lastAccountTerm);
@@ -960,16 +966,16 @@ function parseSearchNaturalLanguageFilters(
 }
 
 /**
- * Check if the term is a priority title term like "priority" or "severity".
- * This is useful when checking things like "urgent priority tasks".
+ * Check if the term is a priority title term like "priority" or "severity". This
+ * is useful when checking things like "urgent priority tasks".
  */
 function isPriorityTitle(term: Term | null): boolean {
     return matchTerms.priority.isFuzzyMatch(term) || matchTerms.severity.isFuzzyMatch(term);
 }
 
 /**
- * If we have a Fuse.js score below this when parsing a name then we consider
- * the name a match.
+ * If we have a Fuse.js score below this when parsing a name then we consider the
+ * name a match.
  */
 export const accountNameFuseScoreMatchCutoff = 0.3;
 
@@ -999,8 +1005,8 @@ function parseAccountsByNameIfPossible(
             ? stemEnglishPossessive(`${name2} ${state.terms[state.termIndex + 2]!.text}`)
             : null;
 
-    // Try searching the most specific name first. So we search "Emily Lin"
-    // not "Emily".
+    // Try searching the most specific name first. So we search "Emily Lin" not
+    // "Emily".
     if (name3 !== null) {
         const accounts = accountNameIndex.searchNames(name3);
         if (accounts.length > 0) {
@@ -1048,8 +1054,8 @@ function parseAccountsByNameIfPossible(
 }
 
 /**
- * Check if the current entity types support a specific modifier type.
- * Returns true if at least one of the entity types in the filter supports the modifier.
+ * Check if the current entity types support a specific modifier type. Returns true
+ * if at least one of the entity types in the filter supports the modifier.
  */
 function doesFilterSupportModifier(
     filter: SearchNaturalLanguageFilter,
@@ -1076,8 +1082,8 @@ type PremodifierFilter = Pick<
  */
 type Premodifier = {
     /**
-     * Apply this premodifier to the filter if the entity types support it.
-     * Returns the updated filter if supported, or null if not supported.
+     * Apply this premodifier to the filter if the entity types support it. Returns the
+     * updated filter if supported, or null if not supported.
      */
     add: (
         entityTypes: ReadonlyArray<SearchDynamicEntityIdObject["type"]>,
@@ -1091,22 +1097,27 @@ type Premodifier = {
  * Parses premodifiers and entity types from a natural language query.
  *
  * This function handles query patterns like:
+ *
  * - "urgent tasks", "high priority tasks"
  * - "open tasks", "closed tasks"
  * - "active tasks", "inactive tasks"
  * - "overdue tasks"
  *
  * The approach is:
- * 1. Always advance through premodifiers, collecting them in an array with term indices
- * 2. When we find an entity type, loop through premodifiers and call `add()` for each
+ *
+ * 1. Always advance through premodifiers, collecting them in an array with term
+ *    indices
+ * 2. When we find an entity type, loop through premodifiers and call `add()` for
+ *    each
  * 3. If `add()` returns non-null: mark as control phrase and apply to filter
  * 4. If `add()` returns null: don't mark as control phrase (becomes query text)
  *
- * For example, "high priority documents" - documents don't support priority filtering,
- * so "high priority" becomes query text and only "documents" is a control phrase.
+ * For example, "high priority documents" - documents don't support priority
+ * filtering, so "high priority" becomes query text and only "documents" is a
+ * control phrase.
  *
- * This is distinct from postmodifiers (relative clauses like "that are urgent") which
- * are handled by `parseSearchNaturalLanguageFilterPostmodifierIfPossible`.
+ * This is distinct from postmodifiers (relative clauses like "that are urgent")
+ * which are handled by `parseSearchNaturalLanguageFilterPostmodifierIfPossible`.
  */
 function parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
     state: SearchNaturalLanguageParserState,
@@ -1119,7 +1130,10 @@ function parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
     readonly filter: PremodifierFilter;
     readonly entityStartTermIndex: number;
     readonly entityEndTermIndex: number;
-    /** Term index ranges for premodifiers that were supported (should be control phrases) */
+    /**
+     * Term index ranges for premodifiers that were supported (should be control
+     * phrases)
+     */
     readonly supportedPremodifierRanges: ReadonlyArray<{
         startTermIndex: number;
         endTermIndex: number;
@@ -1136,8 +1150,9 @@ function parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
         if (entityType) {
             const {entityTypes, entityStartTermIndex, entityEndTermIndex} = entityType;
 
-            // If "and" immediately preceded the entity type, don't attach modifiers
-            // e.g. "urgent open and tasks" - premodifiers become query text, only "tasks" is control phrase
+            // If "and" immediately preceded the entity type, don't attach modifiers e.g.
+            // "urgent open and tasks" - premodifiers become query text, only "tasks" is
+            // control phrase
             if (sawAndBeforeCurrentTerm) {
                 return {
                     entityTypes,
@@ -1169,8 +1184,8 @@ function parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
                         endTermIndex: premodifier.endTermIndex,
                     });
                 }
-                // If updatedFilter is null, this premodifier is not supported.
-                // We don't add it to supportedPremodifierRanges, so it becomes query text.
+                // If updatedFilter is null, this premodifier is not supported. We don't add it to
+                // supportedPremodifierRanges, so it becomes query text.
             }
 
             return {
@@ -1215,8 +1230,8 @@ function parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible(
 }
 
 /**
- * Try to advance through an entity type. Returns the entity type info if found,
- * or null if the current term is not an entity type.
+ * Try to advance through an entity type. Returns the entity type info if found, or
+ * null if the current term is not an entity type.
  */
 function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
     entityTypes: Array<SearchDynamicEntityIdObject["type"]>;
@@ -1319,8 +1334,8 @@ function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
             };
         }
 
-        // A search like "mobile tasks" should return the mobile task collection. Same
-        // with something like "my onboarding tasks".
+        // A search like "mobile tasks" should return the mobile task collection. Same with
+        // something like "my onboarding tasks".
         return {
             entityTypes: ["Task", "TaskCollection"],
             entityStartTermIndex,
@@ -1381,8 +1396,7 @@ function advancePremodifierIfPossible(
 
     const startTermIndex = state.termIndex;
 
-    // Parse priority premodifiers
-    // e.g. "urgent tasks" and "high priority tasks"
+    // Parse priority premodifiers e.g. "urgent tasks" and "high priority tasks"
     if (matchTerms.urgent.isFuzzyMatch(term)) {
         state.advanceTerm();
         // Skip optional "priority" or "severity" word
@@ -1498,8 +1512,7 @@ function advancePremodifierIfPossible(
         };
     }
 
-    // Parse time premodifiers
-    // e.g. "overdue tasks"
+    // Parse time premodifiers e.g. "overdue tasks"
     if (matchTerms.overdue.isFuzzyMatch(term) || matchTerms.late.isFuzzyMatch(term)) {
         state.advanceTerm();
         const endTermIndex = state.termIndex - 1;
@@ -1535,8 +1548,7 @@ function advancePremodifierIfPossible(
     const nextTerm = state.terms[state.termIndex + 1];
     const possiblyNegatedTerm = isNegated ? nextTerm : term;
 
-    // Parse openness modifiers
-    // e.g. "open tasks", "not done tasks", and "closed tasks"
+    // Parse openness modifiers e.g. "open tasks", "not done tasks", and "closed tasks"
     if (
         matchTerms.open.isFuzzyMatch(possiblyNegatedTerm) ||
         matchTerms.pending.isFuzzyMatch(possiblyNegatedTerm) ||
@@ -1587,8 +1599,8 @@ function advancePremodifierIfPossible(
         };
     }
 
-    // Parse activeness modifiers
-    // e.g. "active tasks", "not started tasks", and "inactive tasks"
+    // Parse activeness modifiers e.g. "active tasks", "not started tasks", and
+    // "inactive tasks"
     if (
         matchTerms.active.isFuzzyMatch(possiblyNegatedTerm) ||
         matchTerms.started.isFuzzyMatch(possiblyNegatedTerm) ||
@@ -1638,19 +1650,22 @@ function advancePremodifierIfPossible(
 }
 
 /**
- * Recursively parses postmodifiers for a search filter from a natural language query.
+ * Recursively parses postmodifiers for a search filter from a natural language
+ * query.
  *
- * This is the core recursive parsing function that handles all types of query modifiers
- * that appear after the entity type:
+ * This is the core recursive parsing function that handles all types of query
+ * modifiers that appear after the entity type:
+ *
  * - Account modifiers: "created by", "updated by", "assigned to", etc.
- * - Date/time modifiers: "created yesterday", "updated last week", "recently", etc.
+ * - Date/time modifiers: "created yesterday", "updated last week", "recently",
+ *   etc.
  * - Priority modifiers: "that are urgent", "that are high priority", etc.
  * - Openness modifiers: "that are open", "that are closed", etc.
  * - Activeness modifiers: "that are active", "that are inactive", etc.
  *
- * This function only handles modifiers that appear after the entity type
- * (e.g., "tasks that are urgent", "tasks created by me"). Premodifiers like
- * "high priority tasks" or "open tasks" are handled by
+ * This function only handles modifiers that appear after the entity type (e.g.,
+ * "tasks that are urgent", "tasks created by me"). Premodifiers like "high
+ * priority tasks" or "open tasks" are handled by
  * `parseSearchNaturalLanguageFilterPremodifierAndEntityTypesIfPossible`.
  */
 function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
@@ -1688,8 +1703,8 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
     const supportsOpenness = doesFilterSupportModifier(filter, "openness");
     const supportsActiveness = doesFilterSupportModifier(filter, "activeness");
 
-    // e.g. "documents created by me and updated last month"
-    // Only allow "and" if it's not the first modifier after the entity
+    // e.g. "documents created by me and updated last month" Only allow "and" if it's
+    // not the first modifier after the entity
     if (!isFirstModifierAfterEntity && matchTerms.and.isFuzzyMatch(state.term)) {
         state.advanceTerm();
 
@@ -1768,7 +1783,8 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         }
     }
 
-    // (e.g., "tasks that are open", "open tasks", "not open tasks", "tasks that are not done")
+    // (e.g., "tasks that are open", "open tasks", "not open tasks", "tasks that are
+    // not done")
     if (supportsOpenness && !filter.openness) {
         let openness: SearchNaturalLanguageFilter["openness"] = null;
 
@@ -1818,7 +1834,8 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         }
     }
 
-    // (e.g., "tasks that are active", "active tasks", "not active tasks", "tasks that are not inactive")
+    // (e.g., "tasks that are active", "active tasks", "not active tasks", "tasks that
+    // are not inactive")
     if (supportsActiveness && !filter.activeness) {
         let activeness: SearchNaturalLanguageFilter["activeness"] = null;
 
@@ -1850,9 +1867,9 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                 state,
                 {
-                    // Keep filterStartTerm unchanged - "not" is included in the phrase
-                    // by virtue of being between filterStartTerm and filterEndTerm.
-                    // The caller already set filterStartTerm to the start of the phrase.
+                    // Keep filterStartTerm unchanged - "not" is included in the phrase by virtue of
+                    // being between filterStartTerm and filterEndTerm. The caller already set
+                    // filterStartTerm to the start of the phrase.
                     filterStartTerm,
                     filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                     filter: {...filter, activeness},
@@ -1916,12 +1933,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             // e.g. "documents created by me" or "messages sent by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
                 if (!actorAccount) {
-                    // If we don't have an actor account then we can't parse a "my" query.
-                    // This is because we don't know who the user is. However, it's possible
-                    // that a Bot queries something like "Documents containing text my weekend
-                    // plans". In this case, we should just continue so the bot can search for
-                    // documents containing the text "my weekend plans".
-                    // In other words, we should no treat the term "my" as control text.
+                    // If we don't have an actor account then we can't parse a "my" query. This is
+                    // because we don't know who the user is. However, it's possible that a Bot queries
+                    // something like "Documents containing text my weekend plans". In this case, we
+                    // should just continue so the bot can search for documents containing the text "my
+                    // weekend plans". In other words, we should no treat the term "my" as control
+                    // text.
                     return {filterStartTerm, filterEndTerm, filter};
                 }
                 const endTerm = state.advanceTerm();
@@ -2007,12 +2024,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             // e.g. "documents written by me" or "posts authored by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
                 if (!actorAccount) {
-                    // If we don't have an actor account then we can't parse a "my" query.
-                    // This is because we don't know who the user is. However, it's possible
-                    // that a Bot queries something like "Documents containing text my weekend
-                    // plans". In this case, we should just continue so the bot can search for
-                    // documents containing the text "my weekend plans".
-                    // In other words, we should no treat the term "my" as control text.
+                    // If we don't have an actor account then we can't parse a "my" query. This is
+                    // because we don't know who the user is. However, it's possible that a Bot queries
+                    // something like "Documents containing text my weekend plans". In this case, we
+                    // should just continue so the bot can search for documents containing the text "my
+                    // weekend plans". In other words, we should no treat the term "my" as control
+                    // text.
                     return {filterStartTerm, filterEndTerm, filter};
                 }
                 const endTerm = state.advanceTerm();
@@ -2104,12 +2121,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             // e.g. "documents updated by me" or "tasks updated by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
                 if (!actorAccount) {
-                    // If we don't have an actor account then we can't parse a "my" query.
-                    // This is because we don't know who the user is. However, it's possible
-                    // that a Bot queries something like "Documents containing text my weekend
-                    // plans". In this case, we should just continue so the bot can search for
-                    // documents containing the text "my weekend plans".
-                    // In other words, we should no treat the term "my" as control text.
+                    // If we don't have an actor account then we can't parse a "my" query. This is
+                    // because we don't know who the user is. However, it's possible that a Bot queries
+                    // something like "Documents containing text my weekend plans". In this case, we
+                    // should just continue so the bot can search for documents containing the text "my
+                    // weekend plans". In other words, we should no treat the term "my" as control
+                    // text.
                     return {filterStartTerm, filterEndTerm, filter};
                 }
                 const endTerm = state.advanceTerm();
@@ -2190,12 +2207,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         // e.g. "documents by me" or "messages by me"
         if (allowAccount && matchTerms.me.isFuzzyMatch(state.term)) {
             if (!actorAccount) {
-                // If we don't have an actor account then we can't parse a "my" query.
-                // This is because we don't know who the user is. However, it's possible
-                // that a Bot queries something like "Documents containing text my weekend
-                // plans". In this case, we should just continue so the bot can search for
-                // documents containing the text "my weekend plans".
-                // In other words, we should no treat the term "my" as control text.
+                // If we don't have an actor account then we can't parse a "my" query. This is
+                // because we don't know who the user is. However, it's possible that a Bot queries
+                // something like "Documents containing text my weekend plans". In this case, we
+                // should just continue so the bot can search for documents containing the text "my
+                // weekend plans". In other words, we should no treat the term "my" as control
+                // text.
                 return {filterStartTerm, filterEndTerm, filter};
             }
             state.advanceTerm();
@@ -2274,12 +2291,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             matchTerms.posted.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
         if (!actorAccount) {
-            // If we don't have an actor account then we can't parse a "my" query.
-            // This is because we don't know who the user is. However, it's possible
-            // that a Bot queries something like "Documents containing text my weekend
-            // plans". In this case, we should just continue so the bot can search for
-            // documents containing the text "my weekend plans".
-            // In other words, we should no treat the term "my" as control text.
+            // If we don't have an actor account then we can't parse a "my" query. This is
+            // because we don't know who the user is. However, it's possible that a Bot queries
+            // something like "Documents containing text my weekend plans". In this case, we
+            // should just continue so the bot can search for documents containing the text "my
+            // weekend plans". In other words, we should no treat the term "my" as control
+            // text.
             return {filterStartTerm, filterEndTerm, filter};
         }
         state.advanceTerm();
@@ -2313,12 +2330,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             matchTerms.authored.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
         if (!actorAccount) {
-            // If we don't have an actor account then we can't parse a "my" query.
-            // This is because we don't know who the user is. However, it's possible
-            // that a Bot queries something like "Documents containing text my weekend
-            // plans". In this case, we should just continue so the bot can search for
-            // documents containing the text "my weekend plans".
-            // In other words, we should no treat the term "my" as control text.
+            // If we don't have an actor account then we can't parse a "my" query. This is
+            // because we don't know who the user is. However, it's possible that a Bot queries
+            // something like "Documents containing text my weekend plans". In this case, we
+            // should just continue so the bot can search for documents containing the text "my
+            // weekend plans". In other words, we should no treat the term "my" as control
+            // text.
             return {filterStartTerm, filterEndTerm, filter};
         }
         state.advanceTerm();
@@ -2352,12 +2369,12 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
             matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
         if (!actorAccount) {
-            // If we don't have an actor account then we can't parse a "my" query.
-            // This is because we don't know who the user is. However, it's possible
-            // that a Bot queries something like "Documents containing text my weekend
-            // plans". In this case, we should just continue so the bot can search for
-            // documents containing the text "my weekend plans".
-            // In other words, we should no treat the term "my" as control text.
+            // If we don't have an actor account then we can't parse a "my" query. This is
+            // because we don't know who the user is. However, it's possible that a Bot queries
+            // something like "Documents containing text my weekend plans". In this case, we
+            // should just continue so the bot can search for documents containing the text "my
+            // weekend plans". In other words, we should no treat the term "my" as control
+            // text.
             return {filterStartTerm, filterEndTerm, filter};
         }
         state.advanceTerm();
@@ -2505,8 +2522,8 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         return {filterStartTerm, filterEndTerm, filter};
     }
 
-    // e.g. "tasks assigned to..." or "tasks assigned to me"
-    // also allow typo of "assignee"
+    // e.g. "tasks assigned to..." or "tasks assigned to me" also allow typo of
+    // "assignee"
     if (
         matchTerms.assigned.isFuzzyMatch(state.term) ||
         matchTerms.assignee.isFuzzyMatch(state.term)
@@ -2637,8 +2654,8 @@ function dateToCalendarDate(date: Date, timeZone: TimeZone): CalendarDate {
 }
 
 /**
- * Creates either a `time` or `date` filter update based on the field.
- * For "Due" fields, uses CalendarDate; for "Created"/"LastUpdated", uses Date.
+ * Creates either a `time` or `date` filter update based on the field. For "Due"
+ * fields, uses CalendarDate; for "Created"/"LastUpdated", uses Date.
  */
 function createDateRangeFilterUpdate(
     filter: SearchNaturalLanguageFilter,
@@ -2723,8 +2740,8 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     if (matchTerms.recently.isFuzzyMatch(state.term)) {
         state.advanceTerm();
 
-        // We arbitrarily decide that "recently" means 3 days ago until now. Ideally
-        // we'd sort by recency as well.
+        // We arbitrarily decide that "recently" means 3 days ago until now. Ideally we'd
+        // sort by recency as well.
         const recentlyStartDate = new Date(currentTime.getTime() - 3 * (1000 * 60 * 60 * 24));
 
         return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
@@ -2766,8 +2783,8 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
 
     if (
         !state.term?.tags?.has("Date") ||
-        // "from" is tagged as `Date` but `compromise-date` can't parse it. We do,
-        // however, need "from" in `parseSearchNaturalLanguageFilterPostmodifierIfPossible()`.
+        // "from" is tagged as `Date` but `compromise-date` can't parse it. We do, however,
+        // need "from" in `parseSearchNaturalLanguageFilterPostmodifierIfPossible()`.
         state.term.normal === "from"
     ) {
         // We parsed some terms expecting a date but there was no date!
@@ -2818,12 +2835,12 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
 
             const dayMs = 1000 * 60 * 60 * 24;
 
-            // When the user targets a specific point in time like "2 hours ago", "2 days
-            // ago", or "2 months ago" it's unlikely they mean the exact time 2
-            // hours/days/months ago. So add some slop duration to our time filter. The
-            // slop duration gets larger the further in the past the time the user
-            // specifies is based on the hypothesis that the user's memory gets fuzzier the
-            // further in the past we're looking for an entity.
+            // When the user targets a specific point in time like "2 hours ago", "2 days ago",
+            // or "2 months ago" it's unlikely they mean the exact time 2 hours/days/months
+            // ago. So add some slop duration to our time filter. The slop duration gets larger
+            // the further in the past the time the user specifies is based on the hypothesis
+            // that the user's memory gets fuzzier the further in the past we're looking for an
+            // entity.
             const slopDurationMs =
                 getSlopDurationDays((currentTime.getTime() - midDate.getTime()) / dayMs) * dayMs;
 
@@ -2903,10 +2920,11 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
 }
 
 /**
- * Stems a possessive english string. Converts "John's" to "John". Adapted from
- * a [Lucene token filter of the same name][1].
+ * Stems a possessive english string. Converts "John's" to "John". Adapted from a
+ * [Lucene token filter of the same name][1].
  *
- * [1]: https://github.com/apache/lucene/blob/5d6086e1994d766a3dd39a47b14a8cd80a7280e6/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishPossessiveFilter.java#L32-L50
+ * [1]:
+ *     https://github.com/apache/lucene/blob/5d6086e1994d766a3dd39a47b14a8cd80a7280e6/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishPossessiveFilter.java#L32-L50
  */
 function stemEnglishPossessive(text: string): string {
     if (
@@ -2924,14 +2942,13 @@ function stemEnglishPossessive(text: string): string {
 }
 
 /**
- * Model returning a slop duration (measured in days) based on the input
- * duration (measured in days).
+ * Model returning a slop duration (measured in days) based on the input duration
+ * (measured in days).
  *
- * When the user targets a date with natural language (e.g. "5 days ago") we
- * add some slop around the date since it's unlikely they're targeting the
- * exact date. We add more slop the further the time is in the past under the
- * assumption the user's memory gets fuzzier the further away from the date
- * we are.
+ * When the user targets a date with natural language (e.g. "5 days ago") we add
+ * some slop around the date since it's unlikely they're targeting the exact date.
+ * We add more slop the further the time is in the past under the assumption the
+ * user's memory gets fuzzier the further away from the date we are.
  *
  * This model is based on a cubic regression of the following data points:
  *

@@ -12,10 +12,11 @@ import {createNativeMobileStaticRouter} from "~/app/router/native_mobile_router.
 /**
  * This is a fork of the [`<RemixServer>` component in `@remix-run/react`][1].
  *
- * We forked this component to add support for our native mobile router. We've
- * also simplified some some bits we don't need.
+ * We forked this component to add support for our native mobile router. We've also
+ * simplified some some bits we don't need.
  *
- * [1]: https://github.com/remix-run/remix/blob/a94303c7f812fdb9118d8dad065837c4a825efb8/packages/remix-react/server.tsx#L21-L112
+ * [1]:
+ *     https://github.com/remix-run/remix/blob/a94303c7f812fdb9118d8dad065837c4a825efb8/packages/remix-react/server.tsx#L21-L112
  */
 export function AppRemixServer({
     context,
@@ -49,8 +50,9 @@ export function AppRemixServer({
         const routeId = match.route.id;
         const route = routeModules[routeId];
         const manifestRoute = context.manifest.routes[routeId];
-        // Clear out the loaderData to avoid rendering the route component when the
-        // route opted into clientLoader hydration and either:
+        // Clear out the loaderData to avoid rendering the route component when the route
+        // opted into clientLoader hydration and either:
+        //
         // - gave us a HydrateFallback
         // - or doesn't have a server loader and we have no data to render
         if (

@@ -54,8 +54,8 @@ function ContentEditorPhantomTextSelectionCursor({
                         : phantomSelection.$anchor.pos > phantomSelection.$head.pos
                           ? 1
                           : 0,
-                // Give the tracker the height of our parent element's line height since that
-                // will be the height of the selection background.
+                // Give the tracker the height of our parent element's line height since that will
+                // be the height of the selection background.
                 shouldUseLineHeight: true,
             })}
             className={sprinkles({
@@ -79,13 +79,13 @@ function ContentEditorPhantomTextSelectionCursor({
                 }}
             />
             {phantomSelection.color !== defaultThemeColor && (
-                // Don't render a selection head for the space theme color. We use the space
-                // theme color to represent the current user's selection cursor when the editor
-                // is unfocused (see state regarding `isFocusWithinInsertMenu` in
+                // Don't render a selection head for the space theme color. We use the space theme
+                // color to represent the current user's selection cursor when the editor is
+                // unfocused (see state regarding `isFocusWithinInsertMenu` in
                 // `document_content_editor.tsx`).
                 //
-                // TODO(calebmer): When the theme color is configurable, we should use that
-                // instead of `defaultThemeColor`.
+                // TODO(calebmer): When the theme color is configurable, we should use that instead
+                // of `defaultThemeColor`.
                 <div
                     className={sprinkles({
                         position: "absolute",

@@ -78,11 +78,11 @@ export function FeedViewSideBar({
         initialAppRenderId ? `${initialAppRenderId}-FeedViewSideBar` : generateId(),
     );
 
-    // Even though we've already loaded the affinity search from the server, we
-    // call `useLazyLoadRpc()` so that if you navigate away from the browser
-    // then navigate back the affinity list is re-fetched. Also any time you
-    // favorite/unfavorite something we revalidate the RPC cache for
-    // `searchByAffinity()` which will cause this component to re-render.
+    // Even though we've already loaded the affinity search from the server, we call
+    // `useLazyLoadRpc()` so that if you navigate away from the browser then navigate
+    // back the affinity list is re-fetched. Also any time you favorite/unfavorite
+    // something we revalidate the RPC cache for `searchByAffinity()` which will cause
+    // this component to re-render.
     const {output} = useLazyLoadRpc(
         searchByAffinity,
         {spaceId: space.id},
@@ -105,23 +105,23 @@ export function FeedViewSideBar({
             convertRemLengthToPx(feedViewSideBarSpaceNameNegativeMarginBottom, spacingScale));
 
     // We estimate the available height assuming there's at least one non-favorites
-    // section header. We won't know how many headers there actually are until
-    // after we check the contents of the first `estimatedVisibleResultCount`
-    // results and determine what groups we have.
+    // section header. We won't know how many headers there actually are until after we
+    // check the contents of the first `estimatedVisibleResultCount` results and
+    // determine what groups we have.
     const estimatedAvailableHeight =
         availableHeightWithoutSectionHeaders -
         (hasFavorites ? sectionHeaderHeight : 0) -
         sectionHeaderHeight;
 
-    // The feed search affinity list sidebar doesn't scroll. We render as many
-    // entities as will fit on the screen and that's it. The feed post list does,
-    // however, scroll.
+    // The feed search affinity list sidebar doesn't scroll. We render as many entities
+    // as will fit on the screen and that's it. The feed post list does, however,
+    // scroll.
     //
-    // The search affinity list doesn't scroll because I want mouse wheel events to
-    // be interpreted as scrolling the feed. Not the search affinity list. We could
-    // make the search affinity list and feed scrollable separately that's probably
-    // fine but I like that it's conceptually clean that there's no conflicting
-    // scrollbars on the home page.
+    // The search affinity list doesn't scroll because I want mouse wheel events to be
+    // interpreted as scrolling the feed. Not the search affinity list. We could make
+    // the search affinity list and feed scrollable separately that's probably fine but
+    // I like that it's conceptually clean that there's no conflicting scrollbars on
+    // the home page.
     const estimatedVisibleResultCount = Math.floor(
         estimatedAvailableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
     );
@@ -168,8 +168,8 @@ export function FeedViewSideBar({
                 );
 
                 // Remove the result with the lowest score from the "People" and "Suggested"
-                // sections (not the "Favorites" section) until we have `visibleResultCount`
-                // items in total.
+                // sections (not the "Favorites" section) until we have `visibleResultCount` items
+                // in total.
                 if (visibleResultCountWithoutFavorites > 0) {
                     while (
                         peopleResults.length + suggestedResults.length >
@@ -236,11 +236,11 @@ export function FeedViewSideBar({
                         >
                             Favorites
                             {hasMoreFavoriteResults && (
-                                // Intentionally using [U+2219 (bullet operator)][1] instead of
-                                // [U+2022 (bullet)][2] since the former is thinner.
+                                // Intentionally using [U+2219 (bullet operator)][1] instead of [U+2022
+                                // (bullet)][2] since the former is thinner.
                                 //
-                                // A bullet separator here is nicer than parentheses like "(see all)"
-                                // since the parentheses draw a lot of attention.
+                                // A bullet separator here is nicer than parentheses like "(see all)" since the
+                                // parentheses draw a lot of attention.
                                 //
                                 // [1]: https://graphemica.com/%E2%88%99
                                 // [2]: https://graphemica.com/%E2%80%A2
@@ -265,7 +265,7 @@ export function FeedViewSideBar({
                                     });
 
                                     // This is very race condition prone. But it's good enough for this
-                                    // non-collaborative use case. *Shrug*
+                                    // non-collaborative use case. _Shrug_
                                     updateSearchFavoriteEntityMenuAction(
                                         space.id,
                                         result.id,
@@ -377,32 +377,31 @@ function FeedSearchAffinityView({
 
             setIsPendingNavigation(true);
 
-            // When clicking on a path from the feed sidebar, fully navigate the app to
-            // that thing. Don't open it in a peek. The home page is your entrypoint into
-            // the rest of the product. You won't be doing much work on the home page so we
-            // don't need to open a peek that keeps you in context.
+            // When clicking on a path from the feed sidebar, fully navigate the app to that
+            // thing. Don't open it in a peek. The home page is your entrypoint into the rest
+            // of the product. You won't be doing much work on the home page so we don't need
+            // to open a peek that keeps you in context.
             //
             // If the user is holding shift then open in a peek.
             //
-            // Chats and tasks always open in a peek. Because they're small and don't use
-            // the fullscreen space effectively, so better to keep them in a peek.
+            // Chats and tasks always open in a peek. Because they're small and don't use the
+            // fullscreen space effectively, so better to keep them in a peek.
             const shouldOpenInPeek = event.shiftKey || shouldOpenSearchAffinityResultInPeek(result);
 
             void navigate(path, {stopPropagation: !shouldOpenInPeek})
                 .then(() => {
                     // Whenever the user selects a suggested (or favorite) result, we record a high
-                    // intent affinity interaction. This is because the user opening a result from
-                    // the feed view sidebar is super high signal that this is an entity they care
-                    // about. In this way the suggested list is a self reinforcing system. The more
-                    // a user selects an entity, the higher the entity will appear in the user's
-                    // next search.
+                    // intent affinity interaction. This is because the user opening a result from the
+                    // feed view sidebar is super high signal that this is an entity they care about.
+                    // In this way the suggested list is a self reinforcing system. The more a user
+                    // selects an entity, the higher the entity will appear in the user's next search.
                     markSearchAffinityEntityInteraction(context, {
                         spaceId: space.id,
                         entityId: result.id,
                         interaction: {type: "HighIntentUpdate"},
                     }).catch(error => {
-                        // Silently fail. This doesn't affect anything the user sees so we don't need
-                        // to report the error to the user.
+                        // Silently fail. This doesn't affect anything the user sees so we don't need to
+                        // report the error to the user.
                         reporter.logErrorWithoutDisplaying(
                             "Couldn\u2019t mark search result select affinity interaction",
                             error,
@@ -525,8 +524,8 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
         <Box
             {...pressProps}
             display="inline"
-            // We don't usually use a pointer cursor for pressable things but in this case
-            // it's not obvious this text is interactive without it.
+            // We don't usually use a pointer cursor for pressable things but in this case it's
+            // not obvious this text is interactive without it.
             cursor="pointer"
             opacity={isPressed ? "60" : undefined}
             paddingX="1"
@@ -554,9 +553,8 @@ function isSearchAffinityResultDirectChatOrAccount(
     if (entityType === "Chat" && result.model instanceof SearchEntityModel) {
         const entity = get(searchEntityRegistry.getEntityStore(result.model));
 
-        // HACK: Room chats have a null `accountCount` whereas direct chats have an
-        // integer `accountCount`. So check `accountCount === null` to tell if this is
-        // a room chat.
+        // HACK: Room chats have a null `accountCount` whereas direct chats have an integer
+        // `accountCount`. So check `accountCount === null` to tell if this is a room chat.
         if (entity.media?.type === "AccountPile" && entity.media.accountCount !== null) {
             return true;
         }

@@ -298,8 +298,8 @@ test("rejects non-bot token payload", async () => {
     });
 });
 
-// This also tests that a short lived token is considered valid if all the
-// claims + signatures are correct.
+// This also tests that a short lived token is considered valid if all the claims +
+// signatures are correct.
 test("rejects unknown API key (with short lived token)", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);

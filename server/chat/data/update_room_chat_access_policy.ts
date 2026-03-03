@@ -18,8 +18,8 @@ import {ChatId} from "~/shared/id/types/id_types.js";
 /**
  * Updates the access policy for a room chat.
  *
- * If you want to get the `ChatModel` after this update we return a `Lazy` and
- * when you call `get()` it builds the chat model.
+ * If you want to get the `ChatModel` after this update we return a `Lazy` and when
+ * you call `get()` it builds the chat model.
  */
 export async function updateRoomChatAccessPolicy(
     context: ServerSessionActionContext,

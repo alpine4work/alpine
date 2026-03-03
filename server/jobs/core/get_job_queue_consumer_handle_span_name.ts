@@ -5,8 +5,8 @@ export function getJobQueueConsumerHandleSpanName(messageBody: JobQueueMessageBo
         messageBody.type === "Maintenance" ? "Process maintenance job" : "Process job"
     } ${messageBody.job.type}`;
 
-    // For jobs that process many different things, include the subtype in the
-    // name to help identify the span.
+    // For jobs that process many different things, include the subtype in the name to
+    // help identify the span.
     switch (messageBody.job.type) {
         case "NotificationEvent": {
             handleSpanName += ` (${messageBody.job.event.type})`;

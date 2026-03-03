@@ -11,13 +11,12 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {AppleDeviceTarget} from "~/shared/notifications/push_notification_target.js";
 
 /**
- * Get all devices registered for the provided `AccountId`. System actors can
- * see the registered devices for any account since we need to send push
- * notifications to the account's devices as the system actor.
+ * Get all devices registered for the provided `AccountId`. System actors can see
+ * the registered devices for any account since we need to send push notifications
+ * to the account's devices as the system actor.
  *
- * You should use `getRegisteredAppleDevicesForAccount()` since it
- * authorizes that the actor is allowed to read the account's registered
- * devices.
+ * You should use `getRegisteredAppleDevicesForAccount()` since it authorizes that
+ * the actor is allowed to read the account's registered devices.
  */
 export async function getRegisteredAppleDevicesForAccountWithoutAuthorization(
     context: Context<DynamoContextModules & {actor: ActorContextModule}>,

@@ -11,15 +11,14 @@ import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_im
 /**
  * A combinator for flattening `Store<Tree<Key, Store<Value>>>` stores into
  * `Store<Tree<Key, Value>>`. Well, that combinator would just be the `flat()`
- * operation. This combinator also supports `map()` which makes it the
- * `flatMap()` combinator. The original tree is `Store<Tree<Key, OldValue>>`
- * where `OldValue` may or may not be a `Store`. There's a map function from
+ * operation. This combinator also supports `map()` which makes it the `flatMap()`
+ * combinator. The original tree is `Store<Tree<Key, OldValue>>` where `OldValue`
+ * may or may not be a `Store`. There's a map function from
  * `(value: OldValue) => Store<NewValue>`.
  *
- * We combine the `flat()` and `map()` combinators into one for trees so we
- * don't need to build an unnecessary intermediate tree when implementing
- * `flatMap()`. If you just need `flat()` it can be implemented from
- * `flatMap()` easily.
+ * We combine the `flat()` and `map()` combinators into one for trees so we don't
+ * need to build an unnecessary intermediate tree when implementing `flatMap()`. If
+ * you just need `flat()` it can be implemented from `flatMap()` easily.
  */
 export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tree<Key, NewValue>> {
     private readonly _store: Store<Tree<Key, OldValue>>;
@@ -34,9 +33,9 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
         Key,
         {
             storeResult: Result<Store<NewValue>>;
-            // When a nested store is invalidated, when `getSnapshot()` is called we want
-            // to only update the invalidated keys. So we attach an extra listener (this
-            // function) that records what precisely was invalidated.
+            // When a nested store is invalidated, when `getSnapshot()` is called we want to
+            // only update the invalidated keys. So we attach an extra listener (this function)
+            // that records what precisely was invalidated.
             readonly weakImmediateListener: () => void;
         }
     >();
@@ -63,17 +62,16 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
     }
 
     public override isFinal(): boolean {
-        // This function should be fast. Recursively checking if all our stores are
-        // final defeats the point of this optimization. So assume the store is not
-        // final.
+        // This function should be fast. Recursively checking if all our stores are final
+        // defeats the point of this optimization. So assume the store is not final.
         return false;
     }
 
     public readonly getSnapshot = () => {
         // Initialize `newTree` if we haven't initialized it before.
         if (this._newTree === null) {
-            // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
-            // partial state.
+            // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad partial
+            // state.
             this._oldTree = this._store.getSnapshot();
 
             let newTreeValues = createTree<Key, NewValue>(this._oldTree._compare);
@@ -139,8 +137,8 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
         }
 
         const oldOldTree = this._oldTree!;
-        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
-        // partial state.
+        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad partial
+        // state.
         const newOldTree = (this._oldTree = this._store.getSnapshot());
 
         if (oldOldTree !== newOldTree) {
@@ -190,8 +188,8 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
                         const {storeResult: oldNestedStoreResult, weakImmediateListener} =
                             this._nestedStoreByKey.get(change.key)!;
 
-                        // 1. Remove the weak immediate listener which is responsible for invalidating
-                        //    just this key.
+                        // 1. Remove the weak immediate listener which is responsible for invalidating just
+                        //    this key.
                         oldNestedStoreResult.value?._removeWeakImmediateListener(
                             weakImmediateListener,
                         );
@@ -226,11 +224,10 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
                             this._map(change.newValue, change.key),
                         );
 
-                        // If the nested store changed, move listeners from the old store to the
-                        // new store.
+                        // If the nested store changed, move listeners from the old store to the new store.
                         if (oldNestedStoreResult.value !== newNestedStoreResult.value) {
-                            // 1. Move the weak immediate listener that invalidates just the current key
-                            //    when it changes.
+                            // 1. Move the weak immediate listener that invalidates just the current key when
+                            //    it changes.
                             oldNestedStoreResult.value?._removeWeakImmediateListener(
                                 weakImmediateListener,
                             );
@@ -267,8 +264,8 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
             }
         }
 
-        // We keep track of individual nested store keys that were invalidated so we
-        // only need to update them instead of looking at every key in our map.
+        // We keep track of individual nested store keys that were invalidated so we only
+        // need to update them instead of looking at every key in our map.
         if (this._nestedStoreInvalidatedKeys !== null) {
             let newTreeValues = this._newTree.values;
             let newTreeErrors = this._newTree.errors;
@@ -287,8 +284,8 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
                     const newTreeValuesIterator = newTreeValues.find(key);
                     const newTreeErrorsIterator = newTreeErrors.find(key);
 
-                    // Optimization: If the nested key was invalidated but the underlying value
-                    // didn't actually change, don't update the tree.
+                    // Optimization: If the nested key was invalidated but the underlying value didn't
+                    // actually change, don't update the tree.
                     if (
                         newTreeValuesIterator.valid &&
                         result.ok &&
@@ -297,8 +294,8 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
                         continue;
                     }
 
-                    // Optimization: If the nested key was invalidated but the underlying value
-                    // didn't actually change, don't update the tree.
+                    // Optimization: If the nested key was invalidated but the underlying value didn't
+                    // actually change, don't update the tree.
                     if (
                         newTreeErrorsIterator.valid &&
                         !result.ok &&

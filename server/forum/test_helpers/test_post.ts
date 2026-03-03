@@ -75,8 +75,8 @@ export class TestPost extends TestCommentRoomBase {
     public readonly id: PostId;
     public readonly createdTime: Date;
     // NOTE(calebmer, 2024-11-01): We haven't implemented moving a post between
-    // channels but we intend to. Which is why this is called `initialChannel`
-    // instead of `channel`.
+    // channels but we intend to. Which is why this is called `initialChannel` instead
+    // of `channel`.
     public readonly initialChannel: TestChannel;
 
     private constructor(
@@ -96,8 +96,8 @@ export class TestPost extends TestCommentRoomBase {
         this.initialChannel = initialChannel;
     }
 
-    // Starts with an underscore since you should prefer calling
-    // `channel.createPost()` to `TestPost._create()`.
+    // Starts with an underscore since you should prefer calling `channel.createPost()`
+    // to `TestPost._create()`.
     public static async _create(
         session: TestSpaceSession,
         channel: TestChannel,
@@ -169,9 +169,9 @@ export class TestPost extends TestCommentRoomBase {
             );
         }
 
-        // To create a post with files we first need to create a draft and attach all
-        // files to that draft. Then we create the post using the draft which will move
-        // any attachments from the draft to the post.
+        // To create a post with files we first need to create a draft and attach all files
+        // to that draft. Then we create the post using the draft which will move any
+        // attachments from the draft to the post.
         let draftId: PostDraftId | null = null;
         if (attachFiles.length > 0) {
             draftId = generateChronologicalId<PostDraftId>();
@@ -396,8 +396,8 @@ export class TestPost extends TestCommentRoomBase {
         originalAttachFiles ??= emptyArray;
 
         const post = await getPostContentAndChannelPreview(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `updatePostContent()` instead of here.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `updatePostContent()` instead of here.
             this.space.systemAction(),
             this.id,
         );

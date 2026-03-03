@@ -35,9 +35,9 @@ import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_enti
 import {SearchAffinityEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
-// Needs to be before `afterEach()` hook where we err if there are remaining
-// timers since the constructor adds an `afterEach()` hook to clear timers
-// within this class.
+// Needs to be before `afterEach()` hook where we err if there are remaining timers
+// since the constructor adds an `afterEach()` hook to clear timers within this
+// class.
 const cache = getGlobalDocumentContentCacheForUpdateForTest();
 const otherCache = new DocumentContentCacheForUpdate();
 
@@ -82,8 +82,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();

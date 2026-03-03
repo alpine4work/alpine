@@ -11,14 +11,15 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
     /**
      * Send a push notification to the provided Apple device token.
      *
-     * For more information on supported properties on a notification object
-     * see "[Generating a remove notification][1]".
+     * For more information on supported properties on a notification object see
+     * "[Generating a remove notification][1]".
      *
-     * If this function returns `wasDeviceTokenUnregistered` then you should delete
-     * the provided device token from the database to avoid sending notifications
-     * to it again.
+     * If this function returns `wasDeviceTokenUnregistered` then you should delete the
+     * provided device token from the database to avoid sending notifications to it
+     * again.
      *
-     * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
+     * [1]:
+     *     https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */
     public abstract sendAlert(
         deviceToken: Uint8Array,
@@ -27,10 +28,10 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
     ): Promise<{wasDeviceTokenUnregistered: boolean}>;
 
     /**
-     * Provides a `sendAlert()` function to the action that does the same thing as
-     * our class's `sendAlert()` function. If we don't have an APNs connection yet
-     * then we'll connect in parallel with the action so if the action starts with
-     * any data loading we can connect to APNs in parallel with that.
+     * Provides a `sendAlert()` function to the action that does the same thing as our
+     * class's `sendAlert()` function. If we don't have an APNs connection yet then
+     * we'll connect in parallel with the action so if the action starts with any data
+     * loading we can connect to APNs in parallel with that.
      *
      * For the duration of the action we will use the same APNs connection.
      *

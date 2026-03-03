@@ -16,11 +16,11 @@ export const saveAccountSignUpProfileBeforeExecuteTestCheckpoint = new TestCheck
 
 /**
  * Finish signing up an account by setting the `name` and `reactionCharacter`
- * chosen during sign up. This function may be called by anyone without
- * authorizing they own the account if `hasNotSignedUp` is true and the account
- * isn't a member of any spaces (`InvitePending` state is fine). This is
- * because we allow the user to set their name and reaction character before
- * entering the one time password sent to their email (which authorizes them).
+ * chosen during sign up. This function may be called by anyone without authorizing
+ * they own the account if `hasNotSignedUp` is true and the account isn't a member
+ * of any spaces (`InvitePending` state is fine). This is because we allow the user
+ * to set their name and reaction character before entering the one time password
+ * sent to their email (which authorizes them).
  *
  * Once this function has been called, it can't be called again!
  */
@@ -54,8 +54,8 @@ export async function saveAccountSignUpProfile(
         const {isInNoSpaces, getConditionCheckTransactionEntry} =
             await context.spacesInjection.isAccountInNoSpaces(accountId);
 
-        // Permissions check: Once the account has started joining spaces, we don't
-        // allow them to use `saveAccountSignUpProfile()` to change their name anymore.
+        // Permissions check: Once the account has started joining spaces, we don't allow
+        // them to use `saveAccountSignUpProfile()` to change their name anymore.
         //
         // This means we don't have to reindex the account in all its spaces like
         // `updateOurAccountName()` must do because the account isn't a member of any

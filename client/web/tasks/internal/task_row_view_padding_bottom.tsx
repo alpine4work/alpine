@@ -68,12 +68,11 @@ export function TaskRowViewPaddingBottom({
                         ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
                         : undefined,
 
-                // Important: This prevents the 100vh height element we render below from
-                // adding extra scroll height. We want to add decorative task row lines going
-                // off the bottom of the screen making the task product feel like a sheet of
-                // lined paper. We use 100vh since that'll guarantee fill the remaining space
-                // under our last row. But we don't want that extra 100vh to cause us to
-                // scroll more.
+                // Important: This prevents the 100vh height element we render below from adding
+                // extra scroll height. We want to add decorative task row lines going off the
+                // bottom of the screen making the task product feel like a sheet of lined paper.
+                // We use 100vh since that'll guarantee fill the remaining space under our last
+                // row. But we don't want that extra 100vh to cause us to scroll more.
                 contain: "layout",
             }}
             {...useOutOfBoundsClickSelection({

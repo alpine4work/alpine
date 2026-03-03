@@ -10,9 +10,9 @@ import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 export async function getSessionIfExists(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     sessionId: SessionId,
-    // Optional: As an optimization you may include the account the session is for
-    // so you load both the session data and account data in parallel. If you pass
-    // in the wrong account ID for the session an error will be thrown.
+    // Optional: As an optimization you may include the account the session is for so
+    // you load both the session data and account data in parallel. If you pass in the
+    // wrong account ID for the session an error will be thrown.
     sessionAccountId: AccountId | null,
 ): Promise<{
     readonly id: SessionId;
@@ -27,9 +27,8 @@ export async function getSessionIfExists(
         }).then(sessionItem => {
             if (sessionItem) return sessionItem;
 
-            // Try loading the session item again with strong consistency if we couldn't
-            // find it the first time instead of throwing a "you don't have access to
-            // Alpine" error.
+            // Try loading the session item again with strong consistency if we couldn't find
+            // it the first time instead of throwing a "you don't have access to Alpine" error.
             return AccountsTable.getItemIfExists(
                 context,
                 {
@@ -42,8 +41,8 @@ export async function getSessionIfExists(
         }),
 
         // Preload the session account item and its avatar. This will populate the
-        // `ContextCache` for the account item so when we load it later it's
-        // immediately available.
+        // `ContextCache` for the account item so when we load it later it's immediately
+        // available.
         //
         // TODO(calebmer): Is this a useful optimization anymore? It may be a useful
         // optimization when React server side rendering but not when executing an RPC
@@ -60,9 +59,9 @@ export async function getSessionIfExists(
         if (!accountItem)
             throw new InternalError("Expected account referenced by session to exist");
 
-        // Sanity check: We shouldn't create sessions for bots. Only for accounts that
-        // can sign in via email or some other method. Therefore we shouldn't be
-        // reading a bot session account.
+        // Sanity check: We shouldn't create sessions for bots. Only for accounts that can
+        // sign in via email or some other method. Therefore we shouldn't be reading a bot
+        // session account.
         if (accountItem.bot) {
             throw new DataLossError("Bot accounts can\u2019t have sessions");
         }

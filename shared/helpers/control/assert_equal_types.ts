@@ -8,9 +8,8 @@ type Equals<Type1, Type2> = [Type1] extends [Type2]
 type MismatchArgs<Test> = Test extends true ? [] : [never];
 
 /**
- * Tests that two types are equal to each other. If they are not equal you will
- * get a type error but not a runtime error. This function does nothing at
- * runtime.
+ * Tests that two types are equal to each other. If they are not equal you will get
+ * a type error but not a runtime error. This function does nothing at runtime.
  *
  * Useful for forcing a developer to update a piece of code when updating the
  * corresponding type. Or for explicitly declaring a type-level invariant.

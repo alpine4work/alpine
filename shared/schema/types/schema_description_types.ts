@@ -2,19 +2,18 @@
  * A description of the value serialized by a given schema.
  *
  * We use this description for performing static analysis on our schema. For
- * example, we can tell if a new schema is backwards compatible with an
- * existing schema.
+ * example, we can tell if a new schema is backwards compatible with an existing
+ * schema.
  *
- * This is in the `types` directory so that we don't accidentally import code
- * for statically analyzing the `Schema` class (e.g. forwards/backwards
- * compatibility checking code).
+ * This is in the `types` directory so that we don't accidentally import code for
+ * statically analyzing the `Schema` class (e.g. forwards/backwards compatibility
+ * checking code).
  */
 export type SchemaSerializedValueDescription =
     | SchemaSerializedScalarValueDescription
     | SchemaSerializedCompositeValueDescription;
 
-// Schema descriptions that don't recursively reference other
-// schema descriptions.
+// Schema descriptions that don't recursively reference other schema descriptions.
 export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Unknown"}
     | {readonly type: "Boolean"}
@@ -28,8 +27,8 @@ export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Value"; readonly value: null | boolean | number | string}
     | {readonly type: "Enum"; readonly values: ReadonlyArray<string | number | boolean>};
 
-// Schema descriptions which are composed of multiple recursively nested
-// schema descriptions.
+// Schema descriptions which are composed of multiple recursively nested schema
+// descriptions.
 export type SchemaSerializedCompositeValueDescription =
     | SchemaSerializedNullableValueDescription
     | SchemaSerializedArrayValueDescription

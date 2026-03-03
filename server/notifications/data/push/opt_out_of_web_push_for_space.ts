@@ -8,8 +8,9 @@ import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * Opts out of web push notifications for a space for a given browser.
  *
- * Does not remove the web push subscription for the account and `browserId` pair so the user will
- * still receive notifications from other non-opted out spaces on this browser.
+ * Does not remove the web push subscription for the account and `browserId` pair
+ * so the user will still receive notifications from other non-opted out spaces on
+ * this browser.
  */
 export async function optOutOfWebPushForSpace(
     context: ServerSessionActionContext,

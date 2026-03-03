@@ -37,8 +37,8 @@ export async function handleResizeFileRequest(
     // Add identification information for the actor to all child spans.
     span.addPropagatedData(actorContextModule.getPropagatedData());
 
-    // Mock withFiber function (not needed in Lambda) until we can
-    // decommission the existing ECS service
+    // Mock withFiber function (not needed in Lambda) until we can decommission the
+    // existing ECS service
     const withFiber = async <Value>(
         _context: any,
         action: () => Promise<Value>,

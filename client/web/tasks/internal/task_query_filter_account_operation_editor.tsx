@@ -436,8 +436,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                 if (item1.key === currentAccount?.id) return -1;
                 if (item2.key === currentAccount?.id) return 1;
 
-                // Sort the selected accounts when the listbox was opened first in our
-                // items list.
+                // Sort the selected accounts when the listbox was opened first in our items list.
                 const isInitialAccount1 = initialAccountIds.has(item1.key);
                 const isInitialAccount2 = initialAccountIds.has(item2.key);
 
@@ -451,8 +450,8 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                     );
                 }
 
-                // Use the sort order from the server. The server returns accounts in
-                // affinity order.
+                // Use the sort order from the server. The server returns accounts in affinity
+                // order.
                 return 0;
             });
 
@@ -481,8 +480,8 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                 searchInputValue === ""
                     ? // Don't include removed accounts in the initial rendered account list.
                       //
-                      // TODO(calebmer): When searching, removed accounts should rank lower. How do
-                      // we give them a lower score while still allowing users to find them?
+                      // TODO(calebmer): When searching, removed accounts should rank lower. How do we
+                      // give them a lower score while still allowing users to find them?
                       allItems.filter(
                           item =>
                               item.type !== "Account" ||

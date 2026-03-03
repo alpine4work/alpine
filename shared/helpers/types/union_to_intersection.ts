@@ -1,5 +1,4 @@
-// Type is derived from:
-// https://github.com/type-challenges/type-challenges
+// Type is derived from: https://github.com/type-challenges/type-challenges
 
 /**
  * Converts a union type to an intersection type.

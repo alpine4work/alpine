@@ -41,9 +41,8 @@ export class AwsGithubRunners extends Construct {
 
         const bucket = new Bucket(this, "BazelRemoteBucket", {
             // Manually assign a bucket name so that we can reference it by name in
-            // `aws_github_runners_bazel_remote.sh`. Since
-            // `@cloudsnorkel/cdk-github-runners` doesn't give us a way to pass in
-            // parameters.
+            // `aws_github_runners_bazel_remote.sh`. Since `@cloudsnorkel/cdk-github-runners`
+            // doesn't give us a way to pass in parameters.
             bucketName: "cyberworlds-bazel-remote",
             // Security best practice to require HTTPS access.
             enforceSSL: true,
@@ -62,16 +61,15 @@ export class AwsGithubRunners extends Construct {
 
         // 8 vCPU, 32 GiB memory, Gravitron (ARM) processor
         //
-        // NOTE(calebmer, 2024-08-05): This instance type gives us best performance for
-        // the cost based on some simple testing.
+        // NOTE(calebmer, 2024-08-05): This instance type gives us best performance for the
+        // cost based on some simple testing.
         const testInstanceClass = InstanceClass.M7G;
         const testInstanceType = InstanceType.of(testInstanceClass, InstanceSize.XLARGE2);
 
         // 4 vCPU, 16 GiB memory, Gravitron (ARM) processor
         //
         // We use the same instance class for our deploy GitHub runners as we do our
-        // production services so when building we're building for the right
-        // architecture.
+        // production services so when building we're building for the right architecture.
         const deployInstanceClass = awsServiceInstanceClass;
         const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE2);
 
@@ -95,8 +93,8 @@ export class AwsGithubRunners extends Construct {
             //
             // - `zstd` for better GitHub `actions/cache` compression/decompression
             //   performance.
-            // - `build-essential` which includes `gcc` and `make` among other common
-            //   build tools.
+            // - `build-essential` which includes `gcc` and `make` among other common build
+            //   tools.
             // - `nodejs` since we need to run `aws_github_runners_bazel_remote_cache.cjs`
             //   before anything from Bazel.
             RunnerImageComponent.custom({
@@ -106,16 +104,16 @@ export class AwsGithubRunners extends Construct {
                         new Set([
                             // Better GitHub `actions/cache` compression/decompression performance.
                             "zstd",
-                            // Includes `gcc` and `make` among other common build tools. Necessary for
-                            // building some npm packages.
+                            // Includes `gcc` and `make` among other common build tools. Necessary for building
+                            // some npm packages.
                             "build-essential",
-                            // LLVM's linker. When Bazel auto-configures the CC toolchain it looks
-                            // for `lld` first, falling back to `gold` (from binutils). `gold` is
-                            // deprecated and `rustc` warns when it's used. Installing `lld` makes
-                            // Bazel prefer it, which is also faster.
+                            // LLVM's linker. When Bazel auto-configures the CC toolchain it looks for `lld`
+                            // first, falling back to `gold` (from binutils). `gold` is deprecated and `rustc`
+                            // warns when it's used. Installing `lld` makes Bazel prefer it, which is also
+                            // faster.
                             "lld",
-                            // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
-                            // enable remote caching before anything is built by Bazel.
+                            // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to enable
+                            // remote caching before anything is built by Bazel.
                             "nodejs",
 
                             ...extraAptDependencies,
@@ -248,15 +246,15 @@ export class AwsGithubRunners extends Construct {
                     "libfaad2",
                     "libkate1",
                     "libfdk-aac2",
-                    // TODO(calebmer, 2024-09-06): The package `libwpewebkit-1.0-3` is not available
-                    // in Ubuntu 24. We should try running integration tests again with
+                    // TODO(calebmer, 2024-09-06): The package `libwpewebkit-1.0-3` is not available in
+                    // Ubuntu 24. We should try running integration tests again with
                     // `DEBUG=pw:browser*` set to see if we still need something here.
                     //
                     // "libwpewebkit-1.0-3",
                 ],
                 {
-                    // Install `libreoffice` without any of its GUI dependencies since we'll only
-                    // use the `libreoffice` CLI and we'll only use it in tests.
+                    // Install `libreoffice` without any of its GUI dependencies since we'll only use
+                    // the `libreoffice` CLI and we'll only use it in tests.
                     noInstallRecommends: ["libreoffice"],
                 },
             ),
@@ -264,9 +262,9 @@ export class AwsGithubRunners extends Construct {
 
         const testRunnerProvider = new Ec2RunnerProvider(this, "TestRunnerProvider", {
             vpc,
-            // Run our GitHub runners in a public subnet so they can communicate with
-            // GitHub and can download dependencies from the network. All without having to
-            // go through a paid NAT gateway.
+            // Run our GitHub runners in a public subnet so they can communicate with GitHub
+            // and can download dependencies from the network. All without having to go through
+            // a paid NAT gateway.
             subnetSelection: {subnetType: SubnetType.PUBLIC},
 
             labels: ["aws-test"],
@@ -274,18 +272,18 @@ export class AwsGithubRunners extends Construct {
             instanceType: testInstanceType,
             storageSize: Size.gibibytes(40),
 
-            // The historical average discount for `m7g.2xlarge` instances is 66% according
-            // to the [AWS Pricing Calculator][1]. It's fine for us to wait for spot
-            // capacity for test runs and it's fine if a test run is interrupted. Since we
-            // can re-run interrupted test runs with no consequences.
+            // The historical average discount for `m7g.2xlarge` instances is 66% according to
+            // the [AWS Pricing Calculator][1]. It's fine for us to wait for spot capacity for
+            // test runs and it's fine if a test run is interrupted. Since we can re-run
+            // interrupted test runs with no consequences.
             //
-            // NOTE(calebmer, 2024-11-12): Disabling spot capacity instances for test
-            // runners for now. It's quite annoying to see a test run fail because of a
-            // terminated spot instance. Consider building retry logic for spot instances
-            // that have been terminated, re-enabling spot pricing, and monitoring how
-            // frequently spot instances are killed. If we ever move to running our tests
-            // across multiple EC2 instance shards spot instances will be more attractive
-            // since each individual EC2 instance run should be faster.
+            // NOTE(calebmer, 2024-11-12): Disabling spot capacity instances for test runners
+            // for now. It's quite annoying to see a test run fail because of a terminated spot
+            // instance. Consider building retry logic for spot instances that have been
+            // terminated, re-enabling spot pricing, and monitoring how frequently spot
+            // instances are killed. If we ever move to running our tests across multiple EC2
+            // instance shards spot instances will be more attractive since each individual EC2
+            // instance run should be faster.
             //
             // [1]: https://calculator.aws
             spot: false,
@@ -300,9 +298,9 @@ export class AwsGithubRunners extends Construct {
             userDataExtra: Fn.join("", ['{"jobQueueUrl":"', sqs.getJobQueueUrl(), '"}']),
 
             // Tag EC2 instances so the SSM State Manager association in AwsObservability
-            // installs and configures the CloudWatch Agent on them. We pass tags here
-            // (rather than using `observability.installCloudWatchAgent`) because instances
-            // are launched at runtime via `ec2:RunInstances`, not as CloudFormation resources.
+            // installs and configures the CloudWatch Agent on them. We pass tags here (rather
+            // than using `observability.installCloudWatchAgent`) because instances are
+            // launched at runtime via `ec2:RunInstances`, not as CloudFormation resources.
             extraTags: [{key: "CloudWatchAgent", value: "true"}],
         });
 
@@ -322,8 +320,7 @@ export class AwsGithubRunners extends Construct {
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(testRunnerProvider);
 
-        // Our test workflow needs to send the `ScheduleDeploy` message to our
-        // job queue.
+        // Our test workflow needs to send the `ScheduleDeploy` message to our job queue.
         sqs.grantSendJobQueueMessages(testRunnerProvider);
 
         // Allow writing to the tracer event stream.
@@ -356,9 +353,9 @@ export class AwsGithubRunners extends Construct {
 
         const deployRunnerProvider = new Ec2RunnerProvider(this, "DeployRunnerProvider", {
             vpc,
-            // Run our GitHub runners in a public subnet so they can communicate with
-            // GitHub and can download dependencies from the network. All without having to
-            // go through a paid NAT gateway.
+            // Run our GitHub runners in a public subnet so they can communicate with GitHub
+            // and can download dependencies from the network. All without having to go through
+            // a paid NAT gateway.
             subnetSelection: {subnetType: SubnetType.PUBLIC},
 
             labels: ["aws-deploy"],
@@ -378,18 +375,16 @@ export class AwsGithubRunners extends Construct {
             //     at async /home/runner/_work/cyberworlds/cyberworlds/bazel-bin/server/deploy/script/script.sh.runfiles/cyberworlds/node_modules/.aspect_rules_js/aws-cdk@2.149.0/node_modules/aws-cdk/lib/util/work-graph.js:94:21
             // ```
             //
-            // What's happening is the CDK tries to pass an empty string to `docker tag`.
-            // The empty string comes from an earlier `docker` command that fails silently.
-            // The CDK should really be logging that error but oh well. Most of the
-            // time, the earlier error is because Docker has run out of space on the
-            // machine for images. We've been able to fix this by increase the storage size
-            // of our deploy runner.
+            // What's happening is the CDK tries to pass an empty string to `docker tag`. The
+            // empty string comes from an earlier `docker` command that fails silently. The CDK
+            // should really be logging that error but oh well. Most of the time, the earlier
+            // error is because Docker has run out of space on the machine for images. We've
+            // been able to fix this by increase the storage size of our deploy runner.
             storageSize: Size.gibibytes(100),
 
-            // Do not use spot pricing for deploy GitHub runners. If a deploy is
-            // interrupted production may be left in a bad state. (e.g. We interrupt during
-            // the CloudFormation deploy which prevents the Cloudflare deploy from
-            // running.)
+            // Do not use spot pricing for deploy GitHub runners. If a deploy is interrupted
+            // production may be left in a bad state. (e.g. We interrupt during the
+            // CloudFormation deploy which prevents the Cloudflare deploy from running.)
             spot: false,
 
             imageBuilder: deployImageBuilder,
@@ -397,8 +392,8 @@ export class AwsGithubRunners extends Construct {
             /* eslint-disable cyberworlds/string-quotes */
 
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
-            // environment variable. We add this option to
-            // `@cloudsnorkel/cdk-github-runners` through a patch.
+            // environment variable. We add this option to `@cloudsnorkel/cdk-github-runners`
+            // through a patch.
             userDataExtra: Fn.join("", [
                 `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
@@ -412,9 +407,9 @@ export class AwsGithubRunners extends Construct {
             ]),
 
             // Tag EC2 instances so the SSM State Manager association in AwsObservability
-            // installs and configures the CloudWatch Agent on them. We pass tags here
-            // (rather than using `observability.installCloudWatchAgent`) because instances
-            // are launched at runtime via ec2:RunInstances, not as CloudFormation resources.
+            // installs and configures the CloudWatch Agent on them. We pass tags here (rather
+            // than using `observability.installCloudWatchAgent`) because instances are
+            // launched at runtime via ec2:RunInstances, not as CloudFormation resources.
             extraTags: [{key: "CloudWatchAgent", value: "true"}],
         });
 
@@ -430,8 +425,7 @@ export class AwsGithubRunners extends Construct {
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(deployRunnerProvider);
 
-        // Our deploy workflow needs to send the `ScheduleDeploy` message to our
-        // job queue.
+        // Our deploy workflow needs to send the `ScheduleDeploy` message to our job queue.
         sqs.grantSendJobQueueMessages(deployRunnerProvider);
 
         // Allow reading/writing to the deploy DynamoDB table.
@@ -452,8 +446,8 @@ export class AwsGithubRunners extends Construct {
             }),
         );
 
-        // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
-        // the following deprecation warning:
+        // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing the
+        // following deprecation warning:
         //
         // ```
         // [WARNING] aws-cdk-lib.aws_lambda.FunctionOptions#logFormat is deprecated.

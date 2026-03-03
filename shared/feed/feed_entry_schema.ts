@@ -29,9 +29,9 @@ export const FeedEntrySchema = Schema.union({
     }),
 
     /**
-     * Whenever a post is created, whether it is in a private channel or not, we
-     * create a feed entry. When calculating an account's feed we load the post to
-     * see if the account has access to the post.
+     * Whenever a post is created, whether it is in a private channel or not, we create
+     * a feed entry. When calculating an account's feed we load the post to see if the
+     * account has access to the post.
      */
     Post: Schema.object({
         type: Schema.value("Post"),
@@ -42,8 +42,8 @@ export const FeedEntrySchema = Schema.union({
     }),
 
     /**
-     * We add a feed entry for documents when they're shared with the space.
-     * The feed entry says "X shared a document".
+     * We add a feed entry for documents when they're shared with the space. The feed
+     * entry says "X shared a document".
      */
     Document: Schema.object({
         type: Schema.value("Document"),
@@ -67,8 +67,8 @@ export const FeedEntrySchema = Schema.union({
     }),
 
     /**
-     * We add a feed entry for task collections when they're shared with the space.
-     * The feed entry says "X shared a task collection".
+     * We add a feed entry for task collections when they're shared with the space. The
+     * feed entry says "X shared a task collection".
      */
     TaskCollection: Schema.object({
         type: Schema.value("TaskCollection"),

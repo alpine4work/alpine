@@ -186,9 +186,9 @@ test("can determine when search entity account affinity points will expire", () 
 
 // This tests the core idea behind `addSearchAffinityActiveTaskAssigneePoints()`
 // and `removeSearchAffinityActiveTaskAssigneePoints()` without calling them
-// directly. We should be able to add some large point boost when the task
-// becomes active then later remove that point boost and it'll be as if we
-// never added the point boost in the first place.
+// directly. We should be able to add some large point boost when the task becomes
+// active then later remove that point boost and it'll be as if we never added the
+// point boost in the first place.
 test("can increment by some point value and decrement by the decayed point value later", () => {
     const time1 = new Date();
     const time2 = addDays(time1, 10);
@@ -248,8 +248,8 @@ test("can increment by some point value and decrement by the decayed point value
     expect(points3cDecrement).toEqual(36.787944117144235);
     expect(points3c).toBeCloseTo(points3a, 10);
 
-    // Test that we get the same value calling `getCurrentSearchAffinityPoints()`
-    // with already decayed values.
+    // Test that we get the same value calling `getCurrentSearchAffinityPoints()` with
+    // already decayed values.
     {
         expect(
             getCurrentSearchAffinityEntityPoints(time3.getTime(), {

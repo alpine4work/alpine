@@ -11,10 +11,9 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
 /**
  * See documentation of `VirtualizedTree`.
  *
- * Base class of `VirtualizedTree` which does not have any write capabilities
- * like `insertNodesAtStart()`. Useful if you have another list state object
- * (backed by a `functional-red-black-tree`) and want to use it as a
- * virtualized tree.
+ * Base class of `VirtualizedTree` which does not have any write capabilities like
+ * `insertNodesAtStart()`. Useful if you have another list state object (backed by
+ * a `functional-red-black-tree`) and want to use it as a virtualized tree.
  */
 export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     /**
@@ -23,14 +22,14 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     protected readonly _isNodeByOrderKeyReversed: boolean = false;
 
     /**
-     * The list of nodes in our tree. But this is a tree not a list you may say.
-     * Yes! It is a tree keyed by an `OrderKey`. This allows us to efficiently
-     * insert items in O(log(n)) time instead of O(n) time beginning or end.
+     * The list of nodes in our tree. But this is a tree not a list you may say. Yes!
+     * It is a tree keyed by an `OrderKey`. This allows us to efficiently insert items
+     * in O(log(n)) time instead of O(n) time beginning or end.
      *
-     * A persistent tree data structure also allows us to do caching on ranges of
-     * the list. For example, we can compute the number of items for the tree then
-     * when an update happens we can reuse our computation for parts of the tree
-     * that didn't change thanks to structural sharing.
+     * A persistent tree data structure also allows us to do caching on ranges of the
+     * list. For example, we can compute the number of items for the tree then when an
+     * update happens we can reuse our computation for parts of the tree that didn't
+     * change thanks to structural sharing.
      */
     protected readonly _nodeByOrderKey: Tree<NodeOrderKey, Node>;
 
@@ -93,11 +92,11 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     }
 
     /**
-     * Get a node in the tree by its index. Returns null if the item index is
-     * out of bounds.
+     * Get a node in the tree by its index. Returns null if the item index is out of
+     * bounds.
      *
-     * Returns the index the node's items start at. The index the node's items end
-     * at is `startItemIndex + getNodeItemCount(node)`.
+     * Returns the index the node's items start at. The index the node's items end at
+     * is `startItemIndex + getNodeItemCount(node)`.
      */
     public getNodeByItemIndexIfExists(itemIndex: number): {
         node: Node;
@@ -118,11 +117,11 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
             const valueItemCount = this._getNodeItemCount(node.value);
             const beginItemCount = this._getSubtreeItemCount(beginNode);
 
-            // If the index is in our node then hooray! Return this node and the index
-            // relative to the node's items.
+            // If the index is in our node then hooray! Return this node and the index relative
+            // to the node's items.
             //
-            // Otherwise the index is either in the left subtree or right subtree of this
-            // node. Find the appropriate subtree and recurse.
+            // Otherwise the index is either in the left subtree or right subtree of this node.
+            // Find the appropriate subtree and recurse.
             if (beginItemCount <= index && index < beginItemCount + valueItemCount) {
                 return {node, nodeItemIndex: index - beginItemCount};
             } else if (index < beginItemCount) {
@@ -145,15 +144,15 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     /**
      * Get the number of items in the provided subtree.
      *
-     * WARNING: If you want to get the count of all items before the node you
-     * are looking at, do not use `_getSubtreeItemCount(iterator.node.left)`,
-     * instead use `_getPreviousItemCount(iterator)`. The former does not count
-     * items in parent nodes.
+     * WARNING: If you want to get the count of all items before the node you are
+     * looking at, do not use `_getSubtreeItemCount(iterator.node.left)`, instead use
+     * `_getPreviousItemCount(iterator)`. The former does not count items in parent
+     * nodes.
      *
      * This function is cached and takes advantage of the structural sharing in our
-     * binary tree. When the tree is updated, some subtrees are left untouched so
-     * we maintain the cached value for those subtrees. Running this function on a
-     * new tree is O(n) but running this function on an updated tree is O(log(n)).
+     * binary tree. When the tree is updated, some subtrees are left untouched so we
+     * maintain the cached value for those subtrees. Running this function on a new
+     * tree is O(n) but running this function on an updated tree is O(log(n)).
      */
     protected _getSubtreeItemCount(node: TreeNode<NodeOrderKey, Node> | null): number {
         if (node === null) return 0;
@@ -178,8 +177,7 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     }
 
     /**
-     * Get the item count of all entries before the node the iterator is
-     * looking at.
+     * Get the item count of all entries before the node the iterator is looking at.
      */
     protected _getPreviousItemCount(iterator: TreeIterator<NodeOrderKey, Node>): number {
         if (!iterator.node) return 0;
@@ -208,8 +206,8 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     }
 
     /**
-     * The total number of items in our tree. Will be greater than the number of
-     * nodes since it includes all the nodes' child items.
+     * The total number of items in our tree. Will be greater than the number of nodes
+     * since it includes all the nodes' child items.
      */
     public getItemCount(): number {
         return this._getSubtreeItemCount(this._nodeByOrderKey.root);
@@ -244,32 +242,30 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
  * Immutable data structure for building virtualized tree UIs with
  * `<VirtualizedScrollView>`.
  *
- * UIs that can render lots of data should be virtualized so they don't crash
- * the user's browser. This means we only render items currently visible on the
- * user's screen. So you need to flatten your UIs elements into a vertically
- * stacked list. This can be difficult for tree-like structures where you have
- * a parent node that can render many children and we want to virtualize those
- * children.
+ * UIs that can render lots of data should be virtualized so they don't crash the
+ * user's browser. This means we only render items currently visible on the user's
+ * screen. So you need to flatten your UIs elements into a vertically stacked list.
+ * This can be difficult for tree-like structures where you have a parent node that
+ * can render many children and we want to virtualize those children.
  *
- * `VirtualizedTree` is here to help. You can use it to build a tree data
- * structure that flattens out to a list of virtualizable items you can pass to
- * `<VirtualizedScrollView>`. One `VirtualizedTree` object is just one level of
- * the tree, if you need multiple items you need to recursively nest
- * `VirtualizedTree`s yourself.
+ * `VirtualizedTree` is here to help. You can use it to build a tree data structure
+ * that flattens out to a list of virtualizable items you can pass to
+ * `<VirtualizedScrollView>`. One `VirtualizedTree` object is just one level of the
+ * tree, if you need multiple items you need to recursively nest `VirtualizedTree`s
+ * yourself.
  *
- * The way it works is by representing the list of nodes as a binary tree. We
- * can then measure the number of items in each binary subtree and reuse those
+ * The way it works is by representing the list of nodes as a binary tree. We can
+ * then measure the number of items in each binary subtree and reuse those
  * measurements on update (thanks to structural sharing). Finding an item by
- * flattened index is then an O(log(n)) binary search using subtree
- * item counts.
+ * flattened index is then an O(log(n)) binary search using subtree item counts.
  *
  * ### History
  *
- * This technique was originally built for forum where we have a list of posts
- * we need to virtualize then posts can render comments which we also need to
- * virtualize. The comments can also open/close so item indexes can wildly
- * change across renders. As we added more tree-like virtualized UIs we took
- * the post rendering technique and built this abstraction.
+ * This technique was originally built for forum where we have a list of posts we
+ * need to virtualize then posts can render comments which we also need to
+ * virtualize. The comments can also open/close so item indexes can wildly change
+ * across renders. As we added more tree-like virtualized UIs we took the post
+ * rendering technique and built this abstraction.
  *
  * `VirtualizedScrollViewState` uses a very similar technique for maintaining
  * knowledge about the physical state of items onscreen.
@@ -343,11 +339,11 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
-     * Get a node in the tree by its key. Returns null if the node does not
-     * exist in the tree.
+     * Get a node in the tree by its key. Returns null if the node does not exist in
+     * the tree.
      *
-     * Returns the index the node's items start at. The index the node's items end
-     * at is `startItemIndex + getNodeItemCount(node)`.
+     * Returns the index the node's items start at. The index the node's items end at
+     * is `startItemIndex + getNodeItemCount(node)`.
      */
     public getNodeByKeyIfExists(nodeKey: NodeKey): {
         node: Node;
@@ -366,10 +362,10 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
-     * Get the node's index in the tree. Returns null if the node does not exist in
-     * the tree. So if there are three nodes each with five items the first node
-     * will have index 0, the second index 1, and the third index 2. Node indexes
-     * are not to be mixed with item indexes!
+     * Get the node's index in the tree. Returns null if the node does not exist in the
+     * tree. So if there are three nodes each with five items the first node will have
+     * index 0, the second index 1, and the third index 2. Node indexes are not to be
+     * mixed with item indexes!
      */
     public getNodeIndexByKeyIfExists(nodeKey: NodeKey): number | null {
         const orderKey = this._orderKeyByNodeKey.get(nodeKey);
@@ -418,8 +414,8 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
-     * Insert some nodes at the end of the tree. Node keys must be unique and
-     * shouldn't match the keys of nodes already in the tree.
+     * Insert some nodes at the end of the tree. Node keys must be unique and shouldn't
+     * match the keys of nodes already in the tree.
      */
     public insertNodesAtEnd(nodes: ReadonlyArray<Node>): VirtualizedTree<NodeKey, Node, Item> {
         const orderKeys = generateOrderKeysBetween(
@@ -454,9 +450,9 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
-     * Updates a node at the specified key. If a node for that key does not exist
-     * then this method does nothing. If the node's key changes then we will
-     * also throw an error.
+     * Updates a node at the specified key. If a node for that key does not exist then
+     * this method does nothing. If the node's key changes then we will also throw an
+     * error.
      */
     public updateNode(
         nodeKey: NodeKey,

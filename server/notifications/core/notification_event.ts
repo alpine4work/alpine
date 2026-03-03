@@ -139,8 +139,8 @@ const NotificationCreateTaskCommentEventSchema = Schema.object({
     contentSnippet: MessageContentSchema,
 });
 
-// TODO(calebmer): Add message, comment, and post update events in case they add
-// a mention? How should this work?
+// TODO(calebmer): Add message, comment, and post update events in case they add a
+// mention? How should this work?
 export type NotificationEvent = SchemaType<typeof NotificationEventSchema>;
 
 export const NotificationEventSchema = Schema.union({

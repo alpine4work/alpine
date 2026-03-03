@@ -100,9 +100,9 @@ export class Rectangle {
     }
 
     /**
-     * Computes the difference of two rectangles. Difference of two rectangles
-     * can produce a maximum of four rectangles. If the two rectangles do
-     * not intersect a zero-length array is returned.
+     * Computes the difference of two rectangles. Difference of two rectangles can
+     * produce a maximum of four rectangles. If the two rectangles do not intersect a
+     * zero-length array is returned.
      */
     public difference(other: Rectangle): Array<Rectangle> {
         if (other.contains(this)) return [];

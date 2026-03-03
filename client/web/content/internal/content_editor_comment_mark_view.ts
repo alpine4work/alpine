@@ -67,15 +67,14 @@ export function createContentEditorCommentMarkViewConstructor({
             // marks with this `DocumentCommentThreadId`.
             //
             // We also have to be careful when mutating a mark's DOM element because
-            // ProseMirror will pick up the mutation and try to interpret it as a state
-            // change. For unknown changes it completely destroys and recreates the mark's
-            // DOM node. Because of this we can't maintain state in a mark view or the
-            // mark's DOM node.
+            // ProseMirror will pick up the mutation and try to interpret it as a state change.
+            // For unknown changes it completely destroys and recreates the mark's DOM node.
+            // Because of this we can't maintain state in a mark view or the mark's DOM node.
             if (wasPressed !== isPressed) {
-                // Schedule calling our callback a browser paint after the event which changes
-                // our comment style. Otherwise I'm seeing a bug where clicking on a comment
-                // jumps your cursor to the beginning of the document. Unclear why precisely
-                // that happens. Maybe something to do with the new CSS?
+                // Schedule calling our callback a browser paint after the event which changes our
+                // comment style. Otherwise I'm seeing a bug where clicking on a comment jumps your
+                // cursor to the beginning of the document. Unclear why precisely that happens.
+                // Maybe something to do with the new CSS?
                 const expectPressed = isPressed;
                 scheduleAfterNextBrowserPaint(() => {
                     if (expectPressed !== isPressed) return;
@@ -84,12 +83,12 @@ export function createContentEditorCommentMarkViewConstructor({
             }
         };
 
-        // We need to call `event.preventDefault()` in `click` in addition to
-        // `pointerdown` in case the browser has some default `click` handling.
+        // We need to call `event.preventDefault()` in `click` in addition to `pointerdown`
+        // in case the browser has some default `click` handling.
         dom.addEventListener("click", event => {
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-            // modifier. Unless the click was meant to open the link in a separate tab. We
-            // need to implement that manually here given the text is editable.
+            // modifier. Unless the click was meant to open the link in a separate tab. We need
+            // to implement that manually here given the text is editable.
             if (event.button !== 0 || isModifiedPointerEvent(event)) {
                 return;
             }
@@ -107,9 +106,9 @@ export function createContentEditorCommentMarkViewConstructor({
                 return;
             }
 
-            // In mobile layouts (e.g. mobile device or peek), prevent default since
-            // clicking a comment opens the comment thread but does not select the text.
-            // (Unless you hold shift.)
+            // In mobile layouts (e.g. mobile device or peek), prevent default since clicking a
+            // comment opens the comment thread but does not select the text. (Unless you hold
+            // shift.)
             if (getRouteLayout() === "narrow") {
                 event.preventDefault();
             }
@@ -117,8 +116,8 @@ export function createContentEditorCommentMarkViewConstructor({
 
         dom.addEventListener("pointerdown", event => {
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-            // modifier. Unless the click was meant to open the link in a separate tab. We
-            // need to implement that manually here given the text is editable.
+            // modifier. Unless the click was meant to open the link in a separate tab. We need
+            // to implement that manually here given the text is editable.
             if (event.button !== 0 || isModifiedPointerEvent(event)) {
                 return;
             }
@@ -136,8 +135,8 @@ export function createContentEditorCommentMarkViewConstructor({
                 return;
             }
 
-            // If we're pressing on a file then the file press should open the file viewer.
-            // It shouldn't open the comment thread.
+            // If we're pressing on a file then the file press should open the file viewer. It
+            // shouldn't open the comment thread.
             if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
                 maybeUpdatePressed();
                 return;
@@ -147,9 +146,9 @@ export function createContentEditorCommentMarkViewConstructor({
 
             maybeUpdatePressed();
 
-            // In mobile layouts (e.g. mobile device or peek), prevent default since
-            // clicking a comment opens the comment thread but does not select the text.
-            // (Unless you hold shift.)
+            // In mobile layouts (e.g. mobile device or peek), prevent default since clicking a
+            // comment opens the comment thread but does not select the text. (Unless you hold
+            // shift.)
             if (getRouteLayout() === "narrow") {
                 event.preventDefault();
             }
@@ -166,8 +165,8 @@ export function createContentEditorCommentMarkViewConstructor({
             }
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-            // modifier. Unless the click was meant to open the link in a separate tab. We
-            // need to implement that manually here given the text is editable.
+            // modifier. Unless the click was meant to open the link in a separate tab. We need
+            // to implement that manually here given the text is editable.
             if (event.button !== 0 || isModifiedPointerEvent(event)) {
                 maybeUpdatePressed();
                 return;
@@ -202,9 +201,9 @@ export function createContentEditorCommentMarkViewConstructor({
 
             maybeUpdatePressed();
 
-            // In mobile layouts (e.g. mobile device or peek), prevent default since
-            // clicking a comment opens the comment thread but does not select the text.
-            // (Unless you hold shift.)
+            // In mobile layouts (e.g. mobile device or peek), prevent default since clicking a
+            // comment opens the comment thread but does not select the text. (Unless you hold
+            // shift.)
             if (getRouteLayout() === "narrow") {
                 event.preventDefault();
             }

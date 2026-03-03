@@ -665,8 +665,8 @@ test("can paste URL to add file entity to document with blobs cover", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    // This validates we can render different blobs
-    // As well as the same blobs multiple times
+    // This validates we can render different blobs As well as the same blobs multiple
+    // times
     const documentPasteOrder = [document1, document2, document1];
     const expectedCoverBlobsData = [
         document1Content.content.attrs.cover,

@@ -23,8 +23,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 // Estimate token count for `ApiContent`.
 //
-// This is generally an under count of the actual tokens we'd get when printing
-// to markdown because we don't count markdown formatting tokens. Just the raw
+// This is generally an under count of the actual tokens we'd get when printing to
+// markdown because we don't count markdown formatting tokens. Just the raw
 // underlying text. The order of magnitude should be correct, though.
 function estimateApiContentBlockElementTokenCount(element: ApiContentBlockElementResponse): number {
     let tokenCount = 0;
@@ -68,10 +68,10 @@ type PageBoundary = {
 };
 
 /**
- * Given a document that has been loaded into the agent's local storage,
- * create all of the pages for that document *except for the first page*
- * by splitting elements based on token limits. Returns the AgentLink to
- * the first page of the document.*
+ * Given a document that has been loaded into the agent's local storage, create all
+ * of the pages for that document _except for the first page_ by splitting elements
+ * based on token limits. Returns the AgentLink to the first page of the
+ * document.\*
  */
 export async function createAgentDocumentPagesAndReturnFirstPage(
     storage: DurableObjectStorageInterface,
@@ -121,16 +121,18 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
             currentPageTokenCount = elementTokenCount;
             currentPageNumber += 1;
 
-            // Similar to the way we increase page sizes when paginating through messages, we'll also
-            // increase each subsequent document page size. Since we store the whole document in memory
-            // on first read, we bake the exponential page growth into the page creation process.
+            // Similar to the way we increase page sizes when paginating through messages,
+            // we'll also increase each subsequent document page size. Since we store the whole
+            // document in memory on first read, we bake the exponential page growth into the
+            // page creation process.
             //
-            // The agent spends reasoning tokens between page reads trying to decide whether to read more
-            // or to stop. If the agent is trying to pull in a lot of context that requires paginating
-            // through many pages, it will spend a lot of unnecessary reasoning tokens.
+            // The agent spends reasoning tokens between page reads trying to decide whether to
+            // read more or to stop. If the agent is trying to pull in a lot of context that
+            // requires paginating through many pages, it will spend a lot of unnecessary
+            // reasoning tokens.
             //
-            // By increasing the token exponentially as it paginates, we can spend less reasoning tokens
-            // and return results faster.
+            // By increasing the token exponentially as it paginates, we can spend less
+            // reasoning tokens and return results faster.
             tokenLimitForPage = Math.floor(
                 tokenLimitForPage * agentPaginationTokenLimitGrowthFactor,
             );
@@ -148,10 +150,10 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
         });
     }
 
-    // create links for every page except for the first page. The first page is returned
-    // when the LLM calls `read_link` on a document, so we shouldn't create a separate
-    // link for it. We can think of the `read_link` call on the document as a reference
-    // to the first page of document content.
+    // create links for every page except for the first page. The first page is
+    // returned when the LLM calls `read_link` on a document, so we shouldn't create a
+    // separate link for it. We can think of the `read_link` call on the document as a
+    // reference to the first page of document content.
     await runAllPromises(
         pageBoundaries.slice(1).map(async pageBoundary => {
             const link = createDocumentPageLink(pageBoundary);
@@ -173,11 +175,11 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
             documentKey,
             pageStartElementIndex: boundary.startElementIndex,
             pageEndElementIndexExclusive: boundary.endElementIndexExclusive,
-            // The agent should not be able to navigate backwards. All pages are
-            // represented a singly-linked list of pages.
+            // The agent should not be able to navigate backwards. All pages are represented a
+            // singly-linked list of pages.
             previousPageAgentLinkString: null,
-            // Have to initialize this to null so that we can print the link path for
-            // next page.
+            // Have to initialize this to null so that we can print the link path for next
+            // page.
             nextPageAgentLinkString: null,
         };
         const nextPageAgentLinkString =
@@ -200,7 +202,8 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
     }
 }
 
-// Given a document key `/local/document/${documentId}-${version}`, returns the version.
+// Given a document key `/local/document/${documentId}-${version}`, returns the
+// version.
 function getLocalDocumentVersion(documentKey: AgentLocalDocumentKey) {
     const documentVersionLabel = documentKey.slice(1).split("/")[2];
 

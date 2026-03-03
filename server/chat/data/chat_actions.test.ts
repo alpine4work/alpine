@@ -170,8 +170,8 @@ function sortSharedChats(
 
 // NOTE(calebmer): Initially `chat_table.ts` provided this function so we wrote
 // tests against that but the function was decomposed into
-// `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting
-// tests the function is reconstructed here.
+// `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting tests
+// the function is reconstructed here.
 async function sendChatMessageToAccounts(
     context: ServerSessionActionContext,
     {

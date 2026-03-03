@@ -25,14 +25,14 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * NOTE: this file is currently being split up. We do not anticipate adding more methods here.
+ * NOTE: this file is currently being split up. We do not anticipate adding more
+ * methods here.
  */
 
 export const githubOwner = "cyberworlds";
 export const githubRepo = "cyberworlds";
 
-// You can find the GitHub `workflow_id` with the CLI command
-// `gh workflow list`.
+// You can find the GitHub `workflow_id` with the CLI command `gh workflow list`.
 export const testGithubWorkflowId = 45008180;
 export const deployGithubWorkflowId = 111000643;
 
@@ -40,8 +40,8 @@ export type DeployAttributesItem = DynamoTableItemType<typeof DeployTable, "Depl
 
 /**
  * Get the current deploy item. We allow reading the deploy item without any
- * authorization so we can implement the `dev deployed` command which a
- * developer can use to check if their commit has been deployed.
+ * authorization so we can implement the `dev deployed` command which a developer
+ * can use to check if their commit has been deployed.
  */
 export function getDeploy(context: DynamoContext): Promise<DeployAttributesItem> {
     return DeployTable.getItem(context, {partitionType: "Deploy", sortRangeType: "Attributes"});
@@ -55,11 +55,10 @@ export function getDeploy(context: DynamoContext): Promise<DeployAttributesItem>
  */
 function isTimeDeployable(time: ZonedDateTime): boolean {
     // TODO(calebmer): Deploy all the time on weekdays if tests pass. It's really
-    // annoying for me when we're out of the deploy window since I work long hours.
-    // As the team grows set a proper deployable time policy.
+    // annoying for me when we're out of the deploy window since I work long hours. As
+    // the team grows set a proper deployable time policy.
     //
-    // TODO(calebmer, 2025-01-09): For launch weekend, allow deploying on
-    // weekends too!
+    // TODO(calebmer, 2025-01-09): For launch weekend, allow deploying on weekends too!
     if (true) return true;
 
     // Is this a weekday according to what the US considers weekdays vs weekends?
@@ -67,10 +66,10 @@ function isTimeDeployable(time: ZonedDateTime): boolean {
 
     // Is the time within 9am-3:30pm? A standard workday is 9am-5pm.
     //
-    // We deploy continuously during work hours. Starting at 9am. We stop deploying
-    // at 3:30pm so the last deploy of the day ends around 4:00pm (assuming deploys
-    // take ~30min). That way if the deploy causes an issue, we'll be able to
-    // identify it ~4:00pm while there are still people working before 5:00pm.
+    // We deploy continuously during work hours. Starting at 9am. We stop deploying at
+    // 3:30pm so the last deploy of the day ends around 4:00pm (assuming deploys take
+    // ~30min). That way if the deploy causes an issue, we'll be able to identify it
+    // ~4:00pm while there are still people working before 5:00pm.
     const isTimeBusinessHours =
         (9 <= time.hour && time.hour <= 14) || (time.hour === 15 && time.minute <= 30);
     if (!isTimeBusinessHours) return false;
@@ -82,8 +81,7 @@ function isTimeDeployable(time: ZonedDateTime): boolean {
  * Processes the `ScheduleDeploy` maintenance job.
  *
  * - If there's already a scheduled deploy, we'll run it if we're allowed to
- *   deploy. (It's during work hours and there isn't an ongoing deployment.);
- *   AND
+ *   deploy. (It's during work hours and there isn't an ongoing deployment.); AND
  * - If we're provided a `commitSha` we'll schedule that deploy to run later.
  *   Unless we're allowed to deploy now in which case we'll start a deploy for
  *   `commitSha`.
@@ -98,9 +96,8 @@ export async function scheduleDeploy(
     span: TracerSpan,
     {commitSha: newCommitSha}: {commitSha: string | null},
 ) {
-    // Get the time in our headquarter's time zone. We'll only perform a deploy
-    // during business hours. We use this time to determine what business
-    // hours are.
+    // Get the time in our headquarter's time zone. We'll only perform a deploy during
+    // business hours. We use this time to determine what business hours are.
     const currentTime = parseAbsolute(new Date().toISOString(), "America/New_York");
     const isCurrentTimeDeployable = isTimeDeployable(currentTime);
 
@@ -168,9 +165,9 @@ export async function scheduleDeploy(
                     owner: githubOwner,
                     repo: githubRepo,
                     workflow_id: deployGithubWorkflowId,
-                    // Unfortunately we can only dispatch a workflow with a git branch or tag
-                    // ([commit sha's don't work][1]). So we dispatch with the `main` branch and
-                    // pass the specific commit as an input.
+                    // Unfortunately we can only dispatch a workflow with a git branch or tag ([commit
+                    // sha's don't work][1]). So we dispatch with the `main` branch and pass the
+                    // specific commit as an input.
                     //
                     // [1]: https://github.com/orgs/community/discussions/75513
                     ref: "main",
@@ -191,11 +188,10 @@ export async function scheduleDeploy(
                     ),
             );
 
-            // `DeployTable.updateItem()` will call `context.dynamo.retryTransaction()`
-            // which we want. If a condition check error happens when updating
-            // `workflowRunId` we don't want to retry our entire `dispatchOrSchedule()`
-            // transaction since the `/dispatches` GitHub API won't be called a
-            // second time.
+            // `DeployTable.updateItem()` will call `context.dynamo.retryTransaction()` which
+            // we want. If a condition check error happens when updating `workflowRunId` we
+            // don't want to retry our entire `dispatchOrSchedule()` transaction since the
+            // `/dispatches` GitHub API won't be called a second time.
             deployItem = await DeployTable.updateItem(
                 context,
                 deployItem,
@@ -241,9 +237,9 @@ export async function scheduleDeploy(
                 {consistency: "Strong"},
             ));
 
-        // We need to resolve `ongoingDeployment` and `dispatchedDeployment` in error
-        // edge cases where GitHub has concluded its workflow run but we didn't get a
-        // chance to update DynamoDB.
+        // We need to resolve `ongoingDeployment` and `dispatchedDeployment` in error edge
+        // cases where GitHub has concluded its workflow run but we didn't get a chance to
+        // update DynamoDB.
         const [resolvedOngoingDeployment, resolvedDispatchedDeployment] = await runAllPromises([
             resolveDeployItemOngoingDeployment(context, deployItem.ongoingDeployment),
             resolveDeployItemDispatchedDeployment(context, deployItem.dispatchedDeployment),
@@ -256,8 +252,8 @@ export async function scheduleDeploy(
             resolvedDispatchedDeployment === null &&
             isCurrentTimeDeployable;
 
-        // If there's a scheduled deploy then dispatch that! Then we'll call `run()`
-        // again to schedule `newCommitSha`.
+        // If there's a scheduled deploy then dispatch that! Then we'll call `run()` again
+        // to schedule `newCommitSha`.
         if (canDispatchDeploy && deployItem.scheduledDeployment !== null) {
             const newDeployItem = await dispatch(
                 context,
@@ -276,18 +272,17 @@ export async function scheduleDeploy(
             },
         });
 
-        // If there's no new commit we only cared about running the scheduled
-        // deployment. Which we've already done above. We can return happy now.
+        // If there's no new commit we only cared about running the scheduled deployment.
+        // Which we've already done above. We can return happy now.
         if (newCommitSha === null) return deployItem;
 
         const [compareResult] = await runAllPromises([
             // Check if the new commit is already handled. We check:
             //
             // 1. If the commit is in the scheduled deployment. (The scheduled deployment
-            //    contains all the commits for the ongoing deployment and active
-            //    deployment.)
-            // 2. If the commit is in the ongoing deployment. (The ongoing deployment
-            //    contains all the commits for the active deployment.)
+            //    contains all the commits for the ongoing deployment and active deployment.)
+            // 2. If the commit is in the ongoing deployment. (The ongoing deployment contains
+            //    all the commits for the active deployment.)
             // 3. If the commit is in the active deployment.
             context.github.request("GET /repos/{owner}/{repo}/compare/{basehead}", {
                 owner: githubOwner,
@@ -300,8 +295,8 @@ export async function scheduleDeploy(
                 per_page: 1,
             }),
 
-            // We should always have a passing test for commits that reach this point.
-            // Since we only queue a `ScheduleDeploy` action after a passing test workflow.
+            // We should always have a passing test for commits that reach this point. Since we
+            // only queue a `ScheduleDeploy` action after a passing test workflow.
             //
             // Because we queue this message within `.github/workflows/test.yaml` workflow
             // (before it's actually finished) it might take a second or two for GitHub to
@@ -335,8 +330,8 @@ export async function scheduleDeploy(
 
         if (canDispatchDeploy) {
             // We can't dispatch a deploy over a scheduled deployment. If
-            // `canDispatchDeploy && deployItem.scheduledDeployment === null` then that
-            // should be handled above.
+            // `canDispatchDeploy && deployItem.scheduledDeployment === null` then that should
+            // be handled above.
             assert(deployItem.scheduledDeployment === null);
 
             return dispatch(context, deployItem, newCommitSha);
@@ -351,9 +346,8 @@ export async function scheduleDeploy(
 
             let nextDeployableTime = deployItem.scheduledDeployment?.nextDeployableTime ?? null;
 
-            // If we can't dispatch the deploy workflow because it's a weekend or
-            // non-business hours, then schedule an SQS message for the next time we're
-            // able to deploy.
+            // If we can't dispatch the deploy workflow because it's a weekend or non-business
+            // hours, then schedule an SQS message for the next time we're able to deploy.
             if (!isCurrentTimeDeployable) {
                 const currentTimePlusOneHour = currentTime.add({hours: 1});
 
@@ -370,16 +364,16 @@ export async function scheduleDeploy(
                     0,
                 );
 
-                // Crude but works. Iteratively add an hour to `nextDeployableTime` until we
-                // find a deployable time. If it's a Friday then this will iterate ~48 times as
-                // we add 48 hours to find the next time.
+                // Crude but works. Iteratively add an hour to `nextDeployableTime` until we find a
+                // deployable time. If it's a Friday then this will iterate ~48 times as we add 48
+                // hours to find the next time.
                 let iterationCount = 0;
                 while (!isTimeDeployable(newNextDeployableZonedTime)) {
                     iterationCount++;
                     newNextDeployableZonedTime = newNextDeployableZonedTime.add({hours: 1});
 
-                    // Defend against `isTimeDeployable()` unconditionally returning false to
-                    // prevent our server from looping forever.
+                    // Defend against `isTimeDeployable()` unconditionally returning false to prevent
+                    // our server from looping forever.
                     if (iterationCount > 24 * 30) {
                         throw new DeadlineExceededError(
                             "Iteration limit exceeded when trying to find next deployable time",
@@ -395,8 +389,8 @@ export async function scheduleDeploy(
                 ) {
                     nextDeployableTime = newNextDeployableTime;
 
-                    // Ok if multiple schedules are created since the `ScheduleDeploy` job is
-                    // designed to be idempotent anyway.
+                    // Ok if multiple schedules are created since the `ScheduleDeploy` job is designed
+                    // to be idempotent anyway.
                     await context.scheduler.dangerouslyCreateOnceMaintenanceJobSchedule(
                         "ScheduleDeployMaintenanceJob",
                         assertExists(nextDeployableTime),
@@ -408,8 +402,7 @@ export async function scheduleDeploy(
             const newDeployItem: DeployAttributesItem = {
                 ...deployItem,
                 // If the scheduled deployment already exists, this overrides it with a newer
-                // commit. We made sure the commit is newer by checking GitHub's
-                // `/compare` API.
+                // commit. We made sure the commit is newer by checking GitHub's `/compare` API.
                 scheduledDeployment: {
                     commitSha: newCommitSha,
                     nextDeployableTime,
@@ -434,8 +427,8 @@ async function resolveDeployItemDispatchedDeployment(
     if (dispatchedDeploymentResult.ok) {
         return dispatchedDeploymentResult.value;
     } else if (dispatchedDeploymentResult.error instanceof DeadlineExceededError) {
-        // If `retryWithExponentialBackoff()` fails then we assume the workflow failed
-        // to dispatch. So it's ok to dispatch another workflow.
+        // If `retryWithExponentialBackoff()` fails then we assume the workflow failed to
+        // dispatch. So it's ok to dispatch another workflow.
         return null;
     } else {
         throw dispatchedDeploymentResult.error;
@@ -458,8 +451,8 @@ async function resolveDeployItemDispatchedDeploymentResult(
             },
         );
 
-        // If the workflow has concluded, consider `dispatchedDeployment` to be unset
-        // so we can dispatch a new deploy.
+        // If the workflow has concluded, consider `dispatchedDeployment` to be unset so we
+        // can dispatch a new deploy.
         if (workflowRunResult.data.conclusion !== null) return {ok: true, value: null};
 
         return {ok: true, value: dispatchedDeployment};
@@ -470,8 +463,8 @@ async function resolveDeployItemDispatchedDeploymentResult(
 
         // After we execute
         // `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches` the
-        // workflow run is started asynchronously. Keep retrying until we find a
-        // matching deploy run.
+        // workflow run is started asynchronously. Keep retrying until we find a matching
+        // deploy run.
         while (true) {
             attemptCount++;
 
@@ -505,8 +498,8 @@ async function resolveDeployItemDispatchedDeploymentResult(
                 }
             }
 
-            // If the workflow has concluded, consider `dispatchedDeployment` to be unset
-            // so we can dispatch a new deploy.
+            // If the workflow has concluded, consider `dispatchedDeployment` to be unset so we
+            // can dispatch a new deploy.
             if (workflowRun.conclusion !== null) return null;
 
             return {
@@ -533,8 +526,8 @@ async function resolveDeployItemOngoingDeployment(
         },
     );
 
-    // If the workflow has concluded, consider `ongoingDeployment` to be unset
-    // so we can dispatch a new deploy.
+    // If the workflow has concluded, consider `ongoingDeployment` to be unset so we
+    // can dispatch a new deploy.
     if (workflowRunResult.data.conclusion !== null) return null;
 
     return ongoingDeployment;
@@ -544,9 +537,9 @@ async function resolveDeployItemOngoingDeployment(
  * Prepare for a deploy from a GitHub workflow. Does the following:
  *
  * - Runs some validations on the commit:
- *   - Makes sure the commit is on the main branch
- *   - Makes sure the commit hasn't already been deployed
- *   - Makes sure there's a successful test run for the commit
+ *     - Makes sure the commit is on the main branch
+ *     - Makes sure the commit hasn't already been deployed
+ *     - Makes sure there's a successful test run for the commit
  * - Updates an item in DynamoDB letting it know a deploy has started
  */
 export async function prepareDeploy(
@@ -599,15 +592,16 @@ export async function prepareDeploy(
         );
     }
 
-    // If the database thinks there's an ongoing deployment, we should throw an
-    // error because we can only run one deploy at a time! We use GitHub action's
-    // [concurrency control][1] to make sure only one deploy runs at a time. Though
-    // we still have this check just in case.
+    // If the database thinks there's an ongoing deployment, we should throw an error
+    // because we can only run one deploy at a time! We use GitHub action's
+    // [concurrency control][1] to make sure only one deploy runs at a time. Though we
+    // still have this check just in case.
     //
     // If we detect that a workflow run has terminated before we can update the
     // database then we ignore the `ongoingDeployment` property and proceed anyway.
     //
-    // [1]: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-concurrency
+    // [1]:
+    //     https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-concurrency
     if (deployItem.ongoingDeployment) {
         const workflowRunResult = await context.github.request(
             "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
@@ -633,8 +627,8 @@ export async function prepareDeploy(
         throw new FailedPreconditionError(quote`Commit ${commitSha} was already deployed`);
     }
 
-    // Make sure the commit we're deploying is later than the currently
-    // deployed commit.
+    // Make sure the commit we're deploying is later than the currently deployed
+    // commit.
     const compareResult = await context.github.request(
         "GET /repos/{owner}/{repo}/compare/{basehead}",
         {
@@ -645,8 +639,8 @@ export async function prepareDeploy(
         },
     );
 
-    // We check that `deployItem.commitSha` is behind `commitSha` so that the
-    // `files` array is empty and doesn't return all changed file patches.
+    // We check that `deployItem.commitSha` is behind `commitSha` so that the `files`
+    // array is empty and doesn't return all changed file patches.
     if (compareResult.data.status !== "behind") {
         throw new FailedPreconditionError(
             quote`Commit ${commitSha} was already deployed (compare status: ${compareResult.data.status})`,
@@ -662,8 +656,7 @@ export async function prepareDeploy(
                 workflowRunId,
                 commitSha,
             },
-            // Now that we've successfully dispatched, clear our `dispatchedDeployment`
-            // state.
+            // Now that we've successfully dispatched, clear our `dispatchedDeployment` state.
             dispatchedDeployment:
                 item.dispatchedDeployment?.commitSha === commitSha
                     ? null
@@ -674,8 +667,8 @@ export async function prepareDeploy(
 }
 
 /**
- * After a deploy completes, whether it succeeded or failed, run this function to clean
- * up data in our deploy table we setup with `prepareDeploy()`.
+ * After a deploy completes, whether it succeeded or failed, run this function to
+ * clean up data in our deploy table we setup with `prepareDeploy()`.
  */
 export async function cleanupDeploy(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
@@ -712,8 +705,8 @@ export async function cleanupDeploy(
 
             return {
                 ...item,
-                // If the deploy was successful update the deployed commit SHA. Otherwise leave
-                // the old commit SHA in place since a failed deploy reverts all infrastructure
+                // If the deploy was successful update the deployed commit SHA. Otherwise leave the
+                // old commit SHA in place since a failed deploy reverts all infrastructure
                 // changes.
                 activeCommitSha: hasAwsDeployFinished ? commitSha : item.activeCommitSha,
                 ongoingDeployment: null,
@@ -722,8 +715,8 @@ export async function cleanupDeploy(
         {initialItem},
     );
 
-    // If there's a scheduled deployment, let's dispatch it now that our current
-    // deploy is done!
+    // If there's a scheduled deployment, let's dispatch it now that our current deploy
+    // is done!
     if (newDeployItem.scheduledDeployment !== null) {
         await context.jobs.dangerouslySendMaintenance({
             type: "ScheduleDeploy",

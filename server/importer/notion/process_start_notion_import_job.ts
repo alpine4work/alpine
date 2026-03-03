@@ -8,9 +8,9 @@ import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
- * Processes the actual Notion import. Fetches the uploaded zip file and
- * imports its contents into the space. Called after validation has
- * completed and the user has confirmed import options.
+ * Processes the actual Notion import. Fetches the uploaded zip file and imports
+ * its contents into the space. Called after validation has completed and the user
+ * has confirmed import options.
  */
 export async function processStartNotionImportJob(
     context: ServerSystemActionContext & {importer: ImporterContextModuleBase},

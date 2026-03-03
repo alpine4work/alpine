@@ -15,8 +15,8 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 
 // NOTE(calebmer): These tests were written with the constant 237. Instead of
-// updating the tests to work with the new constant I'm hardcoding the old one
-// for now.
+// updating the tests to work with the new constant I'm hardcoding the old one for
+// now.
 setDefaultMaxLineGraphemeCountForTest(237);
 
 const node = schema.node.bind(schema);
@@ -5110,8 +5110,8 @@ test("doesn\u2019t snip cells in a table row when snipping content after (large 
                             content: [
                                 {
                                     type: "tableCell",
-                                    // TODO(calebmer): This can be optimized. We should snip within the cell
-                                    // instead of including the full cell.
+                                    // TODO(calebmer): This can be optimized. We should snip within the cell instead of
+                                    // including the full cell.
                                     content: createArrayWithLength(5, () => ({
                                         type: "paragraph",
                                         content: [
@@ -5124,8 +5124,8 @@ test("doesn\u2019t snip cells in a table row when snipping content after (large 
                                 },
                                 {
                                     type: "tableCell",
-                                    // TODO(calebmer): This can be optimized. We should snip within the cell
-                                    // instead of including the full cell.
+                                    // TODO(calebmer): This can be optimized. We should snip within the cell instead of
+                                    // including the full cell.
                                     content: createArrayWithLength(5, () => ({
                                         type: "paragraph",
                                         content: [

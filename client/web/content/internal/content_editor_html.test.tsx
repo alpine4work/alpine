@@ -65,8 +65,8 @@ import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-// We use constant, expired, signed URLs so our test snapshots don't change
-// every test run. Disable URL refreshing in this test file.
+// We use constant, expired, signed URLs so our test snapshots don't change every
+// test run. Disable URL refreshing in this test file.
 disableStartMaintainingFileForTest();
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
@@ -104,10 +104,10 @@ const blockTestCases: Array<{
         disableInlineTests: inlineTestCase => inlineTestCase.name === "code",
         build: content => schema.node("codeBlock", {}, schema.node("codeBlockLine", {}, content)),
 
-        // When pasting a single line of code, we don't maintain the code block.
-        // Instead we unwrap the code block into plain text with the `code` mark. That
-        // way you can copy a single word from a code block and paste it into a
-        // paragraph without creating a new code block in the middle of the paragraph.
+        // When pasting a single line of code, we don't maintain the code block. Instead we
+        // unwrap the code block into plain text with the `code` mark. That way you can
+        // copy a single word from a code block and paste it into a paragraph without
+        // creating a new code block in the middle of the paragraph.
         buildPasted: content =>
             schema.node(
                 "paragraph",
@@ -322,8 +322,8 @@ const contentClassNameAndVars = new Set<string>(
 );
 
 // CSS classes and variable names may change after minor modifications to our
-// vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking. We keep any class names declared in
+// vanilla extract CSS. So remove them from the HTML so we assert against so our
+// test doesn't keep breaking. We keep any class names declared in
 // `content_styles.ts` since those stay constant.
 function stripHtml(originalElement: HTMLElement): HTMLElement {
     const element = originalElement.cloneNode(true) as HTMLElement;
@@ -338,8 +338,8 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
         element.removeAttribute("class");
     }
 
-    // Remove code block toolbars from the DOM since they contribute the text of
-    // their language picker button label.
+    // Remove code block toolbars from the DOM since they contribute the text of their
+    // language picker button label.
     for (const childElement of element.getElementsByClassName(
         contentStyles.codeBlockToolbarClassName,
     )) {
@@ -647,8 +647,8 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
                             setState(state);
                         });
                     }}
-                    // Use a different file attachment target to exercise `<ContentEditor>`s ability
-                    // to create a new attachment.
+                    // Use a different file attachment target to exercise `<ContentEditor>`s ability to
+                    // create a new attachment.
                     fileAttachmentTarget={otherFileAttachmentTarget}
                     commentFileAttachmentTarget={otherCommentFileAttachmentTarget}
                 />
@@ -688,8 +688,8 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
         // remembered. So insert some content and move the selection into that content.
         // We'll delete the extra content once the paste is done.
         //
-        // The paste should happen in the empty paragraph which is where the selection
-        // was when we fired the paste event.
+        // The paste should happen in the empty paragraph which is where the selection was
+        // when we fired the paste event.
         act(() => {
             const transaction = pasteEditor.state.tr.insert(
                 0,
@@ -773,8 +773,8 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
 
     expect(pastedDoc.toString()).toEqual((expectedPastedDoc ?? copiedDoc).toString());
 
-    // The string representation of a doc doesn't include all attributes. So do a
-    // full JSON equality test as well.
+    // The string representation of a doc doesn't include all attributes. So do a full
+    // JSON equality test as well.
     expect(pastedDoc.toJSON()).toEqual((expectedPastedDoc ?? copiedDoc).toJSON());
 
     unmount();
@@ -2426,13 +2426,13 @@ test("table(2x2) with fileRowTable (null reference)", async () => {
 });
 
 /**
- *  +------------------+------------------------+------------------+
- *  | Header 1 (0,0)   | Header 2 (0,1)         | Header 3 (0,2)   |
- *  +------------------+------------------------+------------------+
- *  | Cell 1 (1,0)     | Cell 2 (1,1)           | Cell 3 (1,2)     |
- *  +------------------+------------------------+------------------+
- *  | Cell 4 (2,0)     | Cell 5 (2,1)           | Cell 6 (2,2)     |
- *  +------------------+------------------------+------------------+
+ * +------------------+------------------------+------------------+ | Header 1
+ * (0,0) | Header 2 (0,1) | Header 3 (0,2) |
+ * +------------------+------------------------+------------------+ | Cell 1 (1,0)
+ * | Cell 2 (1,1) | Cell 3 (1,2) |
+ * +------------------+------------------------+------------------+ | Cell 4 (2,0)
+ * | Cell 5 (2,1) | Cell 6 (2,2) |
+ * +------------------+------------------------+------------------+
  */
 test("table(3x3) with header row only", async () => {
     const content = schema.node("doc", {}, [
@@ -2498,13 +2498,13 @@ test("table(3x3) with header row only", async () => {
 });
 
 /**
- *  +------------------+------------------------+------------------+
- *  | Header 1 (0,0)   | Cell 1 (0,1)           | Cell 2 (0,2)     |
- *  +------------------+------------------------+------------------+
- *  | Header 2 (1,0)   | Cell 3 (1,1)           | Cell 4 (1,2)     |
- *  +------------------+------------------------+------------------+
- *  | Header 3 (2,0)   | Cell 5 (2,1)           | Cell 6 (2,2)     |
- *  +------------------+------------------------+------------------+
+ * +------------------+------------------------+------------------+ | Header 1
+ * (0,0) | Cell 1 (0,1) | Cell 2 (0,2) |
+ * +------------------+------------------------+------------------+ | Header 2
+ * (1,0) | Cell 3 (1,1) | Cell 4 (1,2) |
+ * +------------------+------------------------+------------------+ | Header 3
+ * (2,0) | Cell 5 (2,1) | Cell 6 (2,2) |
+ * +------------------+------------------------+------------------+
  */
 test("table(3x3) with header column only", async () => {
     const content = schema.node("doc", {}, [
@@ -2570,13 +2570,13 @@ test("table(3x3) with header column only", async () => {
 });
 
 /**
- *  +------------------+------------------------+------------------+
- *  | Header 1 (0,0)   | Header 2 (0,1)         | Header 3 (0,2)   |
- *  +------------------+------------------------+------------------+
- *  | Header 4 (1,0)   | Cell 1 (1,1)           | Cell 2 (1,2)     |
- *  +------------------+------------------------+------------------+
- *  | Header 5 (2,0)   | Cell 3 (2,1)           | Cell 4 (2,2)     |
- *  +------------------+------------------------+------------------+
+ * +------------------+------------------------+------------------+ | Header 1
+ * (0,0) | Header 2 (0,1) | Header 3 (0,2) |
+ * +------------------+------------------------+------------------+ | Header 4
+ * (1,0) | Cell 1 (1,1) | Cell 2 (1,2) |
+ * +------------------+------------------------+------------------+ | Header 5
+ * (2,0) | Cell 3 (2,1) | Cell 4 (2,2) |
+ * +------------------+------------------------+------------------+
  */
 test("table(3x3) with both header row and column", async () => {
     const content = schema.node("doc", {}, [
@@ -2642,13 +2642,13 @@ test("table(3x3) with both header row and column", async () => {
 });
 
 /**
- *  +------------------+------------------------+------------------+
- *  | Header 1 (0,0)   | Header 2 (0,1)         | Header 3 (0,2)   |
- *  +------------------+------------------------+------------------+
- *  | Header 4 (1,0)   | Cell 1 (1,1)           | Cell 2 (1,2)     |
- *  +------------------+------------------------+------------------+
- *  | Header 5 (2,0)   | Cell 3 (2,1)           | Cell 4 (2,2)     |
- *  +------------------+------------------------+------------------+
+ * +------------------+------------------------+------------------+ | Header 1
+ * (0,0) | Header 2 (0,1) | Header 3 (0,2) |
+ * +------------------+------------------------+------------------+ | Header 4
+ * (1,0) | Cell 1 (1,1) | Cell 2 (1,2) |
+ * +------------------+------------------------+------------------+ | Header 5
+ * (2,0) | Cell 3 (2,1) | Cell 4 (2,2) |
+ * +------------------+------------------------+------------------+
  */
 test("will serialize table(3x3) with no headers", async () => {
     const content = schema.node("doc", {}, [

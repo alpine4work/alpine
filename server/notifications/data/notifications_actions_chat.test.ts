@@ -141,11 +141,10 @@ const context = createTestContext({
     },
 });
 
-// Exercise idempotency by running the test suite again with jobs
-// processed twice.
+// Exercise idempotency by running the test suite again with jobs processed twice.
 for (const {type: currentProcessingType, processingMultiple} of testSuites) {
-    // If another suite has `only` set then skip this suite so we only run the
-    // suite with `only` set.
+    // If another suite has `only` set then skip this suite so we only run the suite
+    // with `only` set.
     if (
         testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
     ) {
@@ -3271,8 +3270,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(bot1EventId).not.toEqual(bot2EventId);
 
-            // If a job for some bot account is repeated it should have the same `eventId`
-            // as all other jobs for the bot account.
+            // If a job for some bot account is repeated it should have the same `eventId` as
+            // all other jobs for the bot account.
             expect(
                 new Set(
                     filterMapArray(callBotWebhookJobs, job =>
@@ -3281,8 +3280,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 ),
             ).toEqual(new Set([bot1EventId]));
 
-            // If a job for some bot account is repeated it should have the same `eventId`
-            // as all other jobs for the bot account.
+            // If a job for some bot account is repeated it should have the same `eventId` as
+            // all other jobs for the bot account.
             expect(
                 new Set(
                     filterMapArray(callBotWebhookJobs, job =>

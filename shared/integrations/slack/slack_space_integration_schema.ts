@@ -2,8 +2,8 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Represents a Slack workspace that is linked to a space in Alpine. This information is not
- * considered sensitive and can be sent to the client.
+ * Represents a Slack workspace that is linked to a space in Alpine. This
+ * information is not considered sensitive and can be sent to the client.
  */
 export const SlackWorkspaceSchema = Schema.object({
     workspaceId: Schema.string,
@@ -16,8 +16,8 @@ export const SlackWorkspaceSchema = Schema.object({
 export type SlackWorkspace = SchemaType<typeof SlackWorkspaceSchema>;
 
 /**
- * Represents a Slack account that is linked to a space in Alpine. This information is not
- * considered sensitive and can be sent to the client.
+ * Represents a Slack account that is linked to a space in Alpine. This information
+ * is not considered sensitive and can be sent to the client.
  */
 export const SlackAccountSchema = Schema.object({
     slackUserId: Schema.string,

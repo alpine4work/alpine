@@ -121,14 +121,14 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
         },
     },
     events: {
-        // NOTE(calebmer): Code-style note. We want top-level procedure/event names to
-        // use the correct nomenclature for posts. We call "messages" "comments" in a
-        // post context. We are ok nesting an event with "message" nomenclature in an
-        // event with the name `Comments` but we can't nest procedures hence why we
-        // need to write them out from scratch.
+        // NOTE(calebmer): Code-style note. We want top-level procedure/event names to use
+        // the correct nomenclature for posts. We call "messages" "comments" in a post
+        // context. We are ok nesting an event with "message" nomenclature in an event with
+        // the name `Comments` but we can't nest procedures hence why we need to write them
+        // out from scratch.
         //
-        // Was it correct to "comment" as the name in code for post comments? Probably
-        // not. All the boilerplate is pretty unnecessary.
+        // Was it correct to "comment" as the name in code for post comments? Probably not.
+        // All the boilerplate is pretty unnecessary.
         Comments: Schema.object({
             type: Schema.value("Comments"),
             event: Schema.union(createMessagingRealtimeEventSchemas(PostCommentModel.schema())),

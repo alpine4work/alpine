@@ -10,8 +10,8 @@ import {
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
 
 /**
- * Unzips the outer and inner zips, returning file paths relative to
- * the export root directory (stripping the `Export-<uuid>/` prefix).
+ * Unzips the outer and inner zips, returning file paths relative to the export
+ * root directory (stripping the `Export-<uuid>/` prefix).
  */
 function extractFiles(zip: Uint8Array): Record<string, Uint8Array> {
     const outerFiles = unzipSync(zip);
@@ -1055,8 +1055,8 @@ describe("circular references", () => {
 
         const files = extractFiles(createTestNotionImportZip([parent]));
 
-        // Parent's reference to original child stays unresolved (child
-        // was removed from the tree and never processed)
+        // Parent's reference to original child stays unresolved (child was removed from
+        // the tree and never processed)
         expect(strFromU8(files[`Parent ${parent.notionId}.md`]!)).toBe(
             [
                 "# Parent",

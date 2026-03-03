@@ -159,8 +159,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
         );
 
         // We construct the URL `create` search param with `+` so like this:
-        // `${filters}+${parentTaskId}`. `+` is an encoding for a space character in
-        // URLs (`decodeURIComponent("+")` is `" "`).
+        // `${filters}+${parentTaskId}`. `+` is an encoding for a space character in URLs
+        // (`decodeURIComponent("+")` is `" "`).
         const [createSearchParamFilters = "", createSearchParamParentTaskId = ""] =
             createSearchParam.split(" ", 2);
 
@@ -179,9 +179,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
                     throw new InvalidArgumentError("Invalid parent `TaskId`");
                 }
 
-                // The initial `parentTaskId` should never equal `taskId`. This lets us
-                // check the returned `taskSubscription`'s `TaskId` to know whether it's the
-                // route task or the initial field parent task.
+                // The initial `parentTaskId` should never equal `taskId`. This lets us check the
+                // returned `taskSubscription`'s `TaskId` to know whether it's the route task or
+                // the initial field parent task.
                 if (createSearchParamParentTaskId === taskId) {
                     throw new InvalidArgumentError(
                         "Can\u2019t set parent task to own `TaskId` (that creates a cycle)",
@@ -202,9 +202,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
         }
     }
 
-    // `filter`/`sort` with `create` doesn't have an effect since a ghost task
-    // we're creating won't have any subtasks. These `filter`/`sort` params are for
-    // subtasks so they don't change `initialFields`.
+    // `filter`/`sort` with `create` doesn't have an effect since a ghost task we're
+    // creating won't have any subtasks. These `filter`/`sort` params are for subtasks
+    // so they don't change `initialFields`.
     const filtersString = url.searchParams.get("filter");
     const filters = filtersString ? deserializeTaskQueryFiltersSearchParam(filtersString) : [];
     const sortsString = url.searchParams.get("sort");
@@ -293,9 +293,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
         if (loadQueriesOutputResult.ok) {
             loadQueriesOutput = loadQueriesOutputResult.value;
         }
-        // If the `create` search param is set, the task doesn't exist, and
-        // `loadQueries()` throws a `NotFoundError` then ignore the error since we're
-        // ok rendering an empty task we create later.
+        // If the `create` search param is set, the task doesn't exist, and `loadQueries()`
+        // throws a `NotFoundError` then ignore the error since we're ok rendering an empty
+        // task we create later.
         else if (!task && loadQueriesOutputResult.error instanceof NotFoundError) {
             loadQueriesOutput = null;
         } else {
@@ -432,8 +432,8 @@ function TaskRouteInner() {
         childrenQuery: TaskClientQuery;
     } | null>(null);
 
-    // If we get a children query or task subscription from the server then null
-    // out the newly created children query and task subscription.
+    // If we get a children query or task subscription from the server then null out
+    // the newly created children query and task subscription.
     if (
         newlyCreatedTaskSubscriptionAndChildrenQuery &&
         (childrenQueryFromLoader || taskSubscriptionFromLoader?.taskId === taskId)
@@ -442,8 +442,8 @@ function TaskRouteInner() {
     }
 
     const taskSubscription =
-        // The task subscription from `loader` may be for the initial parent task field
-        // if we're creating a new task with a parent.
+        // The task subscription from `loader` may be for the initial parent task field if
+        // we're creating a new task with a parent.
         (taskSubscriptionFromLoader?.taskId === taskId ? taskSubscriptionFromLoader : null) ??
         newlyCreatedTaskSubscriptionAndChildrenQuery?.taskSubscription ??
         null;
@@ -452,10 +452,10 @@ function TaskRouteInner() {
         newlyCreatedTaskSubscriptionAndChildrenQuery?.childrenQuery ??
         null;
 
-    // Retain our `taskSubscription` so it isn't destroyed while we're
-    // using it. But we don't retain `childrenQuery`! Instead `childrenQuery` is
-    // retained by `<TaskDetailview>`. That way when the query changes we can
-    // release the query and retain a new one.
+    // Retain our `taskSubscription` so it isn't destroyed while we're using it. But we
+    // don't retain `childrenQuery`! Instead `childrenQuery` is retained by
+    // `<TaskDetailview>`. That way when the query changes we can release the query and
+    // retain a new one.
     useEffect(() => {
         taskSubscription?.retain();
 
@@ -549,8 +549,8 @@ function TaskRouteInner() {
     );
 
     const initialFields = useMemo((): TaskQueryNormalizedFiltersInitialFields => {
-        // By default, if initial fields weren't specified then we set the `assigneeId`
-        // to the current account and that's it.
+        // By default, if initial fields weren't specified then we set the `assigneeId` to
+        // the current account and that's it.
         //
         // That way the new task shows up in the "My tasks" view.
         if (
@@ -660,8 +660,8 @@ function TaskRouteInner() {
             // `useEffect()`.
             parentTaskSubscription: initialFields.parentTaskId ? taskSubscriptionFromLoader : null,
             status: initialFields.status,
-            // We assert the `initialFieldsCollectionSubscriptionById` `TaskCollectionId`s
-            // are correct in the above `useEffect()`.
+            // We assert the `initialFieldsCollectionSubscriptionById` `TaskCollectionId`s are
+            // correct in the above `useEffect()`.
             collectionSubscriptionById: initialFieldsCollectionSubscriptionById,
             priority: initialFields.priority,
             layout: initialFields.layout,
@@ -719,13 +719,12 @@ function TaskRouteInner() {
                 });
             }
 
-            // Currently, accounts without space access can't edit tasks. The max
-            // permission level of `urlGrant` is `View`.
+            // Currently, accounts without space access can't edit tasks. The max permission
+            // level of `urlGrant` is `View`.
             assert(currentAccount);
 
-            // Make sure any state update from the `onGhostTaskCreated` callback runs in
-            // the same React commit as our store updates (which use
-            // `useSyncExternalStore()`).
+            // Make sure any state update from the `onGhostTaskCreated` callback runs in the
+            // same React commit as our store updates (which use `useSyncExternalStore()`).
             return flushSync(() => {
                 return batchStoreUpdates(() => {
                     disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
@@ -761,11 +760,11 @@ function TaskRouteInner() {
                     }
 
                     // When we create a new task that occupies our ghost `TaskId` then we need to
-                    // create a task subscription to make sure the store doesn't immediately throw
-                    // away the data.
+                    // create a task subscription to make sure the store doesn't immediately throw away
+                    // the data.
                     //
-                    // It's important that this goes before the
-                    // `store.commitTaskActionTransaction()` call!
+                    // It's important that this goes before the `store.commitTaskActionTransaction()`
+                    // call!
                     const taskSubscription = store.createAndRetainTaskSubscription(taskId);
 
                     const childrenQuery = store.ensureAndRetainTaskChildrenQuery(taskId, {
@@ -778,9 +777,8 @@ function TaskRouteInner() {
                         previouslyBackfilledTaskIds: [],
                     });
 
-                    // Hold our new subscriptions long enough for the `useEffect()` in this
-                    // component to `retain()` them then we can release the reference count for
-                    // this function.
+                    // Hold our new subscriptions long enough for the `useEffect()` in this component
+                    // to `retain()` them then we can release the reference count for this function.
                     setTimeout(() => {
                         taskSubscription.release();
                         childrenQuery.release();
@@ -794,9 +792,9 @@ function TaskRouteInner() {
                     const commitPromise = store.commitTaskActionTransaction(context, actions, {
                         undoManager,
                         affinityManager,
-                        // Don't undo the create task action or the update assignee action. These
-                        // actions are not explicitly performed by the user so it would be strange to
-                        // include them in the undo stack.
+                        // Don't undo the create task action or the update assignee action. These actions
+                        // are not explicitly performed by the user so it would be strange to include them
+                        // in the undo stack.
                         undoableSlice: {startIndex: undoableSliceStartIndex, endIndex: null},
                         updateAccessPolicyShareNotification:
                             updateAccessPolicyShareNotification ?? undefined,
@@ -845,9 +843,9 @@ function TaskRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
                 }}
@@ -862,9 +860,9 @@ function TaskRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
                 }}

@@ -22,8 +22,8 @@ export type GlobalLoadingIndicator =
 
 /**
  * We can only show one global loading indicator at a time. So pick the most
- * relevant global loading indicator of the two. Or produce a merged global
- * loading indicator the represents both.
+ * relevant global loading indicator of the two. Or produce a merged global loading
+ * indicator the represents both.
  */
 export function mergeGlobalLoadingIndicators(
     indicator1: GlobalLoadingIndicator,

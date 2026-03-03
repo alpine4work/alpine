@@ -93,14 +93,14 @@ export function addContentFileEntitySubscribeButtonBehavior(
                 );
 
                 const setIsSubscribed = (isSubscribed: boolean) => {
-                    // Our local `isSubscribed` state is saved in the DOM as a data attribute. We
-                    // need to pick a name for the data attribute which doesn't conflict with
+                    // Our local `isSubscribed` state is saved in the DOM as a data attribute. We need
+                    // to pick a name for the data attribute which doesn't conflict with
                     // `data-subscribed` which is managed by `HtmlGenerator`. If
                     // `renderContentFileChannelEntityPreview()` reruns then we don't want it to
                     // override our local `isSubscribed` state when patching nodes.
                     //
-                    // Behaviors functions like this have to manage state in the DOM since we're not
-                    // a traditional stateful React component.
+                    // Behaviors functions like this have to manage state in the DOM since we're not a
+                    // traditional stateful React component.
                     subscribeButtonElement.setAttribute(
                         "data-subscribed-override",
                         JSON.stringify(isSubscribed),

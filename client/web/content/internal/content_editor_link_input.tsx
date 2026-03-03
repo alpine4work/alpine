@@ -54,8 +54,8 @@ export function ContentEditorLinkInput({
         // If the URL the user typed does not have a protocol then add `https://`.
         const finalUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : `https://${url}`;
 
-        // NOTE(calebmer): We don't trim spaces the range here in case the user is
-        // updating an existing URL.
+        // NOTE(calebmer): We don't trim spaces the range here in case the user is updating
+        // an existing URL.
         dispatch(
             state.tr.addMark(range.from, range.to, state.schema.mark("link", {url: finalUrl})),
         );
@@ -122,8 +122,7 @@ export function ContentEditorLinkInput({
                         // Give more space in the input for larger URLs. So you can see more of the URL
                         // without having to scroll. 64 spacing doesn't show much of long URLs.
                         //
-                        // Maybe the width should grow with the URL length for a bit? Until a
-                        // max width?
+                        // Maybe the width should grow with the URL length for a bit? Until a max width?
                         width: url.length > 40 ? "20rem" : "12rem",
                     }}
                     aria-label="URL"
@@ -174,10 +173,9 @@ function ContentEditorLinkInputClearButton({
             "aria-label": description,
             onPress,
             onKeyDown: event => {
-                // `react-spectrum` prevents propagation by default. If
-                // `event.preventDefault()` wasn't called, we want the event to propagate. That
-                // way `<GlobalKeyDownEvent>` handlers can fire. Most notably our undo cmd-z
-                // handler.
+                // `react-spectrum` prevents propagation by default. If `event.preventDefault()`
+                // wasn't called, we want the event to propagate. That way `<GlobalKeyDownEvent>`
+                // handlers can fire. Most notably our undo cmd-z handler.
                 if (!event.defaultPrevented) {
                     event.continuePropagation();
                 }
@@ -239,10 +237,9 @@ function ContentEditorLinkInputSaveButton({
             isDisabled,
             onPress,
             onKeyDown: event => {
-                // `react-spectrum` prevents propagation by default. If
-                // `event.preventDefault()` wasn't called, we want the event to propagate. That
-                // way `<GlobalKeyDownEvent>` handlers can fire. Most notably our undo cmd-z
-                // handler.
+                // `react-spectrum` prevents propagation by default. If `event.preventDefault()`
+                // wasn't called, we want the event to propagate. That way `<GlobalKeyDownEvent>`
+                // handlers can fire. Most notably our undo cmd-z handler.
                 if (!event.defaultPrevented) {
                     event.continuePropagation();
                 }

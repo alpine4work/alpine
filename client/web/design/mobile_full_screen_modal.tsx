@@ -76,22 +76,19 @@ export function MobileFullScreenModalContextProvider({children}: {children?: Rea
 }
 
 /**
- * A mobile modal covers the full screen (including the tab bar) and is
- * animated in from the bottom. It's not a part of URL navigation so if the
- * page reloads the modal state is lost. Useful for quick, single purpose,
- * focused interactions that depend on the current route's state. For example,
- * updating a link URL.
+ * A mobile modal covers the full screen (including the tab bar) and is animated in
+ * from the bottom. It's not a part of URL navigation so if the page reloads the
+ * modal state is lost. Useful for quick, single purpose, focused interactions that
+ * depend on the current route's state. For example, updating a link URL.
  *
- * In our native mobile apps, uses the native navigation for a fullscreen
- * modal.
+ * In our native mobile apps, uses the native navigation for a fullscreen modal.
  *
- * Generally we don't recommend navigating while a modal is opened. The modal
- * will become a part of the regular navigation stack and the animation may
- * look a little strange.
+ * Generally we don't recommend navigating while a modal is opened. The modal will
+ * become a part of the regular navigation stack and the animation may look a
+ * little strange.
  *
- * Important: `onClose` must unmount this component! Otherwise the app will
- * appear frozen in our native mobile apps as they wait for the component to
- * unmount.
+ * Important: `onClose` must unmount this component! Otherwise the app will appear
+ * frozen in our native mobile apps as they wait for the component to unmount.
  */
 export function MobileFullScreenModal({
     onClose: onCloseFromProps,
@@ -170,14 +167,14 @@ export function MobileFullScreenModal({
 
     const onCloseWithAnimation = useCallback(
         ({withoutFocus = false}: {withoutFocus?: boolean} = {}) => {
-            // Courtesy blur call if the focused element is in the overlay. Useful on
-            // mobile Safari since if the focused element is removed from the DOM there
-            // won't be a `focusout` event. So `useIsTextInputFocused()` won't update and
-            // the "Done" button will continue to show in the navigation bar.
+            // Courtesy blur call if the focused element is in the overlay. Useful on mobile
+            // Safari since if the focused element is removed from the DOM there won't be a
+            // `focusout` event. So `useIsTextInputFocused()` won't update and the "Done"
+            // button will continue to show in the navigation bar.
             //
             // Instead of calling `blur()` on the focused element, we call `focus()` on the
-            // `<FocusScope contain>` container since otherwise `<FocusScope contain>` will
-            // try to move focus back to the blurred element.
+            // `<FocusScope contain>` container since otherwise `<FocusScope contain>` will try
+            // to move focus back to the blurred element.
             if (
                 !withoutFocus &&
                 modalRef.current &&
@@ -275,8 +272,8 @@ export function MobileFullScreenModal({
                 case null:
                     break;
                 case "Presenting": {
-                    // Double request animation frame to make absolutely certain the browser
-                    // has finished painting the modal.
+                    // Double request animation frame to make absolutely certain the browser has
+                    // finished painting the modal.
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             assert(NativeMobileBridge);
@@ -308,12 +305,12 @@ export function MobileFullScreenModal({
                 lastAnimationForInsertionEffectRef.current = null;
                 lastAnimationForLayoutEffectRef.current = null;
 
-                // Double request animation frame to make absolutely certain the browser
-                // has stopped painting the modal.
+                // Double request animation frame to make absolutely certain the browser has
+                // stopped painting the modal.
                 //
                 // Also to make sure if we're running after the above layout effect which calls
-                // `presentModal()` that `dismissModal()` is called after `presentModal()`.
-                // (Since `presentModal()` is called after double animation frames.)
+                // `presentModal()` that `dismissModal()` is called after `presentModal()`. (Since
+                // `presentModal()` is called after double animation frames.)
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         NativeMobileBridge!.navigation.dismissModal();
@@ -351,30 +348,29 @@ export function MobileFullScreenModal({
                 ref={modalContainerRef}
                 position="fixed"
                 inset="0"
-                // Render above everything on the page including keyboard substitute and
-                // navigation bar.
+                // Render above everything on the page including keyboard substitute and navigation
+                // bar.
                 zIndex="90"
-                // Focusable but not in tab order so `<FocusScope>` can put focus here if
-                // nothing else is focused.
+                // Focusable but not in tab order so `<FocusScope>` can put focus here if nothing
+                // else is focused.
                 tabIndex={-1}
             >
                 <MobileFullScreenModalContextProvider>
                     <RootOverlayScopeContextProvider
                     // Make sure child overlays that need to render in the root overlay scope (e.g.
-                    // keyboard toolbars) don't render behind our `z-index: 90` full screen
-                    // element. The full screen modal should have the effect of fully replacing the
-                    // screen.
+                    // keyboard toolbars) don't render behind our `z-index: 90` full screen element.
+                    // The full screen modal should have the effect of fully replacing the screen.
                     //
                     // We have the `isInitialRender` state for our root overlay scope. Since if
                     // anything in `children` needs to render in our root overlay element (e.g.
-                    // `<ContentEditorMobileKeyboardToolbar>` rendered by `<ContentEditor>` which
-                    // is used by `<PostMobileEditorView>`) we need to wait for the root overlay
-                    // ref (created by this component) to be populated before we can render or else
+                    // `<ContentEditorMobileKeyboardToolbar>` rendered by `<ContentEditor>` which is
+                    // used by `<PostMobileEditorView>`) we need to wait for the root overlay ref
+                    // (created by this component) to be populated before we can render or else
                     // `children` will throw errors.
                     >
                         <BottomBarFrameContextProvider
-                        // Bottom bars in a fullscreen modal shouldn't effect the content underneath
-                        // the modal.
+                        // Bottom bars in a fullscreen modal shouldn't effect the content underneath the
+                        // modal.
                         >
                             {animation === null && <TextInputVisibilityMaintainer />}
                             {!isInitialRender && (
@@ -403,16 +399,16 @@ export function MobileFullScreenModal({
                 </MobileFullScreenModalContextProvider>
             </Box>
         </FocusScope>,
-        // Render the mobile modal in `<body>`. So if it's a child of some native
-        // bottom bar it doesn't get any weird positioning.
+        // Render the mobile modal in `<body>`. So if it's a child of some native bottom
+        // bar it doesn't get any weird positioning.
         document.body,
     );
 }
 
 function TextInputVisibilityMaintainer() {
-    // We need a new text input visibility maintainer hook inside a full screen
-    // modal's `<BottomBarFrameContextProvider>` so we can maintain visibility
-    // considering the bottom bars within the modal.
+    // We need a new text input visibility maintainer hook inside a full screen modal's
+    // `<BottomBarFrameContextProvider>` so we can maintain visibility considering the
+    // bottom bars within the modal.
     useTextInputVisibilityMaintainer();
 
     return null;

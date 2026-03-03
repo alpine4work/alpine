@@ -123,8 +123,8 @@ export async function loadAgentTaskLinkContent({
         children.push(node);
     }
 
-    // TODO(calebmer, #ai): We should include the first few child tasks in
-    // and give ChatGPT a tool to read more.
+    // TODO(calebmer, #ai): We should include the first few child tasks in and give
+    // ChatGPT a tool to read more.
 
     return {type: "root", children};
 }

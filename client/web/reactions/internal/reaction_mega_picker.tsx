@@ -155,8 +155,8 @@ function ReactionMegaPickerGalleryIcon({
                     backgroundColor={isPressed ? "grey-10" : "grey-5"}
                     borderRadius="1"
                     style={{
-                        // 1px away from the icon edge at the top/right so if we have a pressed icon
-                        // next to a selected icon there's some gap between the two icons.
+                        // 1px away from the icon edge at the top/right so if we have a pressed icon next
+                        // to a selected icon there's some gap between the two icons.
                         top: 1,
                         right: 1,
                         left: 0,

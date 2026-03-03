@@ -32,8 +32,8 @@ export function getMarksSpanningAcrossEntireRange(
                 if (mark.isInSet(marks)) {
                     newMarks.push(mark);
                 }
-                // If this node's mark was not in our existing marks set but that was because
-                // no previous inline node supported it, then we want to include the mark in
+                // If this node's mark was not in our existing marks set but that was because no
+                // previous inline node supported it, then we want to include the mark in
                 // `newMarks`.
                 else if (
                     previousInlineNodes.every(
@@ -45,11 +45,11 @@ export function getMarksSpanningAcrossEntireRange(
                 }
             }
 
-            // For all our previous marks, add any to `newMark` that are not supported by
-            // this node.
+            // For all our previous marks, add any to `newMark` that are not supported by this
+            // node.
             //
-            // This way we still count a mark as spanning across an entire range even if
-            // there are some intermediate nodes that don't support the mark.
+            // This way we still count a mark as spanning across an entire range even if there
+            // are some intermediate nodes that don't support the mark.
             for (const mark of marks) {
                 if (!$pos.parent.type.allowsMarkType(mark.type)) {
                     newMarks.push(mark);

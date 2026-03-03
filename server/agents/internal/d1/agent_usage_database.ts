@@ -17,8 +17,8 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * In case of transient D1 errors, retry the action a few times.
- * See https://developers.cloudflare.com/d1/best-practices/retry-queries/.
+ * In case of transient D1 errors, retry the action a few times. See
+ * https://developers.cloudflare.com/d1/best-practices/retry-queries/.
  */
 function retryD1ErrorAndWrapInSpan<T>(
     span: TracerSpan,
@@ -31,9 +31,9 @@ function retryD1ErrorAndWrapInSpan<T>(
                 return action();
             });
         } catch (error) {
-            // These error message matchings seem weird. I agree.
-            // But they are taken from Cloudflare's own documentation.
-            // So we will trust that these are the correct strings to match on.
+            // These error message matchings seem weird. I agree. But they are taken from
+            // Cloudflare's own documentation. So we will trust that these are the correct
+            // strings to match on.
             const errorMessage = String(error);
             const isRetryableError =
                 errorMessage.includes("Network connection lost") ||

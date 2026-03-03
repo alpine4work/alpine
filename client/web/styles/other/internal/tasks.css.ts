@@ -22,8 +22,8 @@ export const textCursorNotInheritedClassName = style({
 });
 
 globalStyle(`${textCursorNotInheritedClassName} > *`, {
-    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"`
-    // text always has a default cursor.
+    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"` text
+    // always has a default cursor.
     cursor: "default",
 });
 
@@ -39,8 +39,7 @@ globalStyle(`${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderC
 
 export const rowTitleInputIsNotEditableClassName = style({});
 
-// Make sure we have higher CSS precedence than
-// `sprinkles({userSelect: "text"})`.
+// Make sure we have higher CSS precedence than `sprinkles({userSelect: "text"})`.
 globalStyle(`${rowTitleInputIsNotEditableClassName}${rowTitleInputIsNotEditableClassName}`, {
     userSelect: "text",
     cursor: "auto",
@@ -109,8 +108,8 @@ export const rowTitleInputSingleLineOverflowGradientContainerClassName = style({
 export const dateInputTextSegmentClassName = style({});
 
 globalStyle(`${dateInputTextSegmentClassName}::selection`, {
-    // When a text segment is selected we already apply the selection background
-    // color. Don't apply it again with the proper text selection highlight.
+    // When a text segment is selected we already apply the selection background color.
+    // Don't apply it again with the proper text selection highlight.
     background: "none",
 });
 
@@ -138,8 +137,8 @@ export const rowNumberClassName = style({
             ...fontSizes["25"],
             ...fontStyles["truncate"],
             letterSpacing: "-0.1ch",
-            // The right-most digits are most significant. Truncate at the start instead of
-            // the end.
+            // The right-most digits are most significant. Truncate at the start instead of the
+            // end.
             direction: "rtl",
             color: colorSchemeVars["grey-20"],
             textAlign: "right",
@@ -185,8 +184,8 @@ export const projectDetailNotesContentEditorMinHeightPx = mapObjectValues(
 export const detailNotesContentEditorClassName = style({
     height: "100%",
     selectors: {
-        // We need the `${containerClassName} > ${docClassName}` selectors to make sure
-        // we override the `min-height: 100%` set with the same selector.
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure we
+        // override the `min-height: 100%` set with the same selector.
         [`&, ${containerClassName} > ${docClassName}&`]: {
             minHeight: detailNotesContentEditorMinHeightPx.small,
         },
@@ -204,8 +203,8 @@ export const detailNotesContentEditorClassName = style({
 export const projectDetailNotesContentEditorClassName = style({
     height: "100%",
     selectors: {
-        // We need the `${containerClassName} > ${docClassName}` selectors to make sure
-        // we override the `min-height: 100%` set with the same selector.
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure we
+        // override the `min-height: 100%` set with the same selector.
         [`&, ${containerClassName} > ${docClassName}&`]: {
             minHeight: projectDetailNotesContentEditorMinHeightPx.small,
         },

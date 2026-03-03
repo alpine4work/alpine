@@ -346,21 +346,21 @@ export const apiDocumentsPaths: Pick<
                 filesReactions: emptyReactionSet,
             };
 
-            // If this broadcast fails (or it's never sent, say if the process dies) then
-            // users connected to this messaging room won't see this message appear in
-            // realtime. The realtime connection will be "stuck". Any future messages will
-            // be placed in a queue (since the connection is waiting on a previous message)
-            // and will never be flushed to the client.
+            // If this broadcast fails (or it's never sent, say if the process dies) then users
+            // connected to this messaging room won't see this message appear in realtime. The
+            // realtime connection will be "stuck". Any future messages will be placed in a
+            // queue (since the connection is waiting on a previous message) and will never be
+            // flushed to the client.
             //
-            // To get out of this state, the user can reload the page. Or navigate to
-            // another page then navigate back. We hope this won't be too big of an issue
-            // since the user should still receive a realtime inbox update telling them
-            // they have a new message.
+            // To get out of this state, the user can reload the page. Or navigate to another
+            // page then navigate back. We hope this won't be too big of an issue since the
+            // user should still receive a realtime inbox update telling them they have a new
+            // message.
             //
-            // NOTE(calebmer): The best fix for this is probably to send the broadcast
-            // event in a DynamoDB Streams listener that reacts to the update. We plan to
-            // move `NotificationEvent`, `IndexSearchEntity`, and other processing that
-            // needs to reliably run after an updates to DynamoDB Stream.
+            // NOTE(calebmer): The best fix for this is probably to send the broadcast event in
+            // a DynamoDB Streams listener that reacts to the update. We plan to move
+            // `NotificationEvent`, `IndexSearchEntity`, and other processing that needs to
+            // reliably run after an updates to DynamoDB Stream.
             context.process.waitUntil(
                 context.edge.broadcastToDurableObject(
                     `/api/durable-objects/documents/${pathParameters.id}/broadcast-new-message/${pathParameters.threadId}`,

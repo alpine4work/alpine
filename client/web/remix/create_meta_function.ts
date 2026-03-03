@@ -6,19 +6,19 @@ import {metaDefaultTitle, metaTitlePostfix} from "~/client/web/remix/use_update_
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
- * Create a new meta function that can use data serialized by a `loader`
- * returning `jsonWithSchema()`.
+ * Create a new meta function that can use data serialized by a `loader` returning
+ * `jsonWithSchema()`.
  *
- * Also handles errors and automatically appends our product name to
- * browser titles.
+ * Also handles errors and automatically appends our product name to browser
+ * titles.
  */
 export function createMetaFunction<Data>(
     schema: Schema<Data>,
     meta: (args: {
         data: Data;
         // NOTE(calebmer): Returned data is potentially null to force consumer code to
-        // handle the error case. Though it is unclear if the error case ever happens?
-        // We know top-level `data` may be undefined in a meta function.
+        // handle the error case. Though it is unclear if the error case ever happens? We
+        // know top-level `data` may be undefined in a meta function.
         getParentData: <ParentData>(
             parentRouteId: string,
             schema: Schema<ParentData>,
@@ -38,9 +38,9 @@ export function createMetaFunction<Data>(
             ];
         }
 
-        // If we're still loading some data, we can't render the proper HTML title.
-        // The `<Root>` component re-renders when loading indicator loader data
-        // resolves which causes the meta function to re-run and show the right value.
+        // If we're still loading some data, we can't render the proper HTML title. The
+        // `<Root>` component re-renders when loading indicator loader data resolves which
+        // causes the meta function to re-run and show the right value.
         if (
             args.matches.some(
                 ({data}) =>

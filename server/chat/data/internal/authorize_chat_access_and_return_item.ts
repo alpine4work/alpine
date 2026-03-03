@@ -191,8 +191,8 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
                     options,
                 );
 
-                // Throw if actor doesn't have access to the chat. We only return a `Result`
-                // when the account we're checking doesn't have access to the chat.
+                // Throw if actor doesn't have access to the chat. We only return a `Result` when
+                // the account we're checking doesn't have access to the chat.
                 const result = await authorizeSpaceAccessIfPossible(
                     context,
                     attributesItem.spaceId,
@@ -207,8 +207,8 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
         case "System":
         case "Anonymous":
         case "Bot": {
-            // Throw if actor doesn't have access to the chat. We only return a `Result`
-            // when the account we're checking doesn't have access to the chat.
+            // Throw if actor doesn't have access to the chat. We only return a `Result` when
+            // the account we're checking doesn't have access to the chat.
             const attributesItem = unwrapResult(
                 await authorizeChatAccessAndReturnItemIfPossible(
                     context,
@@ -218,8 +218,8 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
                 ),
             );
 
-            // Make sure the account is a member of the space. If the account was removed
-            // from the space then we want to return a `PermissionDeniedError`.
+            // Make sure the account is a member of the space. If the account was removed from
+            // the space then we want to return a `PermissionDeniedError`.
             if (!(await isAccountMemberOfSpace(context, attributesItem.spaceId, accountId))) {
                 return {
                     ok: false,
@@ -236,15 +236,14 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
 
     switch (chatAttributesItem.definition.type) {
         case "Direct": {
-            // Optimization: If this is a 1:1 chat we have the `AccountId`s available in
-            // the chat attributes item. Otherwise we need to load the `chatAccountItem`
-            // from the database.
+            // Optimization: If this is a 1:1 chat we have the `AccountId`s available in the
+            // chat attributes item. Otherwise we need to load the `chatAccountItem` from the
+            // database.
             //
-            // Most of the time `getChatAccountItemIfExistsForAuthorization()` returns a
-            // cached value and doesn't make a database call. Since if you've called
-            // `getChatItemForAuthorization()` beforehand (`getChat()`,
-            // `getChatDefinition()`, etc. do this) then we've
-            // already cached all account items for the chat.
+            // Most of the time `getChatAccountItemIfExistsForAuthorization()` returns a cached
+            // value and doesn't make a database call. Since if you've called
+            // `getChatItemForAuthorization()` beforehand (`getChat()`, `getChatDefinition()`,
+            // etc. do this) then we've already cached all account items for the chat.
             if (chatAttributesItem.accountIdsForDirectOneOnOne) {
                 if (!chatAttributesItem.accountIdsForDirectOneOnOne.includes(accountId)) {
                     return {

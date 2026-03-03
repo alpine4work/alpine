@@ -14,8 +14,7 @@ export function ContentParagraphShimmer1() {
             <TextShimmer
                 width="64"
                 fontSize={contentParagraphShimmerFontSize}
-                // So when screen shrinks last line isn't longer than other lines with
-                // `ragRight`.
+                // So when screen shrinks last line isn't longer than other lines with `ragRight`.
                 ragRight="20"
             />
         </>
@@ -29,8 +28,7 @@ export function ContentParagraphShimmer2() {
             <TextShimmer
                 width="128"
                 fontSize={contentParagraphShimmerFontSize}
-                // So when screen shrinks last line isn't longer than other lines with
-                // `ragRight`.
+                // So when screen shrinks last line isn't longer than other lines with `ragRight`.
                 ragRight="20"
             />
         </>
@@ -46,8 +44,7 @@ export function ContentParagraphShimmer3() {
             <TextShimmer
                 width="48"
                 fontSize={contentParagraphShimmerFontSize}
-                // So when screen shrinks last line isn't longer than other lines with
-                // `ragRight`.
+                // So when screen shrinks last line isn't longer than other lines with `ragRight`.
                 ragRight="20"
             />
         </>

@@ -34,8 +34,8 @@ export function useDocumentContentEditorPhantomSelections({
     // `UpdateOtherPresenceState` update as this would cause a thundering herd of
     // presence updates on every content update.
     //
-    // There may be some performance optimizations we could be doing here. If you
-    // have 100 cursors but only 1 is moving you only need to recompute that 1.
+    // There may be some performance optimizations we could be doing here. If you have
+    // 100 cursors but only 1 is moving you only need to recompute that 1.
     const presenceStates = useMemo(() => {
         let presenceStates: Array<{
             connectionId: WebSocketConnectionId;
@@ -49,8 +49,8 @@ export function useDocumentContentEditorPhantomSelections({
 
             const editorVersion = editorState.getVersion();
 
-            // If the presence state version is equal to our editor version, then we don't
-            // need to transform the selection.
+            // If the presence state version is equal to our editor version, then we don't need
+            // to transform the selection.
             if (presenceState.version === editorVersion) {
                 presenceStates.push({
                     connectionId,
@@ -63,12 +63,12 @@ export function useDocumentContentEditorPhantomSelections({
             // doesn't move. Instead clients are responsible for updating selections that
             // didn't move to the new document locally.
             //
-            // We may not have enough `rememberedSteps` to fast-forward the presence
-            // In this case we will drop the presence  We then fetch
-            // steps required to fast-forward the presence state asynchronously.
+            // We may not have enough `rememberedSteps` to fast-forward the presence In this
+            // case we will drop the presence We then fetch steps required to fast-forward the
+            // presence state asynchronously.
             //
-            // It's important that we record `smallestPresenceStateVersion` before this
-            // step since we're about to update all our presence state versions.
+            // It's important that we record `smallestPresenceStateVersion` before this step
+            // since we're about to update all our presence state versions.
             else if (
                 presenceState.version < editorVersion &&
                 presenceState.version >= editorVersion - rememberedSteps.length
@@ -98,8 +98,8 @@ export function useDocumentContentEditorPhantomSelections({
                 //
                 // 1. Presence states at a future version. (Should not happen.)
                 // 2. Presence states that we couldn't catch up because we don't have enough
-                //    `rememberedSteps`. Our backfill should have given us all the steps we
-                //    need though.
+                //    `rememberedSteps`. Our backfill should have given us all the steps we need
+                //    though.
                 //
                 // We are ok dropping these presence states.
             }
@@ -127,15 +127,15 @@ export function useDocumentContentEditorPhantomSelections({
         return presenceStates;
     }, [editorState, otherPresenceStateByConnectionId, rememberedSteps]);
 
-    // Transform the presence states of our connected clients into cursor
-    // decorations. We drop any cursors from before our document loaded because we
-    // don't have the steps to map their positions.
+    // Transform the presence states of our connected clients into cursor decorations.
+    // We drop any cursors from before our document loaded because we don't have the
+    // steps to map their positions.
     const phantomSelections = useMemo(() => {
         const phantomSelections: Array<ContentEditorPhantomSelection> = [];
 
         const filteredThemeColors = themeColors.filter(
-            // TODO(calebmer): When the theme color is configurable, we should use that
-            // instead of `defaultThemeColor`.
+            // TODO(calebmer): When the theme color is configurable, we should use that instead
+            // of `defaultThemeColor`.
             themeColor =>
                 themeColor !== defaultThemeColor &&
                 themeColor !== "yellow" &&

@@ -5,8 +5,8 @@ import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {mergeTaskSortableAccounts} from "~/shared/tasks/task_sortable_account.js";
 
 /**
- * Merge two tasks together. Tasks are CRDTs and this is the CRDT merge
- * function. So this function is commutative and idempotent.
+ * Merge two tasks together. Tasks are CRDTs and this is the CRDT merge function.
+ * So this function is commutative and idempotent.
  *
  * If the returned task is identical to `task1` then we return `task1` so
  * optimizations can detect the task didn't change.
@@ -76,8 +76,8 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
                 : (task1.layout ?? task2.layout),
     };
 
-    // Optimization: If nothing changed between `task1` and the merged task then
-    // return `task1` so the new task is referentially equal to the old one.
+    // Optimization: If nothing changed between `task1` and the merged task then return
+    // `task1` so the new task is referentially equal to the old one.
     if (isDeepEqual(task1, newTask)) return task1;
 
     return newTask;

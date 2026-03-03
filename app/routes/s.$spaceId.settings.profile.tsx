@@ -70,8 +70,8 @@ export default function SpaceProfileSettingsRoute() {
     };
 
     const handleCancelNameEditing = () => {
-        // After we cancel editing, select all content in the text input. So the
-        // selection doesn't move somewhere weird.
+        // After we cancel editing, select all content in the text input. So the selection
+        // doesn't move somewhere weird.
         shouldSelectAllAfterCancelRef.current = true;
 
         setName(null);
@@ -266,8 +266,8 @@ export default function SpaceProfileSettingsRoute() {
                             <Star
                                 weight="fill"
                                 className={sprinkles({
-                                    // Re-use the search favorite icon colors for the
-                                    // lifetime access purchase icon since they fit well.
+                                    // Re-use the search favorite icon colors for the lifetime access purchase icon
+                                    // since they fit well.
                                     fill: searchFavoriteEntityIconColor,
                                 })}
                                 size={20}

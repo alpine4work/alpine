@@ -691,7 +691,8 @@ b.content = `Link to ${a.toReference()}`;
 #### Testing Inline vs Full-Page Databases
 
 ```typescript
-// Full-page database: added as a child, referenced via toReference() in children header
+// Full-page database: added as a child, referenced via toReference() in children
+// header
 const fullPageDb = new ExportedNotionDatabase("Tasks", [["Task"], ["Do stuff"]]);
 const docWithChild = new ExportedNotionDocument("Project", "content", [fullPageDb]);
 // Result: fullPageDb.md exists as a document, Project has it in children

@@ -206,11 +206,10 @@ test("won\u2019t create two inbox entries if inbox is observed between serial ev
     ]);
 });
 
-// Exercise idempotency by running the test suite again with jobs
-// processed twice.
+// Exercise idempotency by running the test suite again with jobs processed twice.
 for (const {type: currentProcessingType, processingMultiple} of testSuites) {
-    // If another suite has `only` set then skip this suite so we only run the
-    // suite with `only` set.
+    // If another suite has `only` set then skip this suite so we only run the suite
+    // with `only` set.
     if (
         testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
     ) {

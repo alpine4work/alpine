@@ -27,8 +27,8 @@ export function printSearchTextForInlineFragment(
 ): string {
     const content: Array<Node> = [];
 
-    // Remove `link`, `comment`, and `highlight` marks and merge text nodes with
-    // the same marks together.
+    // Remove `link`, `comment`, and `highlight` marks and merge text nodes with the
+    // same marks together.
     for (let node of fragment.content) {
         assert(node.isInline);
 
@@ -84,22 +84,22 @@ const printSearchEmbeddingTextForMarkByTypeName: {
 };
 
 /**
- * Print a node in the inline ProseMirror group to text which we'll 1) index in
- * an OpenSearch text field for keyword search, 2) embed with an LLM model for
- * semantic search. Inline ProseMirror nodes are nodes allowed in a paragraph
- * node or other textblock nodes.
+ * Print a node in the inline ProseMirror group to text which we'll 1) index in an
+ * OpenSearch text field for keyword search, 2) embed with an LLM model for
+ * semantic search. Inline ProseMirror nodes are nodes allowed in a paragraph node
+ * or other textblock nodes.
  *
- * Includes the `text` node. We'll also add marks for bold and italic to the
- * text in markdown formatting. From brief testing, LLMs seem to understand
- * markdown formatting emphasizes text. OpenSearch should discard the
- * formatting during analysis. A conversation with Cohere demonstrating LLM
- * support (grounding is turned off):
+ * Includes the `text` node. We'll also add marks for bold and italic to the text
+ * in markdown formatting. From brief testing, LLMs seem to understand markdown
+ * formatting emphasizes text. OpenSearch should discard the formatting during
+ * analysis. A conversation with Cohere demonstrating LLM support (grounding is
+ * turned off):
  *
- * > Caleb: *How is this text formatted?*
+ * > Caleb: _How is this text formatted?_
  * >
- * > Cohere: The text "*How is this text formatted?*" is presented with the
- * > asterisk symbol, which is a formatting technique to indicate emphasis or
- * > an italicized style.
+ * > Cohere: The text "_How is this text formatted?_" is presented with the
+ * > asterisk symbol, which is a formatting technique to indicate emphasis or an
+ * > italicized style.
  * >
  * > Caleb: \*How is this text formatted?\*
  * >
@@ -111,9 +111,9 @@ const printSearchEmbeddingTextForMarkByTypeName: {
  * >
  * > Caleb: ~~How is this text formatted?~~
  * >
- * > Cohere: The text "~~How is this text formatted?~~" is presented with the
- * > tilde symbols, which indicates the inclusion of strikethrough formatting.
- * > This signifies that the text itself should be crossed out or rendered in a
+ * > Cohere: The text "~~How is this text formatted?~~" is presented with the tilde
+ * > symbols, which indicates the inclusion of strikethrough formatting. This
+ * > signifies that the text itself should be crossed out or rendered in a
  * > strikethrough style.
  *
  * In the UI `*How is this text formatted?*` is displayed without asterisks and
@@ -138,9 +138,8 @@ export function printSearchTextForInlineNode(
             if (options.context === "heading") {
                 return "<br/>";
             } else {
-                // A little funky, but CommonMark specifies a newline preceded by a backslash
-                // (`\`) as a hard line break.
-                // https://spec.commonmark.org/0.30/#hard-line-breaks
+                // A little funky, but CommonMark specifies a newline preceded by a backslash (`\`)
+                // as a hard line break. https://spec.commonmark.org/0.30/#hard-line-breaks
                 return "\\\n";
             }
         }
@@ -151,15 +150,15 @@ export function printSearchTextForInlineNode(
         case "text": {
             const codeMark = node.marks.find(mark => mark.type.name === "code");
 
-            // Escape any Markdown characters in the text content so the LLM model doesn't
-            // get it confused with our own markdown styling.
+            // Escape any Markdown characters in the text content so the LLM model doesn't get
+            // it confused with our own markdown styling.
             let textContent =
                 options.context === "codeBlock" || codeMark
                     ? escapeMarkdownInCode(node.textContent)
                     : escapeMarkdown(node.textContent);
 
-            // The code mark must always be applied first. CommonMark specifies that
-            // asterisks or other characters within code are treated as literal characters.
+            // The code mark must always be applied first. CommonMark specifies that asterisks
+            // or other characters within code are treated as literal characters.
             if (codeMark) {
                 const maxBacktickCount = reduceIterable(
                     textContent.matchAll(/`+/g),
@@ -205,15 +204,15 @@ export function printSearchTextForInlineNode(
 
 const escapeMarkdownRegExp = new RegExp(
     [
-        // Start of line block formatting. Quote blocks (`>`), list items (`+`, `-`),
-        // and headers (`#`).
+        // Start of line block formatting. Quote blocks (`>`), list items (`+`, `-`), and
+        // headers (`#`).
         /^\s*[>+\-#]/,
         // Start of line table formatting (`| - |`, `| :- |`).
         /^\s*\|\s*:?-/,
-        // Start of line list formatting (`1.`). Uses a lookbehind so we escape the `.`
-        // not the number.
+        // Start of line list formatting (`1.`). Uses a lookbehind so we escape the `.` not
+        // the number.
         /(?<=^\s*\d+)\./,
-        // Code (```), bold (`*`), italics (`_`), and strikethrough (`~`).
+        // Code (```), bold (`\*`), italics (`\_`), and strikethrough (`~`).
         /[\\`*_~]/,
         // Links (`[Alpine](https://alpine.inc)`)
         /]\(/,
@@ -231,17 +230,16 @@ const escapeMarkdownRegExp = new RegExp(
  * Escape markdown characters in some text content. We don't want the model to
  * confuse our markdown formatting for manually typed characters.
  *
- * Given this is all going to an LLM model this escaping may not be necessary
- * or may even be harmful (since it confuses the model). We'll have to test.
+ * Given this is all going to an LLM model this escaping may not be necessary or
+ * may even be harmful (since it confuses the model). We'll have to test.
  *
  * There is no universally accepted markdown standard. The characters we escape
  * come from [here][1]. The characters ">", "+", and "-" we only escape when
- * they're at the start of a line since they're common in mathematical
- * expressions.
+ * they're at the start of a line since they're common in mathematical expressions.
  *
- * We add some additional logic to prevent [indented code blocks][2]
- * by escaping 4+ consecutive spaces which our ProseMirror schema constraints
- * cannot handle, particularly within blockquotes.
+ * We add some additional logic to prevent [indented code blocks][2] by escaping 4+
+ * consecutive spaces which our ProseMirror schema constraints cannot handle,
+ * particularly within blockquotes.
  *
  * [1]: https://www.markdownguide.org/basic-syntax/#escaping-characters
  * [2]: https://spec.commonmark.org/0.30/#example-252
@@ -272,9 +270,9 @@ function escapeMarkdown(textContent: string): string {
 /**
  * Escape markdown characters in code content.
  *
- * You can put any character in inline code and it'll render. With the
- * exception of the `<em>` tag which the OpenSearch highlighter inserts. We
- * manually handle `<em>` tag parsing in inline code in `parseSearchContent()`.
+ * You can put any character in inline code and it'll render. With the exception of
+ * the `<em>` tag which the OpenSearch highlighter inserts. We manually handle
+ * `<em>` tag parsing in inline code in `parseSearchContent()`.
  */
 function escapeMarkdownInCode(textContent: string): string {
     return textContent.replaceAll(/<\/?em\s*>/gm, substring => {

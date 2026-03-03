@@ -9,9 +9,8 @@ import {
 import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
 
 /**
- * Validates that the provided data matches matches the expected shape of an
- * event. Checks that every attribute matches the declared schema for that
- * attribute.
+ * Validates that the provided data matches matches the expected shape of an event.
+ * Checks that every attribute matches the declared schema for that attribute.
  */
 export function validateTracerEventFlatData(
     data: SchemaSerializedValue,
@@ -24,8 +23,8 @@ export function validateTracerEventFlatData(
         const schema = TracerEventFlatDataSchema.get(key);
 
         // NOTE(calebmer): `key` could accidentally be sensitive user data but seems
-        // unlikely given it's a tracer event JSON key. It's very useful to have this
-        // value for debugging.
+        // unlikely given it's a tracer event JSON key. It's very useful to have this value
+        // for debugging.
         if (!schema) throw new InvalidArgumentError(quote`Unrecognized event attribute: ${key}`);
 
         withSchemaDeserializationStackFrame({type: "ObjectProperty", key}, () => {
@@ -43,8 +42,8 @@ export function validateTracerEventFlatData(
 
 /**
  * Validates that it is ok to propagate the provided data object. We only allow
- * propagation of certain event attributes. This function makes sure a bad
- * client doesn't add more attributes than expected.
+ * propagation of certain event attributes. This function makes sure a bad client
+ * doesn't add more attributes than expected.
  */
 export function validateTracerEventFlatDataForPropagation(
     data: SchemaSerializedValue,

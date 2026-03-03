@@ -322,7 +322,8 @@ describe("rate limiting", () => {
         const space = await createSpaceWithOrganizationDomain(organizationDomain);
         const ownerSession = await space.createSession({role: "Owner"});
 
-        // Generate emails from a different company domain (not generic, but not organization)
+        // Generate emails from a different company domain (not generic, but not
+        // organization)
         const otherCompanyDomain = generateOrganizationEmailDomain();
         const emailAddresses = createArrayWithLength(51, () =>
             generateOrganizationEmailAddress(otherCompanyDomain),
@@ -341,8 +342,8 @@ describe("rate limiting", () => {
         const space = await createSpaceWithOrganizationDomain(emailDomain);
         const ownerSession = await space.createSession({role: "Owner"});
 
-        // 40 organization emails + 40 generic emails
-        // Only the 40 generic should count against the limit of 50
+        // 40 organization emails + 40 generic emails Only the 40 generic should count
+        // against the limit of 50
         const organizationEmails = createArrayWithLength(40, () =>
             generateOrganizationEmailAddress(emailDomain),
         );

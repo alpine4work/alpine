@@ -1,8 +1,6 @@
 /**
- * Generate a copy title suffix for duplicated documents.
- * "Title" -> "Title (copy)"
- * "Title (copy)" -> "Title (copy 2)"
- * "Title (copy 2)" -> "Title (copy 3)"
+ * Generate a copy title suffix for duplicated documents. "Title" -> "Title (copy)"
+ * "Title (copy)" -> "Title (copy 2)" "Title (copy 2)" -> "Title (copy 3)"
  */
 export function generateDuplicateContentTitle(currentTitle: string): string {
     const copyNumberMatch = currentTitle.match(/ \(copy (\d+)\)$/);

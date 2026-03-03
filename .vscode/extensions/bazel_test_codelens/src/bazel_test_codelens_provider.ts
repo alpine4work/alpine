@@ -28,13 +28,13 @@ function buildPathWithSubstitutions(suites: Array<{name: string; isDynamic: bool
         return "";
     }
 
-    // Join with spaces, then clean up consecutive ".*" patterns
+    // Join with spaces, then clean up consecutive ".\*" patterns
     let result = nonEmptyNames.join(" ");
 
-    // Replace consecutive ".*"'s with just ".*"
+    // Replace consecutive ".\*"'s with just ".\*"
     result = result.replace(/\.\*(\s*\.\*)+/g, ".*");
 
-    // Remove leading/trailing spaces around ".*"
+    // Remove leading/trailing spaces around ".\*"
     result = result.replace(/\s+\.\*/g, ".*");
     result = result.replace(/\.\*\s+/g, ".*");
 
@@ -74,7 +74,7 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
                 // Add current suite to stack
                 suiteStack.push({name: suiteName, level: indentLevel, isDynamic: isDynamic});
 
-                // For suite commands, substitute dynamic names with ".*"
+                // For suite commands, substitute dynamic names with ".\*"
                 const suitePath = buildPathWithSubstitutions(suiteStack);
 
                 const position = new vscode.Position(i, 0);
@@ -109,10 +109,11 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
                     suiteStack.pop();
                 }
 
-                // Check if this is a dynamic test name (contains template literals, variables, etc.)
+                // Check if this is a dynamic test name (contains template literals, variables,
+                // etc.)
                 const isDynamicTest = isDynamicName(testName);
 
-                // Build the test path, substituting dynamic names with ".*"
+                // Build the test path, substituting dynamic names with ".\*"
                 const fullTestPath = buildPathWithSubstitutions([
                     ...suiteStack,
                     {name: testName, isDynamic: isDynamicTest},

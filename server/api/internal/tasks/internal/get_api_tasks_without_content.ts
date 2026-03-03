@@ -16,8 +16,8 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
- * Returns a strongly consistent list of tasks without content that match the provided filters
- * ordered by the provided sorts.
+ * Returns a strongly consistent list of tasks without content that match the
+ * provided filters ordered by the provided sorts.
  */
 export async function getApiTasksWithoutContent(
     context: ApiServiceBotActionContext,

@@ -23,8 +23,8 @@ export function AccountShortName({
         [accountData],
     );
 
-    // NOTE(calebmer): Someday I'd like to have an account card that shows up on
-    // hover of avatar or name.
+    // NOTE(calebmer): Someday I'd like to have an account card that shows up on hover
+    // of avatar or name.
     return (
         <Tooltip
             isDisabled={isTooltipDisabled}

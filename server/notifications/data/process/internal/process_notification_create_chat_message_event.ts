@@ -65,12 +65,12 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                 chatId: event.chatId,
             },
             oldItem => {
-                // When the user messages a chat we archive the corresponding inbox entry. Or
-                // if the chat is already archived, we keep it archived. By sending a message
-                // the user implicitly marks their entry as done.
+                // When the user messages a chat we archive the corresponding inbox entry. Or if
+                // the chat is already archived, we keep it archived. By sending a message the user
+                // implicitly marks their entry as done.
                 //
-                // If the events were received out-of-order we keep the last archive state
-                // of the entry.
+                // If the events were received out-of-order we keep the last archive state of the
+                // entry.
                 const isArchived =
                     !oldItem ||
                     (event.messageIndex > oldItem.latestMessage.index &&
@@ -92,31 +92,31 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     // We increment the loud notification count if:
                     //
                     // - This account was mentioned in the message
-                    // - We are adding an entry for this chat to this account's inbox (either we
-                    //   are creating a new one or moving it out of the inbox archive)
-                    // - Enough time has passed that new messages are likely a new thought (we use
-                    //   the same time period in which timestamp dividers will be inserted so the
-                    //   user may also see this visually)
+                    // - We are adding an entry for this chat to this account's inbox (either we are
+                    //   creating a new one or moving it out of the inbox archive)
+                    // - Enough time has passed that new messages are likely a new thought (we use the
+                    //   same time period in which timestamp dividers will be inserted so the user may
+                    //   also see this visually)
                     //
-                    // Chat messages are attention grabbing by default (even without messages)
-                    // since chat is intended to be a realtime communication medium unlike forum
-                    // which is an asynchronous communication medium.
+                    // Chat messages are attention grabbing by default (even without messages) since
+                    // chat is intended to be a realtime communication medium unlike forum which is an
+                    // asynchronous communication medium.
                     //
-                    // However, we don't want 1 chat message to equal 1 loud notification count
-                    // since then chat messages could easily overwhelm your loud notification count
-                    // and make it meaningless. So instead we have approximately 1 loud
-                    // notification per chat per hour.
+                    // However, we don't want 1 chat message to equal 1 loud notification count since
+                    // then chat messages could easily overwhelm your loud notification count and make
+                    // it meaningless. So instead we have approximately 1 loud notification per chat
+                    // per hour.
                     //
                     // While this scheme is a little hard for users to understand, the loud
                     // notification count does not need to be precise. It needs to give a sense of
-                    // scale of work involved in answering entries in the user's inbox and our bet
-                    // is the work involved to resolve your inbox entries is proportional to number
-                    // of entries (vs number of messages within an entry).
+                    // scale of work involved in answering entries in the user's inbox and our bet is
+                    // the work involved to resolve your inbox entries is proportional to number of
+                    // entries (vs number of messages within an entry).
                     shouldIncrementLoudNotificationCount = (() => {
                         if (isMention) return true;
 
-                        // Don't increment the loud notification count if this is a clerical message
-                        // unless this clerical message also contained a mention.
+                        // Don't increment the loud notification count if this is a clerical message unless
+                        // this clerical message also contained a mention.
                         if (event.clerical) return false;
 
                         if (oldItem?.isArchived) return true;
@@ -150,12 +150,12 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     // what's in the entry's latest message then don't bother updating the latest
                     // message.
                     (oldItem.latestMessage.index >= event.messageIndex ||
-                        // Or if the latest comment was a mention then we'll leave that in place even
-                        // if there are further comments added.
+                        // Or if the latest comment was a mention then we'll leave that in place even if
+                        // there are further comments added.
                         (oldItem.latestMessage.isStickyMention && !isMention && !isArchived) ||
-                        // Or if the message from our event is from the same account as the inbox
-                        // owner's then don't update the latest message. Leave the last message from an
-                        // account other than our inbox's account in the entry.
+                        // Or if the message from our event is from the same account as the inbox owner's
+                        // then don't update the latest message. Leave the last message from an account
+                        // other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestMessage = oldItem.latestMessage;
@@ -174,9 +174,9 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                         // that's not our inbox's account and that's not the message author as
                         // `otherAccountId`.
                         //
-                        // Randomly picking an account is probably not the ideal heuristic but gives
-                        // the user some diversity in other accounts they see as opposed to, say,
-                        // always picking the user with the first name alphabetically.
+                        // Randomly picking an account is probably not the ideal heuristic but gives the
+                        // user some diversity in other accounts they see as opposed to, say, always
+                        // picking the user with the first name alphabetically.
                         const latestMessageAuthorId = latestMessage.authorId;
                         const eligibleOtherAccountIds = (
                             definition.type === "Direct"
@@ -195,9 +195,9 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                                   ]!
                                 : null;
                     } else {
-                        // If the `latestMessage`'s author changed then move the old `latestMessage`
-                        // author into `otherAccountId`. But not if the old `latestMessage` had our
-                        // inbox's account as the author.
+                        // If the `latestMessage`'s author changed then move the old `latestMessage` author
+                        // into `otherAccountId`. But not if the old `latestMessage` had our inbox's
+                        // account as the author.
                         otherAccountId =
                             oldItem.latestMessage.authorId !== latestMessage.authorId &&
                             oldItem.latestMessage.authorId !== accountId
@@ -259,8 +259,8 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         let title: string;
         let body = bodyFromEventContent;
 
-        // We don't include "Mentioned you" in the subtitle even if there was a
-        // mention since:
+        // We don't include "Mentioned you" in the subtitle even if there was a mention
+        // since:
         //
         // - Subtitle is already long
         // - All chat messages are loud notifications even if there's not a mention
@@ -289,14 +289,13 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
             }
         }
 
-        // If this is a share notification then override the subtitle to
-        // describe what happened.
+        // If this is a share notification then override the subtitle to describe what
+        // happened.
         if (event.clerical?.type === "ShareNotification") {
             const entityNoun = getFileEntityNoun(event.clerical.entityType);
 
-            // If there's no body then put the "shared with you" message in the body
-            // instead of the subtitle. This looks better since the notification isn't all
-            // bold text.
+            // If there's no body then put the "shared with you" message in the body instead of
+            // the subtitle. This looks better since the notification isn't all bold text.
             if (body.length === 0) {
                 body = `shared a ${entityNoun} with you`;
             } else {

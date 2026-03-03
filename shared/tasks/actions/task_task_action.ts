@@ -16,27 +16,27 @@ import {TaskTitleUpdateSchema} from "~/shared/tasks/title/task_title.js";
 
 // We're in a tricky position with our naming convention. The namespace for all
 // task related code is "task". However, with these actions we want to
-// differentiate actions that operate on tasks vs collections vs the parent
-// action type. The parent action type should get the convenient name
-// `TaskAction`. Following our style guide naming convention collection actions
-// are then `TaskCollectionAction`. Continuing to follow our naming convention
-// that means actions on a single task should be `TaskTaskAction`? Guess so.
+// differentiate actions that operate on tasks vs collections vs the parent action
+// type. The parent action type should get the convenient name `TaskAction`.
+// Following our style guide naming convention collection actions are then
+// `TaskCollectionAction`. Continuing to follow our naming convention that means
+// actions on a single task should be `TaskTaskAction`? Guess so.
 //
 // We cheat the naming convention a little bit for specializations of the task
-// action. For example, the task create action is named `TaskCreateAction`
-// instead of inheriting the full namespace (as recommended by the naming
-// convention) and becoming `TaskTaskCreateAction`. `TaskTask` is a little
-// silly so we cheat a bit to have reasonable looking names for the specialized
-// actions given they won't conflict.
+// action. For example, the task create action is named `TaskCreateAction` instead
+// of inheriting the full namespace (as recommended by the naming convention) and
+// becoming `TaskTaskCreateAction`. `TaskTask` is a little silly so we cheat a bit
+// to have reasonable looking names for the specialized actions given they won't
+// conflict.
 export type TaskTaskAction = SchemaType<typeof TaskTaskActionSchema>;
 
 /**
  * Creates a task.
  *
  * Can only commit this action once for a given `TaskId`. Though this action is
- * idempotent. Two creates with the same `creator` and `createdTime` are fine.
- * Two creates with different `creator` and `createdTime`s are incompatible and
- * will error.
+ * idempotent. Two creates with the same `creator` and `createdTime` are fine. Two
+ * creates with different `creator` and `createdTime`s are incompatible and will
+ * error.
  *
  * All other actions on a task will be kept in a queue until the task has been
  * created.
@@ -52,8 +52,8 @@ const TaskCreateActionSchema = Schema.object({
 /**
  * Deletes a task.
  *
- * Does nothing if the task is already deleted. The task's data will be kept
- * around in case the task is undeleted.
+ * Does nothing if the task is already deleted. The task's data will be kept around
+ * in case the task is undeleted.
  */
 export type TaskDeleteAction = SchemaType<typeof TaskDeleteActionSchema>;
 
@@ -85,12 +85,11 @@ export const TaskParentTaskIdRegister = createCrdtRegister(Schema.id<TaskId>().n
  *
  * - Resets the `parentPosition` register with the action:
  *   `{version: action.time, value: {orderTime: action.time, orderKey: initialOrderKey}}`.
- *   This makes sure the task is placed at the end of our new parent's
- *   subtasks.
+ *   This makes sure the task is placed at the end of our new parent's subtasks.
  *
  * The task parent property can be thought of as a `TaskId` and a `TaskPosition`.
- * These are updated in separate registers to avoid conflicts. Updating `TaskId`
- * is also expensive since we need to run circular dependency detection. The
+ * These are updated in separate registers to avoid conflicts. Updating `TaskId` is
+ * also expensive since we need to run circular dependency detection. The
  * `TaskPosition` is meaningless if there is no `TaskId`. Client models should
  * present these two registers as one `parent` object.
  *
@@ -110,8 +109,7 @@ const TaskUpdateParentTaskIdActionSchema = Schema.object({
 /**
  * Updates the position of a task in its parent task.
  *
- * Will be rejected by the server if you don't have edit access to the parent
- * task.
+ * Will be rejected by the server if you don't have edit access to the parent task.
  */
 export type TaskUpdateParentPositionAction = SchemaType<
     typeof TaskUpdateParentPositionActionSchema
@@ -125,55 +123,54 @@ const TaskUpdateParentPositionActionSchema = Schema.object({
 /**
  * Action that updates the number of children our task has.
  *
- * This is a special action that can't be committed by clients. Instead when
- * you commit an `UpdateParentTaskId` action, the server generates this action
- * and adds it to your action transaction. (Clients are also recommended to
- * locally generate this action if the parent task is loaded. Otherwise they
- * can wait to receive the action over their realtime connection.)
+ * This is a special action that can't be committed by clients. Instead when you
+ * commit an `UpdateParentTaskId` action, the server generates this action and adds
+ * it to your action transaction. (Clients are also recommended to locally generate
+ * this action if the parent task is loaded. Otherwise they can wait to receive the
+ * action over their realtime connection.)
  *
  * If a client tries to commit this action the server will reject it.
  *
- * That's because only the server knows the correct child task count. Clients
- * may not have loaded the parent task or may have an out-of-date parent task.
+ * That's because only the server knows the correct child task count. Clients may
+ * not have loaded the parent task or may have an out-of-date parent task.
  *
- * The two counters we care about are `childTaskCount` and
- * `closedChildTaskCount`. (`openChildTaskCount` can be derived from
+ * The two counters we care about are `childTaskCount` and `closedChildTaskCount`.
+ * (`openChildTaskCount` can be derived from
  * `childTaskCount - closedChildTaskCount`.) But since task actions have CRDT
- * properties (commutative and idempotent) it's not as easy as setting two
- * counter values.
+ * properties (commutative and idempotent) it's not as easy as setting two counter
+ * values.
  *
  * Instead we use simplified [grow-counter CRDTs][1] which have commutative and
  * idempotent properties. Namely the CRDT merge function for each counter is:
- * `(a, b) => max(a, b)`. We don't care about preserving increments from
- * individual replicas since the counters will be set by the server which has an
- * authoritative view of the counters.
+ * `(a, b) => max(a, b)`. We don't care about preserving increments from individual
+ * replicas since the counters will be set by the server which has an authoritative
+ * view of the counters.
  *
- * A number that can be incremented and decremented is modeled as two
- * grow-counter CRDTs. One for additions and one for subtractions. To get the
- * final value you subtract the subtractions grow-counter CRDT from the
- * additions grow-counter CRDT.
+ * A number that can be incremented and decremented is modeled as two grow-counter
+ * CRDTs. One for additions and one for subtractions. To get the final value you
+ * subtract the subtractions grow-counter CRDT from the additions grow-counter
+ * CRDT.
  *
  * So `childTaskCount` is implemented as `addedChildTaskCount` and
  * `removedChildTaskCount`, you get the final value with
- * `childTaskCount = addedChildTaskCount - removedChildTaskCount`. Likewise
- * for `closedChildTaskCount`.
+ * `childTaskCount = addedChildTaskCount - removedChildTaskCount`. Likewise for
+ * `closedChildTaskCount`.
  *
- * By committing both a `UpdateParentTaskId` action and `UpdateChildrenCounts`
- * we can correctly update tasks no matter what slice of data is loaded. If
- * only the parent is loaded then `UpdateChildrenCounts` will update its child
- * counts. If only the child is loaded then `UpdateParentTaskId` will let us
- * know if there is a parent or not.
+ * By committing both a `UpdateParentTaskId` action and `UpdateChildrenCounts` we
+ * can correctly update tasks no matter what slice of data is loaded. If only the
+ * parent is loaded then `UpdateChildrenCounts` will update its child counts. If
+ * only the child is loaded then `UpdateParentTaskId` will let us know if there is
+ * a parent or not.
  *
  * ## Commentary
  *
- * This is a weird action that only works because we have a centralized
- * authority for determining whether an action can be commit which isn't the
- * case with a classic peer-to-peer CRDT application.
+ * This is a weird action that only works because we have a centralized authority
+ * for determining whether an action can be commit which isn't the case with a
+ * classic peer-to-peer CRDT application.
  *
- * I (@calebmer) couldn't think of a better "classic" CRDT implementation.
- * Though our task system as a whole can't be implemented in a classic CRDT
- * implementation given our requirements around partial data loading and
- * permissions.
+ * I (@calebmer) couldn't think of a better "classic" CRDT implementation. Though
+ * our task system as a whole can't be implemented in a classic CRDT implementation
+ * given our requirements around partial data loading and permissions.
  *
  * [1]: https://www.bartoszsypytkowski.com/the-state-of-a-state-based-crdts/
  */
@@ -220,22 +217,21 @@ const TaskRemoveCollectionActionSchema = Schema.object({
 /**
  * Sets a task's position in a collection.
  *
- * If the task is not a part of this collection then this update is rejected by
- * the server. Canonically, a task is a part of the collections in its
+ * If the task is not a part of this collection then this update is rejected by the
+ * server. Canonically, a task is a part of the collections in its
  * `TaskCollectionSet`. We have separate storage for task positions in the
- * collection. This way updates to a task's position in a collection do not
- * trigger a `TaskCollectionSet` update which has an expensive related
- * permissions update.
+ * collection. This way updates to a task's position in a collection do not trigger
+ * a `TaskCollectionSet` update which has an expensive related permissions update.
  *
  * If a task is part of a collection and this action has never been commit, the
  * task's position is considered to be
- * `{orderTime: collectionSetEntry.version, orderKey: initialOrderKey}`. In
- * other words we reuse the `version` from the task's `TaskCollectionSet`
- * for this entry. Once this action has been commit, we never revert to the
- * `version` in `TaskCollectionSet`.
+ * `{orderTime: collectionSetEntry.version, orderKey: initialOrderKey}`. In other
+ * words we reuse the `version` from the task's `TaskCollectionSet` for this entry.
+ * Once this action has been commit, we never revert to the `version` in
+ * `TaskCollectionSet`.
  *
- * If a task is removed from this collection we keep around its position in
- * case the task is added back to the collection.
+ * If a task is removed from this collection we keep around its position in case
+ * the task is added back to the collection.
  */
 export type TaskUpdateCollectionPositionAction = SchemaType<
     typeof TaskUpdateCollectionPositionActionSchema
@@ -248,25 +244,23 @@ const TaskUpdateCollectionPositionActionSchema = Schema.object({
 });
 
 /**
- * Updates the status of a task. Could put a task in an open or
- * closed status.
+ * Updates the status of a task. Could put a task in an open or closed status.
  *
  * Side effects:
  *
  * - Resets the `assigneeStatus` register with the action:
- *   `{version: action.time, value: {type: "Inactive"}}`.
- *   `assigneeStatus` is reset whether the new status is open or closed and is
- *   reset whether or not the last status was open or closed.
+ *   `{version: action.time, value: {type: "Inactive"}}`. `assigneeStatus` is reset
+ *   whether the new status is open or closed and is reset whether or not the last
+ *   status was open or closed.
  *
- *   `assigneeStatus` is always inactive while a task is closed. However we
- *   don't enforce this at the data type layer so the `TaskStatus` and
- *   `TaskAssigneeStatus` registers can update independently. At the model
- *   layer we should present a value that's always inactive if the task is
- *   closed.
+ *     `assigneeStatus` is always inactive while a task is closed. However we don't
+ *     enforce this at the data type layer so the `TaskStatus` and
+ *     `TaskAssigneeStatus` registers can update independently. At the model layer
+ *     we should present a value that's always inactive if the task is closed.
  *
- *   Instead at the data layer we reset `assigneeStatus` on state change. The
- *   register itself may be active while the task is closed if we receive events
- *   out-of-order.
+ *     Instead at the data layer we reset `assigneeStatus` on state change. The
+ *     register itself may be active while the task is closed if we receive events
+ *     out-of-order.
  */
 export type TaskUpdateStatusAction = SchemaType<typeof TaskUpdateStatusActionSchema>;
 
@@ -283,30 +277,29 @@ const TaskUpdateStatusActionSchema = Schema.object({
  * Side effects:
  *
  * - Resets the `assigneeStatus` register with the action:
- *   `{version: action.time, value: {type: "Inactive"}}`.
- *   `assigneeStatus` is reset whether or not the task assignee changed. Since
- *   actions can be applied out of order we don't know if two consecutive
- *   updates actually have an action in between.
+ *   `{version: action.time, value: {type: "Inactive"}}`. `assigneeStatus` is reset
+ *   whether or not the task assignee changed. Since actions can be applied out of
+ *   order we don't know if two consecutive updates actually have an action in
+ *   between.
  *
- *   `assigneeStatus` is personal to the assigned account. So when the assignee
- *   changes it should be on the new assignee to designate whether the task is
- *   active or not.
+ *     `assigneeStatus` is personal to the assigned account. So when the assignee
+ *     changes it should be on the new assignee to designate whether the task is
+ *     active or not.
  *
- *   `assigneeStatus` should also be inactive whenever the assignee is null.
- *   However, we don't enforce this at the data layer so the `TaskAssignee` and
- *   `TaskAssigneeStatus` registers can update independently. At the model
- *   layer we should present a value that's always inactive if there is no
- *   assignee.
+ *     `assigneeStatus` should also be inactive whenever the assignee is null.
+ *     However, we don't enforce this at the data layer so the `TaskAssignee` and
+ *     `TaskAssigneeStatus` registers can update independently. At the model layer
+ *     we should present a value that's always inactive if there is no assignee.
  *
- *   Instead at the data layer we reset `assigneeStatus` on state change. The
- *   register itself may be active while assignee is null if we receive events
- *   out-of-order.
+ *     Instead at the data layer we reset `assigneeStatus` on state change. The
+ *     register itself may be active while assignee is null if we receive events
+ *     out-of-order.
  *
- * - Resets the effective `assigneePosition` of the task. While we don't
- *   actually change the value of the `assigneePosition` register when assignee
- *   is updated (so if a user changes the assignee back the old position is not
- *   lost) the effective assignee position is still reset. This is implemented
- *   in `TaskModel.getAssigneePosition()` and `getTaskIndexDocAssigneePosition()`.
+ * - Resets the effective `assigneePosition` of the task. While we don't actually
+ *   change the value of the `assigneePosition` register when assignee is updated
+ *   (so if a user changes the assignee back the old position is not lost) the
+ *   effective assignee position is still reset. This is implemented in
+ *   `TaskModel.getAssigneePosition()` and `getTaskIndexDocAssigneePosition()`.
  */
 export type TaskUpdateAssigneeAction = SchemaType<typeof TaskUpdateAssigneeActionSchema>;
 
@@ -318,8 +311,8 @@ const TaskUpdateAssigneeActionSchema = Schema.object({
 });
 
 /**
- * Updates the assignee status for a task. The assignee status is how the
- * assignee communicates whether they are actively working on a task or not.
+ * Updates the assignee status for a task. The assignee status is how the assignee
+ * communicates whether they are actively working on a task or not.
  *
  * Other actions may update the assignee status register as a side effect. See
  * `TaskUpdateStatusAction` and `TaskUpdateAssigneeAction`.
@@ -337,9 +330,9 @@ const TaskUpdateAssigneeStatusActionSchema = Schema.object({
  * Updates the position of a task in the assignee's task list.
  *
  * The assignee position of a task is in a separate register from the assignee
- * register so we have better control over permissions for the position.
- * Notably, all clients are allowed to know the task's assignee but only the
- * task assignee's client should know the assignee position.
+ * register so we have better control over permissions for the position. Notably,
+ * all clients are allowed to know the task's assignee but only the task assignee's
+ * client should know the assignee position.
  */
 export type TaskUpdateAssigneePosition = SchemaType<typeof TaskUpdateAssigneePositionSchema>;
 
@@ -352,9 +345,8 @@ const TaskUpdateAssigneePositionSchema = Schema.object({
 /**
  * Update the title of the task.
  *
- * Task titles are represented by Y.js which provides collaborative text
- * editing through CRDTs. Which means these actions are commutative and
- * idempotent.
+ * Task titles are represented by Y.js which provides collaborative text editing
+ * through CRDTs. Which means these actions are commutative and idempotent.
  */
 export type TaskUpdateTitleAction = SchemaType<typeof TaskUpdateTitleActionSchema>;
 
@@ -399,8 +391,8 @@ const TaskUpdateLayoutActionSchema = Schema.object({
 /**
  * Updates the access policy of the task.
  *
- * Will be rejected by the server if you don't have the `Manage` permission
- * level on this task.
+ * Will be rejected by the server if you don't have the `Manage` permission level
+ * on this task.
  */
 export type TaskUpdateAccessPolicyAction = SchemaType<typeof TaskUpdateAccessPolicyActionSchema>;
 
@@ -434,8 +426,8 @@ export const TaskTaskActionUnion = {
     UpdateAccessPolicy: TaskUpdateAccessPolicyActionSchema,
     // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
     // these actions at this point but we need minimal handling for backwards
-    // compatibility to avoid crashes since we have actions of these types saved in
-    // the database.
+    // compatibility to avoid crashes since we have actions of these types saved in the
+    // database.
     UpdateNotepadPagePosition: emptyObjectSchema("UpdateNotepadPagePosition"),
     UpdateAssigneeActivePosition: emptyObjectSchema("UpdateAssigneeActivePosition"),
 };

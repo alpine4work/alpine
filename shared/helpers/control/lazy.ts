@@ -2,8 +2,8 @@ import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_resu
 import {Result} from "~/shared/helpers/control/result.js";
 
 /**
- * A lazily computed value. We don't compute the value until `get()` is called
- * the first time and then we never compute again.
+ * A lazily computed value. We don't compute the value until `get()` is called the
+ * first time and then we never compute again.
  *
  * If the compute function throws then we save the thrown value and re-throw it
  * every time `get()` is called.
@@ -22,8 +22,8 @@ export class Lazy<Value> {
     }
 
     /**
-     * Get the value. If the value has not yet been computed then we will compute
-     * it synchronously.
+     * Get the value. If the value has not yet been computed then we will compute it
+     * synchronously.
      */
     public get(): Value {
         if (this._result === null) {

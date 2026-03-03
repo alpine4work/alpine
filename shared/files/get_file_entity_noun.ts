@@ -24,10 +24,10 @@ export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
 }
 
 /**
- * Get a user friendly, English, noun for the file entity. This noun is
- * capitalized so you can use it at the start of a sentence (following English
- * formatting rules). Unlike `getFileEntityNoun()` which returns the file
- * entity noun in lowercase.
+ * Get a user friendly, English, noun for the file entity. This noun is capitalized
+ * so you can use it at the start of a sentence (following English formatting
+ * rules). Unlike `getFileEntityNoun()` which returns the file entity noun in
+ * lowercase.
  */
 export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"]): string {
     switch (type) {

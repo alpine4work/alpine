@@ -48,8 +48,8 @@ export function createTaskPersonalViewAssigneeFilter(
 }
 
 /**
- * Gets the normalized filters for the Active section (OpenActive tasks).
- * Returns null if the user's filters make this section impossible.
+ * Gets the normalized filters for the Active section (OpenActive tasks). Returns
+ * null if the user's filters make this section impossible.
  */
 export function getPersonalTaskViewActiveSectionQueryFilters({
     userFilters,
@@ -73,8 +73,8 @@ export function getPersonalTaskViewActiveSectionQueryFilters({
 }
 
 /**
- * Gets the normalized filters for the Overdue section.
- * Returns null if the user's filters make this section impossible.
+ * Gets the normalized filters for the Overdue section. Returns null if the user's
+ * filters make this section impossible.
  */
 export function getPersonalTaskViewOverdueSectionQueryFilters({
     userFilters,
@@ -107,8 +107,8 @@ export function getPersonalTaskViewOverdueSectionQueryFilters({
 }
 
 /**
- * Gets the normalized filters for the Due Today section.
- * Returns null if the user's filters make this section impossible.
+ * Gets the normalized filters for the Due Today section. Returns null if the
+ * user's filters make this section impossible.
  */
 export function getPersonalTaskViewDueTodaySectionQueryFilters({
     userFilters,
@@ -121,8 +121,8 @@ export function getPersonalTaskViewDueTodaySectionQueryFilters({
     assigneeFilter: TaskQueryAccountNormalizedFilter;
     displayStatusFilter: TaskQueryFilter;
 }): TaskQueryNormalizedFilters | null {
-    // DueToday section: open inactive tasks with due date = today
-    // Use GreaterThan (today - 1) AND LessThan (today + 1) to match exactly today
+    // DueToday section: open inactive tasks with due date = today Use GreaterThan
+    // (today - 1) AND LessThan (today + 1) to match exactly today
     const sectionFilters: ReadonlyArray<TaskQueryFilter> = [
         displayStatusFilter,
         {
@@ -150,8 +150,8 @@ export function getPersonalTaskViewDueTodaySectionQueryFilters({
 }
 
 /**
- * Gets the normalized filters for the Due Soon section (next 7 days).
- * Returns null if the user's filters make this section impossible.
+ * Gets the normalized filters for the Due Soon section (next 7 days). Returns null
+ * if the user's filters make this section impossible.
  */
 export function getPersonalTaskViewDueSoonSectionQueryFilters({
     userFilters,
@@ -164,8 +164,8 @@ export function getPersonalTaskViewDueSoonSectionQueryFilters({
     assigneeFilter: TaskQueryAccountNormalizedFilter;
     displayStatusFilter: TaskQueryFilter;
 }): TaskQueryNormalizedFilters | null {
-    // DueSoon section: open inactive tasks with due date between today and today + 7 days
-    // (exclusive of today, inclusive of next 7 days)
+    // DueSoon section: open inactive tasks with due date between today and today + 7
+    // days (exclusive of today, inclusive of next 7 days)
     const sectionFilters: ReadonlyArray<TaskQueryFilter> = [
         displayStatusFilter,
         {
@@ -193,14 +193,14 @@ export function getPersonalTaskViewDueSoonSectionQueryFilters({
 }
 
 /**
- * Gets the normalized filters for the Remaining section.
- * This section shows tasks with due date > today + 7 days OR no due date.
- * Returns null if the user's filters make this section impossible.
+ * Gets the normalized filters for the Remaining section. This section shows tasks
+ * with due date > today + 7 days OR no due date. Returns null if the user's
+ * filters make this section impossible.
  *
- * The Remaining section requires special handling because it shows tasks
- * with "due date > today + 7 days OR no due date". This OR condition
- * (RangeOrIsEmpty) can't be expressed with TaskQueryFilter combinations
- * since multiple date filters are ANDed.
+ * The Remaining section requires special handling because it shows tasks with "due
+ * date > today + 7 days OR no due date". This OR condition (RangeOrIsEmpty) can't
+ * be expressed with TaskQueryFilter combinations since multiple date filters are
+ * ANDed.
  */
 export function getPersonalTaskViewRemainingSectionQueryFilters({
     userFilters,
@@ -227,15 +227,16 @@ export function getPersonalTaskViewRemainingSectionQueryFilters({
 
     if (!baseFilters) return null;
 
-    // If user explicitly filters for tasks with no due date, just use that filter directly.
+    // If user explicitly filters for tasks with no due date, just use that filter
+    // directly.
     if (baseFilters.dueDateFilter?.type === "IsEmpty") {
         return baseFilters;
     }
 
     const remainingLowerBoundDate = currentDate.add({days: 7});
 
-    // If user's date filter ends entirely before the Remaining section's range, skip this
-    // section.
+    // If user's date filter ends entirely before the Remaining section's range, skip
+    // this section.
     if (
         baseFilters.dueDateFilter?.type === "Range" &&
         baseFilters.dueDateFilter.exclusiveUpperBoundDate !== null &&
@@ -268,8 +269,8 @@ export function getPersonalTaskViewRemainingSectionQueryFilters({
 }
 
 /**
- * Gets the normalized filters for the Closed section (Closed tasks).
- * Returns null if the user's filters make this section impossible.
+ * Gets the normalized filters for the Closed section (Closed tasks). Returns null
+ * if the user's filters make this section impossible.
  */
 export function getPersonalTaskViewClosedSectionQueryFilters({
     userFilters,
@@ -281,7 +282,8 @@ export function getPersonalTaskViewClosedSectionQueryFilters({
     assigneeFilter: TaskQueryAccountNormalizedFilter;
 }): TaskQueryNormalizedFilters | null {
     // We have to normalize the user filters to get the correct display status filter.
-    // If the user has not applied closed status filter, we will not show the closed section.
+    // If the user has not applied closed status filter, we will not show the closed
+    // section.
     const normalizedUserFilters = normalizeTaskQueryFilters(userFilters, evaluationContext);
 
     if (normalizedUserFilters.type === "Impossible") return null;
@@ -308,8 +310,8 @@ export function createPersonalTaskViewDisplayStatusFilter(
 }
 
 /**
- * Helper to normalize section filters combined with user filters.
- * Returns null if the combination is impossible.
+ * Helper to normalize section filters combined with user filters. Returns null if
+ * the combination is impossible.
  */
 function normalizeWithSectionFilters({
     sectionFilters,

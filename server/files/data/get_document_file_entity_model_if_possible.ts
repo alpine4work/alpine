@@ -21,9 +21,8 @@ export async function getFileDocumentEntityModelIfPossible(
         ok: true,
         value: {
             type: "Document",
-            // Always prefer the model with the higher preview version. If the preview
-            // version is the same then use the document version (only applies to the
-            // title).
+            // Always prefer the model with the higher preview version. If the preview version
+            // is the same then use the document version (only applies to the title).
             versions: [document.preview?.version ?? -1, document.version],
             id: documentId,
             version: document.version,

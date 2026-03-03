@@ -21,12 +21,11 @@ const nameByNumber = new Map([
 ]);
 
 /**
- * Format the provided `time` as a human readable string relative to
- * `currentTime`. For example "two days ago" or "yesterday" or
- * "a month ago".
+ * Format the provided `time` as a human readable string relative to `currentTime`.
+ * For example "two days ago" or "yesterday" or "a month ago".
  *
- * Does not provide a way for the user to see the exact time. Generally you
- * should also include a tooltip with the exact time for the user.
+ * Does not provide a way for the user to see the exact time. Generally you should
+ * also include a tooltip with the exact time for the user.
  */
 export function formatPrettyRelativeDateWithoutFullTimeTooltip(
     timeZone: TimeZone,
@@ -38,8 +37,8 @@ export function formatPrettyRelativeDateWithoutFullTimeTooltip(
     const date = toCalendarDate(parseAbsolute(time.toISOString(), timeZone));
 
     // Normalize times to the start of the day in the provided time zone. A time 23
-    // hours ago should generally be marked as "Yesterday" not "Today" unless the
-    // time was at 1am.
+    // hours ago should generally be marked as "Yesterday" not "Today" unless the time
+    // was at 1am.
     currentTime = currentDate.toDate(timeZone);
     time = date.toDate(timeZone);
 
@@ -68,8 +67,8 @@ export function formatPrettyRelativeDateWithoutFullTimeTooltip(
     }
 
     // If the smallest granularity is in weeks we only want to say "this week" if
-    // `time` is in the same calendar week as `currentTime`. Not if it's in the
-    // last 7 days.
+    // `time` is in the same calendar week as `currentTime`. Not if it's in the last 7
+    // days.
     if (smallestGranularity === "Weeks") {
         return startOfWeek(currentTime).getTime() === startOfWeek(time).getTime()
             ? "this week"
@@ -82,8 +81,7 @@ export function formatPrettyRelativeDateWithoutFullTimeTooltip(
     } else if (days > 1) {
         return `${nameByNumber.get(days) ?? days} days ago`;
     } else {
-        // Check with TypeScript that by this point `smallestGranularity` should
-        // be `Days`.
+        // Check with TypeScript that by this point `smallestGranularity` should be `Days`.
         cast<"Days">(smallestGranularity);
 
         return "today";

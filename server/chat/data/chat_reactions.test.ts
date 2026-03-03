@@ -9,7 +9,8 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
-// TODO pull out reactions from chat_actions.ts to a separate module and update tests here
+// TODO pull out reactions from chat_actions.ts to a separate module and update
+// tests here
 
 const context = createTestContext({
     chatInjection,

@@ -278,8 +278,8 @@ async function createLaunchVideoFeed(originalAccounts: FictionalAmbrookAccounts)
 
     const promiseWaiter = new PromiseWaiter();
 
-    // Allow waiting for all `waitUntil()` promises spawned by just this function
-    // by calling `promiseWaiter.wait()`.
+    // Allow waiting for all `waitUntil()` promises spawned by just this function by
+    // calling `promiseWaiter.wait()`.
     const context: TestContext = originalContext.cloneWithHelpers({
         process: new ProcessContextModule({
             waitUntil: promise => {
@@ -499,8 +499,8 @@ field when they receive them. Comment on ideas you like!
                             schema.text("?"),
                         ]),
 
-                        // TODO(calebmer): We don't have a Markdown representation for files yet.
-                        // Otherwise I'd use Markdown for this content and attach the file somehow.
+                        // TODO(calebmer): We don't have a Markdown representation for files yet. Otherwise
+                        // I'd use Markdown for this content and attach the file somehow.
                         schema.node("fileRow", {}, [
                             schema.node("file", {fileId: `Document:${brainstormDocument.id}`}),
                         ]),
@@ -526,8 +526,8 @@ field when they receive them. Comment on ideas you like!
         await brainstormPost.setReaction(masonClay, "Celebrate");
         await brainstormPost.setReaction(mattRHorn, "Happy");
 
-        // Add a fixed ChatGPT recording that'll be replayed whenever invoking ChatGPT
-        // on this post.
+        // Add a fixed ChatGPT recording that'll be replayed whenever invoking ChatGPT on
+        // this post.
         {
             const recording: Array<MockAgentRecordingAction> = [];
 
@@ -940,8 +940,8 @@ Nice work, team!
     {
         // Narration: "Investor pitch in five minutes. You're not ready"
         //
-        // Stage directions: Protagonist should react with the "oh no" tree when
-        // reading this.
+        // Stage directions: Protagonist should react with the "oh no" tree when reading
+        // this.
         const post = await fundraisingChannel.createPost(
             cassCade,
             markdown`

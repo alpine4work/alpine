@@ -36,8 +36,8 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 export type TaskQueryViewCustomizationBarRef = {
     openAddFilterMenu(): void;
     openAddSortMenu(): void;
-    // Throws if no collection filter editor component is mounted. So be careful
-    // when calling this function.
+    // Throws if no collection filter editor component is mounted. So be careful when
+    // calling this function.
     openFirstCollectionsFilterOperationValue(): void;
 };
 
@@ -234,8 +234,8 @@ function TaskQueryViewCustomizationBar(
                         icon={<SortAscending />}
                         height={taskQueryFilterEditorDesktopHeight}
                         paddingX="2"
-                        // Don't focus the button on press since pressing will open the overlay and
-                        // should focus the overlay.
+                        // Don't focus the button on press since pressing will open the overlay and should
+                        // focus the overlay.
                         //
                         // TODO(calebmer): Find a way to automate this instead of setting this prop
                         // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
@@ -277,9 +277,8 @@ function TaskQueryViewCustomizationBarSortsOverlay({
         onSortsChange(sortsWithId.map(({sort}) => sort));
     };
 
-    // We assign IDs to sort objects within this function. If we receive new sorts
-    // from props that don't match our state then reset our state and
-    // regenerate IDs.
+    // We assign IDs to sort objects within this function. If we receive new sorts from
+    // props that don't match our state then reset our state and regenerate IDs.
     if (
         !useMemo(
             () =>

@@ -60,8 +60,8 @@ export async function loadInitialPeekDataForServer(
 
                 loaderData[match.route.id] = await processLoaderResult(result);
             } catch (error) {
-                // Errors are placed at the nearest error boundary route. Not the match that
-                // threw the error's route.
+                // Errors are placed at the nearest error boundary route. Not the match that threw
+                // the error's route.
                 // https://github.com/remix-run/react-router/blob/f9b3dbd9cbf513366c456b33d95227f42f36da63/packages/router/router.ts#L3893-L3910
                 (errors ??= {})[findNearestBoundary(routeMatches, match.route.id).route.id] =
                     await processLoaderResult(error);
@@ -85,8 +85,8 @@ async function processLoaderResult(result: unknown): Promise<unknown> {
     // Derived from:
     // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L3649-L3656
     if (contentType && /\bapplication\/json\b/.test(contentType)) {
-        // NOTE(calebmer): If this response was constructed by `json()` then avoid
-        // parsing it again which is wasteful.
+        // NOTE(calebmer): If this response was constructed by `json()` then avoid parsing
+        // it again which is wasteful.
         const originalData = (result as any)[Symbol.for("remix.response.json")];
         return originalData !== undefined ? originalData : await result.json();
     } else {

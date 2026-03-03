@@ -8,8 +8,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * Enables notifications to a Slack workspace for an account.
  *
- * The user must have already connected their Slack workspace and account to the space,
- * otherwise this function will throw a NotFoundError.
+ * The user must have already connected their Slack workspace and account to the
+ * space, otherwise this function will throw a NotFoundError.
  */
 export async function enableNotificationsToSlack(
     context: ServerActionContext,

@@ -23,12 +23,11 @@ export async function intoApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Read",
-                            // TODO(ifitzsimmons, 2026-01-26): This is what we were doing before, just
-                            // within `printApiMentionTargetResponse`. This is not type safe and I'm
-                            // not really sure how this working before. For example, tasks require the
-                            // task status in the response, but that's not available on the `targetPath`.
-                            // I would expect this to break any time we try to return this response via
-                            // the API.
+                            // TODO(ifitzsimmons, 2026-01-26): This is what we were doing before, just within
+                            // `printApiMentionTargetResponse`. This is not type safe and I'm not really sure
+                            // how this working before. For example, tasks require the task status in the
+                            // response, but that's not available on the `targetPath`. I would expect this to
+                            // break any time we try to return this response via the API.
                             target: parseApiMentionTarget(
                                 payload.call.targetPath,
                             ) as ApiMentionTargetResponse,
@@ -49,10 +48,10 @@ export async function intoApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Create",
-                            // TODO(ifitzsimmons, 2026-01-26): This is not type safe. For example,
-                            // tasks require the task status in the response, but that's not
-                            // available on the target I would expect this to break any time
-                            // we try to return this response via the API.
+                            // TODO(ifitzsimmons, 2026-01-26): This is not type safe. For example, tasks
+                            // require the task status in the response, but that's not available on the target
+                            // I would expect this to break any time we try to return this response via the
+                            // API.
                             target: payload.call
                                 .target as ApiMessageStreamToolCallPartCreateCallTargetResponse,
                         },

@@ -6,9 +6,9 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * We don't have an index on our spaceId in our forum tables. Instead of adding
- * an index for unit tests only, we provide this function to let tests
- * enumerate all channels in a space.
+ * We don't have an index on our spaceId in our forum tables. Instead of adding an
+ * index for unit tests only, we provide this function to let tests enumerate all
+ * channels in a space.
  *
  * This is only available in test environments.
  */

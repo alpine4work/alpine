@@ -10,12 +10,13 @@ import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.
  *
  * This should have the same effect as when we run
  * `indexTaskUpdateAccountNameActionAssumingItsCommitted()` which uses the
- * OpenSearch [update by query API][1] to update our index. We use the update
- * by query API to perform a bulk `UpdateAccountName` update efficiently in
- * OpenSearch then we use this function to update our in-memory tasks in
+ * OpenSearch [update by query API][1] to update our index. We use the update by
+ * query API to perform a bulk `UpdateAccountName` update efficiently in OpenSearch
+ * then we use this function to update our in-memory tasks in
  * `TaskRealtimeService`.
  *
- * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+ * [1]:
+ *     https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
 export function applyTaskUpdateAccountNameToTaskIndexDoc<
     Task extends Omit<TaskIndexDoc, "lastIndexSearchEntityJob">,

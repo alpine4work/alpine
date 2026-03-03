@@ -26,10 +26,11 @@ import {
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
-// NOTE(calebmer, 2024-10-28): All of the audio visualization code in this file
-// is based off of some [old code I wrote for a podcast recording app][1].
+// NOTE(calebmer, 2024-10-28): All of the audio visualization code in this file is
+// based off of some [old code I wrote for a podcast recording app][1].
 //
-// [1]: https://github.com/calebmer/decode-universe/blob/4ff83071116d17c79cd39cff07eca233fbf8a02a/studio/core/audio/AudioVisualization.tsx#L68-L76
+// [1]:
+//     https://github.com/calebmer/decode-universe/blob/4ff83071116d17c79cd39cff07eca233fbf8a02a/studio/core/audio/AudioVisualization.tsx#L68-L76
 const {
     fftSize: contentFileAudioPlayerVisualizationFftSize,
     viewboxHeight: contentFileAudioPlayerVisualizationSvgViewboxHeight,
@@ -41,8 +42,7 @@ const {
     const viewboxWidth = 600;
     const viewboxHeight = 50;
 
-    // Cut off the last x% of bars as it seems that in practice they rarely
-    // have data.
+    // Cut off the last x% of bars as it seems that in practice they rarely have data.
     const barCount = Math.round((fftSize / 2) * 0.65);
 
     const gapWidthRatio = 1.5;
@@ -56,9 +56,9 @@ const {
         minBarHeight: round3(minBarHeight),
         /* eslint-disable cyberworlds/string-quotes */
 
-        // We add 1 around the viewbox since we were sometimes getting rendering
-        // artifacts in Chrome near the edge of the viewbox during an animation. Adding the
-        // padding seems to fix it.
+        // We add 1 around the viewbox since we were sometimes getting rendering artifacts
+        // in Chrome near the edge of the viewbox during an animation. Adding the padding
+        // seems to fix it.
         svg: `\
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 ${viewboxWidth + 1} ${viewboxHeight + 1}">\
 ${createArrayWithLength(barCount, index => {
@@ -126,7 +126,8 @@ export function renderContentFileAudioPlayer(
         audioHtml.setAttribute("preload", "none");
         audioHtml.setAttribute("style", "pointer-events: none; width: 0; height: 0; opacity: 0");
 
-        // Needed to get a proper CORS response from the resource service where our files are hosted.
+        // Needed to get a proper CORS response from the resource service where our files
+        // are hosted.
         audioHtml.setAttribute("crossorigin", "anonymous");
 
         audioHtml.setAttribute("src", audioSrc);
@@ -354,19 +355,19 @@ type ContentFileAudioVisualizationState = {
 
 /**
  * Add interactions to the content file audio player rendered by
- * `renderContentFileAudioPlayer()`. The provided container element must have
- * the class `contentFileAudioPlayerStyles.containerClassName`.
+ * `renderContentFileAudioPlayer()`. The provided container element must have the
+ * class `contentFileAudioPlayerStyles.containerClassName`.
  *
  * IMPORTANT: Read the following implementation notes before making changes.
  *
  * ## Implementation notes
  *
- * The code for our audio player is styled after React. We have a functional
- * render function (`renderContentFileAudioPlayer()`) and setup interactivity
- * with an effect (`addContentFileAudioPlayerBehavior()`). We'd love to use
- * React directly but we can't because our audio player is rendered in a
- * ProseMirror `contenteditable`. So we need to build the audio player's
- * interactivity by directly attaching DOM events.
+ * The code for our audio player is styled after React. We have a functional render
+ * function (`renderContentFileAudioPlayer()`) and setup interactivity with an
+ * effect (`addContentFileAudioPlayerBehavior()`). We'd love to use React directly
+ * but we can't because our audio player is rendered in a ProseMirror
+ * `contenteditable`. So we need to build the audio player's interactivity by
+ * directly attaching DOM events.
  *
  * Our behavior function MUST NOT edit the DOM by adding or removing DOM nodes.
  * This will mess up `HtmlElementGenerator.patchNode()` if ProseMirror needs to
@@ -410,17 +411,16 @@ export function addContentFileAudioPlayerBehavior(
             //   instance)
             // - Don't allow browser drag to start from the control bar
             //
-            // This pointer event is on the control container element instead of the
-            // control element so we disable clicking in the margins below and to the
-            // left/right area as well. Having your cursor change between pointer and
-            // default when moving through that space feels janky so we disable pointer
-            // events there.
+            // This pointer event is on the control container element instead of the control
+            // element so we disable clicking in the margins below and to the left/right area
+            // as well. Having your cursor change between pointer and default when moving
+            // through that space feels janky so we disable pointer events there.
             event.preventDefault();
         };
 
         const handleControlsContainerClick = (event: MouseEvent) => {
-            // When clicking on the control bar prevent default so we don't perform the
-            // default click logic (don't pause/play).
+            // When clicking on the control bar prevent default so we don't perform the default
+            // click logic (don't pause/play).
             event.preventDefault();
         };
 

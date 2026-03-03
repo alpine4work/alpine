@@ -127,14 +127,14 @@ async function main(): Promise<{exitCode: number}> {
             mapIterable(testInfos.values(), async (testInfo, i) => {
                 // If we're looking at a testlogs directory that hasn't been cleaned by
                 // `admin/bazel/prepare_bazel_testlogs_failure_artifact.sh` we'll have test
-                // successes and test failures in the directory. Find any test successes and
-                // remove them.
+                // successes and test failures in the directory. Find any test successes and remove
+                // them.
                 const testXmlPath = joinPath(testlogsPath, testInfo.name, "test.xml");
                 if (await fs.pathExists(testXmlPath)) {
                     // Read only the first three lines of our `test.xml` file.
                     //
-                    // We only allow 3 `head` process runs at a time to make sure we don't run out
-                    // of file descriptors. We found that running `head` concurrently on many files
+                    // We only allow 3 `head` process runs at a time to make sure we don't run out of
+                    // file descriptors. We found that running `head` concurrently on many files
                     // sometimes led to `testXmlContents` returning an empty string without error.
                     const testXmlContents = await mutexes[i % mutexes.length]!.withLock(() =>
                         runProcess("head", ["-3", testXmlPath]),
@@ -241,8 +241,8 @@ async function main(): Promise<{exitCode: number}> {
             });
 
             for (const testOutputPlaywrightTrace of testInfo.outputPlaywrightTraces) {
-                // Put Playwright test options first since that's usually what you want to see
-                // when you run the `dev testlogs` command.
+                // Put Playwright test options first since that's usually what you want to see when
+                // you run the `dev testlogs` command.
                 choices1.push({
                     name: `${testInfo.name} › output › playwright › ${testOutputPlaywrightTrace.name}`,
                     description: path,
@@ -273,8 +273,8 @@ async function main(): Promise<{exitCode: number}> {
                 });
 
                 for (const testOutputPlaywrightTrace of testAttemptInfo.outputPlaywrightTraces) {
-                    // Put Playwright test options first since that's usually what you want to see
-                    // when you run the `dev testlogs` command.
+                    // Put Playwright test options first since that's usually what you want to see when
+                    // you run the `dev testlogs` command.
                     choices2.push({
                         name: `${testInfo.name} › attempt ${testAttemptName} › output › playwright › ${testOutputPlaywrightTrace.name}`,
                         description: path,

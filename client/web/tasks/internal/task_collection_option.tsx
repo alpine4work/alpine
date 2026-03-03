@@ -24,8 +24,9 @@ export function TaskCollectionOption({
 
     const currentTime = useCurrentTimeRoundedToHour();
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     return (

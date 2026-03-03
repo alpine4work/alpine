@@ -81,8 +81,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
             getDocumentWithOptionalCommentsIfExists(context, documentId),
             commentThreadId
                 ? captureResultPromise(async () => {
-                      // Generate checkpoint before we start loading data. So when we backfill we
-                      // include any realtime events that happened while loading data.
+                      // Generate checkpoint before we start loading data. So when we backfill we include
+                      // any realtime events that happened while loading data.
                       const checkpoint = generateServerSynchronizationCheckpoint();
 
                       const output = await getDocumentCommentThreadAndInitialComments(context, {
@@ -101,8 +101,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
             captureResultPromise(getSpellCheckIgnoredLints(context, `Document:${documentId}`)),
         ]);
 
-    // Don't throw a "actor doesn't have comment" permission error if the actor
-    // doesn't have view access to the document.
+    // Don't throw a "actor doesn't have comment" permission error if the actor doesn't
+    // have view access to the document.
     const commentThreadResult = commentThreadResultResult
         ? unwrapResult(commentThreadResultResult)
         : null;
@@ -169,8 +169,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 // TODO(calebmer): Documents shared via URL (where `accessPolicy.urlGrant` is
 // non-null) on iOS Safari don't hide the bottom bar when the user scrolls down
-// because we don't use `<body>` scrolling. Instead we have an inner scroll
-// view which breaks Safari's nice "hide bottom bar on scroll" interaction.
+// because we don't use `<body>` scrolling. Instead we have an inner scroll view
+// which breaks Safari's nice "hide bottom bar on scroll" interaction.
 //
 // Ideally we'd have a special code path that uses `<body>` scrolling just for
 // documents shared via URL.

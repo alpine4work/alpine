@@ -10,11 +10,12 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Exchanges a short-lived OAuth code for an access token and connects a Slack workspace and/or
- * Slack account.
+ * Exchanges a short-lived OAuth code for an access token and connects a Slack
+ * workspace and/or Slack account.
  *
- * If the Slack workspace is already connected to the space, we will connect only the Slack account,
- * otherwise both the Slack workspace and Slack account are connected.
+ * If the Slack workspace is already connected to the space, we will connect only
+ * the Slack account, otherwise both the Slack workspace and Slack account are
+ * connected.
  */
 export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWorkspaceAndAccount(
     context: ServerSessionActionContext & {slack: SlackContextModuleBase},
@@ -25,9 +26,9 @@ export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWo
     const {workspaceId, slackUserId, botToken, botUserId, botScopes} =
         await context.slack.exchangeShortLivedOAuthCodeForAccessToken(context, {code, spaceId});
 
-    // The bot token is now cached in context.slack for this request cycle, so the getUserProfile
-    // and getWorkspaceInfo calls below share a single authenticated WebClient without hitting
-    // the database again.
+    // The bot token is now cached in context.slack for this request cycle, so the
+    // getUserProfile and getWorkspaceInfo calls below share a single authenticated
+    // WebClient without hitting the database again.
     const [existingSlackWorkspace, userProfile, workspaceInfo, space] = await runAllPromises([
         getConnectedSlackWorkspaceIfExists(context, {
             spaceId,

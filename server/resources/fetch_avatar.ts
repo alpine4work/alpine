@@ -36,8 +36,8 @@ export async function fetchAvatar(
 
     const signedUrl = new URL(url);
 
-    // Make sure the user is allowed to access this file by verifying the signed
-    // URL. If the user tampered with the URL then we'll throw an error.
+    // Make sure the user is allowed to access this file by verifying the signed URL.
+    // If the user tampered with the URL then we'll throw an error.
     try {
         await tokenAgent.publicSide.verifyUrl(signedUrl);
     } catch (error) {
@@ -53,9 +53,9 @@ export async function fetchAvatar(
     const expirationTime = getContentReferencesFileSignedUrlSearchExpirationTime(signedUrl.search);
     const cacheControlMaxAge = Math.ceil((expirationTime - Date.now()) / 1000) + 60;
 
-    // Use a cache specifically for files since we'll be saving private files to
-    // this cache. We don't want to accidentally serve these files from another
-    // request that hasn't verified the URL signature.
+    // Use a cache specifically for files since we'll be saving private files to this
+    // cache. We don't want to accidentally serve these files from another request that
+    // hasn't verified the URL signature.
     const avatarsCache = await caches.open(avatarCacheName);
 
     try {
@@ -63,8 +63,8 @@ export async function fetchAvatar(
         if (cachedResponse) {
             const cachedResponseHeaders = new Headers(cachedResponse.headers);
 
-            // 1. Make sure to switch the `public` `cache-control` directive back to
-            //    `private` before returning.
+            // 1. Make sure to switch the `public` `cache-control` directive back to `private`
+            //    before returning.
             // 2. Change `max-age` to match the expiration time from our URL.
             const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
             if (cacheControlResponseHeader) {
@@ -96,14 +96,13 @@ export async function fetchAvatar(
             // https://github.com/cloudflare/miniflare/blob/12f6f915e08fbf3c7c5298e5131153c5e6e11d57/packages/shared/src/error.ts#L9
             error.name === "CacheError [ERR_DESERIALIZATION]"
         ) {
-            // There's a race condition in Miniflare in development where if
-            // `filesCache.put()` hasn't finished running then Miniflare will have started
-            // writing to the cache but won't have written cache metadata. This causes
-            // Miniflare to crash. This race condition reproduces reliably when playing a
-            // video file that's not in the cache.
+            // There's a race condition in Miniflare in development where if `filesCache.put()`
+            // hasn't finished running then Miniflare will have started writing to the cache
+            // but won't have written cache metadata. This causes Miniflare to crash. This race
+            // condition reproduces reliably when playing a video file that's not in the cache.
             //
-            // If we detect this race condition then we ignore the error and treat this as
-            // an uncached request.
+            // If we detect this race condition then we ignore the error and treat this as an
+            // uncached request.
         } else {
             throw error;
         }
@@ -123,13 +122,13 @@ export async function fetchAvatar(
         span,
     );
 
-    // Cloudflare doesn't support caching partial responses. So make sure we
-    // have a non-206 status code before writing to the cache.
+    // Cloudflare doesn't support caching partial responses. So make sure we have a
+    // non-206 status code before writing to the cache.
     if (response.ok && response.status !== 206) {
         // Replace the `private` `cache-control` directive with `public`. It's safe to
         // cache avatars in `avatarsCache` since in order to access `avatarsCache` you must
-        // have a valid signed URL when accessing this endpoint. We'll only generate
-        // signed URLs when the user actually has access to an avatar.
+        // have a valid signed URL when accessing this endpoint. We'll only generate signed
+        // URLs when the user actually has access to an avatar.
         const {
             body: cacheResponseBody,
             status: cacheResponseStatus,

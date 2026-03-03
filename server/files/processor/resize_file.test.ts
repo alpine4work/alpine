@@ -39,8 +39,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-// Increase timeout to reduce test flakiness. Working with images can be
-// expensive, especially on overloaded CI machines.
+// Increase timeout to reduce test flakiness. Working with images can be expensive,
+// especially on overloaded CI machines.
 import.meta.jest.setTimeout(30 * 1000);
 
 const jpegTestFixturePath = joinPath(
@@ -66,8 +66,8 @@ let port: number;
 const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime, span) => {
         if (
-            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job queue
-            // system.
+            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job
+            // queue system.
             job.type === "ProcessFile" ||
             job.type === "ProcessFileLight" ||
             job.type === "ProcessFileHeavy"
@@ -286,9 +286,9 @@ test("can\u2019t resize an image that doesn\u2019t exist", async () => {
     expect(await resizeResponse.text()).toEqual("404 Not Found");
 });
 
-// Use a TypeScript object map to make sure we have tests for every web safe
-// image content type. If a new web safe image content type is added then we
-// should add another test here.
+// Use a TypeScript object map to make sure we have tests for every web safe image
+// content type. If a new web safe image content type is added then we should add
+// another test here.
 const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]: () => void} = {
     "image/jpeg": () => {
         test("can resize a JPEG image", async () => {
@@ -641,10 +641,9 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     );
 
                     // NOTE(ifitzsimmons, #dont-resize-gifs): We stopped resizing gifs because they
-                    // take too long (often timing out at 30 seconds).
-                    // If we get to a place where we want to resize gifs asynchronously while
-                    // serving the original image/gif content, we can re-use the old tests gif
-                    // tests here:
+                    // take too long (often timing out at 30 seconds). If we get to a place where we
+                    // want to resize gifs asynchronously while serving the original image/gif content,
+                    // we can re-use the old tests gif tests here:
                     // https://github.com/cyberworlds/cyberworlds/blob/2a492ef16f10196366605fcaa90d8f8a392cce2e/server/files/processor/resize_file.test.ts#L595-L1301
                     expect(resizeResponse.status).toEqual(400);
                     expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
@@ -653,8 +652,8 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     );
                 }
             },
-            // For some reason, this test can take a while compared to other tests in
-            // this file.
+            // For some reason, this test can take a while compared to other tests in this
+            // file.
             30 * 1000,
         );
     },
@@ -1145,9 +1144,9 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 ),
             });
 
-            // TODO(calebmer): Support animated `.avif` files. `sharp` doesn't support
-            // animated `.avif` files. So we'll need a separate image processor
-            // implementation that uses FFmpeg.
+            // TODO(calebmer): Support animated `.avif` files. `sharp` doesn't support animated
+            // `.avif` files. So we'll need a separate image processor implementation that uses
+            // FFmpeg.
             expect(file).toEqual(
                 new FileModel({
                     id: file.id,

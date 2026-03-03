@@ -160,26 +160,24 @@ export async function run({
     start(
         process.env.NODE_ENV === "production"
             ? wait(taskRealtimeServiceDiscoveryWaitMs)
-            : // In development we only have one `TaskRealtimeService` instance and it's
-              // always at the same port. It's always "discovered".
+            : // In development we only have one `TaskRealtimeService` instance and it's always
+              // at the same port. It's always "discovered".
               Promise.resolve(),
     );
 
-    // Sometimes we want to upgrade a session actor to a system actor. This gives
-    // the action escalated the system permission level which is dangerous! The
-    // system permission level has broad access to a space. We should tightly
-    // control what code is allowed to call this function, only allowed context
-    // modules get access and those context modules are expected to treat this as a
-    // private variable.
+    // Sometimes we want to upgrade a session actor to a system actor. This gives the
+    // action escalated the system permission level which is dangerous! The system
+    // permission level has broad access to a space. We should tightly control what
+    // code is allowed to call this function, only allowed context modules get access
+    // and those context modules are expected to treat this as a private variable.
     //
     // It's important we use new caches + batchers here. We don't want to load some
     // data at a higher permission level then let the session context see it. So we
     // derive our new context from the process context to help avoid reusing any
     // request-level caches.
     //
-    // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function
-    // into RPC calls on another machine someday for security? Not sure if that
-    // helps.
+    // NOTE(calebmer, 2023-08-07): May be worthwhile turning uses of this function into
+    // RPC calls on another machine someday for security? Not sure if that helps.
     const dangerouslyEscalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
@@ -276,12 +274,12 @@ export async function run({
 
         switch (route.type) {
             case "Main": {
-                // NOTE(calebmer): This condition is important for security!
-                // `TaskRealtimeService` has routes to the public internet so our Cloudflare
-                // Worker `EdgeService` can make a connection. However, ONLY `EdgeService`
-                // should be allowed to make WebSocket connections. This check makes sure of
-                // that. Session cookies would use an `AppClient` service name, you need access
-                // to `EdgeService`'s private key to get past this check.
+                // NOTE(calebmer): This condition is important for security! `TaskRealtimeService`
+                // has routes to the public internet so our Cloudflare Worker `EdgeService` can
+                // make a connection. However, ONLY `EdgeService` should be allowed to make
+                // WebSocket connections. This check makes sure of that. Session cookies would use
+                // an `AppClient` service name, you need access to `EdgeService`'s private key to
+                // get past this check.
                 if (actorContextModule.serviceName !== "EdgeService") {
                     throw new PermissionDeniedError("Only `EdgeService` can connect via WebSocket");
                 }
@@ -311,9 +309,9 @@ export async function run({
                     },
                 );
             }
-            // This endpoint should be called every time an action transaction is commit in
-            // a space that's part of this server's space partition. We add the actions to
-            // our action history and broadcast realtime events to all connected clients.
+            // This endpoint should be called every time an action transaction is commit in a
+            // space that's part of this server's space partition. We add the actions to our
+            // action history and broadcast realtime events to all connected clients.
             case "ApplyActionTransaction": {
                 if (request.method !== "POST") {
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
@@ -595,12 +593,11 @@ export async function run({
             } else {
                 span.addException(result.error);
 
-                // If there was an error and the client was trying to connect to a WebSocket
-                // then temporarily connect so we can send an error message over the WebSocket
-                // protocol then immediately close.
+                // If there was an error and the client was trying to connect to a WebSocket then
+                // temporarily connect so we can send an error message over the WebSocket protocol
+                // then immediately close.
                 //
-                // e.g. If there was an authorization error during durable object
-                // initialization.
+                // e.g. If there was an authorization error during durable object initialization.
                 if (request.headers.get("upgrade") !== "websocket") {
                     return new Response(
                         JSON.stringify({ok: false, error: ErrorSchema.serialize(result.error)}),
@@ -616,9 +613,9 @@ export async function run({
 
                     const response = new Response(null, {
                         status: 101,
-                        // Cloudflare's WebSocket implementation doesn't fully comply with the
-                        // TypeScript DOM WebSocket type (e.g. there is no `bufferedAmount` or
-                        // `binaryType` property) but everything seems to be fine regardless.
+                        // Cloudflare's WebSocket implementation doesn't fully comply with the TypeScript
+                        // DOM WebSocket type (e.g. there is no `bufferedAmount` or `binaryType` property)
+                        // but everything seems to be fine regardless.
                         webSocket: clientSocket as any as globalThis.WebSocket,
                     });
 

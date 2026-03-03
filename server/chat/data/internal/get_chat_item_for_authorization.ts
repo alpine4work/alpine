@@ -16,8 +16,8 @@ import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 
 export const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatItem | null>({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -68,8 +68,8 @@ export function getChatItemIfExistsForAuthorization(
 
         return {
             attributesItem,
-            // `Room` chats shouldn't have account items, only `Direct` chats. However, due
-            // to race condition or some error edge cases we may have account items in the
+            // `Room` chats shouldn't have account items, only `Direct` chats. However, due to
+            // race condition or some error edge cases we may have account items in the
             // database for `Room` chats. Ignore the account items in this case.
             accountItems: attributesItem.definition.type === "Direct" ? accountItems : emptyArray,
         };

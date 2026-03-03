@@ -5,9 +5,9 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * When sharing an entity with other people the user has the option to send a
- * notification to those other people. If they choose to send a notification
- * it's represented by this object. There's a list of recipient accounts and
- * the optional message content.
+ * notification to those other people. If they choose to send a notification it's
+ * represented by this object. There's a list of recipient accounts and the
+ * optional message content.
  */
 export type ShareNotification = SchemaType<typeof ShareNotificationSchema>;
 

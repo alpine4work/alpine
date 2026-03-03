@@ -21,8 +21,7 @@ const AccountItemWithoutAvatarContextCache = new DynamoContextCache<
     AccountId,
     AccountItemWithoutAvatar | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -31,14 +30,14 @@ export async function getAccountItemWithoutAvatarIfExists(
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountItemWithoutAvatar | null> {
-    // Pretend like the unknown account doesn't exist. We do have an unknown
-    // account record in our database as a safety precaution to make sure we
-    // don't accidentally create an account with the unknown `AccountId`. But we
-    // should never return that data. Instead if you want data for an unknown
-    // account call `AccountModel.getUnknown()`.
+    // Pretend like the unknown account doesn't exist. We do have an unknown account
+    // record in our database as a safety precaution to make sure we don't accidentally
+    // create an account with the unknown `AccountId`. But we should never return that
+    // data. Instead if you want data for an unknown account call
+    // `AccountModel.getUnknown()`.
     //
-    // Calling `getAccount(unknownAccountId)` should always fail with a not
-    // found error.
+    // Calling `getAccount(unknownAccountId)` should always fail with a not found
+    // error.
     if (accountId === unknownAccountId) return null;
 
     // If we've already load the account item with its avatar then we don't need to
@@ -75,29 +74,28 @@ export async function getAccountItemWithoutAvatar(
 }
 
 const AccountItemContextCache = new DynamoContextCache<AccountId, AccountItem | null>({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
-// NOTE(ifitzsimmons, 2025-08-10):
-// DynamoDB cost optimization: We query both Attributes and Avatar items in a single
-// operation to consume only 1 RCU. Since avatars are <3KB, the combined size stays
-// within DynamoDB's 4KB item limit, making this more cost-effective than separate
-// requests while maintaining the flexibility to fetch account metadata independently.
+// NOTE(ifitzsimmons, 2025-08-10): DynamoDB cost optimization: We query both
+// Attributes and Avatar items in a single operation to consume only 1 RCU. Since
+// avatars are <3KB, the combined size stays within DynamoDB's 4KB item limit,
+// making this more cost-effective than separate requests while maintaining the
+// flexibility to fetch account metadata independently.
 export async function getAccountItemIfExists(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountItem | null> {
-    // Pretend like the unknown account doesn't exist. We do have an unknown
-    // account record in our database as a safety precaution to make sure we
-    // don't accidentally create an account with the unknown `AccountId`. But we
-    // should never return that data. Instead if you want data for an unknown
-    // account call `AccountModel.getUnknown()`.
+    // Pretend like the unknown account doesn't exist. We do have an unknown account
+    // record in our database as a safety precaution to make sure we don't accidentally
+    // create an account with the unknown `AccountId`. But we should never return that
+    // data. Instead if you want data for an unknown account call
+    // `AccountModel.getUnknown()`.
     //
-    // Calling `getAccount(unknownAccountId)` should always fail with a not
-    // found error.
+    // Calling `getAccount(unknownAccountId)` should always fail with a not found
+    // error.
     if (accountId === unknownAccountId) return null;
 
     return AccountItemContextCache.get(context, consistency, accountId, async consistency => {

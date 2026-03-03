@@ -8,9 +8,9 @@ import {cast} from "~/shared/helpers/control/cast.js";
  * Useful in places we need to programatically determine how much margin to add
  * between elements. Should be kept in sync with `content.css.ts`.
  *
- * List items (`unorderedListItem`, `orderedListItem`, and `checkListItem`) are
- * a special case where adjacent list items have paragraph margins but a list
- * item adjacent to anything else has standalone margin.
+ * List items (`unorderedListItem`, `orderedListItem`, and `checkListItem`) are a
+ * special case where adjacent list items have paragraph margins but a list item
+ * adjacent to anything else has standalone margin.
  */
 export const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: boolean} = cast<{
     [Key in ContentBlockNodeTypeName]: boolean;

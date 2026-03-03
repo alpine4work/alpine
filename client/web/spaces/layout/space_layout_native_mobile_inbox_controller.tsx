@@ -50,9 +50,8 @@ export function SpaceLayoutNativeMobileInboxController({
         // notification bell. However, we want folks to have a healthy relationship with
         // their notifications. You could be getting new non-loud notifications pretty
         // frequently as folks create new posts or add comments. So when you reach inbox
-        // zero we give you 1-2 hours of peace before showing you have new
-        // notifications. You can still reach someone immediately with a loud
-        // notification.
+        // zero we give you 1-2 hours of peace before showing you have new notifications.
+        // You can still reach someone immediately with a loud notification.
         else if (
             inbox.model.entryCount > 0 &&
             (!inbox.model.lastZeroEntryCountTime ||

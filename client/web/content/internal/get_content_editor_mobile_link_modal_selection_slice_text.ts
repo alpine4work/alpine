@@ -8,9 +8,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
 
 /**
- * Is the slice (from a selection) editable? Returns a single line of text from
- * the selection regardless of whether it's editable or not. If the text spans
- * multiple nodes then we print a single line of text with
+ * Is the slice (from a selection) editable? Returns a single line of text from the
+ * selection regardless of whether it's editable or not. If the text spans multiple
+ * nodes then we print a single line of text with
  * `printContentSingleLineTextSnippet()`.
  */
 export function getContentEditorMobileLinkModalSelectionSliceText(

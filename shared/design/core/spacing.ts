@@ -8,23 +8,23 @@ export type Spacing = keyof typeof spacing;
 /**
  * Our spacing scale.
  *
- * The spacing scale is based on multiples of 8. Intervals increase
- * exponentially between steps on the scale.
+ * The spacing scale is based on multiples of 8. Intervals increase exponentially
+ * between steps on the scale.
  *
- * On mobile we scale everything up by 1.25x. This makes clickable areas larger
- * on mobile and helps legibility.
+ * On mobile we scale everything up by 1.25x. This makes clickable areas larger on
+ * mobile and helps legibility.
  *
- * The name of the spacing variable is proportional to its size. So `32`
- * is four times as large as `8`.
+ * The name of the spacing variable is proportional to its size. So `32` is four
+ * times as large as `8`.
  *
- * We use rems to represent our spacing scale. This allows us to easily adjust
- * the platform scale.
+ * We use rems to represent our spacing scale. This allows us to easily adjust the
+ * platform scale.
  *
  * Important values:
  *
  * - Our default font size (`75`) has a line height of `4`
- * - As a general rule, buttons should have a hit region of at least `9` (aka
- *   45px on mobile, [Apple recommends a 44px minimum hit region][1])
+ * - As a general rule, buttons should have a hit region of at least `9` (aka 45px
+ *   on mobile, [Apple recommends a 44px minimum hit region][1])
  * - Peek content typically has a width of `128`
  *
  * [1]: https://developer.apple.com/design/human-interface-guidelines/buttons
@@ -99,8 +99,7 @@ export type ParsableRemLength = Spacing | RemLength | `-${Spacing}` | `-${RemLen
 export function parseRemLength(remLength: ParsableRemLength): number {
     if (remLength[0] === "-") return -parseRemLength(remLength.slice(1) as Spacing | RemLength);
 
-    // Optimization: We've precomputed the rem length number for all `spacing`
-    // values.
+    // Optimization: We've precomputed the rem length number for all `spacing` values.
     const precomputedRemLengthNumber = precomputedRemLengthNumberBySpacingRemLength.get(
         remLength as Spacing | RemLength,
     );
@@ -148,8 +147,7 @@ export function negateRemLength(remLength: RemLength): RemLength {
 }
 
 /**
- * Convert a length in rem units to a number using the root font size pixel
- * value.
+ * Convert a length in rem units to a number using the root font size pixel value.
  */
 export function convertRemLengthToPx(
     remLength: ParsableRemLength,
@@ -159,11 +157,11 @@ export function convertRemLengthToPx(
 }
 
 /**
- * Horizontal padding to use at the screen's edges. We use a different value on
- * the mobile platform vs desktop. Desktop UI in a mobile layout (peeks) will
- * still use desktop screen padding for consistency. There's less padding on
- * mobile since there's less available screen space. On desktop, even in peeks,
- * there's more screen space so adding padding improves legibility.
+ * Horizontal padding to use at the screen's edges. We use a different value on the
+ * mobile platform vs desktop. Desktop UI in a mobile layout (peeks) will still use
+ * desktop screen padding for consistency. There's less padding on mobile since
+ * there's less available screen space. On desktop, even in peeks, there's more
+ * screen space so adding padding improves legibility.
  */
 export const screenPaddingX: Memo<{
     readonly mobile: Spacing;

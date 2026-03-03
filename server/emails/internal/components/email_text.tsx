@@ -39,8 +39,8 @@ export function EmailText({
                 lineHeight: "1.5em",
                 fontStyle: emailFontStyles[fontStyle].fontStyle,
                 fontWeight: emailFontStyles[fontStyle].fontWeight,
-                // It's easier to reason about paddings then margins with margin collapse. I
-                // also don't trust email clients to correctly collapse margins.
+                // It's easier to reason about paddings then margins with margin collapse. I also
+                // don't trust email clients to correctly collapse margins.
                 paddingBottom: emailSpacing["2"],
                 marginTop: "0px",
                 marginBottom: "0px",

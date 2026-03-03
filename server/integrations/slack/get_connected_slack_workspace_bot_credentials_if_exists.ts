@@ -9,11 +9,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
- * Gets the bot credentials for the Slack workspace connected to the space, if one exists.
- * Will throw if there are multiple Slack workspace bot credentials for the same space, as
- * currently we expect only one workspace per space.
+ * Gets the bot credentials for the Slack workspace connected to the space, if one
+ * exists. Will throw if there are multiple Slack workspace bot credentials for the
+ * same space, as currently we expect only one workspace per space.
  *
- * Does not get the workspace details, use `getConnectedSlackWorkspaceIfExists` to get both.
+ * Does not get the workspace details, use `getConnectedSlackWorkspaceIfExists` to
+ * get both.
  */
 export async function getConnectedSlackWorkspaceBotCredentialsIfExists(
     context: ServerActionContext,

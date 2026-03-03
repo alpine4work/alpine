@@ -5,8 +5,8 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {ChatId} from "~/shared/id/types/id_types.js";
 
 /**
- * Returns true if the actor is subscribed to the room chat. In other words
- * would the actor be returned in `getChatNotificationSubscribers()`?
+ * Returns true if the actor is subscribed to the room chat. In other words would
+ * the actor be returned in `getChatNotificationSubscribers()`?
  */
 export async function isSubscribedToRoomChat(
     context: ServerSessionActionContext,

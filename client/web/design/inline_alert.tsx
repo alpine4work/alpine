@@ -23,8 +23,8 @@ export function InlineAlert({
     /**
      * The title of the inline alert.
      *
-     * Corresponds to the "what happened" part of an error message according to
-     * [Adobe Spectrum's][1] error content guidelines.
+     * Corresponds to the "what happened" part of an error message according to [Adobe
+     * Spectrum's][1] error content guidelines.
      *
      * [1]: https://spectrum.adobe.com/page/writing-for-errors
      */

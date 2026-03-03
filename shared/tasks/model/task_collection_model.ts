@@ -30,9 +30,9 @@ const TaskCollectionModelDataSchema = Schema.object({
     accessPolicy: AccessPolicyRegister.schema,
 });
 
-// Doesn't use the `Model` class since `rawData` contains "raw" properties
-// we want to provide clean accessors for. Like `isDeleted()` comparing
-// `deletedTime` and `undeletedTime`.
+// Doesn't use the `Model` class since `rawData` contains "raw" properties we want
+// to provide clean accessors for. Like `isDeleted()` comparing `deletedTime` and
+// `undeletedTime`.
 export class TaskCollectionModel {
     public static readonly schema = TaskCollectionModelDataSchema.transform<TaskCollectionModel>({
         serialize: task => task.rawData,
@@ -67,10 +67,10 @@ export class TaskCollectionModel {
     }
 
     /**
-     * Apply an action to this collection. Collections are [CRDTs][1] which means
-     * their actions are commutative and idempotent. In practical language: you can
-     * apply actions many times and in any order. Our task backend takes advantage
-     * of this and doesn't bother enforcing a canonical task order.
+     * Apply an action to this collection. Collections are [CRDTs][1] which means their
+     * actions are commutative and idempotent. In practical language: you can apply
+     * actions many times and in any order. Our task backend takes advantage of this
+     * and doesn't bother enforcing a canonical task order.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
@@ -87,17 +87,17 @@ export class TaskCollectionModel {
             action.collectionAction,
         );
 
-        // Optimization: Maintain referential integrity if the collection's data
-        // didn't change.
+        // Optimization: Maintain referential integrity if the collection's data didn't
+        // change.
         if (rawData === this.rawData) return this;
 
         return new TaskCollectionModel(rawData);
     }
 
     /**
-     * Merge this collection with another. Collections are [CRDTs][1] which means
-     * they have a well-defined merge operation where we converge eventually to the
-     * latest representation of a collection.
+     * Merge this collection with another. Collections are [CRDTs][1] which means they
+     * have a well-defined merge operation where we converge eventually to the latest
+     * representation of a collection.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
@@ -112,8 +112,8 @@ export class TaskCollectionModel {
     }
 
     /**
-     * Make sure the hybrid logical clock's time is beyond any time observed by
-     * this collection.
+     * Make sure the hybrid logical clock's time is beyond any time observed by this
+     * collection.
      */
     public tick(clock: {tick(time: HybridLogicalTime): void}) {
         return tickTaskCollectionModelData(this.rawData, clock);

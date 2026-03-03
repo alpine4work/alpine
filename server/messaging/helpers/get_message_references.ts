@@ -22,8 +22,8 @@ export async function getMessageReferences(
         getContentReferences(
             context,
             spaceId,
-            // `MessageContent` doesn't have referenced files in content. Make sure no
-            // files were passed in by not providing a `FileAuthorizer`.
+            // `MessageContent` doesn't have referenced files in content. Make sure no files
+            // were passed in by not providing a `FileAuthorizer`.
             "AssertHasNoFiles",
             referencedIds.contentReferencedIds,
         ),

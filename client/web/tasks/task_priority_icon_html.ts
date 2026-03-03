@@ -32,8 +32,8 @@ export const taskPriorityIconUrgentCircleFillNotHighlightedClassName = sprinkles
 // IMPORTANT: If you update the HTML here you should also update
 // `<TaskPriorityIcon>` for code that renders priority icons in React.
 /**
- * Renders a task priority icon to an `HtmlGenerator` object. For rendering
- * icons in `<ContentEditor>` where we can't render React UI.
+ * Renders a task priority icon to an `HtmlGenerator` object. For rendering icons
+ * in `<ContentEditor>` where we can't render React UI.
  */
 export function renderTaskPriorityIcon({
     size,
@@ -95,8 +95,8 @@ export function renderTaskPriorityIcon({
     return createSvgHtmlGenerator(svg);
 }
 
-// Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation
-// mark bigger and duotone.
+// Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation mark
+// bigger and duotone.
 function renderTaskPriorityIconUrgent({
     size,
     shouldHighlightUrgent,

@@ -377,8 +377,8 @@ function TaskQueryFilterEditorBase({
                 flexShrink="0"
                 paddingLeft={platform === "mobile" ? "1.5" : "1"}
                 style={{
-                    // Subtract 1px from our right padding since that's the border width. That
-                    // will give us good margin on all sides of the button.
+                    // Subtract 1px from our right padding since that's the border width. That will
+                    // give us good margin on all sides of the button.
                     paddingRight: `calc(${spacing[platform === "mobile" ? "1.5" : "0.5"]} - 1px)`,
                 }}
             >

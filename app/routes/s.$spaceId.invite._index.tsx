@@ -62,8 +62,8 @@ export default function HomeRoute() {
     };
 
     const onAcceptInvite = async () => {
-        // We want to manually handle the invite acceptance here
-        // to avoid another redirect to /accept and then home.
+        // We want to manually handle the invite acceptance here to avoid another redirect
+        // to /accept and then home.
         await acceptSpaceAccountInvite(appContext, {
             spaceId: context.space.id,
         });
@@ -72,8 +72,8 @@ export default function HomeRoute() {
         const to = urlParams.get("to");
         const destination = to ? `/s/${context.space.id}${to}` : `/s/${context.space.id}`;
 
-        // We use from=invite to tell remix to revalidate our space loader data
-        // This will re-evalutate permissions and let the user immediately click on resources
+        // We use from=invite to tell remix to revalidate our space loader data This will
+        // re-evalutate permissions and let the user immediately click on resources
         navigate(`${destination}?from=invite`, {replace: true});
     };
 

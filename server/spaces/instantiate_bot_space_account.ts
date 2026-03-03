@@ -16,9 +16,9 @@ import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
- * Creates an account for a bot in a space. You must be an admin in the space
- * to instantiate a bot account in a space. Each bot can only be instantiated
- * once per space.
+ * Creates an account for a bot in a space. You must be an admin in the space to
+ * instantiate a bot account in a space. Each bot can only be instantiated once per
+ * space.
  */
 export async function instantiateBotSpaceAccount(
     context: ServerActionContext,
@@ -60,8 +60,8 @@ export async function instantiateBotSpaceAccount(
 }
 
 /**
- * Create the transaction entries for instantiating a bot account in a space.
- * Does not check that you're the owner of the space.
+ * Create the transaction entries for instantiating a bot account in a space. Does
+ * not check that you're the owner of the space.
  *
  * IMPORTANT: You must perform authorization yourself.
  *
@@ -104,8 +104,8 @@ export async function internalDangerouslyCreateInstantiateBotSpaceAccountTransac
         },
     });
 
-    // It's safe to use create-or-replace because we're creating the account in
-    // this transaction so we know there won't be another item for the account.
+    // It's safe to use create-or-replace because we're creating the account in this
+    // transaction so we know there won't be another item for the account.
     const createSpaceAccountTransactionEntry = SpacesTable.transactionCreateOrReplaceItem(
         {
             partitionType: "Space",
@@ -115,14 +115,14 @@ export async function internalDangerouslyCreateInstantiateBotSpaceAccountTransac
             role: "Member",
             addedTime: currentTime,
             state: {type: "Active", activatedTime: currentTime},
-            // Include the `BotId` in the space account item so we can quickly check if a
-            // space account is a bot.
+            // Include the `BotId` in the space account item so we can quickly check if a space
+            // account is a bot.
             botId,
         },
         {
             onAfterTransactionExecutedSuccessfully: () => {
-                // When an account is added to a space, index the account in the space so it
-                // can be searched.
+                // When an account is added to a space, index the account in the space so it can be
+                // searched.
                 context.jobs.send({
                     type: "IndexSearchEntity",
                     spaceId,
@@ -159,11 +159,11 @@ export async function internalDangerouslyCreateInstantiateBotSpaceAccountTransac
 
             createSpaceAccountTransactionEntry,
 
-            // The bot account should only ever be in this one space. But for completeness
-            // we still create the `Spaces` item for the bot account.
+            // The bot account should only ever be in this one space. But for completeness we
+            // still create the `Spaces` item for the bot account.
             //
-            // It's safe to use create-or-replace because we're creating the account in
-            // this transaction so we know there won't be another item for the account.
+            // It's safe to use create-or-replace because we're creating the account in this
+            // transaction so we know there won't be another item for the account.
             SpacesTable.transactionCreateOrReplaceItem({
                 partitionType: "Account",
                 sortRangeType: "Spaces",

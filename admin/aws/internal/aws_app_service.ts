@@ -47,16 +47,16 @@ export class AwsAppService extends Construct {
                 // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
                 // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
                 // switched to an opinionated `loadBalancerName` in order to do a zero downtime
-                // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
-                // updated our DNS record, waited for all requests to move to `LoadBalancer2`
-                // then deleted `LoadBalancer`.
+                // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`, updated
+                // our DNS record, waited for all requests to move to `LoadBalancer2` then deleted
+                // `LoadBalancer`.
                 logicalName: "LoadBalancer2",
                 domainName: "alpine.inc",
                 healthCheckPath: "/api/internal/healthcheck",
                 listenerTarget: {
                     // Attempt to route sessions to the same EC2 instance for a day. This is an
-                    // optimization that increases in-memory cache hits and not required for
-                    // successful operation of the product.
+                    // optimization that increases in-memory cache hits and not required for successful
+                    // operation of the product.
                     stickinessCookieDuration: Duration.days(1),
                 },
             },
@@ -74,22 +74,23 @@ export class AwsAppService extends Construct {
         // PutObject URLs for Notion imports.
         options.importUploads.grantUpload(taskDefinition.taskRole);
 
-        // TODO(ifitzsimmons, 2025-12-18): This is a temporary workaround to allow the App service
-        // to read the Bots table for the `internal/bots` page. One day, we should have better
-        // access patterns for getting all of the bots of which you are an admin. Until then,
-        // we'll scan all the bots in the table, since we (Alpine) own all the bots for now.
+        // TODO(ifitzsimmons, 2025-12-18): This is a temporary workaround to allow the App
+        // service to read the Bots table for the `internal/bots` page. One day, we should
+        // have better access patterns for getting all of the bots of which you are an
+        // admin. Until then, we'll scan all the bots in the table, since we (Alpine) own
+        // all the bots for now.
         options.dynamo.grantReadDataForTable(taskDefinition.taskRole, "Bots", {
             allowExpensiveScan: true,
         });
 
-        // This is here for historical reasons, as we used to send email from cyberworlds.dev.
-        // It should be removed at some point in the future.
+        // This is here for historical reasons, as we used to send email from
+        // cyberworlds.dev. It should be removed at some point in the future.
         taskDefinition.addToTaskRolePolicy(
             new PolicyStatement({
                 actions: ["ses:SendEmail"],
                 resources: [
-                    // We don't send emails from cyberworlds.dev anymore and this was
-                    // left as a precaution. Should be removed in the future.
+                    // We don't send emails from cyberworlds.dev anymore and this was left as a
+                    // precaution. Should be removed in the future.
                     "arn:aws:ses:*:*:identity/cyberworlds.dev",
                 ],
             }),

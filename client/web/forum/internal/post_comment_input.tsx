@@ -110,9 +110,9 @@ export function PostCommentInput(props: {
         () =>
             hasAccessLevel(
                 getAccountAccessLevelAssumingSpaceAccess(
-                    // Use the `accessPolicy` from `header` if applicable. Because we update
-                    // the `channel` in `header` in realtime. Whereas the `channel` preview
-                    // in the `PostModel` might not update in realtime.
+                    // Use the `accessPolicy` from `header` if applicable. Because we update the
+                    // `channel` in `header` in realtime. Whereas the `channel` preview in the
+                    // `PostModel` might not update in realtime.
                     props.header?.type === "Channel" &&
                         props.header.channel.id === props.post.channel.id
                         ? props.header.channel.accessPolicy
@@ -142,9 +142,9 @@ function usePostCommentInputRealtime({
     const {currentAccount} = useSpaceContext();
     const shouldConnectToPostRealtime = currentAccount !== null;
 
-    // We connect to realtime in our `<PostCommentInput>` component. When comments
-    // are open this component is always rendered and we only want to connect to
-    // realtime when comments are open so works out.
+    // We connect to realtime in our `<PostCommentInput>` component. When comments are
+    // open this component is always rendered and we only want to connect to realtime
+    // when comments are open so works out.
     const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "PostRealtimeService",
         PostRealtimeProtocol,
@@ -204,8 +204,8 @@ function usePostCommentInputRealtime({
                             break;
                         }
                         case "RealtimeEventTransaction": {
-                            // If we'll receive post update events from our channel realtime durable
-                            // connection then don't handle them here.
+                            // If we'll receive post update events from our channel realtime durable connection
+                            // then don't handle them here.
                             if (!shouldBeConnectedToChannelRealtime) {
                                 onPostRealtimeEventTransaction(event.eventTransaction);
                             }
@@ -252,21 +252,20 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
 
     const {isConnected, procedures} = usePostCommentInputRealtime(props);
 
-    // Whenever we connect to our WebSocket, we may need to reload our realtime
-    // item in case we missed any realtime updates while we were disconnected.
-    // Going forward we should receive realtime updates from `subscribeToEvents()`.
+    // Whenever we connect to our WebSocket, we may need to reload our realtime item in
+    // case we missed any realtime updates while we were disconnected. Going forward we
+    // should receive realtime updates from `subscribeToEvents()`.
     //
     // This code was copied from `useDynamoGeneralRealtimeItem()`.
     const lastReloadedPostIdRef = useRef<PostId | null>(null);
     useEffect(() => {
         // If we're connected to channel realtime, we don't need to backfill realtime
-        // updates on connection. Since we'll be backfilling at the channel realtime
-        // level.
+        // updates on connection. Since we'll be backfilling at the channel realtime level.
         if (shouldBeConnectedToChannelRealtime) return;
 
         if (!isConnected) {
-            // Clear the last reloaded key when we go disconnect. That way when we
-            // reconnect we will reload the item.
+            // Clear the last reloaded key when we go disconnect. That way when we reconnect we
+            // will reload the item.
             lastReloadedPostIdRef.current = null;
             return;
         }
@@ -281,8 +280,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                         type: "PutItem",
                         item: post,
                         // NOTE(calebmer): Right now when `shouldBeConnectedToChannelRealtime` is false
-                        // we're updating an individual post instead of posts backed by an index
-                        // query. So we don't need `indexes` for now.
+                        // we're updating an individual post instead of posts backed by an index query. So
+                        // we don't need `indexes` for now.
                         indexes: new Map(),
                     },
                 ]);
@@ -300,9 +299,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         isConnected,
     ]);
 
-    // We perform the scroll adjustment for new messages in the
-    // `<PostCommentInput>` component which will always be mounted when the post's
-    // comment section is open.
+    // We perform the scroll adjustment for new messages in the `<PostCommentInput>`
+    // component which will always be mounted when the post's comment section is open.
     useScrollToNewMessages({
         viewRef,
         inputRef,
@@ -351,9 +349,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             onJumpToPostRange={onJumpToPostRange}
             onDeleteMessage={onDeletePostComment}
             onShowTypingIndicator={() => {
-                // Don't show an error updating typing indicators to the user. We will see an
-                // error in our logs but the user won't see any weird behavior if the
-                // request fails.
+                // Don't show an error updating typing indicators to the user. We will see an error
+                // in our logs but the user won't see any weird behavior if the request fails.
                 procedures
                     .startTypingInCommentInput({})
                     .catch(error =>
@@ -364,9 +361,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     );
             }}
             onHideTypingIndicator={() => {
-                // Don't show an error updating typing indicators to the user. We will see an
-                // error in our logs but the user won't see any weird behavior if the
-                // request fails.
+                // Don't show an error updating typing indicators to the user. We will see an error
+                // in our logs but the user won't see any weird behavior if the request fails.
                 procedures
                     .stopTypingInCommentInput({})
                     .catch(error =>
@@ -418,19 +414,21 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                         isBottomBar && clientInfo.isNativeMobile
                             ? `-${messageInputBottomBarBackgroundSlopBottom}`
                             : undefined,
-                    // Our native mobile wrapper looks for compositing layers created from an
-                    // element with an ID that starts with `nmbb-` and ties their position to
-                    // the tab bar and software keyboard. So we get smooth animations while the
-                    // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                    // layer we need to set `will-change: transform`. It's not specified that
-                    // `will-change: transform` MUST create a compositing layer, instead some
-                    // browser engines implement this hint themselves as an optimization.
+                    // Our native mobile wrapper looks for compositing layers created from an element
+                    // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                    // software keyboard. So we get smooth animations while the keyboard opens or the
+                    // tab bar shifts offscreen. To create a compositing layer we need to set
+                    // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                    // create a compositing layer, instead some browser engines implement this hint
+                    // themselves as an optimization.
                     //
-                    // It so happens that WebKit is one of those browsers. Here's the code in
-                    // WebKit that does this: [part 1][1], [part 2][2].
+                    // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                    // that does this: [part 1][1], [part 2][2].
                     //
-                    // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                    // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                    // [1]:
+                    //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                    // [2]:
+                    //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                     willChange: isBottomBar && clientInfo.isNativeMobile ? "transform" : undefined,
                     // Set `transform` to its initial value assuming the tab bar is up.
                     transform:
@@ -438,9 +436,9 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                             ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
                             : undefined,
                 }}
-                // Suppress React hydration warnings in our native mobile app. The native
-                // mobile app sets the `transform` property on this element. Sometimes before
-                // React finishes hydrating. This is expected, React can ignore the difference.
+                // Suppress React hydration warnings in our native mobile app. The native mobile
+                // app sets the `transform` property on this element. Sometimes before React
+                // finishes hydrating. This is expected, React can ignore the difference.
                 suppressHydrationWarning={
                     isBottomBar && clientInfo.isNativeMobile ? true : undefined
                 }
@@ -487,9 +485,9 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                             >
                                 Can&#x2019;t comment on posts in{" "}
                                 {platform === "mobile" ? (
-                                    // There isn't enough space on mobile to consistently render the channel name.
-                                    // So on mobile only say "this channel". You should be able to see the channel
-                                    // name in the header always anyway.
+                                    // There isn't enough space on mobile to consistently render the channel name. So
+                                    // on mobile only say "this channel". You should be able to see the channel name in
+                                    // the header always anyway.
                                     "this channel"
                                 ) : (
                                     <span
@@ -551,9 +549,8 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                                     <ArrowUp
                                         size={spacing["4"]}
                                         style={{
-                                            // Optically, this icon looks...off in our iOS native mobile app.
-                                            // Presumably everywhere in Safari. If only we had a
-                                            // `clientInfo.isWebKit` test.
+                                            // Optically, this icon looks...off in our iOS native mobile app. Presumably
+                                            // everywhere in Safari. If only we had a `clientInfo.isWebKit` test.
                                             transform:
                                                 clientInfo.isNativeMobile &&
                                                 clientInfo.isAppleDevice

@@ -25,15 +25,15 @@ export function createAccountModelFromItem(
             break;
         }
         case "InvitePending": {
-            // If the account is pending, we should use the pending account data that was
-            // given when the account was invited.
+            // If the account is pending, we should use the pending account data that was given
+            // when the account was invited.
             assert(account === null);
             accountData = item.state.pendingAccountData;
             break;
         }
         case "Removed": {
-            // If the account was removed, we should use the old account data that was
-            // present when the account was removed.
+            // If the account was removed, we should use the old account data that was present
+            // when the account was removed.
             assert(account === null);
             accountData = item.state.oldAccountData;
             break;
@@ -66,17 +66,17 @@ function getAccountAvatarModelForAccountModel(
         case "Active": {
             assert(account !== null);
 
-            // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): If there is an
-            // accountAvatarOverride item on the space account, we should emit a warning.
+            // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): If there is
+            // an accountAvatarOverride item on the space account, we should emit a warning.
             return account.initialData.avatar;
         }
         case "InvitePending":
         case "Removed": {
             if (!item.accountAvatarOverride) {
                 // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): This is an
-                // impossible state. We should emit an error without crashing the app. To avoid
-                // app crashes, we overwrite the account avatar with a null avatar if we get into
-                // this state.
+                // impossible state. We should emit an error without crashing the app. To avoid app
+                // crashes, we overwrite the account avatar with a null avatar if we get into this
+                // state.
                 return {avatarId: null, content: null, version: 0};
             }
 
@@ -100,15 +100,15 @@ export function createAccountModelDataWithoutAvatarFromItem(
             break;
         }
         case "InvitePending": {
-            // If the account is pending, we should use the pending account data that was
-            // given when the account was invited.
+            // If the account is pending, we should use the pending account data that was given
+            // when the account was invited.
             assert(activeAccountData === null);
             accountData = item.state.pendingAccountData;
             break;
         }
         case "Removed": {
-            // If the account was removed, we should use the old account data that was
-            // present when the account was removed.
+            // If the account was removed, we should use the old account data that was present
+            // when the account was removed.
             assert(activeAccountData === null);
             accountData = item.state.oldAccountData;
             break;

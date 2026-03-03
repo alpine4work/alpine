@@ -31,8 +31,8 @@ export const visualizationClassName = style({
     paddingTop: spacing["4"],
     paddingLeft: spacing["4"],
     paddingRight: spacing["4"],
-    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-    // have `min-width: auto` which extends with content.
+    // Don't allow item to grow beyond flexbox bounds. By default flexbox items have
+    // `min-width: auto` which extends with content.
     // https://stackoverflow.com/a/66689926/1568890
     minWidth: 0,
 });
@@ -124,8 +124,8 @@ export const metadataIconClassName = style({
 });
 
 export const metadataContentClassName = style({
-    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-    // have `min-width: auto` which extends with content.
+    // Don't allow item to grow beyond flexbox bounds. By default flexbox items have
+    // `min-width: auto` which extends with content.
     // https://stackoverflow.com/a/66689926/1568890
     minWidth: 0,
 });

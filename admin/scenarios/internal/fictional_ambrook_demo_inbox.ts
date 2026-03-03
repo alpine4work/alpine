@@ -37,8 +37,8 @@ export async function createFictionalAmbrookDemoInbox({
 
     const demoAccount = await space.createSession({name: "Cass Cade Inbox Demo Account"});
 
-    // Allow us to wait and make sure `NotificationEvent` is processed and we have
-    // the expected number of inbox entries for our demo.
+    // Allow us to wait and make sure `NotificationEvent` is processed and we have the
+    // expected number of inbox entries for our demo.
     const waitFor = async (count: number) => {
         await retryWithExponentialBackoff(async retry => {
             try {

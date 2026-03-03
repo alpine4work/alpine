@@ -174,9 +174,8 @@ export function useDocumentContentEditorWebSocket(
     });
 
     // When creating a document, we start in the `NotExists` state. Then once some
-    // changes have been made to the document we actually create the document. That
-    // way users don't end up with a bunch of empty documents they accidentally
-    // created.
+    // changes have been made to the document we actually create the document. That way
+    // users don't end up with a bunch of empty documents they accidentally created.
     const [clientState, setClientState] = useState<DocumentContentEditorWebSocketClientState>(
         () => {
             if (!initialDocument) {
@@ -240,8 +239,8 @@ export function useDocumentContentEditorWebSocket(
         if (!shouldConnect) return;
         if (clientState.type === "NotExists") return;
 
-        // Accounts without space access aren't allowed to connect to our realtime
-        // durable object. We'd constantly get authorization errors.
+        // Accounts without space access aren't allowed to connect to our realtime durable
+        // object. We'd constantly get authorization errors.
         if (!currentAccount) return;
 
         clientState.client.connect();
@@ -283,8 +282,8 @@ export function useDocumentContentEditorWebSocket(
                     );
                 }
 
-                // `flushSync()` since we need procedure calls and `onEditorStateChange` calls
-                // to update our new client.
+                // `flushSync()` since we need procedure calls and `onEditorStateChange` calls to
+                // update our new client.
                 flushSync(() => {
                     setClientState({
                         type: "Exists",
@@ -311,15 +310,15 @@ export function useDocumentContentEditorWebSocket(
 
         const update = () => {
             // Once there are some pending steps, we need to create the document. After we
-            // create the document we connect via WebSocket and send the pending sendable
-            // steps over that connection.
+            // create the document we connect via WebSocket and send the pending sendable steps
+            // over that connection.
             if (!clientState.state.getSnapshot().pendingSendableSteps) return;
 
             void ensureCreateDocument();
         };
 
-        // Run `update()` immediately in case state changed while this effect was
-        // not mounted.
+        // Run `update()` immediately in case state changed while this effect was not
+        // mounted.
         update();
 
         return clientState.state.subscribe(update);
@@ -375,11 +374,11 @@ export function useDocumentContentEditorWebSocket(
         [contentWithoutSendableStepsAccessLevel, persistedContentAccessLevel],
     );
 
-    // The current account's access level. We take the minimum access level of
-    // what's currently in state and what's persisted in our database. Ultimately,
-    // the access level persisted in our database is what we evaluate permission
-    // checks with. But it doesn't hurt to optimistically lower the permissions
-    // allowed in the UI immediately upon the access policy changing.
+    // The current account's access level. We take the minimum access level of what's
+    // currently in state and what's persisted in our database. Ultimately, the access
+    // level persisted in our database is what we evaluate permission checks with. But
+    // it doesn't hurt to optimistically lower the permissions allowed in the UI
+    // immediately upon the access policy changing.
     const accessLevel = useMemo(
         () =>
             minAccessLevel(
@@ -401,8 +400,8 @@ export function useDocumentContentEditorWebSocket(
     let shouldInitializeClientWithNewCommentAccess = false;
 
     if (clientState.type === "Exists") {
-        // Re-initialize client if we're losing access to comments. This will happen
-        // when going from `Comment` (or higher) access level to `View`.
+        // Re-initialize client if we're losing access to comments. This will happen when
+        // going from `Comment` (or higher) access level to `View`.
         if (
             !hasAccessLevel(acknowledgedAccessLevel, "Comment") &&
             hasAccessLevel(clientState.client.accessLevel, "Comment")
@@ -436,17 +435,17 @@ export function useDocumentContentEditorWebSocket(
                 }),
             });
         }
-        // If we are gaining access to comments then we need to fully reload the
-        // document. We do so in the effect below.
+        // If we are gaining access to comments then we need to fully reload the document.
+        // We do so in the effect below.
         else if (
             hasAccessLevel(acknowledgedAccessLevel, "Comment") &&
             !hasAccessLevel(clientState.client.accessLevel, "Comment")
         ) {
             shouldInitializeClientWithNewCommentAccess = true;
         }
-        // If the `accessLevel` has changed then we need to reconnect to the WebSocket
-        // with the new `accessLevel`. We don't have to modify the document in the
-        // process (e.g. by stripping comments).
+        // If the `accessLevel` has changed then we need to reconnect to the WebSocket with
+        // the new `accessLevel`. We don't have to modify the document in the process (e.g.
+        // by stripping comments).
         else if ((acknowledgedAccessLevel ?? "View") !== clientState.client.accessLevel) {
             setClientState({
                 type: "Exists",
@@ -464,9 +463,8 @@ export function useDocumentContentEditorWebSocket(
     }
 
     // Re-initialize client if `withoutComments` changes to false. This will happen
-    // when going from `View` access level to `Comment` (or higher). We need to
-    // refetch the document since we don't know where the comment marks in the
-    // document are.
+    // when going from `View` access level to `Comment` (or higher). We need to refetch
+    // the document since we don't know where the comment marks in the document are.
     const initializingClientWithCommentsSymbolRef = useRef<symbol | null>(null);
     useEffect(() => {
         if (!shouldInitializeClientWithNewCommentAccess) {
@@ -514,13 +512,12 @@ export function useDocumentContentEditorWebSocket(
         shouldInitializeClientWithNewCommentAccess,
     ]);
 
-    // Update `SearchEntityRegistry` with the latest document title. Now as the
-    // title changes in realtime, any `SearchEntityModel`s rendered elsewhere in
-    // the product will also update.
+    // Update `SearchEntityRegistry` with the latest document title. Now as the title
+    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
+    // will also update.
     //
-    // Optimization: Only updates `SearchEntityRegistry` when `title` changes. Not
-    // on any arbitrary update to the document. Otherwise we'd put this in
-    // `useMemo()`.
+    // Optimization: Only updates `SearchEntityRegistry` when `title` changes. Not on
+    // any arbitrary update to the document. Otherwise we'd put this in `useMemo()`.
     {
         const searchEntityRef = useRef<{
             title: string;

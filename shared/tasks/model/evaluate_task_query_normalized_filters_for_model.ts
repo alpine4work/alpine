@@ -13,8 +13,8 @@ import {
     TaskQueryNormalizedFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,

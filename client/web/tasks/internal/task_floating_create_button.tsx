@@ -43,9 +43,9 @@ export function TaskFloatingCreateButton({
 
     if (isHiddenForDev) return null;
 
-    // Don't render the floating create button when inside the peek stack. Since if
-    // you render a task collection view peek on top of a task collection, it would
-    // be weird to see two create buttons next to each other.
+    // Don't render the floating create button when inside the peek stack. Since if you
+    // render a task collection view peek on top of a task collection, it would be
+    // weird to see two create buttons next to each other.
     //
     // We do want to show the floating create button in search, though.
     if (peekContext?.withinStack) return null;
@@ -63,8 +63,8 @@ export function TaskFloatingCreateButton({
                 size="xl"
                 description="Create task"
                 // NOTE(calebmer): I feel like the extra button affordance is helpful here. The
-                // create button floating in its own little island doesn't feel clearly
-                // interactive enough.
+                // create button floating in its own little island doesn't feel clearly interactive
+                // enough.
                 //
                 // This is purely based on vibes. I don't have logic for it.
                 cursor="pointer"

@@ -19,8 +19,8 @@ export default function MobileSpaceSettingsRoute() {
     const {space} = useSpaceContextAndRequireSpaceAccess();
     const rootNavigate = useRootNavigate();
 
-    // this route is accesible in desktop version as well so we give some max width for desktop
-    // to make it look good.
+    // this route is accesible in desktop version as well so we give some max width for
+    // desktop to make it look good.
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (

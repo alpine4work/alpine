@@ -26,7 +26,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * fundamentally pretty simple and the implementation is inefficient. (It
  * unconditionally generates a color and `base64` placeholder.)
  *
- * [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
+ * [1]:
+ *     https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
  */
 export async function processFileImagePreviewPlaceholder(
     context: FileProcessorActionContext,
@@ -54,24 +55,24 @@ export async function processFileImagePreviewPlaceholder(
                 sharp(input, {
                     ...options,
                     pages: 1,
-                    // We've found our test for `py_pdf_sample_libreoffice_write_password.pdf` is
-                    // flaky if this is `failOn: "warning"` (the default) since sharp occasionally
-                    // doesn't include "pdfload: password required" in the error message.
+                    // We've found our test for `py_pdf_sample_libreoffice_write_password.pdf` is flaky
+                    // if this is `failOn: "warning"` (the default) since sharp occasionally doesn't
+                    // include "pdfload: password required" in the error message.
                     //
-                    // We suspect that there's a race condition in libvips between some process
-                    // trying to read encrypted PDF data and the process which determines the PDF
-                    // is encrypted. If the process trying to read encrypted PDF data runs first
-                    // it logs a warning. This behavior is reasonable from libvips, we just need to
-                    // make sure we don't prematurely fail on warning.
+                    // We suspect that there's a race condition in libvips between some process trying
+                    // to read encrypted PDF data and the process which determines the PDF is
+                    // encrypted. If the process trying to read encrypted PDF data runs first it logs a
+                    // warning. This behavior is reasonable from libvips, we just need to make sure we
+                    // don't prematurely fail on warning.
                     failOn: "error",
                 })
                     .timeout({seconds: sharpTimeoutSeconds})
                     // Rotate so that we respect EXIF orientation metadata.
                     .rotate()
                     // This method of placeholder generation gives more detail (pixels) to images
-                    // further away from the aspect ratio 1:1. Ideally we'd have about the same
-                    // number of pixels no matter the aspect ratio. Unfortunately, at this point we
-                    // don't know the image's dimensions.
+                    // further away from the aspect ratio 1:1. Ideally we'd have about the same number
+                    // of pixels no matter the aspect ratio. Unfortunately, at this point we don't know
+                    // the image's dimensions.
                     .resize(
                         fileImagePreviewPlaceholderBaseSize,
                         fileImagePreviewPlaceholderBaseSize,
@@ -264,14 +265,13 @@ export function processImageFile(
 
                 return metadata;
             } catch (error) {
-                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an
-                // error message. Our "can't upload invalid image data" test in
-                // `upload_file.test.ts` observes occasional failures where we get the
-                // truncated error message "Input buffer has corrupt header: " instead
-                // of the full "Input buffer has corrupt header: x2vips: libX error: Improper
-                // image header...". So when we detect a truncated error message from
-                // `sharp` let's retry the `metadata()` call up to 10 times until we get a real
-                // error message.
+                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an error
+                // message. Our "can't upload invalid image data" test in `upload_file.test.ts`
+                // observes occasional failures where we get the truncated error message "Input
+                // buffer has corrupt header: " instead of the full "Input buffer has corrupt
+                // header: x2vips: libX error: Improper image header...". So when we detect a
+                // truncated error message from `sharp` let's retry the `metadata()` call up to 10
+                // times until we get a real error message.
                 //
                 // Code in `sharp` where this error message is created:
                 // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417

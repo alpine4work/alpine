@@ -17,7 +17,8 @@ export const taskChildTasksProgressWheelLineClassName = sprinkles({
 
 /**
  * Renders a task child tasks progress wheel to an `HtmlElementGenerator` object.
- * For rendering progress wheels in `<ContentEditor>` where we can't render React UI.
+ * For rendering progress wheels in `<ContentEditor>` where we can't render React
+ * UI.
  *
  * This is a non-interactive version that doesn't support hover/press states.
  */

@@ -8,8 +8,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  */
 export class ReactContextModule extends ContextModuleBase<{tracer: TracerContextModule}> {
     /**
-     * Report an error rendered somewhere by React. We call this function with an
-     * error a user actually sees.
+     * Report an error rendered somewhere by React. We call this function with an error
+     * a user actually sees.
      */
     private readonly _reportRenderedError: (tracer: TracerBase, error: unknown) => void;
 
@@ -30,8 +30,8 @@ export class ReactContextModule extends ContextModuleBase<{tracer: TracerContext
         return new ReactContextModule({
             reportRenderedError: (tracer, error) => {
                 // Log after a microtask so we don't get the React component trace in the error
-                // log. The trace will always point to our error message renderer which
-                // isn't useful.
+                // log. The trace will always point to our error message renderer which isn't
+                // useful.
                 scheduleMicrotask(() => {
                     tracer.getRoot().logException("Rendered error", error);
                 });

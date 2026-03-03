@@ -168,9 +168,9 @@ test("can serialize and deserialize a reversed key attribute", () => {
     );
 });
 
-// Make sure our assumptions about how string reversal works are correct.
-// This is not testing any of our logic, but is an artifact for how and why
-// we implemented labelString serialization.
+// Make sure our assumptions about how string reversal works are correct. This is
+// not testing any of our logic, but is an artifact for how and why we implemented
+// labelString serialization.
 test("UTF-8 and UTF-16 sort differently", () => {
     const a = String.fromCharCode(0xffff);
     const b = "😍";

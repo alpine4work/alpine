@@ -322,8 +322,8 @@ export function TaskDetailView({
             effectiveAccessPolicy: AccessPolicyWithoutGenerations;
             inheritedAccessPolicy: AccessPolicyWithoutGenerations;
         }> => {
-            // If there's no task subscription that's because we're creating the task. The
-            // task creator always has manage access.
+            // If there's no task subscription that's because we're creating the task. The task
+            // creator always has manage access.
             if (!taskSubscription) {
                 return new ConstStore({
                     effectiveAccessPolicy:
@@ -375,10 +375,9 @@ export function TaskDetailView({
         return accessLevel;
     }, [currentAccount?.id, effectiveAccessPolicy, isDeleted]);
 
-    // This is the access policy directly added to the task. This is different from
-    // the task's "effective" access which is based on the task's parent tasks and
-    // task collections. `access` determines what the task's effective
-    // permissions are.
+    // This is the access policy directly added to the task. This is different from the
+    // task's "effective" access which is based on the task's parent tasks and task
+    // collections. `access` determines what the task's effective permissions are.
     const immediateAccessPolicy = useStore(
         useMemo(
             () =>
@@ -422,8 +421,8 @@ export function TaskDetailView({
 
     // IMPORTANT: Do not `useStore(taskSubscription?.taskEntryStore)` in this
     // component! We don't want to re-render the entire virtualized scroll view
-    // (containing child tasks and comments) every time the task title updates.
-    // Instead use `Store.map()` to subscribe to individual pieces of data that are
+    // (containing child tasks and comments) every time the task title updates. Instead
+    // use `Store.map()` to subscribe to individual pieces of data that are
     // automatically memoized.
 
     const displayStatus = useStore(
@@ -496,8 +495,8 @@ export function TaskDetailView({
         !isPriorityDefined
     ) {
         // In task row dense fields we hide the priority field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
+        // null. But since the user may actively be editing the field in detail view, keep
+        // it around.
     }
 
     if (!priorityInputState.isVisible && isPriorityDefined) {
@@ -532,8 +531,8 @@ export function TaskDetailView({
         !isDueDateDefined
     ) {
         // In task row dense fields we hide the due date field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
+        // null. But since the user may actively be editing the field in detail view, keep
+        // it around.
     }
 
     if (!dueDateInputState.isVisible && isDueDateDefined) {
@@ -583,8 +582,7 @@ export function TaskDetailView({
                 mergeFilterReferences?: TaskQueryFilterReferences;
             } = {},
         ) => {
-            // Only projects can have filters/sorts. Everything else must have an
-            // empty array.
+            // Only projects can have filters/sorts. Everything else must have an empty array.
             if (!isWideProjectLayout) filters = emptyArray;
 
             actuallySetFiltersState(({filterReferences}) => {
@@ -601,8 +599,7 @@ export function TaskDetailView({
             onFiltersChange(filters);
         },
         setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
-            // Only projects can have filters/sorts. Everything else must have an
-            // empty array.
+            // Only projects can have filters/sorts. Everything else must have an empty array.
             if (!isWideProjectLayout) sorts = emptyArray;
 
             actuallySetSorts(sorts);
@@ -635,16 +632,16 @@ export function TaskDetailView({
     }, [currentAccount?.id, currentDate, filters, possiblyGhostTaskId, sorts]);
 
     const childrenQueryState = useTaskQueryState({
-        // We need to make sure `useTaskQueryState()` completely resets its internal
-        // state when switching from a ghost task to non-ghost task. When we switch
-        // from a ghost task `initialQuery` also switches from null to non-null.
-        // We want that switch to happen immediately!
+        // We need to make sure `useTaskQueryState()` completely resets its internal state
+        // when switching from a ghost task to non-ghost task. When we switch from a ghost
+        // task `initialQuery` also switches from null to non-null. We want that switch to
+        // happen immediately!
         //
-        // If we wait for `useTaskQueryState()` to update normally we have to wait for
-        // a `useEffect()`. So there will be some renders where `taskSubscription` is
-        // non-null but `childrenQueryState.isAvailable` is false. Adding a key forces
-        // the internal state of this hook to immediately reset (in the current render)
-        // when transitioning from ghost task -> actual task.
+        // If we wait for `useTaskQueryState()` to update normally we have to wait for a
+        // `useEffect()`. So there will be some renders where `taskSubscription` is
+        // non-null but `childrenQueryState.isAvailable` is false. Adding a key forces the
+        // internal state of this hook to immediately reset (in the current render) when
+        // transitioning from ghost task -> actual task.
         key: !taskSubscription ? `${possiblyGhostTaskId}-Ghost` : possiblyGhostTaskId,
 
         store,
@@ -666,8 +663,8 @@ export function TaskDetailView({
 
     const shiftRenderedRangeForChildrenGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
-            // We try to avoid calling this function entirely when `layout` is `Project`
-            // but as a fallback return the range unmodified.
+            // We try to avoid calling this function entirely when `layout` is `Project` but as
+            // a fallback return the range unmodified.
             if (isWideProjectLayout) return range;
 
             const previousItemCount = 1;
@@ -691,12 +688,12 @@ export function TaskDetailView({
         [isWideProjectLayout],
     );
 
-    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
-    // items which precede our children grid view.
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of items
+    // which precede our children grid view.
     useImperativeHandle(nonProjectChildrenViewRef, () => {
-        // If `layout` is `Project` you should use `projectChildrenViewRef` since we
-        // don't have to shift the rendered range, you can use the virtualized scroll
-        // view ref directly.
+        // If `layout` is `Project` you should use `projectChildrenViewRef` since we don't
+        // have to shift the rendered range, you can use the virtualized scroll view ref
+        // directly.
         if (isWideProjectLayout) {
             const unimplemented = () => {
                 throw new UnimplementedError("Use `projectChildrenViewRef` instead");
@@ -800,15 +797,14 @@ export function TaskDetailView({
             }
         }, [hasEditAccessLevel, isWideProjectLayout]),
 
-        // Even when `childrenQuery` is null we still want to show the bottom ghost
-        // task. If the user starts to type in the bottom ghost task then
-        // `commitActionTransaction` will be called which will create the task if
-        // needed.
+        // Even when `childrenQuery` is null we still want to show the bottom ghost task.
+        // If the user starts to type in the bottom ghost task then
+        // `commitActionTransaction` will be called which will create the task if needed.
         //
         // We also need to provide our own `stateKey` that doesn't change when
-        // `childrenQuery` switches between null and a proper value. That way our
-        // subtasks, undo state, and grid view expansion state don't change when we
-        // switch from `query: null` to the actual children query subscription.
+        // `childrenQuery` switches between null and a proper value. That way our subtasks,
+        // undo state, and grid view expansion state don't change when we switch from
+        // `query: null` to the actual children query subscription.
         stateKey: possiblyGhostTaskId,
         query: childrenQueryState.activeQuery.query,
         withBottomGhostTaskIfNullQuery: !taskSubscription,
@@ -817,13 +813,12 @@ export function TaskDetailView({
             : null,
 
         // Instead of implicitly loading more tasks when scrolling, the user must
-        // explicitly load more tasks by pressing a "load more" button. That way we
-        // don't get into weird states where the user has scrolled down to look at
-        // comments and the comments jump around because we're loading the end of the
-        // task's child tasks
+        // explicitly load more tasks by pressing a "load more" button. That way we don't
+        // get into weird states where the user has scrolled down to look at comments and
+        // the comments jump around because we're loading the end of the task's child tasks
         explicitLoadMoreButton: useMemo(() => {
-            // Project tasks don't have an explicit load more button. Rather they infinite
-            // load on scroll.
+            // Project tasks don't have an explicit load more button. Rather they infinite load
+            // on scroll.
             if (!isWideProjectLayout) return;
 
             return {
@@ -835,26 +830,24 @@ export function TaskDetailView({
         withoutBorderTopIfFirstRow: isWideProjectLayout,
         columnHeaderTitleFieldLabel: "Task name",
 
-        // In task detail views, there are comments underneath the substasks. So show
-        // three decorative ghost rows but not our repeating decorative ghost row
-        // background.
+        // In task detail views, there are comments underneath the substasks. So show three
+        // decorative ghost rows but not our repeating decorative ghost row background.
         decorativeGhostRows: !isWideProjectLayout ? "Some" : "Background",
 
         affinityManager,
         rowMaxWidth: !isWideProjectLayout ? contentStyles.contentMaxWidth : undefined,
         viewRef: !isWideProjectLayout ? nonProjectChildrenViewRef : projectChildrenViewRef,
         getMoveTaskToQueryActions: (childTaskId, position) => {
-            // During `?create` flows we can render a ghost subtask row before
-            // the children query subscription is available.
+            // During `?create` flows we can render a ghost subtask row before the children
+            // query subscription is available.
             const childrenQuery = childrenQueryState.activeQuery.isAvailable
                 ? childrenQueryState.activeQuery.query.query
                 : null;
 
-            // If the query is auto-sorted we disable features that allow moving tasks into
-            // the query. Like hitting shift-tab to dedent or hitting enter to create a new
-            // task. We may want to re-enable some of these someday in auto-sorted queries.
-            // See the comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more
-            // discussion.
+            // If the query is auto-sorted we disable features that allow moving tasks into the
+            // query. Like hitting shift-tab to dedent or hitting enter to create a new task.
+            // We may want to re-enable some of these someday in auto-sorted queries. See the
+            // comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more discussion.
             //
             // For ghost tasks, we always consider `childrenQuery` to be manually sorted.
             if (childrenQuery && !isTaskQueryManuallySorted(childrenQuery.sorts)) return null;
@@ -896,15 +889,15 @@ export function TaskDetailView({
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
-            // During `?create` flows we can render a ghost subtask row before
-            // the children query subscription is available.
+            // During `?create` flows we can render a ghost subtask row before the children
+            // query subscription is available.
             const childrenQuery = childrenQueryState.activeQuery.isAvailable
                 ? childrenQueryState.activeQuery.query.query
                 : null;
 
-            // If the query is auto-sorted we disable features that remove tasks from the
-            // grid view. Like tab to indent or drag and drop. Neither makes sense when you
-            // don't have control over the order of tasks.
+            // If the query is auto-sorted we disable features that remove tasks from the grid
+            // view. Like tab to indent or drag and drop. Neither makes sense when you don't
+            // have control over the order of tasks.
             //
             // For ghost tasks, we always consider `childrenQuery` to be manually sorted.
             if (childrenQuery && !isTaskQueryManuallySorted(childrenQuery.sorts)) return [];
@@ -1017,8 +1010,8 @@ export function TaskDetailView({
                 };
             }
 
-            // Pin to the bottom when comment input is focused. Or if nothing in the view
-            // is focused.
+            // Pin to the bottom when comment input is focused. Or if nothing in the view is
+            // focused.
             if (
                 commentInputRef.current?.isFocused() ||
                 !(activeElement instanceof Element) ||
@@ -1038,8 +1031,8 @@ export function TaskDetailView({
     });
 
     // If the actor doesn't have space access then we need to keep track of any
-    // accounts/collections referenced by the query. This is expensive (O(tasks))
-    // so it's important to only run this when `currentAccount` is null.
+    // accounts/collections referenced by the query. This is expensive (O(tasks)) so
+    // it's important to only run this when `currentAccount` is null.
     const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
         !currentAccount ? (childrenQueryState.activeQuery.query?.query ?? null) : null,
     );
@@ -1087,9 +1080,9 @@ export function TaskDetailView({
 
     const isLoadingInitialCommentsAfterAccessChangeRef = useRef(false);
 
-    // If we gain access to comments on this task in realtime then load new
-    // comments from the server and set them in our state before we make the
-    // comment section visible.
+    // If we gain access to comments on this task in realtime then load new comments
+    // from the server and set them in our state before we make the comment section
+    // visible.
     useEffect(() => {
         if (!(!isCommentSectionVisible && hasCommentAccessLevel)) {
             isLoadingInitialCommentsAfterAccessChangeRef.current = false;
@@ -1203,16 +1196,15 @@ export function TaskDetailView({
                     range: renderedRange,
                     loadFromStart: async input => {
                         // We don't use `checkpoint` here since this is a partial load of data.
-                        // `checkpoint` should represent a point in time at which we're fully
-                        // synchronized with the server. We wouldn't want to jump `checkpoint` ahead
-                        // for a load of new messages when in fact our previous messages are behind.
-                        // Instead, while we're connected to the WebSocket we'll update `checkpoint` on
-                        // every ping which is a much better indicator of "liveness" than last partial
-                        // load time (which would be this `checkpoint`).
+                        // `checkpoint` should represent a point in time at which we're fully synchronized
+                        // with the server. We wouldn't want to jump `checkpoint` ahead for a load of new
+                        // messages when in fact our previous messages are behind. Instead, while we're
+                        // connected to the WebSocket we'll update `checkpoint` on every ping which is a
+                        // much better indicator of "liveness" than last partial load time (which would be
+                        // this `checkpoint`).
                         //
-                        // We only use the `checkpoint` from `getTaskCommentsFromStart()` when
-                        // initializing our `MessageList` from scratch (at which point it's not a
-                        // partial load).
+                        // We only use the `checkpoint` from `getTaskCommentsFromStart()` when initializing
+                        // our `MessageList` from scratch (at which point it's not a partial load).
                         const {commentCount, comments, otherReferencedComments} =
                             await getTaskCommentsFromStart(context, {
                                 taskId: possiblyGhostTaskId,
@@ -1254,11 +1246,11 @@ export function TaskDetailView({
         },
     );
 
-    // Whenever our list data changes, try loading more comments. In case our
-    // rendered range stayed the same but we see some some unloaded comments.
+    // Whenever our list data changes, try loading more comments. In case our rendered
+    // range stayed the same but we see some some unloaded comments.
     //
-    // This effect should also fire when `tryLoadingMoreCommentsData()` completes
-    // in case it didn't fully load the list.
+    // This effect should also fire when `tryLoadingMoreCommentsData()` completes in
+    // case it didn't fully load the list.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         comments;
@@ -1336,8 +1328,8 @@ export function TaskDetailView({
 
     // Manages the editable message.
     //
-    // This is at the post list level because we want only one message to be
-    // editable at a time.
+    // This is at the post list level because we want only one message to be editable
+    // at a time.
     const {messageEditing: commentEditing, modals: commentEditingModals} =
         useMessageEditing<TaskId>({
             messageNoun: "comment",
@@ -1623,8 +1615,8 @@ export function TaskDetailView({
             };
 
             // If we are currently committing the title then add our update to our pending
-            // action transaction builder. We'll commit the pending action after our
-            // current action commits.
+            // action transaction builder. We'll commit the pending action after our current
+            // action commits.
             if (titleCommitStateRef.current) {
                 if (titleCommitStateRef.current.pendingActionTransactionBuilder) {
                     titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
@@ -1681,8 +1673,8 @@ export function TaskDetailView({
                 iconPlacement: "end",
                 pressErrorTitle: "Couldn\u2019t copy task link",
                 onPress: async () => {
-                    // If the user tries to copy the link of a ghost task, then make sure the task
-                    // is created before we write the URL to the clipboard.
+                    // If the user tries to copy the link of a ghost task, then make sure the task is
+                    // created before we write the URL to the clipboard.
                     if (!taskSubscription) {
                         await new Promise<void>(resolve =>
                             commitActionTransactionAndCreateIfNeeded(() => [], {
@@ -1807,9 +1799,8 @@ export function TaskDetailView({
                         {undoManager},
                     );
 
-                    // Navigate to the new task. Always open in a peek on desktop. To make it
-                    // clear when you're duplicating from a peek that the new task is a
-                    // duplicate.
+                    // Navigate to the new task. Always open in a peek on desktop. To make it clear
+                    // when you're duplicating from a peek that the new task is a duplicate.
                     if (peekStackContext && platform !== "mobile") {
                         await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
                     } else {
@@ -1922,8 +1913,8 @@ export function TaskDetailView({
                         store,
                         undoManager,
                         taskId: possiblyGhostTaskId,
-                        // Close the detail view (if this is in a peek we navigate back) before
-                        // deleting the task so we don't flash the `<TaskDetailView>` deleted state.
+                        // Close the detail view (if this is in a peek we navigate back) before deleting
+                        // the task so we don't flash the `<TaskDetailView>` deleted state.
                         onBeforeDelete: () => navigate(-1),
                     });
                 },
@@ -2015,8 +2006,8 @@ export function TaskDetailView({
               },
               isReadOnly: !hasManageAccessLevel,
               onCopyLink: async () => {
-                  // If the user tries to copy the link of a ghost task, then make sure the task
-                  // is created before we write the URL to the clipboard.
+                  // If the user tries to copy the link of a ghost task, then make sure the task is
+                  // created before we write the URL to the clipboard.
                   if (!taskSubscription) {
                       await new Promise<void>(resolve =>
                           commitActionTransactionAndCreateIfNeeded(() => [], {
@@ -2070,7 +2061,8 @@ export function TaskDetailView({
             if (task) {
                 const collections = task.getCollections().getArray();
 
-                // If the task is in at least one collection, use the first collection as the back path
+                // If the task is in at least one collection, use the first collection as the back
+                // path
                 if (collections[0]?.collectionId) {
                     const firstCollectionId = collections[0].collectionId;
                     return `/s/${spaceId}/tasks/collections/${firstCollectionId}`;
@@ -2165,8 +2157,8 @@ export function TaskDetailView({
 
             if (index === 0) {
                 // This height is calculated so that in a task that doesn't have any additional
-                // fields or subtasks we perfectly render the comment input at the bottom of
-                // the peek.
+                // fields or subtasks we perfectly render the comment input at the bottom of the
+                // peek.
                 const height = !isWideProjectLayout
                     ? taskDetailViewCommentSectionHeaderHeightPx[platform][spacingScale]
                     : taskProjectDetailViewCommentSectionHeaderHeightPx[spacingScale];
@@ -2177,18 +2169,19 @@ export function TaskDetailView({
                     key: "TaskCommentSectionHeader",
                     minHeight: height,
                     // We want a higher z-index than `<TaskCommentInput>` (`z-index: 20`) so when
-                    // `<TaskCommentInput>` is replying to some text and so has a border that
-                    // renders on top of the input when scrolled to the top the border renders
-                    // under our task comment section header.
+                    // `<TaskCommentInput>` is replying to some text and so has a border that renders
+                    // on top of the input when scrolled to the top the border renders under our task
+                    // comment section header.
                     //
-                    // This is a little hacky since we only use `z-index: 30` if there's a parent.
-                    // When there's not a parent, we want the `<TaskCommentInput>`s toolbar to
-                    // render over the comment section header ([otherwise we get this bug][1]).
-                    // When there's a parent, coincidentally the toolbar doesn't render outside the
-                    // bounds of the `<TaskCommentInput>` so the comment header <> toolbar overlap
-                    // case isn't possible.
+                    // This is a little hacky since we only use `z-index: 30` if there's a parent. When
+                    // there's not a parent, we want the `<TaskCommentInput>`s toolbar to render over
+                    // the comment section header ([otherwise we get this bug][1]). When there's a
+                    // parent, coincidentally the toolbar doesn't render outside the bounds of the
+                    // `<TaskCommentInput>` so the comment header <> toolbar overlap case isn't
+                    // possible.
                     //
-                    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cbx1taekdm9vmzj1hqj4xb57ym
+                    // [1]:
+                    //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cbx1taekdm9vmzj1hqj4xb57ym
                     zIndex: commentInputParent ? "30" : undefined,
                     node: (
                         <Box
@@ -2375,8 +2368,8 @@ export function TaskDetailView({
                                                   offset -
                                                   headerOffsetEnd +
                                                   height +
-                                                  // Increase space occupied by `position: sticky` track so we pin comment input
-                                                  // to the bottom of the screen.
+                                                  // Increase space occupied by `position: sticky` track so we pin comment input to
+                                                  // the bottom of the screen.
                                                   Math.max(0, viewHeight - offset - height),
                                           }
                                         : {
@@ -2469,8 +2462,8 @@ export function TaskDetailView({
             itemCount={itemCount}
             alwaysRenderAdditionalItemIndexes={useMemo(
                 () => [
-                    // Always render `<TaskDetailViewMain>` regardless of where we've scrolled.
-                    // We can return focus there at any moment.
+                    // Always render `<TaskDetailViewMain>` regardless of where we've scrolled. We can
+                    // return focus there at any moment.
                     0,
                     ...(!isWideProjectLayout
                         ? alwaysRenderChildrenGridViewItemIndexes.map(index => index + 1)
@@ -2663,9 +2656,8 @@ export function TaskDetailView({
                             {undoManager},
                         );
 
-                        // Navigate to the new task. Always open in a peek on desktop. To make it
-                        // clear when you're duplicating from a peek that the new task is a
-                        // duplicate.
+                        // Navigate to the new task. Always open in a peek on desktop. To make it clear
+                        // when you're duplicating from a peek that the new task is a duplicate.
                         if (peekStackContext && platform !== "mobile") {
                             await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
                         } else {
@@ -2844,8 +2836,8 @@ function TaskDetailViewMain(
     const layout = taskSubscription ? (task?.getLayout() ?? null) : initialFields.layout;
     const isWideProjectLayout = layout === "Project" && routeLayout === "wide";
 
-    // Naming nit: An "input" is some editable component without a label. A "field"
-    // is the combination of both a label and an input.
+    // Naming nit: An "input" is some editable component without a label. A "field" is
+    // the combination of both a label and an input.
     const assigneeInputRef = useRef<TaskAssigneeInputRef>(null);
     const collectionsInputRef = useRef<TaskCollectionsInputRef>(null);
     const notesFieldRef = useRef<TaskDetailNotesFieldRef>(null);
@@ -2910,8 +2902,8 @@ function TaskDetailViewMain(
                 position="relative"
             >
                 {platform === "mobile" && (
-                    // On mobile, create some space for the navigation bar since it's back button
-                    // will conflict with the status button.
+                    // On mobile, create some space for the navigation bar since it's back button will
+                    // conflict with the status button.
                     <Spacer space={navigationBarHeight} />
                 )}
                 {isWideProjectLayout ? (
@@ -2983,8 +2975,8 @@ function TaskDetailViewMain(
                                 aria-labelledby={ariaLabelledBy}
                                 assigneeAccountData={assigneeAccountData}
                                 onAssigneeAccountChange={assigneeAccount => {
-                                    // Currently, accounts without space access can't edit tasks. The max
-                                    // permission level of `urlGrant` is `View`.
+                                    // Currently, accounts without space access can't edit tasks. The max permission
+                                    // level of `urlGrant` is `View`.
                                     assert(currentAccount);
 
                                     commitActionTransaction(taskId => {
@@ -3211,8 +3203,8 @@ function TaskDetailViewDenseField({
     const touchSlop = useTouchSlop(taskDetailViewDenseFieldMinHeight);
 
     return (
-        // Doesn't have a parent to horizontally align elements since we layout fields
-        // with CSS grid.
+        // Doesn't have a parent to horizontally align elements since we layout fields with
+        // CSS grid.
         <>
             <span
                 className={sprinkles({
@@ -3233,8 +3225,8 @@ function TaskDetailViewDenseField({
                         fontStyle: "truncate",
                         color: "grey-60",
                     })}
-                    // As an affordance for mouse users, when the label is clicked we focus
-                    // the first element in the input.
+                    // As an affordance for mouse users, when the label is clicked we focus the first
+                    // element in the input.
                     onClick={() => {
                         let element = getNextFocusableElementIfExists(null, {
                             withinElement: assertExists(valueRef.current),
@@ -3287,9 +3279,9 @@ function TaskDetailViewChildTasksButton({
                     const spacingScale = getSpacingScaleWithoutListening();
                     const {offset, height} = view.getPositionByIndex(0);
 
-                    // Scroll to the first child task. The virtualized list has
-                    // `<TaskDetailViewMain>` as the first item then after that is all the child
-                    // tasks. If there are no child tasks this will be the first ghost task.
+                    // Scroll to the first child task. The virtualized list has `<TaskDetailViewMain>`
+                    // as the first item then after that is all the child tasks. If there are no child
+                    // tasks this will be the first ghost task.
                     const scrollOffset =
                         offset +
                         height -
@@ -3376,11 +3368,11 @@ function TaskProjectDetailViewWrapper({
     children: ReactElement;
 }) {
     // There's a `useScrollToAvoidBottomBarsAndMobileKeyboard()` call in
-    // `useTaskGridViewVirtualizedList()` that has us covered for non-project
-    // layouts. However, in a project layout where we have two scroll views we need
-    // two `useScrollToAvoidBottomBarsAndMobileKeyboard()` calls. One to manage the
-    // task grid view on the right and on to manage the task details (with comment
-    // section) on the left.
+    // `useTaskGridViewVirtualizedList()` that has us covered for non-project layouts.
+    // However, in a project layout where we have two scroll views we need two
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` calls. One to manage the task
+    // grid view on the right and on to manage the task details (with comment section)
+    // on the left.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         getAnchorPosition: useEvent(oldVisibleRect => ({
             top: oldVisibleRect.bottom,

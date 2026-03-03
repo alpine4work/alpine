@@ -17,16 +17,15 @@ export type TaskQueryReferencesForUrlGrantFilterEditor = {
 
 /**
  * Finds all the referenced accounts and collections in a query. Will search
- * through the query for referenced accounts and collections then remember
- * those accounts/collections forever. So if the user applies a filter and a
- * new `query` is passed in, we still return a map including accounts from the
- * original query.
+ * through the query for referenced accounts and collections then remember those
+ * accounts/collections forever. So if the user applies a filter and a new `query`
+ * is passed in, we still return a map including accounts from the original query.
  *
- * This is used when a user without space access is looking at a task view with
- * a `urlGrant`. Since the user doesn't have space access, they won't be able
- * to search collections or load the full list of accounts in the space.
- * Instead when they go to filter by assignee we show them the list of accounts
- * referenced by the query instead of every account in the space.
+ * This is used when a user without space access is looking at a task view with a
+ * `urlGrant`. Since the user doesn't have space access, they won't be able to
+ * search collections or load the full list of accounts in the space. Instead when
+ * they go to filter by assignee we show them the list of accounts referenced by
+ * the query instead of every account in the space.
  *
  * This approach isn't perfect. Since we'll only see loaded referenced
  * accounts/collections. If the view is large then when the user scrolls more

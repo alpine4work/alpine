@@ -40,8 +40,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(1000, 750)
         .toBuffer();
 
@@ -202,8 +202,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             "cyberworlds/server/files/processor/test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(480, 268)
         .toBuffer();
 
@@ -953,8 +953,8 @@ test("can copy/paste a file within the same space", async ({
             "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(1000, 750)
         .toBuffer();
 
@@ -1052,8 +1052,8 @@ test("can copy/paste a file across spaces", async ({
             "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(1000, 750)
         .toBuffer();
 

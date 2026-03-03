@@ -15,8 +15,8 @@ export interface AwsApplicationLoadBalancerFromCloudflareOptions extends Applica
 }
 
 /**
- * Application Load Balancer with a default security group that allows ingress from Cloudflare
- * over HTTPS.
+ * Application Load Balancer with a default security group that allows ingress from
+ * Cloudflare over HTTPS.
  */
 export class AwsApplicationLoadBalancerFromCloudflare extends Construct {
     private readonly _applicationLoadBalancer: ApplicationLoadBalancer;

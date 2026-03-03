@@ -37,37 +37,36 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
-// Keep track of the previous task object the query saw so we can check if
-// we've missed any updates. We run this validation in `development` and
-// `test` since maintaining task update state correctly is a little tricky to
-// get right but critical to the operation of this class.
+// Keep track of the previous task object the query saw so we can check if we've
+// missed any updates. We run this validation in `development` and `test` since
+// maintaining task update state correctly is a little tricky to get right but
+// critical to the operation of this class.
 const previousTaskByIdByQueryForTest =
     process.env.NODE_ENV !== "production"
         ? new WeakMap<TaskRealtimeQuery, Map<TaskId, TaskIndexDoc>>()
         : null;
 
 /**
- * Keeps a list of tasks up-to-date in realtime based on some defined filters
- * and sorts. A query's filters and sorts are immutable. If you want to change
- * them, create a new query.
+ * Keeps a list of tasks up-to-date in realtime based on some defined filters and
+ * sorts. A query's filters and sorts are immutable. If you want to change them,
+ * create a new query.
  *
- * Queries have a "loaded range" of tasks which are kept up-to-date in
- * realtime. The query may keep track of tasks outside the loaded range but we
- * may be missing tasks outside the loaded range. The loaded range starts at
- * the beginning of the query.
+ * Queries have a "loaded range" of tasks which are kept up-to-date in realtime.
+ * The query may keep track of tasks outside the loaded range but we may be missing
+ * tasks outside the loaded range. The loaded range starts at the beginning of the
+ * query.
  *
- * Works closely with `TaskRealtimeStore` where the subscribed tasks in a
- * space are stored and kept up-to-date in realtime. This class does not hold
- * the task objects themselves, since multiple queries can reference the same
- * task tasks are stored in `TaskRealtimeStore` (which also owns query
- * classes).
+ * Works closely with `TaskRealtimeStore` where the subscribed tasks in a space are
+ * stored and kept up-to-date in realtime. This class does not hold the task
+ * objects themselves, since multiple queries can reference the same task tasks are
+ * stored in `TaskRealtimeStore` (which also owns query classes).
  *
  * The entire query doesn't need to be loaded at once. We may have a partially
  * loaded query. You can call `load()` to load more tasks into the query.
  *
- * This query class is agnostic to subscribed sessions. We do no extra
- * filtering based on task permission rules. We have another layer on top of
- * this query class that manages client WebSocket connections and permissions.
+ * This query class is agnostic to subscribed sessions. We do no extra filtering
+ * based on task permission rules. We have another layer on top of this query class
+ * that manages client WebSocket connections and permissions.
  */
 export class TaskRealtimeQuery {
     public readonly store: TaskRealtimeStoreInternal;
@@ -77,53 +76,51 @@ export class TaskRealtimeQuery {
     private _isDestroyed = false;
 
     /**
-     * Tasks in a query are represented with a red-black tree. We use a red-black
-     * tree to get O(log(n)) insertion/removal of tasks at any point in the list.
+     * Tasks in a query are represented with a red-black tree. We use a red-black tree
+     * to get O(log(n)) insertion/removal of tasks at any point in the list.
      *
      * We only store task cursors in our tree (to establish order). The full task
-     * object can be found in `TaskRealtimeStore` which is shared across all
-     * queries in a space.
+     * object can be found in `TaskRealtimeStore` which is shared across all queries in
+     * a space.
      *
-     * Queries have a "loaded range" in which we keep all tasks in the query of
-     * that range available in realtime. We don't load all tasks in a query at once
-     * as that would be inefficient for really large queries. The start of our
-     * loaded range is the start of the tree and the end is `loadedBeforeCursor`
-     * (inclusive).
+     * Queries have a "loaded range" in which we keep all tasks in the query of that
+     * range available in realtime. We don't load all tasks in a query at once as that
+     * would be inefficient for really large queries. The start of our loaded range is
+     * the start of the tree and the end is `loadedBeforeCursor` (inclusive).
      *
-     * We may have tasks in the query outside of the loaded range. This happens
-     * when a task inside the loaded range moves outside of the loaded range or
-     * when we add a newly visible task to the query and it happens to land outside
-     * of the loaded range. So when iterating over tasks, stop at
-     * `loadedBeforeCursor`. Otherwise you'll get a sparse and inconsistent list
-     * of tasks.
+     * We may have tasks in the query outside of the loaded range. This happens when a
+     * task inside the loaded range moves outside of the loaded range or when we add a
+     * newly visible task to the query and it happens to land outside of the loaded
+     * range. So when iterating over tasks, stop at `loadedBeforeCursor`. Otherwise
+     * you'll get a sparse and inconsistent list of tasks.
      */
     private readonly _tree = new RBTree<TaskQuerySortCursor>((cursor1, cursor2) =>
         compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
     );
 
     /**
-     * The range from the beginning of `tree` to `loadedBeforeCursor` (inclusive)
-     * is considered the "loaded range". We will have loaded all tasks within the
-     * loaded range and kept them up-to-date in realtime.
+     * The range from the beginning of `tree` to `loadedBeforeCursor` (inclusive) is
+     * considered the "loaded range". We will have loaded all tasks within the loaded
+     * range and kept them up-to-date in realtime.
      *
      * If `Unloaded` then we haven't loaded any tasks into this query yet. If
      * `FullyLoaded` then we've loaded all the tasks into this query.
      *
      * This cursor may not equal the current cursor for the task it references. For
-     * example, if we set this to a cursor that includes a `TaskPriority` of `High`
-     * if the task later changes the priority to `Low` we don't change this cursor.
-     * We keep the cursor with priority `High` and the `TaskId`. This is because if
-     * the task moves in our query, we don't automatically load all the tasks
-     * between the old task position and new task position. So the cursor
-     * represents a kind of point-in-time snapshot where we've decided to keep all
-     * tasks before it up-to-date.
+     * example, if we set this to a cursor that includes a `TaskPriority` of `High` if
+     * the task later changes the priority to `Low` we don't change this cursor. We
+     * keep the cursor with priority `High` and the `TaskId`. This is because if the
+     * task moves in our query, we don't automatically load all the tasks between the
+     * old task position and new task position. So the cursor represents a kind of
+     * point-in-time snapshot where we've decided to keep all tasks before it
+     * up-to-date.
      */
     private _loadedBeforeCursor: TaskQuerySortCursor | "FullyLoaded" | "Unloaded" = "Unloaded";
 
     /**
      * The number of loaded tasks in this query. That is the number of tasks before
-     * `loadedBeforeCursor` (inclusive). May be different from `tree.size` since
-     * `tree` may contain tasks outside of the loaded range.
+     * `loadedBeforeCursor` (inclusive). May be different from `tree.size` since `tree`
+     * may contain tasks outside of the loaded range.
      */
     private _loadedCount = 0;
 
@@ -137,10 +134,10 @@ export class TaskRealtimeQuery {
     } | null = null;
 
     /**
-     * Subscriptions to a query are managed in another class. Each subscription has
-     * its own loaded range since it maps to a client's loaded range. Each
-     * subscription also loads referenced parent tasks and collections then keeps
-     * track of updates to them.
+     * Subscriptions to a query are managed in another class. Each subscription has its
+     * own loaded range since it maps to a client's loaded range. Each subscription
+     * also loads referenced parent tasks and collections then keeps track of updates
+     * to them.
      */
     private readonly _subscriptions = new Set<TaskRealtimeQuerySubscriptionInternal>();
 
@@ -163,8 +160,8 @@ export class TaskRealtimeQuery {
 
     public assertCorrectForTest() {
         // We run this validation in `development` and `test` since maintaining state
-        // correctly across the store and query class is a little tricky to get right
-        // but critical to the operation of the task realtime service.
+        // correctly across the store and query class is a little tricky to get right but
+        // critical to the operation of the task realtime service.
         assert(process.env.NODE_ENV !== "production");
 
         const iterator = this._tree.iterator();
@@ -253,8 +250,8 @@ export class TaskRealtimeQuery {
      * Gets some number of loaded tasks from this query after `afterCursor`.
      *
      * Will return a `loadedState` you can use to paginate through the rest of the
-     * query. If you are in a `Partial` loaded state then you may call this
-     * function again with `endCursor` as `afterCursor` to get the next page.
+     * query. If you are in a `Partial` loaded state then you may call this function
+     * again with `endCursor` as `afterCursor` to get the next page.
      */
     public getLoadedTasks({
         limit,
@@ -276,9 +273,8 @@ export class TaskRealtimeQuery {
         if (afterCursor) {
             afterCursorIterator = this._tree.lowerBound(afterCursor);
 
-            // `tree.lowerBound(cursor)` returns an iterator to `cursor` or if `cursor`
-            // doesn't exist the item after `cursor`. We always want the the item after
-            // `cursor`.
+            // `tree.lowerBound(cursor)` returns an iterator to `cursor` or if `cursor` doesn't
+            // exist the item after `cursor`. We always want the the item after `cursor`.
             const iteratorCursor = afterCursorIterator.data();
             if (
                 iteratorCursor !== null &&
@@ -289,8 +285,8 @@ export class TaskRealtimeQuery {
         } else {
             afterCursorIterator = this._tree.iterator();
 
-            // `tree.iterator()` starts as a null iterator. Call `next()` to move the
-            // iterator to the first item.
+            // `tree.iterator()` starts as a null iterator. Call `next()` to move the iterator
+            // to the first item.
             afterCursorIterator.next();
         }
 
@@ -321,8 +317,8 @@ export class TaskRealtimeQuery {
             }
 
             // If we reached the `loadedBeforeCursor` barrier then we can only ever be
-            // partially loaded stopping at that barrier. We don't use `lastCursor` since
-            // we haven't hit our limit.
+            // partially loaded stopping at that barrier. We don't use `lastCursor` since we
+            // haven't hit our limit.
             if (
                 this._loadedBeforeCursor === "Unloaded" ||
                 (this._loadedBeforeCursor !== "FullyLoaded" &&
@@ -351,14 +347,13 @@ export class TaskRealtimeQuery {
      * Load some more tasks into the query. If there is another load executing
      * concurrently on this query then we can reuse its results.
      *
-     * It's possible that when this function returns you have fewer tasks in the
-     * query than what you requested. That happens when the data we query from
-     * OpenSearch is out-of-sync from recent realtime actions we've received.
-     * Likewise it's also possible the query will have more tasks than what you
-     * requested.
+     * It's possible that when this function returns you have fewer tasks in the query
+     * than what you requested. That happens when the data we query from OpenSearch is
+     * out-of-sync from recent realtime actions we've received. Likewise it's also
+     * possible the query will have more tasks than what you requested.
      *
-     * Callers are expected to look again at the number of tasks and decide whether
-     * to load more tasks or not.
+     * Callers are expected to look again at the number of tasks and decide whether to
+     * load more tasks or not.
      */
     public async loadMoreTasks(
         context: TaskRealtimeSystemActionContext,
@@ -375,15 +370,15 @@ export class TaskRealtimeQuery {
             try {
                 await this._loadingState.promise;
 
-                // We can load fewer tasks if the pending load completes successfully since it
-                // will have filled those tasks in.
+                // We can load fewer tasks if the pending load completes successfully since it will
+                // have filled those tasks in.
                 limit -= this._loadingState.limit;
             } catch {
                 // noop...
             }
 
-            // If the query was destroyed while we were loading, don't continue updating
-            // the query's state.
+            // If the query was destroyed while we were loading, don't continue updating the
+            // query's state.
             if (this._isDestroyed)
                 throw new CancelledError("Query was destroyed while loading data");
         }
@@ -398,39 +393,38 @@ export class TaskRealtimeQuery {
     }
 
     /**
-     * Actually loads more tasks into the query. You're guaranteed that there's
-     * only one call to this function ongoing at a time.
+     * Actually loads more tasks into the query. You're guaranteed that there's only
+     * one call to this function ongoing at a time.
      *
-     * At a high level this function loads tasks from OpenSearch and puts them in
-     * our store. For tasks that are already in our store we use their data and
-     * ignore the loaded task. Then we run our entire action history to see if we
-     * need to add tasks that were recently made visible in the query and update
-     * stale tasks returned by the query.
+     * At a high level this function loads tasks from OpenSearch and puts them in our
+     * store. For tasks that are already in our store we use their data and ignore the
+     * loaded task. Then we run our entire action history to see if we need to add
+     * tasks that were recently made visible in the query and update stale tasks
+     * returned by the query.
      *
      * To break it down a little more, the procedure is:
      *
-     * 1. Executes our query in OpenSearch starting at `loadedBeforeCursor` and
-     *    loads `limit` tasks.
+     * 1. Executes our query in OpenSearch starting at `loadedBeforeCursor` and loads
+     *    `limit` tasks.
      *
-     * 2. If our server just started we will kick off a backfill of the action
-     *    history for this space. We need a full action history to catch up our
-     *    stale tasks from OpenSearch. (This is the
-     *    `store.ensureFullActionHistory()` call.)
+     * 2. If our server just started we will kick off a backfill of the action history
+     *    for this space. We need a full action history to catch up our stale tasks
+     *    from OpenSearch. (This is the `store.ensureFullActionHistory()` call.)
      *
      * 3. Extend our query's loaded range by updating `loadedBeforeCursor`.
      *
-     * 4. Add loaded tasks to our query which already have an entry in our store.
-     *    We discard the loaded task object and use the task object from our store.
+     * 4. Add loaded tasks to our query which already have an entry in our store. We
+     *    discard the loaded task object and use the task object from our store.
      *
-     * 5. Iterate through our entire action history looking for: 1) updates to
-     *    freshly loaded tasks, 2) tasks that may have been made visible by a
-     *    recent action that wasn't returned in our query.
+     * 5. Iterate through our entire action history looking for: 1) updates to freshly
+     *    loaded tasks, 2) tasks that may have been made visible by a recent action
+     *    that wasn't returned in our query.
      *
      * 6. Added freshly loaded tasks to our query if they're still visible after
      *    applying updates from action history.
      *
-     * 7. Load tasks from step 5 we think we might need to add to our query and
-     *    test if they are actually visible in our query or not.
+     * 7. Load tasks from step 5 we think we might need to add to our query and test if
+     *    they are actually visible in our query or not.
      */
     private async _loadMoreTasks(
         context: TaskRealtimeSystemActionContext,
@@ -449,19 +443,19 @@ export class TaskRealtimeQuery {
                 spaceId: this.store.spaceId,
                 filters: this.filters,
                 sorts: this.sorts,
-                // Load one extra task (which we'll throw away) to know if there are more tasks
-                // in the query.
+                // Load one extra task (which we'll throw away) to know if there are more tasks in
+                // the query.
                 limit: limit + 1,
                 afterCursor,
             }),
             // We need to make sure we have a full action history store before calling
-            // `_loadMoreTasksSync()` which needs the action history to catch up our
-            // OpenSearch query result.
+            // `_loadMoreTasksSync()` which needs the action history to catch up our OpenSearch
+            // query result.
             this.store.ensureFullActionHistory(context),
         ]);
 
-        // If the query was destroyed while we were loading, don't continue updating
-        // the query's state.
+        // If the query was destroyed while we were loading, don't continue updating the
+        // query's state.
         if (this._isDestroyed) throw new CancelledError("Query was destroyed while loading data");
 
         const maybeAddVisibleTaskLoadPromise = this._loadMoreTasksSync(
@@ -473,25 +467,25 @@ export class TaskRealtimeQuery {
 
         await maybeAddVisibleTaskLoadPromise;
 
-        // NOTE(calebmer): It's possible that we get here and one or more tasks have
-        // been moved outside of our loaded range because the task data in our store
-        // was different. If that happens we don't have enough tasks to address `limit`
-        // anymore. We could call `loadMore()` and keep looping until we have enough
-        // tasks. Not implementing this for now since I believe it's a little better to
-        // return what we have to the client and let the client choose to load more
-        // instead of spending more time trying to load tasks.
+        // NOTE(calebmer): It's possible that we get here and one or more tasks have been
+        // moved outside of our loaded range because the task data in our store was
+        // different. If that happens we don't have enough tasks to address `limit`
+        // anymore. We could call `loadMore()` and keep looping until we have enough tasks.
+        // Not implementing this for now since I believe it's a little better to return
+        // what we have to the client and let the client choose to load more instead of
+        // spending more time trying to load tasks.
         //
         // When we're missing only one or two tasks it's likely the client won't have
-        // reached its "load more" threshold and we'll have delayed returning data to
-        // the user unnecessarily.
+        // reached its "load more" threshold and we'll have delayed returning data to the
+        // user unnecessarily.
     }
 
     // The synchronous part of `_loadMoreTasks()`. We update our query and store's
     // internal state. We force this part to be synchronous so we know there are no
     // concurrent code running.
     //
-    // We do return a promise for some async followup work but this function should
-    // not be marked as `async`!
+    // We do return a promise for some async followup work but this function should not
+    // be marked as `async`!
     private _loadMoreTasksSync(
         context: TaskRealtimeSystemActionContext,
         limit: number,
@@ -501,15 +495,15 @@ export class TaskRealtimeQuery {
         const addVisibleTask = (taskEntry: TaskRealtimeStoreTaskEntry) => {
             const cursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, taskEntry.task);
 
-            // If our fresh task wants to go into our already loaded range then ignore it!
-            // We can't send realtime events to clients while loading more tasks. Adding a
-            // new task to the query's loaded range requires a realtime event.
+            // If our fresh task wants to go into our already loaded range then ignore it! We
+            // can't send realtime events to clients while loading more tasks. Adding a new
+            // task to the query's loaded range requires a realtime event.
             //
-            // We'll add the task to our query when our realtime server receives an action
-            // that does this and we can send that action to clients.
+            // We'll add the task to our query when our realtime server receives an action that
+            // does this and we can send that action to clients.
             //
-            // This usually happens when OpenSearch has applied an action before our
-            // realtime server which should be rare.
+            // This usually happens when OpenSearch has applied an action before our realtime
+            // server which should be rare.
             if (
                 afterCursor !== null &&
                 compareTaskQuerySortCursors(this.sorts, afterCursor, cursor) >= 0
@@ -547,8 +541,8 @@ export class TaskRealtimeQuery {
 
         const hasMoreLoadedTasks = loadedTasks.length > limit;
 
-        // Throw away any extra tasks we loaded to check if there are more tasks in
-        // the query.
+        // Throw away any extra tasks we loaded to check if there are more tasks in the
+        // query.
         while (loadedTasks.length > limit) {
             loadedTasks.pop();
         }
@@ -576,9 +570,8 @@ export class TaskRealtimeQuery {
             if (afterCursor) {
                 afterCursorIterator = this._tree.lowerBound(afterCursor);
 
-                // `tree.lowerBound(cursor)` returns an iterator to `cursor` or if `cursor`
-                // doesn't exist the item after `cursor`. We always want the the item after
-                // `cursor`.
+                // `tree.lowerBound(cursor)` returns an iterator to `cursor` or if `cursor` doesn't
+                // exist the item after `cursor`. We always want the the item after `cursor`.
                 const iteratorCursor = afterCursorIterator.data();
                 if (
                     iteratorCursor !== null &&
@@ -589,8 +582,8 @@ export class TaskRealtimeQuery {
             } else {
                 afterCursorIterator = this._tree.iterator();
 
-                // `tree.iterator()` starts as a null iterator. Call `next()` to move the
-                // iterator to the first item.
+                // `tree.iterator()` starts as a null iterator. Call `next()` to move the iterator
+                // to the first item.
                 afterCursorIterator.next();
             }
 
@@ -618,22 +611,22 @@ export class TaskRealtimeQuery {
             const {isFresh, taskEntry} = this.store.ensureTaskEntry(loadedTask);
 
             // Fresh task entries aren't up-to-date in realtime. We need to run our action
-            // history against them to catch the tasks up. So put them in a set and add
-            // them to the query later...
+            // history against them to catch the tasks up. So put them in a set and add them to
+            // the query later...
             if (isFresh) {
                 freshTaskEntryById.set(taskEntry.task.id, {taskEntry, oldTask: taskEntry.task});
                 continue;
             }
 
-            // If the task is already in the store and already visible in our query we
-            // don't need to add it to the query a second time.
+            // If the task is already in the store and already visible in our query we don't
+            // need to add it to the query a second time.
             if (taskEntry.hasQueryDependent(this)) {
                 continue;
             }
 
-            // Re-evaluate our filters against the task from our store just in case it
-            // doesn't pass the query's filters anymore. If the task doesn't pass our
-            // query's filters then leave it out of the query.
+            // Re-evaluate our filters against the task from our store just in case it doesn't
+            // pass the query's filters anymore. If the task doesn't pass our query's filters
+            // then leave it out of the query.
             if (!evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, taskEntry.task)) {
                 continue;
             }
@@ -651,8 +644,8 @@ export class TaskRealtimeQuery {
                     case "UpdateTask": {
                         const freshTaskEntry = freshTaskEntryById.get(action.taskId)?.taskEntry;
 
-                        // If an action in our history window updated a fresh task in our query then
-                        // apply that update to the fresh task to catch it up.
+                        // If an action in our history window updated a fresh task in our query then apply
+                        // that update to the fresh task to catch it up.
                         if (freshTaskEntry !== undefined) {
                             const oldTask = freshTaskEntry.task;
                             const newTask = applyTaskActionToTaskIndexDoc(
@@ -698,16 +691,16 @@ export class TaskRealtimeQuery {
                                 action,
                             );
 
-                            // If nothing changed in the task (probably because the account is not
-                            // referenced by the task) then ignore and carry on.
+                            // If nothing changed in the task (probably because the account is not referenced
+                            // by the task) then ignore and carry on.
                             if (oldTask === newTask) break;
 
                             freshTaskEntry.task = newTask;
                         }
 
-                        // `UpdateAccountName` doesn't change whether a hidden task is now visible in
-                        // our query. It can only change a task's position in a query. So we don't need
-                        // to add anything to `maybeAddVisibleTaskIdsToLoad`.
+                        // `UpdateAccountName` doesn't change whether a hidden task is now visible in our
+                        // query. It can only change a task's position in a query. So we don't need to add
+                        // anything to `maybeAddVisibleTaskIdsToLoad`.
                         break;
                     }
                     case "UpdateNotepadPage": {
@@ -720,8 +713,8 @@ export class TaskRealtimeQuery {
         );
 
         for (const {taskEntry, oldTask} of freshTaskEntryById.values()) {
-            // Check that our fresh task is still visible after catching it up with
-            // action history.
+            // Check that our fresh task is still visible after catching it up with action
+            // history.
             if (
                 taskEntry.task !== oldTask &&
                 !evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, taskEntry.task)
@@ -737,8 +730,8 @@ export class TaskRealtimeQuery {
         for (const taskId of maybeAddVisibleTaskIds) {
             const taskEntry = this.store.getTaskEntryIfExists(taskId);
 
-            // If we haven't loaded this task into our store yet, we need to first load it
-            // and then we can try adding it to the query.
+            // If we haven't loaded this task into our store yet, we need to first load it and
+            // then we can try adding it to the query.
             if (taskEntry === undefined) {
                 maybeAddVisibleTaskIdsToLoad.push(taskId);
                 continue;
@@ -755,17 +748,17 @@ export class TaskRealtimeQuery {
             maybeAddVisibleTaskIdsToLoad.map(async taskId => {
                 const taskEntry = await this.store.loadTaskEntry(context, taskId);
 
-                // If the query was destroyed while we were loading, don't continue updating
-                // the query's state.
+                // If the query was destroyed while we were loading, don't continue updating the
+                // query's state.
                 if (this._isDestroyed)
                     throw new CancelledError("Query was destroyed while loading data");
 
-                // If some concurrent process added the task to our query we don't need to add
-                // it again.
+                // If some concurrent process added the task to our query we don't need to add it
+                // again.
                 if (taskEntry.hasQueryDependent(this)) return;
 
-                // Make sure the task actually passes our query's filters. We only guessed that
-                // it might pass before.
+                // Make sure the task actually passes our query's filters. We only guessed that it
+                // might pass before.
                 if (!evaluateTaskQueryNormalizedFiltersForIndexDoc(this.filters, taskEntry.task)) {
                     return;
                 }
@@ -776,8 +769,8 @@ export class TaskRealtimeQuery {
     }
 
     /**
-     * When a task that's visible in our query changes `TaskRealtimeStore`
-     * calls this function. The query is then responsible for:
+     * When a task that's visible in our query changes `TaskRealtimeStore` calls this
+     * function. The query is then responsible for:
      *
      * 1. Determining if the task is still visible after the update
      * 2. Moving the task to its new position if the sort order changed
@@ -786,8 +779,8 @@ export class TaskRealtimeQuery {
      * Expectations:
      *
      * - The `TaskId` must be visible in the query
-     * - `oldTask` must be exactly the same as the last task object our query
-     *   has seen for this `TaskId`
+     * - `oldTask` must be exactly the same as the last task object our query has seen
+     *   for this `TaskId`
      *
      * `oldTask` and `newTask` may be the same.
      *
@@ -834,8 +827,8 @@ export class TaskRealtimeQuery {
             const wasRemoved = this._tree.remove(oldCursor);
             assert(wasRemoved);
 
-            // If the task we're removing was in our loaded range then we need to decrease
-            // the loaded count.
+            // If the task we're removing was in our loaded range then we need to decrease the
+            // loaded count.
             if (
                 this._loadedBeforeCursor !== "Unloaded" &&
                 (this._loadedBeforeCursor === "FullyLoaded" ||
@@ -926,8 +919,8 @@ export class TaskRealtimeQuery {
      *
      * Expectations:
      *
-     * - The task must be hidden in our query, whether or not we end up adding
-     *   it as a visible task
+     * - The task must be hidden in our query, whether or not we end up adding it as a
+     *   visible task
      *
      * If expectations fail then we throw an error in dev and test.
      */
@@ -990,8 +983,8 @@ export class TaskRealtimeQuery {
 
     public *iterateVisibleTasksForTest(): IterableIterator<TaskIndexDoc> {
         // We run this validation in `development` and `test` since maintaining state
-        // correctly across the store and query class is a little tricky to get right
-        // but critical to the operation of the task realtime service.
+        // correctly across the store and query class is a little tricky to get right but
+        // critical to the operation of the task realtime service.
         assert(process.env.NODE_ENV !== "production");
 
         const iterator = this._tree.iterator();

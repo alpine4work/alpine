@@ -8,7 +8,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 /**
- * Notifies the inbox if an account's time zone changes and updates the next scheduled digest time if eligible.
+ * Notifies the inbox if an account's time zone changes and updates the next
+ * scheduled digest time if eligible.
  */
 export async function notifyInboxOfTimeZoneChange(
     context: ServerSessionActionContext,

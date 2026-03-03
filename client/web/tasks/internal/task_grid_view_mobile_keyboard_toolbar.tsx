@@ -45,20 +45,19 @@ import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 /**
  * The way our mobile keyboard toolbar works is at the task grid view level we
  * render a `<TaskGridViewMobileKeyboardToolbarContainer>` which is the native
- * mobile bottom bar. It contains disabled buttons. When a `<TaskRowView>`
- * receives focus it renders a `<TaskGridViewMobileKeyboardToolbar>` which
- * portals into the container with buttons that actually work!
+ * mobile bottom bar. It contains disabled buttons. When a `<TaskRowView>` receives
+ * focus it renders a `<TaskGridViewMobileKeyboardToolbar>` which portals into the
+ * container with buttons that actually work!
  *
- * We use this setup because we want to use the props and state of
- * `<TaskRowView>` to render our keyboard toolbar buttons but for smooth
- * animations between states, want one bottom bar element animating up/down.
+ * We use this setup because we want to use the props and state of `<TaskRowView>`
+ * to render our keyboard toolbar buttons but for smooth animations between states,
+ * want one bottom bar element animating up/down.
  *
  * Instead of portaling into `<TaskGridViewMobileKeyboardToolbarContainer>` we
- * could implement all the buttons at that level by using `TaskRowViewRef`s.
- * But then it's challenging to get access to the row's corresponding
- * `TaskModel` in state since while we have a task key -> `TaskRowViewRef` data
- * structure, we don't have a task key -> `TaskGridViewVirtualizedListStateItem`
- * data structure.
+ * could implement all the buttons at that level by using `TaskRowViewRef`s. But
+ * then it's challenging to get access to the row's corresponding `TaskModel` in
+ * state since while we have a task key -> `TaskRowViewRef` data structure, we
+ * don't have a task key -> `TaskGridViewVirtualizedListStateItem` data structure.
  */
 export function TaskGridViewMobileKeyboardToolbar({
     portalRef,
@@ -159,8 +158,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 }) {
     const {isNativeMobile} = useClientInfo();
     const rootPortalElement = assertExists(
-        // Render in the blocking portal element so that we render over blocking
-        // covers! So you can still interact with the keyboard toolbar even if an
+        // Render in the blocking portal element so that we render over blocking covers! So
+        // you can still interact with the keyboard toolbar even if an
         // `<Overlay isBlocking={true}>` overlay is visible.
         useOverlayBlockingPortalElement(),
         "Can\u2019t server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
@@ -177,8 +176,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        // Create a portal element that's disconnected from the DOM. We'll add it to
-        // the DOM if a child is portaled in.
+        // Create a portal element that's disconnected from the DOM. We'll add it to the
+        // DOM if a child is portaled in.
         const portalElement = document.createElement("div");
 
         portalElement.className = sprinkles({
@@ -211,8 +210,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                     }
                 }
 
-                // Make sure we synchronously re-render so our `appendChild()`/`removeChild()`
-                // is performed in the same paint.
+                // Make sure we synchronously re-render so our `appendChild()`/`removeChild()` is
+                // performed in the same paint.
                 flushSync(() => setIsVisible(isVisible));
 
                 if (isVisible) {
@@ -239,8 +238,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 
     const isAnimatingShowRef = useRef(false);
     useEffect(() => {
-        // In our native mobile app, the native mobile wrapper is responsible for
-        // making this toolbar visible.
+        // In our native mobile app, the native mobile wrapper is responsible for making
+        // this toolbar visible.
         if (NativeMobileBridge) return;
 
         if (!isVisible) {
@@ -299,23 +298,22 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             ref={toolbarRef}
             id={isNativeMobile ? `nmbb-kt-${id}` : id}
             // NOTE(calebmer): This is a little strange, we have a wrapper `<div>` with
-            // `spacing["2"]` padding height on our keyboard toolbar. I've observed this
-            // makes the animation when the iOS keyboard opens more consistent. Before
-            // adding this slop sometimes when animating the keyboard open the toolbar
-            // wouldn't be visible until half way through the animation then pop in. This
-            // looks janky. You can observe it in [this video][1] if you go frame by frame
-            // either time the keyboard opens. The toolbar pops in during the animation.
-            // This doesn't happen all the time. It's sporadic, mostly happening when the
-            // keyboard opens without needing to scroll the view.
+            // `spacing["2"]` padding height on our keyboard toolbar. I've observed this makes
+            // the animation when the iOS keyboard opens more consistent. Before adding this
+            // slop sometimes when animating the keyboard open the toolbar wouldn't be visible
+            // until half way through the animation then pop in. This looks janky. You can
+            // observe it in [this video][1] if you go frame by frame either time the keyboard
+            // opens. The toolbar pops in during the animation. This doesn't happen all the
+            // time. It's sporadic, mostly happening when the keyboard opens without needing to
+            // scroll the view.
             //
-            // My theory is that somewhere iOS or Safari is un-rendering the element while
-            // it's offscreen and since we start the animation through non-traditional
-            // means (directly writing to Safari's `CALayer` transform property in native
-            // code) it gets rendered during the animation not before it. I've found adding
-            // this slop fixes the bug and makes the animation much more consistent. I
-            // don't have a proven reason as to why but my theory is the slop tricks iOS or
-            // Safari into thinking the toolbar is visible onscreen so needs to always be
-            // rendered.
+            // My theory is that somewhere iOS or Safari is un-rendering the element while it's
+            // offscreen and since we start the animation through non-traditional means
+            // (directly writing to Safari's `CALayer` transform property in native code) it
+            // gets rendered during the animation not before it. I've found adding this slop
+            // fixes the bug and makes the animation much more consistent. I don't have a
+            // proven reason as to why but my theory is the slop tricks iOS or Safari into
+            // thinking the toolbar is visible onscreen so needs to always be rendered.
             //
             // [1]: https://gist.github.com/calebmer/167a4853a187b44ed0621e2d667e7873
             pointerEvents="none"
@@ -329,42 +327,44 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             style={{
                 top: `var(--space-outlet-height, 100svh)`,
                 transition:
-                    // Animate after `--space-outlet-height` changes when the keyboard opens in
-                    // mobile Safari (not our native app). This is a little hacky. Ideally we'd run
-                    // the animation in our effect again but this is simple and we don't care too
-                    // much about mobile Safari (we care a lot about our native app).
+                    // Animate after `--space-outlet-height` changes when the keyboard opens in mobile
+                    // Safari (not our native app). This is a little hacky. Ideally we'd run the
+                    // animation in our effect again but this is simple and we don't care too much
+                    // about mobile Safari (we care a lot about our native app).
                     isVisible && isMobileWebKit && !isNativeMobile ? `top 250ms ease` : undefined,
-                // Our native mobile wrapper looks for compositing layers created from an
-                // element with an ID that starts with `nmbb-` and ties their position to
-                // the tab bar and software keyboard. So we get smooth animations while the
-                // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                // layer we need to set `will-change: transform`. It's not specified that
-                // `will-change: transform` MUST create a compositing layer, instead some
-                // browser engines implement this hint themselves as an optimization.
+                // Our native mobile wrapper looks for compositing layers created from an element
+                // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                // software keyboard. So we get smooth animations while the keyboard opens or the
+                // tab bar shifts offscreen. To create a compositing layer we need to set
+                // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                // create a compositing layer, instead some browser engines implement this hint
+                // themselves as an optimization.
                 //
-                // It so happens that WebKit is one of those browsers. Here's the code in
-                // WebKit that does this: [part 1][1], [part 2][2].
+                // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                // that does this: [part 1][1], [part 2][2].
                 //
-                // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                // [1]:
+                //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                // [2]:
+                //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                 willChange: isNativeMobile ? "transform" : undefined,
-                // Set `transform` to its initial value assuming the tab bar is up. Since this
-                // is a keyboard toolbar (configured with `kt-` in the ID) it doesn't move with
-                // the tab bar.
+                // Set `transform` to its initial value assuming the tab bar is up. Since this is a
+                // keyboard toolbar (configured with `kt-` in the ID) it doesn't move with the tab
+                // bar.
                 transform: isNativeMobile ? "translateY(0px)" : undefined,
                 // We don't unmount the grid view keyboard toolbar when it's completely hidden,
-                // only hide it visually. So for instance if you're in a task detail view
-                // focused on the title, the grid view keyboard toolbar will technically be in
-                // the DOM you just won't see it. We need to keep this element in the DOM so
-                // siblings can portal in actual toolbar implementations.
+                // only hide it visually. So for instance if you're in a task detail view focused
+                // on the title, the grid view keyboard toolbar will technically be in the DOM you
+                // just won't see it. We need to keep this element in the DOM so siblings can
+                // portal in actual toolbar implementations.
                 visibility: isCompletelyHidden ? "hidden" : undefined,
                 pointerEvents: isCompletelyHidden ? "none" : undefined,
             }}
             inert={isCompletelyHidden ? true : undefined}
             aria-hidden={isCompletelyHidden ? "true" : undefined}
-            // Suppress React hydration warnings in our native mobile app. The native
-            // mobile app sets the `transform` property on this element. Sometimes before
-            // React finishes hydrating. This is expected, React can ignore the difference.
+            // Suppress React hydration warnings in our native mobile app. The native mobile
+            // app sets the `transform` property on this element. Sometimes before React
+            // finishes hydrating. This is expected, React can ignore the difference.
             suppressHydrationWarning={isNativeMobile ? true : undefined}
         >
             <Box
@@ -534,8 +534,8 @@ function TaskGridViewMobileKeyboardToolbarButton({
     const {isHovered, hoverProps} = useHover({});
 
     const {isPressed, pressProps} = usePress({
-        // Toolbar buttons should not be focusable since we don't want the content
-        // editor to lose focus.
+        // Toolbar buttons should not be focusable since we don't want the content editor
+        // to lose focus.
         preventFocusOnPress: true,
         isDisabled,
         onPress: event => {
@@ -586,16 +586,17 @@ function TaskGridViewMobileKeyboardToolbarButton({
         [isPressed],
     );
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     return (
         <>
             {dividerLeft && (
                 <Box
-                    // We want all space on the toolbar to be touchable so the user doesn't touch
-                    // and nothing happens (which can feel like a bug).
+                    // We want all space on the toolbar to be touchable so the user doesn't touch and
+                    // nothing happens (which can feel like a bug).
                     {...pressAndHoverProps}
                     // In case `pressAndHoverProps` had a `ref`, unset it.
                     ref={null}
@@ -604,8 +605,8 @@ function TaskGridViewMobileKeyboardToolbarButton({
                 />
             )}
             <Box
-                // None of this is focusable since it's used on mobile where there's no
-                // keyboard navigation.
+                // None of this is focusable since it's used on mobile where there's no keyboard
+                // navigation.
                 {...pressAndHoverProps}
                 aria-label={label}
                 height="full"

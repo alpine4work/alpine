@@ -210,7 +210,8 @@ export type PagerDutyEventPayload = {
         client: {
             name: string;
         };
-        // TODO event_type and resource_type are tied to the data.type. Consider refining this.
+        // TODO event_type and resource_type are tied to the data.type. Consider refining
+        // this.
         event_type: string;
         resource_type: string;
         data: PagerDutyEventData;

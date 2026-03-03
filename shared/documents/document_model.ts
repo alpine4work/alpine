@@ -56,8 +56,8 @@ export class DocumentCommentThreadModel extends Model(
         commentCount: Schema.integer,
 
         /**
-         * The author of the first comment on the thread. The thread creator. There's
-         * a whole list of comment authors in document content references.
+         * The author of the first comment on the thread. The thread creator. There's a
+         * whole list of comment authors in document content references.
          */
         firstCommentAuthor: AccountModel.schema.nullable(),
     }),
@@ -82,8 +82,7 @@ export class DocumentCommentModel
     )
     implements MessageModel<DocumentCommentRoomKey>
 {
-    // Make sure this property is available on this type and not just the
-    // interface.
+    // Make sure this property is available on this type and not just the interface.
     public readonly isOptimistic?: undefined;
 
     public getRoomKey() {
@@ -104,13 +103,12 @@ export class DocumentCommentModel
 /**
  * A rich text, collaboratively editable, document.
  *
- * Code naming note: Whenever we refer to full documents product in code we
- * write it as "documents". Whenever we refer to an individual document we
- * write it as "document". This is why we call our model `DocumentModel` but we
- * call our table `DocumentsTable` and our RPC definitions
- * `documents_rpc_definition.ts`. `DocumentsTable` and
- * `documents_rpc_definition.ts` are referring to the entire documents
- * product.
+ * Code naming note: Whenever we refer to full documents product in code we write
+ * it as "documents". Whenever we refer to an individual document we write it as
+ * "document". This is why we call our model `DocumentModel` but we call our table
+ * `DocumentsTable` and our RPC definitions `documents_rpc_definition.ts`.
+ * `DocumentsTable` and `documents_rpc_definition.ts` are referring to the entire
+ * documents product.
  */
 export class DocumentModel
     extends Model(
@@ -125,8 +123,8 @@ export class DocumentModel
              */
             creator: Schema.object({
                 /**
-                 * What created this document on behalf of the creator, if anything.
-                 * For example, if imported from Notion this will be
+                 * What created this document on behalf of the creator, if anything. For example,
+                 * if imported from Notion this will be
                  * `{type: "Importer", source: {type: "Notion"}}`.
                  */
                 from: DocumentCreatorFromSchema.nullable(),
@@ -145,8 +143,8 @@ export class DocumentModel
 }
 
 /**
- * Get the title of a document as it is. If the document has no title then a
- * empty string will be returned.
+ * Get the title of a document as it is. If the document has no title then a empty
+ * string will be returned.
  */
 export function getDocumentContentTitleWithoutFallback(content: DocumentContent): string {
     const childNode = content.child(0);
@@ -157,8 +155,7 @@ export function getDocumentContentTitleWithoutFallback(content: DocumentContent)
 /**
  * Get the title of a document.
  *
- * If there is no title then the document is given a fallback name
- * like "Untitled".
+ * If there is no title then the document is given a fallback name like "Untitled".
  */
 export function getDocumentContentTitle(content: DocumentContent): string {
     const title = getDocumentContentTitleWithoutFallback(content);
@@ -166,8 +163,8 @@ export function getDocumentContentTitle(content: DocumentContent): string {
 }
 
 /**
- * Return the title string and if the title is empty then return a fallback
- * name like "Untitled".
+ * Return the title string and if the title is empty then return a fallback name
+ * like "Untitled".
  */
 export function addFallbackToDocumentTitle(title: string): string {
     return title.trim().length > 0 ? title : documentFallbackTitle;
@@ -176,9 +173,9 @@ export function addFallbackToDocumentTitle(title: string): string {
 /**
  * The preview of a rich text document.
  *
- * We have a shared interface that both `DocumentModel` and
- * `DocumentPreviewModel` implement that code which needs a preview can use to
- * accept either underlying model.
+ * We have a shared interface that both `DocumentModel` and `DocumentPreviewModel`
+ * implement that code which needs a preview can use to accept either underlying
+ * model.
  */
 export interface DocumentPreviewInterface {
     readonly id: DocumentId;
@@ -189,8 +186,8 @@ export interface DocumentPreviewInterface {
 /**
  * The preview of a rich text document.
  *
- * Documents can get pretty big so the preview is a smaller subset of the
- * document we can load quickly.
+ * Documents can get pretty big so the preview is a smaller subset of the document
+ * we can load quickly.
  */
 export class DocumentPreviewModel
     extends Model(

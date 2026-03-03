@@ -2,9 +2,9 @@ import {DragEvent, MouseEvent, PointerEvent, useRef} from "react";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 
 /**
- * When a user clicks out of bounds on a document it selects the nearest line
- * of text. When they double click it selects the entire paragraph. If they
- * furiously click the full paragraph selection stays.
+ * When a user clicks out of bounds on a document it selects the nearest line of
+ * text. When they double click it selects the entire paragraph. If they furiously
+ * click the full paragraph selection stays.
  *
  * This hook implements the timing logic for selection.
  */
@@ -50,33 +50,33 @@ export function useOutOfBoundsClickSelection({
                     lastDoubleClickTimeRef.current === null ||
                     Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
                 ) {
-                    // If we are the child of a focusable element, don't focus our parent
-                    // after `mousedown`.
+                    // If we are the child of a focusable element, don't focus our parent after
+                    // `mousedown`.
                     event.preventDefault();
 
                     onSelect(event);
                 } else {
-                    // `mousedown` will unfocus whatever is focused. If the user is actively
-                    // double, triple, whatever clicking don't unfocus.
+                    // `mousedown` will unfocus whatever is focused. If the user is actively double,
+                    // triple, whatever clicking don't unfocus.
                     event.preventDefault();
 
                     lastDoubleClickTimeRef.current = Date.now();
                 }
             }
             // If this is a non-mouse pointer then we'll focus on `pointerup`. If a scroll
-            // happens between `pointerdown` and `pointerup` we want to cancel the press
-            // and not focus. Otherwise the keyboard may open while the user is scrolling
-            // which is weird.
+            // happens between `pointerdown` and `pointerup` we want to cancel the press and
+            // not focus. Otherwise the keyboard may open while the user is scrolling which is
+            // weird.
             //
-            // Watch all parent elements of our content editor for scroll events. When a
-            // scroll event occurs we set `isPointerDownAndOverRef.current = false`.
+            // Watch all parent elements of our content editor for scroll events. When a scroll
+            // event occurs we set `isPointerDownAndOverRef.current = false`.
             //
             // This replicates the behavior in `@react-aria/interactions` where a press is
-            // cancelled when a parent element scrolls. This behavior is important for
-            // mobile since the user must press somewhere on the screen to scroll. Normally
+            // cancelled when a parent element scrolls. This behavior is important for mobile
+            // since the user must press somewhere on the screen to scroll. Normally
             // `pointercancel` should be dispatched when the user scrolls while pressing on
-            // some element but when the CSS `touch-action: manipulation` is set the press
-            // is not cancelled.
+            // some element but when the CSS `touch-action: manipulation` is set the press is
+            // not cancelled.
             else {
                 const handleScroll = () => {
                     isPointerDownAndOverRef.current = false;
@@ -135,14 +135,14 @@ export function useOutOfBoundsClickSelection({
                     lastDoubleClickTimeRef.current === null ||
                     Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
                 ) {
-                    // If we are the child of a focusable element, don't focus our parent
-                    // after `mousedown`.
+                    // If we are the child of a focusable element, don't focus our parent after
+                    // `mousedown`.
                     event.preventDefault();
 
                     onSelect(event);
                 } else {
-                    // `mousedown` will unfocus whatever is focused. If the user is actively
-                    // double, triple, whatever clicking don't unfocus.
+                    // `mousedown` will unfocus whatever is focused. If the user is actively double,
+                    // triple, whatever clicking don't unfocus.
                     event.preventDefault();
 
                     lastDoubleClickTimeRef.current = Date.now();
@@ -177,9 +177,9 @@ export function useOutOfBoundsClickSelection({
 
             lastDoubleClickTimeRef.current = Date.now();
         },
-        // When the user right-clicks, focus the text input. Just like clicking on the
-        // area would. This also will make sure we open up the context menu when the
-        // event finishes bubbling up.
+        // When the user right-clicks, focus the text input. Just like clicking on the area
+        // would. This also will make sure we open up the context menu when the event
+        // finishes bubbling up.
         onContextMenu: event => {
             if (isDisabled) return;
             if (!accept(event)) return;

@@ -34,8 +34,8 @@ const mockTokenAgent: BotWebhookContextModuleTokenAgentInterface = {
                 textEncoder.encode(JSON.stringify(TokenPayloadSchema.serialize(payload))),
             );
 
-            // Mock JWT. A JWT has three sections separated by dots. The header, payload,
-            // and signature. Include mock strings for the header and signature.
+            // Mock JWT. A JWT has three sections separated by dots. The header, payload, and
+            // signature. Include mock strings for the header and signature.
             return `jwt.${tokenPayload}.signed`;
         },
     },
@@ -915,9 +915,9 @@ test("requests which don\u2019t finish promptly and have a simulated process cra
     import.meta.jest.advanceTimersByTime(5 * 1000);
     expect(import.meta.jest.getTimerCount()).toEqual(1);
 
-    // With a crash simulated, even though the server returns we have to retry
-    // because we didn't see the server successfully return. So our system counts
-    // that as an error.
+    // With a crash simulated, even though the server returns we have to retry because
+    // we didn't see the server successfully return. So our system counts that as an
+    // error.
     //
     // Arguably this is a glitch that'll cause webhooks to occasionally double fire
     // unexpectedly. We need to advise webhook listeners to be idempotent.

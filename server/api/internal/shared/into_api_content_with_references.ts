@@ -79,8 +79,8 @@ export async function intoApiContentWithReferencesAndReturnReferences(
         fileById: ReadonlyMap<FileId, ContentReferencesFile>;
     };
 }> {
-    // Content references are loaded with eventual consistency. We clearly
-    // document this for public API users.
+    // Content references are loaded with eventual consistency. We clearly document
+    // this for public API users.
     const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
     const referencedIds = getContentReferencedIdsForNode(node);
@@ -125,8 +125,8 @@ export async function intoApiContentWithReferencesAndReturnReferences(
         }),
     );
 
-    // NOTE(calebmer): `intoApiContent()` doesn't currently use `fileById` but it
-    // will eventually.
+    // NOTE(calebmer): `intoApiContent()` doesn't currently use `fileById` but it will
+    // eventually.
     const fileById = new Map(
         filterMapIterable(fileReferences, fileReference => {
             if (!fileReference) return;
@@ -193,8 +193,8 @@ function prepareApiMentionTitle(
         return `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`;
     }
 
-    // Posts start with "in ${channelName}: " and expect client rendering code to
-    // add the post author name to the start of the title.
+    // Posts start with "in ${channelName}: " and expect client rendering code to add
+    // the post author name to the start of the title.
     if (entity.media?.type === "Account" && entityId.startsWith("Post:")) {
         entityTitle = `${getAccountShortNameWithoutFullNameTooltip(
             entity.media.account.initialData,

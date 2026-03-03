@@ -23,7 +23,8 @@ export type AgentScheduleEvent = {
 } & AgentScheduleEventRequest;
 
 /**
- * Collection of scheduled tasks for an Agent sorted by date (earliest event is first).
+ * Collection of scheduled tasks for an Agent sorted by date (earliest event is
+ * first).
  */
 const ScheduleCollection = new DurableObjectStorageCollection<ChronologicalId, AgentScheduleEvent>(
     "a6",
@@ -54,10 +55,10 @@ export async function getAgentScheduleEventsBeforeDate(
 ): Promise<Array<AgentScheduleEvent>> {
     const schedules = await ScheduleCollection.list(storage);
 
-    // TODO(ifitzsimons): This is not efficient. We *should* be able to use `end` in the
-    // DurableObjectListOptions (provided in call to `list()` above), but I could not
-    // get that working.
-    // This is fine for now as the number of events should be really small.
+    // TODO(ifitzsimons): This is not efficient. We _should_ be able to use `end` in
+    // the DurableObjectListOptions (provided in call to `list()` above), but I could
+    // not get that working. This is fine for now as the number of events should be
+    // really small.
     return Array.from(schedules.values()).filter(schedule => schedule.date <= date);
 }
 

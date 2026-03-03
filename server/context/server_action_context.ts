@@ -15,24 +15,24 @@ import {Context} from "~/shared/context/context.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 
 /**
- * Generic context for handling actions against our system that doesn't know
- * which actor is operating our system.
+ * Generic context for handling actions against our system that doesn't know which
+ * actor is operating our system.
  */
 export type ServerActionContextBase = Context<ServerActionContextModulesBase>;
 
 export type ServerActionContextModulesBase = ServerProcessContextModules & {
     /**
-     * Action-level caching. Cached values only live for the span of the action and
-     * are not shared across actions.
+     * Action-level caching. Cached values only live for the span of the action and are
+     * not shared across actions.
      */
     cache: CacheContextModule;
 
     /**
-     * Action-level batching. We batch at the action level so that unrelated
-     * requests do not share IO.
+     * Action-level batching. We batch at the action level so that unrelated requests
+     * do not share IO.
      *
-     * For example, any calls to DynamoDB's `getItem()`, `createOrReplaceItem()`,
-     * or `deleteItem()` in short succession on the context are batched.
+     * For example, any calls to DynamoDB's `getItem()`, `createOrReplaceItem()`, or
+     * `deleteItem()` in short succession on the context are batched.
      */
     batch: BatchContextModule;
 };
@@ -88,8 +88,7 @@ export type ServerAnonymousActionContextModules = MergeObjectIntersection<
 >;
 
 /**
- * Context for actions where we know the actor is an impersonated account
- * actor.
+ * Context for actions where we know the actor is an impersonated account actor.
  */
 export type ServerImpersonatedAccountActionContext =
     Context<ServerImpersonatedAccountActionContextModules>;

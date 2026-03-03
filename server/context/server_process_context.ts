@@ -20,13 +20,12 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 /**
- * Generic context for code running at the process level outside of the scope
- * of an individual request. Individual requests should use a
- * `ServerActionContext`.
+ * Generic context for code running at the process level outside of the scope of an
+ * individual request. Individual requests should use a `ServerActionContext`.
  *
- * Since this is a shared type across all our services anything we provide
- * access to here must be critical for the operation of every service. For
- * example, OpenSearch is only used by the search product and the task product.
+ * Since this is a shared type across all our services anything we provide access
+ * to here must be critical for the operation of every service. For example,
+ * OpenSearch is only used by the search product and the task product.
  * `FileProcessorService` doesn't need OpenSearch so it's not included here.
  */
 export type ServerProcessContext = Context<ServerProcessContextModules>;
@@ -50,19 +49,19 @@ export type ServerProcessContextModules = {
      *
      * DynamoDB is the source of truth for basically all data across our system. We
      * have other storage providers for specific use cases. Like OpenSearch which
-     * provide an easier-to-query view of data in DynamoDB or Cloudflare R2 that
-     * stores large objects. But basically all features need access to DynamoDB so
-     * it's considered a critical dependency.
+     * provide an easier-to-query view of data in DynamoDB or Cloudflare R2 that stores
+     * large objects. But basically all features need access to DynamoDB so it's
+     * considered a critical dependency.
      */
     dynamo: DynamoContextModule;
 
     /**
      * Read and write data in OpenSearch.
      *
-     * We have a couple indexes in OpenSearch for data we need to query in a
-     * flexible way. For example, our search feature is powered by OpenSearch. Task
-     * queries are also powered by OpenSearch since we can efficiently filter/sort
-     * using task queries.
+     * We have a couple indexes in OpenSearch for data we need to query in a flexible
+     * way. For example, our search feature is powered by OpenSearch. Task queries are
+     * also powered by OpenSearch since we can efficiently filter/sort using task
+     * queries.
      */
     opensearch: OpensearchContextModule;
 
@@ -78,9 +77,9 @@ export type ServerProcessContextModules = {
     /**
      * Access files stored in Cloudflare R2.
      *
-     * We use Cloudflare R2 instead of AWS S3 for storing user files since
-     * Cloudflare R2 has no egress fees. Cloudflare R2 objects live near our other
-     * Cloudflare resources which makes it easier to serve files.
+     * We use Cloudflare R2 instead of AWS S3 for storing user files since Cloudflare
+     * R2 has no egress fees. Cloudflare R2 objects live near our other Cloudflare
+     * resources which makes it easier to serve files.
      */
     r2: CloudflareR2ContextModule;
 
@@ -102,32 +101,31 @@ export type ServerProcessContextModules = {
     /**
      * Interact with `TaskRealtimeService`.
      *
-     * `TaskRealtimeService` maintains task data in realtime. If you want to read
-     * task data you go through `TaskRealtimeService` since all other data sources
-     * are stale (OpenSearch can be stale by five minutes or more) or incomplete
-     * (DynamoDB only has attributes essential for authorization).
+     * `TaskRealtimeService` maintains task data in realtime. If you want to read task
+     * data you go through `TaskRealtimeService` since all other data sources are stale
+     * (OpenSearch can be stale by five minutes or more) or incomplete (DynamoDB only
+     * has attributes essential for authorization).
      *
-     * You can think of `TaskRealtimeService` kind of like a database in this
-     * respect. A database whose backing store is split between DynamoDB and
-     * OpenSearch (much like how an actual database may split its backing store
-     * between the file system and S3).
+     * You can think of `TaskRealtimeService` kind of like a database in this respect.
+     * A database whose backing store is split between DynamoDB and OpenSearch (much
+     * like how an actual database may split its backing store between the file system
+     * and S3).
      */
     tasks: TaskContextModuleBase;
 
     /**
      * Access non-sensitive app-wide immutable constants.
      *
-     * This is used for sharing constants that are relevant to multiple services
-     * during runtime and may vary by environment. This *should not* be used to
-     * store secrets or other sensitive information!
+     * This is used for sharing constants that are relevant to multiple services during
+     * runtime and may vary by environment. This _should not_ be used to store secrets
+     * or other sensitive information!
      */
     constants: ConstantsContextModule;
 
     // Access injected functions.
     //
-    // These are used to call functions that aren't part of the current Bazel
-    // package's dependency graph for either performance reasons or to avoid
-    // cyclic dependencies.
+    // These are used to call functions that aren't part of the current Bazel package's
+    // dependency graph for either performance reasons or to avoid cyclic dependencies.
     chatInjection: ChatInjectionContextModule;
     notificationsInjection: NotificationsInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;

@@ -63,10 +63,10 @@ const newlineByte = newlineBuffer[0]!;
  *
  * 1. Removes any clear ANSI escape sequences, a child process can't clear the
  *    screen.
- * 2. Splits the chunk into individual lines. All `ChunkLine` objects returned
- *    end with a newline except the last `ChunkLine` object.
- * 3. Parses open ANSI color codes on each line so we can correctly
- *    disable/enable them when switching to printing a different process.
+ * 2. Splits the chunk into individual lines. All `ChunkLine` objects returned end
+ *    with a newline except the last `ChunkLine` object.
+ * 3. Parses open ANSI color codes on each line so we can correctly disable/enable
+ *    them when switching to printing a different process.
  */
 function transformChunk(chunk: Buffer): ReadonlyArray<ChunkLine> {
     let offset = 0;
@@ -143,11 +143,13 @@ export function transformChunkForTest(chunk: Buffer): ReadonlyArray<ChunkLine> {
  * To implement this we referenced the syntax in "[ANSI Escape Codes][1]."
  *
  * Originally used the same implementation as [`parseAnsiCode()` in
- * `slice-ansi`][2] but that implementation is too generous and parses
- * non-color ANSI escape codes incorrectly.
+ * `slice-ansi`][2] but that implementation is too generous and parses non-color
+ * ANSI escape codes incorrectly.
  *
- * [1]: https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797#colors--graphics-mode
- * [2]: https://github.com/chalk/slice-ansi/blob/400a6ca5c23db8e71bf62d9ebf6082796ce5a7c6/index.js#L52-L63
+ * [1]:
+ *     https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797#colors--graphics-mode
+ * [2]:
+ *     https://github.com/chalk/slice-ansi/blob/400a6ca5c23db8e71bf62d9ebf6082796ce5a7c6/index.js#L52-L63
  */
 function parseAnsiCode(buffer: Buffer, offset: number): Buffer | null {
     let index = offset + 1;
@@ -261,20 +263,19 @@ function getAnsiEndCode(code: string): string {
  * Same as `child_process`'s `spawn()` function where `stdio` is set to
  * `["ignore", "inherit", "inherit"]` but has exclusive access to print to our
  * process's `stdout` and `stderr`. Any processes spawned with
- * `spawnWithCoordinatedStdio()` must wait for this process to complete before
- * they can print.
+ * `spawnWithCoordinatedStdio()` must wait for this process to complete before they
+ * can print.
  *
- * If another blocking process is running then this process will start running
- * but its output will not be written until the last blocking process
- * completes.
+ * If another blocking process is running then this process will start running but
+ * its output will not be written until the last blocking process completes.
  */
 export function spawnWithBlockingStdio(
     command: string,
     args?: ReadonlyArray<string>,
     options?: SpawnOptionsWithoutStdio & {
         /**
-         * Callback for when our process has started blocking stdio. Useful if you want
-         * to print anything before our process.
+         * Callback for when our process has started blocking stdio. Useful if you want to
+         * print anything before our process.
          */
         onStdioBlocked?: (writeStdout: (chunk: string) => void) => void;
     },
@@ -350,8 +351,8 @@ export function spawnWithBlockingStdio(
                 blockingStdioSubprocesses.shift();
             }
 
-            // Once all blocking processes have finished, write buffered coordinated
-            // stdio chunks.
+            // Once all blocking processes have finished, write buffered coordinated stdio
+            // chunks.
             for (const {where, chunkLines, stdioPrefix} of coordinatedStdioBufferedChunks) {
                 if (where === "stdout") {
                     writeWithStdioPrefix(process.stdout, chunkLines, stdioPrefix);
@@ -369,8 +370,8 @@ export function spawnWithBlockingStdio(
 
 /**
  * Same as `child_process`'s `spawn()` function where `stdio` is set to
- * `["ignore", "inherit", "inherit"]` but will not print to our process's
- * `stdout` and `stderr` until all `spawnWithBlockingStdio()` have finished.
+ * `["ignore", "inherit", "inherit"]` but will not print to our process's `stdout`
+ * and `stderr` until all `spawnWithBlockingStdio()` have finished.
  */
 export function spawnWithCoordinatedStdio(
     command: string,
@@ -416,8 +417,8 @@ export function spawnWithCoordinatedStdio(
 }
 
 /**
- * Write a message to our coordinated stdout. If there is a blocking process
- * then we will wait for it to complete before printing.
+ * Write a message to our coordinated stdout. If there is a blocking process then
+ * we will wait for it to complete before printing.
  */
 export function writeToCoordinatedStdout(chunk: string) {
     const chunkLines = transformChunk(Buffer.from(chunk));
@@ -434,8 +435,8 @@ export function writeToCoordinatedStdout(chunk: string) {
 }
 
 /**
- * Write a message to our coordinated stderr. If there is a blocking process
- * then we will wait for it to complete before printing.
+ * Write a message to our coordinated stderr. If there is a blocking process then
+ * we will wait for it to complete before printing.
  */
 export function writeToCoordinatedStderr(chunk: string) {
     const chunkLines = transformChunk(Buffer.from(chunk));
@@ -495,8 +496,8 @@ function mergeAnsiCodes(
 }
 
 /**
- * Write directly to stdout or stderr with a prefix. If the previous write was
- * with a prefix then it needs to be ended with a newline.
+ * Write directly to stdout or stderr with a prefix. If the previous write was with
+ * a prefix then it needs to be ended with a newline.
  */
 function writeWithStdioPrefix(
     stream: WritableStream,
@@ -533,8 +534,8 @@ function writeWithStdioPrefix(
             stream.write(code);
         }
     }
-    // 2. If we're NOT changing the prefix, we have a prefix, and the previous
-    //    write ended with a newline:
+    // 2. If we're NOT changing the prefix, we have a prefix, and the previous write
+    //    ended with a newline:
     else if (prefix !== null && wasPreviousWriteEndedWithNewline) {
         // 2.1. Temporarily reset styles
         for (let i = activeCodes.length - 1; i >= 0; i--) {
@@ -593,10 +594,9 @@ function writeWithStdioPrefix(
     else {
         const lastChunkLine = chunkLines[chunkLines.length - 1]!;
 
-        // 5.2.1. If the last chunk is empty (or only has invisible ANSI codes) then
-        //        this write has ended with a newline. Write the chunk but do NOT write
-        //        a prefix for an empty line. The next write will add a prefix if
-        //        needed.
+        // 5.2.1. If the last chunk is empty (or only has invisible ANSI codes) then this
+        // write has ended with a newline. Write the chunk but do NOT write a prefix for an
+        // empty line. The next write will add a prefix if needed.
         if (lastChunkLine.chunks.every(chunk => !hasNonAnsiCodes(chunk))) {
             wasPreviousWriteEndedWithNewline = true;
 

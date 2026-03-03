@@ -1,6 +1,6 @@
 /**
- * The name to use when we can't find an associated search entity for a
- * given `SearchEntityId`.
+ * The name to use when we can't find an associated search entity for a given
+ * `SearchEntityId`.
  */
 export const missingSearchEntityTitle = "Unknown";
 

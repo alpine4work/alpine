@@ -19,9 +19,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Print API content to Markdown for an agent. Strips some Markdown formatting
- * that we think is too technical for an LLM. For example, removes URLs from
- * links. We give LLMs a tool to read content from links.
+ * Print API content to Markdown for an agent. Strips some Markdown formatting that
+ * we think is too technical for an LLM. For example, removes URLs from links. We
+ * give LLMs a tool to read content from links.
  */
 export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
@@ -33,9 +33,9 @@ export async function printApiContentToAgentMarkdown(
 }
 
 /**
- * Print API content to Markdown for an agent. Strips some Markdown formatting
- * that we think is too technical for an LLM. For example, removes URLs from
- * links. We give LLMs a tool to read content from links.
+ * Print API content to Markdown for an agent. Strips some Markdown formatting that
+ * we think is too technical for an LLM. For example, removes URLs from links. We
+ * give LLMs a tool to read content from links.
  */
 export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
@@ -53,9 +53,9 @@ export async function printApiContentToAgentMarkdownTree(
     });
 
     const traverse = (node: Parent) => {
-        // Headings from `ApiContent` should always start at level 2. That way we can
-        // add level 1 headings elsewhere in the agent context (e.g. document titles)
-        // without fear of conflict.
+        // Headings from `ApiContent` should always start at level 2. That way we can add
+        // level 1 headings elsewhere in the agent context (e.g. document titles) without
+        // fear of conflict.
         if (node.type === "heading") {
             (node as Heading).depth += 1;
         }
@@ -63,12 +63,12 @@ export async function printApiContentToAgentMarkdownTree(
         for (let index = 0; index < node.children.length; index++) {
             const childNode = node.children[index]!;
 
-            // Convert links into a more token efficient representation. The HTTP URL
-            // syntax consumes a lot of tokens and isn't interesting for LLMs.
+            // Convert links into a more token efficient representation. The HTTP URL syntax
+            // consumes a lot of tokens and isn't interesting for LLMs.
             if (childNode.type === "link") {
-                // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g.
-                // a chat message) will be replaced with a missing link. It may make more
-                // sense to create an actual link to the message when possible.
+                // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g. a chat
+                // message) will be replaced with a missing link. It may make more sense to create
+                // an actual link to the message when possible.
                 if (!childNode.data?.mentionElement) {
                     node.children[index] = {
                         type: "linkReference",
@@ -121,28 +121,24 @@ export async function printApiContentToAgentMarkdownTree(
 }
 
 /**
- * Agent content includes html tags for things such as wrapping messages from a user.
- * For example, a message from Alice looks like
+ * Agent content includes html tags for things such as wrapping messages from a
+ * user. For example, a message from Alice looks like
  *
  * ```html
- * <human name="Alice">
- * {markdownContent}
- * </human>
+ * <human name="Alice"> {markdownContent} </human>
  * ```
- * The problem is that `printMarkdownTree` adds new lines around each markdown "block". So the
- * above example actually looks like the following (assuming the content is a paragraph with
- * text "Hello!"):
+ *
+ * The problem is that `printMarkdownTree` adds new lines around each markdown
+ * "block". So the above example actually looks like the following (assuming the
+ * content is a paragraph with text "Hello!"):
+ *
  * ```html
- * <human name="Alice">
- *
- * Hello!
- *
- * </human>
+ * <human name="Alice"> Hello! </human>
  * ```
  *
- * The new lines are technically correct, but are not useful for the LLM. They also make the log
- * harder to read. This function strips new lines after opening message tags and before closing
- * message tags.
+ * The new lines are technically correct, but are not useful for the LLM. They also
+ * make the log harder to read. This function strips new lines after opening
+ * message tags and before closing message tags.
  */
 export function printAgentContentMarkdownTree(markdownRoot: Root): string {
     const markdownString = printMarkdownTree(markdownRoot);

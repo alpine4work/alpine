@@ -10,8 +10,8 @@ import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_mod
 import {ChannelId} from "~/shared/id/types/id_types.js";
 
 /**
- * Updates the channel's `AccessPolicy`. The session actor must be a manager on
- * the channel to update the channel's access policy.
+ * Updates the channel's `AccessPolicy`. The session actor must be a manager on the
+ * channel to update the channel's access policy.
  */
 export async function updateChannelAccessPolicy(
     context: ServerSessionActionContext,

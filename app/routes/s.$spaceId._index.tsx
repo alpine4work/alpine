@@ -30,9 +30,9 @@ const LoaderSchema = Schema.object({
     }),
 });
 
-// NOTE(calebmer): Remix hot reloading always tries to revalidate the loader on
-// hot update unless there's a `shouldRevalidate` function. So if loading is
-// slow we flash the loading shimmer which defeats the purpose of hot reloading.
+// NOTE(calebmer): Remix hot reloading always tries to revalidate the loader on hot
+// update unless there's a `shouldRevalidate` function. So if loading is slow we
+// flash the loading shimmer which defeats the purpose of hot reloading.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl: _currentUrl,
     nextUrl: _nextUrl,

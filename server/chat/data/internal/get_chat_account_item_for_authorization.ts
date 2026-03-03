@@ -10,8 +10,8 @@ export const ChatAccountItemAuthorizationCache = new DynamoContextCache<
     `${ChatId}:${AccountId}`,
     ChatAccountItem | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -23,8 +23,8 @@ export async function getChatAccountItemIfExistsForAuthorization(
 ): Promise<ChatAccountItem | null> {
     const chatItem = await ChatItemAuthorizationCache.getIfExists(context, consistency, chatId);
     if (chatItem) {
-        // Optimization: If this is not a direct chat then there should be no
-        // account items.
+        // Optimization: If this is not a direct chat then there should be no account
+        // items.
         if (chatItem.attributesItem.definition.type !== "Direct") return null;
 
         return chatItem.accountItems.find(item => item.accountId === accountId) ?? null;

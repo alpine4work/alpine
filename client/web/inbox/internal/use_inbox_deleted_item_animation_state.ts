@@ -54,20 +54,20 @@ export function useInboxDeletedItemAnimationState({
     });
 
     // When an item is deleted, we start an animation to shift entries below the
-    // deleted item up to fill its space. This helps users see an item was removed
-    // and what happens next.
+    // deleted item up to fill its space. This helps users see an item was removed and
+    // what happens next.
     {
         const deletedItem = itemsDeletedByLastChangeForAnimation[0];
         if (
             deletedItem &&
-            // If the last item is deleted, don't animate. There are no items which will
-            // cover it.
+            // If the last item is deleted, don't animate. There are no items which will cover
+            // it.
             deletedItem.index < itemCount &&
             !deletedItemAnimationsState.finishedAnimations.has(deletedItem)
         ) {
             // We should still have the height of the deleted item in
-            // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
-            // the element yet.
+            // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted the
+            // element yet.
             let offset = viewRef.current?.getPositionByKeyIfExists(
                 `Loaded:${deletedItem.item.key}`,
             )?.height;
@@ -155,8 +155,8 @@ export function useInboxDeletedItemAnimationState({
         return () => interval.clear();
     }, [hasDeletedActiveAnimationsState]);
 
-    // Collect all items that we need to animate deletion of into a sorted array.
-    // We will interleave this array in our virtualized list.
+    // Collect all items that we need to animate deletion of into a sorted array. We
+    // will interleave this array in our virtualized list.
     const deletedItemAnimations = useMemo(() => {
         if (!deletedItemAnimationsState.activeAnimations) return [];
 

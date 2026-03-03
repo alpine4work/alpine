@@ -13,12 +13,13 @@ export type ErrorBoundaryState = {
 };
 
 /**
- * Convenient component for creating React error boundaries. Currently you must
- * use a [class component][1] to create an error boundary. However, we use
- * functional components for basically everything in our product. This helper
- * can be used if you don't want to write a class component.
+ * Convenient component for creating React error boundaries. Currently you must use
+ * a [class component][1] to create an error boundary. However, we use functional
+ * components for basically everything in our product. This helper can be used if
+ * you don't want to write a class component.
  *
- * [1]: https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
+ * [1]:
+ *     https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     public override readonly state: ErrorBoundaryState = {

@@ -47,8 +47,8 @@ export function useAsyncIterable<Value>({
                     loop();
                 },
                 error => {
-                    // If this is the error from our `AbortSignal` then we can ignore it since
-                    // it's expected.
+                    // If this is the error from our `AbortSignal` then we can ignore it since it's
+                    // expected.
                     if (error === cancelError) return;
 
                     listenersRef.current.error(error);

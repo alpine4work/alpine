@@ -36,10 +36,10 @@ const ContentReferencesFileSchema = Schema.object({
 /**
  * Data referenced by content that doesn't live inside the content.
  *
- * For example, mentions store an `AccountId` in the content but don't store
- * the associated account name and avatar. Since a user could update their
- * account name and we don't want to then go update all content. So instead, we
- * load account data in this references object.
+ * For example, mentions store an `AccountId` in the content but don't store the
+ * associated account name and avatar. Since a user could update their account name
+ * and we don't want to then go update all content. So instead, we load account
+ * data in this references object.
  */
 export const ContentReferencesSchema = Schema.object({
     /**
@@ -56,24 +56,23 @@ export const ContentReferencesSchema = Schema.object({
      * Files attached to the content.
      *
      * Also includes the search part of the preview URL we'll need to render in
-     * `signedUrlSearch`. We only include the search part since the path and
-     * domain can be easily generated on the client so might as well save some
-     * bytes over the network. The path pattern is `/files/:spaceId/:fileId`.
-     * You won't find a Remix route for this path since it's handled by
-     * `EdgeService`.
+     * `signedUrlSearch`. We only include the search part since the path and domain can
+     * be easily generated on the client so might as well save some bytes over the
+     * network. The path pattern is `/files/:spaceId/:fileId`. You won't find a Remix
+     * route for this path since it's handled by `EdgeService`.
      */
     // NOTE(calebmer, 2024-12-29): While this is in `ContentReferences`, not all
-    // content types support files. Notably `MessageContent` does not support
-    // files. Instead we attach files at the message level instead of directly
-    // within content. When I added `fileById` here I thought I was going to be
-    // adding files to `MessageContent` as well.
+    // content types support files. Notably `MessageContent` does not support files.
+    // Instead we attach files at the message level instead of directly within content.
+    // When I added `fileById` here I thought I was going to be adding files to
+    // `MessageContent` as well.
     //
     // Now, separating the `ContentReferences` type into `ContentReferences` (which
-    // doesn't have `fileById`) and, say, `ContentReferencesWithFiles` (which does
-    // have `fileById`) used by `PostContentWithReferences` and
+    // doesn't have `fileById`) and, say, `ContentReferencesWithFiles` (which does have
+    // `fileById`) used by `PostContentWithReferences` and
     // `TaskNotesContentWithReferences` adds a lot of unnecessary complexity.
-    // `fileById` here adds such a minimal amount of overhead, the excessive extra
-    // code complexity isn't worth it at the moment.
+    // `fileById` here adds such a minimal amount of overhead, the excessive extra code
+    // complexity isn't worth it at the moment.
     //
     // Because this property is optional when there are zero files the overhead of
     // including this property for messages is pretty minimal.
@@ -85,14 +84,13 @@ export const ContentReferencesSchema = Schema.object({
     /**
      * Entities attached to content in files.
      *
-     * In additional to arbitrary binary blobs, we allow attaching some Alpine
-     * entities as files. This allows entities to use the file layout engine, put
-     * multiple entities next to each other in rows, and place entities next to
-     * files.
+     * In additional to arbitrary binary blobs, we allow attaching some Alpine entities
+     * as files. This allows entities to use the file layout engine, put multiple
+     * entities next to each other in rows, and place entities next to files.
      */
-    // NOTE(calebmer, 2025-04-28): Similarly to `fileById`, `MessageContent` will
-    // never have any `fileEntityById`s. See the documentation comment on
-    // `fileById` for more info.
+    // NOTE(calebmer, 2025-04-28): Similarly to `fileById`, `MessageContent` will never
+    // have any `fileEntityById`s. See the documentation comment on `fileById` for more
+    // info.
     fileEntityById: Schema.map(FileEntityIdSchema, FileEntityModelResultSchema)
         .minSize(1)
         .optional(),
@@ -117,8 +115,8 @@ export const emptyContentReferences: ContentReferences = {
  * Is the provided `ContentReferences` object empty?
  */
 export function isEmptyContentReferences(references: ContentReferences): boolean {
-    // If you add more data to `ContentReferences` in the future, you'll
-    // need to come back and update this function.
+    // If you add more data to `ContentReferences` in the future, you'll need to come
+    // back and update this function.
     assertEqualTypes<
         keyof ContentReferences,
         "accountById" | "searchEntityById" | "fileById" | "fileEntityById"
@@ -134,8 +132,7 @@ export function isEmptyContentReferences(references: ContentReferences): boolean
 
 /**
  * Merge two `ContentReferences` into one. References in the second object are
- * considered newer than references in the first and will usually override
- * them.
+ * considered newer than references in the first and will usually override them.
  */
 export function mergeContentReferences(
     references1: ContentReferences,
@@ -306,8 +303,8 @@ function mergeContentReferencesFileEntityById(
         }
     }
 
-    // If there's nothing new in `fileEntityById2` then `newFileEntityById` won't
-    // have been initialized.
+    // If there's nothing new in `fileEntityById2` then `newFileEntityById` won't have
+    // been initialized.
     const actualNewFileEntityById = newFileEntityById ?? fileEntityById1;
     if (actualNewFileEntityById !== undefined && actualNewFileEntityById.size === 0)
         return undefined;
@@ -334,14 +331,14 @@ export function mergeContentReferencesFileSignedUrlSearches(
 
     if (oldExpirationTime >= newExpirationTime) return oldSignedUrlSearch;
 
-    // If the new signed URL search has an expiration time less than an hour after
-    // our old expiration time then keep our old URL. This is because every time we
-    // update the URL the browser needs to fetch the image from our server. We
-    // don't want to refetch the image (which'll show the image loading placeholder
-    // to the user) if the expiration time hasn't been extended by much.
+    // If the new signed URL search has an expiration time less than an hour after our
+    // old expiration time then keep our old URL. This is because every time we update
+    // the URL the browser needs to fetch the image from our server. We don't want to
+    // refetch the image (which'll show the image loading placeholder to the user) if
+    // the expiration time hasn't been extended by much.
     //
-    // Our URL signatures expire after 24 hours so it's basically unnoticeable if
-    // we only accept new URLs that expire at least an hour after our old URL.
+    // Our URL signatures expire after 24 hours so it's basically unnoticeable if we
+    // only accept new URLs that expire at least an hour after our old URL.
     if (newExpirationTime - oldExpirationTime < 1000 * 60 * 60) return oldSignedUrlSearch;
 
     return newSignedUrlSearch;

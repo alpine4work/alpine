@@ -12,3 +12,6 @@
 
 # Database migrations metadata
 **/migrations/meta/
+
+# Test file that's intentionally not formatted
+admin/prettier/plugin/prettier_markdown_comments_negative_test_input.ts

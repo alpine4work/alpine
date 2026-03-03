@@ -122,8 +122,8 @@ export const updateSpaceAccountRole = defineRpc({
 
 export const moveSpaceOwner = defineRpc({
     name: "moveSpaceOwner",
-    // Can only move owner as the space owner. Once you've moved ownership you
-    // can't move ownership again.
+    // Can only move owner as the space owner. Once you've moved ownership you can't
+    // move ownership again.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),

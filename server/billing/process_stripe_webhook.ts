@@ -72,7 +72,8 @@ async function processCheckoutSessionCompletedEvent({
     });
 
     if (!lifetimeAccessPurchase) {
-        // We only handle lifetime access purchases for now, so this is an unknown purchase.
+        // We only handle lifetime access purchases for now, so this is an unknown
+        // purchase.
         span.addException(
             new InvalidArgumentError(`Unknown purchase in checkout session`, {
                 cause: {
@@ -145,19 +146,18 @@ async function processCheckoutSessionCompletedEvent({
                 },
             ),
         // Generally, we don't want to set a limit and allow retries to happen within
-        // retryWithExponentialBackoff. However, the /refresh-account-entitlements
-        // endpoint calls out to our internal accounts plan API, which could fail
-        // due to transient errors. Since that call also retries, there could be a very
-        // small chance of this call retrying max times and the agent call retrying max times.
-        // We don't want to DOS ourselves, so instead of 144 total potential retries (12*12),
-        // we limit this to 5 and 5, for 25 total.
+        // retryWithExponentialBackoff. However, the /refresh-account-entitlements endpoint
+        // calls out to our internal accounts plan API, which could fail due to transient
+        // errors. Since that call also retries, there could be a very small chance of this
+        // call retrying max times and the agent call retrying max times. We don't want to
+        // DOS ourselves, so instead of 144 total potential retries (12\*12), we limit this
+        // to 5 and 5, for 25 total.
         {maxAttemptCount: 5},
     );
 }
 
 /**
- * Handles an incoming Stripe webhook request.
- * https://docs.stripe.com/webhooks
+ * Handles an incoming Stripe webhook request. https://docs.stripe.com/webhooks
  */
 export async function processStripeWebhook({
     context,
@@ -206,8 +206,8 @@ export async function processStripeWebhook({
             : undefined;
 
     if (customerId) {
-        // Always log our customerId if we have it so we can trace any
-        // event back to a user, whether or not we handle it.
+        // Always log our customerId if we have it so we can trace any event back to a
+        // user, whether or not we handle it.
         span.addData({billing: {stripeCustomerId: customerId}});
     }
 
@@ -223,5 +223,5 @@ export async function processStripeWebhook({
     }
 
     // TODO: handle refunds - `refund.created` ?
-    //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/3jvm0abv9qkcnxecszd6vsn2qc
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/3jvm0abv9qkcnxecszd6vsn2qc
 }

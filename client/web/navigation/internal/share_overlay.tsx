@@ -216,14 +216,14 @@ function ShareOverlay(
 
     return (
         <FocusScope
-            // If we're animating closed then don't contain focus since we need to move
-            // focus back to the overlay trigger button element.
+            // If we're animating closed then don't contain focus since we need to move focus
+            // back to the overlay trigger button element.
             contain={isVisible}
         >
             <Box
                 id={id}
-                // Let initial focus from `<OverlayTriggerButton>` go somewhere other than the
-                // add people text input.
+                // Let initial focus from `<OverlayTriggerButton>` go somewhere other than the add
+                // people text input.
                 tabIndex={0}
                 className={greyElevated1ClassName}
                 position="relative"
@@ -235,8 +235,8 @@ function ShareOverlay(
                 paddingBottom="5"
                 style={{
                     // Add just a little more width so it doesn't line up perfectly with other `96`
-                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has
-                    // a width of `96` (see `postListViewAsideMaxWidth`).
+                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has a
+                    // width of `96` (see `postListViewAsideMaxWidth`).
                     width: addRemLengths(spacing["96"], spacing["4"]),
                 }}
             >
@@ -520,16 +520,16 @@ export function ShareOverlayAccountGrants({
     // Sort account grants by:
     //
     // 1. Access level (higher access levels first).
-    // 2. Order in which the account grant was added. We assume
-    //    `accountGrantById` is in insertion order.
+    // 2. Order in which the account grant was added. We assume `accountGrantById` is
+    //    in insertion order.
     //
     // The current account is not included in this array. The current account is
     // displayed first in the list of accounts with access.
     //
-    // We don't want accounts to move while the user is modifying their access
-    // level. So we sort accounts by their initial access level, not their current
-    // access level. Which is why we have this state here. This state creates a map
-    // of account grants keyed by the initial access policy we saw for the grant.
+    // We don't want accounts to move while the user is modifying their access level.
+    // So we sort accounts by their initial access level, not their current access
+    // level. Which is why we have this state here. This state creates a map of account
+    // grants keyed by the initial access policy we saw for the grant.
     const accountGrantByIdByInitialEffectiveAccessLevel = useStateWithDependenciesWithoutDispatch<
         ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrantWithoutGeneration>>,
         [AccessPolicy["accountGrantById"]]
@@ -598,14 +598,14 @@ export function ShareOverlayAccountGrants({
                             accountData: AccountModelData | null;
                         }>(
                             // This partition is used to sort removed accounts last. It splits the provided
-                            // iterator into two iterators. The true iterator first (non-removed accounts)
-                            // and the false iterator second (removed accounts). We then flatten that back
-                            // into one iterable with the wrapping `flatIterable()`.
+                            // iterator into two iterators. The true iterator first (non-removed accounts) and
+                            // the false iterator second (removed accounts). We then flatten that back into one
+                            // iterable with the wrapping `flatIterable()`.
                             partitionIterable(
                                 mapIterable(
-                                    // Create an iterable that goes through each account grant in initial access
-                                    // level order. Starting with the `Manage` access level and ending with the
-                                    // `View` access level.
+                                    // Create an iterable that goes through each account grant in initial access level
+                                    // order. Starting with the `Manage` access level and ending with the `View` access
+                                    // level.
                                     flatIterable<AccountId>(
                                         Array.from(
                                             allAccessLevels,

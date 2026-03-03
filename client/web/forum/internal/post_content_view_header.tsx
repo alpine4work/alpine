@@ -106,8 +106,8 @@ export function PostContentViewHeaderBase({
                     display="flex"
                     alignItems="center"
                     // On mobile devices, we'd like for the channel selector to be aligned with the
-                    // right edge of the phone screen so increase the amount of space surrounding
-                    // the text "in". This looks a little weird for short names.
+                    // right edge of the phone screen so increase the amount of space surrounding the
+                    // text "in". This looks a little weird for short names.
                     justifyContent="flex-end"
                     gap="1.5"
                     paddingLeft="1"
@@ -149,8 +149,8 @@ function PostContentViewHeaderChannelBase({
                     className={sprinkles({
                         color: "grey-100",
                         fontStyle: "semi-bold",
-                        // This design has a weak link affordance so use a pointer cursor to make it
-                        // clear this text is clickable.
+                        // This design has a weak link affordance so use a pointer cursor to make it clear
+                        // this text is clickable.
                         cursor: "pointer",
                         opacity: isPressed ? "60" : undefined,
                     })}

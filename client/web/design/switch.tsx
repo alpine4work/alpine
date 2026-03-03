@@ -34,8 +34,9 @@ export function Switch({
 
     const [pendingState, setPendingState] = useState<{isSelected: boolean} | null>(null);
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     const shouldShowPendingSpinner = useDelayLoadingIndicator(!!pendingState);
 
     const {isPressed, pressProps} = usePress({
@@ -110,9 +111,8 @@ export function Switch({
                 height={touchSlop.sizeWithSlop}
                 maxWidth="full"
                 marginY={`-${touchSlop.slop}`}
-                // `inline-flex` so the element width is the width of our contents instead of
-                // the width of the parent. Our width is visible when a `<FocusRing>` is
-                // rendered.
+                // `inline-flex` so the element width is the width of our contents instead of the
+                // width of the parent. Our width is visible when a `<FocusRing>` is rendered.
                 display="inline-flex"
                 alignItems="flex-start"
             >

@@ -55,8 +55,8 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         ref,
         () => ({
             focus: options => {
-                // Change the interaction modality to keyboard so we see focus rings.
-                // Otherwise the user won't know what color they are selecting.
+                // Change the interaction modality to keyboard so we see focus rings. Otherwise the
+                // user won't know what color they are selecting.
                 originalInteractionModalityRef.current ??= getInteractionModality();
                 setInteractionModality("keyboard");
 
@@ -101,19 +101,18 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
 
     const originalInteractionModalityRef = useRef<Modality | null>(null);
 
-    // When we lose our selection (usually because we unmounted) return the
-    // interaction modality to whatever it was before we started keyboard
-    // navigating.
+    // When we lose our selection (usually because we unmounted) return the interaction
+    // modality to whatever it was before we started keyboard navigating.
     //
-    // When this component loses its selection (or unmounts) restore
-    // interaction modality to whatever it was before we set it to `keyboard`.
-    // While editing, the user may hit Cmd+Shift+H then arrow keys to highlight
-    // some text. Only keep them in `keyboard` interaction modality if that's the
-    // state they were previously in. Since keyboard navigation within this
-    // component is a pretty common pattern even for a user that predominantly uses
-    // `pointer` navigation. Showing focus rings for new elements the user focuses
-    // (e.g. the link input when the user hits Cmd+K) will likely confuse them
-    // since they didn't intend to enter keyboard navigation mode.
+    // When this component loses its selection (or unmounts) restore interaction
+    // modality to whatever it was before we set it to `keyboard`. While editing, the
+    // user may hit Cmd+Shift+H then arrow keys to highlight some text. Only keep them
+    // in `keyboard` interaction modality if that's the state they were previously in.
+    // Since keyboard navigation within this component is a pretty common pattern even
+    // for a user that predominantly uses `pointer` navigation. Showing focus rings for
+    // new elements the user focuses (e.g. the link input when the user hits Cmd+K)
+    // will likely confuse them since they didn't intend to enter keyboard navigation
+    // mode.
     useEffect(() => {
         return () => {
             if (isFocusWithin && originalInteractionModalityRef.current !== null) {
@@ -324,15 +323,15 @@ function ContentEditorHighlightSelectorButton({
                 {...mergeProps(hoverProps, pressProps)}
                 ref={useMergedRefs<HTMLDivElement>(targetRef, buttonRef)}
                 tabIndex={isFocusable ? (wasLastFocused ? 0 : -1) : undefined}
-                // y-padding is on the button so the tooltip is appropriately
-                // offset from the toolbar.
+                // y-padding is on the button so the tooltip is appropriately offset from the
+                // toolbar.
                 paddingY="1"
                 onFocus={onFocus}
             >
                 <Box
                     // We implement dividers in this funky way so that as the mouse scrubs left and
-                    // right over our toolbar the tooltips immediately disappear/reappear because
-                    // there is no gap in between the hovered elements.
+                    // right over our toolbar the tooltips immediately disappear/reappear because there
+                    // is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0"}
                     borderRight={dividerRight ? "grey-5" : undefined}
                     paddingLeft={dividerLeft ? "1" : "0"}

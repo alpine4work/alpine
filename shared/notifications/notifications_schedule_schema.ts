@@ -9,7 +9,8 @@ export const defaultDigestNotificationSchedule: DigestNotificationsSchedule = ne
 
 /**
  * The possible times available for a notification to be scheduled as "HH:mm".
- * These times are timezone naive and represent a desired time in any given time zone.
+ * These times are timezone naive and represent a desired time in any given time
+ * zone.
  */
 export const DigestNotificationsScheduleSchema = Schema.set(
     Schema.enum([

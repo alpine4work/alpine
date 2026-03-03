@@ -16,9 +16,9 @@ export async function createFictionalAmbrookSpace(context: TestContext) {
     debug("Creating space");
 
     const space = await TestSpace.create(context, {
-        // We use our company name for the space since a fictional product name might
-        // not be clear (it may look like an Alpine product name). Plus it's good to
-        // get our company name in more screenshots.
+        // We use our company name for the space since a fictional product name might not
+        // be clear (it may look like an Alpine product name). Plus it's good to get our
+        // company name in more screenshots.
         name: "Alpine",
     });
 
@@ -35,8 +35,8 @@ export async function createFictionalAmbrookSpace(context: TestContext) {
         "." +
         currentTime.getDate().toString().padStart(2, "0") +
         "." +
-        // Seconds through the day. We use this format instead of `hh.mm.ss` so the
-        // date clearly reads as a date. Seconds are added on purely to disambiguate.
+        // Seconds through the day. We use this format instead of `hh.mm.ss` so the date
+        // clearly reads as a date. Seconds are added on purely to disambiguate.
         (
             currentTime.getHours() * 60 * 60 +
             currentTime.getMinutes() * 60 +
@@ -131,9 +131,8 @@ async function createFictionalAmbrookAccounts(space: TestSpace) {
         // AI
         chatGpt: (async () => {
             // TODO(calebmer, 2025-12-08): We don't currently have bot avatars set up yet.
-            // There's a file in `scenario_chatgpt_avatar.png` that we're not currently
-            // using. We need to figure out a way to get avatars uploaded for bots for test
-            // scenarios.
+            // There's a file in `scenario_chatgpt_avatar.png` that we're not currently using.
+            // We need to figure out a way to get avatars uploaded for bots for test scenarios.
             const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
 
             const roseCompas = await roseCompasPromise;

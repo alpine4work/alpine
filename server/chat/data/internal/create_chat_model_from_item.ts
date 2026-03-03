@@ -72,8 +72,8 @@ export async function createChatModelFromItem(
             // `originalPreviewAccountIds`) to try and help make different chats appear
             // differently.
             //
-            // If there are only two accounts then we'll show our actor account but we'll
-            // show it last.
+            // If there are only two accounts then we'll show our actor account but we'll show
+            // it last.
             const previewAccountIds = Array.from(originalPreviewAccountIds)
                 .sort((accountId1, accountId2) => {
                     const sortAccountId1Last = sortAccountIdLast(accountId1);

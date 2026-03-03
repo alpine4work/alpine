@@ -1,7 +1,6 @@
 /**
  * Splits an array in two. The first array is for all items where `predicate`
- * returns true. The second array is for all items where `predicate`
- * returns false.
+ * returns true. The second array is for all items where `predicate` returns false.
  *
  * Named after Lodash's [`partition` function][1].
  *

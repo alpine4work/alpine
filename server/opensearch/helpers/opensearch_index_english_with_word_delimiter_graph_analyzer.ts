@@ -7,36 +7,36 @@ import {
 
 /**
  * We add the `word_delimiter_graph` filter to the [default English language
- * analyzer][1] to split up identifiers, allowing us to search them. For
- * example `["FY2024Q3"]` is split into `["FY", "2024", "Q", "3"]` so you can
- * search `"Q3"` and find what you're looking for. It also splits
- * camelCase/PascalCase which helps programming queries (e.g. if we had
- * `["TaskRealtimeService"]` it becomes `["Task", "Realtime", "Service"]`).
+ * analyzer][1] to split up identifiers, allowing us to search them. For example
+ * `["FY2024Q3"]` is split into `["FY", "2024", "Q", "3"]` so you can search `"Q3"`
+ * and find what you're looking for. It also splits camelCase/PascalCase which
+ * helps programming queries (e.g. if we had `["TaskRealtimeService"]` it becomes
+ * `["Task", "Realtime", "Service"]`).
  *
  * We expect identifiers with naming schemes like these to be common in large
- * businesses. In businesses with a big software presence we expect queries
- * like these to be very common.
+ * businesses. In businesses with a big software presence we expect queries like
+ * these to be very common.
  *
- * When localizing our product we should consider adding additional analyzers
- * for other languages.
+ * When localizing our product we should consider adding additional analyzers for
+ * other languages.
  *
- * One important difference with the [English analyzer][1] is we don't remove
- * stop words since they can change semantic meaning and removing them may lead
- * to a loss in query precision. [Read this blog post from 2013][2] for more
+ * One important difference with the [English analyzer][1] is we don't remove stop
+ * words since they can change semantic meaning and removing them may lead to a
+ * loss in query precision. [Read this blog post from 2013][2] for more
  * information. In 2013 ElasticSearch introduced a parameter `cutoff_frequency`
  * which provided similar search performance to a query with stop words removed
- * without reducing precision. [In 2019 `cutoff_frequency` was deprecated][3]
- * since ElasticSearch out of the box has good performance for queries with
- * common terms.
+ * without reducing precision. [In 2019 `cutoff_frequency` was deprecated][3] since
+ * ElasticSearch out of the box has good performance for queries with common terms.
  *
- * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-lang-analyzer.html#english-analyzer
- * [2]: https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
+ * [1]:
+ *     https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-lang-analyzer.html#english-analyzer
+ * [2]:
+ *     https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
  * [3]: https://github.com/elastic/elasticsearch/issues/37096
  */
 export const opensearchIndexEnglishWithWordDelimiterGraphAnalyzer =
     // Numbered with `_2` to avoid conflicting with our original
-    // `english_with_word_delimiter_graph` analyzer used by
-    // `TaskCollectionNameType`.
+    // `english_with_word_delimiter_graph` analyzer used by `TaskCollectionNameType`.
     new OpensearchIndexAnalysisCustomAnalyzer("english_with_word_delimiter_graph_2", {
         tokenizer: "standard",
         filter: [
@@ -58,11 +58,11 @@ export const opensearchIndexEnglishWithWordDelimiterGraphAnalyzer =
     });
 
 /**
- * Approximately tries to analyze the provided text in JavaScript as if we were
- * the OpenSearch `opensearchIndexEnglishWithWordDelimiterGraphAnalyzer`
- * analyzer. This is only approximate. We don't attempt to exactly match
- * OpenSearch's implementation. For instance, at the moment we don't implement
- * anything to do with the `word_delimiter_graph` filter.
+ * Approximately tries to analyze the provided text in JavaScript as if we were the
+ * OpenSearch `opensearchIndexEnglishWithWordDelimiterGraphAnalyzer` analyzer. This
+ * is only approximate. We don't attempt to exactly match OpenSearch's
+ * implementation. For instance, at the moment we don't implement anything to do
+ * with the `word_delimiter_graph` filter.
  *
  * Useful for doing some OpenSearch-like work within our services that doesn't
  * require exact OpenSearch compatibility. Like highlighting text from an
@@ -110,8 +110,8 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-lowercase-tokenfilter.html
         text = text.toLowerCase();
 
-        // `stemmer` filter with `english` language. Uses the Porter stemming
-        // algorithm. See:
+        // `stemmer` filter with `english` language. Uses the Porter stemming algorithm.
+        // See:
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-stemmer-tokenfilter.html
         // https://snowballstem.org/algorithms/porter/stemmer.html
         text = stemmer(text);

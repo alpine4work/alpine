@@ -145,9 +145,9 @@ export function renderContentFileErrorPreview({
                     break;
                 }
                 case "Link": {
-                    // We don't currently support links in content file previews. Since we can't
-                    // render a full `<Link>` component (like we do in
-                    // `<ErrorDisplayMessageRenderer>`) with all the navigation bells and whistles.
+                    // We don't currently support links in content file previews. Since we can't render
+                    // a full `<Link>` component (like we do in `<ErrorDisplayMessageRenderer>`) with
+                    // all the navigation bells and whistles.
                     errorMessageHtml.appendChild(new HtmlTextGenerator(displayMessageSegment.text));
                     break;
                 }

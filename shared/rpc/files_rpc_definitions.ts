@@ -9,8 +9,8 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const startUploadingFile = defineRpc({
     name: "startUploadingFile",
-    // Fails if the file already exists (when `fileId` is provided).
-    // Generates a new `fileId` otherwise.
+    // Fails if the file already exists (when `fileId` is provided). Generates a new
+    // `fileId` otherwise.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),

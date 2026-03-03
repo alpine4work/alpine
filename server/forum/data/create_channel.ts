@@ -88,8 +88,7 @@ export async function createChannel(
                 accountIdsWithGrant: Array.from(channelItem.accessPolicy.accountGrantById.keys()),
             },
         ),
-        // Automatically subscribe the channel creator to the channel they've just
-        // created.
+        // Automatically subscribe the channel creator to the channel they've just created.
         ForumTable.transactionCreateOrReplaceItem({
             partitionType: "Channel",
             sortRangeType: "Subscription",
@@ -99,9 +98,8 @@ export async function createChannel(
         }),
     ]);
 
-    // Future `authorizeChannelAccess()` calls in the request should not need to
-    // load the channel. This optimization kicks in for the create channel Remix
-    // route.
+    // Future `authorizeChannelAccess()` calls in the request should not need to load
+    // the channel. This optimization kicks in for the create channel Remix route.
     ChannelPreviewItemAuthorizationCache.set(context, "Strong", channelId, channelItem);
 
     context.process.waitUntil(async () => {
@@ -118,8 +116,8 @@ export async function createChannel(
         if (channelItem.hasAddedFeedCandidateEntry) {
             await addFeedCandidateEntry(context, channelItem.spaceId, entry);
         }
-        // If we're creating a private channel then only add an entry to the
-        // creator account's personal feed.
+        // If we're creating a private channel then only add an entry to the creator
+        // account's personal feed.
         else {
             await addFeedAccountCandidateEntry(context, channelItem.spaceId, creatorId, entry);
         }
@@ -131,8 +129,8 @@ export async function createChannel(
         update: {
             type: "Channel",
             channelId: channelItem.channelId,
-            // Nothing depends on this entity when it's created. Don't bother trying to
-            // reindex dependencies.
+            // Nothing depends on this entity when it's created. Don't bother trying to reindex
+            // dependencies.
             updatedTraits: {type: "None"},
         },
     });

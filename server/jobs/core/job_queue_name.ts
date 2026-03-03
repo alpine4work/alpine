@@ -8,7 +8,8 @@ export const jobQueueNameByType = {
     IndexSearchEntityDependents: "Default",
     IndexSearchEntityEmbeddingChunks: "Default",
     NotificationEvent: "Default",
-    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+    // original job queue
     ProcessFile: "FileProcessor",
     ProcessFileHeavy: "FileProcessorHeavy",
     ProcessFileLight: "FileProcessorLight",

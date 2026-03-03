@@ -32,8 +32,8 @@ export const postFauxInputCreateButtonInnerButtonHeight = "7";
 export const postContentViewOuterMarginY = "6";
 
 // We also use this value as the padding X and Y padding for our post content
-// editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
-// values in addition to Y axis spacing values.
+// editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing values
+// in addition to Y axis spacing values.
 export const postContentViewInnerMarginY = "4";
 
 export const postContentViewHeaderMobileAvatarSize = "7";
@@ -60,9 +60,9 @@ const fontSize75LineHeightRem = parseRemLength(fontSizes["75"].lineHeight);
 const postContentViewFooterHeightRem = parseRemLength(postContentViewFooterHeight);
 const postContentViewOuterMarginYRem = parseRemLength(postContentViewOuterMarginY);
 
-// Visually, we want `postContentViewOuterMarginY` of space from the bottom of
-// the button text. So adjust our outer padding bottom to exclude footer
-// height we already have.
+// Visually, we want `postContentViewOuterMarginY` of space from the bottom of the
+// button text. So adjust our outer padding bottom to exclude footer height we
+// already have.
 const postContentViewOuterMarginBottomRem =
     postContentViewOuterMarginYRem - (postContentViewFooterHeightRem - fontSize75LineHeightRem) / 2;
 

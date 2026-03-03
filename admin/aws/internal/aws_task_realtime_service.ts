@@ -63,10 +63,10 @@ export class AwsTaskRealtimeService extends Construct {
     ) {
         super(parentConstruct, "TaskRealtimeService");
 
-        // `TaskRealtimeService` is a stateful service. Each `TaskRealtimeService`
-        // manages realtime connections for one or more spaces. Spaces are routed
-        // evenly between `TaskRealtimeService` partitions. So multiple users from the
-        // same space consistently go to the same `TaskRealtimeService` instance.
+        // `TaskRealtimeService` is a stateful service. Each `TaskRealtimeService` manages
+        // realtime connections for one or more spaces. Spaces are routed evenly between
+        // `TaskRealtimeService` partitions. So multiple users from the same space
+        // consistently go to the same `TaskRealtimeService` instance.
         //
         // To horizontally scale `TaskRealtimeService` you have two options:
         //
@@ -75,21 +75,21 @@ export class AwsTaskRealtimeService extends Construct {
         //
         // `SpaceId`s are evenly routed across partitions. If an instance is getting
         // overwhelmed by needing to handle too many spaces, add more partitions. If an
-        // instance is getting overwhelmed by too many connections from the same space
-        // then increase the number of instances per partition so there are multiple
-        // copies of a space's data to handle load.
+        // instance is getting overwhelmed by too many connections from the same space then
+        // increase the number of instances per partition so there are multiple copies of a
+        // space's data to handle load.
         //
-        // The number of instances per partition should probably be somewhat low
-        // (e.g. 1, 2, or 3). There are inefficiencies to having multiple
-        // `TaskRealtimeService` instances keeping a copy of the same space's data.
-        // Namely you decrease your chance of cache hits. Generally your tool for
-        // scaling `TaskRealtimeService` should be increasing the number of partitions.
+        // The number of instances per partition should probably be somewhat low (e.g. 1,
+        // 2, or 3). There are inefficiencies to having multiple `TaskRealtimeService`
+        // instances keeping a copy of the same space's data. Namely you decrease your
+        // chance of cache hits. Generally your tool for scaling `TaskRealtimeService`
+        // should be increasing the number of partitions.
         const partitionCount = 4;
         const partitionInstanceCount = 1;
 
         // First 750 hours per month of the `t3.micro` instance type are free. That
-        // effectively translates to 1 free capacity of this instance type across our
-        // AWS account.
+        // effectively translates to 1 free capacity of this instance type across our AWS
+        // account.
         //
         // IMPORTANT: We need to know the number of CPUs on our instance
         // (`instanceCpuCount`). If you change the instance type you should also change
@@ -124,15 +124,15 @@ export class AwsTaskRealtimeService extends Construct {
             // instances to maintain availability while a new fleet of instances start.
             maxCapacity: partitionCount * partitionInstanceCount * 2,
 
-            // See the long comment in `AwsAppService` for why we use a public
-            // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
-            // API calls through a NAT gateway can get expensive.
+            // See the long comment in `AwsAppService` for why we use a public subnet for our
+            // services. The TL;DR is sending egress traffic like Honeycomb API calls through a
+            // NAT gateway can get expensive.
             //
-            // Additionally, `TaskRealtimeService` needs to be connected to the public
-            // internet since we need to establish WebSocket connections to it. Well,
-            // specifically Cloudflare needs to establish a WebSocket connection. All
-            // WebSocket traffic should be proxied through Cloudflare. We don't expect
-            // client devices to connect directly to our `TaskRealtimeService` AWS servers.
+            // Additionally, `TaskRealtimeService` needs to be connected to the public internet
+            // since we need to establish WebSocket connections to it. Well, specifically
+            // Cloudflare needs to establish a WebSocket connection. All WebSocket traffic
+            // should be proxied through Cloudflare. We don't expect client devices to connect
+            // directly to our `TaskRealtimeService` AWS servers.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
 
@@ -191,8 +191,8 @@ export class AwsTaskRealtimeService extends Construct {
         this.taskDefinition = new Ec2TaskDefinition(this, "TaskDefinition", {
             // According to the docs:
             //
-            // > The host and awsvpc network modes offer the highest networking performance
-            // > for containers because they use the Amazon EC2 network stack.
+            // > The host and awsvpc network modes offer the highest networking performance for
+            // > containers because they use the Amazon EC2 network stack.
             //
             // Also:
             //
@@ -200,8 +200,7 @@ export class AwsTaskRealtimeService extends Construct {
             // > containers using the root user (UID 0) for better security.
             //
             // We use the host network mode for performance. We're running on public VPC
-            // subnets so that means anyone on the internet can send a request to our
-            // instance.
+            // subnets so that means anyone on the internet can send a request to our instance.
             //
             // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
             networkMode: NetworkMode.HOST,
@@ -211,17 +210,17 @@ export class AwsTaskRealtimeService extends Construct {
 
         const cpu = 2048;
 
-        // Memory available to our container. We can't use the full available memory
-        // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
-        // to function.
+        // Memory available to our container. We can't use the full available memory (1024
+        // MiB for `t4g.micro` instances) because the ECS agent needs some memory to
+        // function.
         //
         // The right value is available on the container instance screen in the AWS
-        // console. Specifically under the "Resources & networking" tab. You want to
-        // look at "Total capacity" and make sure we're reserving all of it.
+        // console. Specifically under the "Resources & networking" tab. You want to look
+        // at "Total capacity" and make sure we're reserving all of it.
         //
-        // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
-        // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
-        // stuck in the "Provisioning" status forever.
+        // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much memory on
+        // `t4g.nano` instances you don't get an error. Instead the tasks are stuck in the
+        // "Provisioning" status forever.
         const memoryLimitMiB = 7842;
 
         const gatewayResourcePercent = 0.02;
@@ -238,18 +237,18 @@ export class AwsTaskRealtimeService extends Construct {
             cpu: cpu - Math.floor(cpu * gatewayResourcePercent),
             memoryReservationMiB:
                 memoryLimitMiB - Math.floor(memoryLimitMiB * gatewayResourcePercent),
-            // Send logs to AWS. Container logs are short-lived and used for debugging
-            // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+            // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+            // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to two minutes so essential background processes
-            // have ample time to finish. For example, task action indexing which is done
-            // in the background with `context.process.waitUntil()`.
+            // Increase stop timeout to two minutes so essential background processes have
+            // ample time to finish. For example, task action indexing which is done in the
+            // background with `context.process.waitUntil()`.
             stopTimeout: Duration.millis(ecsStopTimeoutMs),
-            // For security, use the `www-data` user which exists on our Linux image. It
-            // only has read access and execute access to files on our system.
+            // For security, use the `www-data` user which exists on our Linux image. It only
+            // has read access and execute access to files on our system.
             user: "www-data",
-            // `TaskRealtimeService` spawns a worker for each CPU on the instance type.
-            // Each of these workers expose their own HTTP server for us to connect to.
+            // `TaskRealtimeService` spawns a worker for each CPU on the instance type. Each of
+            // these workers expose their own HTTP server for us to connect to.
             portMappings: ports.map(port => ({
                 containerPort: port,
                 hostPort: port,
@@ -295,12 +294,12 @@ export class AwsTaskRealtimeService extends Construct {
                 NODE_ENV: "production",
             },
             command: [
-                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
-                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
-                // (e.g. `sh -c`) not our process.
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
+                // ECS process termination. The `SIGTERM` signal is sent to the shell (e.g.
+                // `sh -c`) not our process.
                 //
-                // `runService()` implements env variable substitution which is why we can use
-                // env variable syntax like `$HONEYCOMB_API_KEY`.
+                // `runService()` implements env variable substitution which is why we can use env
+                // variable syntax like `$HONEYCOMB_API_KEY`.
                 "/var/www/server/tasks/realtime/realtime",
                 `--portBase=${portBase}`,
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
@@ -324,8 +323,8 @@ export class AwsTaskRealtimeService extends Construct {
             ],
             healthCheck: {
                 // `TaskRealtimeService` won't be healthy for 4 minutes! (The
-                // `TaskRealtimeServiceRouterBase` invalidation timeout.) That's because we
-                // need to wait for `TaskRealtimeService` to be discovered by all our peers.
+                // `TaskRealtimeServiceRouterBase` invalidation timeout.) That's because we need to
+                // wait for `TaskRealtimeService` to be discovered by all our peers.
                 startPeriod: Duration.millis(taskRealtimeServiceDiscoveryWaitMs),
 
                 /* eslint-disable cyberworlds/string-quotes */
@@ -357,13 +356,13 @@ export class AwsTaskRealtimeService extends Construct {
             ),
             cpu: Math.floor(cpu * gatewayResourcePercent),
             memoryReservationMiB: Math.floor(memoryLimitMiB * gatewayResourcePercent),
-            // Send logs to AWS. Container logs are short-lived and used for debugging
-            // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+            // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+            // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
             // DANGER: We need to run as root to listen on port 80. The process immediately
-            // downgrades to the `www-data` user once we've bound to port 80. We could put
-            // the gateway server in the main `TaskRealtimeService` container but we decide
-            // to use a sidecar container to limit the potential damage of root access.
+            // downgrades to the `www-data` user once we've bound to port 80. We could put the
+            // gateway server in the main `TaskRealtimeService` container but we decide to use
+            // a sidecar container to limit the potential damage of root access.
             user: "root",
             portMappings: [{containerPort: 80, hostPort: 80}],
             environment: {
@@ -389,9 +388,9 @@ export class AwsTaskRealtimeService extends Construct {
         opensearch.grantReadWriteData(this.taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
         observability.grantPutToTracerEventStream(this.taskDefinition.taskRole);
-        // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
-        // in order to unblock CI. Without it, CloudFormation tries to delete the exported
-        // resource but stops since it is used in other stacks
+        // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for
+        // now in order to unblock CI. Without it, CloudFormation tries to delete the
+        // exported resource but stops since it is used in other stacks
         observability.grantPutToTracerHoneycombFirehoseDeliveryStream(this.taskDefinition.taskRole);
 
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {

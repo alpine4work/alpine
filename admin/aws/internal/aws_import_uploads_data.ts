@@ -8,14 +8,15 @@ import {Construct} from "constructs";
  * potentially other import types in the future.
  *
  * The flow is:
+ *
  * 1. App service creates a presigned PutObject URL for the client
  * 2. Client uploads the file directly to S3 via the presigned URL
  * 3. Client calls `finishedNotionImportUpload` RPC to trigger validation
  * 4. App service queues a ValidateNotionImportAndExtractMetadata job
  * 5. Job queue service reads the file from S3 for processing
  *
- * Previously this used S3 event notifications -> Lambda -> SQS, but using an
- * RPC is simpler: same code path for dev/prod, easier debugging, no Lambda
+ * Previously this used S3 event notifications -> Lambda -> SQS, but using an RPC
+ * is simpler: same code path for dev/prod, easier debugging, no Lambda
  * infrastructure needed.
  */
 export class AwsImportUploadsData extends Construct {
@@ -28,8 +29,8 @@ export class AwsImportUploadsData extends Construct {
             bucketName: "cyberworlds-import-uploads",
             enforceSSL: true,
             minimumTLSVersion: 1.2,
-            // Don't allow public access. We only allow access through IAM policies
-            // and presigned URLs.
+            // Don't allow public access. We only allow access through IAM policies and
+            // presigned URLs.
             blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
             // If this bucket is deleted from a stack, we can delete the objects within.
             // They're temporary import files which are no longer needed after processing.
@@ -58,16 +59,16 @@ export class AwsImportUploadsData extends Construct {
     }
 
     /**
-     * Grants the grantee permissions to upload files to the bucket.
-     * Used by app service for creating presigned PutObject URLs.
+     * Grants the grantee permissions to upload files to the bucket. Used by app
+     * service for creating presigned PutObject URLs.
      */
     public grantUpload(grantee: IGrantable) {
         this._bucket.grantPut(grantee);
     }
 
     /**
-     * Grants the grantee permissions to read files from the bucket.
-     * Used by job queue service to read uploaded files for processing.
+     * Grants the grantee permissions to read files from the bucket. Used by job queue
+     * service to read uploaded files for processing.
      */
     public grantRead(grantee: IGrantable) {
         this._bucket.grantRead(grantee);

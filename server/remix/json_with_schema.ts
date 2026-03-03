@@ -34,25 +34,24 @@ export function jsonWithSchema<Value>(
         /**
          * You might ask: Task data in a generic helper? What is this?
          *
-         * We have a shared loader data property for tasks because we want all task
-         * data to go into a normalized store which lives at the `/s/:spaceId` route
-         * but that data can be loaded from any route's loader function.
+         * We have a shared loader data property for tasks because we want all task data to
+         * go into a normalized store which lives at the `/s/:spaceId` route but that data
+         * can be loaded from any route's loader function.
          *
          * The `/s/:spaceId` route knows to look for this shared property on all loader
          * data and will incorporate it into the store.
          *
-         * This does mean shared logic code in `~/shared/tasks` is always included in
-         * the JavaScript bundle for `/s/:spaceId` routes. We accept this since we do
-         * want normalized task data to be accessible everywhere throughout the
-         * product.
+         * This does mean shared logic code in `~/shared/tasks` is always included in the
+         * JavaScript bundle for `/s/:spaceId` routes. We accept this since we do want
+         * normalized task data to be accessible everywhere throughout the product.
          */
         taskStoreLoaderData?: TaskStoreLoaderData;
     } = {},
 ): Response {
     const serializedValue = schema.serialize(value as Value);
 
-    // The serialized value must be an object so we can add properties to it. Like
-    // the original, deserialized, value and the propagated event data.
+    // The serialized value must be an object so we can add properties to it. Like the
+    // original, deserialized, value and the propagated event data.
     assert(isPlainObject(serializedValue));
 
     // When we render our component on the server, it's wasteful of CPU time to
@@ -67,8 +66,8 @@ export function jsonWithSchema<Value>(
     }
 
     // If we have task data to load in our shared store, stash it on the serialized
-    // result. Our `/s/:spaceId` route knows to look for this property and will add
-    // the data to our shared store.
+    // result. Our `/s/:spaceId` route knows to look for this property and will add the
+    // data to our shared store.
     if (taskStoreLoaderData) {
         const taskStoreLoaderDataSerializedValue =
             TaskStoreLoaderDataSchema.serialize(taskStoreLoaderData);

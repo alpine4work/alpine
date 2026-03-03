@@ -122,9 +122,9 @@ function ReactionRadialPicker(
     const pointerDownCleanupRef = useRef<((event: PointerEvent) => void) | null>(null);
 
     const [isPressed, setIsPressed] = useState(false);
-    // This state is only used for styling and animations and is possibly null when the pointer is
-    // a touch device. On final reaction selection, we call `calculateActiveIndex` to get the actual
-    // active index.
+    // This state is only used for styling and animations and is possibly null when the
+    // pointer is a touch device. On final reaction selection, we call
+    // `calculateActiveIndex` to get the actual active index.
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
     const {onSetReaction, onDeleteReaction, onOpenMegaPicker} = useEvents({
@@ -248,16 +248,15 @@ function ReactionRadialPicker(
                 circleElement.style.transform = `translate(${transformVector.x}px, ${transformVector.y}px)`;
             }
 
-            // Detect which icon is active. (So if there's a click, we'll select
-            // this icon.)
+            // Detect which icon is active. (So if there's a click, we'll select this icon.)
             {
                 setActiveIndex(calculateActiveIndex(event.clientX, event.clientY));
             }
         };
 
-        // TODO(rmtobin, #chrome-responsive-mode): This is always fired in Chrome devtools in
-        // "responsive" mode even when the pointer has not left. Works as expected on actual devices.
-        // Called when the pointer leaves the document.
+        // TODO(rmtobin, #chrome-responsive-mode): This is always fired in Chrome devtools
+        // in "responsive" mode even when the pointer has not left. Works as expected on
+        // actual devices. Called when the pointer leaves the document.
         const handlePointerLeave = () => {
             onCloseWithAnimation();
         };
@@ -273,8 +272,8 @@ function ReactionRadialPicker(
     const shouldCloseOnPointerUpFromOverlayOpenRef = useRef(isPointerDownFromOverlayOpen);
 
     // Layout effect since when the pointer is released, we want the background color
-    // of `<ReactionButton>` to change in the same paint as whatever this hook is
-    // doing (which could be setting a like or opening the mega picker).
+    // of `<ReactionButton>` to change in the same paint as whatever this hook is doing
+    // (which could be setting a like or opening the mega picker).
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!shouldCloseOnPointerUpFromOverlayOpenRef.current) return;
 
@@ -334,14 +333,16 @@ function ReactionRadialPicker(
         };
     }, []);
 
-    // The background color for the like reaction varies based on selection and pointer interaction.
-    // It is darkest when it is selected and interacted with, slightly lighter when selected and not
-    // interacted with, and lightest when it is not selected but interacted with.
+    // The background color for the like reaction varies based on selection and pointer
+    // interaction. It is darkest when it is selected and interacted with, slightly
+    // lighter when selected and not interacted with, and lightest when it is not
+    // selected but interacted with.
     const getThumbsUpBackgroundColor = useCallback(
         (isPressed: boolean, isPointerDownFromOverlayOpen: boolean) => {
             // Like is currently selected
             if (currentAccountReaction === "GenericLike") {
-                // Like is currently active (the like icon is being pressed or the pointer is over it)
+                // Like is currently active (the like icon is being pressed or the pointer is over
+                // it)
                 if (activeIndex === 0) {
                     if (isPressed || isPointerDownFromOverlayOpen) {
                         return "grey-20";
@@ -353,7 +354,8 @@ function ReactionRadialPicker(
                 }
                 // Like is not currently selected
             } else {
-                // Like is currently active (the like icon is being pressed or the pointer is over it)
+                // Like is currently active (the like icon is being pressed or the pointer is over
+                // it)
                 if (activeIndex === 0) {
                     if (isPressed || isPointerDownFromOverlayOpen) {
                         return "grey-10";
@@ -372,10 +374,10 @@ function ReactionRadialPicker(
     return (
         <Box
             ref={circleContainerRef}
-            // Don't clear the selection when clicking on the reaction radial picker. So
-            // when you open the reaction radial picker from `<MessageViewPointerToolbar>`
-            // then click on the empty space in the middle of the radial picker we don't
-            // clear the selection and close the `<MessageViewPointerToolbar>`.
+            // Don't clear the selection when clicking on the reaction radial picker. So when
+            // you open the reaction radial picker from `<MessageViewPointerToolbar>` then
+            // click on the empty space in the middle of the radial picker we don't clear the
+            // selection and close the `<MessageViewPointerToolbar>`.
             className={withoutClearSelectionOnMouseDownClassName}
             pointerEvents="none"
             style={{
@@ -409,9 +411,9 @@ function ReactionRadialPicker(
                         event.clientY - circleCenterY,
                     );
 
-                    // Clicks within the `<Box>`'s rectangle (before applying `borderRadius`) are
-                    // sent to this element's `onPointerDown` handler. Make sure the click is within
-                    // the radial picker circle, not in empty space just outside the circle.
+                    // Clicks within the `<Box>`'s rectangle (before applying `borderRadius`) are sent
+                    // to this element's `onPointerDown` handler. Make sure the click is within the
+                    // radial picker circle, not in empty space just outside the circle.
                     if (pointerVector.magnitude > circleRadius) {
                         onCloseWithAnimation();
                         return;
@@ -427,9 +429,9 @@ function ReactionRadialPicker(
 
                         pointerDownCleanupRef.current = null;
 
-                        // We calculate the active index here instead of using the `activeIndex`
-                        // state because that state is only updated on pointer move which may not fire
-                        // when the pointer is a touch device.
+                        // We calculate the active index here instead of using the `activeIndex` state
+                        // because that state is only updated on pointer move which may not fire when the
+                        // pointer is a touch device.
                         const finalActiveIndex = calculateActiveIndex(event.clientX, event.clientY);
 
                         if (finalActiveIndex === null) {
@@ -499,9 +501,9 @@ function ReactionRadialPicker(
                             return (
                                 <Box
                                     // Remount this element when entering the pressed state so we don't animate the
-                                    // background color with the CSS transition. If the user presses and moves
-                                    // their mouse around, then we want to animate. We only want an immediate
-                                    // response to the press action.
+                                    // background color with the CSS transition. If the user presses and moves their
+                                    // mouse around, then we want to animate. We only want an immediate response to the
+                                    // press action.
                                     key={`${index}-${isPressed}`}
                                     position="absolute"
                                     width={reactionRadialPickerOptionButtonSize}
@@ -541,9 +543,9 @@ function ReactionRadialPicker(
                             return (
                                 <Box
                                     // Remount this element when entering the pressed state so we don't animate the
-                                    // background color with the CSS transition. If the user presses and moves
-                                    // their mouse around, then we want to animate. We only want an immediate
-                                    // response to the press action.
+                                    // background color with the CSS transition. If the user presses and moves their
+                                    // mouse around, then we want to animate. We only want an immediate response to the
+                                    // press action.
                                     key={`${index}-${isPressed}`}
                                     position="absolute"
                                     width={reactionRadialPickerOptionButtonSize}
@@ -578,10 +580,10 @@ function ReactionRadialPicker(
                                 </Box>
                             );
                         } else {
-                            // The "more" button is placed in the middle of our reactions at index 4 and
-                            // the generic like button is placed at the beginning of our reactions at index
-                            // 0. So to get the correct emotion index we need to "skip" index 0 and index
-                            // 4. This code does that.
+                            // The "more" button is placed in the middle of our reactions at index 4 and the
+                            // generic like button is placed at the beginning of our reactions at index 0. So
+                            // to get the correct emotion index we need to "skip" index 0 and index 4. This
+                            // code does that.
                             const emotionIndex = index > 4 ? index - 2 : index - 1;
                             const emotion = reactionPickerIconEmotions[emotionIndex]!;
 

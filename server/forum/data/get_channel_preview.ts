@@ -10,13 +10,12 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 
 /**
- * Gets a preview channel object with the provided `ChannelId`. Returns null if
- * the channel doesn't exist, returns a `Result` with a `PermissionDeniedError`
- * if access isn't authorized.
+ * Gets a preview channel object with the provided `ChannelId`. Returns null if the
+ * channel doesn't exist, returns a `Result` with a `PermissionDeniedError` if
+ * access isn't authorized.
  *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `ChannelId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getChannelPreviewIfPossible(
     context: ServerActionContext,
@@ -53,13 +52,12 @@ export async function getChannelPreviewIfPossible(
 }
 
 /**
- * Gets a preview channel object with the provided `ChannelId`. Returns null if
- * the channel doesn't exist and throws an error if the channel exists but you
- * don't have access to the channel.
+ * Gets a preview channel object with the provided `ChannelId`. Returns null if the
+ * channel doesn't exist and throws an error if the channel exists but you don't
+ * have access to the channel.
  *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `ChannelId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getChannelPreviewIfExists(
     context: ServerActionContext,
@@ -72,12 +70,11 @@ export async function getChannelPreviewIfExists(
 }
 
 /**
- * Gets a preview channel object with the provided `ChannelId`. Throws an error
- * if the channel doesn't exist.
+ * Gets a preview channel object with the provided `ChannelId`. Throws an error if
+ * the channel doesn't exist.
  *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `ChannelId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getChannelPreview(
     context: ServerActionContext,

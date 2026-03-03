@@ -28,8 +28,8 @@ export type ServerBasicProcessContextOptions = {
     readonly ensureLocalCachePath?: string;
     readonly dynamoLocalPort?: string;
     readonly jobQueueUrl?: string;
-    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue
-    // url
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+    // original job queue url
     readonly fileProcessorJobQueueUrl?: string;
     readonly fileProcessorHeavyJobQueueUrl?: string;
     readonly fileProcessorLightJobQueueUrl?: string;
@@ -40,8 +40,8 @@ export type ServerBasicProcessContextOptions = {
  * service. Probably in a `runService()` call.
  *
  * Requires some parameters we expect to come from the command line.
- * `serverProcessContextOptions` is an object defining the args you can
- * pass into `parseArgs()`.
+ * `serverProcessContextOptions` is an object defining the args you can pass into
+ * `parseArgs()`.
  */
 export function createServerBasicProcessContextModules({
     tracer,

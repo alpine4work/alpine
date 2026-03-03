@@ -44,9 +44,9 @@ const mockStartTime = new Date("2023-08-07T16:00:00.000Z").getTime();
 const dayDurationMs = 1000 * 60 * 60 * 24;
 const actualStartTime = Date.now();
 
-// Start our clock at the beginning of an arbitrary day. This way when
-// filtering around the current date we won't have bugs when running these
-// tests around midnight.
+// Start our clock at the beginning of an arbitrary day. This way when filtering
+// around the current date we won't have bugs when running these tests around
+// midnight.
 const clock = new HybridLogicalClock({
     now: () => mockStartTime + (Date.now() - actualStartTime) - dayDurationMs * 4,
 });
@@ -125,8 +125,8 @@ async function testQueryWithNormalizedSorts(
                 },
             );
 
-            // We need to use `json-bigint` here so that the `sort` values are
-            // parsed correctly.
+            // We need to use `json-bigint` here so that the `sort` values are parsed
+            // correctly.
             const sortedHitsBody = JsonBigInt.parse(await sortedHitsResponse.text());
 
             if (!sortedHitsResponse.ok) {
@@ -170,8 +170,8 @@ async function testQueryWithNormalizedSorts(
             return compareTaskQuerySortCursors(sorts, cursor1, cursor2);
         });
 
-    // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches
-    // the OpenSearch filter implementation.
+    // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches the
+    // OpenSearch filter implementation.
     expect(
         sortedTasks1.map(task => ({
             id: task.id,
@@ -184,8 +184,8 @@ async function testQueryWithNormalizedSorts(
         })),
     );
 
-    // Make sure our JavaScript filter implementation for `TaskModel` matches
-    // the OpenSearch filter implementation.
+    // Make sure our JavaScript filter implementation for `TaskModel` matches the
+    // OpenSearch filter implementation.
     expect(
         sortedTasks2.map(task => ({
             id: task.id,

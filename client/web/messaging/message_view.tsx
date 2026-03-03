@@ -161,8 +161,8 @@ import {computeStore} from "~/shared/store/compute_store.js";
 /**
  * The buffered height we use for virtualized message views.
  *
- * Calculated by rendering 10,000 `<MessageShimmer>`s and get the height
- * divided by the number of messages. Approximately this value.
+ * Calculated by rendering 10,000 `<MessageShimmer>`s and get the height divided by
+ * the number of messages. Approximately this value.
  */
 export const bufferedMessageViewHeight: RemLength = "4rem";
 
@@ -319,8 +319,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [message.payload, messages, postRoom]);
 
     const messageEditingForThisMessage =
-        // If we're on a mobile device (with keyboard toolbars) then instead of editing
-        // a message inline, we edit it within the sticky `<MessageInput>`.
+        // If we're on a mobile device (with keyboard toolbars) then instead of editing a
+        // message inline, we edit it within the sticky `<MessageInput>`.
         platform !== "mobile" &&
         messageEditing.state.isEditing &&
         !message.isOptimistic &&
@@ -336,8 +336,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const hasMessageEditingConfirmationDialogRef = useRef(false);
 
     useEffect(() => {
-        // When we finish editing, call the return focus function if there was one on
-        // our message editing state.
+        // When we finish editing, call the return focus function if there was one on our
+        // message editing state.
         {
             const returnFocusAfterEditing = messageEditingForThisMessage
                 ? messageEditingForThisMessage.state.returnFocusAfterEditing
@@ -374,8 +374,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     const shouldShowOptimisticLoadingIndicator = useDelayLoadingIndicator(
         message.isOptimistic === true && !message.optimisticRequestErrorState.hasError,
-        // Use a longer timeout than `delayLoadingIndicatorLimitMs` since most of the
-        // time the optimistic placement is the correct end state.
+        // Use a longer timeout than `delayLoadingIndicatorLimitMs` since most of the time
+        // the optimistic placement is the correct end state.
         delayLoadingIndicatorLimitMs * 2,
     );
 
@@ -393,9 +393,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         },
 
         onReplyToMessage: () => {
-            // If we're currently editing a message on mobile then cancel editing when
-            // trying to reply to a message. Otherwise `<MessageInput>` will override the
-            // reply state with editing state.
+            // If we're currently editing a message on mobile then cancel editing when trying
+            // to reply to a message. Otherwise `<MessageInput>` will override the reply state
+            // with editing state.
             if (platform === "mobile" && messageEditing.state.isEditing) {
                 messageEditing.dispatch({type: "CancelEditing"});
             }
@@ -409,13 +409,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // - Select text in one message then right click the parent message of another
         //   (should show right click actions for the attached message)
         //
-        // NOTE: This only handles the context menu on devices with a right click. Touch devices use
-        // a different context menu. If you update the context menu here, you may also want to update
-        // the touch menu in `MessageViewTouchMenu`.
+        // NOTE: This only handles the context menu on devices with a right click. Touch
+        // devices use a different context menu. If you update the context menu here, you
+        // may also want to update the touch menu in `MessageViewTouchMenu`.
         getContextMenuActions: (event: MouseEvent) => {
-            // If the user right clicked on a `<ReactionButton>` in the message then only
-            // show the reaction button's context menu actions. Don't show the message
-            // context menu actions.
+            // If the user right clicked on a `<ReactionButton>` in the message then only show
+            // the reaction button's context menu actions. Don't show the message context menu
+            // actions.
             if (hasContextMenuActionWithKey(event, reactionButtonContextMenuActionKey)) {
                 return [];
             }
@@ -423,13 +423,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             const containerElement = assertExists(containerRef.current);
             const selection = window.getSelection();
 
-            // If the `contextmenu` event target is outside of the selection then empty out
-            // the selection. The user is right-clicking this message, not the selection.
-            // This mirrors the behavior of `<ContextMenuContextProvider>` which calls
+            // If the `contextmenu` event target is outside of the selection then empty out the
+            // selection. The user is right-clicking this message, not the selection. This
+            // mirrors the behavior of `<ContextMenuContextProvider>` which calls
             // `selection?.empty()` as well if `event.target` is outside the selection.
             if (event.target instanceof Node && selection?.containsNode(event.target, true)) {
-                // If the selection spans multiple messages then we don't want to add context
-                // menu actions for a single message. Instead we should only show "Copy".
+                // If the selection spans multiple messages then we don't want to add context menu
+                // actions for a single message. Instead we should only show "Copy".
                 if (
                     !containerElement.contains(selection.anchorNode) ||
                     !containerElement.contains(selection.focusNode)
@@ -443,11 +443,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
             const menuActions: Array<MenuAction> = [];
 
-            // Don't allow replying if the message payload is empty. The UI shouldn't
-            // normally allow saving an empty message payload. We allow empty message
-            // payloads for messages that have attached files, however. In this special
-            // case we don't want to allow the user to reply since the reply message will
-            // include no text.
+            // Don't allow replying if the message payload is empty. The UI shouldn't normally
+            // allow saving an empty message payload. We allow empty message payloads for
+            // messages that have attached files, however. In this special case we don't want
+            // to allow the user to reply since the reply message will include no text.
             if (
                 !isReadOnly &&
                 !message.isOptimistic &&
@@ -466,11 +465,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         icon: <ArrowArcRight />,
                         iconPlacement: "end",
                         onPress: () => {
-                            // Remove the selection at the same time we set the reply on the message input.
-                            // So `<MessagingViewPointerToolbar>` doesn't render as our right click menu
-                            // closes. Also make sure we don't animate out `<MessagingViewPointerToolbar>`
-                            // when we hide it otherwise it'll flash in once the context menu closes and
-                            // animate out now that the selection is removed.
+                            // Remove the selection at the same time we set the reply on the message input. So
+                            // `<MessagingViewPointerToolbar>` doesn't render as our right click menu closes.
+                            // Also make sure we don't animate out `<MessagingViewPointerToolbar>` when we hide
+                            // it otherwise it'll flash in once the context menu closes and animate out now
+                            // that the selection is removed.
                             //
                             // For a video reproducing the bug we're fixing here see:
                             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/pkfkhjsvv634ebb56kafcsy6rr
@@ -496,8 +495,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 contextMenuActions.push(menuActions);
             }
 
-            // Add reaction action for file-only messages (messages with files but no text content).
-            // Reply is not available since there's no text to quote.
+            // Add reaction action for file-only messages (messages with files but no text
+            // content). Reply is not available since there's no text to quote.
             else if (
                 !isReadOnly &&
                 !message.isOptimistic &&
@@ -527,11 +526,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             const copyLinkMenuAction: MenuAction = {
                 key: id,
-                // If there's another "Copy" context menu action (e.g. "Copy document link"
-                // when right clicking on a document file entity) then a menu action saying
-                // "Copy link" (to copy the message link) would be confusing. So disambiguate
-                // what this item is copying with the `messageNoun` (either "message" or
-                // "comment") so you end up with "Copy document link" and "Copy message link".
+                // If there's another "Copy" context menu action (e.g. "Copy document link" when
+                // right clicking on a document file entity) then a menu action saying "Copy link"
+                // (to copy the message link) would be confusing. So disambiguate what this item is
+                // copying with the `messageNoun` (either "message" or "comment") so you end up
+                // with "Copy document link" and "Copy message link".
                 label: hasOtherCopyLinkMenuAction ? `Copy ${messageNoun} link` : "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
@@ -563,10 +562,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 const editContextMenuActions: Array<MenuAction> = [];
                 contextMenuActions.push(editContextMenuActions);
 
-                // Don't allow editing if the message payload is empty. The UI shouldn't
-                // normally allow saving an empty message payload. We allow empty message
-                // payloads for messages that have attached files, however. In this special
-                // case we don't want to allow the user to add text alongside the files.
+                // Don't allow editing if the message payload is empty. The UI shouldn't normally
+                // allow saving an empty message payload. We allow empty message payloads for
+                // messages that have attached files, however. In this special case we don't want
+                // to allow the user to add text alongside the files.
                 if (!isContentEmpty(messagePayload.content.doc)) {
                     editContextMenuActions.push({
                         label: "Edit",
@@ -638,9 +637,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             void touchState?.finishGesture?.();
             touchState = null;
 
-            // If the user can hover, let them hover over the message to see message
-            // actions. Instead of opening a lightbox on touch which conflicts with text
-            // selection.
+            // If the user can hover, let them hover over the message to see message actions.
+            // Instead of opening a lightbox on touch which conflicts with text selection.
             if (canPrimaryInputHover) {
                 setShowTouchReplyIcon(false);
                 return;
@@ -664,9 +662,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
                     const {overflowX} = getComputedStyle(element);
 
-                    // If the user is touching a horizontally scrollable element (e.g. a code
-                    // block) then disable the reply gesture if it's been scrolled since swiping
-                    // horizontally should scroll. Not reply.
+                    // If the user is touching a horizontally scrollable element (e.g. a code block)
+                    // then disable the reply gesture if it's been scrolled since swiping horizontally
+                    // should scroll. Not reply.
                     isReplyGestureDisabled ||=
                         (overflowX === "scroll" ||
                             (overflowX === "auto" && element.scrollWidth > element.clientWidth)) &&
@@ -679,7 +677,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
-            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            // [1]:
+            //     https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             const longTouchTimeout = createTimeout(() => {
                 ourTouchState.longTouchTimeout = null;
 
@@ -797,11 +796,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     0,
                     (touch.clientX - touchState.initialClientX - 10) *
                         // We slow the drag animation down to make it feel like the user is dragging
-                        // something heavy. But also this ends up smoothing out the animation! We only
-                        // get `touchmove` events every whole pixel. But on devices like iPhone every
-                        // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
-                        // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
-                        // across multiple hardware pixels per move.
+                        // something heavy. But also this ends up smoothing out the animation! We only get
+                        // `touchmove` events every whole pixel. But on devices like iPhone every virtual
+                        // pixel is actually rendered by 2 to 3 hardware pixels. So animating 1:1 with
+                        // `touchmove` events can looking subtly coarse since we're jumping across multiple
+                        // hardware pixels per move.
                         (1 / 2),
                 );
 
@@ -908,13 +907,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const reactionsByPos = useMemo(() => {
         if (message.payload.type !== "Content") return emptyMap;
 
-        // If this is the last message in a messaging view and the message doesn't have
-        // any reactions then we want to render the add reaction button so the user can
-        // quickly add a reaction (dismissing the notification if they're in the
-        // inbox).
+        // If this is the last message in a messaging view and the message doesn't have any
+        // reactions then we want to render the add reaction button so the user can quickly
+        // add a reaction (dismissing the notification if they're in the inbox).
         //
-        // Don't show the add reaction button on the content if there are files. The
-        // files section will show its own add reaction button.
+        // Don't show the add reaction button on the content if there are files. The files
+        // section will show its own add reaction button.
         if (
             !isReadOnly &&
             isLastMessage &&
@@ -983,9 +981,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         ],
     );
 
-    // We try to memoize any UI in this component that changes infrequently to
-    // speed up React rendering. Because `<MessageView>` renders during scroll
-    // animations it's important to keep it fast.
+    // We try to memoize any UI in this component that changes infrequently to speed up
+    // React rendering. Because `<MessageView>` renders during scroll animations it's
+    // important to keep it fast.
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
 
@@ -993,8 +991,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (message.stream) return null;
 
         // If there's no content then don't render anything. This is mainly for file
-        // rendering. You could have a message with empty content and just a file. In
-        // that case the entire message should be the file.
+        // rendering. You could have a message with empty content and just a file. In that
+        // case the entire message should be the file.
         if (isContentEmpty(message.payload.content.doc)) {
             return null;
         }
@@ -1292,10 +1290,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     const editorHeightSpacerRef = useRef<HTMLDivElement>(null);
 
-    // When we switch from not editing to editing, measure the current height of
-    // the content container element. This runs before React makes any changes to
-    // the DOM. So we'll get the content container height before it switches to the
-    // editor component.
+    // When we switch from not editing to editing, measure the current height of the
+    // content container element. This runs before React makes any changes to the DOM.
+    // So we'll get the content container height before it switches to the editor
+    // component.
     //
     // I feel ok reading mutable state in a `useState()` initializer function (vs
     // `useMemo()` or directly in the React render function).
@@ -1307,9 +1305,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
 
     // When we switch from not editing to editing, after the editor has rendered
-    // measure the new height and take the difference of the height pre-editor
-    // render and post-editor render. We'll render the difference in some empty
-    // space below the message so layout doesn't shift.
+    // measure the new height and take the difference of the height pre-editor render
+    // and post-editor render. We'll render the difference in some empty space below
+    // the message so layout doesn't shift.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (oldContentContainerHeightForEditorHeightDifference === null) return;
 
@@ -1327,17 +1325,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             oldContentContainerHeight - newContentContainerHeight,
         );
 
-        // Directly set the `style` attribute in this effect so we don't need a
-        // React re-render.
+        // Directly set the `style` attribute in this effect so we don't need a React
+        // re-render.
         editorHeightSpacerElement.setAttribute("style", `height: ${editorHeightDifference}px`);
     }, [oldContentContainerHeightForEditorHeightDifference]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
-    // through messages. We've directly observed slow hook implementations or too
-    // many sub-components slowing down FPS. (Reason why we don't allow `<Box>` in
-    // this file.) Before adding new logic to this render function, consider
-    // whether you could add it to a child component. Or inline some of the logic.
+    // through messages. We've directly observed slow hook implementations or too many
+    // sub-components slowing down FPS. (Reason why we don't allow `<Box>` in this
+    // file.) Before adding new logic to this render function, consider whether you
+    // could add it to a child component. Or inline some of the logic.
 
     return (
         <>
@@ -1375,9 +1373,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     return newActionSections;
                 }}
                 extraOverlayBottom={event => {
-                    // If the user right clicked on a `<ReactionButton>` in the message then only
-                    // show the reaction button's context menu actions. Don't show the message
-                    // context menu actions.
+                    // If the user right clicked on a `<ReactionButton>` in the message then only show
+                    // the reaction button's context menu actions. Don't show the message context menu
+                    // actions.
                     if (hasContextMenuActionWithKey(event, reactionButtonContextMenuActionKey)) {
                         return;
                     }
@@ -1385,8 +1383,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     return (
                         <MessageViewMenuStateUpdatedTime
                             createdTime={message.createdTime}
-                            // Only show the updated time if the user can't hover over the "(edited)" text
-                            // to see it.
+                            // Only show the updated time if the user can't hover over the "(edited)" text to
+                            // see it.
                             contentUpdatedTime={
                                 !canPrimaryInputHover && message.payload.type === "Content"
                                     ? (message.payload.contentUpdate?.time ?? null)
@@ -1435,9 +1433,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             className={sprinkles({
                                 position: "relative",
                                 zIndex:
-                                    // NOTE(calebmer): If the user is editing a message we render
-                                    // `<MessageViewEditor>` which renders `<InlineEditorToolbar>` which needs to
-                                    // render on top of `<MessageViewParent>`.
+                                    // NOTE(calebmer): If the user is editing a message we render `<MessageViewEditor>`
+                                    // which renders `<InlineEditorToolbar>` which needs to render on top of
+                                    // `<MessageViewParent>`.
                                     //
                                     // Fixes:
                                     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cwvja89b8vmbajqytsa3926h00
@@ -1494,8 +1492,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     <div
                                         className={sprinkles({
                                             maxWidth: "full",
-                                            // Make sure the `z-index` is higher than our content so the `<IconButton>`
-                                            // can but clicked even where it overlaps with content.
+                                            // Make sure the `z-index` is higher than our content so the `<IconButton>` can but
+                                            // clicked even where it overlaps with content.
                                             zIndex: "10",
                                             position: "relative",
                                             height: messageViewAccountNameHeight,
@@ -1535,9 +1533,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                         &nbsp;
                                                     </div>
                                                     <IconButton
-                                                        // NOTE(calebmer): I think we can use "click" in copy here since the
-                                                        // description is part of a tooltip which is fundamentally a mouse/pointer
-                                                        // thing. On mobile we need to pop open a modal or alert or something.
+                                                        // NOTE(calebmer): I think we can use "click" in copy here since the description is
+                                                        // part of a tooltip which is fundamentally a mouse/pointer thing. On mobile we
+                                                        // need to pop open a modal or alert or something.
                                                         description={`Couldn\u2019t ${
                                                             messageNoun === "message"
                                                                 ? "send"
@@ -1585,9 +1583,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 files={message.payload.files}
                                                 paddingTop={
                                                     contentPayloadNode !== null
-                                                        ? // It feels like too much space when we have a single line of text over a file.
-                                                          // So special case a single non-standalone margin node above a file and in this
-                                                          // case use paragraph margins instead of standalone block margins.
+                                                        ? // It feels like too much space when we have a single line of text over a file. So
+                                                          // special case a single non-standalone margin node above a file and in this case
+                                                          // use paragraph margins instead of standalone block margins.
                                                           message.payload.content.doc.childCount ===
                                                               1 &&
                                                           !hasStandaloneMarginByContentBlockNodeTypeName[
@@ -1603,9 +1601,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 }
                                             />
                                             {(message.payload.filesReactions.get().size > 0 ||
-                                                // If this is the last message and the message is from a user other than our
-                                                // own then we want to render the party even if there are no reactions so you
-                                                // can leave a quick reaction.
+                                                // If this is the last message and the message is from a user other than our own
+                                                // then we want to render the party even if there are no reactions so you can leave
+                                                // a quick reaction.
                                                 (!isReadOnly &&
                                                     isLastMessage &&
                                                     message.author.id !== currentAccountId)) && (
@@ -1659,8 +1657,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                             messageViewOutlineMargin,
                                             messageViewOutlineMargin,
                                         )})`,
-                                        // If this is one line of text then the background should extend below
-                                        // the avatar.
+                                        // If this is one line of text then the background should extend below the avatar.
                                         minHeight: !shouldMergeWithPreviousMessage
                                             ? messageViewNotMergedOutlineMinHeightPx[spacingScale]
                                             : undefined,
@@ -1860,31 +1857,32 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 data-testid={
                     process.env.NODE_ENV !== "production" ? "MessageViewParent" : undefined
                 }
-                // This is a simulated link. When the user clicks on it our code navigates us
-                // to the right message instead of relying on browser URL navigation.
+                // This is a simulated link. When the user clicks on it our code navigates us to
+                // the right message instead of relying on browser URL navigation.
                 //
-                // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                // See:
+                // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
                 role="link"
                 tabIndex={0}
                 className={sprinkles({
                     position: "relative",
                     zIndex: "10",
-                    // `inline-flex` instead of `flex` so that the clickable area doesn't extend
-                    // full width when we have a short message.
+                    // `inline-flex` instead of `flex` so that the clickable area doesn't extend full
+                    // width when we have a short message.
                     display: "inline-flex",
                     gap: "1.5",
                     marginTop: messageViewParentMarginTop,
                     marginBottom: messageViewParentMarginBottom,
-                    // We don't use a pointer cursor for buttons in our product because buttons
-                    // they clearly appear clickable. We call this a strong affordance. A reply
-                    // preview is clickable and gives some affordance (different color) but it's a
-                    // weak affordance. So we use a pointer to make this element unambiguously
-                    // clickable.
+                    // We don't use a pointer cursor for buttons in our product because buttons they
+                    // clearly appear clickable. We call this a strong affordance. A reply preview is
+                    // clickable and gives some affordance (different color) but it's a weak
+                    // affordance. So we use a pointer to make this element unambiguously clickable.
                     //
                     // Also, this element is semantically a link which the pointer cursor was
                     // originally designed for.
                     //
-                    // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                    // See:
+                    // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                     cursor: "pointer",
                     maxWidth: "full",
                 })}
@@ -1909,8 +1907,8 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         borderTopColor: colorSchemeVars["grey-5-translucent"],
                         borderStyle: "solid",
 
-                        // Remember this code is copied here and in `message_view_html.ts`. If you
-                        // update one you probably need to update the other as well.
+                        // Remember this code is copied here and in `message_view_html.ts`. If you update
+                        // one you probably need to update the other as well.
                         top: `calc(${
                             messageViewParentAvatarOffsetYRem +
                             parentMessageAccountAvatarSizeRem / 2

@@ -274,13 +274,13 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 
-    // These routes currently only perform a redirect. They don't render any UI and
-    // so don't need a shimmer.
+    // These routes currently only perform a redirect. They don't render any UI and so
+    // don't need a shimmer.
     "routes/s.$spaceId.accounts.$accountId": false,
     "routes/s.$spaceId.settings._index": false,
 
-    // This route is only used to handle the OAuth callback from Slack. It doesn't render any UI
-    // and so doesn't need a shimmer.
+    // This route is only used to handle the OAuth callback from Slack. It doesn't
+    // render any UI and so doesn't need a shimmer.
     "routes/s.$spaceId.integrations.slack.oauth": false,
 
     // NOTE(rohit): We don't have a design for layout routes.
@@ -382,8 +382,8 @@ function RouteShimmer({
                         >
                             <Box opacity="0">
                                 <Button
-                                    // Render a non-interactive button to get the exact right size for the
-                                    // button shimmer.
+                                    // Render a non-interactive button to get the exact right size for the button
+                                    // shimmer.
                                     isDisabled={true}
                                     isFocusable={false}
                                     isTabbable={false}
@@ -1348,10 +1348,10 @@ function MessageInputShimmer() {
     );
 }
 
-// Not much going on for the create route shimmer. We expect create routes to
-// load very fast given they don't have any data they need to load from the
-// server. Create route shimmers mostly exist for completeness and to make sure
-// a route like `/create/more` has a back button in its shimmer.
+// Not much going on for the create route shimmer. We expect create routes to load
+// very fast given they don't have any data they need to load from the server.
+// Create route shimmers mostly exist for completeness and to make sure a route
+// like `/create/more` has a back button in its shimmer.
 function CreateRouteShimmer({withBackButton}: {withBackButton?: boolean}) {
     const platform = usePlatform();
 
@@ -2093,10 +2093,10 @@ function SearchRouteShimmer() {
     );
 }
 
-// NOTE(calebmer): We intentionally don't include comments in the task detail
-// route shimmer since if a user only has view access they won't be able to see
-// the comments on the task. (This is a weak reason to not include comments in
-// the shimmer.)
+// NOTE(calebmer): We intentionally don't include comments in the task detail route
+// shimmer since if a user only has view access they won't be able to see the
+// comments on the task. (This is a weak reason to not include comments in the
+// shimmer.)
 function TaskDetailRouteShimmer() {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();

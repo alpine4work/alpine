@@ -602,9 +602,9 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
 });
 
 test("mentions with same link Ids increment dedupe numbers up to 5", async () => {
-    // NOTE(ifitzsimmons) The name of this test is a little confusing.
-    // **There is no hard limit of 5**. This test simply verifies that
-    // our dedupe logic works up until at least the number 5
+    // NOTE(ifitzsimmons) The name of this test is a little confusing. **There is no
+    // hard limit of 5**. This test simply verifies that our dedupe logic works up
+    // until at least the number 5
     const secondDocumentId = generateId<DocumentId>();
     const thirdDocumentId = generateId<DocumentId>();
     const fourthDocumentId = generateId<DocumentId>();
@@ -936,42 +936,41 @@ describe("comment mark conversion", () => {
     });
 
     test("merges adjacent comment tags and handles comment nesting", async () => {
-        // ordering of the thread Ids matters. We generate comment marks in the order of the thread Ids.
-        // So if thread 1 ID = "A" and thread 2 ID = "B", and thread 2 is nested inside thread 1, we
-        // get something like:
+        // ordering of the thread Ids matters. We generate comment marks in the order of
+        // the thread Ids. So if thread 1 ID = "A" and thread 2 ID = "B", and thread 2 is
+        // nested inside thread 1, we get something like:
+        //
         // ```html
+        // <mark data-comment="A"> hello </mark>
         // <mark data-comment="A">
-        //   hello
-        // </mark>
-        // <mark data-comment="A">
-        //   <mark data-comment="B">
-        //     world
-        //   </mark>
+        //     <mark data-comment="B"> world </mark>
         // </mark>
         // ```
-        // Merging adjacent comment tags only works if the next opening comment tag is the same as the
-        // previous closing comment tag. So the above example gives us the desired out, but if
-        // thread 1 Id was greater than thread 2 Id (e.g. thread 1 ID = "B" and thread 2 ID = "A"), we would get:
+        //
+        // Merging adjacent comment tags only works if the next opening comment tag is the
+        // same as the previous closing comment tag. So the above example gives us the
+        // desired out, but if thread 1 Id was greater than thread 2 Id (e.g. thread 1 ID =
+        // "B" and thread 2 ID = "A"), we would get:
+        //
         // ```html
-        // <mark data-comment="B">
-        //   hello
-        // </mark>
+        // <mark data-comment="B"> hello </mark>
         // <mark data-comment="A">
-        //   <mark data-comment="B">
-        //     world
-        //   </mark>
+        //     <mark data-comment="B"> world </mark>
         // </mark>
         // ```
-        // This would not be merged correctly because thread 1 is nested inside of thread 2.
+        //
+        // This would not be merged correctly because thread 1 is nested inside of
+        // thread 2.
 
         const thread1 = threadId1 < threadId2 ? threadId1 : threadId2;
         const thread2 = threadId1 < threadId2 ? threadId2 : threadId1;
         // Example
+        //
         // ```
         // <comment1 start>Next, something outrageous happened. The Eagles sought to defend their title
         // (and honor) in the 2025-2026 season. <comment2 start>They promoted a water boy to captain to
         // the head of their army.</comment2 end></comment1>
-        //```
+        // ```
         await testPrintAgentContentToMarkdown(
             {
                 elements: [

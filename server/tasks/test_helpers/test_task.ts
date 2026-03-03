@@ -781,8 +781,8 @@ export class TestTask extends TestCommentRoomBase {
     }
 
     /**
-     * Attach a file to the task's notes. Will attach the file as a block
-     * immediately below the current typing position.
+     * Attach a file to the task's notes. Will attach the file as a block immediately
+     * below the current typing position.
      */
     public async attachFile(session: TestSpaceSession, file: TestFile) {
         await attachFileAsUploader(

@@ -38,7 +38,8 @@ export const waitingClassName = style({});
 export const draggingScrubberThumbClassName = style({});
 
 /**
- * Class added to `containerClassName` while we're dragging the volume scrubber thumb.
+ * Class added to `containerClassName` while we're dragging the volume scrubber
+ * thumb.
  */
 export const draggingVolumeScrubberThumbClassName = style({});
 
@@ -102,8 +103,8 @@ const scrubberThumbIndicatorSize = spacing["2"];
 
 export const durationScrubberClassName = style({
     width: `calc(100% + ${scrubberThumbIndicatorSize})`,
-    // Larger height than our contents to provide a larger touch target for the
-    // mouse cursor.
+    // Larger height than our contents to provide a larger touch target for the mouse
+    // cursor.
     height: spacing["3"],
     position: "relative",
     left: `-${parseRemLength(scrubberThumbIndicatorSize) / 2}rem`,
@@ -141,8 +142,8 @@ const scrubberThumbTargetShared: ComplexStyleRule = {
             backgroundColor: colorSchemeVars["grey-5"],
         },
         [`${containerClassName}${draggingScrubberThumbClassName} &`]: {
-            // Don't switch background color to `grey-10` while dragging since that's the
-            // color of our track.
+            // Don't switch background color to `grey-10` while dragging since that's the color
+            // of our track.
             backgroundColor: colorSchemeVars["grey-5"],
         },
     },
@@ -192,8 +193,8 @@ export const durationScrubberTrackBufferedClassName = style({
     transformOrigin: "left",
     selectors: {
         [`${darkColorSchemeSelector} &`]: {
-            // In the dark elevated color scheme, `grey-20` doesn't look different enough
-            // from `grey-10`.
+            // In the dark elevated color scheme, `grey-20` doesn't look different enough from
+            // `grey-10`.
             backgroundColor: colorSchemeVars["grey-30"],
         },
     },
@@ -246,9 +247,9 @@ globalStyle(`${containerClassName} ${volumeButtonClassName} > svg`, {
     },
 );
 
-// On server render before our JavaScript code has set a volume class, display
-// the volume high icon. This is only important for audio files since video
-// files don't show the volume button until you press play.
+// On server render before our JavaScript code has set a volume class, display the
+// volume high icon. This is only important for audio files since video files don't
+// show the volume button until you press play.
 globalStyle(
     `${containerClassName}:not(${volumeMutedClassName}):not(${volumeLowClassName}):not(${volumeMediumClassName}):not(${volumeHighClassName}) ${volumeButtonClassName} > svg:nth-of-type(4)`,
     {display: "block"},
@@ -256,8 +257,8 @@ globalStyle(
 
 export const volumeScrubberClassName = style({
     height: `calc(100% + ${scrubberThumbIndicatorSize})`,
-    // Larger width than our contents to provide a larger touch target for the
-    // mouse cursor.
+    // Larger width than our contents to provide a larger touch target for the mouse
+    // cursor.
     width: spacing["3"],
     position: "relative",
     top: "0",

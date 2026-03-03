@@ -27,9 +27,9 @@ export const overlaySinkContextForTest = import.meta.jest
               top: "0",
               left: "0",
               right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
+              // The root portal element has a height of 0 because when you use it in a nested
+              // scroll view we don't want the overlay height to extend from the top to the
+              // bottom of the nested scroll view.
               height: "0",
               // Render above anything on the page.
               zIndex: "50",
@@ -42,9 +42,9 @@ export const overlaySinkContextForTest = import.meta.jest
               top: "0",
               left: "0",
               right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
+              // The root portal element has a height of 0 because when you use it in a nested
+              // scroll view we don't want the overlay height to extend from the top to the
+              // bottom of the nested scroll view.
               height: "0",
               // Render above anything on the page.
               zIndex: "70",
@@ -57,9 +57,9 @@ export const overlaySinkContextForTest = import.meta.jest
               top: "0",
               left: "0",
               right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
+              // The root portal element has a height of 0 because when you use it in a nested
+              // scroll view we don't want the overlay height to extend from the top to the
+              // bottom of the nested scroll view.
               height: "0",
               // Render above anything on the page.
               zIndex: "80",
@@ -95,10 +95,9 @@ export function renderOverlayPortal(
             top="0"
             left="0"
             right="0"
-            // The overlay portal element has a height of 0 because when you use it in a
-            // nested scroll view we don't want the overlay height to extend from the top
-            // to the bottom of the nested scroll view which is not the scroll view's
-            // content height.
+            // The overlay portal element has a height of 0 because when you use it in a nested
+            // scroll view we don't want the overlay height to extend from the top to the
+            // bottom of the nested scroll view which is not the scroll view's content height.
             height="0"
             // Render above anything on the page.
             zIndex={zIndex}
@@ -107,7 +106,7 @@ export function renderOverlayPortal(
 }
 
 /**
- * Popper instances that are currently mounted by `<Overlay>`. Useful for
- * forcing all poppers to update their positions.
+ * Popper instances that are currently mounted by `<Overlay>`. Useful for forcing
+ * all poppers to update their positions.
  */
 export const overlayVisiblePoppers = new Set<Instance>();

@@ -16,29 +16,29 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * File processor object.
  *
- * Currently file processing generates the file's preview and an alternative
- * file if the original file format can't be rendered by web browsers.
- * Ideally, all files have a preview that's relevant to their contents. Opaque
- * binary data doesn't have a preview. If the file has a preview `hasPreview`
- * will be an object with more information about what the preview includes.
+ * Currently file processing generates the file's preview and an alternative file
+ * if the original file format can't be rendered by web browsers. Ideally, all
+ * files have a preview that's relevant to their contents. Opaque binary data
+ * doesn't have a preview. If the file has a preview `hasPreview` will be an object
+ * with more information about what the preview includes.
  *
- * The processor object has a `process()` function that performs file
- * processing. The file data is accessible in the Cloudflare R2 bucket
- * `cyberworlds-files` (use the variable `filesBucketName`) under the key
- * `${spaceId}/${fileId}`. Each processor may load the file differently. Most
- * files load the file with `context.r2.GetObject()` and save the file to a
- * temporary directory on disk. Some processors generate a signed URL with
- * `context.r2.getGetObjectSignedUrl()` and pass that to another tool which can
- * load from an HTTP endpoint. For example, that's how we use FFmpeg. Since
- * FFmpeg will stream videos/audios using HTTP `Range` requests when passed a
- * URL.
+ * The processor object has a `process()` function that performs file processing.
+ * The file data is accessible in the Cloudflare R2 bucket `cyberworlds-files` (use
+ * the variable `filesBucketName`) under the key `${spaceId}/${fileId}`. Each
+ * processor may load the file differently. Most files load the file with
+ * `context.r2.GetObject()` and save the file to a temporary directory on disk.
+ * Some processors generate a signed URL with `context.r2.getGetObjectSignedUrl()`
+ * and pass that to another tool which can load from an HTTP endpoint. For example,
+ * that's how we use FFmpeg. Since FFmpeg will stream videos/audios using HTTP
+ * `Range` requests when passed a URL.
  *
- * Some processors load the file into memory but this isn't recommended! Files
- * can be up to 1 GB in size. We risk OOM exceptions if we load too many large
- * files into memory. Instead, prefer writing files to disk or making HTTP
- * `Range` requests.
+ * Some processors load the file into memory but this isn't recommended! Files can
+ * be up to 1 GB in size. We risk OOM exceptions if we load too many large files
+ * into memory. Instead, prefer writing files to disk or making HTTP `Range`
+ * requests.
  *
- * [1]: https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/lib/input.js#L489-L500
+ * [1]:
+ *     https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/lib/input.js#L489-L500
  */
 export type FileProcessor =
     | NoopFileProcessor

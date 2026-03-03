@@ -18,8 +18,8 @@ export type KnownBotSettings = {
 // `UpdateKnownBotSettings` migration in production after the change has been
 // deployed.
 //
-// TODO(calebmer, 2026-01-22): Someday, I'd like to automate migration runs
-// after a successful deploy. We should be able to detect when this changes and
+// TODO(calebmer, 2026-01-22): Someday, I'd like to automate migration runs after a
+// successful deploy. We should be able to detect when this changes and
 // automatically run a migration to update production.
 export const knownBotSettings = new Lazy((): Record<BotId, KnownBotSettings> => {
     return {

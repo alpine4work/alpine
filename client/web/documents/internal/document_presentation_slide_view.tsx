@@ -20,8 +20,8 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 
 const lineHeightRatio = 0.05;
 
-// The reasoning behind the math: If `lineHeightRatio` represents a 16px font
-// size then we only want to scale down to a 12px font size.
+// The reasoning behind the math: If `lineHeightRatio` represents a 16px font size
+// then we only want to scale down to a 12px font size.
 const minLineHeightRatio = (12 / 16) * lineHeightRatio;
 
 const minBodyScaleIteration = 0;
@@ -89,10 +89,10 @@ export function DocumentPresentationSlideView({
 
     const [bodyScaleIterationFromState, setBodyScaleIteration] = useStateWithDependencies(
         minBodyScaleIteration,
-        // Whenever one of these changes, reset our iteration count back to 0 and
-        // try iterating through body scale values again to arrive at the right
-        // height. This is not...great for performance if the user is dragging the
-        // screen width back and forth but it appears good enough to not matter.
+        // Whenever one of these changes, reset our iteration count back to 0 and try
+        // iterating through body scale values again to arrive at the right height. This is
+        // not...great for performance if the user is dragging the screen width back and
+        // forth but it appears good enough to not matter.
         [size.width, size.height, bodyContent],
     );
 
@@ -151,8 +151,8 @@ export function DocumentPresentationSlideView({
                     {headingContent && (
                         <Box
                             style={{
-                                // Container `<div>` with the actual height. Because our child `<div>` will
-                                // have the height before scaling up with our CSS `transform: scale()`.
+                                // Container `<div>` with the actual height. Because our child `<div>` will have
+                                // the height before scaling up with our CSS `transform: scale()`.
                                 height: headingSize ? headingSize.height * headingScale : undefined,
                                 marginBottom: headingMarginBottom,
                             }}
@@ -179,8 +179,8 @@ export function DocumentPresentationSlideView({
                     )}
                     <Box
                         style={{
-                            // Container `<div>` with the actual height. Because our child `<div>` will
-                            // have the height before scaling up with our CSS `transform: scale()`.
+                            // Container `<div>` with the actual height. Because our child `<div>` will have
+                            // the height before scaling up with our CSS `transform: scale()`.
                             height: bodySize ? bodySize.height * bodyScale : undefined,
                         }}
                     >
@@ -193,8 +193,8 @@ export function DocumentPresentationSlideView({
                             }}
                         >
                             <ContentView
-                                // TODO(calebmer): Disable image loading while we're resizing the slide so we
-                                // don't make multiple image network requests.
+                                // TODO(calebmer): Disable image loading while we're resizing the slide so we don't
+                                // make multiple image network requests.
                                 //
                                 // TODO(calebmer): Preload images in the next slide so we don't show a blurred
                                 // image when the user goes to the next slide.

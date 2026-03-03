@@ -19,8 +19,8 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 /**
  * Convert a direct chat into a room chat.
  *
- * If you want to get the `ChatModel` after this update we return a `Lazy` and
- * when you call `get()` it builds the chat model.
+ * If you want to get the `ChatModel` after this update we return a `Lazy` and when
+ * you call `get()` it builds the chat model.
  */
 export function convertDirectChatToRoomChat(
     context: ServerSessionActionContext,
@@ -41,8 +41,7 @@ export function convertDirectChatToRoomChat(
 
         await authorizeChatAccess(context, chatId, "Manage");
 
-        // Noop if the chat is already a room chat. That makes this function
-        // idempotent.
+        // Noop if the chat is already a room chat. That makes this function idempotent.
         if (chatItem.attributesItem.definition.type !== "Direct") {
             return {get: context => createChatModelFromItem(context, chatItem)};
         }
@@ -72,8 +71,7 @@ export function convertDirectChatToRoomChat(
             accessPolicy,
         );
 
-        // All accounts in the direct chat are automatically subscribed to the
-        // new chat.
+        // All accounts in the direct chat are automatically subscribed to the new chat.
         await runAllPromises(
             chatItem.accountItems.map(({accountId}) =>
                 ChatTable.createOrReplaceItem(context, {
@@ -98,8 +96,8 @@ export function convertDirectChatToRoomChat(
             accountIdsForDirectOneOnOne: null,
         });
 
-        // We don't add a feed entry when you convert from a direct chat to a chat room
-        // to the creator's feed since the chat already existed.
+        // We don't add a feed entry when you convert from a direct chat to a chat room to
+        // the creator's feed since the chat already existed.
 
         // Reindex the chat with the new name set after our conversion.
         context.jobs.send({

@@ -79,11 +79,11 @@ async function main() {
                 ...devices["Desktop Chrome"],
                 // Take screenshots as if they were on a retina display.
                 //
-                // The reason this isn't higher (e.g. 3) is because we optimize file image
-                // resizing for DPI 2 max on desktop and DPI 3 max on mobile. Our file resizer
-                // doesn't currently support sizes you'd need on higher DPIs than 2 for
-                // desktop. So for any images we display in screenshots we don't want them
-                // upscaled just to be downscaled again (may create weird looking artifacts).
+                // The reason this isn't higher (e.g. 3) is because we optimize file image resizing
+                // for DPI 2 max on desktop and DPI 3 max on mobile. Our file resizer doesn't
+                // currently support sizes you'd need on higher DPIs than 2 for desktop. So for any
+                // images we display in screenshots we don't want them upscaled just to be
+                // downscaled again (may create weird looking artifacts).
                 deviceScaleFactor: 2,
             });
 
@@ -95,8 +95,8 @@ async function main() {
                     // If one of the screenshots has `only` set then only take that one screenshot.
                     if (hasOnly && !screenshot.only) continue;
 
-                    // If we're debugging one of the screenshots then skip all screenshots that
-                    // don't have the `debug` property.
+                    // If we're debugging one of the screenshots then skip all screenshots that don't
+                    // have the `debug` property.
                     if (isDebugging && !screenshot.debug) continue;
 
                     debug(quote`Taking screenshot: ${screenshot.name}`);
@@ -134,8 +134,8 @@ async function main() {
                             clip: screenshot.clip,
                         });
 
-                        // If `wait` is set then we run with `headless: false` so the user can inspect
-                        // the browser for this screenshot.
+                        // If `wait` is set then we run with `headless: false` so the user can inspect the
+                        // browser for this screenshot.
                         if (screenshot.debug) {
                             await new Promise(() => {});
                         }
@@ -156,8 +156,8 @@ async function main() {
 main().then(
     () => {
         // Immediately exit once `main()` finishes. Don't wait for any pending timeouts
-        // keeping the process alive. `withDevContext()` will wait for all
-        // `waitUntil()` calls to complete before resolving.
+        // keeping the process alive. `withDevContext()` will wait for all `waitUntil()`
+        // calls to complete before resolving.
         process.exit(0);
     },
     error => {
@@ -165,8 +165,8 @@ main().then(
         console.error(error);
 
         // Immediately exit once `main()` finishes. Don't wait for any pending timeouts
-        // keeping the process alive. `withDevContext()` will wait for all
-        // `waitUntil()` calls to complete before resolving.
+        // keeping the process alive. `withDevContext()` will wait for all `waitUntil()`
+        // calls to complete before resolving.
         process.exit(1);
     },
 );

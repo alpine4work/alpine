@@ -91,9 +91,9 @@ async function handleFetch(
     if (!streamName && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
 
-    // Create a new tracer for every request because we need a Honeycomb client and
-    // the Honeycomb client needs `executionContext.waitUntil()` which is request
-    // scoped. Tracers are cheap to construct so this is fine.
+    // Create a new tracer for every request because we need a Honeycomb client and the
+    // Honeycomb client needs `executionContext.waitUntil()` which is request scoped.
+    // Tracers are cheap to construct so this is fine.
     const tracer = createServerTracer({
         serviceName: "AgentService",
         jsHost: "CloudflareWorker",
@@ -290,12 +290,12 @@ function fetchFromDurableObjectWithId(
 ) {
     const durableObjectStub = durableObjectNamespace.get(id, {
         // Currently, we only have data in the AWS region `us-east-1`. So place Durable
-        // Objects in the Eastern North America region so Durable Objects get low
-        // latency when making calls to `ApiService` in AWS.
+        // Objects in the Eastern North America region so Durable Objects get low latency
+        // when making calls to `ApiService` in AWS.
         //
         // Long term, ideally we'll put space data in the nearest AWS region to the
-        // customer and our Durable Objects should be created near that data center
-        // as well. Or we'll have DynamoDB replicas in multiple regions.
+        // customer and our Durable Objects should be created near that data center as
+        // well. Or we'll have DynamoDB replicas in multiple regions.
         locationHint: "enam",
     });
 

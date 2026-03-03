@@ -3,8 +3,8 @@ export type Timeout = {
 };
 
 /**
- * A convenience wrapper around `setTimeout()` and `clearTimeout()` that lets
- * you avoid dealing with intermediate timeout ids.
+ * A convenience wrapper around `setTimeout()` and `clearTimeout()` that lets you
+ * avoid dealing with intermediate timeout ids.
  */
 export function createTimeout(callback: () => void, ms: number): Timeout {
     const timeoutId = setTimeout(callback, ms);

@@ -42,10 +42,12 @@ const context = createTestContext({
     },
 });
 
-// NOTE(rmtobin): Watch out for the if statement ordering in `isInboxEligibleForDigestNotification`,
-// since a bug with an earlier if statement could cause all later ones to fail, or cause misleading test results.
-// Ideally we'd mock out the `isAccountMemberOfSpace` function to reduce this risk, but Jest's ESM
-// module support doesn't allow partial mocks (and there's a lot of functions in the spaces module).
+// NOTE(rmtobin): Watch out for the if statement ordering in
+// `isInboxEligibleForDigestNotification`, since a bug with an earlier if statement
+// could cause all later ones to fail, or cause misleading test results. Ideally
+// we'd mock out the `isAccountMemberOfSpace` function to reduce this risk, but
+// Jest's ESM module support doesn't allow partial mocks (and there's a lot of
+// functions in the spaces module).
 describe("isInboxEligibleForDigestNotification", () => {
     const currentTime = new Date("2024-01-10T00:00:00Z");
     test("should return false when digestNotificationsOptedOutTime is set", async () => {

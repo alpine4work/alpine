@@ -5,9 +5,9 @@ import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 /**
  * Get all the `AccountId`s referenced by a task model.
  *
- * `prepareTaskForClient()` will replace accounts we're not allowed to
- * see with `unknownAccountId`. So we skip over any accounts with an unknown
- * `AccountId` in this function.
+ * `prepareTaskForClient()` will replace accounts we're not allowed to see with
+ * `unknownAccountId`. So we skip over any accounts with an unknown `AccountId` in
+ * this function.
  */
 export function collectReferencedAccountIdsFromTaskModelData(
     accountIds: Set<AccountId>,

@@ -31,14 +31,15 @@ type AgentUsageWindowLimit = {
 };
 
 /**
- * Defines the dynamic agent usage window duration and limit in dollars.
- * This is the window that starts when a user sends their first request,
- * or surpasses their previous window duration. After this duration, the
- * window resets and usage is reset.
+ * Defines the dynamic agent usage window duration and limit in dollars. This is
+ * the window that starts when a user sends their first request, or surpasses their
+ * previous window duration. After this duration, the window resets and usage is
+ * reset.
  */
 export const agentUsageWindowLimits: Array<AgentUsageWindowLimit> = [
-    // Weekly windows are fixed windows that start at the beginning of the week (Sunday 00:00 UTC)
-    // and last for 7 days. They do not start at the time of the first request (like dynamic).
+    // Weekly windows are fixed windows that start at the beginning of the week (Sunday
+    // 00:00 UTC) and last for 7 days. They do not start at the time of the first
+    // request (like dynamic).
     {
         type: "Weekly",
         durationMs: 7 * 24 * 60 * 60 * 1000, // 7 days
@@ -47,8 +48,9 @@ export const agentUsageWindowLimits: Array<AgentUsageWindowLimit> = [
             withLifetimeAccess: 4,
         },
     },
-    // The dynamic window is a rolling 8 hour window. If a user hasn't sent a request in 10 hours,
-    // on their next request, a new window will start with an 8 hour timer.
+    // The dynamic window is a rolling 8 hour window. If a user hasn't sent a request
+    // in 10 hours, on their next request, a new window will start with an 8 hour
+    // timer.
     {
         type: "Dynamic",
         durationMs: 8 * 60 * 60 * 1000, // 8 hours
@@ -74,8 +76,8 @@ export type AgentUsageWindowWithWindowLimitsAndUsedMillicents = AgentUsageWindow
 };
 
 /**
- * For a given account ID and type, get the current agent usage window.
- * This function will create or reset the window as needed.
+ * For a given account ID and type, get the current agent usage window. This
+ * function will create or reset the window as needed.
  */
 async function getOrCreateAgentUsageWindow(
     span: TracerSpan,
@@ -164,10 +166,10 @@ async function getOrCreateAgentUsageWindow(
 }
 
 /**
- * Find the window that triggered a limit and will last the longest
- * For example, if both weekly and dynamic windows triggered a limit,
- * but the dynamic window actually resets after the end of the week, we want
- * to inform the user of the dynamic window reset time.
+ * Find the window that triggered a limit and will last the longest For example, if
+ * both weekly and dynamic windows triggered a limit, but the dynamic window
+ * actually resets after the end of the week, we want to inform the user of the
+ * dynamic window reset time.
  */
 function getWindowWithFurthestResetTime(
     windows: Array<{type: AgentUsageWindowType; resetTime: number}>,
@@ -183,8 +185,8 @@ function getWindowWithFurthestResetTime(
 }
 
 /**
- * Get all agent usage limit windows for an account and current usage.
- * Always returns the windows, creating them if they don't currently exist.
+ * Get all agent usage limit windows for an account and current usage. Always
+ * returns the windows, creating them if they don't currently exist.
  */
 export async function getAgentUsageLimitWindows(
     parentSpan: TracerSpan,
@@ -335,7 +337,8 @@ export async function shouldDowngradeModelForAgentUsageLimit(
 
     if (triggeredByWindows.length === 0) return {shouldDowngrade: false};
 
-    // If the window wasn't previously marked as downgraded in the DB, mark it as such now.
+    // If the window wasn't previously marked as downgraded in the DB, mark it as such
+    // now.
     await runAllPromises(
         filterMapArray(triggeredByWindows, async window => {
             if (window.wasModelDowngraded) return null;
@@ -357,9 +360,9 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         },
     });
 
-    // NOTE(ifitzsimmons, #ai): If the user has already been downgraded for this window,
-    // we do not continue to alert them that they've been downgraded. We only alert them
-    // the first time that they exceed the downgrade threshold.
+    // NOTE(ifitzsimmons, #ai): If the user has already been downgraded for this
+    // window, we do not continue to alert them that they've been downgraded. We only
+    // alert them the first time that they exceed the downgrade threshold.
     const shouldAlertUser = triggeredByWindows.some(window => !window.wasModelDowngraded);
 
     if (!shouldAlertUser) {
@@ -415,8 +418,8 @@ export async function recordAgentUsage<SupportedAgentProvider extends SupportedA
                 usedMillicents: Math.floor(requestUsedMillicents),
             });
         } catch (error) {
-            // We've already allowed the agent request to proceed at this point
-            // so we might as well follow through and just log the error.
+            // We've already allowed the agent request to proceed at this point so we might as
+            // well follow through and just log the error.
             span.addException(new DataLossError("Failed to record agent usage", {cause: error}));
         }
     });

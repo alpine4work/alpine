@@ -44,8 +44,8 @@ export function PostView({
     const inboxContext = useInboxContext();
 
     // TODO(calebmer): Support server-side rendering for immediately jumping to a
-    // comment in the middle of a post. This will make transitions seamless when
-    // you click on a link to a comment.
+    // comment in the middle of a post. This will make transitions seamless when you
+    // click on a link to a comment.
     useEffect(() => {
         if (hasInitializedRef.current) return;
         hasInitializedRef.current = true;
@@ -155,8 +155,8 @@ export function PostView({
             onOptimisticPostRealtimeEventTransaction={useCallback(
                 (promise, postId, update) => {
                     setPostsOptimistically(promise, (posts, promiseValue) => {
-                        // Once `promise` resolves, use the event transaction from `promise` to update
-                        // the posts instead of our optimistic updater.
+                        // Once `promise` resolves, use the event transaction from `promise` to update the
+                        // posts instead of our optimistic updater.
                         if (promiseValue) {
                             return posts.handleEventTransaction(promiseValue);
                         }
@@ -168,8 +168,8 @@ export function PostView({
                         const newPostItem = {
                             ...oldPostItem,
                             // Always pretend like our optimistic update is one version higher than what's
-                            // currently in state. Once `promise` resolves then we'll update the item with
-                            // the real version.
+                            // currently in state. Once `promise` resolves then we'll update the item with the
+                            // real version.
                             version: oldPostItem.version + 1,
                             model: newPost,
                         };

@@ -13,10 +13,10 @@ import {buttonStyles, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-// Since we can't import `shared/tasks` from `client/design`, manually inline
-// the `TaskDisplayStatus` type. This component lives in `client/design` so we
-// can use it anywhere in the product without needing to depend on all the
-// `client/tasks` code.
+// Since we can't import `shared/tasks` from `client/design`, manually inline the
+// `TaskDisplayStatus` type. This component lives in `client/design` so we can use
+// it anywhere in the product without needing to depend on all the `client/tasks`
+// code.
 type TaskDisplayStatus = "OpenInactive" | "OpenActive" | "Closed";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -100,15 +100,14 @@ export function TaskDisplayStatusCircle({
         >
             {isPressed && displayStatus === "Closed" && (
                 // For accent buttons, instead of choosing a darker background color shade when
-                // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                // an overlay element since such a color is not in our color scheme.
+                // pressed we add a black overlay at a lowered opacity. We accomplish this with an
+                // overlay element since such a color is not in our color scheme.
                 //
                 // Darker shades in our color scheme are more saturated. We want the effect of a
                 // button being physically pressed down.
                 //
-                // When we added this there was a happy accident. The text color also got
-                // darker! This is more fitting for the physical analogy of a button being
-                // pressed down.
+                // When we added this there was a happy accident. The text color also got darker!
+                // This is more fitting for the physical analogy of a button being pressed down.
                 <span
                     className={taskDisplayStatusClosedPressedOverlayClassName}
                     style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
@@ -133,11 +132,11 @@ export function TaskDisplayStatusCircle({
                         height: `calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
                         transform: `translateY(${activeHalfCircleMargin}px) translateX(${-activeHalfCircleMargin}px)`,
                         // NOTE(calebmer): Safari appears to have a bug where `overflow: hidden` is not
-                        // actually clipping our circle? After some research it's a known bug that
-                        // Safari with `overflow: hidden` and `border-radius` doesn't always work. A
-                        // solution is to use `mask-image` instead. Curiously, I've found setting a
-                        // mask image that doesn't do any actual masking gets Safari to clip the half
-                        // circle properly. Going to...go with that for now I guess.
+                        // actually clipping our circle? After some research it's a known bug that Safari
+                        // with `overflow: hidden` and `border-radius` doesn't always work. A solution is
+                        // to use `mask-image` instead. Curiously, I've found setting a mask image that
+                        // doesn't do any actual masking gets Safari to clip the half circle properly.
+                        // Going to...go with that for now I guess.
                         //
                         // This should probably be svg anyway.
                         //
@@ -154,15 +153,14 @@ export function TaskDisplayStatusCircle({
                     />
                     {isPressed && (
                         // For accent buttons, instead of choosing a darker background color shade when
-                        // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                        // an overlay element since such a color is not in our color scheme.
+                        // pressed we add a black overlay at a lowered opacity. We accomplish this with an
+                        // overlay element since such a color is not in our color scheme.
                         //
                         // Darker shades in our color scheme are more saturated. We want the effect of a
                         // button being physically pressed down.
                         //
-                        // When we added this there was a happy accident. The text color also got
-                        // darker! This is more fitting for the physical analogy of a button being
-                        // pressed down.
+                        // When we added this there was a happy accident. The text color also got darker!
+                        // This is more fitting for the physical analogy of a button being pressed down.
                         <span
                             className={taskDisplayStatusActivePressedOverlayClassName}
                             style={{

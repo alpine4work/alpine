@@ -59,8 +59,8 @@ export class CohereEmbedEnglishV3LanguageModel implements LanguageModelBase {
 
         const textBatches: Array<Array<string>> = [];
 
-        // Cohere supports a maximum number of `texts` per `embed()` call. If we have
-        // more `texts` then batch them up.
+        // Cohere supports a maximum number of `texts` per `embed()` call. If we have more
+        // `texts` then batch them up.
         for (const text of textArray) {
             if (textBatches.length === 0) {
                 textBatches.push([text]);

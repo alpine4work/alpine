@@ -32,9 +32,9 @@ export function renderAccountAvatarPile({
 
     const hasLastAvatar = accountCount > previewAccounts.length;
 
-    // NOTE(calebmer): We use `<span>`s for all our elements because when rendering
-    // a pile in a `<p>` tag (for a chat room mention) HTML doesn't parse `<div>`s
-    // inside of `<p>` tags correctly.
+    // NOTE(calebmer): We use `<span>`s for all our elements because when rendering a
+    // pile in a `<p>` tag (for a chat room mention) HTML doesn't parse `<div>`s inside
+    // of `<p>` tags correctly.
     const pileHtml = new HtmlElementGenerator("span");
     pileHtml.setAttribute(
         "class",

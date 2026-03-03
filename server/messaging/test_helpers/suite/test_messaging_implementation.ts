@@ -237,8 +237,8 @@ type DeleteMessageReactionFunctionForTest<RoomKey extends string> = (
 ) => Promise<{}>;
 
 /**
- * Load a range of messages starting from the beginning of the room (or
- * starting after a message ID) and loading forwards in time.
+ * Load a range of messages starting from the beginning of the room (or starting
+ * after a message ID) and loading forwards in time.
  */
 type GetMessagesFromStartForTest<Message extends MessageModel> = (
     context: ServerActionContext,
@@ -255,8 +255,8 @@ type GetMessagesFromStartForTest<Message extends MessageModel> = (
 }>;
 
 /**
- * Load a range of messages starting from the end of the room (or
- * starting before a message ID) and loading backwards in time.
+ * Load a range of messages starting from the end of the room (or starting before a
+ * message ID) and loading backwards in time.
  */
 type GetMessagesFromEndForTest<Message extends MessageModel> = (
     context: ServerActionContext,
@@ -273,8 +273,9 @@ type GetMessagesFromEndForTest<Message extends MessageModel> = (
 }>;
 
 /**
- * Load a range of message payloads (doesn't load references) starting from the beginning of the room (or
- * starting after a message ID) and loading forwards in time.
+ * Load a range of message payloads (doesn't load references) starting from the
+ * beginning of the room (or starting after a message ID) and loading forwards in
+ * time.
  */
 type GetMessagePayloadsFromStartForTest<Message extends MessageModel> = (
     context: ServerActionContext,
@@ -299,8 +300,8 @@ type GetMessagePayloadsFromStartForTest<Message extends MessageModel> = (
 }>;
 
 /**
- * Load a range of message payloads (doesn't load references) starting from the end of the room (or
- * starting before a message ID) and loading backwards in time.
+ * Load a range of message payloads (doesn't load references) starting from the end
+ * of the room (or starting before a message ID) and loading backwards in time.
  */
 type GetMessagePayloadsFromEndForTest<Message extends MessageModel> = (
     context: ServerActionContext,
@@ -328,10 +329,10 @@ type GetMessagePayloadsFromEndForTest<Message extends MessageModel> = (
 }>;
 
 /**
- * Backfill messages and message changes the client is missing. Realtime could
- * be implemented by polling this method. However, this method is also
- * important for implementing push-based realtime as it fills the gap between
- * when data was loaded and when we connected to our realtime WebSocket.
+ * Backfill messages and message changes the client is missing. Realtime could be
+ * implemented by polling this method. However, this method is also important for
+ * implementing push-based realtime as it fills the gap between when data was
+ * loaded and when we connected to our realtime WebSocket.
  */
 type BackfillMessagesFunctionForTest<Message extends MessageModel> = (
     context: ServerSessionActionContext,
@@ -349,10 +350,10 @@ type BackfillMessagesFunctionForTest<Message extends MessageModel> = (
 }>;
 
 /**
- * Wherever we want to create some space for conversation in our product we use
- * a consistent messaging UI. We also eventually want to make this messaging UI
- * embeddable in other products through an API! Whenever a user sees the
- * messaging UI they know what to do, there's no new features to learn.
+ * Wherever we want to create some space for conversation in our product we use a
+ * consistent messaging UI. We also eventually want to make this messaging UI
+ * embeddable in other products through an API! Whenever a user sees the messaging
+ * UI they know what to do, there's no new features to learn.
  *
  * We do not have one implementation of the messaging UI backend. Instead every
  * entity that can have messages owns their own data so they can store it in an
@@ -362,18 +363,18 @@ type BackfillMessagesFunctionForTest<Message extends MessageModel> = (
  *   changed" in between messages.
  * - Document comments may store the first few messages separately to render a
  *   preview.
- * - A document has many messaging threads. We want realtime events to go
- *   through the document durable object instead of a durable object for each
- *   messaging thread.
- * - For posts we keep track of how many messages for each individual author so
- *   we can show a preview of the thread.
+ * - A document has many messaging threads. We want realtime events to go through
+ *   the document durable object instead of a durable object for each messaging
+ *   thread.
+ * - For posts we keep track of how many messages for each individual author so we
+ *   can show a preview of the thread.
  *
- * However we expect each implementation to behave the same in some ways so we
- * know the behavior of our messaging UI component will be consistent.
+ * However we expect each implementation to behave the same in some ways so we know
+ * the behavior of our messaging UI component will be consistent.
  *
- * This type lays out the interface our messaging UI expects so that we can
- * write tests against it. These tests help us make sure our messaging
- * implementations stay consistent as we evolve them over time.
+ * This type lays out the interface our messaging UI expects so that we can write
+ * tests against it. These tests help us make sure our messaging implementations
+ * stay consistent as we evolve them over time.
  */
 export type TestMessagingImplementation<RoomKey extends string> = {
     /**
@@ -393,9 +394,9 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     ) => Promise<RoomInterface<RoomKey>>;
 
     /**
-     * Create a new private room in which messages will live. Same as `createRoom`
-     * but only `insideSession` has access. `outsideSession` should not have access
-     * to the room and an error should be thrown when they try.
+     * Create a new private room in which messages will live. Same as `createRoom` but
+     * only `insideSession` has access. `outsideSession` should not have access to the
+     * room and an error should be thrown when they try.
      */
     createPrivateRoom: (
         context: TestSessionActionContext,
@@ -494,44 +495,45 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     deleteMessageReaction: DeleteMessageReactionFunctionForTest<RoomKey>;
 
     /**
-     * Load a range of messages starting from the beginning of the room (or
-     * starting after a message ID) and loading forwards in time.
+     * Load a range of messages starting from the beginning of the room (or starting
+     * after a message ID) and loading forwards in time.
      */
     getMessagesFromStart: GetMessagesFromStartForTest<MessageModel<RoomKey>>;
 
     /**
-     * Load a range of messages starting from the end of the room (or
-     * starting before a message ID) and loading backwards in time.
+     * Load a range of messages starting from the end of the room (or starting before a
+     * message ID) and loading backwards in time.
      */
     getMessagesFromEnd: GetMessagesFromEndForTest<MessageModel<RoomKey>>;
 
     /**
-     * Load a range of message payloads (doesn't load references) starting from the beginning of the room (or
-     * starting after a message ID) and loading forwards in time.
+     * Load a range of message payloads (doesn't load references) starting from the
+     * beginning of the room (or starting after a message ID) and loading forwards in
+     * time.
      */
     getMessagePayloadsFromStart: GetMessagePayloadsFromStartForTest<MessageModel<RoomKey>>;
 
     /**
-     * Load a range of message payloads (doesn't load references) starting from the end of the room (or
-     * starting before a message ID) and loading backwards in time.
+     * Load a range of message payloads (doesn't load references) starting from the end
+     * of the room (or starting before a message ID) and loading backwards in time.
      */
     getMessagePayloadsFromEnd: GetMessagePayloadsFromEndForTest<MessageModel<RoomKey>>;
 
     /**
-     * Backfill messages and message changes the client is missing. Realtime could
-     * be implemented by polling this method. However, this method is also
-     * important for implementing push-based realtime as it fills the gap between
-     * when data was loaded and when we connected to our realtime WebSocket.
+     * Backfill messages and message changes the client is missing. Realtime could be
+     * implemented by polling this method. However, this method is also important for
+     * implementing push-based realtime as it fills the gap between when data was
+     * loaded and when we connected to our realtime WebSocket.
      */
     backfillMessages: BackfillMessagesFunctionForTest<MessageModel<RoomKey>>;
 
     /**
-     * When the user doesn't have access to a space, it's typically caught by
-     * a `authorizeSpaceAccess()` which throws a `PermissionDeniedError` with
-     * a message of "Account doesn't have access to space". However, sometimes
-     * a different error message maybe used when account doesn't have access to
-     * a space. This property allows us to configure what error message the
-     * test suite expects when the account doesn't have access to a space.
+     * When the user doesn't have access to a space, it's typically caught by a
+     * `authorizeSpaceAccess()` which throws a `PermissionDeniedError` with a message
+     * of "Account doesn't have access to space". However, sometimes a different error
+     * message maybe used when account doesn't have access to a space. This property
+     * allows us to configure what error message the test suite expects when the
+     * account doesn't have access to a space.
      */
     spacePermissionDeniedErrorMessage?: string;
 };
@@ -9657,9 +9659,9 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            // NOTE(calebmer): We could check position in the future. Mostly not doing so
-            // out of laziness right now since we'd have to map positions that are from
-            // different versions.
+            // NOTE(calebmer): We could check position in the future. Mostly not doing so out
+            // of laziness right now since we'd have to map positions that are from different
+            // versions.
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parent: {
@@ -13003,7 +13005,8 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                         currentTime += 5 * 1000;
 
-                        // stream updated at T5, timeoutTime = T15, indexSearchEntity.jobTime = T20 (no new job)
+                        // stream updated at T5, timeoutTime = T15, indexSearchEntity.jobTime = T20 (no new
+                        // job)
                         await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
                             messageIndex: message.index,
@@ -13014,7 +13017,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         });
 
-                        // stream updated at T11, timeoutTime = T21, indexSearchEntity.jobTime = T31 (new job is scheduled)
+                        // stream updated at T11, timeoutTime = T21, indexSearchEntity.jobTime = T31 (new
+                        // job is scheduled)
                         currentTime += 6 * 1000;
 
                         await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
@@ -14146,8 +14150,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         });
 
-                        // Second part - this finishes the first content part, triggers
-                        // notification
+                        // Second part - this finishes the first content part, triggers notification
                         await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
                             messageIndex: message.index,
@@ -14214,8 +14217,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         });
 
-                        // Second part - this finishes the first content part, triggers
-                        // notification
+                        // Second part - this finishes the first content part, triggers notification
                         await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
                             messageIndex: message.index,
@@ -14772,9 +14774,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         );
 
-                        // Use timeout error completion with a ToolCall part - no notification
-                        // is sent because ToolCall is not a Content part, and notifications
-                        // only include Content.
+                        // Use timeout error completion with a ToolCall part - no notification is sent
+                        // because ToolCall is not a Content part, and notifications only include Content.
                         await putMessageStreamPart(space.systemAction(), {
                             roomKey: room.key,
                             messageIndex: message.index,

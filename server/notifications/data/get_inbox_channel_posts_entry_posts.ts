@@ -22,12 +22,12 @@ import {InboxChannelPostsEntryModel} from "~/shared/notifications/inbox_model.js
 /**
  * Get the posts in a channel posts inbox entry. After you call this function,
  * you're guaranteed that the posts in the corresponding inbox entry will not
- * change anymore. This means you don't need to subscribe to realtime updates
- * of the post list for the entry.
+ * change anymore. This means you don't need to subscribe to realtime updates of
+ * the post list for the entry.
  *
- * This has a side effect of observing the inbox if the inbox has not been
- * observed since the entry was created. By observing the inbox we freeze the
- * underlying channel posts inbox entry so it will accumulate no new posts.
+ * This has a side effect of observing the inbox if the inbox has not been observed
+ * since the entry was created. By observing the inbox we freeze the underlying
+ * channel posts inbox entry so it will accumulate no new posts.
  */
 export async function getInboxChannelPostsEntryPosts(
     context: ServerSessionActionContext,
@@ -77,9 +77,9 @@ export async function getInboxChannelPostsEntryPosts(
         },
     );
 
-    // If the bucket generation is equal to the current inbox generation then we
-    // want to increment the inbox's generation. This means new channel posts will
-    // create a new entry with a new bucket generation.
+    // If the bucket generation is equal to the current inbox generation then we want
+    // to increment the inbox's generation. This means new channel posts will create a
+    // new entry with a new bucket generation.
     if (bucketGeneration === inboxItem.generation) {
         await InboxTable.updateItem(
             context,
@@ -90,8 +90,7 @@ export async function getInboxChannelPostsEntryPosts(
                 accountId,
             },
             item => {
-                // If the generation was updated concurrently, we don't need to update
-                // it again.
+                // If the generation was updated concurrently, we don't need to update it again.
                 if (item.generation !== bucketGeneration) return item;
 
                 return observeInboxItem(item);
@@ -110,15 +109,15 @@ export async function getInboxChannelPostsEntryPosts(
     };
 
     const inboxEntry = await InboxTable.getRealtimeItemIfExists(context, inboxEntryItemKey, {
-        // Use a strong read consistency when reading the entry since we don't want to
-        // miss any posts.
+        // Use a strong read consistency when reading the entry since we don't want to miss
+        // any posts.
         consistency: "Strong",
     });
 
-    // It's possible you open a channel posts inbox entry that has been deleted
-    // since all of its posts have been archived (maybe the user bookmarked the
-    // inbox entry's URL?). In this case, we want to show a display message to the
-    // user telling them this is the case.
+    // It's possible you open a channel posts inbox entry that has been deleted since
+    // all of its posts have been archived (maybe the user bookmarked the inbox entry's
+    // URL?). In this case, we want to show a display message to the user telling them
+    // this is the case.
     if (!inboxEntry) {
         const deletedInboxEntry = await InboxTable.getDeletedItemIfExists(
             context,
@@ -134,8 +133,8 @@ export async function getInboxChannelPostsEntryPosts(
     }
 
     // If there's only one post then we're going to render the new post post with
-    // expanded comments instead of requiring the user to expand the comments on
-    // the only post which is lame.
+    // expanded comments instead of requiring the user to expand the comments on the
+    // only post which is lame.
     if (inboxEntry.model.postIds.size === 1 && commentLimit > 0) {
         const postId = assertExists(iterableFirst(inboxEntry.model.postIds));
 

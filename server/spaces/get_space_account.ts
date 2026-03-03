@@ -34,8 +34,8 @@ export async function getSpaceAccount(
 ): Promise<AccountModelData["space"]> {
     await authorizeSpaceAccess(context, spaceId);
 
-    // If we're reading with strong consistency, don't even try consulting our
-    // space cache.
+    // If we're reading with strong consistency, don't even try consulting our space
+    // cache.
     if (consistency !== "Eventual") {
         const item = await getSpaceAccountItem(context, spaceId, accountId, {consistency});
         return createSpaceAccountModelFromItem(item);
@@ -51,8 +51,8 @@ export async function getSpaceAccount(
     const accountFromCache = accountsCacheData?.accountById.get(accountId);
     if (accountFromCache) return accountFromCache.initialData.space;
 
-    // Try loading the space account with eventual consistency and if that doesn't
-    // work then try loading the space account with strong consistency.
+    // Try loading the space account with eventual consistency and if that doesn't work
+    // then try loading the space account with strong consistency.
     const item = await getSpaceAccountItemWithEventualThenStrongConsistency(
         context,
         spaceId,

@@ -46,12 +46,12 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                 postId: event.postId,
             },
             oldItem => {
-                // When the user comments on a post we archive the corresponding inbox entry. Or
-                // if the entry is already archived, we keep it archived. By sending a comment
-                // the user implicitly marks their entry as done.
+                // When the user comments on a post we archive the corresponding inbox entry. Or if
+                // the entry is already archived, we keep it archived. By sending a comment the
+                // user implicitly marks their entry as done.
                 //
-                // If the events were received out-of-order we keep the last archive state
-                // of the entry.
+                // If the events were received out-of-order we keep the last archive state of the
+                // entry.
                 const isArchived =
                     !oldItem?.latestComment ||
                     (event.commentIndex > oldItem.latestComment.index &&
@@ -68,9 +68,9 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                 } else {
                     isMention = event.mentionedAccountIds.has(accountId);
 
-                    // We increment the loud notification count only if someone is explicitly
-                    // trying to get your attention by mentioning your account. Otherwise, we
-                    // expect users will respond to new post comments in their own time.
+                    // We increment the loud notification count only if someone is explicitly trying to
+                    // get your attention by mentioning your account. Otherwise, we expect users will
+                    // respond to new post comments in their own time.
                     const shouldIncrementLoudNotificationCount = isMention;
 
                     loudNotificationCount =
@@ -92,12 +92,12 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                     // what's in the entry's latest message then don't bother updating the latest
                     // message.
                     (oldItem.latestComment.index >= event.commentIndex ||
-                        // Or if the latest comment was a mention then we'll leave that in place even
-                        // if there are further comments added.
+                        // Or if the latest comment was a mention then we'll leave that in place even if
+                        // there are further comments added.
                         (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
-                        // Or if the message from our event is from the same account as the inbox
-                        // owner's then don't update the latest message. Leave the last message from an
-                        // account other than our inbox's account in the entry.
+                        // Or if the message from our event is from the same account as the inbox owner's
+                        // then don't update the latest message. Leave the last message from an account
+                        // other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
@@ -113,9 +113,9 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                     if (!oldItem) {
                         otherCommentAuthorId = null;
                     } else {
-                        // If the `latestComment`'s author changed then move the old `latestComment`
-                        // author into `otherCommentAuthorId`. But not if the old `latestComment`
-                        // had our inbox's account as the author.
+                        // If the `latestComment`'s author changed then move the old `latestComment` author
+                        // into `otherCommentAuthorId`. But not if the old `latestComment` had our inbox's
+                        // account as the author.
                         otherCommentAuthorId =
                             oldItem.latestComment &&
                             oldItem.latestComment.authorId !== latestComment.authorId &&
@@ -125,8 +125,8 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                     }
                 }
 
-                // If the new comment moves our entry out of the archive, unset the post
-                // content snippet.
+                // If the new comment moves our entry out of the archive, unset the post content
+                // snippet.
                 const isForPostContentMention =
                     oldItem?.isArchived && !isArchived
                         ? false

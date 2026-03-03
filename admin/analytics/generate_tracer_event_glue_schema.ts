@@ -8,8 +8,8 @@ type SchemaLike = SchemaWithOnlyDeserialization<unknown> & {
 };
 
 /**
- * Checks if a value is a Schema object (has getDescription method).
- * Schema objects are class instances, not plain objects, so we check for the method directly.
+ * Checks if a value is a Schema object (has getDescription method). Schema objects
+ * are class instances, not plain objects, so we check for the method directly.
  */
 function isSchema(value: unknown): value is SchemaLike {
     return (
@@ -80,7 +80,8 @@ type GlueColumn = {
 };
 
 /**
- * Converts the TracerEventDataSchemaForGlue object to an array of Glue column definitions.
+ * Converts the TracerEventDataSchemaForGlue object to an array of Glue column
+ * definitions.
  */
 export function generateTracerEventGlueSchema(): Array<GlueColumn> {
     const columns: Array<GlueColumn> = [];

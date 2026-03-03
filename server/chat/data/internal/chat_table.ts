@@ -19,9 +19,8 @@ export const ChatTable = DynamoTableSchema.new({
     name: "Chat",
     partitions: [
         /**
-         * A chat is a long series of messages over time. It conforms to our
-         * messaging implementation so we can render consistent messaging UI across
-         * the product.
+         * A chat is a long series of messages over time. It conforms to our messaging
+         * implementation so we can render consistent messaging UI across the product.
          */
         {
             name: "Chat",
@@ -43,8 +42,8 @@ export const ChatTable = DynamoTableSchema.new({
                         createdTime: Schema.date,
 
                         /**
-                         * Is this a room chat or a direct chat between accounts? Influences how the
-                         * chat is displayed and how permissions are calculated.
+                         * Is this a room chat or a direct chat between accounts? Influences how the chat
+                         * is displayed and how permissions are calculated.
                          */
                         definition: Schema.union({
                             Direct: Schema.object({
@@ -59,34 +58,33 @@ export const ChatTable = DynamoTableSchema.new({
                                 name: LabelStringSchema,
 
                                 /**
-                                 * Who's allowed to read/write to this chat. For direct chats only accounts
-                                 * within the chat are allowed. For room chats, anyone is allowed!
+                                 * Who's allowed to read/write to this chat. For direct chats only accounts within
+                                 * the chat are allowed. For room chats, anyone is allowed!
                                  */
                                 accessPolicy: AccessPolicySchema,
 
                                 /**
-                                 * Account that created the chat room. Mostly for record keeping. The creator
-                                 * can lose access if they're removed from the `accessPolicy`.
+                                 * Account that created the chat room. Mostly for record keeping. The creator can
+                                 * lose access if they're removed from the `accessPolicy`.
                                  */
                                 creatorId: Schema.id<AccountId>(),
 
                                 /**
-                                 * Have we added a feed candidate entry for the chat room? We add an entry when
-                                 * the chat room is shared with some `defaultGrant`. But if you revoke the
-                                 * `defaultGrant` then add it again we don't want to add another feed
-                                 * candidate entry.
+                                 * Have we added a feed candidate entry for the chat room? We add an entry when the
+                                 * chat room is shared with some `defaultGrant`. But if you revoke the
+                                 * `defaultGrant` then add it again we don't want to add another feed candidate
+                                 * entry.
                                  */
                                 hasAddedFeedCandidateEntry: Schema.boolean.default(false),
                             }),
                         }).default({type: "Direct"}),
 
                         /**
-                         * If this is a 1:1 chat between two accounts, we include the two accounts in
-                         * the attributes item as an optimization.
+                         * If this is a 1:1 chat between two accounts, we include the two accounts in the
+                         * attributes item as an optimization.
                          *
-                         * You can't depend on `accountIdsForDirectOneOnOne` existing for a chat with
-                         * two accounts! 1:1 chats created before 2023-12-20 will have this set to
-                         * null.
+                         * You can't depend on `accountIdsForDirectOneOnOne` existing for a chat with two
+                         * accounts! 1:1 chats created before 2023-12-20 will have this set to null.
                          *
                          * Should only be present for direct chats and null otherwise.
                          */
@@ -98,8 +96,8 @@ export const ChatTable = DynamoTableSchema.new({
                             .originalPropertyKey("accountIdsForOneOnOne"),
 
                         /**
-                         * Information regarding the chat's messages. Nested in an object so we can
-                         * update it at once.
+                         * Information regarding the chat's messages. Nested in an object so we can update
+                         * it at once.
                          */
                         messagesSummary: Schema.object({
                             /**
@@ -111,7 +109,6 @@ export const ChatTable = DynamoTableSchema.new({
                                 .originalPropertyKey("messageCount"),
 
                             /**
-                             *
                              * All the accounts which have sent messages in this chat and how many messages
                              * they have sent.
                              *
@@ -130,10 +127,9 @@ export const ChatTable = DynamoTableSchema.new({
                              * meaning:
                              *
                              * - If an account exists in the map they were mentioned at some point
-                             * - If an account exists in the map with a mention count of zero then they
-                             *   were mentioned at some point but all mentions have been removed by updates
-                             * - If an account does not exist in the map they were never mentioned in
-                             *   the chat
+                             * - If an account exists in the map with a mention count of zero then they were
+                             *   mentioned at some point but all mentions have been removed by updates
+                             * - If an account does not exist in the map they were never mentioned in the chat
                              */
                             mentionCountByAccountId: Schema.map(
                                 Schema.id<AccountId>(),
@@ -153,16 +149,16 @@ export const ChatTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * Accounts that are members of the chat. We have a reverse index of accounts
-                 * to chats the account is a member of.
+                 * Accounts that are members of the chat. We have a reverse index of accounts to
+                 * chats the account is a member of.
                  *
-                 * Only direct chats have account items. We remove account items when
-                 * converting from a direct chat to a room chat.
+                 * Only direct chats have account items. We remove account items when converting
+                 * from a direct chat to a room chat.
                  *
                  * It's possible due to race condition or some failure edge cases (`AppService`
-                 * dies before `convertDirectChatToRoomChat()` finishes) that you observe
-                 * `Account` items for a `Room` chat. Ignore them in this case. We should
-                 * eventually cleanup all `Account` items for `Room` chats.
+                 * dies before `convertDirectChatToRoomChat()` finishes) that you observe `Account`
+                 * items for a `Room` chat. Ignore them in this case. We should eventually cleanup
+                 * all `Account` items for `Room` chats.
                  */
                 {
                     name: "Account",
@@ -171,8 +167,8 @@ export const ChatTable = DynamoTableSchema.new({
                     },
                     attributes: Schema.object({
                         /**
-                         * This is a copy of the `spaceId` in a chat's attributes so we can include it
-                         * in the account to chats index.
+                         * This is a copy of the `spaceId` in a chat's attributes so we can include it in
+                         * the account to chats index.
                          */
                         spaceId: Schema.id<SpaceId>(),
 
@@ -182,10 +178,10 @@ export const ChatTable = DynamoTableSchema.new({
                         /**
                          * The number of accounts total in the chat.
                          *
-                         * While you could get this by querying account items in the chat partition,
-                         * it's really convenient to duplicate that number here so it's present in
-                         * `AccountChatsIndex`. This does mean we have to take care to update this
-                         * property whenever the number of accounts in a chat changes!
+                         * While you could get this by querying account items in the chat partition, it's
+                         * really convenient to duplicate that number here so it's present in
+                         * `AccountChatsIndex`. This does mean we have to take care to update this property
+                         * whenever the number of accounts in a chat changes!
                          */
                         chatAccountCount: Schema.integer,
                     }),
@@ -194,8 +190,8 @@ export const ChatTable = DynamoTableSchema.new({
                 /**
                  * Accounts subscribed to notifications for a chat room.
                  *
-                 * Only room chats should have subscriptions. All accounts in a direct chat
-                 * are subscribed.
+                 * Only room chats should have subscriptions. All accounts in a direct chat are
+                 * subscribed.
                  *
                  * It's possible due to race condition or some failure edge cases (`AppService`
                  * dies before `convertDirectChatToRoomChat()` finishes) that you observe
@@ -243,9 +239,9 @@ export const ChatTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * Whenever a message is updated we add a `MessageUpdates` item. So when
-                 * clients need to backfill realtime events they missed while disconnected from
-                 * a WebSocket server they can query this sort range to catch up.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when clients
+                 * need to backfill realtime events they missed while disconnected from a WebSocket
+                 * server they can query this sort range to catch up.
                  *
                  * The event includes the `messageIndex` and the new `version` of the message.
                  * During backfill we load the new version of the item.
@@ -260,12 +256,12 @@ export const ChatTable = DynamoTableSchema.new({
                 {
                     name: "MessageUpdates",
                     sortKeyAttributes: {
-                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
-                        // could. Through a query that starts at the client's last `messageIndex` and
-                        // ends at the checkpoint's `eventTime`.
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we could.
+                        // Through a query that starts at the client's last `messageIndex` and ends at the
+                        // checkpoint's `eventTime`.
                         eventTime: DynamoKeyAttributeSchema.date.reverse(),
-                        // All the data is in the key so we can safely use create-or-replace to add
-                        // items to the table without worrying we're overriding some other data.
+                        // All the data is in the key so we can safely use create-or-replace to add items
+                        // to the table without worrying we're overriding some other data.
                         messageIndex: DynamoKeyAttributeSchema.integer,
                         version: DynamoKeyAttributeSchema.integer,
                     },
@@ -273,10 +269,10 @@ export const ChatTable = DynamoTableSchema.new({
                     attributes: Schema.object({}),
                 },
 
-                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
-                // events to a new sort range: `MessageUpdates`. Leaving this around until all
-                // old `MessageChangeLog` items expire. At which point we can remove this from
-                // the DynamoDB schema.
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime events
+                // to a new sort range: `MessageUpdates`. Leaving this around until all old
+                // `MessageChangeLog` items expire. At which point we can remove this from the
+                // DynamoDB schema.
                 {
                     name: "MessageChangeLog",
                     sortKeyAttributes: {

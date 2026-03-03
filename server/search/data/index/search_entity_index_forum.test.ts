@@ -104,8 +104,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -405,8 +405,8 @@ test(
         testSearchSpace = otherSpace;
         await runTests();
     },
-    // Increase test timeout since we've found that sometimes this test is slow to
-    // run in CI.
+    // Increase test timeout since we've found that sometimes this test is slow to run
+    // in CI.
     30 * 1000,
 );
 
@@ -1151,8 +1151,8 @@ test("changes channel contributors as posts/comments are made", async () => {
         return results.some(
             result =>
                 result.id === `Channel:${channel.id}` &&
-                // Make sure this result was returned because of a high confidence natural
-                // language match.
+                // Make sure this result was returned because of a high confidence natural language
+                // match.
                 result.score >= standardSearchOptions.naturalLanguage.filterConstantScore,
         );
     };

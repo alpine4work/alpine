@@ -83,8 +83,8 @@ test("can comment on a document and use the comment thread sidebar", async ({
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeHidden();
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page1.getByLabel("Comment").click();
     } else {
         await page1.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
@@ -167,8 +167,8 @@ test("can comment on a document and use the comment thread sidebar", async ({
     if (isMobile) {
         await page1.locator("[data-comment]").click();
     } else {
-        // Test once that we can click the side decoration. From here on out we'll
-        // click the comment itself which works on desktop and mobile.
+        // Test once that we can click the side decoration. From here on out we'll click
+        // the comment itself which works on desktop and mobile.
         await page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).click();
     }
 
@@ -554,8 +554,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
     }
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page.getByLabel("Comment").click();
     } else {
         await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
@@ -597,8 +597,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
     }
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page.getByLabel("Comment").click();
     } else {
         await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
@@ -727,8 +727,8 @@ test("can leave a document comment across multiple paragraphs", async ({
     }
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page.getByLabel("Comment").click();
     } else {
         await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();

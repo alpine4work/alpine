@@ -43,9 +43,8 @@ export const TaskAuthorizationStateRegister = createCrdtRegister(TaskAuthorizati
 
 /**
  * Authorized `TaskAuthorizationState` object. If you use this instead of
- * `{type: "Authorized"}` then your code is marginally more performant since
- * we're not allocating a bunch of tiny objects we have to garbage collect
- * later.
+ * `{type: "Authorized"}` then your code is marginally more performant since we're
+ * not allocating a bunch of tiny objects we have to garbage collect later.
  */
 export const taskAuthorizedState: {readonly type: "Authorized"} = {type: "Authorized"};
 
@@ -107,8 +106,8 @@ const TaskQuerySortCursorSchema = Schema.array(
  * - If `Partial` then that means only some of the query's tasks are loaded.
  * - If `Full` that means all of the query's tasks are loaded.
  * - `Partial` with an `endCursor` of null means no tasks are loaded yet.
- * - `Partial` with an `endCursor` means all tasks before `endCursor`
- *   (inclusive) are loaded.
+ * - `Partial` with an `endCursor` means all tasks before `endCursor` (inclusive)
+ *   are loaded.
  */
 export type TaskRealtimeQueryLoadedState = SchemaType<typeof TaskRealtimeQueryLoadedStateSchema>;
 

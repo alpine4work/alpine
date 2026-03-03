@@ -25,7 +25,8 @@ const overlayClassName = sprinkles({
  * `overflow: hidden` containers, we render an element on top of the focused
  * target. We reuse our `<Overlay>` component for this.
  *
- * [1]: https://discord.com/blog/how-discord-implemented-app-wide-keyboard-navigation
+ * [1]:
+ *     https://discord.com/blog/how-discord-implemented-app-wide-keyboard-navigation
  */
 function FocusRing(
     {
@@ -51,8 +52,8 @@ function FocusRing(
          *
          * Defaults to `0.5`.
          *
-         * Setting to `border` will render the focus ring on top of the
-         * element's border. (Equivalent to a -1px offset.)
+         * Setting to `border` will render the focus ring on top of the element's border.
+         * (Equivalent to a -1px offset.)
          *
          * Setting to `inset` will render the focus ring inside of the element.
          */
@@ -61,8 +62,7 @@ function FocusRing(
         /**
          * How far in should we inset our focus ring?
          *
-         * This will be subtracted from `offset`. So the true offset is
-         * `offset - inset`.
+         * This will be subtracted from `offset`. So the true offset is `offset - inset`.
          */
         inset?: Spacing | `-${Spacing}`;
 
@@ -115,21 +115,19 @@ function FocusRing(
         insetBottom?: Spacing | "border";
 
         /**
-         * Is the focus ring always visible regardless of whether the target
-         * is focused?
+         * Is the focus ring always visible regardless of whether the target is focused?
          *
-         * We have logic that only one focus ring may be visible at a time but this
-         * prop does not affect it. So another ring may be visible due to focus in
-         * addition to this one.
+         * We have logic that only one focus ring may be visible at a time but this prop
+         * does not affect it. So another ring may be visible due to focus in addition to
+         * this one.
          */
         isVisible?: boolean;
 
         /**
          * Is the focus ring hidden regardless of whether the target is focused?
          *
-         * We have logic that only one focus ring may be visible at a time but this
-         * prop does not affect it. So another ring may be hidden due to focus inside
-         * of this.
+         * We have logic that only one focus ring may be visible at a time but this prop
+         * does not affect it. So another ring may be hidden due to focus inside of this.
          */
         isDisabled?: boolean;
 
@@ -140,22 +138,21 @@ function FocusRing(
         shouldIgnoreFocusEvents?: boolean;
 
         /**
-         * By default, we only show the focus ring when the direct child is focused.
-         * When turning this prop on if any child is focused we will also show the
-         * focus ring.
+         * By default, we only show the focus ring when the direct child is focused. When
+         * turning this prop on if any child is focused we will also show the focus ring.
          */
         isVisibleWhenFocusWithin?: boolean;
 
         /**
-         * Is this ring visible from any kind of focus? By default we only show the
-         * focus ring on keyboard focus.
+         * Is this ring visible from any kind of focus? By default we only show the focus
+         * ring on keyboard focus.
          */
         isVisibleFromAnyFocus?: boolean;
 
         /**
-         * The z-index to render our overlay at. By default it renders at 0. Only
-         * affects z-index relative to other overlays since our overlay container
-         * creates a z-index stacking context.
+         * The z-index to render our overlay at. By default it renders at 0. Only affects
+         * z-index relative to other overlays since our overlay container creates a z-index
+         * stacking context.
          */
         overlayZIndex?: Sprinkles["zIndex"];
 
@@ -165,9 +162,9 @@ function FocusRing(
         children?: ReactElement;
 
         /**
-         * The focusable element we draw a ring around. Use this if your focusable
-         * element is not managed by React. Otherwise prefer `children`. Can not
-         * provide both `children` and `targetElement`.
+         * The focusable element we draw a ring around. Use this if your focusable element
+         * is not managed by React. Otherwise prefer `children`. Can not provide both
+         * `children` and `targetElement`.
          */
         targetElement?: HTMLElement;
     },
@@ -205,8 +202,8 @@ function FocusRing(
             overlay={
                 <div
                     data-testid={process.env.NODE_ENV !== "production" ? "FocusRing" : undefined}
-                    // Optimization: `<FocusRing>` is rendered hot code paths. Don't call
-                    // `sprinkles()` if we can avoid it.
+                    // Optimization: `<FocusRing>` is rendered hot code paths. Don't call `sprinkles()`
+                    // if we can avoid it.
                     className={
                         overlayZIndex
                             ? `${overlayClassName} ${sprinkles({zIndex: overlayZIndex})}`
@@ -264,8 +261,8 @@ export function FocusRingBox({
 
     const spacingScale = useSpacingScale();
 
-    // Overlay must be focused to render so we know we're on the client and
-    // `window` should exist.
+    // Overlay must be focused to render so we know we're on the client and `window`
+    // should exist.
     let ringOffsetBasePx =
         offset === "border"
             ? -1
@@ -273,8 +270,8 @@ export function FocusRingBox({
               ? -ringWidthPx
               : convertRemLengthToPx(offset, spacingScale);
 
-    // If we are using a border ring offset, we want the focus ring to render on
-    // top of the element's 1px border.
+    // If we are using a border ring offset, we want the focus ring to render on top of
+    // the element's 1px border.
     if (offset === "border") ringOffsetBasePx = -1;
 
     // If we are using an inset offset, we want the focus ring to render entirely

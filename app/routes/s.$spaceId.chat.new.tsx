@@ -78,8 +78,8 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
         deserializeAccountIdForLoader(accountId),
     );
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     if (selectedRoomChatId) {
@@ -215,8 +215,8 @@ export default function NewChatRoute() {
     }, [hasSearchParamToDelete, setSearchParams]);
 
     // Having state here allows us to optimistically update selected accounts. Then
-    // when we get a new result back from Remix (due to route transition), that
-    // always wins.
+    // when we get a new result back from Remix (due to route transition), that always
+    // wins.
     const [selectionState, setSelectionState] = useStateWithDependencies(
         ([loaderData]): ChatAccountPickerSelectionState => {
             if (loaderData.selectedChat?.chat.definition.type !== "Room") {
@@ -272,11 +272,11 @@ export default function NewChatRoute() {
     const shouldShowAccountPickerPendingSpinner = useDelayLoadingIndicator(isAccountPickerPending);
 
     // If you're spending time in a 1:1 chat, then we give affinity points to the
-    // account you're messaging. Not the chat itself. The page we route you to for
-    // an account in search is currently your 1:1 chat with the account anyways.
+    // account you're messaging. Not the chat itself. The page we route you to for an
+    // account in search is currently your 1:1 chat with the account anyways.
     //
-    // By accruing points to the account we allow chat conversations to affect
-    // account selector type-ahead affinity rankings.
+    // By accruing points to the account we allow chat conversations to affect account
+    // selector type-ahead affinity rankings.
     useSearchAffinityViewEntityInteraction(
         loaderData.selectedChat
             ? getChatOrAccountSearchAffinityEntityId(
@@ -289,11 +289,10 @@ export default function NewChatRoute() {
     const accountPickerContainerRef = useRef<HTMLDivElement>(null);
     const messagingViewRef = useRef<MessagingViewRef<ChatId>>(null);
 
-    // If `<ChatAccountPicker>` grows then `<NewChatMessagingView>` will shrink.
-    // But instead of keeping content at the top of `<NewChatMessagingView>` stable,
-    // we want to keep content at the bottom of `<NewChatMessagingView>` stable. So
-    // make a scroll adjustment on resize to make sure the last message stays in
-    // place.
+    // If `<ChatAccountPicker>` grows then `<NewChatMessagingView>` will shrink. But
+    // instead of keeping content at the top of `<NewChatMessagingView>` stable, we
+    // want to keep content at the bottom of `<NewChatMessagingView>` stable. So make a
+    // scroll adjustment on resize to make sure the last message stays in place.
     //
     // Note that this only really kicks into gear if the chat you START with when
     // `<ChatAccountPicker>` grows is filled with messages. Otherwise the chat
@@ -303,9 +302,9 @@ export default function NewChatRoute() {
     // This effect does a similar job as
     // `useScrollToAvoidBottomBarsAndMobileKeyboard()`. But whereas
     // `useScrollToAvoidBottomBarsAndMobileKeyboard()` is focused on making sure we
-    // adjust scroll when the message input height at the bottom grows, this hook
-    // is focused on making sure we adjust scroll when the account picker height at
-    // the top grows.
+    // adjust scroll when the message input height at the bottom grows, this hook is
+    // focused on making sure we adjust scroll when the account picker height at the
+    // top grows.
     useEffect(() => {
         const accountPickerContainerElement = assertExists(accountPickerContainerRef.current);
 
@@ -319,8 +318,8 @@ export default function NewChatRoute() {
             currentClientHeight = clientHeight;
 
             if (clientHeight > lastClientHeight) {
-                // We need to read `.current` every resize (instead of at the top of the
-                // effect) since the `.current` reference changes when `selectedChat` changes.
+                // We need to read `.current` every resize (instead of at the top of the effect)
+                // since the `.current` reference changes when `selectedChat` changes.
                 const messagingView = assertExists(messagingViewRef.current);
 
                 messagingView.setScrollOffset(
@@ -353,8 +352,8 @@ export default function NewChatRoute() {
             >
                 {platform === "mobile" && (
                     <NavigationBarContent
-                        // We don't have the done button in regular chats so also don't show it here.
-                        // It's more intuitive to tap on messages to close the keyboard.
+                        // We don't have the done button in regular chats so also don't show it here. It's
+                        // more intuitive to tap on messages to close the keyboard.
                         withoutFocusedTextInputDoneButton={true}
                         title="New message"
                     />
@@ -363,10 +362,10 @@ export default function NewChatRoute() {
                     pointerEvents="none"
                     position="absolute"
                     height="border"
-                    // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
-                    // than if we used `grey-5` directly. This is because the border operates more
-                    // like a shadow. When rendered over some other content (e.g. an image) the
-                    // image's colors show through the border but a little darker.
+                    // It's subtle, but `grey-5-translucent` ends up looking a lot nicer than if we
+                    // used `grey-5` directly. This is because the border operates more like a shadow.
+                    // When rendered over some other content (e.g. an image) the image's colors show
+                    // through the border but a little darker.
                     backgroundColor="grey-5-translucent"
                     style={{
                         bottom: -1,
@@ -421,8 +420,8 @@ export default function NewChatRoute() {
                         }}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
                         suggestedChats={
-                            // If we change to no selected accounts, don't wait for the loader to
-                            // re-execute to clear suggested chats.
+                            // If we change to no selected accounts, don't wait for the loader to re-execute to
+                            // clear suggested chats.
                             selectionState.type === "Accounts" && selectionState.accounts.length > 0
                                 ? loaderData.suggestedChats
                                 : emptyArray

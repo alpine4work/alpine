@@ -10,21 +10,21 @@ import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
 
 /**
- * Get a snippet of content around the provided position. The snippet should
- * have the same layout as the source content.
+ * Get a snippet of content around the provided position. The snippet should have
+ * the same layout as the source content.
  *
  * We use a line count heuristic to figure out how much to cut. We hardcode the
  * maximum number of characters we expect on a line and if we have enough
  * characters to fill up our expected line count then we split there.
  *
- * While we split immediately when we hit our limit at the end of the snippet,
- * we keep some leading content at the beginning of the snippet. Since that
- * leading content might effect the layout of our snippet. For example, a
- * paragraph. If we cut in the middle of a paragraph then the snippet content
- * may be in a different position given the leading text wasn't there.
+ * While we split immediately when we hit our limit at the end of the snippet, we
+ * keep some leading content at the beginning of the snippet. Since that leading
+ * content might effect the layout of our snippet. For example, a paragraph. If we
+ * cut in the middle of a paragraph then the snippet content may be in a different
+ * position given the leading text wasn't there.
  *
- * We try to leave the last word in the snippet whole instead of cutting the
- * word in the middle.
+ * We try to leave the last word in the snippet whole instead of cutting the word
+ * in the middle.
  */
 export function getContentSnippet(
     resolvedPos: ResolvedPos,
@@ -33,11 +33,11 @@ export function getContentSnippet(
         maxLineGraphemeCount?: number;
 
         /**
-         * Don't consider a node that creates a line break (e.g. `paragraph` or
-         * `heading`) to be the end of a line. This is useful if you want to print your
-         * content snippet with `printContentSingleLineTextSnippet()`. Since
-         * `printContentSingleLineTextSnippet()` will collapse new lines, so you want
-         * your snippet to also consider newlines as "collapsed".
+         * Don't consider a node that creates a line break (e.g. `paragraph` or `heading`)
+         * to be the end of a line. This is useful if you want to print your content
+         * snippet with `printContentSingleLineTextSnippet()`. Since
+         * `printContentSingleLineTextSnippet()` will collapse new lines, so you want your
+         * snippet to also consider newlines as "collapsed".
          */
         ignoreLineBreaks?: boolean;
     },
@@ -47,8 +47,8 @@ export function getContentSnippet(
 }
 
 /**
- * Same as `getContentSnippet()` but returns the `from` and `to` positions we
- * use to cut the content and produce a snippet.
+ * Same as `getContentSnippet()` but returns the `from` and `to` positions we use
+ * to cut the content and produce a snippet.
  */
 export function getContentSnippetPos(
     resolvedPos: ResolvedPos,
@@ -60,25 +60,25 @@ export function getContentSnippetPos(
         maxLineGraphemeCount?: number;
 
         /**
-         * Don't consider a node that creates a line break (e.g. `paragraph` or
-         * `heading`) to be the end of a line. This is useful if you want to print your
-         * content snippet with `printContentSingleLineTextSnippet()`. Since
-         * `printContentSingleLineTextSnippet()` will collapse new lines, so you want
-         * your snippet to also consider newlines as "collapsed".
+         * Don't consider a node that creates a line break (e.g. `paragraph` or `heading`)
+         * to be the end of a line. This is useful if you want to print your content
+         * snippet with `printContentSingleLineTextSnippet()`. Since
+         * `printContentSingleLineTextSnippet()` will collapse new lines, so you want your
+         * snippet to also consider newlines as "collapsed".
          */
         ignoreLineBreaks?: boolean;
     } = {},
 ): {from: number; to: number} {
     const options = {maxLineGraphemeCount, ignoreLineBreaks};
 
-    // So our target number of lines is `1 + linesAroundCount * 2`. We want the
-    // line containing `resolvedPos`, `linesAroundCount` lines above, and
-    // `linesAroundCount` lines below. However we don't know where proportionally
-    // `resolvedPos` falls on its line. If it falls about 25% through the line then
-    // we need `linesAroundCount + 0.25` lines of content before `resolvedPos` and
-    // we need `linesAroundCount + 0.75` lines of content after `resolvedPos`.
-    // Vice-versa if `resolvedPos` falls 75% through the line. So we get an extra
-    // line in both directions which gets us enough content.
+    // So our target number of lines is `1 + linesAroundCount * 2`. We want the line
+    // containing `resolvedPos`, `linesAroundCount` lines above, and `linesAroundCount`
+    // lines below. However we don't know where proportionally `resolvedPos` falls on
+    // its line. If it falls about 25% through the line then we need
+    // `linesAroundCount + 0.25` lines of content before `resolvedPos` and we need
+    // `linesAroundCount + 0.75` lines of content after `resolvedPos`. Vice-versa if
+    // `resolvedPos` falls 75% through the line. So we get an extra line in both
+    // directions which gets us enough content.
     const linesAbove = (typeof lines === "number" ? lines : lines.linesAbove) + 1;
     const linesBelow = (typeof lines === "number" ? lines : lines.linesBelow) + 1;
 
@@ -113,8 +113,8 @@ export function getContentSnippetPos(
                     };
 
                     if (!ignoreLineBreaks && textNodeIndex === 0) {
-                        // If the node is line breaking then round remaining lines down since no other
-                        // text can go on the line.
+                        // If the node is line breaking then round remaining lines down since no other text
+                        // can go on the line.
                         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
                         const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
                         for (let i = 0; i < lineBreakCount; i++) {
@@ -127,9 +127,9 @@ export function getContentSnippetPos(
                         }
                     }
 
-                    // We don't cut leading text both because `consumeLinesOfText()` counts
-                    // forwards (so using `remainingLength` to slice could incorrectly split a
-                    // grapheme) and because it would break the text's layout.
+                    // We don't cut leading text both because `consumeLinesOfText()` counts forwards
+                    // (so using `remainingLength` to slice could incorrectly split a grapheme) and
+                    // because it would break the text's layout.
                     if (remainingBefore.lineCount <= 0) {
                         from = resolvedPos.start(depth);
                     }
@@ -149,8 +149,8 @@ export function getContentSnippetPos(
                     };
 
                     if (!ignoreLineBreaks && textNodeIndex === node.childCount - 1) {
-                        // If the node is line breaking then round remaining lines down since no other
-                        // text can go on the line.
+                        // If the node is line breaking then round remaining lines down since no other text
+                        // can go on the line.
                         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
                         const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
                         for (let i = 0; i < lineBreakCount; i++) {
@@ -219,8 +219,7 @@ export function getContentSnippetPos(
                     let remainingBeforeLineCount = remainingBefore.lineCount;
 
                     for (const [forkedRemainingBefore, newForkedFrom] of branches) {
-                        // Determine the minimum remaining line count after looking at all
-                        // branches.
+                        // Determine the minimum remaining line count after looking at all branches.
                         if (forkedRemainingBefore.lineCount < remainingBeforeLineCount) {
                             remainingBeforeLineCount = forkedRemainingBefore.lineCount;
                         }
@@ -238,26 +237,26 @@ export function getContentSnippetPos(
                         isAtLineBreak: true,
                     };
 
-                    // If `newFrom` isn't from the first branch then we end the selection at the
-                    // start of the `tableRow` node. Since we can't cut out cells from a table row.
+                    // If `newFrom` isn't from the first branch then we end the selection at the start
+                    // of the `tableRow` node. Since we can't cut out cells from a table row.
                     //
-                    // TODO(calebmer): This is suboptimal since we'll include ENTIRE cells before
-                    // the last cell. An optimal solution:
+                    // TODO(calebmer): This is suboptimal since we'll include ENTIRE cells before the
+                    // last cell. An optimal solution:
                     //
                     // - Would snip cells individually as individual cells grow too long
                     //
                     // - Would empty out cells after the first ~10 or so since those cells will be
-                    //   offscreen when rendering a content snippet (we still need empty
-                    //   `tableCell`s to maintain layout but we don't need their content)
+                    //   offscreen when rendering a content snippet (we still need empty `tableCell`s
+                    //   to maintain layout but we don't need their content)
                     //
-                    // - Would account for table columns being skinner than the block width and
-                    //   would lower `maxLineGraphemeCount`
+                    // - Would account for table columns being skinner than the block width and would
+                    //   lower `maxLineGraphemeCount`
                     //
                     // However, making these optimizations would require a big refactor to
                     // `getContentSnippet()`. For now, we're keeping the basic structure which only
-                    // cuts content between a `from` and `to` range. This solution will work fine
-                    // for most small tables but may lead to much larger snippets than expected for
-                    // large tables.
+                    // cuts content between a `from` and `to` range. This solution will work fine for
+                    // most small tables but may lead to much larger snippets than expected for large
+                    // tables.
                     if (newFrom !== null) {
                         if (isNewFromFromFirstBranch) {
                             from = newFrom;
@@ -315,8 +314,7 @@ export function getContentSnippetPos(
                     let remainingAfterLineCount = remainingAfter.lineCount;
 
                     for (const [forkedRemainingAfter, newForkedTo] of branches) {
-                        // Determine the minimum remaining line count after looking at all
-                        // branches.
+                        // Determine the minimum remaining line count after looking at all branches.
                         if (forkedRemainingAfter.lineCount < remainingAfterLineCount) {
                             remainingAfterLineCount = forkedRemainingAfter.lineCount;
                         }
@@ -334,26 +332,26 @@ export function getContentSnippetPos(
                         isAtLineBreak: true,
                     };
 
-                    // If `newTo` isn't from the last branch then we end the selection at the end
-                    // of the `tableRow` node. Since we can't cut out cells from a table row.
+                    // If `newTo` isn't from the last branch then we end the selection at the end of
+                    // the `tableRow` node. Since we can't cut out cells from a table row.
                     //
-                    // TODO(calebmer): This is suboptimal since we'll include ENTIRE cells before
-                    // the last cell. An optimal solution:
+                    // TODO(calebmer): This is suboptimal since we'll include ENTIRE cells before the
+                    // last cell. An optimal solution:
                     //
                     // - Would snip cells individually as individual cells grow too long
                     //
                     // - Would empty out cells after the first ~10 or so since those cells will be
-                    //   offscreen when rendering a content snippet (we still need empty
-                    //   `tableCell`s to maintain layout but we don't need their content)
+                    //   offscreen when rendering a content snippet (we still need empty `tableCell`s
+                    //   to maintain layout but we don't need their content)
                     //
-                    // - Would account for table columns being skinner than the block width and
-                    //   would lower `maxLineGraphemeCount`
+                    // - Would account for table columns being skinner than the block width and would
+                    //   lower `maxLineGraphemeCount`
                     //
                     // However, making these optimizations would require a big refactor to
                     // `getContentSnippet()`. For now, we're keeping the basic structure which only
-                    // cuts content between a `from` and `to` range. This solution will work fine
-                    // for most small tables but may lead to much larger snippets than expected for
-                    // large tables.
+                    // cuts content between a `from` and `to` range. This solution will work fine for
+                    // most small tables but may lead to much larger snippets than expected for large
+                    // tables.
                     if (newTo !== null) {
                         if (isNewToFromLastBranch) {
                             to = newTo;
@@ -370,8 +368,8 @@ export function getContentSnippetPos(
     if (from === null) from = 0;
     if (to === null) to = resolvedPos.doc.nodeSize - 2;
 
-    // Go through the parentage of `from` and if we hit a node where we shouldn't
-    // cut out leading children move the `from` position back.
+    // Go through the parentage of `from` and if we hit a node where we shouldn't cut
+    // out leading children move the `from` position back.
     const resolvedFrom = resolvedPos.doc.resolve(from);
     for (let depth = resolvedFrom.depth; depth >= 0; depth--) {
         const node = resolvedFrom.node(depth);
@@ -401,9 +399,9 @@ export function getContentSnippetPos(
 
             to -= textIndex - newTextIndex;
         }
-        // Expand our snippet to the nearest word boundary if the nearest word boundary
-        // is less than 14 characters away. According to Claude, 99% of English words
-        // are 14 characters or shorter.
+        // Expand our snippet to the nearest word boundary if the nearest word boundary is
+        // less than 14 characters away. According to Claude, 99% of English words are 14
+        // characters or shorter.
         else {
             let newTextIndex = 0;
 
@@ -460,8 +458,8 @@ function* iterateChildNodesAfterDescendants(
     node: Node,
     offset: number,
 ): Iterable<IterateChildNodesValue> {
-    // Table rows "fork" their children. While generating a snippet we need to
-    // consider each branch of the fork individually.
+    // Table rows "fork" their children. While generating a snippet we need to consider
+    // each branch of the fork individually.
     if (node.type.name === "tableRow") {
         yield {
             isFork: true,
@@ -521,8 +519,8 @@ function* iterateChildNodesBackwardsDescendants(
     node: Node,
     offset: number,
 ): Iterable<IterateChildNodesValue> {
-    // Table rows "fork" their children. While generating a snippet we need to
-    // consider each branch of the fork individually.
+    // Table rows "fork" their children. While generating a snippet we need to consider
+    // each branch of the fork individually.
     if (node.type.name === "tableRow") {
         yield {
             isFork: true,
@@ -567,11 +565,11 @@ function* iterateChildNodesBackwardsDescendants(
  * this number it definitely will render to at least one line.
  *
  * Uses graphemes instead of string `length` to accurately handle Unicode
- * characters made out of multiple JavaScript characters and to ignore
- * zero-width characters.
+ * characters made out of multiple JavaScript characters and to ignore zero-width
+ * characters.
  *
- * We get this number by typing "l", the narrowest character, in a document
- * until text wraps. The number of "l"s in a line is the number we use here.
+ * We get this number by typing "l", the narrowest character, in a document until
+ * text wraps. The number of "l"s in a line is the number we use here.
  *
  * [1]: https://www.npmjs.com/package/grapheme-splitter
  */
@@ -586,8 +584,8 @@ export function setDefaultMaxLineGraphemeCountForTest(newDefaultMaxLineGraphemeC
 }
 
 /**
- * Does the provided text have enough lines to fill the desired line count? If
- * not we return how many lines we still need to meet our desired line count.
+ * Does the provided text have enough lines to fill the desired line count? If not
+ * we return how many lines we still need to meet our desired line count.
  */
 function consumeLinesOfText(
     text: string,
@@ -614,19 +612,19 @@ function consumeLinesOfText(
 }
 
 /**
- * Take a `node` and consume line count from `remainingBefore` that's occupied by the
- * `node`. If this is a `text` node then we estimate the number of lines the text is
- * rendered on and subtract that from the remaining line count. If `node` is not a text
- * node then we check if it creates a line break and if it does, we consume a whole line
- * for each line break.
+ * Take a `node` and consume line count from `remainingBefore` that's occupied by
+ * the `node`. If this is a `text` node then we estimate the number of lines the
+ * text is rendered on and subtract that from the remaining line count. If `node`
+ * is not a text node then we check if it creates a line break and if it does, we
+ * consume a whole line for each line break.
  *
- * If we've consumed all lines then we'll return `from` which is the start position of
- * our snippet.
+ * If we've consumed all lines then we'll return `from` which is the start position
+ * of our snippet.
  */
-// NOTE(calebmer): This isn't a well thought out abstraction. When introducing tables I
-// needed to factor out this code so we could run it for each table cell independently. I
-// feel like `getContentSnippet()` could use a rewrite at some point to improve code
-// quality, fix bugs, and have more predictable outputs.
+// NOTE(calebmer): This isn't a well thought out abstraction. When introducing
+// tables I needed to factor out this code so we could run it for each table cell
+// independently. I feel like `getContentSnippet()` could use a rewrite at some
+// point to improve code quality, fix bugs, and have more predictable outputs.
 function consumeNodeBefore(
     pos: number,
     node: Node,
@@ -649,16 +647,16 @@ function consumeNodeBefore(
             isAtLineBreak: false,
         };
 
-        // We don't cut leading text both because `consumeLinesOfText()` counts
-        // forwards (so using `remainingLength` to slice could incorrectly split a
-        // grapheme) and because it would break the text's layout.
+        // We don't cut leading text both because `consumeLinesOfText()` counts forwards
+        // (so using `remainingLength` to slice could incorrectly split a grapheme) and
+        // because it would break the text's layout.
         if (remainingBefore.lineCount <= 0) {
             const from = pos;
             return [remainingBefore, from];
         }
     } else if (!ignoreLineBreaks) {
-        // If the node is line breaking then round remaining lines down since no other
-        // text can go on the line.
+        // If the node is line breaking then round remaining lines down since no other text
+        // can go on the line.
         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
         const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
         for (let i = 0; i < lineBreakCount; i++) {
@@ -680,19 +678,19 @@ function consumeNodeBefore(
 }
 
 /**
- * Take a `node` and consume line count from `remainingAfter` that's occupied by the
- * `node`. If this is a `text` node then we estimate the number of lines the text is
- * rendered on and subtract that from the remaining line count. If `node` is not a text
- * node then we check if it creates a line break and if it does, we consume a whole line
- * for each line break.
+ * Take a `node` and consume line count from `remainingAfter` that's occupied by
+ * the `node`. If this is a `text` node then we estimate the number of lines the
+ * text is rendered on and subtract that from the remaining line count. If `node`
+ * is not a text node then we check if it creates a line break and if it does, we
+ * consume a whole line for each line break.
  *
  * If we've consumed all lines then we'll return `to` which is the end position of
  * our snippet.
  */
-// NOTE(calebmer): This isn't a well thought out abstraction. When introducing tables I
-// needed to factor out this code so we could run it for each table cell independently. I
-// feel like `getContentSnippet()` could use a rewrite at some point to improve code
-// quality, fix bugs, and have more predictable outputs.
+// NOTE(calebmer): This isn't a well thought out abstraction. When introducing
+// tables I needed to factor out this code so we could run it for each table cell
+// independently. I feel like `getContentSnippet()` could use a rewrite at some
+// point to improve code quality, fix bugs, and have more predictable outputs.
 function consumeNodeAfter(
     pos: number,
     node: Node,
@@ -722,8 +720,8 @@ function consumeNodeAfter(
             return [remainingAfter, to];
         }
     } else if (!ignoreLineBreaks) {
-        // If the node is line breaking then round remaining lines down since no other
-        // text can go on the line.
+        // If the node is line breaking then round remaining lines down since no other text
+        // can go on the line.
         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
         const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
         for (let i = 0; i < lineBreakCount; i++) {
@@ -745,18 +743,17 @@ function consumeNodeAfter(
 }
 
 /**
- * Does the provided node cause a line break? If it does then we can consider
- * that when computing how many lines remain around the text we're trying
- * to snip.
+ * Does the provided node cause a line break? If it does then we can consider that
+ * when computing how many lines remain around the text we're trying to snip.
  *
  * Basically boils down to true if the node is styled with `display: block` and
  * false if the node is styled with `display: inline`.
  *
- * 1: The node type causes a line break.
- * This is typical for block-level elements, which naturally start on a new line.
+ * 1: The node type causes a line break. This is typical for block-level elements,
+ * which naturally start on a new line.
  *
- * 0: The node type does not cause a line break.
- * This is typical for inline elements, which flow within the same line.
+ * 0: The node type does not cause a line break. This is typical for inline
+ * elements, which flow within the same line.
  */
 const lineBreakCountByNodeType: {
     [Key in Exclude<ContentNodeTypeName, "text">]: number;
@@ -780,44 +777,44 @@ const lineBreakCountByNodeType: {
     mention: 0,
     // Horizontal layout in a `display: flex` or `display: grid` element
     file: 0,
-    // Set as `float: left` and `float: right`. Multiple adjacent `fileFloat`s
-    // should not be counted as lines for the purpose of snippet cutting
+    // Set as `float: left` and `float: right`. Multiple adjacent `fileFloat`s should
+    // not be counted as lines for the purpose of snippet cutting
     fileFloat: 0,
 
-    // A table itself doesn't inherently cause a line break because it's a
-    // container for rows, which handle the line breaks.
+    // A table itself doesn't inherently cause a line break because it's a container
+    // for rows, which handle the line breaks.
     table: 0,
     // A table row is treated as a block element, so it causes a line break.
     tableRow: 1,
-    // A table cell and header are treated as inline elements, so they do
-    // not cause a line break.
+    // A table cell and header are treated as inline elements, so they do not cause a
+    // line break.
     tableCell: 0,
 };
 
 /**
- * When cutting out a snippet we want the layout of the snippet to be
- * equivalent to the layout of the original doc.
+ * When cutting out a snippet we want the layout of the snippet to be equivalent to
+ * the layout of the original doc.
  *
- * Some nodes if we cut out content at the beginning of the node it will effect
- * the layout of content later in the node. So set to true when you want to
- * avoid cutting the leading content of a node.
+ * Some nodes if we cut out content at the beginning of the node it will effect the
+ * layout of content later in the node. So set to true when you want to avoid
+ * cutting the leading content of a node.
  */
 const dontCutLeadingChildrenByNodeType: {
     [Key in Exclude<ContentNodeTypeName, "text">]: boolean;
 } = {
     doc: false,
     title: true,
-    // Don't cut text nodes at the start of the paragraph because it will shift
-    // the layout of content later in the paragraph.
+    // Don't cut text nodes at the start of the paragraph because it will shift the
+    // layout of content later in the paragraph.
     paragraph: true,
     // Quote blocks can be cut wherever.
     quoteBlock: false,
-    // Can't cut inside a `codeBlockLine` but free to cut any lines above the
-    // current line.
+    // Can't cut inside a `codeBlockLine` but free to cut any lines above the current
+    // line.
     codeBlock: false,
     codeBlockLine: true,
-    // In multi-paragraph list items don't cut preceding paragraphs or else the
-    // bullet will move to an unexpected place.
+    // In multi-paragraph list items don't cut preceding paragraphs or else the bullet
+    // will move to an unexpected place.
     unorderedListItem: true,
     orderedListItem: true,
     checkListItem: true,
@@ -827,25 +824,25 @@ const dontCutLeadingChildrenByNodeType: {
     fileFloat: true,
     fileRowTable: true,
     file: true,
-    // The answer for nodes without children doesn't really matter since we won't
-    // cut within them anyways.
+    // The answer for nodes without children doesn't really matter since we won't cut
+    // within them anyways.
     break: true,
     mention: true,
     heading: true,
     divider: true,
-    // It's okay to cut the leading children of a table because the table's
-    // structure is defined by its rows, not its position in the document.
+    // It's okay to cut the leading children of a table because the table's structure
+    // is defined by its rows, not its position in the document.
     table: false,
-    // Avoid cutting the leading children of a table row to maintain the structure
-    // of the table.
+    // Avoid cutting the leading children of a table row to maintain the structure of
+    // the table.
     tableRow: true,
-    // It's okay to cut the leading content within a table cell and table header.
-    // The reason is that cutting content inside a cell doesn't disrupt the overall
-    // table structure. Each cell is independent in terms of layout, so removing
-    // content from the start of a cell doesn't affect the alignment or
-    // structure of the table as a whole.
+    // It's okay to cut the leading content within a table cell and table header. The
+    // reason is that cutting content inside a cell doesn't disrupt the overall table
+    // structure. Each cell is independent in terms of layout, so removing content from
+    // the start of a cell doesn't affect the alignment or structure of the table as a
+    // whole.
     //
-    // One more reason to `false` on tableCell is that the content
-    // these are nothing but tableBlock which we already handle above
+    // One more reason to `false` on tableCell is that the content these are nothing
+    // but tableBlock which we already handle above
     tableCell: false,
 };

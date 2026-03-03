@@ -3,12 +3,12 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
- * Helper type for manipulating the low-level representation of a color
- * in RGB format.
+ * Helper type for manipulating the low-level representation of a color in RGB
+ * format.
  *
- * We use the name `RawColor` to not conflict with the `Color` from the
- * [`color` module][1]. Long term, maybe we get rid of the `color` module and
- * replace it with our own helpers?
+ * We use the name `RawColor` to not conflict with the `Color` from the [`color`
+ * module][1]. Long term, maybe we get rid of the `color` module and replace it
+ * with our own helpers?
  *
  * [1]: https://www.npmjs.com/package/color
  */

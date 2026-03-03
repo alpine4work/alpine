@@ -52,9 +52,8 @@ export function ContentFileCodeViewer({
         let lineNodes: Array<ReactNode> = [];
 
         const pushBreak = () => {
-            // If a line has no content then add `<br>` elements so the text selection
-            // shows something on empty lines and when copying the empty line shows up in
-            // the result.
+            // If a line has no content then add `<br>` elements so the text selection shows
+            // something on empty lines and when copying the empty line shows up in the result.
             if (lineNodes.length === 0)
                 lineNodes.push(<br key={lineNodes.length} data-copy="force-newlines" />);
 
@@ -86,8 +85,8 @@ export function ContentFileCodeViewer({
         );
 
         // In case our last line didn't end with a break, push one last break. If the
-        // content ends with a trailing newline then this will show the trailing
-        // newline which is fine. Matches VSCode's behavior.
+        // content ends with a trailing newline then this will show the trailing newline
+        // which is fine. Matches VSCode's behavior.
         pushBreak();
 
         return <>{codeNodes}</>;

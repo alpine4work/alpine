@@ -18,8 +18,8 @@ async function main() {
         .then(contents => wawoff2.decompress(contents))
         .then(array => array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength));
 
-    // We run into issues when trying to read/decompress in parallel. Presumably
-    // the WebAssembly module has issues with parallelism.
+    // We run into issues when trying to read/decompress in parallel. Presumably the
+    // WebAssembly module has issues with parallelism.
     const interFontContents = await fs
         .readFile(joinPath(runfilesPath, "cyberworlds/app/static/fonts/inter.woff2"))
         .then(contents => wawoff2.decompress(contents))
@@ -40,13 +40,13 @@ async function main() {
         interFont.unitsPerEm /
         (commitMonoFont.tables.os2.sxHeight / commitMonoFont.unitsPerEm);
 
-    // We want Commit Mono to have the same ascender/descender proportions as
-    // Inter. This means in the browser `background-color`s, font sizes, line
-    // heights, everything set on this font will line up with our main font Inter.
+    // We want Commit Mono to have the same ascender/descender proportions as Inter.
+    // This means in the browser `background-color`s, font sizes, line heights,
+    // everything set on this font will line up with our main font Inter.
     //
-    // Ideally this is handled by the CSS `ascent-override` and `descent-override`
-    // but unfortunately Safari doesn't support those CSS properties so to better
-    // support Safari we update our font with the correct metrics.
+    // Ideally this is handled by the CSS `ascent-override` and `descent-override` but
+    // unfortunately Safari doesn't support those CSS properties so to better support
+    // Safari we update our font with the correct metrics.
     const newCommitMonoFontAscender = Math.round(
         interFontAscenderPercentage * (commitMonoFont.unitsPerEm / commitMonoFontSizeAdjust),
     );

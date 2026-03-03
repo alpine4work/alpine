@@ -163,9 +163,9 @@ function PurchasedLifetimeAccessModalDesktop({onClose}: {onClose: () => void}) {
                 display="flex"
                 flexDirection="column"
                 overflow="hidden"
-                // By default use white for text. Make sure to invert our selection color in
-                // light mode since the default light mode selection color doesn't look good
-                // with white text.
+                // By default use white for text. Make sure to invert our selection color in light
+                // mode since the default light mode selection color doesn't look good with white
+                // text.
                 color="grey-0-const"
                 className={invertLightSelectionColorsClassName}
                 padding="4"

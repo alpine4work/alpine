@@ -104,9 +104,9 @@ export async function createAccountEmailAddressForTest(
 }
 
 /**
- * Create a session but only in test environments. This is not secure! We must
- * only create sessions if the actual owner of the account is authorizing with
- * our service.
+ * Create a session but only in test environments. This is not secure! We must only
+ * create sessions if the actual owner of the account is authorizing with our
+ * service.
  */
 export async function createSessionForTest(
     context: DynamoContext,

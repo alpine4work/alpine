@@ -3,9 +3,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the account ID associated with a feed entry. For posts this is the
- * author, for shared documents/channels/task collections this is the sharer.
- * Returns null for Welcome entries since they don't have an associated account.
+ * Get the account ID associated with a feed entry. For posts this is the author,
+ * for shared documents/channels/task collections this is the sharer. Returns null
+ * for Welcome entries since they don't have an associated account.
  */
 export function getFeedEntryAccountId(entry: FeedEntry): AccountId | null {
     switch (entry.type) {

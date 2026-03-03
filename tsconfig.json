@@ -5,8 +5,7 @@
         \* ========================================================================== */
 
         "noEmit": true,
-        // Always use pretty style for errors. Bazel will strip ansi codes when
-        // nessecary.
+        // Always use pretty style for errors. Bazel will strip ansi codes when nessecary.
         "pretty": true,
 
         /* ========================================================================== *\
@@ -31,14 +30,13 @@
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true,
 
-        // We want to use absolute style imports for the files in our codebase using
-        // the `~/` sigil. However, in order to configure the TypeScript `paths`
-        // property we need to set a `baseUrl`. Since there's no folder we want to
-        // treat as a "root" folder that overrides `node_modules`, point `baseUrl`
-        // to an empty folder. If we pointed `baseUrl` to `./node_modules` that
-        // would break `tsconfig-paths` which is used by Cypress among other
-        // things since module resolution would always look at `node_modules`
-        // instead of performing the Node.js module resolution algorithm.
+        // We want to use absolute style imports for the files in our codebase using the
+        // `~/` sigil. However, in order to configure the TypeScript `paths` property we
+        // need to set a `baseUrl`. Since there's no folder we want to treat as a "root"
+        // folder that overrides `node_modules`, point `baseUrl` to an empty folder. If we
+        // pointed `baseUrl` to `./node_modules` that would break `tsconfig-paths` which is
+        // used by Cypress among other things since module resolution would always look at
+        // `node_modules` instead of performing the Node.js module resolution algorithm.
         "baseUrl": "./admin/typescript/base",
         "paths": {"~/*": ["../../../*"]},
 

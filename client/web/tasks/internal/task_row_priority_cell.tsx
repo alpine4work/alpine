@@ -128,8 +128,8 @@ function TaskRowPriorityCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
-    // Disable expensive features until the user hovers/focuses the cell in
-    // question while not scrolling.
+    // Disable expensive features until the user hovers/focuses the cell in question
+    // while not scrolling.
     //
     // This improves scroll performance and initial load performance. Since we only
     // need to render the read-only version of a cell on initial load.
@@ -239,8 +239,8 @@ function TaskRowPriorityCell(
                             style={{
                                 // Get around the `textCursorNotInheritedClassName` reset.
                                 cursor: "text",
-                                // `display: inline-flex` creates an inline layout which adds extra space
-                                // below the element. Adding `vertical-align` stops the space from being added.
+                                // `display: inline-flex` creates an inline layout which adds extra space below the
+                                // element. Adding `vertical-align` stops the space from being added.
                                 // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                                 verticalAlign: "top",
                             }}

@@ -27,8 +27,8 @@ export function intoApiSearchResult(entity: SearchEntityResultModel): ApiSearchR
     // In development, make sure the properties shared across all results are in a
     // consistent order. So the JSON we send to the client is neat and pretty.
     //
-    // TODO(calebmer): Maybe we should have a more generic assertion that objects
-    // have the same key order as the `api_specification.yaml` JSON schema.
+    // TODO(calebmer): Maybe we should have a more generic assertion that objects have
+    // the same key order as the `api_specification.yaml` JSON schema.
     if (process.env.NODE_ENV !== "production") {
         const resultEntries = Object.keys(result);
 
@@ -82,8 +82,8 @@ function actuallyIntoApiSearchResult({
     const searchEntityId = model.getSearchEntityId();
 
     // Check if this is a valid dynamic entity ID we can handle. This check helps
-    // TypeScript narrow down the entity type, but in practice, we don't expect
-    // static search entities (e.g. `My Tasks`) in the API search endpoint
+    // TypeScript narrow down the entity type, but in practice, we don't expect static
+    // search entities (e.g. `My Tasks`) in the API search endpoint
     if (!isSearchDynamicEntityIdWithoutAccount(searchEntityId)) {
         return null;
     }

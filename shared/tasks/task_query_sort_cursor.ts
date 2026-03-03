@@ -4,9 +4,9 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 /**
- * A sort cursor represents a task's position in a query according to its
- * sorts. We have one cursor value for each sort and the `TaskId` to
- * disambiguate adjacent tasks with identical sorts.
+ * A sort cursor represents a task's position in a query according to its sorts. We
+ * have one cursor value for each sort and the `TaskId` to disambiguate adjacent
+ * tasks with identical sorts.
  */
 export type TaskQuerySortCursor = [...ReadonlyArray<TaskQuerySortCursorValue>, TaskId];
 
@@ -17,8 +17,8 @@ export function getTaskQuerySortCursorTaskId(cursor: TaskQuerySortCursor): TaskI
 }
 
 /**
- * Compare two query sort cursors to determine where the task belongs in the
- * query relative to other tasks.
+ * Compare two query sort cursors to determine where the task belongs in the query
+ * relative to other tasks.
  *
  * - If <0 then `cursor1 < cursor2`
  * - If >0 then `cursor1 > cursor2`

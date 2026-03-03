@@ -9,12 +9,13 @@ import {NotificationDigestEntriesIndex} from "~/server/notifications/data/intern
 import {Context} from "~/shared/context/context.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 
-//NOTE (rmtobin, 10/06/25): If we end up with too many digests to be sent per partition, we can run
-// more than one instance of this function and give it a sort key range on `accountId`.
+// NOTE (rmtobin, 10/06/25): If we end up with too many digests to be sent per
+// partition, we can run more than one instance of this function and give it a sort
+// key range on `accountId`.
 /**
- * Spawns `SendNotificationDigest` jobs to send scheduled digest notifications for all accounts that
- * are scheduled to receive a digest at the next closest future hour.
- * For example, if digestTime is at 7:00-7:59, it will send digests for 8:00.
+ * Spawns `SendNotificationDigest` jobs to send scheduled digest notifications for
+ * all accounts that are scheduled to receive a digest at the next closest future
+ * hour. For example, if digestTime is at 7:00-7:59, it will send digests for 8:00.
  */
 export async function sendScheduledDigestsForTime(
     context: Context<{jobs: JobsContextModule} & Omit<ServerActionContextModules, "actor">>,

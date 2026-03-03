@@ -1,30 +1,29 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
- * features we don't use and customize the user experience. You can find the
- * original file in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove features
+ * we don't use and customize the user experience. You can find the original file
+ * in the `prosemirror-tables` package at:
  * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/tableview.ts
  *
  * The MIT License
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 import {Node} from "prosemirror-model";
@@ -127,23 +126,23 @@ export function createContentEditorTableNodeView({
 
             updateTableLayout();
 
-            // While resizing we may need to make sure scroll is locked to the left/right
-            // side. For example when dragging to grow the rightmost edge.
+            // While resizing we may need to make sure scroll is locked to the left/right side.
+            // For example when dragging to grow the rightmost edge.
             if (layout.scrollLeftPx !== undefined) {
                 const tableWrapper2Element = tableWrapper3Element.parentElement!;
                 tableWrapper2Element.scrollLeft = layout.scrollLeftPx;
             }
 
-            // It's safe to `querySelectorAll()` here since ProseMirror should have
-            // rendered all children to the DOM by this point.
+            // It's safe to `querySelectorAll()` here since ProseMirror should have rendered
+            // all children to the DOM by this point.
             if (fileRowLikeElementsCache === null || fileRowLikeElementsCache.node !== node) {
                 fileRowLikeElementsCache = {
                     node,
                     elements: Array.from(
-                        // Find all elements with the provided class names and exclude elements that
-                        // are children of a file node. File entities may recursively render content
-                        // (e.g. document file entities). The content within file entities is inert
-                        // so shouldn't get any interactive behaviors.
+                        // Find all elements with the provided class names and exclude elements that are
+                        // children of a file node. File entities may recursively render content (e.g.
+                        // document file entities). The content within file entities is inert so shouldn't
+                        // get any interactive behaviors.
                         tableBodyElement.querySelectorAll(
                             `.${fileRowLikeClassName}:not(.${fileClassName} .${fileRowLikeClassName})`,
                         ),
@@ -151,20 +150,20 @@ export function createContentEditorTableNodeView({
                 };
             }
 
-            // NOTE(calebmer, 2025-04-03): Admittedly, the way we handle updating file
-            // layouts when the optimistic table layout changes is messy. Inside the table
-            // node view we have our `optimisticTableLayout` state. Then we dispatch events
-            // to all children `fileRow`s with the expectation that they'll update their
-            // own internal `optimisticTableLayout` states. Then the `fileRow` should
-            // dispatch an event to its `file` child which has its own internal
-            // `optimisticTableLayout` state. Ideally, there'd be some way for `fileRow`
-            // and `file` to reach into `table`'s internal node view state.
+            // NOTE(calebmer, 2025-04-03): Admittedly, the way we handle updating file layouts
+            // when the optimistic table layout changes is messy. Inside the table node view we
+            // have our `optimisticTableLayout` state. Then we dispatch events to all children
+            // `fileRow`s with the expectation that they'll update their own internal
+            // `optimisticTableLayout` states. Then the `fileRow` should dispatch an event to
+            // its `file` child which has its own internal `optimisticTableLayout` state.
+            // Ideally, there'd be some way for `fileRow` and `file` to reach into `table`'s
+            // internal node view state.
             //
             // NOTE(calebmer, 2025-11-07): Now that we've converted optimistic layout to a
             // `Store` there's an opportunity to clean up this code. Instead of waiting for
-            // updates to be "pushed" we can subscribe to the `optimisticTableLayout` store
-            // in the `fileRowTable` node view and `file` node view. Not doing this
-            // refactor for now. Future opportunity.
+            // updates to be "pushed" we can subscribe to the `optimisticTableLayout` store in
+            // the `fileRowTable` node view and `file` node view. Not doing this refactor for
+            // now. Future opportunity.
             for (const fileRowLikeElement of fileRowLikeElementsCache.elements) {
                 dispatchContentEditorFileRowTableParentUpdatedEvent(
                     fileRowLikeElement,
@@ -201,8 +200,8 @@ export function createContentEditorTableNodeView({
                     node.attrs.columnWidths !== newNode.attrs.columnWidths ||
                     node.attrs.tableWidth !== newNode.attrs.tableWidth;
 
-                // Clear the optimistic table layout if the `columnWidths` or `tableWidth`
-                // attrs changed.
+                // Clear the optimistic table layout if the `columnWidths` or `tableWidth` attrs
+                // changed.
                 if (hasLayoutChanged) {
                     optimisticTableLayout = null;
                 }
@@ -211,17 +210,17 @@ export function createContentEditorTableNodeView({
                 updateTableLayout();
 
                 if (hasLayoutChanged) {
-                    // Dispatch child events after a microtask since ProseMirror updates parent
-                    // nodes before child nodes. We want to wait until ProseMirror has finished
-                    // updating before we notify our children they need to change.
+                    // Dispatch child events after a microtask since ProseMirror updates parent nodes
+                    // before child nodes. We want to wait until ProseMirror has finished updating
+                    // before we notify our children they need to change.
                     scheduleMicrotask(() => {
-                        // It's safe to `querySelectorAll()` here since ProseMirror should have
-                        // rendered all children to the DOM by this point.
+                        // It's safe to `querySelectorAll()` here since ProseMirror should have rendered
+                        // all children to the DOM by this point.
                         //
-                        // It's NOT safe to `querySelectorAll()` directly in the `update` function
-                        // since ProseMirror renders parents to the DOM before children. So if the
-                        // update is adding or removing file nodes we need to wait a microtask to see
-                        // them in the DOM.
+                        // It's NOT safe to `querySelectorAll()` directly in the `update` function since
+                        // ProseMirror renders parents to the DOM before children. So if the update is
+                        // adding or removing file nodes we need to wait a microtask to see them in the
+                        // DOM.
                         if (
                             fileRowLikeElementsCache === null ||
                             fileRowLikeElementsCache.node !== node
@@ -229,10 +228,10 @@ export function createContentEditorTableNodeView({
                             fileRowLikeElementsCache = {
                                 node,
                                 elements: Array.from(
-                                    // Find all elements with the provided class names and exclude elements that
-                                    // are children of a file node. File entities may recursively render content
-                                    // (e.g. document file entities). The content within file entities is inert
-                                    // so shouldn't get any interactive behaviors.
+                                    // Find all elements with the provided class names and exclude elements that are
+                                    // children of a file node. File entities may recursively render content (e.g.
+                                    // document file entities). The content within file entities is inert so shouldn't
+                                    // get any interactive behaviors.
                                     tableBodyElement.querySelectorAll(
                                         `.${fileRowLikeClassName}:not(.${fileClassName} .${fileRowLikeClassName})`,
                                     ),
@@ -318,12 +317,12 @@ export function createContentEditorTableNodeView({
 
             // Right click is considered in our table if:
             //
-            // - We're right clicking into a `<td>` element. The selection will be moved
-            //   inside this element if it's not there already; OR
+            // - We're right clicking into a `<td>` element. The selection will be moved inside
+            //   this element if it's not there already; OR
             //
-            // - The selection is currently in the table. This will happen if your
-            //   selection is in the table but you right click on a column resize handle.
-            //   The selection doesn't move and instead stays in the table.
+            // - The selection is currently in the table. This will happen if your selection is
+            //   in the table but you right click on a column resize handle. The selection
+            //   doesn't move and instead stays in the table.
             if (!((event.target as HTMLElement).closest("td") || selectedTableRect !== null))
                 return;
 
@@ -465,24 +464,23 @@ export function createContentEditorTableNodeView({
 
             // HACK: If our table has a cell selection then ProseMirror represents the
             // selection in the DOM as a selection against only the bottom right `<td>`
-            // element. In Chrome if the user right clicks in the bottom right `<td>`
-            // element then the selection will be kept in place. However, if the user right
-            // clicks in another cell in the selection then Chrome sets the selection to
-            // the text the user right clicked on!
+            // element. In Chrome if the user right clicks in the bottom right `<td>` element
+            // then the selection will be kept in place. However, if the user right clicks in
+            // another cell in the selection then Chrome sets the selection to the text the
+            // user right clicked on!
             //
-            // We don't like this browser default behavior. Instead, if the user right
-            // clicks within a table cell selection then we want the cell selection to not
-            // change. That way a user can delete multiple rows or multiple columns at
-            // once. Since we can't find the right event to call `event.preventDefault()`
-            // on to prevent the browser's default behavior we do the following:
+            // We don't like this browser default behavior. Instead, if the user right clicks
+            // within a table cell selection then we want the cell selection to not change.
+            // That way a user can delete multiple rows or multiple columns at once. Since we
+            // can't find the right event to call `event.preventDefault()` on to prevent the
+            // browser's default behavior we do the following:
             //
-            // If the user right clicks into _this_ table's cell selection (we that the
-            // right click falls within the cell selection element's bounds) then for up to
-            // two animation frames check to see if the selection has changed from our
-            // previous cell selection. If the selection has changed then set the selection
-            // back to our cell selection. By checking on animation frames we guarantee the
-            // user will never see a flicker of the browser setting a different text
-            // selection.
+            // If the user right clicks into _this_ table's cell selection (we that the right
+            // click falls within the cell selection element's bounds) then for up to two
+            // animation frames check to see if the selection has changed from our previous
+            // cell selection. If the selection has changed then set the selection back to our
+            // cell selection. By checking on animation frames we guarantee the user will never
+            // see a flicker of the browser setting a different text selection.
             if (
                 view.state.selection instanceof ContentTableCellSelection &&
                 view.state.selection.tablePos - 1 === getPos()

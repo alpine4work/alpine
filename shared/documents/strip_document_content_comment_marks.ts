@@ -5,8 +5,8 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 
 /**
- * Strip all comment marks from the provided node. You may chose to include
- * some marks by providing a set of `DocumentCommentThreadId`s.
+ * Strip all comment marks from the provided node. You may chose to include some
+ * marks by providing a set of `DocumentCommentThreadId`s.
  */
 export function stripDocumentContentCommentMarks(
     node: Node,
@@ -68,8 +68,8 @@ export function stripDocumentContentStepCommentMarks(actualStep: Step): Step {
     const step = actualStep as ExhaustiveStep;
 
     switch (step.jsonID) {
-        // The `attr` step only updates node attributes. It can't update mark
-        // attributes like `commentThreadId`.
+        // The `attr` step only updates node attributes. It can't update mark attributes
+        // like `commentThreadId`.
         case "attr":
         case "docAttr": {
             return step;
@@ -136,23 +136,23 @@ export function stripDocumentContentStepCommentMarks(actualStep: Step): Step {
 }
 
 /**
- * When stripping a comment mark from steps we can't actually replace the step
- * will null. Since that would break ProseMirror's support for realtime
- * updates. Instead we need to replace the comment step with a noop step so we
- * still have a step that contributes to the document's version number.
+ * When stripping a comment mark from steps we can't actually replace the step will
+ * null. Since that would break ProseMirror's support for realtime updates. Instead
+ * we need to replace the comment step with a noop step so we still have a step
+ * that contributes to the document's version number.
  *
- * Our noop step is a `removeMark` step removing a bold mark from an empty
- * range at the start of the document. This is [always a noop][1].
+ * Our noop step is a `removeMark` step removing a bold mark from an empty range at
+ * the start of the document. This is [always a noop][1].
  *
- * If we were to replace an `addMark` steps with `addMark` and `removeMark`
- * steps with `removeMark` then a malicious user could look at the noop steps
- * their client was receiving and use it to estimate the number of comments on
- * the document. With this approach unfortunately a malicious user can still
- * estimate an upper bound of the comment count on a document but this
- * information will be very imprecise and ultimately, we believe, not useful
- * for any attacks.
+ * If we were to replace an `addMark` steps with `addMark` and `removeMark` steps
+ * with `removeMark` then a malicious user could look at the noop steps their
+ * client was receiving and use it to estimate the number of comments on the
+ * document. With this approach unfortunately a malicious user can still estimate
+ * an upper bound of the comment count on a document but this information will be
+ * very imprecise and ultimately, we believe, not useful for any attacks.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-transform/blob/8b99c92ca46c3d7c903bb3c83127676e9ded18ee/src/mark_step.ts#L88-L94
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-transform/blob/8b99c92ca46c3d7c903bb3c83127676e9ded18ee/src/mark_step.ts#L88-L94
  */
 function createNoopStep(mark: Mark): Step {
     return new RemoveMarkStep(0, 0, mark.type.schema.marks.bold!.create());

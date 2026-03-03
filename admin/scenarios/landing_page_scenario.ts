@@ -44,10 +44,9 @@ export async function createLandingPageScenario(
 
     const {cassCade, roseCompas} = accounts;
 
-    // Before doing anything else, put a subtle notification in Cass's inbox. That
-    // way if we archive any other inbox entries while taking screenshots it won't
-    // trigger the "hide subtle notification for 5 minutes after inbox
-    // cleared" logic.
+    // Before doing anything else, put a subtle notification in Cass's inbox. That way
+    // if we archive any other inbox entries while taking screenshots it won't trigger
+    // the "hide subtle notification for 5 minutes after inbox cleared" logic.
     {
         const channel = await TestChannel.create(cassCade, {
             name: "Test",
@@ -204,8 +203,8 @@ export async function createLandingPageScenario(
                     height: 1118,
                 },
 
-                // Note card aspect ratio. We want our file entity previews to be short so we
-                // can show more of the photo gallery below the table.
+                // Note card aspect ratio. We want our file entity previews to be short so we can
+                // show more of the photo gallery below the table.
                 initScript: `window.__fileEntityPreviewSmallAspectRatio = 5 / 3`,
 
                 prepare: async page => {
@@ -213,8 +212,8 @@ export async function createLandingPageScenario(
                     // centered within the viewport.
                     await page.evaluate("dev.spaceSideBar.toggleVisibility()");
 
-                    // Blobs aren't drawn in integration tests by default because they cause CI to
-                    // be flaky, so draw them here for the screenshot.
+                    // Blobs aren't drawn in integration tests by default because they cause CI to be
+                    // flaky, so draw them here for the screenshot.
                     await page.evaluate("__actuallyDrawBlobsForIntegrationTest()");
 
                     // Wait for all images to load.
@@ -323,8 +322,8 @@ export async function createLandingPageScenario(
                     const replyLocator = page.getByText("Reply");
                     await (await replyLocator.elementHandle())!.waitForElementState("stable");
 
-                    // Wait for the scrollbar to disappear. The scrollbar is hidden 1.2s after
-                    // scroll then has a 200ms fade out animation. Wait 3 seconds to be safe.
+                    // Wait for the scrollbar to disappear. The scrollbar is hidden 1.2s after scroll
+                    // then has a 200ms fade out animation. Wait 3 seconds to be safe.
                     await wait(3000);
                 },
             };
@@ -432,8 +431,8 @@ export async function createLandingPageScenario(
                         .first()
                         .waitFor({state: "visible"});
 
-                    // Turn off the search modal's border radius so the search modal corners don't
-                    // show up in the screenshot.
+                    // Turn off the search modal's border radius so the search modal corners don't show
+                    // up in the screenshot.
                     await page.evaluate("dev.searchModal.toggleBorderRadius()");
                 },
             };
@@ -466,8 +465,8 @@ export async function createLandingPageScenario(
                     // Select ChatGPT as who you're sending a message to.
                     await page.getByRole("option", {name: "ChatGPT"}).click();
 
-                    // Wait for the scrollbar to disappear. The scrollbar is hidden 1.2s after
-                    // scroll then has a 200ms fade out animation. Wait 3 seconds to be safe.
+                    // Wait for the scrollbar to disappear. The scrollbar is hidden 1.2s after scroll
+                    // then has a 200ms fade out animation. Wait 3 seconds to be safe.
                     await wait(3000);
                 },
             };
@@ -500,8 +499,8 @@ export async function createLandingPageScenario(
                 prepare: async page => {
                     await page.evaluate("dev.feed.toggleLeftSideBarVisibility()");
 
-                    // Blobs aren't drawn in integration tests by default because they cause CI to
-                    // be flaky, so draw them here for the screenshot.
+                    // Blobs aren't drawn in integration tests by default because they cause CI to be
+                    // flaky, so draw them here for the screenshot.
                     await page.evaluate("__actuallyDrawBlobsForIntegrationTest()");
                 },
             };

@@ -45,10 +45,10 @@ function parseUserDomainInputSafeUrl(url: string) {
 }
 
 /**
- * We only allow linking to URLs with an email, HTTP, or HTTPS scheme.
- * That way we avoid XSS vulnerabilities with URLs that look like `javascript:alert('XSS')`.
- * If the URL doesn't start with a valid scheme we assume it's a web URL and
- * prepend `https://` to it.
+ * We only allow linking to URLs with an email, HTTP, or HTTPS scheme. That way we
+ * avoid XSS vulnerabilities with URLs that look like `javascript:alert('XSS')`. If
+ * the URL doesn't start with a valid scheme we assume it's a web URL and prepend
+ * `https://` to it.
  */
 export function parseUserInputSafeUrl(url: unknown) {
     if (typeof url !== "string") {

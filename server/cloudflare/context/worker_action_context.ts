@@ -14,32 +14,30 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 
 type WorkerActionContextModulesBase = WorkerProcessContextModules & {
     /**
-     * Action-level caching. Cached values only live for the span of the action and
-     * are not shared across actions.
+     * Action-level caching. Cached values only live for the span of the action and are
+     * not shared across actions.
      */
     cache: CacheContextModule;
 
     /**
-     * Action-level batching. Allows us to batch multiple requests made in the
-     * current synchronous context into one network request to some backend
-     * service.
+     * Action-level batching. Allows us to batch multiple requests made in the current
+     * synchronous context into one network request to some backend service.
      */
     batch: BatchContextModule;
 
     /**
-     * Allow executing RPCs in an action. You may only execute RPCs within the
-     * context of an action because there's an actor context module with session
-     * information.
+     * Allow executing RPCs in an action. You may only execute RPCs within the context
+     * of an action because there's an actor context module with session information.
      *
-     * Allow any RPC context module (instead of just `WorkerRpcContextModule`) so
-     * that tests may use `LocalRpcContextModule`.
+     * Allow any RPC context module (instead of just `WorkerRpcContextModule`) so that
+     * tests may use `LocalRpcContextModule`.
      */
     rpc: RpcContextModuleBase;
 
     /**
-     * Allows us to fork out new actions with the same credentials but everything
-     * else is reset. Particularly useful for WebSocket servers where we fork a new
-     * action context for each incoming message we need to process.
+     * Allows us to fork out new actions with the same credentials but everything else
+     * is reset. Particularly useful for WebSocket servers where we fork a new action
+     * context for each incoming message we need to process.
      */
     fork: ForkActionContextModule;
 };
@@ -54,17 +52,16 @@ export type WorkerActionContextModules = MergeObjectIntersection<
         /**
          * A representation of the entity acting against our systems.
          *
-         * Uses the generic actor interface instead of `ActorContextModule`
-         * (which is what we instantiate this context with) so that tests can pass in
-         * an `AppActorContextModule` which is type compatible.
+         * Uses the generic actor interface instead of `ActorContextModule` (which is what
+         * we instantiate this context with) so that tests can pass in an
+         * `AppActorContextModule` which is type compatible.
          */
         actor: ActorContextModule;
     }
 >;
 
 /**
- * Generic context for handling actions against our system with a
- * session actor.
+ * Generic context for handling actions against our system with a session actor.
  */
 export type WorkerSessionActionContext = Context<WorkerSessionActionContextModules>;
 
@@ -73,8 +70,7 @@ export type WorkerSessionActionContextModules = WorkerActionContextModulesBase &
 };
 
 /**
- * Generic context for handling actions against our system with a
- * system actor.
+ * Generic context for handling actions against our system with a system actor.
  */
 export type WorkerSystemActionContext = Context<WorkerSystemActionContextModules>;
 

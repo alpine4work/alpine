@@ -28,15 +28,15 @@ export const DocumentCommentThreadReferenceSchema = Schema.object({
 export type DocumentContentReferences = SchemaType<typeof DocumentContentReferencesSchema>;
 
 /**
- * Documents may have content which needs data beyond what the base content
- * type needs.
+ * Documents may have content which needs data beyond what the base content type
+ * needs.
  */
 export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
     Schema.object({
         /**
          * The comment threads in our document. Deleting the text associated with a
-         * document comment does not delete the underlying thread but the thread will
-         * no longer be a part of this map.
+         * document comment does not delete the underlying thread but the thread will no
+         * longer be a part of this map.
          */
         commentThreadById: Schema.map(
             Schema.id<DocumentCommentThreadId>(),
@@ -51,8 +51,8 @@ export const emptyDocumentContentReferences: DocumentContentReferences = {
 };
 
 export function isEmptyDocumentContentReferences(references: DocumentContentReferences): boolean {
-    // If you add more data to `DocumentContentReferences` in the future, you'll
-    // need to come back and update this function.
+    // If you add more data to `DocumentContentReferences` in the future, you'll need
+    // to come back and update this function.
     assertEqualTypes<
         Exclude<keyof DocumentContentReferences, keyof ContentReferences>,
         "commentThreadById"
@@ -80,9 +80,9 @@ export function mergeDocumentContentReferences(
         }
     >();
 
-    // Merge comment threads together by taking the one with the higher comment
-    // count. Comments may never be deleted so the comment thread with more
-    // comments is guaranteed to be newer.
+    // Merge comment threads together by taking the one with the higher comment count.
+    // Comments may never be deleted so the comment thread with more comments is
+    // guaranteed to be newer.
     for (const [commentThreadId, commentThread] of concatIterables(
         references1.commentThreadById,
         references2.commentThreadById,

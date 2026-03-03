@@ -36,21 +36,20 @@ import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
-// All this post list code is the result of incremental evolution over time
-// which means it's not as clean as it could be. It's gone through a couple
-// refactors without fundamentally rethinking the structure. A brief history:
+// All this post list code is the result of incremental evolution over time which
+// means it's not as clean as it could be. It's gone through a couple refactors
+// without fundamentally rethinking the structure. A brief history:
 //
 // 1. [2023-01-26] `PostList` was created.
 //
-// 2. [2023-03-31] `VirtualizedTree` was created by refactoring the relevant
-//    code out of `PostList` so it could be used in other places.
+// 2. [2023-03-31] `VirtualizedTree` was created by refactoring the relevant code
+//    out of `PostList` so it could be used in other places.
 //
-// 3. [2024-04-15] `PostList` was split into `PostBasicList` and
-//    `PostQueryList` so we could power a `<PostListView>` with a DynamoDB
-//    general realtime query.
+// 3. [2024-04-15] `PostList` was split into `PostBasicList` and `PostQueryList` so
+//    we could power a `<PostListView>` with a DynamoDB general realtime query.
 //
-// 4. [2025-05-20] `PostFeedList` was added (in `post_feed_list.ts`) since now
-//    we want to render a `<PostListView>` with both posts and non-posts.
+// 4. [2025-05-20] `PostFeedList` was added (in `post_feed_list.ts`) since now we
+//    want to render a `<PostListView>` with both posts and non-posts.
 
 export type PostListHeader =
     | {
@@ -84,10 +83,9 @@ type PostCommentsOpenState = "Open" | "AlwaysOpen";
  * viewing a channel, posts are backed by a `DynamoGeneralRealtimeIndexQuery`.
  * Whereas a channel post notification is backed by a static list of `PostId`s.
  *
- * Our `<PostListView>` component virtualizes our list of posts since we may
- * have too many to render on screen at once. Posts may also expand their
- * comments inline so if comments are expanded then we also need to virtualize
- * those!
+ * Our `<PostListView>` component virtualizes our list of posts since we may have
+ * too many to render on screen at once. Posts may also expand their comments
+ * inline so if comments are expanded then we also need to virtualize those!
  *
  * Keeping track of which posts are open/closed and how that affects comment
  * indexing is a little complex. This class manages that complexity.
@@ -98,8 +96,8 @@ export interface PostListInterface {
      *
      * If this is true then `getPostContentItemIfExists(0)` must be non-null.
      *
-     * May return false even if there's only one post and the post's comments
-     * because we don't want special single post treatment.
+     * May return false even if there's only one post and the post's comments because
+     * we don't want special single post treatment.
      */
     isSinglePost(): boolean;
 
@@ -109,16 +107,15 @@ export interface PostListInterface {
     getItemCount(): number;
 
     /**
-     * Get the item at the provided index. Throws if the index is out
-     * of bounds.
+     * Get the item at the provided index. Throws if the index is out of bounds.
      */
     getItem(index: number): PostListItem;
 
     /**
-     * Get the post content item for the provided index. If this index is pointing
-     * at a comment then we will return the item for the post the comment is a part
-     * of. Will return null if the index is out of bounds or if the item is not
-     * associated with a post (e.g. channel header or feed entry).
+     * Get the post content item for the provided index. If this index is pointing at a
+     * comment then we will return the item for the post the comment is a part of. Will
+     * return null if the index is out of bounds or if the item is not associated with
+     * a post (e.g. channel header or feed entry).
      */
     getPostContentItemIfExists(index: number): PostListPostContentItem | null;
 
@@ -131,15 +128,15 @@ export interface PostListInterface {
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         /**
-         * Get the index of the post comment in our list. If comments are not open on
-         * this post or if the comment index is out of bounds this will throw an error.
+         * Get the index of the post comment in our list. If comments are not open on this
+         * post or if the comment index is out of bounds this will throw an error.
          */
         getPostCommentIndex: (postCommentIndex: number) => number;
     } | null;
 
     /**
-     * Does the post list have any posts with open comments? Used by mobile since
-     * in a list of posts, no post should have open comments.
+     * Does the post list have any posts with open comments? Used by mobile since in a
+     * list of posts, no post should have open comments.
      */
     hasOpenPostComments(): boolean;
 }
@@ -180,8 +177,8 @@ export class PostListWithHeader implements PostListInterface {
 
         const item = this._posts.getItem(index - 1);
 
-        // Adjust any item indexes to consider items that come before posts in
-        // our `PostList`.
+        // Adjust any item indexes to consider items that come before posts in our
+        // `PostList`.
         switch (item.type) {
             case "Header":
             case "MoreUnloadedPosts":
@@ -259,10 +256,10 @@ export class PostListWithHeader implements PostListInterface {
 }
 
 /**
- * The base of a post list where posts are held in a
- * `PostListVirtualizedTreeBase` subclass. The main contribution of this class
- * is providing a public interface that doesn't include `VirtualizedTree`
- * methods and returning a `MoreUnloadedPosts` item if data is still loading.
+ * The base of a post list where posts are held in a `PostListVirtualizedTreeBase`
+ * subclass. The main contribution of this class is providing a public interface
+ * that doesn't include `VirtualizedTree` methods and returning a
+ * `MoreUnloadedPosts` item if data is still loading.
  */
 abstract class PostListBase<NodeOrderKey> implements PostListInterface {
     protected abstract readonly _posts: PostListVirtualizedTreeBase<NodeOrderKey>;
@@ -573,10 +570,10 @@ export function getPostListVirtualizedTreeNodeItem(
 }
 
 /**
- * A basic post list you can initialize with whatever posts you want wherever
- * you want. The class automatically maintains a simple backing list. Unlike
- * the realtime query post list which is backed, specifically, by the DynamoDB
- * general realtime query data structure.
+ * A basic post list you can initialize with whatever posts you want wherever you
+ * want. The class automatically maintains a simple backing list. Unlike the
+ * realtime query post list which is backed, specifically, by the DynamoDB general
+ * realtime query data structure.
  */
 export class PostBasicList extends PostListBase<number> {
     private readonly _hasMorePosts: boolean;
@@ -742,15 +739,13 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         PostId,
         | {isVisible: true; index: number}
         // We keep track of every post realtime tells us about in `postVisibilityById`
-        // whether or not it's in our `posts` list. That's because in some race
-        // conditions if we load more posts from the server we might load a stale
-        // version of the post so we'll need to replace it with the newer version we
-        // got from realtime.
+        // whether or not it's in our `posts` list. That's because in some race conditions
+        // if we load more posts from the server we might load a stale version of the post
+        // so we'll need to replace it with the newer version we got from realtime.
         //
         // TODO(calebmer): We could throw away unreferenced posts after a timeout when
-        // we're confident the server won't return us stale data for the post (~3
-        // minutes). For now we don't think `postVisibilityById` will get unreasonably
-        // large.
+        // we're confident the server won't return us stale data for the post (~3 minutes).
+        // For now we don't think `postVisibilityById` will get unreasonably large.
         | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
     >;
 
@@ -805,8 +800,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Add posts to the end of the virtualized tree. Only one post may exist for
-     * each `PostId`.
+     * Add posts to the end of the virtualized tree. Only one post may exist for each
+     * `PostId`.
      */
     public addPosts(
         posts: ReadonlyArray<
@@ -849,8 +844,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
                 const iterator = nodeByOrderKey.find(oldPostVisibility.index);
                 assert(iterator.value);
                 nodeByOrderKey =
-                    // If the currently visible item has a higher version then don't update with
-                    // the newly loaded post.
+                    // If the currently visible item has a higher version then don't update with the
+                    // newly loaded post.
                     iterator.value.version > post.version
                         ? nodeByOrderKey
                         : iterator.update({...post, extra: iterator.value.extra});
@@ -865,11 +860,10 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Handle a realtime update event transaction from our DynamoDB general
-     * realtime system. Will update any visible posts and keep a record of any
-     * other posts realtime tells us about. So if later that post is added (via
-     * `addPosts()`) but with a stale version then we'll actually have the latest
-     * version.
+     * Handle a realtime update event transaction from our DynamoDB general realtime
+     * system. Will update any visible posts and keep a record of any other posts
+     * realtime tells us about. So if later that post is added (via `addPosts()`) but
+     * with a stale version then we'll actually have the latest version.
      */
     public handleEventTransaction(
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
@@ -880,11 +874,10 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         for (const event of eventTransaction) {
             // The `deleteItem()` operation is disabled for posts.
             //
-            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the
-            // future. But right now my idea for deleting posts is to leave the post in the
-            // database but delete its content. Since we don't want to delete comments on
-            // the post. If that's the case we should never receive a `DeleteItem` event
-            // for a post.
+            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the future.
+            // But right now my idea for deleting posts is to leave the post in the database
+            // but delete its content. Since we don't want to delete comments on the post. If
+            // that's the case we should never receive a `DeleteItem` event for a post.
             if (event.type === "DeleteItem") continue;
 
             cast<"PutItem">(event.type);
@@ -971,8 +964,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Update the comments list for a post. If the post id is not in the list this
-     * is a noop.
+     * Update the comments list for a post. If the post id is not in the list this is a
+     * noop.
      */
     public updatePostComments(
         postId: PostId,
@@ -1007,8 +1000,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Iterate through every post in our list updating each `PostCommentsState`
-     * to `Closed`.
+     * Iterate through every post in our list updating each `PostCommentsState` to
+     * `Closed`.
      */
     public closeAllPostComments(): PostBasicListVirtualizedTree {
         let nodeByOrderKey = this._nodeByOrderKey;
@@ -1047,9 +1040,9 @@ export type PostQueryListDynamoGeneralRealtimeIndexQuery = DynamoGeneralRealtime
 >;
 
 /**
- * Post list backed by a DynamoDB general realtime query. The query is
- * presented in reverse order since it should be loaded from the end. Since the
- * end is where the latest channel posts are.
+ * Post list backed by a DynamoDB general realtime query. The query is presented in
+ * reverse order since it should be loaded from the end. Since the end is where the
+ * latest channel posts are.
  */
 export class PostQueryList extends PostListBase<DynamoIndexCursor> {
     public readonly query: PostQueryListDynamoGeneralRealtimeIndexQuery;
@@ -1106,9 +1099,8 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
      */
     public readonly query: DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>;
 
-    // Iterate through `nodeByOrderKey` in reverse order. The most recent posts are
-    // at the end of the query but we want to display them at the top of our
-    // channel.
+    // Iterate through `nodeByOrderKey` in reverse order. The most recent posts are at
+    // the end of the query but we want to display them at the top of our channel.
     protected override readonly _isNodeByOrderKeyReversed = true;
 
     private constructor({
@@ -1194,8 +1186,8 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     /**
-     * Update the comments list for a post. If the post id is not in the list this
-     * is a noop.
+     * Update the comments list for a post. If the post id is not in the list this is a
+     * noop.
      */
     public updatePostComments(
         postId: PostId,
@@ -1219,8 +1211,8 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     /**
-     * Iterate through every post in our list updating each `PostCommentsState`
-     * to `Closed`.
+     * Iterate through every post in our list updating each `PostCommentsState` to
+     * `Closed`.
      */
     public closeAllPostComments(): PostQueryListVirtualizedTree {
         const newQuery = this.query.updateAllItemExtras(item => {
@@ -1294,8 +1286,8 @@ export type PostListPostContentItem = {
     readonly postContentItemIndex: number;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number | null;
 };
@@ -1309,15 +1301,15 @@ export type PostListLoadedPostCommentItem = {
     readonly postComments: MessageList<PostCommentModel>;
 
     /**
-     * The index the loaded post comment is at in the `MessageList`. The
-     * post index may move but this will stay stable.
+     * The index the loaded post comment is at in the `MessageList`. The post index may
+     * move but this will stay stable.
      */
     readonly postCommentIndex: number;
     readonly postComment: PostCommentModel;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
@@ -1331,21 +1323,20 @@ export type PostListUnloadedPostCommentItem = {
     readonly postComments: MessageList<PostCommentModel>;
 
     /**
-     * The index the unloaded post comment is at in the `MessageList`. The
-     * post index may move but this will stay stable.
+     * The index the unloaded post comment is at in the `MessageList`. The post index
+     * may move but this will stay stable.
      */
     readonly postCommentIndex: number;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
 
 /**
- * A comment created on the client before it has been acknowledged by
- * the server.
+ * A comment created on the client before it has been acknowledged by the server.
  */
 export type PostListOptimisticPostCommentItem = {
     readonly type: "OptimisticPostComment";
@@ -1353,21 +1344,21 @@ export type PostListOptimisticPostCommentItem = {
     readonly postComments: MessageList<PostCommentModel>;
 
     /**
-     * The index the loaded post comment is at in the `MessageList`. The
-     * post index may move but this will stay stable.
+     * The index the loaded post comment is at in the `MessageList`. The post index may
+     * move but this will stay stable.
      */
     readonly postCommentIndex: number;
     readonly postComment: OptimisticMessageModel;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 
     /**
-     * What is the index of this optimistic post comment in the optimistic post
-     * comment list?
+     * What is the index of this optimistic post comment in the optimistic post comment
+     * list?
      */
     readonly optimisticPostCommentIndex: number;
 };
@@ -1383,8 +1374,8 @@ export type PostListPostCommentsTypingIndicator = {
     readonly typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
@@ -1412,9 +1403,9 @@ export type PostListMoreUnloadedPostsItem = {
 };
 
 /**
- * We use `<PostListView>` to render the home feed. In addition to posts we
- * have some other non-post feed entries. Non-post feed entries are expressed
- * by this item.
+ * We use `<PostListView>` to render the home feed. In addition to posts we have
+ * some other non-post feed entries. Non-post feed entries are expressed by this
+ * item.
  */
 export type PostListFeedEntryItem = {
     readonly type: "FeedEntry";

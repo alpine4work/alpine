@@ -1,6 +1,6 @@
 /**
- * Reduce an iterable into a single value. Same as `Array.reduce()` but
- * for iterables.
+ * Reduce an iterable into a single value. Same as `Array.reduce()` but for
+ * iterables.
  */
 export function reduceIterable<Item, Value>(
     iterable: Iterable<Item>,

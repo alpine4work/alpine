@@ -15,8 +15,7 @@ export const reverseEasing =
     (n: number): number =>
         easing(1 - n);
 
-// Many of these easing curves are taken from:
-// https://easings.net/
+// Many of these easing curves are taken from: https://easings.net/
 
 export const easeLinear: Easing = n => n;
 easeLinear.cubicBezier = "cubic-bezier(0.5, 0.5, 0.5, 0.5)";

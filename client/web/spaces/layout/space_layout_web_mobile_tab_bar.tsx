@@ -60,8 +60,8 @@ export function SpaceLayoutWebMobileTabBar({
 
     // In native mobile, we expect that this component shouldn't render. Instead
     // `<SpaceLayoutNativeMobileInboxController>` should render. This assert is a
-    // sanity check since we don't want to maintain two separate inbox realtime
-    // items which would be inefficient.
+    // sanity check since we don't want to maintain two separate inbox realtime items
+    // which would be inefficient.
     assert(platform === "mobile" && !isNativeMobile);
 
     const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
@@ -90,8 +90,8 @@ export function SpaceLayoutWebMobileTabBar({
     );
 
     const [selectedTab, setSelectedTab] = useSessionStorage(
-        // If you go to the space switcher, the selected tab should be different in the
-        // new space.
+        // If you go to the space switcher, the selected tab should be different in the new
+        // space.
         `cyberworlds/webMobileTab/${space.id}`,
         WebMobileTabSchema,
         matchedTab ?? "Home",
@@ -105,13 +105,13 @@ export function SpaceLayoutWebMobileTabBar({
         <Box
             className={
                 !isInitialAppRender
-                    ? // Optimistically show `pendingTab` as the selected tab while loading. So the
-                      // user gets immediate feedback to their press.
+                    ? // Optimistically show `pendingTab` as the selected tab while loading. So the user
+                      // gets immediate feedback to their press.
                       spaceLayoutStyles.selectedClassNameByTab[pendingTab ?? selectedTab]
-                    : // Normally `typeof window !== "undefined"` checks in React render will break
-                      // React server-side rendering hydration. However, it's ok in this case because
-                      // we have a `<ScriptBeforeAppInitialRender>` that adds the right class to the
-                      // server rendered HTML before the initial render.
+                    : // Normally `typeof window !== "undefined"` checks in React render will break React
+                      // server-side rendering hydration. However, it's ok in this case because we have a
+                      // `<ScriptBeforeAppInitialRender>` that adds the right class to the server
+                      // rendered HTML before the initial render.
                       typeof window !== "undefined"
                       ? (cast<{[key: string]: string}>(spaceLayoutStyles.selectedClassNameByTab)[
                             (
@@ -124,17 +124,17 @@ export function SpaceLayoutWebMobileTabBar({
             alignItems="stretch"
             height={spaceLayoutWebMobileTabBarHeight}
             style={{
-                // This border is visible on web mobile when the keyboard opens/closes
-                // leaving empty white space on the page while it animates. We use `box-shadow`
-                // instead of border so it renders outside the bounds of the outlet. Usually
-                // offscreen (with the exception of web mobile keyboarding).
+                // This border is visible on web mobile when the keyboard opens/closes leaving
+                // empty white space on the page while it animates. We use `box-shadow` instead of
+                // border so it renders outside the bounds of the outlet. Usually offscreen (with
+                // the exception of web mobile keyboarding).
                 boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
         >
             <ScriptBeforeAppInitialRender
                 // To avoid a flash where the wrong tab is selected, we have a script that runs
-                // before initial render to add a class which will render the right tab as
-                // selected from `sessionStorage`.
+                // before initial render to add a class which will render the right tab as selected
+                // from `sessionStorage`.
                 /* eslint-disable cyberworlds/string-quotes */
                 script={() =>
                     safe`var tabBar = document.currentScript.parentNode; var classNames = {${safeJoin(
@@ -216,12 +216,12 @@ export function SpaceLayoutWebMobileTabBar({
                                     top: "0.5rem",
                                     right: "0.625rem",
                                     backgroundColor: "currentcolor",
-                                    // On high pixel density displays we want 1.3px should to round up to 1.5px and
-                                    // on low pixel density displays we want 1.3px to round down to 1px.
+                                    // On high pixel density displays we want 1.3px should to round up to 1.5px and on
+                                    // low pixel density displays we want 1.3px to round down to 1px.
                                     //
-                                    // That extra width is helpful when rendering this on top of a solid object
-                                    // like an avatar. We don't want 2px since an avatar pile will use that for
-                                    // occluding other avatars.
+                                    // That extra width is helpful when rendering this on top of a solid object like an
+                                    // avatar. We don't want 2px since an avatar pile will use that for occluding other
+                                    // avatars.
                                     boxShadow: `0 0 0 1.3px ${backgroundColorVar}`,
                                 }}
                             />

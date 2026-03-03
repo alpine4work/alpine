@@ -131,12 +131,12 @@ export class CursorClient {
 
                                 let displayMessage: ErrorDisplayMessage | undefined;
 
-                                // When Cursor requires usage based pricing to be turned on they return status
-                                // code 400 with the message:
+                                // When Cursor requires usage based pricing to be turned on they return status code
+                                // 400 with the message:
                                 //
-                                // > Usage-based pricing required. Background Agent requires at least $2
-                                // > remaining until your hard limit. Enable usage-based pricing and set a
-                                // > Spend Limit at https://www.cursor.com/dashboard?tab=settings.
+                                // > Usage-based pricing required. Background Agent requires at least $2 remaining
+                                // > until your hard limit. Enable usage-based pricing and set a Spend Limit at
+                                // > https://www.cursor.com/dashboard?tab=settings.
                                 //
                                 // Look for a string `error` property from Cursor and linkify it.
                                 if (isObject(body) && typeof body.error === "string") {
@@ -183,8 +183,8 @@ export class CursorClient {
                                 }
 
                                 throw new UnknownError(
-                                    // In Cursor's documentation they have a `body.error.code` property (look at
-                                    // their OpenAPI types) but we haven't seen an error with this in practice.
+                                    // In Cursor's documentation they have a `body.error.code` property (look at their
+                                    // OpenAPI types) but we haven't seen an error with this in practice.
                                     `Cursor unknown error (HTTP status: ${response.status}${isObject(body) && isObject(body.error) && typeof body.error.code === "string" ? `, code: ${body.error.code}` : ""})`,
                                     {displayMessage},
                                 );

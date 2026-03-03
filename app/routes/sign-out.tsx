@@ -18,9 +18,9 @@ export async function loader({context}: LoaderArgs) {
                     "Error deregistering web push subscription on sign out",
                     error,
                 );
-                // We don't want to block the sign out process if we fail to deregister the web push
-                // subscription on the server. We deregister the subscription on the client separately
-                // in our service worker.
+                // We don't want to block the sign out process if we fail to deregister the web
+                // push subscription on the server. We deregister the subscription on the client
+                // separately in our service worker.
             }
         });
     }

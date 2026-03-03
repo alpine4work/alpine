@@ -20,8 +20,8 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-// These assignments would fail at compile time if types were incorrect
-// We use a valid ID here so the code doesn't throw at module initialization
+// These assignments would fail at compile time if types were incorrect We use a
+// valid ID here so the code doesn't throw at module initialization
 const testTypeId = generateId();
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const accountId: AccountId = deserializeAccountIdForLoader(testTypeId);

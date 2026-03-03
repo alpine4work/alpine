@@ -122,9 +122,9 @@ async function testLoadTaskRealtimeQueries(
 function massageUpdateEvent(updateEvent: TaskRealtimeUpdateEvent) {
     return {
         ...updateEvent,
-        // `backfillTasks` and `backfillCollections` may be returned in a
-        // non-deterministic order. So to prevent flaky test failures we turn them into
-        // an object where order doesn't matter to Jest when determining equality.
+        // `backfillTasks` and `backfillCollections` may be returned in a non-deterministic
+        // order. So to prevent flaky test failures we turn them into an object where order
+        // doesn't matter to Jest when determining equality.
         backfillTasks: Object.fromEntries(
             updateEvent.backfillTasks.map((task): [TaskId, unknown] => {
                 if (task.type !== "Authorized") return [task.taskId, task];

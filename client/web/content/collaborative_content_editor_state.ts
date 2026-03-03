@@ -9,16 +9,16 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 
-// NOTE(calebmer, 2023-09-21): This file used to be only for document content.
-// But when we introduced task notes collaborative content it was refactored to
-// support both document content and task notes content. `ExtraState` and
-// `ExtraAction`s came about to maintain state unique to documents.
+// NOTE(calebmer, 2023-09-21): This file used to be only for document content. But
+// when we introduced task notes collaborative content it was refactored to support
+// both document content and task notes content. `ExtraState` and `ExtraAction`s
+// came about to maintain state unique to documents.
 export type CollaborativeContentEditorState<Content extends ContentWithReferences, ExtraState> = {
     /**
      * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
-     * `UpdateContent` message before a backfill response). If we
-     * see an action for a future version we put it in this array and re-apply the
-     * action when older steps are applied.
+     * `UpdateContent` message before a backfill response). If we see an action for a
+     * future version we put it in this array and re-apply the action when older steps
+     * are applied.
      */
     readonly pendingActions: ReadonlyArray<CollaborativeContentEditorReceiveStepsAction<Content>>;
 
@@ -28,8 +28,7 @@ export type CollaborativeContentEditorState<Content extends ContentWithReference
     readonly editorState: ContentEditorState<Content>;
 
     /**
-     * Steps we have sent to the server which we are waiting on
-     * acknowledgement for.
+     * Steps we have sent to the server which we are waiting on acknowledgement for.
      */
     readonly pendingSendableSteps: {
         readonly steps: ReadonlyArray<Step>;
@@ -39,9 +38,9 @@ export type CollaborativeContentEditorState<Content extends ContentWithReference
     } | null;
 
     /**
-     * The version that's been persisted in the database. The steps we receive
-     * from the document collaboration service may be a bit ahead of what's durably
-     * persisted in the database.
+     * The version that's been persisted in the database. The steps we receive from the
+     * document collaboration service may be a bit ahead of what's durably persisted in
+     * the database.
      */
     readonly persistedVersion: number;
 
@@ -132,13 +131,13 @@ export function getInitialCollaborativeContentEditorState<
 }
 
 /**
- * Creates a function for reducing actions against our collaborative content
- * editor state.
+ * Creates a function for reducing actions against our collaborative content editor
+ * state.
  *
- * You must provide a custom action reducer function that's run in addition to
- * our base reducer logic. The custom reducer is required so that we can
- * process `ExtraAction`. The custom reducer sees `ReceiveSteps` actions in the
- * correct order and only sees each step once. Our base reducer will re-order
+ * You must provide a custom action reducer function that's run in addition to our
+ * base reducer logic. The custom reducer is required so that we can process
+ * `ExtraAction`. The custom reducer sees `ReceiveSteps` actions in the correct
+ * order and only sees each step once. Our base reducer will re-order
  * `ReceiveSteps` actions if it receives them out-of-order.
  */
 export function createCollaborativeContentEditorStateReducer<
@@ -163,11 +162,10 @@ export function createCollaborativeContentEditorStateReducer<
         );
         const newVersion = state.editorState.getVersion();
 
-        // If the version changed then we want to retry our pending actions since they
-        // may be ok to run now.
+        // If the version changed then we want to retry our pending actions since they may
+        // be ok to run now.
         if (oldVersion !== newVersion) {
-            // We may receive actions out of order, but make sure we run them in order
-            // now.
+            // We may receive actions out of order, but make sure we run them in order now.
             const pendingActions = [...state.pendingActions].sort(
                 (pendingAction1, pendingAction2) => {
                     const baseVersion1 = pendingAction1.newVersion - pendingAction1.steps.length;
@@ -176,8 +174,8 @@ export function createCollaborativeContentEditorStateReducer<
                 },
             );
 
-            // We are going to try and run all pending actions. If actions are still
-            // pending they will be put back into this array.
+            // We are going to try and run all pending actions. If actions are still pending
+            // they will be put back into this array.
             state = {...state, pendingActions: []};
 
             state = pendingActions.reduce(
@@ -187,12 +185,12 @@ export function createCollaborativeContentEditorStateReducer<
             );
         }
 
-        // If we are not currently sending steps to the server but we have some
-        // sendable steps, then populate the `pendingSendableSteps` action.
+        // If we are not currently sending steps to the server but we have some sendable
+        // steps, then populate the `pendingSendableSteps` action.
         //
-        // Most often this runs after an `Edit` action as we're typing. But may also
-        // happen after a `ReceiveSteps` action where we've acknowledged our last
-        // pending sendable steps.
+        // Most often this runs after an `Edit` action as we're typing. But may also happen
+        // after a `ReceiveSteps` action where we've acknowledged our last pending sendable
+        // steps.
         if (!state.pendingSendableSteps) {
             const sendableSteps = state.editorState.sendableSteps();
             if (sendableSteps) {
@@ -227,12 +225,12 @@ function actuallyReduceCollaborativeContentEditorState<
 ): CollaborativeContentEditorState<Content, ExtraState> {
     switch (action.type) {
         case "Edit": {
-            // If an edit was made on top of a version of `editorState` that's different
-            // from what's in state that means we may have some data loss!
+            // If an edit was made on top of a version of `editorState` that's different from
+            // what's in state that means we may have some data loss!
             //
-            // We've observed this happen when React cancels a low priority render in
-            // response to a user keyboard event. So we need to wrap `dispatch()` so that
-            // it always runs at a high priority.
+            // We've observed this happen when React cancels a low priority render in response
+            // to a user keyboard event. So we need to wrap `dispatch()` so that it always runs
+            // at a high priority.
             assert(
                 action.editorState.getVersion() === oldState.editorState.getVersion(),
                 "Edit was made on top of an editor state with a different base version than what is actually in our state",
@@ -251,9 +249,9 @@ function actuallyReduceCollaborativeContentEditorState<
             const oldVersion = oldState.editorState.getVersion();
             if (action.newVersion <= oldVersion) return oldState;
 
-            // If we received an action that's applied on a future version of our content,
-            // we can't commit it until our local state has caught up. So stick it in
-            // pending actions and we'll come back to it.
+            // If we received an action that's applied on a future version of our content, we
+            // can't commit it until our local state has caught up. So stick it in pending
+            // actions and we'll come back to it.
             if (oldVersion < action.newVersion - action.steps.length) {
                 return {
                     ...oldState,
@@ -261,8 +259,8 @@ function actuallyReduceCollaborativeContentEditorState<
                 };
             }
 
-            // We may dispatch this action multiple times with the same steps. Remove any
-            // steps we've already seen.
+            // We may dispatch this action multiple times with the same steps. Remove any steps
+            // we've already seen.
             const steps = action.steps.slice(
                 action.steps.length - (action.newVersion - oldVersion),
             );
@@ -289,9 +287,9 @@ function actuallyReduceCollaborativeContentEditorState<
                         ? null
                         : oldState.pendingSendableSteps,
                 },
-                // Our custom reducer sees `ReceiveSteps` actions in-order and deduplicated.
-                // Unlike our base collaborative reducer implementation which handles
-                // out-of-order `ReceiveSteps` actions.
+                // Our custom reducer sees `ReceiveSteps` actions in-order and deduplicated. Unlike
+                // our base collaborative reducer implementation which handles out-of-order
+                // `ReceiveSteps` actions.
                 {
                     type: "ReceiveSteps",
                     newVersion: action.newVersion,

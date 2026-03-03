@@ -1,11 +1,10 @@
 /**
- * We write snapshot files to the source code directory. So we redirect paths
- * in the runfiles directory to the workspace directory with our snapshot
- * resolver when we know what the workspace path is.
+ * We write snapshot files to the source code directory. So we redirect paths in
+ * the runfiles directory to the workspace directory with our snapshot resolver
+ * when we know what the workspace path is.
  *
- * We know the workspace path when using `bazel run`
- * (e.g. `bazel run :test -- --updateSnapshot`) but not when running
- * `bazel test`.
+ * We know the workspace path when using `bazel run` (e.g.
+ * `bazel run :test -- --updateSnapshot`) but not when running `bazel test`.
  */
 
 "use strict";
@@ -21,8 +20,8 @@ module.exports = {
 
         const snapshotPathInRunfiles = testPath.slice(0, -3) + snapshotExtension;
 
-        // If we don't have access to the workspace path then use the snapshot file in
-        // our runfiles.
+        // If we don't have access to the workspace path then use the snapshot file in our
+        // runfiles.
         if (!workspacePath) return snapshotPathInRunfiles;
 
         if (!snapshotPathInRunfiles.startsWith(`${runfilesPath}/`))
@@ -37,8 +36,8 @@ module.exports = {
         // actually be in runfiles. Return the location in runfiles.
         if (!workspacePath) return testPathInWorkspace;
 
-        // If the test path is already in runfiles then don't replace the workspace
-        // path the runfiles path.
+        // If the test path is already in runfiles then don't replace the workspace path
+        // the runfiles path.
         if (testPathInWorkspace.startsWith(`${runfilesPath}/`)) return testPathInWorkspace;
 
         if (!testPathInWorkspace.startsWith(`${workspacePath}/`))

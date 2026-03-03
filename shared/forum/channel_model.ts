@@ -44,9 +44,9 @@ export class ChannelPreviewModel extends Model(
 
 export const renderedMaxChannelTopContributorCount = 10;
 
-// We load more contributors than we render so that if we load some
-// contributors that have been removed from the space we can take them out of
-// our top contributor list and have another account to render in their place.
+// We load more contributors than we render so that if we load some contributors
+// that have been removed from the space we can take them out of our top
+// contributor list and have another account to render in their place.
 export const maxChannelTopContributorCount = Math.round(
     renderedMaxChannelTopContributorCount * 1.5,
 );

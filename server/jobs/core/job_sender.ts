@@ -35,12 +35,12 @@ export const JobQueueMessageBodySchema = Schema.union({
     }),
 
     // Maintenance jobs in production are sent to our job queue by AWS EventBridge
-    // which is configured in `aws_cron_jobs.ts`. In development maintenance jobs
-    // are sent to our job queue by `scheduleDevCronJobs()`.
+    // which is configured in `aws_cron_jobs.ts`. In development maintenance jobs are
+    // sent to our job queue by `scheduleDevCronJobs()`.
     //
     // If you are updating the schema for maintenance jobs then make sure to update
-    // both of these code paths. `aws_cron_jobs.ts` is not type checked against
-    // this schema.
+    // both of these code paths. `aws_cron_jobs.ts` is not type checked against this
+    // schema.
     Maintenance: Schema.object({
         type: Schema.value("Maintenance"),
         sendTime: Schema.date,
@@ -72,18 +72,17 @@ export interface JobSenderBase {
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent synchronously.
      *
-     * Doesn't guarantee the job was delivered. If the process unexpectedly ends
-     * you may return a successful result to the user without the job being saved
-     * in our queue. If you want to guarantee message delivery call
-     * `sendAndWait()`.
+     * Doesn't guarantee the job was delivered. If the process unexpectedly ends you
+     * may return a successful result to the user without the job being saved in our
+     * queue. If you want to guarantee message delivery call `sendAndWait()`.
      *
-     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent
-     * during this time window. However, adding this delay hurts jobs where latency
-     * matters (e.g. `NotificationEvent` where the job is responsible for sending
-     * push notifications and bot webhooks). Batching every 100ms was purely a cost
+     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent during
+     * this time window. However, adding this delay hurts jobs where latency matters
+     * (e.g. `NotificationEvent` where the job is responsible for sending push
+     * notifications and bot webhooks). Batching every 100ms was purely a cost
      * optimization. Given SQS is cheap compared to other services we use (like
-     * DynamoDB) our new perspective is we're going to favor speed over cost until
-     * SQS costs become an issue.
+     * DynamoDB) our new perspective is we're going to favor speed over cost until SQS
+     * costs become an issue.
      */
     send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -95,17 +94,16 @@ export interface JobSenderBase {
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent synchronously.
      *
-     * Returns a promise that resolves only once the job has been sent to the
-     * queue. When this function resolves, you're guaranteed the message has been
-     * delivered.
+     * Returns a promise that resolves only once the job has been sent to the queue.
+     * When this function resolves, you're guaranteed the message has been delivered.
      *
-     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent
-     * during this time window. However, adding this delay hurts jobs where latency
-     * matters (e.g. `NotificationEvent` where the job is responsible for sending
-     * push notifications and bot webhooks). Batching every 100ms was purely a cost
+     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent during
+     * this time window. However, adding this delay hurts jobs where latency matters
+     * (e.g. `NotificationEvent` where the job is responsible for sending push
+     * notifications and bot webhooks). Batching every 100ms was purely a cost
      * optimization. Given SQS is cheap compared to other services we use (like
-     * DynamoDB) our new perspective is we're going to favor speed over cost until
-     * SQS costs become an issue.
+     * DynamoDB) our new perspective is we're going to favor speed over cost until SQS
+     * costs become an issue.
      */
     sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -114,9 +112,9 @@ export interface JobSenderBase {
     ): Promise<void>;
 
     /**
-     * Send a maintenance job to our job queue. It's dangerous to schedule
-     * maintenance jobs since maintenance jobs have access to all data across our
-     * system! Users should not be able to arbitrarily schedule maintenance jobs.
+     * Send a maintenance job to our job queue. It's dangerous to schedule maintenance
+     * jobs since maintenance jobs have access to all data across our system! Users
+     * should not be able to arbitrarily schedule maintenance jobs.
      */
     dangerouslySendMaintenance(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -133,7 +131,8 @@ export class JobSender implements JobSenderBase {
     private readonly _defaultQueueUrl: string;
     private readonly _defaultSqsClient: SQSClient;
 
-    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+    // original job queue url
     private readonly _fileProcessorQueueUrl: string;
     private readonly _fileProcessorSqsClient: SQSClient;
 
@@ -284,9 +283,9 @@ export class JobSender implements JobSenderBase {
                     queueName,
                     // NOTE(calebmer): I put this in the `jobs` namespace instead of the `aws.sqs`
                     // namespace because in SQS this can be configured at the queue or message level
-                    // but in the job framework it's always configured at the job level. An
-                    // `aws.sqs` tracer would need to look at queue configuration to get the correct
-                    // value whereas we should always know for a job.
+                    // but in the job framework it's always configured at the job level. An `aws.sqs`
+                    // tracer would need to look at queue configuration to get the correct value
+                    // whereas we should always know for a job.
                     delaySeconds: message.delaySeconds,
                 },
                 aws: {
@@ -411,9 +410,9 @@ export class JobSender implements JobSenderBase {
     }
 
     /**
-     * Send a maintenance job to our job queue. It's dangerous to schedule
-     * maintenance jobs since maintenance jobs have access to all data across our
-     * system! Users should not be able to arbitrarily schedule maintenance jobs.
+     * Send a maintenance job to our job queue. It's dangerous to schedule maintenance
+     * jobs since maintenance jobs have access to all data across our system! Users
+     * should not be able to arbitrarily schedule maintenance jobs.
      */
     public dangerouslySendMaintenance(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,

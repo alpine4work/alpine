@@ -20,7 +20,8 @@ const opensearchDomainEndpoint = assertExists(process.env.OPENSEARCH_DOMAIN_ENDP
  * Our OpenSearch deploy script is called by the AWS CDK as a [CloudFormation
  * custom resource][1]. It runs in [AWS Lambda][2].
  *
- * [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-custom-resources.html
+ * [1]:
+ *     https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-custom-resources.html
  * [2]: https://aws.amazon.com/lambda/
  */
 export async function handler(

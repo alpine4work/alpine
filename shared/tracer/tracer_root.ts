@@ -17,39 +17,39 @@ import {
 /**
  * The name of the service our tracer is for.
  *
- * The "Test" service is a generic service we use for executing unit tests.
- * Usually the tests are executed with Jest.
+ * The "Test" service is a generic service we use for executing unit tests. Usually
+ * the tests are executed with Jest.
  *
  * ## How to decide when to add a new service
  *
- * We do not consider ourselves a microservice shop. Yet we still have a number
- * of different services. We prefer unified frameworks and shared
- * infrastructure wherever possible.
+ * We do not consider ourselves a microservice shop. Yet we still have a number of
+ * different services. We prefer unified frameworks and shared infrastructure
+ * wherever possible.
  *
  * You should only create a new service when it makes _physical_ sense not
  * _logical_ sense.
  *
  * What does that mean? A logical justification for a new service is "we're
- * building out a new calendar feature which has its own database, lets put it
- * in a separate service". This is a logical justification since it's based on
- * the new logic being different from what we currently have. A physical
- * justification for a new service is "our video conferencing feature is CPU
- * intensive and starving other code so let's move it to a separate service".
+ * building out a new calendar feature which has its own database, lets put it in a
+ * separate service". This is a logical justification since it's based on the new
+ * logic being different from what we currently have. A physical justification for
+ * a new service is "our video conferencing feature is CPU intensive and starving
+ * other code so let's move it to a separate service".
  *
  * A new service makes physical sense when there are physical constraints (CPU,
- * memory, cores, GPU, scale, stateful vs stateless) that are different from
- * our current services.
+ * memory, cores, GPU, scale, stateful vs stateless) that are different from our
+ * current services.
  *
  * Some examples from our current services:
  *
- * - All stateless request/response logic should go in `AppService`.
- *   `AppService` is optimized for this workload.
- * - Each kind of durable object has unique internal state and is
- *   scaled/deployed separately by Cloudflare so individual durable objects
- *   have their own services.
- * - `TaskRealtimeService` is a stateful service that needs to live in AWS so
- *   it's physically close to DynamoDB and OpenSearch. Spaces are routed to
- *   individual cores within our `TaskRealtimeService` fleet.
+ * - All stateless request/response logic should go in `AppService`. `AppService`
+ *   is optimized for this workload.
+ * - Each kind of durable object has unique internal state and is scaled/deployed
+ *   separately by Cloudflare so individual durable objects have their own
+ *   services.
+ * - `TaskRealtimeService` is a stateful service that needs to live in AWS so it's
+ *   physically close to DynamoDB and OpenSearch. Spaces are routed to individual
+ *   cores within our `TaskRealtimeService` fleet.
  */
 export type TracerServiceName =
     // Generic name for admin scripts in the `admin` directory.
@@ -88,11 +88,12 @@ export type DurableObjectServiceName =
     | "TaskNotesCollaborationService";
 
 // TODO(calebmer, #tracer): Tracer stuff
+//
 // - Apply source map to error stack trace on server
 // - Redact URLs
-// - Add [Refinery tail-based sampling](https://docs.honeycomb.io/manage-data-volume/refinery/)
-// - When we add sampling, send all events to Redshift for more complete
-//   analysis
+// - Add
+//   [Refinery tail-based sampling](https://docs.honeycomb.io/manage-data-volume/refinery/)
+// - When we add sampling, send all events to Redshift for more complete analysis
 
 /**
  * We instrument our code with distributed tracing. Each process has a tracer
@@ -103,18 +104,18 @@ export class TracerRoot extends TracerBase {
     public readonly serviceName: TracerServiceName;
 
     /**
-     * The base clock we use for measuring span time. When we start a span, we
-     * create a new `MonotonicClock` so durations are high resolution (when
-     * available) and not subject to system clock adjustments.
+     * The base clock we use for measuring span time. When we start a span, we create a
+     * new `MonotonicClock` so durations are high resolution (when available) and not
+     * subject to system clock adjustments.
      */
     private readonly _clock: Clock;
 
     /**
      * Send an event to our observability tool for storage and analysis.
      *
-     * This is private, only code that's part of the tracer implementation can call
-     * it. We do have some callers outside of this class. So while we give it a
-     * private name as an underscore, we label it as `public` with TypeScript.
+     * This is private, only code that's part of the tracer implementation can call it.
+     * We do have some callers outside of this class. So while we give it a private
+     * name as an underscore, we label it as `public` with TypeScript.
      */
     public readonly _sendEvent: (event: TracerEvent) => void;
 
@@ -127,8 +128,8 @@ export class TracerRoot extends TracerBase {
     public readonly sharedEventData: TracerEventFullData;
 
     /**
-     * Event data shared across all spans created by this tracer and propagated
-     * across network boundaries to spans in other processes.
+     * Event data shared across all spans created by this tracer and propagated across
+     * network boundaries to spans in other processes.
      */
     public readonly propagatedEventData: TracerEventData | null;
 
@@ -205,8 +206,8 @@ export class TracerRoot extends TracerBase {
     /**
      * In `AppService`, our hot reloading environment (`app_service.ts`) may have a
      * different `TracerRoot` class then the wrapper environment
-     * (`app_service_wrapper.ts`). Allow cloning the tracer root with the
-     * correct class.
+     * (`app_service_wrapper.ts`). Allow cloning the tracer root with the correct
+     * class.
      */
     public cloneWithNewClass(TracerRootClass: typeof TracerRoot) {
         return new TracerRootClass({
@@ -235,9 +236,9 @@ export class TracerRoot extends TracerBase {
     }
 
     /**
-     * Start a span from the propagation context object returned by `TracerSpan`.
-     * The propagation context is serialized over the network by, for instance,
-     * HTTP header.
+     * Start a span from the propagation context object returned by `TracerSpan`. The
+     * propagation context is serialized over the network by, for instance, HTTP
+     * header.
      */
     public startSpanFromPropagationContext(
         name: string,
@@ -251,8 +252,8 @@ export class TracerRoot extends TracerBase {
     }
 
     /**
-     * Start a span from the propagation context object returned by `TracerSpan`.
-     * But instead of setting the span as a parent, instead link the span.
+     * Start a span from the propagation context object returned by `TracerSpan`. But
+     * instead of setting the span as a parent, instead link the span.
      */
     public startSpanFromPropagationContextAsLinked(
         name: string,
@@ -271,9 +272,9 @@ export class TracerRoot extends TracerBase {
     }
 
     /**
-     * Same as `withSpan()` but internally calls
-     * `startSpanFromPropagationContext()` to start the span instead of
-     * `startSpan()`. See the documentation on `withSpan()` for more information.
+     * Same as `withSpan()` but internally calls `startSpanFromPropagationContext()` to
+     * start the span instead of `startSpan()`. See the documentation on `withSpan()`
+     * for more information.
      */
     public async withSpanFromPropagationContext<Value>(
         name: string,
@@ -293,12 +294,12 @@ export class TracerRoot extends TracerBase {
     }
 
     /**
-     * Clone this tracer with some new propagated data. Propagated data will be
-     * added to all root child spans created by the returned tracer. Propagated
-     * data will not be added to previously created spans.
+     * Clone this tracer with some new propagated data. Propagated data will be added
+     * to all root child spans created by the returned tracer. Propagated data will not
+     * be added to previously created spans.
      *
-     * Propagated data will also be propagated across process boundaries. So if we
-     * make an HTTP request then we send our propagated data with us.
+     * Propagated data will also be propagated across process boundaries. So if we make
+     * an HTTP request then we send our propagated data with us.
      */
     public withPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
@@ -308,25 +309,24 @@ export class TracerRoot extends TracerBase {
             sharedEventData: this.sharedEventData,
             propagatedEventData: this.propagatedEventData
                 ? // We merge here instead of using a linked list we lazily merge later since we
-                  // expect `withPropagatedData()` to not be in hot code paths. Unlike
-                  // `addData()`.
+                  // expect `withPropagatedData()` to not be in hot code paths. Unlike `addData()`.
                   mergeTracerEventData([this.propagatedEventData, data])
                 : data,
         });
     }
 
     /**
-     * Clone this tracer with some new propagated data. Propagated data will be
-     * added to all root child spans created by the returned tracer. Propagated
-     * data will not be added to previously created spans.
+     * Clone this tracer with some new propagated data. Propagated data will be added
+     * to all root child spans created by the returned tracer. Propagated data will not
+     * be added to previously created spans.
      *
-     * Propagated data will also be propagated across process boundaries. So if we
-     * make an HTTP request then we send our propagated data with us.
+     * Propagated data will also be propagated across process boundaries. So if we make
+     * an HTTP request then we send our propagated data with us.
      *
-     * Calling this method will ignore any propagated data previously in the
-     * tracer! Use `withPropagatedData()` to merge propagated data with the
-     * existing propagated data instead. Generally prefer using
-     * `withPropagatedData()` so you don't lose data.
+     * Calling this method will ignore any propagated data previously in the tracer!
+     * Use `withPropagatedData()` to merge propagated data with the existing propagated
+     * data instead. Generally prefer using `withPropagatedData()` so you don't lose
+     * data.
      */
     public withReplacedPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
@@ -386,8 +386,8 @@ export class TracerRoot extends TracerBase {
     ) {
         // We don't normally log errors to the console in development because relevant
         // errors should be presented in the app to the developer inline where they
-        // occurred. However, uncaught exceptions may not be associated with anything
-        // in the app. So log uncaught exceptions in development.
+        // occurred. However, uncaught exceptions may not be associated with anything in
+        // the app. So log uncaught exceptions in development.
         if (!disableConsoleLog && process.env.NODE_ENV !== "production") {
             const extra: {[key: string]: unknown} = {};
 

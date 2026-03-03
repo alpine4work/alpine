@@ -113,9 +113,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 throw error;
             }
 
-            // If there was an issue creating our channel, it might be because the
-            // channel already exists. Attempt to authorize, if that fails we
-            // believe the issue was actually with channel creation.
+            // If there was an issue creating our channel, it might be because the channel
+            // already exists. Attempt to authorize, if that fails we believe the issue was
+            // actually with channel creation.
             //
             // This check makes this `GET` endpoint idempotent. You can hit the endpoint
             // multiple times and if our channel is already created we'll noop.
@@ -133,8 +133,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         url.searchParams.get("consistency") === "strong" ? "Strong" : undefined;
 
     const [channelResult, postsResult, isSubscribed, isFavorite] = await runAllPromises([
-        // If we're creating the channel then create an empty query since we should
-        // know the channel model and initial channel contributors:
+        // If we're creating the channel then create an empty query since we should know
+        // the channel model and initial channel contributors:
         created
             ? (() => {
                   const sessionContext = context.actor.authorizeSession();
@@ -169,9 +169,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             : getChannelAndMetadata(context, {
                   channelId,
                   // NOTE(calebmer): A small optimization could be to set this to 0 if we're
-                  // rendering for mobile since mobile doesn't show recent files in a sidebar.
-                  // Then the client would need to load new files if switching from mobile to
-                  // desktop.
+                  // rendering for mobile since mobile doesn't show recent files in a sidebar. Then
+                  // the client would need to load new files if switching from mobile to desktop.
                   postFilesLimit: channelViewAsidePostFileMaxCount,
                   consistency,
               }),
@@ -227,8 +226,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     const nextUrl = new URL(_nextUrl);
 
     // When switching from `/s/:spaceId/channels/:channelId?create` to
-    // `/s/:spaceId/channels/:channelId?create=:channelName` we need
-    // to revalidate since the server will actually create the channel.
+    // `/s/:spaceId/channels/:channelId?create=:channelName` we need to revalidate
+    // since the server will actually create the channel.
     if (currentUrl.searchParams.get("create") !== "") currentUrl.searchParams.delete("create");
     if (nextUrl.searchParams.get("create") !== "") nextUrl.searchParams.delete("create");
 
@@ -238,8 +237,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("consistency");
     nextUrl.searchParams.delete("consistency");
 
-    // The client removes the `create` and `focus` search params. Don't revalidate
-    // when the client does this.
+    // The client removes the `create` and `focus` search params. Don't revalidate when
+    // the client does this.
     if (currentUrl.toString() === nextUrl.toString()) {
         return false;
     }
@@ -254,8 +253,8 @@ export default function ChannelRoute() {
     assert(channelId && isId<ChannelId>(channelId));
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Remove the `create` search param if we have a subscription to an
-    // existing collection.
+    // Remove the `create` search param if we have a subscription to an existing
+    // collection.
     const hasSearchParamToDelete = searchParams.has("create") || searchParams.has("consistency");
     useEffect(() => {
         if (hasSearchParamToDelete) {

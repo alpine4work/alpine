@@ -19,8 +19,7 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
-// Increase test timeout since we're seeing this test have some
-// flaky timeouts.
+// Increase test timeout since we're seeing this test have some flaky timeouts.
 import.meta.jest.setTimeout(1000 * 30);
 
 import.meta.jest.useFakeTimers();
@@ -360,8 +359,8 @@ test("shouldn\u2019t schedule job when previous job already processed the entity
     expect(takeJobIfExists()).toEqual(null);
 
     // Simulate SQS retrying the failed job. The job hasn't actually failed in this
-    // case, but we want to test the inverse of our error scenario tested below.
-    // This may actually happen in certain SQS retry scenarios.
+    // case, but we want to test the inverse of our error scenario tested below. This
+    // may actually happen in certain SQS retry scenarios.
     await context.jobs.sendAndWait(job1.description);
 
     const job2 = takeJob();
@@ -722,8 +721,8 @@ test("reschedules a job that tries to run too soon after the previous job", asyn
     await job1.promise;
 
     // We need to wait 3 minutes between jobs for the OpenSearch index to refresh.
-    // Since our actual indexing action will need to read previously written data
-    // from the OpenSearch index.
+    // Since our actual indexing action will need to read previously written data from
+    // the OpenSearch index.
     import.meta.jest.advanceTimersByTime(2 * 60 * 1000);
 
     expect(takeJobIfExists()).toEqual(null);
@@ -815,8 +814,8 @@ test("reschedules a job that tries to run too soon after the previous failed job
     }
 
     // We need to wait 3 minutes between jobs for the OpenSearch index to refresh.
-    // Since our actual indexing action will need to read previously written data
-    // from the OpenSearch index.
+    // Since our actual indexing action will need to read previously written data from
+    // the OpenSearch index.
     import.meta.jest.advanceTimersByTime(2 * 60 * 1000);
 
     expect(takeJobIfExists()).toEqual(null);
@@ -897,8 +896,8 @@ test("reschedules a job that runs just enough time after the previous job", asyn
     await job1.promise;
 
     // We need to wait 3 minutes between jobs for the OpenSearch index to refresh.
-    // Since our actual indexing action will need to read previously written data
-    // from the OpenSearch index.
+    // Since our actual indexing action will need to read previously written data from
+    // the OpenSearch index.
     import.meta.jest.advanceTimersByTime(3 * 60 * 1000 + 1);
 
     expect(takeJobIfExists()).toEqual(null);

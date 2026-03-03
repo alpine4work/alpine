@@ -8,22 +8,21 @@ import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * An error class representing a `FileProcessorError`. Generates a display
- * message for the user.
+ * An error class representing a `FileProcessorError`. Generates a display message
+ * for the user.
  */
 export class ContentFileProcessorError
-    // We need to extend a non-system error. We pick `InvalidArgumentError` for
-    // this as it represents the user uploading an invalid file.
+    // We need to extend a non-system error. We pick `InvalidArgumentError` for this as
+    // it represents the user uploading an invalid file.
     extends InvalidArgumentError
 {
     public readonly title: string;
     public override readonly displayMessage: ErrorDisplayMessage;
     public override readonly cause: FileProcessorError;
 
-    // If this error is rendered by `<ErrorDisplayMessageRenderer>` we don't want
-    // it reported to our tracer. Since the error was generated, possibly a long
-    // time ago, by `FileProcessorService` and now the file permanently lives in an
-    // error state.
+    // If this error is rendered by `<ErrorDisplayMessageRenderer>` we don't want it
+    // reported to our tracer. Since the error was generated, possibly a long time ago,
+    // by `FileProcessorService` and now the file permanently lives in an error state.
     public readonly [withoutErrorDisplayMessageRendererReporting] = true;
 
     constructor(contentType: FileContentType, error: FileProcessorError) {

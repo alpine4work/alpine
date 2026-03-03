@@ -8,11 +8,11 @@ import {SimpleContentWithReferences} from "~/shared/content/simple_content_schem
 import {BotId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the settings for a `BotId`. Won't throw if the bot doesn't exist.
- * Instead we'll return the initial bot settings.
+ * Get the settings for a `BotId`. Won't throw if the bot doesn't exist. Instead
+ * we'll return the initial bot settings.
  *
- * Doesn't perform authorization since basic information about bots are
- * accessible to all users.
+ * Doesn't perform authorization since basic information about bots are accessible
+ * to all users.
  */
 export async function getBotSettingsSchema(
     context: DynamoContext,
@@ -32,8 +32,8 @@ export async function getBotSettingsSchema(
     return {
         description: {
             doc: botItem.description,
-            // Simple content doesn't have any references. It has no mentions, no
-            // files, nothing.
+            // Simple content doesn't have any references. It has no mentions, no files,
+            // nothing.
             references: emptyContentReferences,
         },
         schema: botItem.schema,

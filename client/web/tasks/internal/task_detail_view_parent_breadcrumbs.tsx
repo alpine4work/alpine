@@ -120,8 +120,8 @@ export function TaskDetailViewParentBreadcrumbs({
             // If the task has no parents then don't render breadcrumbs UI.
             if (parentNodes.length === 0) return null;
 
-            // We insert parent nodes at the end of the list but we want the top level
-            // parent to appear first.
+            // We insert parent nodes at the end of the list but we want the top level parent
+            // to appear first.
             parentNodes.reverse();
 
             if (parentNodes.length > 4) {

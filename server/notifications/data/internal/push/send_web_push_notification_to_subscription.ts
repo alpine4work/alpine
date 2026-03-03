@@ -16,8 +16,8 @@ import {
 /**
  * Send a web push notification to a subscription.
  *
- * We use the browserId to get the subscription item, and throw `NotFoundError` if the subscription
- * item doesn't exist or doesn't have a subscription attribute.
+ * We use the browserId to get the subscription item, and throw `NotFoundError` if
+ * the subscription item doesn't exist or doesn't have a subscription attribute.
  */
 export async function sendWebPushNotificationToSubscription(
     context: Context<ServerActionContextModules & {webPush: WebPushContextModuleBase}>,
@@ -53,9 +53,9 @@ export async function sendWebPushNotificationToSubscription(
             );
 
             // If the subscription item doesn't exist or doesn't have a subscription, throw a
-            // non-transient error since this is not recoverable.
-            // This can happen if the user has signed out, their browserId has changed and we removed
-            // this browserId entry, or the subscription was invalidated and set to null.
+            // non-transient error since this is not recoverable. This can happen if the user
+            // has signed out, their browserId has changed and we removed this browserId entry,
+            // or the subscription was invalidated and set to null.
             if (!subscriptionItem || !subscriptionItem.subscription) {
                 throw new NotFoundError("Expected `WebPushSubscription` item but none found");
             }
@@ -73,8 +73,8 @@ export async function sendWebPushNotificationToSubscription(
                     options,
                 );
             } catch (error) {
-                // If the error is an internal error, our subscription is no longer valid and a retry
-                // will not be successful. Deregister it so we don't try to send to it again.
+                // If the error is an internal error, our subscription is no longer valid and a
+                // retry will not be successful. Deregister it so we don't try to send to it again.
                 if (error instanceof InternalError) {
                     span.logException("Received non-transient error from web push service", error);
                     await deregisterWebPushSubscriptionWithoutAuthorization(context, {

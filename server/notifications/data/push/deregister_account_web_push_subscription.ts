@@ -7,14 +7,14 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, BrowserId} from "~/shared/id/types/id_types.js";
 
 /**
- * Deregisters a web push subscription for a given account and browser.
- * If the subscription item doesn't exist or the subscription attribute is already null,
+ * Deregisters a web push subscription for a given account and browser. If the
+ * subscription item doesn't exist or the subscription attribute is already null,
  * this function does nothing.
  *
- * Deregistering a web push subscription removes it for all spaces on that browser, meaning the user
- * will not receive any push notifications from that browser until they re-register. If you want to
- * opt out of notifications only for a specific space, you should use `optOutOfWebPushForSpace()`
- * instead.
+ * Deregistering a web push subscription removes it for all spaces on that browser,
+ * meaning the user will not receive any push notifications from that browser until
+ * they re-register. If you want to opt out of notifications only for a specific
+ * space, you should use `optOutOfWebPushForSpace()` instead.
  */
 export async function deregisterAccountWebPushSubscription(
     context: ServerActionContext,

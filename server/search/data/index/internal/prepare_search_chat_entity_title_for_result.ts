@@ -54,10 +54,10 @@ export function prepareSearchDirectChatEntityTitleForResult(
                 throw exhaustive(actorType);
         }
 
-        // Subtract 1 from the account count if this is a session actor since the
-        // "others" count should exclude the actor. We are assuming the actor is in
-        // this chat. This is a safe assumption since the actor isn't allowed to access
-        // direct chats they're not in.
+        // Subtract 1 from the account count if this is a session actor since the "others"
+        // count should exclude the actor. We are assuming the actor is in this chat. This
+        // is a safe assumption since the actor isn't allowed to access direct chats
+        // they're not in.
         const actualAccountCount = assumeActorIncludedInAccountCount
             ? accountCount - 1
             : accountCount;

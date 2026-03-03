@@ -79,8 +79,8 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
 
         await DocumentsTable.createItem(context, {
             partitionType: "Document",
-            // NOTE(calebmer): Our messaging tests run against an archived comment thread
-            // since it's less common than a referenced comment thread.
+            // NOTE(calebmer): Our messaging tests run against an archived comment thread since
+            // it's less common than a referenced comment thread.
             sortRangeType: "ArchivedCommentThread",
             documentId: document.id,
             commentThreadId,
@@ -148,8 +148,8 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
 
         await DocumentsTable.createItem(context, {
             partitionType: "Document",
-            // NOTE(calebmer): Our messaging tests run against an archived comment thread
-            // since it's less common than a referenced comment thread.
+            // NOTE(calebmer): Our messaging tests run against an archived comment thread since
+            // it's less common than a referenced comment thread.
             sortRangeType: "ArchivedCommentThread",
             documentId: document.id,
             commentThreadId,

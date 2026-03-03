@@ -423,8 +423,8 @@ test("can drop file into new chat then change account recipients", async ({
 
     // NOTE(calebmer, 2025-06-02): For some reason Playwright can't find an
     // `alertdialog` role element while a menu is open? So we use
-    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred
-    // form `page.getByRole("alertdialog", {name: "JPEG image"})`.
+    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred form
+    // `page.getByRole("alertdialog", {name: "JPEG image"})`.
     //
     // This also seems to affect `page.getByRole("button", {name: "Send message"})`.
     await expect(page.getByLabel("JPEG image")).toBeHidden();
@@ -629,11 +629,11 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
 
     await expect(page1.getByTestId("MessagingView")).toBeVisible();
 
-    // Wait 400ms for the peek to finish animating open (twice the animation
-    // duration of 200ms). Normally waiting for a timeout like this is flaky.
-    // However, in this case we know for certain the animation has started once
-    // `page.getByLabel("MessagingView")` is visible. So the animation should
-    // complete within 200ms of browser time.
+    // Wait 400ms for the peek to finish animating open (twice the animation duration
+    // of 200ms). Normally waiting for a timeout like this is flaky. However, in this
+    // case we know for certain the animation has started once
+    // `page.getByLabel("MessagingView")` is visible. So the animation should complete
+    // within 200ms of browser time.
     await page1.waitForTimeout(400);
 
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
@@ -677,8 +677,8 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
 
     // NOTE(calebmer, 2025-06-02): For some reason Playwright can't find an
     // `alertdialog` role element while a menu is open? So we use
-    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred
-    // form `page.getByRole("alertdialog", {name: "JPEG image"})`.
+    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred form
+    // `page.getByRole("alertdialog", {name: "JPEG image"})`.
     //
     // This also seems to affect `page.getByRole("button", {name: "Send message"})`.
     await expect(page1.getByLabel("JPEG image")).toBeHidden();

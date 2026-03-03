@@ -25,11 +25,10 @@ export const allMiniLmL6V2LanguageModelEmbedTextTestCounter = new TestCounter();
 const originalProcessNextTick = process.nextTick;
 
 /**
- * Interface to the `all-MiniLM-L6-v2` model. It is not a very good model
- * (ranked 50 out of 121 as of 2023-11-30 on the [Hugging Face MTEB
- * leaderboard][1]), but it's small and can run locally. Which makes it great
- * for local development and test environments. We don't use this model in
- * production.
+ * Interface to the `all-MiniLM-L6-v2` model. It is not a very good model (ranked
+ * 50 out of 121 as of 2023-11-30 on the [Hugging Face MTEB leaderboard][1]), but
+ * it's small and can run locally. Which makes it great for local development and
+ * test environments. We don't use this model in production.
  *
  * The model is [originally from `sentence-transformers`][2] but we use a [fork
  * from `Xenova`][3] that adds JavaScript compatibility.
@@ -47,25 +46,24 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
     // This model is only used in development/test environments and has a small
     // dimension count. Don't bother quantizing like we do for production models.
     //
-    // Another reason we don't quantize is we haven't found or produced a dataset
-    // to compute dimension bounds from. [Qdrant][1] recommends using p99 or p95
-    // bounds.
+    // Another reason we don't quantize is we haven't found or produced a dataset to
+    // compute dimension bounds from. [Qdrant][1] recommends using p99 or p95 bounds.
     //
     // [1]: https://qdrant.tech/articles/scalar-quantization/
     public static readonly dimensionDataType = "float";
 
     /**
-     * > The all-MiniLM-L6-v2 model was trained using cosine similarity-so using
-     * > cosine similarity for the index will produce the most accurate result.
+     * > The all-MiniLM-L6-v2 model was trained using cosine similarity-so using cosine
+     * > similarity for the index will produce the most accurate result.
      *
      * ([Source][1])
      *
-     * Unfortunately, the [OpenSearch Faiss engine does not support cosine
-     * similarity (`cosinesimil`)][2] so we use `l2` which is the OpenSearch
-     * default space type.
+     * Unfortunately, the [OpenSearch Faiss engine does not support cosine similarity
+     * (`cosinesimil`)][2] so we use `l2` which is the OpenSearch default space type.
      *
      * [1]: https://www.pinecone.io/learn/vector-similarity/
-     * [2]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-methods-engines/#faiss-engine
+     * [2]:
+     *     https://opensearch.org/docs/latest/field-types/supported-field-types/knn-methods-engines/#faiss-engine
      */
     public static readonly opensearchSpaceType = "l2";
 
@@ -83,12 +81,13 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
         }
 
         // In constructing the `extractor`, we do the same thing `pipeline()` does
-        // automatically. But we don't want to download the files in this process.
-        // Instead we've downloaded and cached the files with Bazel. So we manually
-        // reverse engineer what `pipeline()` is doing with files already downloaded
-        // (by Bazel) to disk.
+        // automatically. But we don't want to download the files in this process. Instead
+        // we've downloaded and cached the files with Bazel. So we manually reverse
+        // engineer what `pipeline()` is doing with files already downloaded (by Bazel) to
+        // disk.
         //
-        // See: https://github.com/xenova/transformers.js/blob/83dfa4718ec99c4566ec89954a0b0544a5a25d78/src/pipelines.js#L2439-L2525
+        // See:
+        // https://github.com/xenova/transformers.js/blob/83dfa4718ec99c4566ec89954a0b0544a5a25d78/src/pipelines.js#L2439-L2525
         const [tokenizer, model] = await runAllPromises([
             createTransformersTokenizer(basePath),
             createTransformersModel(basePath),
@@ -97,8 +96,8 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
         // We dynamically import this models at runtime to avoid bundling
         // `@xenova/transformers`'s native libraries in an `aws_lambda()`.
         //
-        // We do the funky `string + cast(string)` syntax so the import path can't
-        // be statically analyzed by esbuild.
+        // We do the funky `string + cast(string)` syntax so the import path can't be
+        // statically analyzed by esbuild.
         const {FeatureExtractionPipeline}: typeof import("@xenova/transformers") = await import(
             /* @vite-ignore */ "@xenova/" + cast("transformers")
         );
@@ -130,17 +129,18 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
 
             // NOTE(calebmer): [Annoyingly, `onnxruntime-node` calls `process.nextTick()`][1]
             // before running the model with a native library that runs synchronously. They
-            // probably call `process.nextTick()` to create the illusion of asynchrony.
-            // Anyway, when Jest fake timers are on (`jest.useFakeTimers()`) we wait
-            // forever at the `process.nextTick()` call. To avoid this, let's install the
-            // original unmocked `process.nextTick()` function when we perform our
-            // embedding so it doesn't wait for Jest.
+            // probably call `process.nextTick()` to create the illusion of asynchrony. Anyway,
+            // when Jest fake timers are on (`jest.useFakeTimers()`) we wait forever at the
+            // `process.nextTick()` call. To avoid this, let's install the original unmocked
+            // `process.nextTick()` function when we perform our embedding so it doesn't wait
+            // for Jest.
             //
             // If other code is running concurrently it may use the unmocked
-            // `process.nextTick()` which is a tradeoff we accept to not have to think
-            // about fake timers when calling `embed()`.
+            // `process.nextTick()` which is a tradeoff we accept to not have to think about
+            // fake timers when calling `embed()`.
             //
-            // [1]: https://github.com/microsoft/onnxruntime/blob/8931854528b1b2a3f320d012c78d37186fbbdab8/js/node/lib/backend.ts#L39
+            // [1]:
+            //     https://github.com/microsoft/onnxruntime/blob/8931854528b1b2a3f320d012c78d37186fbbdab8/js/node/lib/backend.ts#L39
             let embeddingsPromise;
             let previousProcessNextTick: typeof process.nextTick | null = null;
             try {

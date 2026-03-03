@@ -15,18 +15,21 @@ import {
  * Production importer context module that uses AWS S3 for file storage.
  *
  * ## S3 Bucket Setup
- * The bucket is created by the CDK stack in `admin/aws/internal/aws_import_uploads.ts`.
- * It has:
+ *
+ * The bucket is created by the CDK stack in
+ * `admin/aws/internal/aws_import_uploads.ts`. It has:
+ *
  * - 7-day lifecycle rule for automatic cleanup
  * - CORS configured for browser uploads
  * - SSL enforcement
  *
  * ## IAM Permissions
+ *
  * - App service needs `s3:PutObject` for creating presigned upload URLs
  * - Job queue service needs `s3:GetObject` for reading uploaded files
  *
- * These permissions are granted in `admin/aws/internal/aws_app_service.ts`
- * and `admin/aws/internal/aws_job_queue_service.ts`.
+ * These permissions are granted in `admin/aws/internal/aws_app_service.ts` and
+ * `admin/aws/internal/aws_job_queue_service.ts`.
  */
 export class ImporterContextModule extends ImporterContextModuleBase {
     private readonly _s3Client: S3Client;

@@ -14,8 +14,8 @@ const MenuButtonForwardRef = forwardRef(MenuButton);
 export {MenuButtonForwardRef as MenuButton};
 
 /**
- * A menu button is a button which opens a menu overlay. The menu overlay
- * contains a list of actions which may be selected by the user.
+ * A menu button is a button which opens a menu overlay. The menu overlay contains
+ * a list of actions which may be selected by the user.
  *
  * Implements the [WAI-ARIA menu button pattern][1].
  *
@@ -38,26 +38,25 @@ function MenuButton(
         extraOverlayBottom,
     }: {
         /**
-         * All the actions available in a menu's popup. When clicking on the button
-         * element to open
+         * All the actions available in a menu's popup. When clicking on the button element
+         * to open
          *
-         * If you have nested arrays then each sub-array will form a section with a
-         * divider between sections.
+         * If you have nested arrays then each sub-array will form a section with a divider
+         * between sections.
          */
         actions: MenuActions | (() => MenuActions);
 
         /**
-         * Where should the menu overlay be placed relative to the target element?
-         * Defaults to `bottom-start`.
+         * Where should the menu overlay be placed relative to the target element? Defaults
+         * to `bottom-start`.
          */
         placement?: OverlayPlacement;
 
         /**
          * The size of our menu. Defaults to `base`.
          *
-         * On mobile, `base` menus get larger to accommodate less precise input
-         * mechanisms (fingers). Items grow to `lg` size even if the menu width as a
-         * whole doesn't.
+         * On mobile, `base` menus get larger to accommodate less precise input mechanisms
+         * (fingers). Items grow to `lg` size even if the menu width as a whole doesn't.
          */
         size?: MenuSize;
 
@@ -90,32 +89,30 @@ function MenuButton(
 
         /**
          * Should the menu close after an action is pressed? By default the menu closes
-         * after an action is pressed but you may set this to true to stop that
-         * behavior.
+         * after an action is pressed but you may set this to true to stop that behavior.
          */
         shouldNotCloseAfterActionPress?: boolean;
 
         /**
-         * Some extra DOM to put at the top of the menu overlay. Useful if you
-         * need some particularly custom in your menu.
+         * Some extra DOM to put at the top of the menu overlay. Useful if you need some
+         * particularly custom in your menu.
          */
         extraOverlayTop?: ReactNode;
 
         /**
-         * Some extra DOM to put at the bottom of the menu overlay. Useful if you
-         * need some particularly custom in your menu.
+         * Some extra DOM to put at the bottom of the menu overlay. Useful if you need some
+         * particularly custom in your menu.
          */
         extraOverlayBottom?: ReactNode;
 
         /**
-         * The button element which opens and closes the menu. Must provide a ref to
-         * an HTML `<button>` element or we will throw an error.
+         * The button element which opens and closes the menu. Must provide a ref to an
+         * HTML `<button>` element or we will throw an error.
          */
         children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
 
         /**
-         * Called before the overlay closes. Like when a click happens outside the
-         * overlay.
+         * Called before the overlay closes. Like when a click happens outside the overlay.
          */
         onClose?: (options: {withoutAnimation: boolean}) => void;
 

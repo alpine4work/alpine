@@ -10,8 +10,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * We have a server version of this too: `loadInitialPeekDataForServer()`.
  */
 // NOTE(calebmer): This probably doesn't support a wide range of Remix features
-// including redirects and deferred data. But it supports enough for our
-// critical path.
+// including redirects and deferred data. But it supports enough for our critical
+// path.
 export async function loadInitialPeekDataForClient(
     peekRoutes: ReadonlyArray<DataRouteObject>,
     path: Path,
@@ -48,27 +48,25 @@ export async function loadInitialPeekDataForClient(
                                   params: match.params,
                               })
                             : undefined,
-                        // Make sure we load modules for any matches we'll need to render with this
-                        // peek. On the server we add modules we need to load to an `loadExtraRouteIds`
-                        // array.
+                        // Make sure we load modules for any matches we'll need to render with this peek.
+                        // On the server we add modules we need to load to an `loadExtraRouteIds` array.
                         shouldCallLazy && match.route.lazy ? match.route.lazy() : undefined,
                     ]),
                     abortPromiseResolver.promise,
                 ]);
 
                 // We expect the `lazy` function to update the route object with the loaded
-                // component data. That way when we create a router for this route it doesn't
-                // need to load the route again. Remix does not do this out of the box. Look
-                // for our `makeLazyDataRouteSelfUpdating()` function which overrides the
-                // `lazy` function.
+                // component data. That way when we create a router for this route it doesn't need
+                // to load the route again. Remix does not do this out of the box. Look for our
+                // `makeLazyDataRouteSelfUpdating()` function which overrides the `lazy` function.
                 if (shouldCallLazy) {
                     assert(match.route.lazy === undefined);
                 }
 
                 loaderData[match.route.id] = await processLoaderResult(result);
             } catch (error) {
-                // Errors are placed at the nearest error boundary route. Not the match that
-                // threw the error's route.
+                // Errors are placed at the nearest error boundary route. Not the match that threw
+                // the error's route.
                 // https://github.com/remix-run/react-router/blob/f9b3dbd9cbf513366c456b33d95227f42f36da63/packages/router/router.ts#L3893-L3910
                 (errors ??= {})[findNearestBoundary(routeMatches, match.route.id).route.id] =
                     await processLoaderResult(error);

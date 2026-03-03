@@ -3401,8 +3401,8 @@ test("streams missing link reference formatting correctly (without reference)", 
 
     message.pushText(span, "miss");
 
-    // TODO(calebmer): This is a bug! The output should still be `test: link`. But
-    // I'm running out of time so not fixing this edge case.
+    // TODO(calebmer): This is a bug! The output should still be `test: link`. But I'm
+    // running out of time so not fixing this edge case.
     expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,
@@ -3419,8 +3419,8 @@ test("streams missing link reference formatting correctly (without reference)", 
 
     message.pushText(span, "ing-link");
 
-    // TODO(calebmer): This is a bug! The output should still be `test: link`. But
-    // I'm running out of time so not fixing this edge case.
+    // TODO(calebmer): This is a bug! The output should still be `test: link`. But I'm
+    // running out of time so not fixing this edge case.
     expect(await message.update(span).then(items => items.map(item => item.part))).toEqual([
         {
             index: 0,

@@ -181,8 +181,9 @@ function willDrawBlobFactoryToCanvas(
         ok: true,
         factory,
         // If we've started drawing a lot of blobs in the last second, we defer the drawing
-        // to avoid blocking the main thread for too long. This is a workaround for performance issues
-        // when drawing many blobs at once, especially on lower-end devices.
+        // to avoid blocking the main thread for too long. This is a workaround for
+        // performance issues when drawing many blobs at once, especially on lower-end
+        // devices.
         defer: window.__blobs.timing.length > 2,
     };
 }
@@ -206,9 +207,9 @@ export function drawBlobFactoryToCanvas(
     const blobsCanvasScale = getBlobsCanvasScale();
     const blobsCanvasSize = getBlobsCanvasSize();
 
-    // If the canvas itself is scaled down or up, we need to adjust the size of the blobs
-    // to match the scale. For example, if the canvas is scaled down by 50%, we don't need
-    // to scale the blobs up as high in relation to devicePixelRatio.
+    // If the canvas itself is scaled down or up, we need to adjust the size of the
+    // blobs to match the scale. For example, if the canvas is scaled down by 50%, we
+    // don't need to scale the blobs up as high in relation to devicePixelRatio.
     const effectiveScale = blobsCanvasScale * settings.scale;
     const scaledBlobs = blobs.map(
         blob =>
@@ -220,9 +221,9 @@ export function drawBlobFactoryToCanvas(
             ),
     );
 
-    // We need to scale the smoothness based on the canvas scale.
-    // This is because it determines how eager blobs are to merge together.
-    // If the canvas is scaled at all, we want blobs to join at the same rate.
+    // We need to scale the smoothness based on the canvas scale. This is because it
+    // determines how eager blobs are to merge together. If the canvas is scaled at
+    // all, we want blobs to join at the same rate.
     const scaledSettings = {
         ...settings,
         smoothness: settings.smoothness * effectiveScale,
@@ -239,18 +240,18 @@ export function drawBlobFactoryToCanvas(
         ].join(" "),
     );
 
-    // We scale the drawn image up, but then scale the canvas down to fit the container.
-    // This is to ensure that the blobs are drawn at a high resolution, but the canvas
-    // fits within the container at the original desired size.
+    // We scale the drawn image up, but then scale the canvas down to fit the
+    // container. This is to ensure that the blobs are drawn at a high resolution, but
+    // the canvas fits within the container at the original desired size.
     const size = new Vector2(blobsCanvasSize.width, blobsCanvasSize.height).scale(effectiveScale);
     canvas.setAttribute("width", size.x.toString());
     canvas.setAttribute("height", size.y.toString());
     canvas.setAttribute("style", [`transform: scale(${1 / effectiveScale});`].join(" "));
 
     const actuallyDraw = () => {
-        // Integration tests are flaky when drawing to the canvas, so we skip this in tests.
-        // This would cause a huge delay when the GPU can't handle drawing multiple blobs at once.
-        // Often causing the test to timeout.
+        // Integration tests are flaky when drawing to the canvas, so we skip this in
+        // tests. This would cause a huge delay when the GPU can't handle drawing multiple
+        // blobs at once. Often causing the test to timeout.
         if (process.env.NODE_ENV === "production" || !(globalThis as any).__isIntegrationTest) {
             const result = factory.draw(size, scaledSettings, scaledBlobs);
             const ctx = canvas.getContext("2d")!;
@@ -265,9 +266,9 @@ export function drawBlobFactoryToCanvas(
             });
         }
 
-        // Create the gradient
-        // We create this here (as opposed to statically) to ensure we follow the colorScheme as
-        // as soon as possible. If we server side render the gradient, we won't know the colorScheme.
+        // Create the gradient We create this here (as opposed to statically) to ensure we
+        // follow the colorScheme as as soon as possible. If we server side render the
+        // gradient, we won't know the colorScheme.
         const gradient = assertExists(
             canvas.parentElement?.getElementsByClassName(blobsArtGradientClassName)?.[0],
         );
@@ -321,8 +322,8 @@ export function drawBlobFactoryToCanvas(
 /**
  * In integration tests we skip drawing blobs because doing so is flaky in CI.
  * However, for `//admin/scenarios/screenshots` we want to draw the blob to the
- * canvas for a screenshot. So we provide this function which you can call in
- * an integration test to draw blobs.
+ * canvas for a screenshot. So we provide this function which you can call in an
+ * integration test to draw blobs.
  */
 export function actuallyDrawBlobsForIntegrationTest() {
     assert(process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest);

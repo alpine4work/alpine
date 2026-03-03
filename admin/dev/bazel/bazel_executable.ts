@@ -11,8 +11,8 @@ export const bazelExecutablePath = joinPath(
 );
 
 /**
- * Bazel can only run one command at a time. Use this mutex to coordinate
- * Bazel usage so only one piece of code in our Node.js process can be
- * executing a Bazel command at any given time.
+ * Bazel can only run one command at a time. Use this mutex to coordinate Bazel
+ * usage so only one piece of code in our Node.js process can be executing a Bazel
+ * command at any given time.
  */
 export const bazelExecutableMutex = new Mutex();

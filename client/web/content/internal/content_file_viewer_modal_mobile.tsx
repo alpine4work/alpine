@@ -55,9 +55,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  *
  * IMPORTANT: If you make a change to preview rendering here you should also
  * consider making the same change to `renderContentFilePreview()` and
- * `<ContentFileViewerModalDesktop>`. We have three renderers for every file
- * type. The inline preview, the fullscreen desktop modal, and the fullscreen
- * mobile modal. They should all look and behave about the same.
+ * `<ContentFileViewerModalDesktop>`. We have three renderers for every file type.
+ * The inline preview, the fullscreen desktop modal, and the fullscreen mobile
+ * modal. They should all look and behave about the same.
  */
 export function ContentFileViewerModalMobile({
     file,
@@ -145,16 +145,16 @@ export function ContentFileViewerModalMobile({
 
     const withProcessingIndicator =
         isFileModelDataLoading(file) &&
-        // If the file has an image preview where the size or placeholder are
-        // processing then we'll be showing a large spinner in the center of the entire
-        // modal so we don't need to also show a small spinner here.
+        // If the file has an image preview where the size or placeholder are processing
+        // then we'll be showing a large spinner in the center of the entire modal so we
+        // don't need to also show a small spinner here.
         !(
             file.preview?.type === "Image" &&
             (file.preview.size === "Processing" || file.preview.placeholder === "Processing")
         ) &&
-        // If the file has a code preview where the preview is
-        // processing then we'll be showing a large spinner in the center of the entire
-        // modal so we don't need to also show a small spinner here.
+        // If the file has a code preview where the preview is processing then we'll be
+        // showing a large spinner in the center of the entire modal so we don't need to
+        // also show a small spinner here.
         !(file.preview?.type === "Code" && file.preview.isProcessing);
 
     return (

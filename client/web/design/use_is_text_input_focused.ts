@@ -6,18 +6,17 @@ import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_nativ
 
 /**
  * Keep track of whether any text input on the web page is focused. Useful when
- * dealing with the mobile keyboard which will open if any text input is
- * focused.
+ * dealing with the mobile keyboard which will open if any text input is focused.
  *
  * We've observed that mobile Safari won't dispatch a `focusout` event if the
  * focused element is removed from the DOM. In this case you may call
- * `reconcileFocusedTextInput()` to detect if the previously focused element
- * has been removed and update our state.
+ * `reconcileFocusedTextInput()` to detect if the previously focused element has
+ * been removed and update our state.
  *
- * If there's a `<FocusScope contain>` on the page then this hook will only
- * return true if rendered inside of that focus scope. This is useful for
- * components like `<MobileFullScreenModal>` so focus within the modal (which
- * has `<FocusScope contain>`) does not change the inert UI underneath.
+ * If there's a `<FocusScope contain>` on the page then this hook will only return
+ * true if rendered inside of that focus scope. This is useful for components like
+ * `<MobileFullScreenModal>` so focus within the modal (which has
+ * `<FocusScope contain>`) does not change the inert UI underneath.
  */
 export function useIsTextInputFocused({
     isDisabled = false,

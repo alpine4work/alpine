@@ -38,8 +38,8 @@ const AlphaAccessTable = DynamoTableSchema.new({
     name: "AlphaAccess",
     partitions: [
         /**
-         * We include one item in our alpha access table with some configuration
-         * options that we can change on the fly.
+         * We include one item in our alpha access table with some configuration options
+         * that we can change on the fly.
          */
         {
             name: "AlphaConfiguration",
@@ -54,8 +54,7 @@ const AlphaAccessTable = DynamoTableSchema.new({
         },
 
         /**
-         * All our alpha access requests are in one partition so we can query them
-         * at once.
+         * All our alpha access requests are in one partition so we can query them at once.
          *
          * We expect a small number of alpha access requests.
          */
@@ -82,14 +81,14 @@ const AlphaAccessTable = DynamoTableSchema.new({
                         name: LabelStringSchema,
 
                         /**
-                         * A message from the person asking for access. We prompt the user with "How
-                         * do you know the team?" but they can put whatever they want in this field.
+                         * A message from the person asking for access. We prompt the user with "How do you
+                         * know the team?" but they can put whatever they want in this field.
                          */
                         message: Schema.string,
 
                         /**
-                         * The decision made by an admin account on whether to accept or reject the
-                         * access request.
+                         * The decision made by an admin account on whether to accept or reject the access
+                         * request.
                          */
                         decision: AlphaAccessRequestDecisionSchema.nullable(),
                     }),
@@ -100,8 +99,8 @@ const AlphaAccessTable = DynamoTableSchema.new({
 });
 
 /**
- * Sends a request for alpha access to the admin accounts managing alpha
- * access requests.
+ * Sends a request for alpha access to the admin accounts managing alpha access
+ * requests.
  *
  * Can not request alpha access twice for the same email address.
  */
@@ -119,8 +118,8 @@ export async function requestAlphaAccess(
 ) {
     try {
         await DynamoTableSchema.executeTransaction(context, [
-            // Make sure an account does not already exist when requesting alpha access.
-            // The account could have been created manually.
+            // Make sure an account does not already exist when requesting alpha access. The
+            // account could have been created manually.
             createAccountEmailAddressDoesNotExistConditionCheckTransactionEntry(emailAddress),
 
             AlphaAccessTable.transactionCreateItem({
@@ -209,8 +208,8 @@ export async function getUndecidedAlphaAccessRequests(context: ServerActionConte
 /**
  * Approves a request for alpha access.
  *
- * When we approve a request for alpha access, we create a new account for the
- * user and we send them an email with instructions on how to sign in.
+ * When we approve a request for alpha access, we create a new account for the user
+ * and we send them an email with instructions on how to sign in.
  */
 export async function approveAlphaAccessRequest(
     context: ServerSessionActionContext,
@@ -283,8 +282,8 @@ export async function denyAlphaAccessRequest(
 }
 
 /**
- * Get all the email addresses for alpha access requests we approved. Only
- * accounts with internal access may call this function.
+ * Get all the email addresses for alpha access requests we approved. Only accounts
+ * with internal access may call this function.
  */
 export async function* getAllApprovedAlphaAccessRequestEmailAddresses(
     context: ServerActionContext,

@@ -14,9 +14,9 @@ import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js"
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * When printing messages to the log, we'll group successive messages from the same author
- * that are less than 10 minutes apart into a single block. This object helps us track the
- * current message block while iterating over the messages.
+ * When printing messages to the log, we'll group successive messages from the same
+ * author that are less than 10 minutes apart into a single block. This object
+ * helps us track the current message block while iterating over the messages.
  */
 type MessageBlock = {
     readonly openingTag: string;
@@ -29,8 +29,8 @@ type MessageBlock = {
 
 /**
  * Prints messages to a log format that an LLM can use to understand a
- * conversation. Messages are separated by `<human>` and `<bot>` XML tags which
- * is structure an LLM can interpret.
+ * conversation. Messages are separated by `<human>` and `<bot>` XML tags which is
+ * structure an LLM can interpret.
  *
  * If `contextTimeZone` is provided, user messages with a different timezone will
  * have a `timezone` attribute added to their tag.
@@ -38,7 +38,8 @@ type MessageBlock = {
 export function printAgentMessagesLog(
     messages: ReadonlyArray<AgentMessage>,
     /**
-     * The time and timezone of the user whose message triggered the durable object creation.
+     * The time and timezone of the user whose message triggered the durable object
+     * creation.
      */
     timeContext: {
         time: Date;
@@ -52,7 +53,8 @@ export function printAgentMessagesLog(
 export function printAgentMessagesIntoMarkdownTree(
     messages: ReadonlyArray<AgentMessage>,
     /**
-     * The time and timezone of the user whose message triggered the durable object creation.
+     * The time and timezone of the user whose message triggered the durable object
+     * creation.
      */
     timeContext: {
         time: Date;
@@ -80,8 +82,8 @@ export function printAgentMessagesIntoMarkdownTree(
                 ? differenceInMinutes(currentMessageTime, currentBlock.lastMessageTime)
                 : 0;
 
-        // If there are consecutive messages from the same author, we put them
-        // within the same <human> or <bot> tag IF:
+        // If there are consecutive messages from the same author, we put them within the
+        // same <human> or <bot> tag IF:
         //
         // 1. The current message is not a reply to a previous message.
         // 2. They're less than 10 minutes apart.
@@ -99,11 +101,11 @@ export function printAgentMessagesIntoMarkdownTree(
             differenceInMinutesSinceLastMessage < 10 &&
             // Special case: `index` -1 is used for posts which are formatted like a message
             // (see `getPostAgentMessage()`). We don't want the post to be merged with the
-            // first comment from the same author as they'll be rendered as two distinct
-            // text blocks in the UI.
+            // first comment from the same author as they'll be rendered as two distinct text
+            // blocks in the UI.
             //
-            // This is a bit of a hack. It relies on the knowledge that
-            // `getPostAgentMessage()` uses `index` -1 for posts.
+            // This is a bit of a hack. It relies on the knowledge that `getPostAgentMessage()`
+            // uses `index` -1 for posts.
             message.index > 0;
 
         if (shouldContinueBlock) {
@@ -151,13 +153,13 @@ export function printAgentMessagesIntoMarkdownTree(
             openingTag += `<human name="${escapeHtml(message.author.name)}"`;
         }
 
-        // Include the time difference between this message and the last message. Since
-        // it may be important context for the conversation. Whenever messages are more
-        // than an hour apart, we inject a `<time/>` tag with the time of the message.
-        // The first message after the time injection should never have a relative time.
-        // Because we inject the current time between messages that are further than an hour
-        // apart, the relative time between two messages between time injection tags will
-        // never exceed 1 hour.
+        // Include the time difference between this message and the last message. Since it
+        // may be important context for the conversation. Whenever messages are more than
+        // an hour apart, we inject a `<time/>` tag with the time of the message. The first
+        // message after the time injection should never have a relative time. Because we
+        // inject the current time between messages that are further than an hour apart,
+        // the relative time between two messages between time injection tags will never
+        // exceed 1 hour.
         if (
             currentMessageTime.getTime() !== previousTimeInjectionTime?.getTime() &&
             differenceInMinutesSinceLastMessage >= 10

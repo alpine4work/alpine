@@ -29,11 +29,10 @@ export function createTaskEffectiveAccessPolicyStore(
     });
 
     return store.reduce((previousAccessPolicy, accessPolicy) => {
-        // Optimization: Return a referentially equal access policy if the access
-        // policy is deep equal. This prevents downstream recalculations which is
-        // useful given we subscribe to the whole task model, task collection model,
-        // parent task collection model, a lot of stuff basically, while computing the
-        // effective access policy.
+        // Optimization: Return a referentially equal access policy if the access policy is
+        // deep equal. This prevents downstream recalculations which is useful given we
+        // subscribe to the whole task model, task collection model, parent task collection
+        // model, a lot of stuff basically, while computing the effective access policy.
         if (previousAccessPolicy && isDeepEqual(previousAccessPolicy, accessPolicy))
             return previousAccessPolicy;
 
@@ -63,9 +62,9 @@ export function createTaskEffectiveAccessLevelStore(
 }
 
 /**
- * A task's effective access policy is the union of the task's own access
- * policy, the task's collections access policy, and the task's parent
- * effective access policy.
+ * A task's effective access policy is the union of the task's own access policy,
+ * the task's collections access policy, and the task's parent effective access
+ * policy.
  */
 function computeTaskEffectiveAccessPolicy(
     get: <Value>(store: Store<Value>) => Value,
@@ -164,8 +163,8 @@ function computeTaskEffectiveAccessPolicy(
 
     addTaskGrants(taskEntry, true);
 
-    // Clone the access policy into `inheritedAccessPolicy` before we add grants
-    // from the root task to get the effective access policy.
+    // Clone the access policy into `inheritedAccessPolicy` before we add grants from
+    // the root task to get the effective access policy.
     const inheritedAccessPolicy: AccessPolicyWithoutGenerations = {
         accountGrantById: new Map(
             mapIterable(accountGrantById, ([id, accountGrant]) => [

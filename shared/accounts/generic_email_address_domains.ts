@@ -3,8 +3,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 /**
- * Email domains we don't consider work email domains. For work domains, we
- * create a space for all email address with that domain.
+ * Email domains we don't consider work email domains. For work domains, we create
+ * a space for all email address with that domain.
  */
 export const genericEmailAddressDomains = new Lazy(() => {
     const set = new Set<string>();

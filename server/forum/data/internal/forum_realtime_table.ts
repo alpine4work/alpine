@@ -89,10 +89,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                         /** Who's allowed to access the channel and the posts inside it? */
                         accessPolicy: AccessPolicySchema
-                            // NOTE(calebmer, 2025-04-21): Before today channels don't have an
-                            // `accessPolicy` and we assume all channels are public within the space.
-                            // So if we find a channel with no `accessPolicy` then default to a public
-                            // access policy.
+                            // NOTE(calebmer, 2025-04-21): Before today channels don't have an `accessPolicy`
+                            // and we assume all channels are public within the space. So if we find a channel
+                            // with no `accessPolicy` then default to a public access policy.
                             .default({
                                 accountGrantById: emptyMap,
                                 defaultGrant: {level: "Manage", generation: 0},
@@ -100,10 +99,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             }),
 
                         /**
-                         * Have we added a feed candidate entry for the channel? We add an entry when
-                         * the channel is shared with some `defaultGrant`. But if you revoke the
-                         * `defaultGrant` then add it again we don't want to add another feed
-                         * candidate entry.
+                         * Have we added a feed candidate entry for the channel? We add an entry when the
+                         * channel is shared with some `defaultGrant`. But if you revoke the `defaultGrant`
+                         * then add it again we don't want to add another feed candidate entry.
                          */
                         hasAddedFeedCandidateEntry: Schema.boolean.default(false),
                     }),
@@ -111,32 +109,30 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                 /**
                  * All the accounts who have contributed to this channel. Contributions include
-                 * creating the channel, creating a post in the channel, or sending a post
-                 * comment for a post in the channel. Each contribution increments the
-                 * account's contribution count by 1. If the user deletes their post or moves
-                 * their post to a different channel then their contribution count will
-                 * decrease. Deleting a comment does not currently decrease the account's
-                 * contribution count (similar to how deleting a comment does not decrease
-                 * `postItem.commentCountByAuthorId`.) Once the contribution count has reached
-                 * its max value (currently 10) it will not increase any further and will never
-                 * decrease. The account is permanently considered a contributor after the max
-                 * contribution count.
+                 * creating the channel, creating a post in the channel, or sending a post comment
+                 * for a post in the channel. Each contribution increments the account's
+                 * contribution count by 1. If the user deletes their post or moves their post to a
+                 * different channel then their contribution count will decrease. Deleting a
+                 * comment does not currently decrease the account's contribution count (similar to
+                 * how deleting a comment does not decrease `postItem.commentCountByAuthorId`.)
+                 * Once the contribution count has reached its max value (currently 10) it will not
+                 * increase any further and will never decrease. The account is permanently
+                 * considered a contributor after the max contribution count.
                  *
-                 * The contributors map may be updated asynchronously after the contribution
-                 * has occurred. There's also no guarantee a contribution will be recorded
-                 * (e.g. if `AppService` crashes after creating a new post but before
-                 * updating this map, for instance).
+                 * The contributors map may be updated asynchronously after the contribution has
+                 * occurred. There's also no guarantee a contribution will be recorded (e.g. if
+                 * `AppService` crashes after creating a new post but before updating this map, for
+                 * instance).
                  *
-                 * The order of accounts in `contributionCountByAccountId` does matter. The
-                 * order of accounts is based on first contribution time. Accounts with an
-                 * earlier first contribution time are earlier in the map.
+                 * The order of accounts in `contributionCountByAccountId` does matter. The order
+                 * of accounts is based on first contribution time. Accounts with an earlier first
+                 * contribution time are earlier in the map.
                  *
                  * We stop increasing contribution counts at a maximum value as a way to reduce
-                 * write cost against the database. Maybe the write cost savings are pointless
-                 * and we shouldn't have a contribution count max. Also, we should really
-                 * consider adding some exponential decay for the accounts in this list. So if
-                 * an account hasn't contributed in a long time they'll fall out of the top
-                 * contributors.
+                 * write cost against the database. Maybe the write cost savings are pointless and
+                 * we shouldn't have a contribution count max. Also, we should really consider
+                 * adding some exponential decay for the accounts in this list. So if an account
+                 * hasn't contributed in a long time they'll fall out of the top contributors.
                  */
                 {
                     name: "Contributors",
@@ -156,9 +152,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         ).minSize(1),
 
                         /**
-                         * The same as `channelItem.accessPolicy.accountGrant.keys()`. We copy the
-                         * property here so we can include shared accounts in the contributor list even
-                         * before they've created their first post.
+                         * The same as `channelItem.accessPolicy.accountGrant.keys()`. We copy the property
+                         * here so we can include shared accounts in the contributor list even before
+                         * they've created their first post.
                          *
                          * Order in this array is the same as the order in
                          * `channelItem.accessPolicy.accountGrant.keys()`.
@@ -170,9 +166,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                 },
 
                 /**
-                 * For each post with files we create a `PostFiles` item. These items are keyed
-                 * by `postCreatedTime` so they're sorted by created date. We use this to show
-                 * all files added to a channel.
+                 * For each post with files we create a `PostFiles` item. These items are keyed by
+                 * `postCreatedTime` so they're sorted by created date. We use this to show all
+                 * files added to a channel.
                  */
                 {
                     name: "PostFiles",
@@ -193,25 +189,25 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                 postId: DynamoKeyAttributeSchema.id<PostId>(),
             },
             sortRanges: [
-                // NOTE(calebmer, 2024-04-16): My current thoughts on deleting posts. Deleting
-                // a post shouldn't delete the post's comments since folks may be having a
-                // valuable conversation in the comments. I like the idea that deleting a post:
+                // NOTE(calebmer, 2024-04-16): My current thoughts on deleting posts. Deleting a
+                // post shouldn't delete the post's comments since folks may be having a valuable
+                // conversation in the comments. I like the idea that deleting a post:
                 //
                 // - Sets `channelId` to null
                 // - Replaces content with a "this post was deleted message"
                 //
-                // Setting `channelId` to null would remove the post in realtime from the
-                // channel the user is looking at. We should also have notification processing
-                // cleanup inbox entries that say the post is a part of a given channel.
+                // Setting `channelId` to null would remove the post in realtime from the channel
+                // the user is looking at. We should also have notification processing cleanup
+                // inbox entries that say the post is a part of a given channel.
                 //
-                // These mechanisms would also be very useful for a "move post between
-                // channels" feature which I think we'll want for channel user's with the
-                // "maintain" access level. So I think we should build delete post alongside
-                // the ability to move posts between channels.
+                // These mechanisms would also be very useful for a "move post between channels"
+                // feature which I think we'll want for channel user's with the "maintain" access
+                // level. So I think we should build delete post alongside the ability to move
+                // posts between channels.
                 //
-                // Either of these operations should probably be reflected in a "log" entry in
-                // the comments feed. For instance "Caleb deleted the post" or "Caleb moved the
-                // post from the Engineering Q&A channel to the Design Q&A channel".
+                // Either of these operations should probably be reflected in a "log" entry in the
+                // comments feed. For instance "Caleb deleted the post" or "Caleb moved the post
+                // from the Engineering Q&A channel to the Design Q&A channel".
                 {
                     name: "Attributes",
                     sortKeyAttributes: {},
@@ -230,9 +226,9 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         content: PostContentSchema,
 
                         /**
-                         * The last time at which the post's content was updated. Also contains
-                         * `mappings` to help move positions referencing content in the post from an
-                         * old version of the post to a new version of the post.
+                         * The last time at which the post's content was updated. Also contains `mappings`
+                         * to help move positions referencing content in the post from an old version of
+                         * the post to a new version of the post.
                          */
                         contentUpdate: Schema.object({
                             time: Schema.date,
@@ -244,14 +240,14 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             .default(null),
 
                         /**
-                         * Information regarding the post's comments. Nested in an object so we can
-                         * update it at once.
+                         * Information regarding the post's comments. Nested in an object so we can update
+                         * it at once.
                          *
                          * We don't send general realtime update events when `commentsSummary` changes.
                          * This is taken care of by
-                         * `transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent()`. We do
-                         * this to save a bunch of WCUs. Recording an event containing the full post
-                         * content for every new comment would be wildly inefficient.
+                         * `transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent()`. We do this to
+                         * save a bunch of WCUs. Recording an event containing the full post content for
+                         * every new comment would be wildly inefficient.
                          */
                         commentsSummary: Schema.object({
                             /**
@@ -261,8 +257,8 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                             /**
                              * All the accounts which have commented on the post and the number of comments
-                             * they have made. The map is ordered by when the account first commented on
-                             * the post.
+                             * they have made. The map is ordered by when the account first commented on the
+                             * post.
                              *
                              * This map can grow unbounded. When a user deletes a comment it leaves a
                              * gravestone so comment counts should never be decremented.
@@ -273,17 +269,16 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             ),
 
                             /**
-                             * All the accounts which have been mentioned at some point in the post's
-                             * comments or post's content and how many times the account was mentioned.
+                             * All the accounts which have been mentioned at some point in the post's comments
+                             * or post's content and how many times the account was mentioned.
                              *
-                             * Accounts that exist in the map with a mention count of zero have a
-                             * special meaning:
+                             * Accounts that exist in the map with a mention count of zero have a special
+                             * meaning:
                              *
                              * - If an account exists in the map they were mentioned at some point
-                             * - If an account exists in the map with a mention count of zero then they
-                             *   were mentioned at some point but all mentions have been removed by updates
-                             * - If an account does not exist in the map they were never mentioned in
-                             *   the post
+                             * - If an account exists in the map with a mention count of zero then they were
+                             *   mentioned at some point but all mentions have been removed by updates
+                             * - If an account does not exist in the map they were never mentioned in the post
                              *
                              * While this is in `commentsSummary` it also includes mentions from the post
                              * content. We put it in `commentsSummary` so we can update it atomically as a
@@ -319,8 +314,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                 build: async (context, item) => {
                     // Top contributor accounts are sorted by:
                     //
-                    // 1. Who has the highest contribution count up to
-                    //    `maxChannelTopContributorCount`
+                    // 1. Who has the highest contribution count up to `maxChannelTopContributorCount`
                     // 2. Earliest contribution time
                     function* iterateTopContributorAccountIds() {
                         const accountIdsByContributionCount = new DefaultMap<
@@ -346,10 +340,10 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             if (accountIds !== undefined) yield* accountIds;
                         }
 
-                        // Fill the top contributors array with accounts that have been explicitly
-                        // granted access even if those accounts haven't posted in the channel yet.
-                        // This is especially useful for private channels. Since you can see who's been
-                        // added to the private channel.
+                        // Fill the top contributors array with accounts that have been explicitly granted
+                        // access even if those accounts haven't posted in the channel yet. This is
+                        // especially useful for private channels. Since you can see who's been added to
+                        // the private channel.
                         for (const accountId of item.accountIdsWithGrant) {
                             if (item.contributionCountByAccountId.has(accountId)) continue;
                             yield accountId;
@@ -362,10 +356,10 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         for (const accountId of iterateTopContributorAccountIds()) {
                             nextBatch.push(accountId);
 
-                            // If our max is 8, and we find 7 active, we ask for 2 more to give us some
-                            // wiggle room in case some of them are inactive, and we don't need to
-                            // do as many rounds of searching. This will also help if two in the first
-                            // 10 are inactive, we can still find the 8 we need.
+                            // If our max is 8, and we find 7 active, we ask for 2 more to give us some wiggle
+                            // room in case some of them are inactive, and we don't need to do as many rounds
+                            // of searching. This will also help if two in the first 10 are inactive, we can
+                            // still find the 8 we need.
                             if (nextBatch.length >= maxChannelTopContributorCount + 2) {
                                 yield nextBatch;
                                 nextBatch = [];
@@ -380,8 +374,8 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                     const topContributors: Array<AccountModel> = [];
 
                     // Will load accounts in batches. If we have enough accounts to fill
-                    // `topContributors`, great! Otherwise we'll load another batch. Batches sizes
-                    // are `maxChannelTopContributorCount + 2` in case we have any removed accounts.
+                    // `topContributors`, great! Otherwise we'll load another batch. Batches sizes are
+                    // `maxChannelTopContributorCount + 2` in case we have any removed accounts.
                     outer: for (const batchedAccountIds of iterateBatchedTopContributorAccountIds()) {
                         const newTopContributors = await runAllPromises(
                             mapIterable(batchedAccountIds, accountId =>
@@ -455,31 +449,29 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         },
     },
     broadcastEventTransaction: async (context, eventTransaction) => {
-        // Split up event transactions so we send everything in a `ChannelId` to
-        // that channel and nothing else. We have to split for security: if two
-        // channels are updated in the same transaction, a user connected to
-        // channel 1 shouldn't get realtime events for channel 2 which they don't
-        // have access to.
+        // Split up event transactions so we send everything in a `ChannelId` to that
+        // channel and nothing else. We have to split for security: if two channels are
+        // updated in the same transaction, a user connected to channel 1 shouldn't get
+        // realtime events for channel 2 which they don't have access to.
         //
-        // This means clients may see a glitch where an atomic update across two
-        // channels is applied separately. This is fine as in practice we don't
-        // have any cross-channel updates it's critical for users to see
-        // atomically.
+        // This means clients may see a glitch where an atomic update across two channels
+        // is applied separately. This is fine as in practice we don't have any
+        // cross-channel updates it's critical for users to see atomically.
         const eventTransactionByChannelId = new Map<
             ChannelId,
             Array<DynamoGeneralRealtimeEventStub>
         >();
 
         // We also send post updates to the corresponding post durable object. That way
-        // single post views that have a WebSocket connection to `PostRealtimeService`
-        // will see content updates in realtime without needing to make an additional
-        // connection to `ChannelRealtimeService`.
+        // single post views that have a WebSocket connection to `PostRealtimeService` will
+        // see content updates in realtime without needing to make an additional connection
+        // to `ChannelRealtimeService`.
         //
         // This has some tradeoffs. It's certainly more efficient for clients to only
         // subscribe to `PostRealtimeService` and avoid receiving updates from
-        // `ChannelRealtimeService` they don't care about. However, this comes at the
-        // cost of an extra Durable Object request which [Cloudflare charges for][1].
-        // However, by the client only subscribing to `PostRealtimeService` (and not
+        // `ChannelRealtimeService` they don't care about. However, this comes at the cost
+        // of an extra Durable Object request which [Cloudflare charges for][1]. However,
+        // by the client only subscribing to `PostRealtimeService` (and not
         // `ChannelRealtimeService`) we can avoid duration costs for both
         // `PostRealtimeService` and `ChannelRealtimeService`.
         //
@@ -524,9 +516,8 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             itemKey.sortRangeType === "Attributes" &&
                             eventStub.item.version === 0;
 
-                        // Optimization: Don't broadcast post creation events to post durable
-                        // objects. No one will be subscribed to the post durable object before the
-                        // post is created.
+                        // Optimization: Don't broadcast post creation events to post durable objects. No
+                        // one will be subscribed to the post durable object before the post is created.
                         if (!isPostCreationEvent) {
                             getOrSetDefaultMapValue(
                                 eventTransactionByPostId,
@@ -541,8 +532,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                                 newPartitionKeyByIndexName,
                             });
 
-                        // Send post realtime updates to the channel realtime stream the post is a
-                        // part of.
+                        // Send post realtime updates to the channel realtime stream the post is a part of.
                         if (newChannelId !== undefined) {
                             getOrSetDefaultMapValue(
                                 eventTransactionByChannelId,
@@ -552,14 +542,13 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         }
 
                         if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
-                            // TODO(calebmer, 2025-07-23): If a post moves from one channel to another
-                            // we'll need to send an event to the old channel. What do we send? A delete
-                            // item event? The item technically still exists the client just doesn't
-                            // have access anymore.
+                            // TODO(calebmer, 2025-07-23): If a post moves from one channel to another we'll
+                            // need to send an event to the old channel. What do we send? A delete item event?
+                            // The item technically still exists the client just doesn't have access anymore.
                             //
-                            // Maybe a put item event is fine if the post's contents don't change at the
-                            // same time as it moves channels (the client already had access to the post's
-                            // old contents). Make that decision when we implement channel moving.
+                            // Maybe a put item event is fine if the post's contents don't change at the same
+                            // time as it moves channels (the client already had access to the post's old
+                            // contents). Make that decision when we implement channel moving.
                         }
                     }
                 },
@@ -620,10 +609,10 @@ const FilePostAuthorizer = FileAuthorizer.new(
 
 export {FilePostAuthorizer as InternalFilePostAuthorizer};
 
-// We use an index with join queries since it reduces write/storage costs
-// (compared to `addExpensiveFullIndex()`) and the read performance sacrifice
-// isn't that bad since most of the time posts will be viewed through home feed
-// or inbox anyway (vs querying a channel).
+// We use an index with join queries since it reduces write/storage costs (compared
+// to `addExpensiveFullIndex()`) and the read performance sacrifice isn't that bad
+// since most of the time posts will be viewed through home feed or inbox anyway
+// (vs querying a channel).
 export const ChannelPostsIndex = ForumRealtimeTable.addIndexWithQueryJoin({
     name: "ChannelPosts",
     itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
@@ -758,8 +747,8 @@ export type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
     "PostFiles"
 >;
 
-// Uses TypeScript to make sure if a new channel sort range is added we
-// consider whether `getChannelRealtimeEvent()` is allowed to return it or not.
+// Uses TypeScript to make sure if a new channel sort range is added we consider
+// whether `getChannelRealtimeEvent()` is allowed to return it or not.
 export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
     (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
         readonly partitionType: "Channel";
@@ -771,8 +760,8 @@ export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
     PostFiles: true,
 };
 
-// Uses TypeScript to make sure if a new post sort range is added we
-// consider whether `getPostRealtimeEvent()` is allowed to return it or not.
+// Uses TypeScript to make sure if a new post sort range is added we consider
+// whether `getPostRealtimeEvent()` is allowed to return it or not.
 export const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
     (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
         readonly partitionType: "Post";

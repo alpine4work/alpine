@@ -3,8 +3,8 @@ import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 
 /**
  * `useState()` with a dependency list. When that dependency list changes, the
- * state resets back to the initial state. The state initializer may consume
- * the dependency list as a convenience.
+ * state resets back to the initial state. The state initializer may consume the
+ * dependency list as a convenience.
  *
  * You can kind of think of this as a `useMemo(() => useState(), dependencies)`
  * combination.
@@ -51,8 +51,8 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                             Object.is(dependency, dependencies[index]),
                         );
 
-                    // If our dependencies changed we need to reinitialize the state before running
-                    // our updater.
+                    // If our dependencies changed we need to reinitialize the state before running our
+                    // updater.
                     const oldState = areDependenciesEqual
                         ? stateWithDependencies.state
                         : // It is ok to use `initialState` here even though it is not in the dependency
@@ -130,18 +130,17 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
  *
  * 1. You can be confident React won't blow away the memoized value. React may
  *    recompute memo at any time. In `<StrictMode>` React in fact calls the
- *    memoizer function twice to make sure you don't do stateful things with
- *    your memo. So if you need to create a stateful resource, this hook is
- *    more reliable.
+ *    memoizer function twice to make sure you don't do stateful things with your
+ *    memo. So if you need to create a stateful resource, this hook is more
+ *    reliable.
  *
- * 2. You have access to the previous value when computing your new value. This
- *    is nice if you need to reuse parts of a previous value. Accumulating some
- *    new value over time.
+ * 2. You have access to the previous value when computing your new value. This is
+ *    nice if you need to reuse parts of a previous value. Accumulating some new
+ *    value over time.
  *
- * 3. You're free to capture "stale" props in the initializer function and
- *    they'll be saved to state. Useful if you want to capture some initial
- *    prop into state and you don't want to re-compute your state if that prop
- *    changes.
+ * 3. You're free to capture "stale" props in the initializer function and they'll
+ *    be saved to state. Useful if you want to capture some initial prop into state
+ *    and you don't want to re-compute your state if that prop changes.
  */
 export function useStateWithDependenciesWithoutDispatch<
     State,

@@ -9,9 +9,9 @@ export function printMarkdownPhrasingContentText(contents: ReadonlyArray<Phrasin
             | PhrasingContent
             // Make TypeScript happy. `inlineMath` is valid `PhrasingContent` when we run
             // TypeScript on the entire codebase since it's used in
-            // `parseApiContentFromMarkdown()` but it's not available when we run
-            // TypeScript just on this Bazel package. Make the two environments consistent
-            // by adding a stub type here.
+            // `parseApiContentFromMarkdown()` but it's not available when we run TypeScript
+            // just on this Bazel package. Make the two environments consistent by adding a
+            // stub type here.
             | {type: "inlineMath"; value: string}
         >,
     ) => {

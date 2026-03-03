@@ -117,18 +117,17 @@ const rootNativeMobileOutletParentRouteIds = ["root"] as const;
 const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
 
 // These `<head>` elements never change. If Remix/React re-render then these
-// elements should not update. Updating these elements may cause resources to
-// be fetched from the server again!
+// elements should not update. Updating these elements may cause resources to be
+// fetched from the server again!
 const constantRootHead = (
     <>
         <meta charSet="utf-8" />
         <meta
             name="viewport"
-            // - `user-scalable=no`: Don't allow pinch to zoom. This is against
-            //    industry accessibility guidelines. We want our site to feel like an app
-            //    and apps don't allow zooming. Zooming is a very web feeling behavior. To
-            //    help users with accessibility needs we should add support for font
-            //    scaling.
+            // - `user-scalable=no`: Don't allow pinch to zoom. This is against industry
+            //   accessibility guidelines. We want our site to feel like an app and apps don't
+            //   allow zooming. Zooming is a very web feeling behavior. To help users with
+            //   accessibility needs we should add support for font scaling.
             //
             // - `viewport-fit=cover`: Render content under [safe area insets][2]. We use
             //   `env(safe-area-inset-*)` to make sure we add the appropriate amount of
@@ -148,30 +147,30 @@ const constantRootHead = (
             content="noindex"
         />
         <meta
-            // Don't automatically detect format of various text bits on iOS. If we want
-            // format detection we'll manually add it ourselves. Format detection doesn't
-            // play nicely with React server rendering.
+            // Don't automatically detect format of various text bits on iOS. If we want format
+            // detection we'll manually add it ourselves. Format detection doesn't play nicely
+            // with React server rendering.
             // https://nextjs.org/docs/messages/react-hydration-error#common-ios-issues
             name="format-detection"
             content="telephone=no, date=no, email=no, address=no"
         />
         <meta
-            // Set the theme color for PWA installations.
-            // This controls the color of the outer UI of the PWA when it's installed on a device.
+            // Set the theme color for PWA installations. This controls the color of the outer
+            // UI of the PWA when it's installed on a device.
             name="theme-color"
             content={colors["grey-0"]}
             media="(prefers-color-scheme: light)"
         />
         <meta
-            // Set the theme color for PWA installations
-            // This controls the color of the outer UI of the PWA when it's installed on a device.
+            // Set the theme color for PWA installations This controls the color of the outer
+            // UI of the PWA when it's installed on a device.
             name="theme-color"
             content={colors["grey-100"]}
             media="(prefers-color-scheme: dark)"
         />
         <link
-            // Preload our primary font Inter from our shared styles in parallel with CSS
-            // to try and avoid flashes of unstyled text.
+            // Preload our primary font Inter from our shared styles in parallel with CSS to
+            // try and avoid flashes of unstyled text.
             //
             // https://web.dev/articles/codelab-preload-web-fonts
             rel="preload"
@@ -193,8 +192,8 @@ const constantRootHead = (
             href={`${resourceServiceUrl}/app-icons/app-icon-1024x1024.png`}
         />
         <link
-            // Recommend the SVG favicon so it can render in light and dark mode.
-            // Ensure this icon is last so it gets preference over any other icon types.
+            // Recommend the SVG favicon so it can render in light and dark mode. Ensure this
+            // icon is last so it gets preference over any other icon types.
             rel="icon"
             href="/favicon.svg"
             type="image/svg+xml"
@@ -220,9 +219,9 @@ function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
         <head>
             {constantRootHead}
             {loaderData?.isIntegrationTest && (
-                // If we're running an integration test then add noop `react-refresh`
-                // globals so we don't get any reference errors. Our SWC development config
-                // applies the `react-refresh` transform.
+                // If we're running an integration test then add noop `react-refresh` globals so we
+                // don't get any reference errors. Our SWC development config applies the
+                // `react-refresh` transform.
                 <script
                     dangerouslySetInnerHTML={{
                         __html: `globalThis.__isIntegrationTest = true; globalThis.$RefreshReg$ = () => {}; globalThis.$RefreshSig$ = () => value => value;`,
@@ -239,13 +238,13 @@ function renderRootBodyScripts(platform: Platform) {
             <ScrollRestoration />
             <BazelBuildIndicator platform={platform} />
             <script
-                // Let our native app know we're ready once the server render has finished.
-                // This script intentionally runs before React hydration since we can
-                // immediately show the server rendered HTML to the user.
+                // Let our native app know we're ready once the server render has finished. This
+                // script intentionally runs before React hydration since we can immediately show
+                // the server rendered HTML to the user.
                 //
-                // Wrapped in a double `requestAnimationFrame()`. We want to let
-                // native know we're ready after the browser paints so we don't have a flash of
-                // unstyled content. Or a flash of the old content in case we're reloading.
+                // Wrapped in a double `requestAnimationFrame()`. We want to let native know we're
+                // ready after the browser paints so we don't have a flash of unstyled content. Or
+                // a flash of the old content in case we're reloading.
                 dangerouslySetInnerHTML={{
                     __html: "if (window.__NativeMobileBridge) { requestAnimationFrame(() => requestAnimationFrame(() => window.__NativeMobileBridge.health.ready())); }",
                 }}
@@ -261,8 +260,8 @@ function useRootAppContext(
     platform: Platform,
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>,
 ) {
-    // Incidentally, re-rendering when loader data is fulfilled here also causes
-    // our `<Meta>` to re-render which fills in the right HTML document title.
+    // Incidentally, re-rendering when loader data is fulfilled here also causes our
+    // `<Meta>` to re-render which fills in the right HTML document title.
     const loadingIndicatorLoaderDataResult = usePromise(
         useMemo(() => {
             const loaderData = Object.values(dataRouterStateContext.loaderData).filter(
@@ -275,8 +274,8 @@ function useRootAppContext(
 
     let context = useAppContext();
 
-    // Add propagated event data to our tracer so that child React components
-    // log events with the right context.
+    // Add propagated event data to our tracer so that child React components log
+    // events with the right context.
     context = useMemo(() => {
         const propagatedEventData: Array<TracerEventFullData> = [];
 
@@ -360,20 +359,19 @@ export default function Root() {
 
     const context = useRootAppContext(clientInfo, spacingScale, platform, dataRouterStateContext);
 
-    // If there are any unhandled browser errors then report them with our tracer.
-    // We put uncaught error handling here because we want it to include propagated
-    // data from loaders.
+    // If there are any unhandled browser errors then report them with our tracer. We
+    // put uncaught error handling here because we want it to include propagated data
+    // from loaders.
     //
-    // TODO(calebmer): Unhandled errors should display a blocking modal. Generally
-    // you should prefer display errors (like a button press error) with a toast
-    // since it's lightweight and lets the user try again. We automatically do this
-    // in `<Button>` components. If there's an unhandled error, though, show that
-    // with a blocking modal since we don't know whether we're left in a good state
-    // or not.
+    // TODO(calebmer): Unhandled errors should display a blocking modal. Generally you
+    // should prefer display errors (like a button press error) with a toast since it's
+    // lightweight and lets the user try again. We automatically do this in `<Button>`
+    // components. If there's an unhandled error, though, show that with a blocking
+    // modal since we don't know whether we're left in a good state or not.
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
-            // If some other error event handler called `event.preventDefault()` then the
-            // error will be silenced in the browser and we want to silence it here too.
+            // If some other error event handler called `event.preventDefault()` then the error
+            // will be silenced in the browser and we want to silence it here too.
             if (event.defaultPrevented) return;
 
             // For debugging purposes, errors caught by React are re-thrown as unhandled
@@ -420,9 +418,9 @@ export default function Root() {
 
     if (!nativeMobileRouterState) {
         nodes.push(
-            // Render a `<div>` around children even when we're not rendering in the
-            // context of our native mobile app so that layout is consistent across native
-            // mobile and everything else.
+            // Render a `<div>` around children even when we're not rendering in the context of
+            // our native mobile app so that layout is consistent across native mobile and
+            // everything else.
             <div
                 // We need a key since we're in an array but the key doesn't matter.
                 key="0"
@@ -452,39 +450,39 @@ export default function Root() {
             />
         );
 
-        // When in our native mobile app, we render multiple routes to the DOM at once!
-        // We render the active route and we render previous routes in an inert state.
-        // Inert routes are invisible and the user can't interact with them through
-        // keyboard, mouse, anything. The reason we do this is two-fold:
+        // When in our native mobile app, we render multiple routes to the DOM at once! We
+        // render the active route and we render previous routes in an inert state. Inert
+        // routes are invisible and the user can't interact with them through keyboard,
+        // mouse, anything. The reason we do this is two-fold:
         //
         // 1. Because we end up navigating more frequently on mobile, users expect when
-        //    they return to a route for it to be in the exact same state as when they
-        //    left it. Same scroll position, same text left in inputs, same everything.
+        //    they return to a route for it to be in the exact same state as when they left
+        //    it. Same scroll position, same text left in inputs, same everything.
         //
-        // 2. If the user is swiping to go back, we render an old snapshot of the view
-        //    we took while waiting for the web view to update. If our new web view is
-        //    in a different state there will be a flash as we transition from the
-        //    snapshot to the actual view.
+        // 2. If the user is swiping to go back, we render an old snapshot of the view we
+        //    took while waiting for the web view to update. If our new web view is in a
+        //    different state there will be a flash as we transition from the snapshot to
+        //    the actual view.
         //
-        // By keeping routes in the navigation stack rendered in the DOM (with their
-        // React states and effects all still active) when the user returns to that
-        // screen their state is entirely preserved.
+        // By keeping routes in the navigation stack rendered in the DOM (with their React
+        // states and effects all still active) when the user returns to that screen their
+        // state is entirely preserved.
         //
-        // Keep in mind, it's not enough to unmount a route but preserve its loader
-        // data, then render a route again with the old loader data. Doing this would
-        // reset UI state like scroll position.
+        // Keep in mind, it's not enough to unmount a route but preserve its loader data,
+        // then render a route again with the old loader data. Doing this would reset UI
+        // state like scroll position.
         //
-        // Not all our inert routes are rendered here in `root.tsx`. Space inert routes
-        // are rendered in `s.$spaceId.tsx`. That way we can share space-level context
-        // across inert routes. Like the task realtime client.
+        // Not all our inert routes are rendered here in `root.tsx`. Space inert routes are
+        // rendered in `s.$spaceId.tsx`. That way we can share space-level context across
+        // inert routes. Like the task realtime client.
         for (const {
             entryKey,
             routerState: inertRouterState,
         } of nativeMobileRouterState.inertRouterStates) {
-            // Inert space routes that share the same `SpaceId` should be rendered under
-            // one `/s/:spaceId` route so they share the same space context components.
-            // So render the first `/s/:spaceId` route we see then trust that component to
-            // render the remaining inert router states.
+            // Inert space routes that share the same `SpaceId` should be rendered under one
+            // `/s/:spaceId` route so they share the same space context components. So render
+            // the first `/s/:spaceId` route we see then trust that component to render the
+            // remaining inert router states.
             const inertSpaceRouteMatch = inertRouterState.matches.find(
                 match => match.route.id === "routes/s.$spaceId",
             );
@@ -500,10 +498,10 @@ export default function Root() {
             // render the primary route in this position with the current `entryKey` to
             // preserve the inert route's key path.
             //
-            // TODO(calebmer): I haven't tested rendering an inert route from a different
-            // space (nothing in the product does this I think?). It probably breaks
-            // spectacularly. Or if it doesn't break it's inefficient since the component
-            // will remount and we'll make multiple WebSocket connections per space.
+            // TODO(calebmer): I haven't tested rendering an inert route from a different space
+            // (nothing in the product does this I think?). It probably breaks spectacularly.
+            // Or if it doesn't break it's inefficient since the component will remount and
+            // we'll make multiple WebSocket connections per space.
             if (
                 primarySpaceRouteMatch &&
                 inertSpaceRouteMatch &&
@@ -540,22 +538,21 @@ export default function Root() {
     }
 
     // Maintain a consistent ordering of history stack items in the DOM. If history
-    // stack items move during a navigation then their scroll positions and other
-    // DOM state will be reset!
+    // stack items move during a navigation then their scroll positions and other DOM
+    // state will be reset!
     //
-    // History stack items often change order when switching tabs. For instance if
-    // you switch to the inbox tab then all previous inbox history stack entries
-    // will be moved to the end of `inertRouterStates`. If we keep entries in
-    // `inertRouterStates` order then React will happily call
-    // `Element.appendChild()` (or `Element.insertBefore()`) to move the history
-    // stack entry in the DOM which resets the route's `scrollTop` state so if the
-    // user navigates back their scroll position is lost. `scrollTop` also updates
-    // without sending a scroll event which means `useNavigationBar()`'s state
-    // won't update which will look broken.
+    // History stack items often change order when switching tabs. For instance if you
+    // switch to the inbox tab then all previous inbox history stack entries will be
+    // moved to the end of `inertRouterStates`. If we keep entries in
+    // `inertRouterStates` order then React will happily call `Element.appendChild()`
+    // (or `Element.insertBefore()`) to move the history stack entry in the DOM which
+    // resets the route's `scrollTop` state so if the user navigates back their scroll
+    // position is lost. `scrollTop` also updates without sending a scroll event which
+    // means `useNavigationBar()`'s state won't update which will look broken.
     //
     // [Example of a problem not sorting causes][1]. Notice how the second time we
-    // navigate to the document it's been scrolled to the top. That's because the
-    // inert route DOM nodes are being reordered.
+    // navigate to the document it's been scrolled to the top. That's because the inert
+    // route DOM nodes are being reordered.
     //
     // [1]: https://gist.github.com/calebmer/9fdbc9ffb08c700c6737866f18fe340a
     if (nodes.length > 1) {
@@ -630,8 +627,8 @@ export default function Root() {
 
     useEffect(() => {
         if (webPushStoreInitializedRef.current) return;
-        // Initialize the web push store with the vapid public key so it can be used later to
-        // subscribe to web push notifications.
+        // Initialize the web push store with the vapid public key so it can be used later
+        // to subscribe to web push notifications.
         const webPushStore = getWebPushStore();
         webPushStore
             .setVapidCredentials(loaderData.webPushVapidPublicKey)
@@ -650,19 +647,17 @@ export default function Root() {
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
             // `SpaceThemeColorManager` sets `data-theme` before React hydrates. To avoid
-            // hydration mismatches, read the current DOM value for the initial
-            // client render.
+            // hydration mismatches, read the current DOM value for the initial client render.
             data-theme={
                 typeof document !== "undefined"
                     ? (document.documentElement.getAttribute("data-theme") ?? undefined)
                     : undefined
             }
-            // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>`
-            // before React hydrates and removed after we set the spacing scale. To prevent
-            // hydration warnings, for initial client render check if this property exists
-            // in the DOM and reflect it in React too. When `hasSetSpacingScale` is true
-            // this attribute will be removed either by React or
-            // `spacing_scale_context.tsx`.
+            // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>` before
+            // React hydrates and removed after we set the spacing scale. To prevent hydration
+            // warnings, for initial client render check if this property exists in the DOM and
+            // reflect it in React too. When `hasSetSpacingScale` is true this attribute will
+            // be removed either by React or `spacing_scale_context.tsx`.
             data-spacing-mismatch={
                 !hasSetSpacingScale && typeof document !== "undefined"
                     ? (document.documentElement.getAttribute("data-spacing-mismatch") ?? undefined)
@@ -680,17 +675,17 @@ export default function Root() {
 
 // This error boundary route mainly renders 404 errors. We add a default error
 // boundary to all root route children in `app_client_routes.ts` and
-// `app_server_routes.ts`. So we don't need to re-render the full `<html>`
-// document if a child errors.
+// `app_server_routes.ts`. So we don't need to re-render the full `<html>` document
+// if a child errors.
 export {RootErrorBoundaryWrapper as ErrorBoundary};
 function RootErrorBoundaryWrapper() {
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
-    // `useLoaderData()` doesn't work in an error boundary or catch boundary.
-    // We use this exact component for error and catch boundaries to avoid
-    // remounting when navigating between errors and non-errors. So manually
-    // deserialize the data for this route.
+    // `useLoaderData()` doesn't work in an error boundary or catch boundary. We use
+    // this exact component for error and catch boundaries to avoid remounting when
+    // navigating between errors and non-errors. So manually deserialize the data for
+    // this route.
     const loaderData = useMemo(
         () =>
             dataRouterStateContext.loaderData.root
@@ -700,8 +695,8 @@ function RootErrorBoundaryWrapper() {
     );
 
     const {clientInfo, render: renderClientInfoContextProvider} = useClientInfoContextProvider({
-        // If there was an error at our root loader and we couldn't load `BrowserId`
-        // then use the `RealmId` as the `BrowserId`.
+        // If there was an error at our root loader and we couldn't load `BrowserId` then
+        // use the `RealmId` as the `BrowserId`.
         browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
         initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
         cookieNameSuffix: loaderData?.cookieNameSuffix ?? "",
@@ -720,8 +715,8 @@ function RootErrorBoundaryWrapper() {
 
     const [fallbackInitialTime] = useState(() => new Date());
 
-    // In case we don't have loader data (an error was thrown) fallback to trying
-    // to read the current date.
+    // In case we don't have loader data (an error was thrown) fallback to trying to
+    // read the current date.
     const initialTime = useMemo(
         () => loaderData?.initialTime ?? fallbackInitialTime,
         [fallbackInitialTime, loaderData?.initialTime],
@@ -755,19 +750,17 @@ function RootErrorBoundaryWrapper() {
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
             // `SpaceThemeColorManager` sets `data-theme` before React hydrates. To avoid
-            // hydration mismatches, read the current DOM value for the initial
-            // client render.
+            // hydration mismatches, read the current DOM value for the initial client render.
             data-theme={
                 typeof document !== "undefined"
                     ? (document.documentElement.getAttribute("data-theme") ?? undefined)
                     : undefined
             }
-            // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>`
-            // before React hydrates and removed after we set the spacing scale. To prevent
-            // hydration warnings, for initial client render check if this property exists
-            // in the DOM and reflect it in React too. When `hasSetSpacingScale` is true
-            // this attribute will be removed either by React or
-            // `spacing_scale_context.tsx`.
+            // This property is set by `<SpacingScaleInitialAppRenderMismatchScript>` before
+            // React hydrates and removed after we set the spacing scale. To prevent hydration
+            // warnings, for initial client render check if this property exists in the DOM and
+            // reflect it in React too. When `hasSetSpacingScale` is true this attribute will
+            // be removed either by React or `spacing_scale_context.tsx`.
             data-spacing-mismatch={
                 !hasSetSpacingScale && typeof document !== "undefined"
                     ? (document.documentElement.getAttribute("data-spacing-mismatch") ?? undefined)

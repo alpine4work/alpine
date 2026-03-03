@@ -46,8 +46,8 @@ export type TaskContextModuleActionTransaction = {
 };
 
 /**
- * Helps perform work related to tasks that needs to interact with other
- * systems. Notably:
+ * Helps perform work related to tasks that needs to interact with other systems.
+ * Notably:
  *
  * - Escalating to system permission level when indexing a task action
  * - Communicating with the task realtime service
@@ -84,8 +84,8 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
 
     /**
      * Index an action transaction after its been committed. This function must be
-     * called at-least-once for every committed action transaction. It is ok to
-     * call this function multiple times, though.
+     * called at-least-once for every committed action transaction. It is ok to call
+     * this function multiple times, though.
      */
     public indexActionTransactionAssumingItsCommitted(
         this: TaskContextModuleBase &
@@ -104,8 +104,8 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
 
     /**
      * Apply an action transaction in all the `TaskRealtimeService` servers that
-     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends
-     * the action to connected WebSockets as well.
+     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends the
+     * action to connected WebSockets as well.
      */
     public abstract applyActionTransactionInRealtimeService(
         this: TaskContextModuleBase & ContextModuleBase<Omit<ServerActionContextModules, "actor">>,
@@ -117,9 +117,9 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public abstract loadQueries(
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
@@ -136,9 +136,9 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public abstract getTaskWithoutDependenciesIfPossible(
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
@@ -155,9 +155,9 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public async getTaskWithoutDependencies(
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
@@ -180,9 +180,9 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public abstract getCollectionIfPossible(
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
@@ -196,9 +196,9 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public async getCollection(
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,

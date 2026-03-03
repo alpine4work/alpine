@@ -19,20 +19,19 @@ export async function createAccessPolicyForContentCreatedByBot(
         await runAllPromises(
             botAccessPolicy.accountGrantById.keys().map(async accountId => {
                 // it's possible that someone in the bot's scope was removed from the space.
-                // if/when they're added back to the space, they shouldn't have access to
-                // the content by default, right?
+                // if/when they're added back to the space, they shouldn't have access to the
+                // content by default, right?
                 const isMember = await isAccountMemberOfSpace(context, spaceId, accountId);
                 if (!isMember) return null;
 
-                // Bots should not be added directly to an access policy. They have access
-                // to content based on their current scope. As soon as the bot creates
-                // the content within a given scope, it'll be able to read that content
-                // back from that scope. When asked to update the content, it will only
-                // be able to do so if the request is coming from a scope that also has
-                // access to the document.
+                // Bots should not be added directly to an access policy. They have access to
+                // content based on their current scope. As soon as the bot creates the content
+                // within a given scope, it'll be able to read that content back from that scope.
+                // When asked to update the content, it will only be able to do so if the request
+                // is coming from a scope that also has access to the document.
                 //
-                // I think this is right. This prevents a bad actor who doesn't have access
-                // to the content from being able to read it through the access policy.
+                // I think this is right. This prevents a bad actor who doesn't have access to the
+                // content from being able to read it through the access policy.
                 const isBot = await isBotSpaceAccount(context, spaceId, accountId);
                 if (isBot) return null;
 
@@ -54,7 +53,8 @@ export async function createAccessPolicyForContentCreatedByBot(
         humanAccountIdsWithAccess.map(accountId => [accountId, {level: "Manage", generation: 0}]),
     );
 
-    // Add generation to defaultGrant if it's "Manage" level (required by AccessPolicy schema)
+    // Add generation to defaultGrant if it's "Manage" level (required by AccessPolicy
+    // schema)
     const defaultGrant = botAccessPolicy.defaultGrant
         ? botAccessPolicy.defaultGrant.level === "Manage"
             ? {level: "Manage" as const, generation: 0}

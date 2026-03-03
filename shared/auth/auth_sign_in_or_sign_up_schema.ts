@@ -6,11 +6,11 @@ import {Schema} from "~/shared/schema/schema.js";
 // NOTE(calebmer): We don't have RPCs for `attemptOneTimePasswordSignIn()` or
 // `attemptOneTimePasswordSignUpThenCreateSpace()` because:
 //
-// 1. We need to update the `session` cookie (which is an HTTP-only cookie)
-//    when they succeed
+// 1. We need to update the `session` cookie (which is an HTTP-only cookie) when
+//    they succeed
 //
-// 2. We need access to the user agent and client IP address which aren't
-//    currently available to the RPC framework.
+// 2. We need access to the user agent and client IP address which aren't currently
+//    available to the RPC framework.
 //
 // So we have custom `/api/auth/sign-in` and `/api/auth/sign-up` endpoints.
 export const AuthSignInOrSignUpInputSchema = Schema.object({

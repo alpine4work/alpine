@@ -9,8 +9,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * Test importer context module that stores files in memory.
  *
- * This module is used in unit tests where filesystem access isn't
- * available (e.g., in Bazel sandboxed tests).
+ * This module is used in unit tests where filesystem access isn't available (e.g.,
+ * in Bazel sandboxed tests).
  */
 export class TestImporterContextModule extends ImporterContextModuleBase<{
     tracer: TracerContextModule;

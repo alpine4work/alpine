@@ -63,9 +63,9 @@ if (process.env.NODE_ENV !== "development") {
 
                 setMessageState(previousMessageState => ({
                     message,
-                    // If the message is "Built" (and not "Failed to build") expire the banner
-                    // quickly since it might be from a hot reload. When there's a full reload we
-                    // get `event.type === "RELOAD"` which removes the expiration time.
+                    // If the message is "Built" (and not "Failed to build") expire the banner quickly
+                    // since it might be from a hot reload. When there's a full reload we get
+                    // `event.type === "RELOAD"` which removes the expiration time.
                     expirationTime:
                         Date.now() +
                         (event.type === "BuildStart" ? 20_000 : !event.hasFailed ? 250 : 1_500),
@@ -161,9 +161,9 @@ if (process.env.NODE_ENV !== "development") {
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
-                    // We don't want to import `navigation_bar.tsx` to avoid including that
-                    // file in this bundle. Instead use `navigationBarStyles` since the CSS is
-                    // available in every bundle.
+                    // We don't want to import `navigation_bar.tsx` to avoid including that file in
+                    // this bundle. Instead use `navigationBarStyles` since the CSS is available in
+                    // every bundle.
                     style={{
                         height: subtractRemLengths(navigationBarStyles.navigationBarHeight, "2"),
                     }}

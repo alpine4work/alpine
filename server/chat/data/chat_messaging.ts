@@ -157,9 +157,9 @@ export function sendChatMessage(
     });
 }
 
-// IMPORTANT: Don't export this function! It allows our system actor to
-// impersonate a user and send a message on their behalf. Only write code to
-// send chat messages on behalf of another account in this file.
+// IMPORTANT: Don't export this function! It allows our system actor to impersonate
+// a user and send a message on their behalf. Only write code to send chat messages
+// on behalf of another account in this file.
 function sendChatMessageForAccount(
     context: ServerActionContext,
     {
@@ -311,8 +311,8 @@ function sendChatMessageForAccount(
 
         const messageIndex = getChatMessageCount(chatAttributesItem.messagesSummary);
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const createdTime = overrideCreatedTimeForTest ?? currentTime;
@@ -372,9 +372,9 @@ function sendChatMessageForAccount(
                     {updateLockVersion: chatAttributesItem.updateLockVersion},
                 ),
 
-                // If this is a stream message then create the stream state item.
-                // Create-or-replace is safe since we know the message index doesn't exist from
-                // our other condition checks.
+                // If this is a stream message then create the stream state item. Create-or-replace
+                // is safe since we know the message index doesn't exist from our other condition
+                // checks.
                 ...(clerical?.type === "Stream"
                     ? [
                           ChatTable.transactionCreateOrReplaceItem({
@@ -429,8 +429,8 @@ function sendChatMessageForAccount(
                             context,
                             chatAttributesItem.spaceId,
                             {
-                                // TODO(ifitzsimmons, share-entity-with-agents): This should support a chat
-                                // with one human and multiple agents.
+                                // TODO(ifitzsimmons, share-entity-with-agents): This should support a chat with
+                                // one human and multiple agents.
                                 accountIdsInChat: chatAttributesItem.accountIdsForDirectOneOnOne,
                                 dangerousCurrentlyViewingSearchEntityId,
                                 authorId,
@@ -448,8 +448,8 @@ function sendChatMessageForAccount(
                     type: "ChatMessage",
                     chatId,
                     messageIndex,
-                    // Nothing depends on this entity when it's created. Don't bother trying to
-                    // reindex dependencies.
+                    // Nothing depends on this entity when it's created. Don't bother trying to reindex
+                    // dependencies.
                     updatedTraits: {type: "None"},
                 },
             },
@@ -459,8 +459,8 @@ function sendChatMessageForAccount(
             },
         );
 
-        // We don't index a chat for search until the first message is sent to
-        // the chat. We also index when the contributors map changes.
+        // We don't index a chat for search until the first message is sent to the chat. We
+        // also index when the contributors map changes.
         if (
             (chatAttributesItem.definition.type === "Direct" && messageIndex === 0) ||
             !isDeepEqual(
@@ -485,18 +485,17 @@ function sendChatMessageForAccount(
             });
         }
 
-        // Only increase affinity score if we have a session actor. Don't increase
-        // affinity score if this is a system actor sending a message on behalf of an
-        // account.
+        // Only increase affinity score if we have a session actor. Don't increase affinity
+        // score if this is a system actor sending a message on behalf of an account.
         if (context.actor.type === "Session") {
             const sessionContext = context.actor.authorizeSession();
 
-            // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we
-            // want to add affinity points to the account we're messaging. That way we
-            // build affinity with the account directly.
+            // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we want to
+            // add affinity points to the account we're messaging. That way we build affinity
+            // with the account directly.
             context.process.waitUntil(async () => {
-                // Small messages are considered low intent updates. This defends against
-                // spamming where a user is sending small one word messages to make a point.
+                // Small messages are considered low intent updates. This defends against spamming
+                // where a user is sending small one word messages to make a point.
                 const interaction: SearchAffinityEntityInteraction =
                     content.nodeSize < 50
                         ? {type: "LowIntentUpdate"}
@@ -516,10 +515,10 @@ function sendChatMessageForAccount(
                         interaction,
                     });
                 } else if (definition.type === "Direct" && definition.accountCount <= 2) {
-                    // Noop. We don't index chats with less than two accounts. Instead you should
-                    // be referencing the `Account:${AccountId}` entity. If this chat has only one
-                    // account it's the user's personal chat. We don't currently give affinity
-                    // points for the account's personal chat when you send a message.
+                    // Noop. We don't index chats with less than two accounts. Instead you should be
+                    // referencing the `Account:${AccountId}` entity. If this chat has only one account
+                    // it's the user's personal chat. We don't currently give affinity points for the
+                    // account's personal chat when you send a message.
                 } else {
                     await markSearchAffinityEntityInteraction(sessionContext, {
                         spaceId: chatAttributesItem.spaceId,
@@ -529,12 +528,12 @@ function sendChatMessageForAccount(
                 }
             });
 
-            // Increase affinity points for all mentioned accounts with a high intent
-            // update since the user clearly wants the attention of the mentioned accounts.
+            // Increase affinity points for all mentioned accounts with a high intent update
+            // since the user clearly wants the attention of the mentioned accounts.
             //
-            // (If a mentioned account doesn't have access to this message should that
-            // still be a high intent update? For now we say yes since the user is
-            // explicitly choosing to reference them.)
+            // (If a mentioned account doesn't have access to this message should that still be
+            // a high intent update? For now we say yes since the user is explicitly choosing
+            // to reference them.)
             for (const mentionedAccountId of mentionedAccountIds) {
                 context.process.waitUntil(async () => {
                     if (
@@ -564,8 +563,8 @@ function sendChatMessageForAccount(
 }
 
 /**
- * When the user shares an `AccessPolicy` with individual users and selects
- * "Notify people" then this job will be added to the queue.
+ * When the user shares an `AccessPolicy` with individual users and selects "Notify
+ * people" then this job will be added to the queue.
  */
 export async function processSendShareNotificationJob(
     context: ServerSystemActionContext,
@@ -619,8 +618,7 @@ export async function processSendShareNotificationJob(
                     ].join("-"),
                 });
             } catch (error) {
-                // SQS may retry this job. If so, don't send a message to the same
-                // account twice.
+                // SQS may retry this job. If so, don't send a message to the same account twice.
                 if (isDynamoIdempotentParameterMismatchError(error)) return;
 
                 throw error;
@@ -633,11 +631,11 @@ export async function processSendShareNotificationJob(
  * Update a part of the message stream.
  *
  * Message streams are made up of multiple parts. Only the bot that created a
- * stream can update the stream. A bot can only create new parts or update the
- * last part of the stream.
+ * stream can update the stream. A bot can only create new parts or update the last
+ * part of the stream.
  *
- * Currently, you completely replace a part when you update it. We may allow
- * more granular part updates in the future.
+ * Currently, you completely replace a part when you update it. We may allow more
+ * granular part updates in the future.
  */
 export function putChatMessageStreamPart(
     context: ServerActionContext,
@@ -858,13 +856,13 @@ export function putChatMessageStreamPart(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/chat/${chatId}/broadcast-put-message-stream-part`,
@@ -885,16 +883,16 @@ export function putChatMessageStreamPart(
 }
 
 /**
- * We send a notification event for a message stream once the first content
- * stream part is finished. A stream part is considered finished when a new
- * part is created after. Only the last stream part can be updated, all other
- * stream parts are frozen.
+ * We send a notification event for a message stream once the first content stream
+ * part is finished. A stream part is considered finished when a new part is
+ * created after. Only the last stream part can be updated, all other stream parts
+ * are frozen.
  *
- * So practically this means for most streams the notification is sent once we
- * put the second part (`partIndex === 1`) not the first part.
+ * So practically this means for most streams the notification is sent once we put
+ * the second part (`partIndex === 1`) not the first part.
  *
- * Unless this is a timeout error completion, in that case we send the
- * notification immediately since there will be no more parts.
+ * Unless this is a timeout error completion, in that case we send the notification
+ * immediately since there will be no more parts.
  */
 async function getNotificationEventForPutChatMessageStreamPart(
     context: DynamoContext,
@@ -927,9 +925,9 @@ async function getNotificationEventForPutChatMessageStreamPart(
     } else if (partIndex === 0) {
         return null;
     } else {
-        // If we're creating a new part then read the previous part we're finishing. If
-        // the previous part is a content part then send a notification using the
-        // content from that part.
+        // If we're creating a new part then read the previous part we're finishing. If the
+        // previous part is a content part then send a notification using the content from
+        // that part.
 
         const previousPartItem = await ChatTable.getItem(
             context,
@@ -972,8 +970,8 @@ async function getNotificationEventForPutChatMessageStreamPart(
 /**
  * Completes a message stream. After this parts can't be added or updated.
  *
- * This function is idempotent. If the stream is already completed this method
- * does nothing.
+ * This function is idempotent. If the stream is already completed this method does
+ * nothing.
  */
 export function completeChatMessageStream(
     context: ServerActionContext,
@@ -1022,8 +1020,8 @@ export function completeChatMessageStream(
             return {spaceId, completedTime: item.completedTime};
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const completedTime = new Date(Date.now());
 
         if (hasMessageStreamDefinitelyTimedOut(item)) {
@@ -1032,8 +1030,8 @@ export function completeChatMessageStream(
 
         let notificationEvent: NotificationEvent | null = null;
 
-        // If we haven't sent a notification event for this message stream yet then
-        // send one now!
+        // If we haven't sent a notification event for this message stream yet then send
+        // one now!
         if (item.pendingNotificationEvent) {
             const previousPartItem =
                 item.partCount > 0
@@ -1089,13 +1087,13 @@ export function completeChatMessageStream(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/chat/${chatId}/broadcast-complete-message-stream`,
@@ -1117,8 +1115,8 @@ export function completeChatMessageStream(
 /**
  * Pings a message stream and updates its `lastPingTime`.
  *
- * This function is idempotent. If the stream hasn't been pinged in a while this method
- * will update its `lastPingTime`.
+ * This function is idempotent. If the stream hasn't been pinged in a while this
+ * method will update its `lastPingTime`.
  */
 export function pingChatMessageStream(
     context: ServerActionContext,
@@ -1170,8 +1168,8 @@ export function pingChatMessageStream(
             throw createCantPingStaleMessageStreamError();
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const lastPingTime =
@@ -1228,8 +1226,7 @@ const ChatMessageItemContextCache = new DynamoContextCache<
     `${ChatId}:${number}`,
     MessageItem | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -1446,8 +1443,8 @@ export function updateChatMessageContent(
                 {updateLockVersion: chatItem.updateLockVersion},
             ),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
                 sortRangeType: "MessageUpdates",
@@ -1540,8 +1537,8 @@ export function deleteChatMessage(
                 {updateLockVersion: chatItem.updateLockVersion},
             ),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
                 sortRangeType: "MessageUpdates",
@@ -1618,8 +1615,8 @@ export function setChatMessageReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
                 sortRangeType: "MessageUpdates",
@@ -1690,8 +1687,8 @@ export function deleteChatMessageReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
                 sortRangeType: "MessageUpdates",
@@ -1823,8 +1820,8 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
     };
 
     const loadOtherReferencedMessage = (messageIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startMessageIndex <= messageIndex && messageIndex <= endMessageIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -1857,14 +1854,14 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
                 loadOtherReferencedMessageFromParent(item.payload.parent);
             }
 
-            // Don't propagate `consistency` when loading model references. We
-            // accept references can have eventual consistency.
+            // Don't propagate `consistency` when loading model references. We accept
+            // references can have eventual consistency.
             return createChatMessageModelFromItem(context, spaceId, chatId, item);
         }),
     );
 
-    // Keep loading other referenced messages until we have all of them. A
-    // referenced message may itself reference more messages.
+    // Keep loading other referenced messages until we have all of them. A referenced
+    // message may itself reference more messages.
     while (otherReferencedMessagePromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedMessagePromiseByIndex.values());
         otherReferencedMessagePromiseByIndex = new Map();
@@ -1880,8 +1877,8 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 }
 
 /**
- * Paginate through chat message payloads (doesn't load references) from start
- * to finish.
+ * Paginate through chat message payloads (doesn't load references) from start to
+ * finish.
  */
 export async function getChatMessagePayloadsFromStart(
     context: ServerActionContext,
@@ -2022,10 +2019,10 @@ export async function dangerouslyGetChatMessagesFromEndAssumingAuthorizedChat(
     const queryStartMessageIndex = Math.max(
         typeof beforeMessageIndex === "number"
             ? beforeMessageIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               (await chatItemPromise).messageCount - limit,
         typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
     );
@@ -2070,8 +2067,8 @@ export async function dangerouslyGetChatMessagesFromEndAssumingAuthorizedChat(
     };
 
     const loadOtherReferencedMessage = (messageIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startMessageIndex <= messageIndex && messageIndex <= endMessageIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -2105,8 +2102,8 @@ export async function dangerouslyGetChatMessagesFromEndAssumingAuthorizedChat(
         }),
     );
 
-    // Keep loading other referenced messages until we have all of them. A
-    // referenced message may itself reference more messages.
+    // Keep loading other referenced messages until we have all of them. A referenced
+    // message may itself reference more messages.
     while (otherReferencedMessagePromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedMessagePromiseByIndex.values());
         otherReferencedMessagePromiseByIndex = new Map();
@@ -2122,8 +2119,8 @@ export async function dangerouslyGetChatMessagesFromEndAssumingAuthorizedChat(
 }
 
 /**
- * Paginate through chat message payloads (doesn't load references) from finish
- * to start.
+ * Paginate through chat message payloads (doesn't load references) from finish to
+ * start.
  */
 export async function getChatMessagePayloadsFromEnd(
     context: ServerActionContext,
@@ -2152,10 +2149,10 @@ export async function getChatMessagePayloadsFromEnd(
     const queryStartMessageIndex = Math.max(
         typeof beforeMessageIndex === "number"
             ? beforeMessageIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getChatMessageCount((await chatItemPromise).messagesSummary) - limit,
         typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
     );
@@ -2204,17 +2201,17 @@ export async function getChatMessagePayloadsFromEnd(
  * provides what it knows to be the message count and last change time then we
  * return any new messages or changes since then.
  *
- * We run this when the client establishes a new realtime connection to catch
- * the client up between their last data load and the time the realtime
- * connection was established.
+ * We run this when the client establishes a new realtime connection to catch the
+ * client up between their last data load and the time the realtime connection was
+ * established.
  *
- * `newMessageLimit` allows you to load some new comments that the client
- * may be missing but only up to the limit.
+ * `newMessageLimit` allows you to load some new comments that the client may be
+ * missing but only up to the limit.
  *
- * We do not keep a log of chat message changes around forever, so it's
- * possible that you get an `Unavailable` result for
- * `messageChangesResult`. When this happens you should throw away all data
- * your client has loaded and try loading the data again.
+ * We do not keep a log of chat message changes around forever, so it's possible
+ * that you get an `Unavailable` result for `messageChangesResult`. When this
+ * happens you should throw away all data your client has loaded and try loading
+ * the data again.
  */
 export async function backfillChatMessages(
     context: ServerSessionActionContext,
@@ -2246,10 +2243,10 @@ export async function backfillChatMessages(
                 limit: newMessageLimit,
                 afterMessageIndex: clientMessageCount - 1,
                 beforeMessageIndex: null,
-                // Use a strong read consistency when backfilling. This guarantees the caller
-                // will observe all realtime events before this function call. Realtime events
-                // that happen during the function call may be missed. You should be subscribed
-                // to new realtime events before starting to backfill.
+                // Use a strong read consistency when backfilling. This guarantees the caller will
+                // observe all realtime events before this function call. Realtime events that
+                // happen during the function call may be missed. You should be subscribed to new
+                // realtime events before starting to backfill.
                 consistency: "Strong",
             }),
             runBackfillMessageUpdates(context, {
@@ -2334,8 +2331,8 @@ export async function getChatMessageParentContent(
             });
 
             return {
-                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
-                // have the same author and the list is not empty.
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all
+                // messages have the same author and the list is not empty.
                 authorId: messageItems[0]!.authorId,
                 content: getTruncatedParentMessagesRangeContentWithoutReferences({
                     messages: messageItems,

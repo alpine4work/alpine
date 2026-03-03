@@ -17,10 +17,10 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-// We have to use real timers in this test because we want to test timing
-// behavior in SQS as well. Our local SQS implementation doesn't have fake
-// timers. This may make the test inherently flaky. Feel free to retry this
-// test a couple times if it fails.
+// We have to use real timers in this test because we want to test timing behavior
+// in SQS as well. Our local SQS implementation doesn't have fake timers. This may
+// make the test inherently flaky. Feel free to retry this test a couple times if
+// it fails.
 import.meta.jest.useRealTimers();
 
 let consumer: JobQueueConsumer<"Default", TestContextModules>;
@@ -87,8 +87,8 @@ afterEach(async () => {
     changeMessageVisibilityBatchTestCounter.resetForTest();
 });
 
-// Important for this to come after the `afterEach()` above. Since we want to
-// stop our consumer before waiting on `ProcessContextModule` tasks.
+// Important for this to come after the `afterEach()` above. Since we want to stop
+// our consumer before waiting on `ProcessContextModule` tasks.
 const context = createTestContext({shouldSendJobsToSqs: true});
 
 test(
@@ -166,8 +166,8 @@ test(
         expect(deleteMessageBatchRecorder.getCount()).toEqual(3);
         expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
     },
-    // Increase the timeout since we need to actually wait for the job queue
-    // message visibility timeouts.
+    // Increase the timeout since we need to actually wait for the job queue message
+    // visibility timeouts.
     30 * 1000,
 );
 
@@ -259,8 +259,8 @@ test(
             changeMessageVisibilityBatchCount3,
         );
     },
-    // Increase the timeout since we need to actually wait for the job queue
-    // message visibility timeouts.
+    // Increase the timeout since we need to actually wait for the job queue message
+    // visibility timeouts.
     45 * 1000,
 );
 

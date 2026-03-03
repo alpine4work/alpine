@@ -29,9 +29,8 @@ const TaskCollectionCreateActionSchema = Schema.object({
 /**
  * Deletes a task collection.
  *
- * Does nothing if the task collection is already deleted. The task
- * collection's data will be kept around in case the task collection is
- * undeleted.
+ * Does nothing if the task collection is already deleted. The task collection's
+ * data will be kept around in case the task collection is undeleted.
  */
 export type TaskCollectionDeleteAction = SchemaType<typeof TaskCollectionDeleteActionSchema>;
 
@@ -53,12 +52,12 @@ const TaskCollectionUndeleteActionSchema = Schema.object({
 /**
  * Updates the name of our task collection.
  *
- * Will be rejected by the server if you don't have the `Manage` permission
- * level on this collection.
+ * Will be rejected by the server if you don't have the `Manage` permission level
+ * on this collection.
  *
- * Task collection name update conflicts are resolved by last-write-wins. We
- * don't bother attempting to resolve conflicts with a data structure like that
- * provided by Y.js.
+ * Task collection name update conflicts are resolved by last-write-wins. We don't
+ * bother attempting to resolve conflicts with a data structure like that provided
+ * by Y.js.
  */
 export type TaskCollectionUpdateNameAction = SchemaType<
     typeof TaskCollectionUpdateNameActionSchema
@@ -70,8 +69,8 @@ const TaskCollectionUpdateNameActionSchema = Schema.object({
 });
 
 /**
- * Updates the color associated with a task collection. Task collections may
- * also have no color which is the equivalent of grey.
+ * Updates the color associated with a task collection. Task collections may also
+ * have no color which is the equivalent of grey.
  */
 export type TaskCollectionUpdateColorAction = SchemaType<
     typeof TaskCollectionUpdateColorActionSchema
@@ -85,8 +84,8 @@ const TaskCollectionUpdateColorActionSchema = Schema.object({
 /**
  * Updates the access policy of our task collection.
  *
- * Will be rejected by the server if you don't have the `Manage` permission
- * level on this collection.
+ * Will be rejected by the server if you don't have the `Manage` permission level
+ * on this collection.
  */
 export type TaskCollectionUpdateAccessPolicyAction = SchemaType<
     typeof TaskCollectionUpdateAccessPolicyActionSchema

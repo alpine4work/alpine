@@ -160,8 +160,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             }
 
             // If there was an issue creating our collection, it might be because the
-            // collection already exists. Attempt to authorize, if that fails we
-            // believe the issue was with collection creation.
+            // collection already exists. Attempt to authorize, if that fails we believe the
+            // issue was with collection creation.
             //
             // This check makes this `GET` endpoint idempotent. You can hit the endpoint
             // multiple times and if our collection is already created we'll noop.
@@ -194,12 +194,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
         },
     );
 
-    // If no filters or sorts have been explicitly set then the user can manually
-    // sort by collection position.
+    // If no filters or sorts have been explicitly set then the user can manually sort
+    // by collection position.
     //
-    // If the collection view is filtered we automatically apply a sort since there
-    // can be some weirdness creating a task and expecting it to be in one place
-    // when there's no filter but instead it goes to another place.
+    // If the collection view is filtered we automatically apply a sort since there can
+    // be some weirdness creating a task and expecting it to be in one place when
+    // there's no filter but instead it goes to another place.
     const normalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> =
         filters.length === 0 && sorts.length === 0
             ? [
@@ -327,8 +327,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     const nextUrl = new URL(_nextUrl);
 
     // When switching from `/s/:spaceId/tasks/collections/:collectionId?create` to
-    // `/s/:spaceId/tasks/collections/:collectionId?create=:collectionName` we need
-    // to revalidate since the server will actually create the collection.
+    // `/s/:spaceId/tasks/collections/:collectionId?create=:collectionName` we need to
+    // revalidate since the server will actually create the collection.
     if (currentUrl.searchParams.get("create") !== "") currentUrl.searchParams.delete("create");
     if (nextUrl.searchParams.get("create") !== "") nextUrl.searchParams.delete("create");
 
@@ -338,8 +338,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("color");
     nextUrl.searchParams.delete("color");
 
-    // The client removes the `create` and `focus` search params. Don't revalidate
-    // when the client does this.
+    // The client removes the `create` and `focus` search params. Don't revalidate when
+    // the client does this.
     if (currentUrl.toString() === nextUrl.toString()) {
         return false;
     }
@@ -375,10 +375,10 @@ function TaskCollectionRouteInner() {
         collectionSubscriptions: [collectionSubscription],
     } = useTaskStoreLoaderDataWithoutRetaining();
 
-    // Retain our `collectionSubscription` so it isn't destroyed while we're
-    // using it. But we don't retain `initialQuery`! Instead `initialQuery` is
-    // retained by `<TaskCollectionView>`. That way when the query changes we can
-    // release the query and retain a new one.
+    // Retain our `collectionSubscription` so it isn't destroyed while we're using it.
+    // But we don't retain `initialQuery`! Instead `initialQuery` is retained by
+    // `<TaskCollectionView>`. That way when the query changes we can release the query
+    // and retain a new one.
     useEffect(() => {
         collectionSubscription?.retain();
 
@@ -409,8 +409,8 @@ function TaskCollectionRouteInner() {
         return focusString !== "none";
     });
 
-    // Remove the `create` search param if we have a subscription to an
-    // existing collection.
+    // Remove the `create` search param if we have a subscription to an existing
+    // collection.
     useEffect(() => {
         if (!collectionSubscription) return;
 
@@ -536,9 +536,9 @@ function TaskCollectionRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
                 }}
@@ -553,9 +553,9 @@ function TaskCollectionRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
                 }}

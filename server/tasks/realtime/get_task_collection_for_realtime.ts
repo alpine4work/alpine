@@ -39,8 +39,8 @@ export async function getTaskCollectionForRealtime(
     },
 ): Promise<TaskRealtimeGetCollectionOutput> {
     // If a strong read consistency was requested then expect strong consistency in
-    // `DynamoContextModule` as a precaution to help make sure all reads are
-    // strongly consistent.
+    // `DynamoContextModule` as a precaution to help make sure all reads are strongly
+    // consistent.
     if (consistency !== "Eventual") {
         originalContext = originalContext.dynamo.expectStrongReadConsistency();
     }

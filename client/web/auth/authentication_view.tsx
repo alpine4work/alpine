@@ -60,8 +60,8 @@ export function AuthenticationView() {
 
     const [state, setState] = useState<AuthenticationState>(getInitialAuthenticationState);
 
-    // If the variant in Remix `params` changes then we need to update our state to
-    // the initial authentication state for that variant.
+    // If the variant in Remix `params` changes then we need to update our state to the
+    // initial authentication state for that variant.
     const stateVariant = getAuthenticationStateVariant(state);
     if (variant !== stateVariant) {
         setState(getInitialAuthenticationState());
@@ -82,9 +82,9 @@ export function AuthenticationView() {
         }
     }, [hasProfileSearchParam, setSearchParams]);
 
-    // Optimization: Preload the `s.$spaceId` and `s.$spaceId._index` routes so
-    // that redirecting to the space at the end of sign in or sign up isn't blocked
-    // by loading a bunch of JavaScript code.
+    // Optimization: Preload the `s.$spaceId` and `s.$spaceId._index` routes so that
+    // redirecting to the space at the end of sign in or sign up isn't blocked by
+    // loading a bunch of JavaScript code.
     //
     // The sign in/up button can otherwise feel slow since there's a bunch of
     // JavaScript to download to get into the app and we're not performing a server
@@ -94,10 +94,9 @@ export function AuthenticationView() {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        // Use the React scheduler to schedule an idle callback.
-        // `requestIdleCallback()` is not implemented in Safari. Generally we recommend
-        // using the React scheduler since it has centralized knowledge of all our
-        // tasks (including UI rendering).
+        // Use the React scheduler to schedule an idle callback. `requestIdleCallback()` is
+        // not implemented in Safari. Generally we recommend using the React scheduler
+        // since it has centralized knowledge of all our tasks (including UI rendering).
         unstable_scheduleCallback(unstable_IdlePriority, () => {
             runPromiseWithoutAwaiting(
                 runAllPromises([
@@ -129,9 +128,9 @@ export function AuthenticationView() {
             <main
                 className={sprinkles({width: "full", minHeight: "full"})}
                 style={{
-                    // We use a slightly off spacing scale value for `maxWidth` so the "By signing
-                    // up, you agree to our Terms of Service and Privacy Policy" text on the last
-                    // step of sign up doesn't wrap onto two lines.
+                    // We use a slightly off spacing scale value for `maxWidth` so the "By signing up,
+                    // you agree to our Terms of Service and Privacy Policy" text on the last step of
+                    // sign up doesn't wrap onto two lines.
                     maxWidth: addRemLengths("96", "4"),
                 }}
             >

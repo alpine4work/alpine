@@ -18,10 +18,10 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
 /**
- * Renderers for each file entity. These must be provided to `<ContentEditor>`
- * via dependency injection because the `//client/web/content` package can't depend
- * on all the UI packages we would need to render each file entity without
- * creating cycles between packages (e.g. `//client/web/tasks` and
+ * Renderers for each file entity. These must be provided to `<ContentEditor>` via
+ * dependency injection because the `//client/web/content` package can't depend on
+ * all the UI packages we would need to render each file entity without creating
+ * cycles between packages (e.g. `//client/web/tasks` and
  * `//client/web/documents`).
  */
 export type ContentFileEntityRenderers = {

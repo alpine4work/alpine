@@ -63,8 +63,8 @@ export function InboxMobileView({
         title: filter === "New" ? "Inbox" : "Inbox (old)",
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
-        // This is a route for a root tab in our mobile app so don't show the back
-        // button. It wouldn't work.
+        // This is a route for a root tab in our mobile app so don't show the back button.
+        // It wouldn't work.
         withoutMobileBackButton: true,
         menuActions: [
             [
@@ -247,18 +247,17 @@ export function InboxMobileView({
                 tryLoadingMore(view.getHeight(), shiftedRenderedRange);
             }}
             extraChildrenOutsideContentElement={({contentHeight}) => (
-                // Our items all have a bottom border. This is good when there's less content
-                // than room to scroll since it creates a clear shape for the last item in the
-                // list.
+                // Our items all have a bottom border. This is good when there's less content than
+                // room to scroll since it creates a clear shape for the last item in the list.
                 //
                 // However, if there are enough items to scroll then when the user has fully
-                // scrolled we want the last item to *not* have a border bottom since the
-                // bottom of the screen creates that boundary. We don't need to render an extra
-                // line in the margins.
+                // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                // the screen creates that boundary. We don't need to render an extra line in the
+                // margins.
                 //
-                // This div covers the bottom border of the last item but only when there's
-                // enough content to scroll. Otherwise the bottom border needs to be visible to
-                // visually contain the last item. To debug this it's helpful to switch the
+                // This div covers the bottom border of the last item but only when there's enough
+                // content to scroll. Otherwise the bottom border needs to be visible to visually
+                // contain the last item. To debug this it's helpful to switch the
                 // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"

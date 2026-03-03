@@ -26,8 +26,8 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * Implements shared logic around changing the access policy. Mainly runs
- * validations on access policy changes and opens a confirmation modal dialog
- * if a warning is generated.
+ * validations on access policy changes and opens a confirmation modal dialog if a
+ * warning is generated.
  */
 export function useShareState(
     props: {
@@ -39,8 +39,8 @@ export function useShareState(
             explanations: InheritedAccessPolicyExplanations;
         };
         onAccessPolicyChangeWithoutValidations: (
-            // The `notification` argument comes first to make it harder for the
-            // implementation of this function to ignore the `notification` argument.
+            // The `notification` argument comes first to make it harder for the implementation
+            // of this function to ignore the `notification` argument.
             notification: ShareNotification | null,
             accessPolicy: AccessPolicy,
         ) => MaybePromise<void>;
@@ -52,13 +52,13 @@ export function useShareState(
 
     const modalOwnerId = useId();
 
-    // The share button must be read-only if we don't have the `Manage` access
-    // level. Parent components may additionally make other considerations when
-    // deciding if the share button is read-only.
+    // The share button must be read-only if we don't have the `Manage` access level.
+    // Parent components may additionally make other considerations when deciding if
+    // the share button is read-only.
     //
     // For example, in documents the `accessPolicy` prop is optimistic. If the
-    // persisted `accessPolicy` doesn't have the `Manage` access level then we want
-    // the share dialog to be read-only.
+    // persisted `accessPolicy` doesn't have the `Manage` access level then we want the
+    // share dialog to be read-only.
     const isReadOnly = useMemo(() => {
         if (props?.isReadOnly) return true;
 
@@ -96,8 +96,7 @@ export function useShareState(
         notification: ShareNotification | null = null,
     ): MaybePromise<void> => {
         // Defend against making changes while read only. Ultimately the backend should
-        // prevent invalid changes like this but it's nice to catch errors like this
-        // early.
+        // prevent invalid changes like this but it's nice to catch errors like this early.
         if (isReadOnly || !props) {
             throw new InternalError(
                 "Can\u2019t update access policy when share button is read only",
@@ -166,9 +165,9 @@ export function useShareState(
                 }\u2019s access to the ${entityNoun} to \u201C${accessLevelText[action.defaultGrant.level]}\u201D`;
                 break;
             }
-            // `DeleteDefaultGrantAndUrlGrant` uses the same language as
-            // `DeleteDefaultGrant` since we'll generally only show this message for
-            // warnings where changing the default grant matters.
+            // `DeleteDefaultGrantAndUrlGrant` uses the same language as `DeleteDefaultGrant`
+            // since we'll generally only show this message for warnings where changing the
+            // default grant matters.
             case "DeleteDefaultGrant":
             case "DeleteDefaultGrantAndUrlGrant": {
                 changeDescription = `remove everyone in ${space.name}\u2019s access to the ${entityNoun}`;
@@ -210,8 +209,8 @@ export function useShareState(
             let description: string;
 
             switch (validationResult.reason) {
-                // It shouldn't be possible for the share overlay component to create one of
-                // these changes. So throw an internal error if we see one of these reasons.
+                // It shouldn't be possible for the share overlay component to create one of these
+                // changes. So throw an internal error if we see one of these reasons.
                 case "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation":
                 case "Can\u2019t change account grant manage generation":
                 case "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation":
@@ -227,9 +226,9 @@ export function useShareState(
                     } permissions`;
 
                     // We use "they" to refer to the change description because we assume this error
-                    // only happens when we either remove an account grant or change an account
-                    // grant's level. In both cases we include the name of the account whose
-                    // permissions we're changing in `changeDescription`.
+                    // only happens when we either remove an account grant or change an account grant's
+                    // level. In both cases we include the name of the account whose permissions we're
+                    // changing in `changeDescription`.
                     description = `You can\u2019t change the permissions of someone who was involved in adding you to the ${entityNoun}. So you can\u2019t ${changeDescription}. Try asking whoever added ${
                         changedAccountName ?? "them"
                     } to the ${entityNoun} to change their permissions.`;

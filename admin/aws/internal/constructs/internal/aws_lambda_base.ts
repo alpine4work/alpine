@@ -28,32 +28,36 @@ export interface AwsLambdaBaseOptions extends Omit<
     /**
      * Lambda + VPC guidance
      *
-     * Default: **Do NOT attach a Lambda to a VPC** unless it must reach private resources
-     * (e.g., RDS, ElastiCache in private subnets, internal ALBs). VPC attachment adds
-     * NAT/proxy requirements and cost for public internet egress.
+     * Default: **Do NOT attach a Lambda to a VPC** unless it must reach private
+     * resources (e.g., RDS, ElastiCache in private subnets, internal ALBs). VPC
+     * attachment adds NAT/proxy requirements and cost for public internet egress.
      *
      * When to attach to a VPC
+     *
      * - The function must access resources that are only reachable inside our VPC
      *   (e.g., RDS, internal services on private subnets).
      */
-    // NOTE(ifitzsimmons, 08/20/2025, ##deploy-lambdas-without-vpc): Lambda functions never
-    // receive public IPs. If placed in a VPC and they need internet access, provision NAT
-    // (Gateway or instance) or an egress proxy. The upside is stronger egress control (no
-    // internet by default), the downside is cost and system complexity.
+    // NOTE(ifitzsimmons, 08/20/2025, ##deploy-lambdas-without-vpc): Lambda functions
+    // never receive public IPs. If placed in a VPC and they need internet access,
+    // provision NAT (Gateway or instance) or an egress proxy. The upside is stronger
+    // egress control (no internet by default), the downside is cost and system
+    // complexity.
     //
-    // Our HTTP Lambdas behind ALB: when an ALB target group is of type "lambda", the ALB
-    // invokes the function via the Lambda service. This works whether or not the function
-    // is attached to a VPC; the ALB's own VPC networking does not determine Lambda reachability.
+    // Our HTTP Lambdas behind ALB: when an ALB target group is of type "lambda", the
+    // ALB invokes the function via the Lambda service. This works whether or not the
+    // function is attached to a VPC; the ALB's own VPC networking does not determine
+    // Lambda reachability.
     //
-    // From a security standpoint, Lambdas (VPC or not) have no inbound network exposure (invocation-only).
-    // By contrast, ECS tasks with public IPs are internet-reachable unless locked down with
-    // security groups/NACLs/WAF.
+    // From a security standpoint, Lambdas (VPC or not) have no inbound network
+    // exposure (invocation-only). By contrast, ECS tasks with public IPs are
+    // internet-reachable unless locked down with security groups/NACLs/WAF.
     readonly vpc: IVpc | null;
 
     /**
      * Configuration for the Bazel build rule that builds the Lambda function
      *
      * example for //server/files/processor:resize_file_lambda
+     *
      * ```
      * {
      *     bazelTarget: "//server/files/processor:resize_file_lambda",
@@ -75,11 +79,12 @@ export interface AwsLambdaBaseOptions extends Omit<
 
     /**
      * Deployment type - determines whether to use ZIP archive or container image
+     *
      * - "container": Container image deployment (default)
      * - "zip": Traditional ZIP-based deployment
      *
-     * For container deployments, use the `aws_lambda` rule.
-     * For zip deployments, use `aws_lambda_deprecated`.
+     * For container deployments, use the `aws_lambda` rule. For zip deployments, use
+     * `aws_lambda_deprecated`.
      */
     readonly deploymentType?: "zip" | "container";
 
@@ -92,17 +97,19 @@ export interface AwsLambdaBaseOptions extends Omit<
     readonly honeycombApiKey: string | null;
 
     /**
-     * The observability construct to use for the Lambda function. You should always provide this
-     * unless there is a specific reason you don't want to write tracer events or logs.
+     * The observability construct to use for the Lambda function. You should always
+     * provide this unless there is a specific reason you don't want to write tracer
+     * events or logs.
      *
-     * If not provided, the Lambda function will not be able to write to the tracer event stream.
+     * If not provided, the Lambda function will not be able to write to the tracer
+     * event stream.
      */
     readonly observability: AwsObservability | null;
 }
 
 /**
- * A construct that wraps the AWS CDK LambdaFunction and deploys Container-based Lambdas
- * by default.
+ * A construct that wraps the AWS CDK LambdaFunction and deploys Container-based
+ * Lambdas by default.
  */
 export class AwsLambdaBase extends Construct {
     protected readonly _lambdaFunction: LambdaFunctionBase;

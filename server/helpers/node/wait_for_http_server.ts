@@ -4,27 +4,26 @@ import {DeadlineExceededError} from "~/shared/error/error.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-// We can't use `wait()` or `setTimeout()` since Jest will override
-// `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
-// timeout anyway.
+// We can't use `wait()` or `setTimeout()` since Jest will override `setTimeout()`
+// when `jest.useFakeTimers()` is on. But we want to wait the timeout anyway.
 const originalSetTimeout = setTimeout;
 
 /**
  * Waits for an HTTP server to start listening at the provided host.
  *
- * This was written to wait for our development servers starting up. We don't
- * think there's a use case for this in production.
+ * This was written to wait for our development servers starting up. We don't think
+ * there's a use case for this in production.
  *
  * First we check if the port is available for TCP connections. Next we make an
- * HTTP request to make sure the HTTP server is responsive. You may customize
- * the path sent to the HTTP server.
+ * HTTP request to make sure the HTTP server is responsive. You may customize the
+ * path sent to the HTTP server.
  */
 export function waitForHttpServer(port: number, path: string = "/") {
-    // NOTE(calebmer, 2024-08-07): There used to be a [file descriptor leak in Node.js][1]
-    // that's been fixed in v20.9.0 when destroying a socket that failed with a
-    // `ECONNREFUSED` error. If you see any `EBADF` errors in your developer environment that
-    // may be because the bug has resurfaced and this function is consuming all the operating
-    // system's file descriptors.
+    // NOTE(calebmer, 2024-08-07): There used to be a [file descriptor leak in
+    // Node.js][1] that's been fixed in v20.9.0 when destroying a socket that failed
+    // with a `ECONNREFUSED` error. If you see any `EBADF` errors in your developer
+    // environment that may be because the bug has resurfaced and this function is
+    // consuming all the operating system's file descriptors.
     //
     // To see if there are excessive open file descriptors try running
     // `lsof -p $PID | grep TCP | wc -l` after some service rebuilds.

@@ -26,9 +26,9 @@ export function InboxEntryShimmer({
                     gap="3"
                     style={{
                         height: inboxEntryViewMinHeight,
-                        // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                        // 1px to layout. Layout needs to be precise since this is rendered in a
-                        // virtualized list.
+                        // Draw border with a `box-shadow` instead of `border` so it doesn't contribute 1px
+                        // to layout. Layout needs to be precise since this is rendered in a virtualized
+                        // list.
                         boxShadow: [
                             `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                             ...(withBorderTop

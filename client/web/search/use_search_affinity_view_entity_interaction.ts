@@ -14,26 +14,26 @@ const SessionStorageSchema = Schema.object({
 });
 
 /**
- * Send `markSearchAffinityEntityInteraction()` calls every 5 minutes
- * while the user is viewing the provided entity. If you pass in `null` this
- * hook will be disabled.
+ * Send `markSearchAffinityEntityInteraction()` calls every 5 minutes while the
+ * user is viewing the provided entity. If you pass in `null` this hook will be
+ * disabled.
  *
- * Our convention is to call this hook from a route file in `app/routes` to
- * make it easier to manage/audit how this hook gets used.
+ * Our convention is to call this hook from a route file in `app/routes` to make it
+ * easier to manage/audit how this hook gets used.
  */
 export function useSearchAffinityViewEntityInteraction(entityId: SearchAffinityEntityId | null) {
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
 
-    // When rendered in a peek, the peek may disable view interaction tracking. If
-    // you only briefly view a search entity from within the search window's peek,
-    // that shouldn't add to the affinity score.
+    // When rendered in a peek, the peek may disable view interaction tracking. If you
+    // only briefly view a search entity from within the search window's peek, that
+    // shouldn't add to the affinity score.
     const withoutSearchAffinityViewEntityInteraction =
         usePeekContext()?.withoutSearchAffinityViewEntityInteraction ?? false;
 
-    // Every 5min while our this hook is mounted we add to the entity's
-    // affinity score. We don't add to affinity scores while the page is
-    // hidden. We resume if the user reopens the page.
+    // Every 5min while our this hook is mounted we add to the entity's affinity score.
+    // We don't add to affinity scores while the page is hidden. We resume if the user
+    // reopens the page.
     useEffect(() => {
         // If the actor doesn't have space access, don't send view search affinity
         // requests. They'll be rejected with `PermissionDeniedError` or
@@ -83,17 +83,16 @@ export function useSearchAffinityViewEntityInteraction(entityId: SearchAffinityE
                 const maxUpdateCount = 12;
 
                 const updateLoop = () => {
-                    // If this errs it will show up in our telemetry but we don't care about
-                    // it here.
+                    // If this errs it will show up in our telemetry but we don't care about it here.
                     void markSearchAffinityEntityInteraction(context, {
                         spaceId: space.id,
                         entityId,
                         interaction: {type: "View"},
                     });
 
-                    // Stop loop after we hit a max number of updates (1hr) to defend against the
-                    // user leaving their computer open and unattended for a long time. If the user
-                    // is continuously interacting with the page then we'll continue adding points.
+                    // Stop loop after we hit a max number of updates (1hr) to defend against the user
+                    // leaving their computer open and unattended for a long time. If the user is
+                    // continuously interacting with the page then we'll continue adding points.
                     updateCount++;
                     if (updateCount >= maxUpdateCount) return;
 
@@ -126,9 +125,9 @@ export function useSearchAffinityViewEntityInteraction(entityId: SearchAffinityE
         return () => {
             document.removeEventListener("visibilitychange", update);
 
-            // If our component unmounts, save the duration since last update in our
-            // session storage so we can pick up adding affinity points from there if the
-            // user navigates back.
+            // If our component unmounts, save the duration since last update in our session
+            // storage so we can pick up adding affinity points from there if the user
+            // navigates back.
             if (state) {
                 const currentTime = clock.now();
 

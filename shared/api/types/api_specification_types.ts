@@ -1957,7 +1957,10 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    /** @description Return a 200 status to indicate that the data was received successfully */
+                    /**
+                     * @description Return a 200 status to indicate that the data was received
+                     * successfully
+                     */
                     readonly 200: {
                         headers: {
                             readonly [name: string]: unknown;
@@ -1992,56 +1995,56 @@ export namespace ApiSpecification {
             readonly TaskCollectionId: IdTypes.TaskCollectionId;
             readonly AccountMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
             };
             readonly ChannelMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
             };
             readonly ChatMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
             };
             readonly DocumentMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Document";
                 readonly id: components["schemas"]["DocumentId"];
             };
             readonly PostMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
             };
             readonly TaskMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Task";
                 readonly id: components["schemas"]["TaskId"];
             };
             readonly TaskMentionTarget_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Task";
                 readonly id: components["schemas"]["TaskId"];
@@ -2049,8 +2052,8 @@ export namespace ApiSpecification {
             };
             readonly TaskCollectionMentionTarget: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "TaskCollection";
                 readonly id: components["schemas"]["TaskCollectionId"];
@@ -2078,8 +2081,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCodeBlockElement"];
             readonly ContentParagraphBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Paragraph";
                 readonly elements: readonly components["schemas"]["ContentInlineElement"][];
@@ -2090,16 +2093,16 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCheckListBlockElement"];
             readonly ContentUnorderedListBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "UnorderedList";
                 readonly items: readonly components["schemas"]["ContentListBlockElementItem"][];
             };
             readonly ContentOrderedListBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "OrderedList";
                 readonly orderStart?: number;
@@ -2107,8 +2110,8 @@ export namespace ApiSpecification {
             };
             readonly ContentCheckListBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "CheckList";
                 readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem"][];
@@ -2124,8 +2127,8 @@ export namespace ApiSpecification {
             };
             readonly ContentQuoteBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Quote";
                 readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement"][];
@@ -2137,8 +2140,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCheckListBlockElement"];
             readonly ContentHeadingBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Heading";
                 readonly level: number;
@@ -2146,15 +2149,15 @@ export namespace ApiSpecification {
             };
             readonly ContentDividerBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Divider";
             };
             readonly ContentTableBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Table";
                 readonly width: number;
@@ -2180,8 +2183,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCodeBlockElement"];
             readonly ContentCodeBlockElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Code";
                 /** @enum {string} */
@@ -2234,8 +2237,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentMentionInlineElement"];
             readonly ContentTextInlineElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Text";
                 readonly text: string;
@@ -2243,16 +2246,16 @@ export namespace ApiSpecification {
             };
             readonly ContentBreakInlineElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Break";
                 readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
             };
             readonly ContentMentionInlineElement: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Mention";
                 readonly target: components["schemas"]["MentionTarget"];
@@ -2262,8 +2265,8 @@ export namespace ApiSpecification {
             };
             readonly ContentMentionInlineElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Mention";
                 readonly target: components["schemas"]["MentionTarget_Response"];
@@ -2289,44 +2292,44 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentInlineElementCommentMark"];
             readonly ContentInlineElementBoldMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Bold";
             };
             readonly ContentInlineElementItalicMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Italic";
             };
             readonly ContentInlineElementStrikeMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Strike";
             };
             readonly ContentInlineElementLinkMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Link";
                 readonly url: string;
             };
             readonly ContentInlineElementCodeMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Code";
             };
             readonly ContentInlineElementHighlightMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Highlight";
                 readonly color: components["schemas"]["ContentInlineElementHighlightMarkColor"];
@@ -2340,8 +2343,8 @@ export namespace ApiSpecification {
                 | "Purple";
             readonly ContentInlineElementCommentMark: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Comment";
                 readonly threadId: components["schemas"]["DocumentThreadId"];
@@ -2393,8 +2396,8 @@ export namespace ApiSpecification {
             readonly Chat: components["schemas"]["DirectChat"] | components["schemas"]["RoomChat"];
             readonly DirectChat: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Direct";
                 readonly id: components["schemas"]["ChatId"];
@@ -2404,8 +2407,8 @@ export namespace ApiSpecification {
             };
             readonly RoomChat: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Room";
                 readonly id: components["schemas"]["ChatId"];
@@ -2511,8 +2514,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageDeletedPayload"];
             readonly MessageContentPayload: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Content";
                 readonly parent?: components["schemas"]["MessageContentPayloadParent"];
@@ -2523,16 +2526,16 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageContentPayloadPostParent"];
             readonly MessageContentPayloadMessageParent: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Message";
                 readonly index: number;
             };
             readonly MessageContentPayloadMessageParent_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Message";
                 readonly index: number;
@@ -2542,15 +2545,15 @@ export namespace ApiSpecification {
             };
             readonly MessageContentPayloadPostParent: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Post";
             };
             readonly MessageContentPayloadPostParent_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Post";
                 readonly author: components["schemas"]["Account"];
@@ -2558,8 +2561,8 @@ export namespace ApiSpecification {
             };
             readonly MessageDeletedPayload: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Deleted";
             };
@@ -2576,24 +2579,24 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamReasoningPartPayload"];
             readonly MessageStreamContentPartPayload: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Content";
                 readonly content: components["schemas"]["Content"];
             };
             readonly MessageStreamReasoningPartPayload: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content"];
             };
             readonly MessageStreamToolCallPartPayload: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "ToolCall";
                 readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall"];
@@ -2604,24 +2607,24 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall"];
             readonly MessageStreamToolCallPartPayloadReadCall: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Read";
                 readonly target: components["schemas"]["MentionTarget"];
             };
             readonly MessageStreamToolCallPartPayloadSearchCall: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Search";
                 readonly query: string;
             };
             readonly MessageStreamToolCallPartPayloadCreateCall: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Create";
                 readonly target: components["schemas"]["MessageStreamToolCallPartCreateCallTarget"];
@@ -2636,8 +2639,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["BotWebhookNewPostEvent"];
             readonly BotWebhookNewMessageEvent: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "NewMessage";
                 readonly room: components["schemas"]["MessageRoomTarget"];
@@ -2653,8 +2656,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["BotWebhookNewMessageEventPostParent"];
             readonly BotWebhookNewMessageEventMessageParent: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Message";
                 readonly index: number;
@@ -2664,8 +2667,8 @@ export namespace ApiSpecification {
             };
             readonly BotWebhookNewMessageEventPostParent: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Post";
                 readonly author: {
@@ -2674,8 +2677,8 @@ export namespace ApiSpecification {
             };
             readonly BotWebhookNewPostEvent: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "NewPost";
                 readonly postId: components["schemas"]["PostId"];
@@ -2703,16 +2706,16 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskCommentRoom"];
             readonly ChatMessageRoom: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
             };
             readonly DocumentCommentRoom: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "DocumentCommentThread";
                 readonly id: components["schemas"]["DocumentId"];
@@ -2720,16 +2723,16 @@ export namespace ApiSpecification {
             };
             readonly PostCommentRoom: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
             };
             readonly TaskCommentRoom: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Task";
                 readonly id: components["schemas"]["TaskId"];
@@ -2752,8 +2755,8 @@ export namespace ApiSpecification {
                 readonly bodyMatch: null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
@@ -2763,8 +2766,8 @@ export namespace ApiSpecification {
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
@@ -2775,8 +2778,8 @@ export namespace ApiSpecification {
                 readonly bodyMatch: null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
@@ -2786,8 +2789,8 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "ChatMessage";
                 readonly id: components["schemas"]["ChatId"];
@@ -2800,8 +2803,8 @@ export namespace ApiSpecification {
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Document";
                 readonly id: components["schemas"]["DocumentId"];
@@ -2811,8 +2814,8 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "DocumentMessage";
                 readonly id: components["schemas"]["DocumentId"];
@@ -2825,8 +2828,8 @@ export namespace ApiSpecification {
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
@@ -2838,8 +2841,8 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "PostMessage";
                 readonly id: components["schemas"]["PostId"];
@@ -2851,8 +2854,8 @@ export namespace ApiSpecification {
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Task";
                 readonly id: components["schemas"]["TaskId"];
@@ -2864,8 +2867,8 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "TaskMessage";
                 readonly id: components["schemas"]["TaskId"];
@@ -2879,8 +2882,8 @@ export namespace ApiSpecification {
                 readonly bodyMatch: null;
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "TaskCollection";
                 readonly id: components["schemas"]["TaskCollectionId"];
@@ -2915,16 +2918,16 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskCollectionMentionTarget"];
             readonly ContentParagraphBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Paragraph";
                 readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
             };
             readonly ContentHeadingBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Heading";
                 readonly level: number;
@@ -2932,8 +2935,8 @@ export namespace ApiSpecification {
             };
             readonly MessageContentPayload_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Content";
                 readonly parent?: components["schemas"]["MessageContentPayloadParent_Response"];
@@ -2941,24 +2944,24 @@ export namespace ApiSpecification {
             };
             readonly MessageStreamToolCallPartPayloadReadCall_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Read";
                 readonly target: components["schemas"]["MentionTarget_Response"];
             };
             readonly MessageStreamToolCallPartPayloadCreateCall_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Create";
                 readonly target: components["schemas"]["MessageStreamToolCallPartCreateCallTarget_Response"];
             };
             readonly BotWebhookNewMessageEvent_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "NewMessage";
                 readonly room: components["schemas"]["MessageRoomTarget"];
@@ -3015,16 +3018,16 @@ export namespace ApiSpecification {
             };
             readonly ContentUnorderedListBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "UnorderedList";
                 readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
             };
             readonly ContentOrderedListBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "OrderedList";
                 readonly orderStart?: number;
@@ -3032,16 +3035,16 @@ export namespace ApiSpecification {
             };
             readonly ContentCheckListBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "CheckList";
                 readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem_Response"][];
             };
             readonly ContentQuoteBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Quote";
                 readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement_Response"][];
@@ -3058,8 +3061,8 @@ export namespace ApiSpecification {
             };
             readonly MessageStreamToolCallPartPayload_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "ToolCall";
                 readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
@@ -3120,24 +3123,24 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
             readonly MessageStreamContentPartPayload_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Content";
                 readonly content: components["schemas"]["Content_Response"];
             };
             readonly MessageStreamReasoningPartPayload_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content_Response"];
             };
             readonly ContentTableBlockElement_Response: {
                 /**
-                 * @description discriminator enum property added by openapi-typescript
-                 * @enum {string}
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
                  */
                 readonly type: "Table";
                 readonly width: number;
@@ -3164,10 +3167,15 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly error: {
-                            /** @description A human-readable message providing more details about the error. */
+                            /**
+                             * @description A human-readable message providing more details about the error.
+                             */
                             readonly message: string;
                             readonly retry: {
-                                /** @description If true, it indicates that the request should succeed if tried again. */
+                                /**
+                                 * @description If true, it indicates that the request should succeed if tried
+                                 * again.
+                                 */
                                 readonly able: boolean;
                             };
                         };

@@ -44,19 +44,19 @@ export function AccountAvatarPile({
     const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
         accountAvatarPileSizes[size];
 
-    // Is there a last circle with some interactive element? Either a count of how
-    // many additional accounts there are or some custom avatar.
+    // Is there a last circle with some interactive element? Either a count of how many
+    // additional accounts there are or some custom avatar.
     const hasLastAvatar: boolean =
         !!lastAvatar || (!!getAllAccounts && accountCount > previewAccounts.length);
 
     return (
         <Box
-            // NOTE(calebmer): We use `<span>`s for all our elements because when rendering
-            // a pile in a `<p>` tag (for a chat room mention) HTML doesn't parse `<div>`s
-            // inside of `<p>` tags correctly.
+            // NOTE(calebmer): We use `<span>`s for all our elements because when rendering a
+            // pile in a `<p>` tag (for a chat room mention) HTML doesn't parse `<div>`s inside
+            // of `<p>` tags correctly.
             //
-            // It's more important `account_avatar_pile_html.ts` uses `<span>`s (since
-            // that's actually used for mentions) we do it here for consistency.
+            // It's more important `account_avatar_pile_html.ts` uses `<span>`s (since that's
+            // actually used for mentions) we do it here for consistency.
             as="span"
             display="flex"
             flexShrink="0"
@@ -276,8 +276,8 @@ function AsyncTooltip({
 
         const loadTime = new Date();
 
-        // Don't load the tooltip content again unless it has been more than five
-        // minutes since the last time we loaded tooltip content.
+        // Don't load the tooltip content again unless it has been more than five minutes
+        // since the last time we loaded tooltip content.
         if (contentState.isLoaded && differenceInMinutes(loadTime, contentState.loadTime) < 5)
             return;
 

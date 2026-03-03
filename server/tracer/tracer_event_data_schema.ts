@@ -68,8 +68,8 @@ const TracerEventExceptionDataBaseWithCauseSchema = {
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
  * since we don't want it to eat into client bundle size. Likewise
- * `TracerEventFullData` is in a `types` directory so that none of its
- * dependencies are a part of client bundles.
+ * `TracerEventFullData` is in a `types` directory so that none of its dependencies
+ * are a part of client bundles.
  */
 const TracerEventDataSchema = {
     name: Schema.string.singleLine().minLength(1),

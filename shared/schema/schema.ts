@@ -46,15 +46,17 @@ export type SchemaType<
 /**
  * A serialized value we can send across process boundaries.
  *
- * The same as a JSON value but with support for `Uint8Array`s. [DynamoDB
- * supports binary fields][1] (which we use for data storage) and [Ably also
- * supports binary fields][2] through MessagePack (which we use for realtime).
+ * The same as a JSON value but with support for `Uint8Array`s. [DynamoDB supports
+ * binary fields][1] (which we use for data storage) and [Ably also supports binary
+ * fields][2] through MessagePack (which we use for realtime).
  *
  * Notably, we only allow `undefined` as an object property. Not as a general
  * scalar value. Just like JSON.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.NamingRulesDataTypes.html#HowItWorks.DataTypes
- * [2]: https://faqs.ably.com/do-you-binary-encode-your-messages-for-greater-efficiency
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.NamingRulesDataTypes.html#HowItWorks.DataTypes
+ * [2]:
+ *     https://faqs.ably.com/do-you-binary-encode-your-messages-for-greater-efficiency
  */
 export type SchemaSerializedValue =
     | SchemaSerializedScalarValue
@@ -88,7 +90,8 @@ export type SchemaSerializedArrayValue = ReadonlyArray<SchemaSerializedValue>;
  *
  * Useful if you want to be [contravariant][1] on `Value`.
  *
- * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+ * [1]:
+ *     https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
  */
 export interface SchemaWithOnlySerialization<Value> {
     getDescription(): SchemaSerializedValueDescription;
@@ -100,7 +103,8 @@ export interface SchemaWithOnlySerialization<Value> {
  *
  * Useful if you want to be [covariant][1] on `Value`.
  *
- * [1]: https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+ * [1]:
+ *     https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
  */
 export interface SchemaWithOnlyDeserialization<Value> {
     getDescription(): SchemaSerializedValueDescription;
@@ -122,13 +126,12 @@ type SchemaDescriptionRecursionState =
 
 /**
  * The schema class is a type-safe combinator-style utility for validating and
- * migrating unknown JavaScript values. You may use it for reading values from
- * a dynamic JSON data store, messages from an untyped event stream, or for
+ * migrating unknown JavaScript values. You may use it for reading values from a
+ * dynamic JSON data store, messages from an untyped event stream, or for
  * validating client input.
  *
- * It is designed to support changing data formats over time. For example,
- * objects will silently discard unknown properties from a new application
- * version.
+ * It is designed to support changing data formats over time. For example, objects
+ * will silently discard unknown properties from a new application version.
  */
 export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
@@ -139,63 +142,62 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public readonly serialize: (value: Value) => SchemaSerializedValue;
 
     /**
-     * Deserializes a value we received from a process boundary. If the value does
-     * not match our schema then we throw an error.
+     * Deserializes a value we received from a process boundary. If the value does not
+     * match our schema then we throw an error.
      *
      * Does not mutate the underlying value during deserialization.
      */
     public readonly deserialize: (serializedValue: SchemaSerializedValue) => Value;
 
     /**
-     * Validates that the provided value matches any constraints in the schema
-     * beyond the TypeScript type. Throws an error if it doesn't. Valid values
-     * can be serialized without throwing an error and will deserialize to
-     * exactly the same value you serialized.
+     * Validates that the provided value matches any constraints in the schema beyond
+     * the TypeScript type. Throws an error if it doesn't. Valid values can be
+     * serialized without throwing an error and will deserialize to exactly the same
+     * value you serialized.
      *
-     * Validation also doesn't recurse over the entire value. Only the parts of
-     * the value which need validation. If nothing needs validation this
-     * property will be null.
+     * Validation also doesn't recurse over the entire value. Only the parts of the
+     * value which need validation. If nothing needs validation this property will be
+     * null.
      *
      * Some examples:
      *
-     * - The TypeScript type of both `Schema.float` and `Schema.integer` is
-     *   `number`. We don't need to validate `Schema.float` because all
-     *   TypeScript `number`s match this schema. We do need to validate
-     *   `Schema.integer` since not all `number`s are `integer`s.
+     * - The TypeScript type of both `Schema.float` and `Schema.integer` is `number`.
+     *   We don't need to validate `Schema.float` because all TypeScript `number`s
+     *   match this schema. We do need to validate `Schema.integer` since not all
+     *   `number`s are `integer`s.
      *
-     * - `Schema.string.trim()` will remove whitespace from a string while
-     *   serializing. However, validation will fail if there is whitespace at
-     *   the beginning or end of the string. Since that means
-     *   `deserialize(serialize(value))` won't return exactly the same value.
+     * - `Schema.string.trim()` will remove whitespace from a string while serializing.
+     *   However, validation will fail if there is whitespace at the beginning or end
+     *   of the string. Since that means `deserialize(serialize(value))` won't return
+     *   exactly the same value.
      *
-     * - Validating `Schema.array(Schema.float)` is a noop since we know
-     *   recursively nothing needs validation. However, validating
-     *   `Schema.array(Schema.integer)` will visit every item in the array.
+     * - Validating `Schema.array(Schema.float)` is a noop since we know recursively
+     *   nothing needs validation. However, validating `Schema.array(Schema.integer)`
+     *   will visit every item in the array.
      */
     public readonly validate: ((value: Value) => void) | null;
 
-    // NOTE(calebmer): Some ideas on serialization/deserialization performance.
-    // Two performance problems:
+    // NOTE(calebmer): Some ideas on serialization/deserialization performance. Two
+    // performance problems:
     //
-    // 1. There's a lot of abstraction. To serialize an object you step through
-    //    a pretty deep, recursive, function stack. We may bypass a lot of
-    //    JavaScript engine optimizations around [hidden classes][1] through
-    //    dynamic property access like `o[p]` instead of `o.p`.
-    // 2. The serialization format is pretty general. What if instead we had
-    //    multiple specialized serialization formats? (Like [serde][2] in Rust.)
-    //    For example, we need another serialization pass for DynamoDB to convert
-    //    into its value format. We also need a serialization pass to convert into
-    //    MessagePack (for Ably) or JSON.
+    // 1. There's a lot of abstraction. To serialize an object you step through a
+    //    pretty deep, recursive, function stack. We may bypass a lot of JavaScript
+    //    engine optimizations around [hidden classes][1] through dynamic property
+    //    access like `o[p]` instead of `o.p`.
+    // 2. The serialization format is pretty general. What if instead we had multiple
+    //    specialized serialization formats? (Like [serde][2] in Rust.) For example, we
+    //    need another serialization pass for DynamoDB to convert into its value
+    //    format. We also need a serialization pass to convert into MessagePack (for
+    //    Ably) or JSON.
     //
-    // We could solve both problems with codegen! Instead of the functional
-    // programming style where we build up serialize and deserialize functions, we
-    // generate hyper optimized non-recursive functions for different target
-    // formats. We generate a function for DynamoDB, for MessagePack, and for JSON
-    // (both direct string serialization but also object serialization).
+    // We could solve both problems with codegen! Instead of the functional programming
+    // style where we build up serialize and deserialize functions, we generate hyper
+    // optimized non-recursive functions for different target formats. We generate a
+    // function for DynamoDB, for MessagePack, and for JSON (both direct string
+    // serialization but also object serialization).
     //
-    // I suspect since we do serialization and deserialization SO MUCH that
-    // investing in optimizing those code paths will prove to be a meaningful
-    // performance win.
+    // I suspect since we do serialization and deserialization SO MUCH that investing
+    // in optimizing those code paths will prove to be a meaningful performance win.
     //
     // [1]: https://mrale.ph/blog/2015/01/11/whats-up-with-monomorphism.html
     // [2]: https://serde.rs
@@ -224,15 +226,15 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Get the description of the serialized value returned by this schema.
      *
-     * Computed lazily and then cached so you get the same value every time you
-     * call this function. Lazily computed since we don't always know the
-     * description of a schema during initialization.
+     * Computed lazily and then cached so you get the same value every time you call
+     * this function. Lazily computed since we don't always know the description of a
+     * schema during initialization.
      */
     public getDescription(): SchemaSerializedValueDescription {
         if (this._description === null) {
-            // If we are calling this function recursively, return a stub that we will
-            // mutate at the top of the stack to the right value. This will make the
-            // description option circular so you have to take care when stringifying.
+            // If we are calling this function recursively, return a stub that we will mutate
+            // at the top of the stack to the right value. This will make the description
+            // option circular so you have to take care when stringifying.
             if (this._descriptionRecursionState) {
                 let stubDescription: any;
                 if (this._descriptionRecursionState.type === "Circular") {
@@ -324,10 +326,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Accept any integer value.
      *
-     * An integer is a JavaScript number that passes [`Number.isSafeInteger`][1].
-     * So integers between -(2^53 - 1) and 2^53 - 1.
+     * An integer is a JavaScript number that passes [`Number.isSafeInteger`][1]. So
+     * integers between -(2^53 - 1) and 2^53 - 1.
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
      */
     public static integer: IntegerSchema;
 
@@ -493,8 +496,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Allows an object property to be optionally provided.
      *
-     * Same as specifying `{p?: T}` in TypeScript. Only works for object
-     * properties.
+     * Same as specifying `{p?: T}` in TypeScript. Only works for object properties.
      */
     public optional() {
         return ObjectPropertySchema.wrap(this).optional();
@@ -503,8 +505,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Provide a default for an optional object property.
      *
-     * When deserializing an object, if we don't see this property then we will use
-     * the provided default value.
+     * When deserializing an object, if we don't see this property then we will use the
+     * provided default value.
      */
     public default(
         defaultValue: Value | ((serializedValue: SchemaSerializedObjectValue) => Value),
@@ -513,9 +515,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
-     * If you want to rename an object property, use this combinator to provide the
-     * old name. We will serialize and deserialize the object with this name
-     * instead of the one in the `Schema.object()` definition.
+     * If you want to rename an object property, use this combinator to provide the old
+     * name. We will serialize and deserialize the object with this name instead of the
+     * one in the `Schema.object()` definition.
      */
     public originalPropertyKey(originalKey: string) {
         return ObjectPropertySchema.wrap(this).originalPropertyKey(originalKey);
@@ -532,16 +534,16 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Accept an object where the keys match the corresponding schema.
      *
      * Any extra keys in the object will be discarded. This allows schemas to be
-     * compatible with future objects that may add properties. Also for security
-     * an attacker can't sneak in unexpected properties that may change the
-     * system's behavior.
+     * compatible with future objects that may add properties. Also for security an
+     * attacker can't sneak in unexpected properties that may change the system's
+     * behavior.
      *
-     * Only considers the object's own keys. We ignore any properties on the
-     * prototype chain.
+     * Only considers the object's own keys. We ignore any properties on the prototype
+     * chain.
      *
-     * If parsing a plain object we will mutate the object in-place. We will
-     * delete any extra unknown keys. If parsing an object with a prototype chain
-     * then we will create a new, plain, object.
+     * If parsing a plain object we will mutate the object in-place. We will delete any
+     * extra unknown keys. If parsing an object with a prototype chain then we will
+     * create a new, plain, object.
      */
     public static object<Config extends ObjectSchemaConfigBase>(
         config: Config,
@@ -550,19 +552,18 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
-     * Accept an object where a sentinel `type` string matches an expected type.
-     * Allows you to build algebraic data types into your data schema.
+     * Accept an object where a sentinel `type` string matches an expected type. Allows
+     * you to build algebraic data types into your data schema.
      *
-     * In academic type theory terms: `Schema.object()` lets you create a product
-     * type and `Schema.union()` lets you create a sum type.
+     * In academic type theory terms: `Schema.object()` lets you create a product type
+     * and `Schema.union()` lets you create a sum type.
      *
      * This is not a union on arbitrary types like in TypeScript, this union is
-     * required to be an object with a sentinel `type` property. We force the
-     * existence of a `type` property to quickly determine which guard to use for
-     * parsing.
+     * required to be an object with a sentinel `type` property. We force the existence
+     * of a `type` property to quickly determine which guard to use for parsing.
      *
-     * If we receive an object with an unknown `type` property then we throw. This
-     * is one case where we aren't future compatible.
+     * If we receive an object with an unknown `type` property then we throw. This is
+     * one case where we aren't future compatible.
      */
     public static union<Config extends UnionSchemaObjectConfigBase<Config>>(
         config: Config,
@@ -571,8 +572,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
-     * Same as `Schema.union()` but you can provide a custom key to use for the
-     * union's type instead of the identifier `type`.
+     * Same as `Schema.union()` but you can provide a custom key to use for the union's
+     * type instead of the identifier `type`.
      */
     public static unionWithKey<
         const TypeKey extends string,
@@ -596,13 +597,13 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     public static booleanUnion<
         const TypeKey extends string,
         TrueSchema extends Schema<any> & {
-            // We need to put our `key` type constraint on `deserialize` instead of the
-            // type parameter so the object type can be covariant instead of invariant.
+            // We need to put our `key` type constraint on `deserialize` instead of the type
+            // parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => Record<TypeKey, true>;
         },
         FalseSchema extends Schema<any> & {
-            // We need to put our `key` type constraint on `deserialize` instead of the
-            // type parameter so the object type can be covariant instead of invariant.
+            // We need to put our `key` type constraint on `deserialize` instead of the type
+            // parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => Record<TypeKey, false>;
         },
     >(
@@ -670,13 +671,13 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      */
     public static result<
         OkSchema extends Schema<any> & {
-            // We need to put our `ok` type constraint on `deserialize` instead of the
-            // type parameter so the object type can be covariant instead of invariant.
+            // We need to put our `ok` type constraint on `deserialize` instead of the type
+            // parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => {ok: true};
         },
         ErrorSchema extends Schema<any> & {
-            // We need to put our `ok` type constraint on `deserialize` instead of the
-            // type parameter so the object type can be covariant instead of invariant.
+            // We need to put our `ok` type constraint on `deserialize` instead of the type
+            // parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => {ok: false};
         },
     >(
@@ -692,12 +693,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Maintains the order items were inserted into the set during
      * serialization/deserialization just like the JavaScript `Set` class does.
      *
-     * Keep in mind this uses JavaScript `Set` rules for value equality. It does
-     * not test structural equality! So objects are only considered equal by the
-     * set if they are referentially equal. This means you may end up with the
-     * serialized set `[{p: 1}, {p: 1}]`. Those two objects are structurally equal
-     * but if they had the same reference when you built the `Set` they will stay
-     * that way.
+     * Keep in mind this uses JavaScript `Set` rules for value equality. It does not
+     * test structural equality! So objects are only considered equal by the set if
+     * they are referentially equal. This means you may end up with the serialized set
+     * `[{p: 1}, {p: 1}]`. Those two objects are structurally equal but if they had the
+     * same reference when you built the `Set` they will stay that way.
      */
     public static set<Value>(itemSchema: Schema<Value>): SetSchema<Value> {
         return SetSchema._new(itemSchema);
@@ -709,15 +709,14 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Maintains the order entries were inserted into the map during
      * serialization/deserialization just like the JavaScript `Map` class does.
      *
-     * To maintain order (and to allow arbitrary key values) we serialize to an
-     * array of tuples instead of an object. So `[[1, "a"], [2, "b"], [3, "c"]]`.
+     * To maintain order (and to allow arbitrary key values) we serialize to an array
+     * of tuples instead of an object. So `[[1, "a"], [2, "b"], [3, "c"]]`.
      *
-     * Keep in mind this uses JavaScript `Map` key rules for key equality. It does
-     * not test structural equality! So objects are only considered equal by the
-     * map if they are referentially equal. This means you may end up with the
-     * serialized map `[[{p: 1}, "a"], [{p: 1}, "b"]]`. Those two objects are
-     * structurally equal but if they had the same reference when you built the
-     * `Map` they will stay that way.
+     * Keep in mind this uses JavaScript `Map` key rules for key equality. It does not
+     * test structural equality! So objects are only considered equal by the map if
+     * they are referentially equal. This means you may end up with the serialized map
+     * `[[{p: 1}, "a"], [{p: 1}, "b"]]`. Those two objects are structurally equal but
+     * if they had the same reference when you built the `Map` they will stay that way.
      */
     public static map<Key, Value>(
         keySchema: Schema<Key>,
@@ -727,8 +726,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
-     * A value tuple. Represented as an array of fixed length with values of
-     * different types.
+     * A value tuple. Represented as an array of fixed length with values of different
+     * types.
      */
     public static tuple<const Schemas extends ReadonlyArray<Schema<any>>>(
         elementSchemas: Schemas,
@@ -772,8 +771,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Transform a schema's value at runtime into a different format.
      *
      * If you want to serialize a value in a format supported by our `Schema` but
-     * manipulate the value at runtime as some custom object, you can use the
-     * transform object to add extra serialization and deserialization steps.
+     * manipulate the value at runtime as some custom object, you can use the transform
+     * object to add extra serialization and deserialization steps.
      */
     public transform<NewValue>({
         serialize,
@@ -810,8 +809,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * This runs in the opposite order of `transform()`. It runs before all other
      * deserialization and after all other serialization.
      *
-     * You shouldn't mutate the underlying values in this function. Instead return
-     * new values!
+     * You shouldn't mutate the underlying values in this function. Instead return new
+     * values!
      */
     public migration({
         serialize,
@@ -835,11 +834,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
-     * Add a validation to this schema. Validations make sure `Value` is
-     * correct beyond just structural correctness based on the TypeScript type.
-     * For example if you have a `{min: number, max: number}` object and want to
-     * make sure `min` is always less than `max` you'd add a validation to make
-     * sure this is always the case.
+     * Add a validation to this schema. Validations make sure `Value` is correct beyond
+     * just structural correctness based on the TypeScript type. For example if you
+     * have a `{min: number, max: number}` object and want to make sure `min` is always
+     * less than `max` you'd add a validation to make sure this is always the case.
      *
      * The validation is checked at serialization and deserialization time.
      */
@@ -915,10 +913,10 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 if (schema !== null)
                     throw new InternalError("Declared schema has already been defined");
 
-                // Optimization: Set `validate` to null if it is null in the defined schema so
-                // we won't have to recursively validate. Even though it is marked as
-                // `readonly`. This shouldn't change semantics just performance so we're ok
-                // with breaking the `readonly` contract.
+                // Optimization: Set `validate` to null if it is null in the defined schema so we
+                // won't have to recursively validate. Even though it is marked as `readonly`. This
+                // shouldn't change semantics just performance so we're ok with breaking the
+                // `readonly` contract.
                 if (definedSchema.validate === null) {
                     cast<{validate: ((value: Value) => void) | null}>(declaredSchema).validate =
                         null;
@@ -930,19 +928,19 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
-     * Schema for an open ended interface. Generally prefer using `union()` as its
-     * more ergonomic. However, if you need to a union-like schema with
-     * implementations spread across multiple packages then `interface()` is for
-     * you. We borrow the language of TypeScript interfaces for this schema kind.
+     * Schema for an open ended interface. Generally prefer using `union()` as its more
+     * ergonomic. However, if you need to a union-like schema with implementations
+     * spread across multiple packages then `interface()` is for you. We borrow the
+     * language of TypeScript interfaces for this schema kind.
      *
-     * You can think of `union()` as a "closed" type class where we know all
-     * variants when the schema is constructed (e.g. a [Kotlin "sealed" class][1]
-     * or a [Haskell algebraic data type][2] or a [Rust enum][3]). You can think of
-     * `interface()` as an "open" type class where other implementations can be
-     * added later (e.g. a [Kotlin "open" class][4] or a [Haskell type class][5] or
-     * a [Rust trait][6]). Closed/open unions are both useful for expressing data
-     * types and have different tradeoffs. Generally, in our codebase we prefer
-     * closed unions since you can exhaustively switch on them.
+     * You can think of `union()` as a "closed" type class where we know all variants
+     * when the schema is constructed (e.g. a [Kotlin "sealed" class][1] or a [Haskell
+     * algebraic data type][2] or a [Rust enum][3]). You can think of `interface()` as
+     * an "open" type class where other implementations can be added later (e.g. a
+     * [Kotlin "open" class][4] or a [Haskell type class][5] or a [Rust trait][6]).
+     * Closed/open unions are both useful for expressing data types and have different
+     * tradeoffs. Generally, in our codebase we prefer closed unions since you can
+     * exhaustively switch on them.
      *
      * The way you use this is you declare an interface:
      *
@@ -962,8 +960,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * ```ts
      * const CatSchema = Animal.implement({
      *     type: Schema.value("Cat"),
-     *     breed: Schema.enum(["Calico", "Siamese", "Tabby", "Tuxedo"],
-     * )});
+     *     breed: Schema.enum(["Calico", "Siamese", "Tabby", "Tuxedo"]),
+     * });
      *
      * const DogSchema = Animal.implement({
      *     type: Schema.value("Dog"),
@@ -975,9 +973,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * `union()`! You don't need to collect all types in your union together in one
      * package. You can instead distribute the schemas across multiple packages.
      *
-     * The tradeoff is you must provide the schema when you initialize an interface
-     * and when you deserialize an interface value. For example, to construct a dog
-     * that's compatible with the `Animal` interface you must write the following:
+     * The tradeoff is you must provide the schema when you initialize an interface and
+     * when you deserialize an interface value. For example, to construct a dog that's
+     * compatible with the `Animal` interface you must write the following:
      *
      * ```ts
      * const myDog = new Animal(DogSchema, {type: "Dog", breed: "Labrador"});
@@ -989,10 +987,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * correct schema.
      *
      * For example, in the `Animal` case we include the animal's type in a `type`
-     * property. However, `type` is not a required property (like it is for
-     * `union()`). You can hint the type of your interface in any way you want.
-     * Here's how we use the `type` property to figure out our animal is a cat
-     * then deserialize the cat:
+     * property. However, `type` is not a required property (like it is for `union()`).
+     * You can hint the type of your interface in any way you want. Here's how we use
+     * the `type` property to figure out our animal is a cat then deserialize the cat:
      *
      * ```ts
      * if (animal.type === "Cat") {
@@ -1000,26 +997,26 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * }
      * ```
      *
-     * Once you've deserialized an interface instance with some schema you must
-     * always use that schema if you call `deserialize()` again! Otherwise an error
-     * will be thrown. In our above example, calling
-     * `animal.deserialize(DogSchema)` after you've already called
-     * `animal.deserialize(CatSchema)` throws an error.
+     * Once you've deserialized an interface instance with some schema you must always
+     * use that schema if you call `deserialize()` again! Otherwise an error will be
+     * thrown. In our above example, calling `animal.deserialize(DogSchema)` after
+     * you've already called `animal.deserialize(CatSchema)` throws an error.
      *
-     * The way this schema works is we associate interface instances with a
-     * specific schema object that never changes. If you use your interface
-     * constructor to create the instance (e.g. `new Animal()` in this example) the
-     * schema you pass in is the one associated with the instance. If you're
-     * deserializing a value from the network, we don't know which schema to use.
-     * So we construct an instance with no associated schema. Once you call
-     * `instance.deserialize(schema)` we associate the provided `schema` with the
-     * instance.
+     * The way this schema works is we associate interface instances with a specific
+     * schema object that never changes. If you use your interface constructor to
+     * create the instance (e.g. `new Animal()` in this example) the schema you pass in
+     * is the one associated with the instance. If you're deserializing a value from
+     * the network, we don't know which schema to use. So we construct an instance with
+     * no associated schema. Once you call `instance.deserialize(schema)` we associate
+     * the provided `schema` with the instance.
      *
      * [1]: https://kotlinlang.org/docs/sealed-classes.html
-     * [2]: https://learnyouahaskell.com/making-our-own-types-and-typeclasses#algebraic-data-types
+     * [2]:
+     *     https://learnyouahaskell.com/making-our-own-types-and-typeclasses#algebraic-data-types
      * [3]: https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html
      * [4]: https://kotlinlang.org/docs/inheritance.html#overriding-methods
-     * [5]: https://learnyouahaskell.com/making-our-own-types-and-typeclasses#typeclasses-102
+     * [5]:
+     *     https://learnyouahaskell.com/making-our-own-types-and-typeclasses#typeclasses-102
      * [6]: https://doc.rust-lang.org/book/ch10-02-traits.html
      */
     public static interface<Config extends ObjectSchemaConfigBase>(
@@ -1035,8 +1032,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>
             >({
                 // TODO(calebmer): This doesn't consider evolution of schemas implementing this
-                // schema! Ideally we'd keep track of all implementor schemas too and track
-                // their evolution.
+                // schema! Ideally we'd keep track of all implementor schemas too and track their
+                // evolution.
                 getDescription: schemaBase._getDescription,
                 serialize: value => value.serialize(),
                 deserialize: serializedValue => {
@@ -1077,13 +1074,12 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
 
                 super(schema, value);
 
-                // Serialize only the keys from `valueBase` but using the schemas from
-                // `schema`. In case `schema` adds any `transform()`s that `valueBase` wouldn't
-                // recognize.
+                // Serialize only the keys from `valueBase` but using the schemas from `schema`. In
+                // case `schema` adds any `transform()`s that `valueBase` wouldn't recognize.
                 //
-                // This is guaranteed to be safe since the `schemaBase.merge()` operation we
-                // use to create `schema` checks that share properties between `schemaBase` and
-                // `schema` are backwards compatible with one another.
+                // This is guaranteed to be safe since the `schemaBase.merge()` operation we use to
+                // create `schema` checks that share properties between `schemaBase` and `schema`
+                // are backwards compatible with one another.
                 {
                     const serializedValueBase: any = {};
 
@@ -1108,13 +1104,13 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
 }
 
 /**
- * A special `Uint8Array` that when passed into `JSON.stringify()` base64
- * encodes its contents.
+ * A special `Uint8Array` that when passed into `JSON.stringify()` base64 encodes
+ * its contents.
  *
  * This is a convenient class for working with an unknown serializer. If the
- * serializer has special support for `Uint8Array` then it will directly encode
- * the binary contents. If the serializer uses `JSON.stringify()` then we get
- * a base64 string.
+ * serializer has special support for `Uint8Array` then it will directly encode the
+ * binary contents. If the serializer uses `JSON.stringify()` then we get a base64
+ * string.
  */
 export class JsonStringifiableUint8Array extends Uint8Array {
     public toJSON(): string {
@@ -1196,8 +1192,8 @@ export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
     }
 
     /**
-     * Verifies that the length of the array is greater than or equal to the
-     * provided length.
+     * Verifies that the length of the array is greater than or equal to the provided
+     * length.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public minLength(length: number): ArraySchema<Value> {
@@ -1228,8 +1224,8 @@ export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
     }
 
     /**
-     * Verifies that the length of the string is less than or equal to the
-     * provided length.
+     * Verifies that the length of the string is less than or equal to the provided
+     * length.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public maxLength(length: number): ArraySchema<Value> {
@@ -1302,8 +1298,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
     declare public readonly serialize: (value: Value) => SchemaSerializedObjectValue;
 
     /**
-     * Serialize by assigning object properties directly to the provided
-     * target instead of creating a new object.
+     * Serialize by assigning object properties directly to the provided target instead
+     * of creating a new object.
      */
     public readonly serializeInto: (
         value: Value,
@@ -1311,8 +1307,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
     ) => void;
 
     /**
-     * Deserialize by assigning object properties directly to the provided
-     * target instead of the source value or creating a new value.
+     * Deserialize by assigning object properties directly to the provided target
+     * instead of the source value or creating a new value.
      */
     public readonly deserializeInto: (
         serializedValue: SchemaSerializedValue,
@@ -1452,11 +1448,10 @@ export class ObjectSchema<Value> extends Schema<Value> {
     }
 
     /**
-     * Add a validation to this schema. Validations make sure `Value` is
-     * correct beyond just structural correctness based on the TypeScript type.
-     * For example if you have a `{min: number, max: number}` object and want to
-     * make sure `min` is always less than `max` you'd add a validation to make
-     * sure this is always the case.
+     * Add a validation to this schema. Validations make sure `Value` is correct beyond
+     * just structural correctness based on the TypeScript type. For example if you
+     * have a `{min: number, max: number}` object and want to make sure `min` is always
+     * less than `max` you'd add a validation to make sure this is always the case.
      *
      * The validation is checked at serialization and deserialization time.
      */
@@ -1482,10 +1477,10 @@ export class ObjectSchema<Value> extends Schema<Value> {
      * Takes two object schemas and creates a new object schema with both of their
      * properties.
      *
-     * If you have the same key in both schemas, then we check that the old
-     * property is backwards compatible with the new property. That way, you can
-     * use `this` schema to deserialize values from the merged schema since `this`
-     * schema is a supertype of the merged schema.
+     * If you have the same key in both schemas, then we check that the old property is
+     * backwards compatible with the new property. That way, you can use `this` schema
+     * to deserialize values from the merged schema since `this` schema is a supertype
+     * of the merged schema.
      */
     public merge<OtherValue>(
         otherSchema: ObjectSchema<OtherValue>,
@@ -1523,8 +1518,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
         return new ObjectSchema(
             propertySchemaByKey,
-            // Merging validations is safe since we check all the properties being
-            // overridden by `otherSchema` are compatible with the old properties.
+            // Merging validations is safe since we check all the properties being overridden
+            // by `otherSchema` are compatible with the old properties.
             this._validations !== null || otherSchema._validations !== null
                 ? ([...(this._validations ?? []), ...(otherSchema._validations ?? [])] as any)
                 : null,
@@ -1538,8 +1533,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
     public omit<const Keys extends ReadonlyArray<string>>(
         keys: Keys,
     ): ObjectSchema<Omit<Value, Keys[number]>> {
-        // We don't know whether validations will access the omitted properties so we
-        // don't allow using `omit()` on a schema with validations.
+        // We don't know whether validations will access the omitted properties so we don't
+        // allow using `omit()` on a schema with validations.
         if (this._validations !== null && this._validations.length > 0) {
             throw new InternalError("Can\u2019t use `omit()` on object schema with validations");
         }
@@ -1562,9 +1557,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
      * TypeScript utility.
      */
     public partial(): ObjectSchema<Partial<Value>> {
-        // We don't know whether validations will access the required properties that
-        // are now optional so we don't allow using `partial()` on a schema with
-        // validations.
+        // We don't know whether validations will access the required properties that are
+        // now optional so we don't allow using `partial()` on a schema with validations.
         if (this._validations !== null && this._validations.length > 0) {
             throw new InternalError("Can\u2019t use `partial()` on object schema with validations");
         }
@@ -1581,8 +1575,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
     }
 
     /**
-     * Schema combinator for running a migration that turns a property value
-     * into an object.
+     * Schema combinator for running a migration that turns a property value into an
+     * object.
      *
      * So for example, you can turn the following schema:
      *
@@ -1603,24 +1597,23 @@ export class ObjectSchema<Value> extends Schema<Value> {
      * });
      * ```
      *
-     * Useful if you want to add more data alongside some other property in
-     * your schema.
+     * Useful if you want to add more data alongside some other property in your
+     * schema.
      *
      * The serialized object looks like this:
      *
      * ```json
      * {
      *     "foo": 42,
-     *     "foo2": {"b": "hello"},
+     *     "foo2": {"b": "hello"}
      * }
      * ```
      *
-     * The property `a` stays at the old position `foo` (so old code can
-     * deserialize the object) whereas the new property is added to a new object
-     * `foo2`.
+     * The property `a` stays at the old position `foo` (so old code can deserialize
+     * the object) whereas the new property is added to a new object `foo2`.
      *
-     * If you use `originalPropertyKey()` to rename the property at the same time
-     * like this:
+     * If you use `originalPropertyKey()` to rename the property at the same time like
+     * this:
      *
      * ```ts
      * Schema.object({
@@ -1638,12 +1631,12 @@ export class ObjectSchema<Value> extends Schema<Value> {
      * ```json
      * {
      *     "foo": 42,
-     *     "bar": {"b": "hello"},
+     *     "bar": {"b": "hello"}
      * }
      * ```
      *
-     * The second object with new properties has the new property key whereas the
-     * old object has the old property key.
+     * The second object with new properties has the new property key whereas the old
+     * object has the old property key.
      */
     public wrapOriginalPropertyInObject<const Key extends keyof Value & string>(
         key: Key,
@@ -1655,8 +1648,8 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
 export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     /**
-     * The key this property is written to in the serialized object. If null then
-     * we use the key provided in the object schema definition.
+     * The key this property is written to in the serialized object. If null then we
+     * use the key provided in the object schema definition.
      *
      * Must be a valid identifier (according to `isIdentifier()`).
      */
@@ -1676,8 +1669,8 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     public readonly valueSchema: Schema<SchemaValue>;
 
     /**
-     * Serialize the property. We expect this function to actually write the
-     * property to the provided `object`.
+     * Serialize the property. We expect this function to actually write the property
+     * to the provided `object`.
      *
      * - `object` is the new object we're writing to
      * - `key` is the key we're writing to
@@ -1696,8 +1689,8 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
      * - `object` is the object we are deserializing from
      * - `key` is the key in `object` to deserialize
      *
-     * If `schemaDeserializationMissingObjectPropertySymbol` is returned then we
-     * will throw a schema deserialization error.
+     * If `schemaDeserializationMissingObjectPropertySymbol` is returned then we will
+     * throw a schema deserialization error.
      */
     public readonly deserializeProperty: (
         object: SchemaSerializedObjectValue,
@@ -1707,10 +1700,9 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
 
     /**
      * If the property is determined to be missing by a missing property combinator
-     * (`optional()` and `default()`) then they run this function to figure out
-     * what value to use. If this function returns
-     * `objectSchemaMissingPropertySymbol` then we use whatever behavior was
-     * defined by the missing property combinator.
+     * (`optional()` and `default()`) then they run this function to figure out what
+     * value to use. If this function returns `objectSchemaMissingPropertySymbol` then
+     * we use whatever behavior was defined by the missing property combinator.
      */
     private readonly _deserializeMissingProperty:
         | ((
@@ -1721,11 +1713,10 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         | null;
 
     /**
-     * Validates that any constraints for the schema are met beyond the
-     * schema's TypeScript type.
+     * Validates that any constraints for the schema are met beyond the schema's
+     * TypeScript type.
      *
-     * If the TypeScript type is enough to validate the property then this
-     * is null.
+     * If the TypeScript type is enough to validate the property then this is null.
      */
     public readonly validateProperty: ((value: Value) => void) | null;
 
@@ -2103,9 +2094,8 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                 const serializedKey2 =
                     schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
 
-                // Both `serializedKey` and `serializedKey2` are optional properties but you
-                // must have one or the other (and sometimes both) to correctly deserialize
-                // this schema.
+                // Both `serializedKey` and `serializedKey2` are optional properties but you must
+                // have one or the other (and sometimes both) to correctly deserialize this schema.
                 const descriptions = propertySchema
                     .getDescription(serializedKey, schemaKey)
                     .map(description => {
@@ -2227,16 +2217,16 @@ type ValueSchemaValueBase = null | boolean | number | string | Date;
  */
 export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Value> {
     /**
-     * The only value this schema permits. This is the value at runtime and may not
-     * be the value that is serialized.
+     * The only value this schema permits. This is the value at runtime and may not be
+     * the value that is serialized.
      *
      * Useful for static analysis.
      */
     public readonly value: Value;
 
     /**
-     * The value that is serialized. May be the same as our runtime value or may
-     * be different.
+     * The value that is serialized. May be the same as our runtime value or may be
+     * different.
      */
     public readonly serializedValue: null | boolean | number | string;
 
@@ -2283,8 +2273,8 @@ export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Valu
  */
 export type UnionSchemaObjectConfigBase<Config> = {
     [Key in keyof Config]: Schema<any> & {
-        // We need to put our `Key` type constraint on `deserialize` instead of the
-        // type parameter so the object type can be covariant instead of invariant.
+        // We need to put our `Key` type constraint on `deserialize` instead of the type
+        // parameter so the object type can be covariant instead of invariant.
         deserialize: (value: SchemaSerializedValue) => {type: Key};
     };
 };
@@ -2294,8 +2284,8 @@ export type UnionSchemaObjectConfigType<Config extends UnionSchemaObjectConfigBa
 
 export type UnionSchemaObjectConfigWithKeyBase<TypeKey extends string, Config> = {
     [Key in keyof Config]: Schema<any> & {
-        // We need to put our `Key` type constraint on `deserialize` instead of the
-        // type parameter so the object type can be covariant instead of invariant.
+        // We need to put our `Key` type constraint on `deserialize` instead of the type
+        // parameter so the object type can be covariant instead of invariant.
         deserialize: (value: SchemaSerializedValue) => Record<TypeKey, Key>;
     };
 };
@@ -2374,10 +2364,10 @@ export class UnionSchema<Value> extends Schema<Value> {
     /**
      * Prefer `Schema.union()` which directly calls this method.
      *
-     * By convention `Schema.union()` only supports `ObjectSchema`s which we
-     * can introspect. If you want to build a union with non-`ObjectSchema`s then
-     * you may use this method which allows you to customize how the is type is
-     * found on arbitrary values.
+     * By convention `Schema.union()` only supports `ObjectSchema`s which we can
+     * introspect. If you want to build a union with non-`ObjectSchema`s then you may
+     * use this method which allows you to customize how the is type is found on
+     * arbitrary values.
      */
     public static _new<Config extends UnionSchemaObjectConfigBase<Config>>(
         config: Config,
@@ -2511,11 +2501,11 @@ export class UnionSchema<Value> extends Schema<Value> {
                 // Use the type to select the schema we'll use to parse the value.
                 const serializedTypeValue = value[serializedTypeKey];
 
-                // Always use the serialized type name, never use the current type name in
-                // code. We don't have code that will serialize using the current type name.
+                // Always use the serialized type name, never use the current type name in code. We
+                // don't have code that will serialize using the current type name.
                 //
-                // This makes static analysis on the schema a bit easier. Since we don't need
-                // to consider two possible types.
+                // This makes static analysis on the schema a bit easier. Since we don't need to
+                // consider two possible types.
                 //
                 // We may want to consider a migration path in the future where both types are
                 // temporarily allowed until one type fully replaces the other.
@@ -2539,10 +2529,10 @@ export class UnionSchema<Value> extends Schema<Value> {
     }
 
     /**
-     * Set the default variant for the union. You use this when you're converting
-     * an object schema (`Schema.object()`) to a union schema (`Schema.union()`).
-     * Any old objects we're deserializing that don't have a type property will be
-     * interpreted as a union variant with the provided type.
+     * Set the default variant for the union. You use this when you're converting an
+     * object schema (`Schema.object()`) to a union schema (`Schema.union()`). Any old
+     * objects we're deserializing that don't have a type property will be interpreted
+     * as a union variant with the provided type.
      */
     public defaultVariant(type: string): UnionSchema<Value> {
         assert(this.variantSchemaByType.has(type));
@@ -2566,8 +2556,8 @@ export class UnionSchema<Value> extends Schema<Value> {
                     throw new SchemaDeserializationError("Expected an object");
                 }
 
-                // If the serialized object doesn't have a type property then create a new
-                // object with the default type and continue deserialization.
+                // If the serialized object doesn't have a type property then create a new object
+                // with the default type and continue deserialization.
                 if (
                     !hasOwnProperty(value, this._serializedTypeKey) ||
                     typeof value[this._serializedTypeKey] !== "string"
@@ -2582,8 +2572,8 @@ export class UnionSchema<Value> extends Schema<Value> {
     }
 
     /**
-     * Same as `ObjectSchema.wrapOriginalPropertyInObject()` but for unions. See
-     * the documentation on `ObjectSchema.wrapOriginalPropertyInObject()`.
+     * Same as `ObjectSchema.wrapOriginalPropertyInObject()` but for unions. See the
+     * documentation on `ObjectSchema.wrapOriginalPropertyInObject()`.
      */
     public wrapOriginalPropertyInUnionVariant<
         Value extends {readonly type: string},
@@ -2758,8 +2748,8 @@ export class StringSchema extends Schema<string> {
     }
 
     /**
-     * Verifies that the length of the string is greater than or equal to the
-     * provided length.
+     * Verifies that the length of the string is greater than or equal to the provided
+     * length.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public minLength(length: number): StringSchema {
@@ -2797,8 +2787,8 @@ export class StringSchema extends Schema<string> {
     }
 
     /**
-     * Verifies that the length of the string is less than or equal to the
-     * provided length.
+     * Verifies that the length of the string is less than or equal to the provided
+     * length.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public maxLength(length: number): StringSchema {
@@ -2927,9 +2917,9 @@ export class StringSchema extends Schema<string> {
      * Transforms a value by removing the whitespace from the start and end of the
      * string.
      */
-    // NOTE(calebmer): It's important that this runs before length validations
-    // since it may change the length of the string. Right now users need to
-    // manually order their combinators correctly. Can we do this automatically?
+    // NOTE(calebmer): It's important that this runs before length validations since it
+    // may change the length of the string. Right now users need to manually order
+    // their combinators correctly. Can we do this automatically?
     public trim(): StringSchema {
         return this._transformString({
             serialize: value => value.trim(),
@@ -3419,8 +3409,8 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
-                // Optimization: Don't allocate an empty set object if we're deserializing an
-                // empty array.
+                // Optimization: Don't allocate an empty set object if we're deserializing an empty
+                // array.
                 if (value.length === 0) return emptySet;
 
                 return new Set(value.map(item => itemSchema.deserialize(item)));
@@ -3467,8 +3457,7 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
     }
 
     /**
-     * Verifies that the size of the set is greater than or equal to the
-     * provided size.
+     * Verifies that the size of the set is greater than or equal to the provided size.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public minSize(size: number): SetSchema<Value> {
@@ -3499,8 +3488,7 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
     }
 
     /**
-     * Verifies that the size of the set is less than or equal to the
-     * provided size.
+     * Verifies that the size of the set is less than or equal to the provided size.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public maxSize(size: number): SetSchema<Value> {
@@ -3563,8 +3551,8 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
-                // Optimization: Don't allocate an empty map object if we're deserializing an
-                // empty array.
+                // Optimization: Don't allocate an empty map object if we're deserializing an empty
+                // array.
                 if (value.length === 0) return emptyMap;
 
                 return new Map(
@@ -3622,8 +3610,7 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
     }
 
     /**
-     * Verifies that the size of the map is greater than or equal to the
-     * provided size.
+     * Verifies that the size of the map is greater than or equal to the provided size.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public minSize(size: number): MapSchema<Key, Value> {
@@ -3654,8 +3641,7 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
     }
 
     /**
-     * Verifies that the size of the map is less than or equal to the
-     * provided size.
+     * Verifies that the size of the map is less than or equal to the provided size.
      */
     // TODO(calebmer): Backwards compatibility validation?
     public maxSize(size: number): MapSchema<Key, Value> {
@@ -3688,8 +3674,8 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
 
 type InterfaceSchemaInstanceClass<ValueBase> = {
     /**
-     * The interface schema. This schema lazily deserializes. It returns an
-     * interface instance you must later call `deserialize()` on.
+     * The interface schema. This schema lazily deserializes. It returns an interface
+     * instance you must later call `deserialize()` on.
      */
     readonly schema: Schema<InterfaceSchemaInstance<ValueBase>>;
 
@@ -3703,8 +3689,8 @@ type InterfaceSchemaInstanceClass<ValueBase> = {
     };
 
     /**
-     * Construct a new interface instance with an associated schema. Shared
-     * properties are made available on the interface.
+     * Construct a new interface instance with an associated schema. Shared properties
+     * are made available on the interface.
      */
     new <Value extends ValueBase>(
         schema: Schema<Value>,
@@ -3728,9 +3714,9 @@ class InterfaceSchemaInstanceBase {
 
     /**
      * Serialize the interface instance using the associated schema. If there's no
-     * associated schema (when we've deserialized this instance from the network)
-     * then we never deserialized the value so return the serialized value we got
-     * from the network.
+     * associated schema (when we've deserialized this instance from the network) then
+     * we never deserialized the value so return the serialized value we got from the
+     * network.
      */
     public serialize(): SchemaSerializedValue {
         if (this._schema === null) {
@@ -3741,11 +3727,11 @@ class InterfaceSchemaInstanceBase {
     }
 
     /**
-     * Deserialize the interface instance using the associated schema. If there's
-     * no associated schema then we set the provided schema as the associated
-     * schema (but only if there's no deserialization errors). If there's already
-     * an associated schema and it's different from the schema you provide then
-     * this function will throw an error.
+     * Deserialize the interface instance using the associated schema. If there's no
+     * associated schema then we set the provided schema as the associated schema (but
+     * only if there's no deserialization errors). If there's already an associated
+     * schema and it's different from the schema you provide then this function will
+     * throw an error.
      */
     public deserialize<Value>(schema: Schema<Value>): Value {
         if (this._schema === null) {
@@ -3773,8 +3759,8 @@ class InterfaceSchemaInstanceBase {
  * An error thrown while deserializing a schema.
  */
 // TODO(calebmer): Should we make this `InternalError` as a default instead of
-// `InvalidArgumentError`? Probably better to reclassify down in severity
-// instead of reclassifying up in severity.
+// `InvalidArgumentError`? Probably better to reclassify down in severity instead
+// of reclassifying up in severity.
 //
 // Actually, I think the real move is to have two `deserialize()` functions and
 // make it an explicit choice at every call-site.

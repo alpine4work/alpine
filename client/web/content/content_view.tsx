@@ -152,8 +152,8 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     content: Content;
 
     /**
-     * This prop puts an `(updated)` message at the end of our content with a
-     * tooltip with the time the content was updated at.
+     * This prop puts an `(updated)` message at the end of our content with a tooltip
+     * with the time the content was updated at.
      */
     contentUpdatedTime?: Date | null;
 
@@ -173,16 +173,16 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     "aria-labelledby"?: string;
 
     /**
-     * Used specifically by `<MessageView>` to record the message room key in the
-     * DOM. Since `<MessagingViewPointerToolbar>`'s state is based on looking at
-     * the DOM to figure out what's selected.
+     * Used specifically by `<MessageView>` to record the message room key in the DOM.
+     * Since `<MessagingViewPointerToolbar>`'s state is based on looking at the DOM to
+     * figure out what's selected.
      */
     "data-room"?: string;
 
     /**
      * Used specifically by `<MessageView>` to record the message index in the DOM.
-     * Since `<MessagingViewPointerToolbar>`'s state is based on looking at the DOM
-     * to figure out what's selected.
+     * Since `<MessagingViewPointerToolbar>`'s state is based on looking at the DOM to
+     * figure out what's selected.
      */
     "data-index"?: number;
 
@@ -197,8 +197,8 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * Should all interactive elements be made inert? So not clickable and not
      * focusable. Gets its name from the [`inert` attribute][1].
      *
-     * Manually implemented instead of relying on the HTML `inert` attribute since
-     * it doesn't have great browser support.
+     * Manually implemented instead of relying on the HTML `inert` attribute since it
+     * doesn't have great browser support.
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inert
      */
@@ -210,11 +210,11 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      *
      * 1. Before adding a file to content we need to call either
      *    `attachFileAsUploader()` or `attachFileFromAttachment()` to make sure
-     *    everyone who has access to the attachment target has access to the file.
-     *    We use the attachment target to create the correct link.
+     *    everyone who has access to the attachment target has access to the file. We
+     *    use the attachment target to create the correct link.
      *
-     * 2. When refreshing expired signed preview URLs we need the attachment target
-     *    so we can prove the current account has access to the file.
+     * 2. When refreshing expired signed preview URLs we need the attachment target so
+     *    we can prove the current account has access to the file.
      *
      * An error will be thrown if your content supports files but doesn't provide
      * `fileAttachmentTarget`.
@@ -234,8 +234,7 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
 
     /**
      * Adds a "See more" button which when clicked should reveal the whole content.
-     * Useful when you want to show snippet of truncated content that expands to
-     * more.
+     * Useful when you want to show snippet of truncated content that expands to more.
      */
     onSeeMoreContent?: (targetElement: HTMLDivElement) => void;
 
@@ -247,9 +246,9 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     onSeeLessContent?: (targetElement: HTMLDivElement) => void;
 
     /**
-     * Disable the block maximum width. Letting content flow all the way to the
-     * edges of the container. Used in document presentation mode for rendering
-     * slides. Defaults to false.
+     * Disable the block maximum width. Letting content flow all the way to the edges
+     * of the container. Used in document presentation mode for rendering slides.
+     * Defaults to false.
      */
     withoutBlockMaxWidth?: boolean;
 
@@ -260,10 +259,10 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     transformScale?: number;
 
     /**
-     * Optionally provide author information for the content we serialize to the
-     * user's clipboard. When copying content from multiple different authors,
-     * we'll prepend the author's name as a prefix to distinguish who wrote what.
-     * If all copied content is from the same author, no prefix is added.
+     * Optionally provide author information for the content we serialize to the user's
+     * clipboard. When copying content from multiple different authors, we'll prepend
+     * the author's name as a prefix to distinguish who wrote what. If all copied
+     * content is from the same author, no prefix is added.
      */
     getClipboardSerializerAuthorPrefix?: Memo<() => AccountModel | null>;
 
@@ -276,16 +275,16 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     /**
      * Runs a jump animation on the content between these two positions.
      *
-     * To support interruptible animations you should provide a `startTime`. So if
-     * the `<ContentView>` is mounted/unmounted (maybe because of list
-     * virtualization) the animation state is preserved.
+     * To support interruptible animations you should provide a `startTime`. So if the
+     * `<ContentView>` is mounted/unmounted (maybe because of list virtualization) the
+     * animation state is preserved.
      */
     jumpAnimation?: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
 };
 
 /**
- * A read-only view of content. Used as a complement to `<ContentEditor>` when
- * you want to disable editing of content and only allow reading the content.
+ * A read-only view of content. Used as a complement to `<ContentEditor>` when you
+ * want to disable editing of content and only allow reading the content.
  */
 export function ContentView<Content extends ContentWithReferences>({
     content,
@@ -330,8 +329,8 @@ export function ContentView<Content extends ContentWithReferences>({
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const currentDate = useCurrentDate();
 
-    // Don't get the current account when running in a unit test so we don't need
-    // to render a space context when testing this component.
+    // Don't get the current account when running in a unit test so we don't need to
+    // render a space context when testing this component.
     const context = useAppContextIfExists();
     const spaceContext = useSpaceContextIfExists();
     const spaceId = spaceContext?.space.id ?? null;
@@ -376,8 +375,8 @@ export function ContentView<Content extends ContentWithReferences>({
             ContentViewCodeBlockDecorationsSchema.deserialize(serializedDecorations);
 
         // If this is the initial render of a `<ContentEditor>` then store the initial
-        // decorations so when we swap with `<ContentEditor>` we have the decorations
-        // ready to go.
+        // decorations so when we swap with `<ContentEditor>` we have the decorations ready
+        // to go.
         if (isInitialAppRender && decorations.length > 0) {
             ContentCodeBlockIncrementalParser.getInitialDecorationsByNode().set(
                 content.doc,
@@ -392,8 +391,8 @@ export function ContentView<Content extends ContentWithReferences>({
     });
     let initialCodeBlockDecorations = initialCodeBlockDecorationsState?.decorations ?? null;
 
-    // If the document we're rendering changes, remove code block decorations from
-    // the server side render.
+    // If the document we're rendering changes, remove code block decorations from the
+    // server side render.
     if (
         initialCodeBlockDecorationsState !== null &&
         initialCodeBlockDecorationsState.doc !== content.doc
@@ -512,10 +511,10 @@ export function ContentView<Content extends ContentWithReferences>({
             });
         }
 
-        // If we have some initial code block decorations from server-side rendering
-        // then use those instead of trying to compute new decorations. Since we
-        // may not be able to compute new decorations given no language parsers will be
-        // loaded on initial render.
+        // If we have some initial code block decorations from server-side rendering then
+        // use those instead of trying to compute new decorations. Since we may not be able
+        // to compute new decorations given no language parsers will be loaded on initial
+        // render.
         const codeBlockDecorationsStore =
             initialCodeBlockDecorations === null
                 ? createContentCodeBlockHtmlSerializationDecorationsStore(content.doc)
@@ -529,8 +528,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
                 const language = contentCodeBlockLanguageById[languageId];
 
-                // Preload code block languages while we're using initial code block
-                // decorations so we're ready for a re-render.
+                // Preload code block languages while we're using initial code block decorations so
+                // we're ready for a re-render.
                 language.getParser();
             });
         }
@@ -642,17 +641,17 @@ export function ContentView<Content extends ContentWithReferences>({
         if (
             !previousHtmlGenerator ||
             // Force the content HTML to be re-created if the structure of `content.doc`
-            // changes between renders. If content changes dramatically then `patchNode()`
-            // has some limitations (e.g. doesn't handle children insertion, removal, and
+            // changes between renders. If content changes dramatically then `patchNode()` has
+            // some limitations (e.g. doesn't handle children insertion, removal, and
             // re-ordering well). For all other changes try patching our HTML.
             //
-            // Ideally we'd always use `patchNode()` to update the DOM so we don't destroy
-            // and re-create DOM nodes if we don't have to but we can't trust our
-            // implementation of `patchNode()` at the moment.
+            // Ideally we'd always use `patchNode()` to update the DOM so we don't destroy and
+            // re-create DOM nodes if we don't have to but we can't trust our implementation of
+            // `patchNode()` at the moment.
             !areProsemirrorNodesEqualExceptText(previousContentDoc, content.doc)
         ) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (element.hasChildNodes()) {
                 element.firstChild!.remove();
             }
@@ -672,26 +671,26 @@ export function ContentView<Content extends ContentWithReferences>({
                 ? getContentViewPosFromDom(element, selection.focusNode, selection.focusOffset)
                 : null;
 
-        // HACK: If re-rendering our `<ContentView>` changes the selection then clear
-        // the selection. Ideally instead we'd find the correct position for the
-        // selection in the new DOM and set the selection to the new position. However,
-        // we don't have a utility to turn a ProseMirror `pos` into a DOM position
-        // right now. We currently have `getContentViewPosFromDom()` but we'd also need
+        // HACK: If re-rendering our `<ContentView>` changes the selection then clear the
+        // selection. Ideally instead we'd find the correct position for the selection in
+        // the new DOM and set the selection to the new position. However, we don't have a
+        // utility to turn a ProseMirror `pos` into a DOM position right now. We currently
+        // have `getContentViewPosFromDom()` but we'd also need
         // `getDomFromContentViewPos()`.
         //
         // If you're fixing this hack, please also consider
         // `<ContentViewWithReactionParties>`. Since the story gets a little more
-        // complicated there. When adding a reaction one `<ContentView>` may be split
-        // into two `<ContentView>`s! So we need to move `newAnchorPos` into a
-        // different component entirely.
+        // complicated there. When adding a reaction one `<ContentView>` may be split into
+        // two `<ContentView>`s! So we need to move `newAnchorPos` into a different
+        // component entirely.
         //
         // Examples where this happens:
         //
-        // - A `jumpAnimation` is running and you have a selection in the highlighted
-        //   text (or in text in an adjacent node to the highlighted text).
+        // - A `jumpAnimation` is running and you have a selection in the highlighted text
+        //   (or in text in an adjacent node to the highlighted text).
         //
-        // - You have a selection in a paragraph and another user adds a reaction to
-        //   the message in the paragraph above in realtime causing
+        // - You have a selection in a paragraph and another user adds a reaction to the
+        //   message in the paragraph above in realtime causing
         //   `<ContentViewWithReactionParties>` to render and your `<ContentView>`s to
         //   split apart.
         if (oldAnchorPos !== newAnchorPos || oldFocusPos !== newFocusPos) {
@@ -706,9 +705,9 @@ export function ContentView<Content extends ContentWithReferences>({
         readonly wasPressed: boolean;
     } | null>(null);
 
-    // Whenever this component renders check that `targetElement` is still in the
-    // DOM. If it's not (maybe `attr`s changed or another user removed it) then
-    // reset our state to null.
+    // Whenever this component renders check that `targetElement` is still in the DOM.
+    // If it's not (maybe `attr`s changed or another user removed it) then reset our
+    // state to null.
     if (
         codeBlockCopyButtonTooltipState &&
         (platform === "mobile" ||
@@ -742,8 +741,8 @@ export function ContentView<Content extends ContentWithReferences>({
         );
     }, []);
 
-    // Some behaviors in this function depend on this effect being a layout effect.
-    // For example, on initial render when `<ContentEditor>` transitions from
+    // Some behaviors in this function depend on this effect being a layout effect. For
+    // example, on initial render when `<ContentEditor>` transitions from
     // `<ContentView>` to ProseMirror's `EditorView` we must run
     // `addContentFilePreviewBehavior()` `<ContentView>` cleanups before the
     // `EditorView` is initialized. This only happens if
@@ -773,10 +772,10 @@ export function ContentView<Content extends ContentWithReferences>({
 
         for (const element of parentElement.querySelectorAll(
             classNames
-                // Find all elements with the provided class names and exclude elements that
-                // are children of a file node. File entities may recursively render content
-                // (e.g. document file entities). The content within file entities is inert
-                // so shouldn't get any interactive behaviors.
+                // Find all elements with the provided class names and exclude elements that are
+                // children of a file node. File entities may recursively render content (e.g.
+                // document file entities). The content within file entities is inert so shouldn't
+                // get any interactive behaviors.
                 .map(className => `.${className}:not(.${fileClassName} .${className})`)
                 .join(", "),
         )) {
@@ -804,8 +803,8 @@ export function ContentView<Content extends ContentWithReferences>({
 
                 const handleClick = (event: MouseEvent) => {
                     // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                    // modifier. Unless the click was meant to open the link in a separate tab. We
-                    // need to implement that manually here given the text is editable.
+                    // modifier. Unless the click was meant to open the link in a separate tab. We need
+                    // to implement that manually here given the text is editable.
                     if (event.button !== 0 || isModifiedPointerEvent(event)) {
                         return;
                     }
@@ -821,8 +820,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     maybeUpdateStyle();
 
                     // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                    // modifier. Unless the click was meant to open the link in a separate tab. We
-                    // need to implement that manually here given the text is editable.
+                    // modifier. Unless the click was meant to open the link in a separate tab. We need
+                    // to implement that manually here given the text is editable.
                     if (event.button !== 0 || isModifiedPointerEvent(event)) {
                         return;
                     }
@@ -893,8 +892,8 @@ export function ContentView<Content extends ContentWithReferences>({
             ) {
                 let isCodeBlockCopyButtonHovered = false;
 
-                // We don't need to cleanup event listeners on DOM nodes created for this
-                // node view.
+                // We don't need to cleanup event listeners on DOM nodes created for this node
+                // view.
                 const cleanup = addUnfocusableButtonBehaviorToElement(element, {
                     defaultClassName: sprinkles({
                         color: "grey-60",
@@ -1086,30 +1085,29 @@ export function ContentView<Content extends ContentWithReferences>({
         posAttributeOffset,
     ]);
 
-    // Watch all parent elements of our content view for scroll events. When a
-    // scroll event occurs we want to call
-    // `dispatchParentScrollWhenPointerDownAndOverEvent()` on any pressable
-    // elements.
+    // Watch all parent elements of our content view for scroll events. When a scroll
+    // event occurs we want to call `dispatchParentScrollWhenPointerDownAndOverEvent()`
+    // on any pressable elements.
     //
     // This replicates the behavior in `@react-aria/interactions` where a press is
-    // cancelled when a parent element scrolls. This behavior is important for
-    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // cancelled when a parent element scrolls. This behavior is important for mobile
+    // since the user must press somewhere on the screen to scroll. Normally
     // `pointercancel` should be dispatched when the user scrolls while pressing on
-    // some element but when the CSS `touch-action: manipulation` is set the press
-    // is not cancelled.
+    // some element but when the CSS `touch-action: manipulation` is set the press is
+    // not cancelled.
     //
     // We can't add listeners to parent scroll elements in our link/mark view code
-    // because ProseMirror does not offer us a cleanup hook for mark views! So we
-    // add listeners at this level and call
+    // because ProseMirror does not offer us a cleanup hook for mark views! So we add
+    // listeners at this level and call
     // `dispatchParentScrollWhenPointerDownAndOverEvent()`.
     //
     // IMPORTANT: This is based off of code in `<ContentEditor>`. While this is
-    // necessary for `<ContentEditor>` because custom mark views don't get a
-    // cleanup handler it's not necessary here since we add behavior for our mark
-    // views in an effect which has a cleanup function. Though since we have
-    // reusable behavior code across custom mark/node views in `<ContentEditor>`
-    // and here (e.g. `addContentFilePreviewBehavior()`) it's useful to standardize
-    // this behavior across `<ContentEditor>` and `<ContentView>`.
+    // necessary for `<ContentEditor>` because custom mark views don't get a cleanup
+    // handler it's not necessary here since we add behavior for our mark views in an
+    // effect which has a cleanup function. Though since we have reusable behavior code
+    // across custom mark/node views in `<ContentEditor>` and here (e.g.
+    // `addContentFilePreviewBehavior()`) it's useful to standardize this behavior
+    // across `<ContentEditor>` and `<ContentView>`.
     useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(ref.current);
 
@@ -1169,10 +1167,10 @@ export function ContentView<Content extends ContentWithReferences>({
 
             for (const childElement of element.querySelectorAll(
                 parentScrollWhenPointerDownAndOverClassNames
-                    // Find all elements with the provided class names and exclude elements that
-                    // are children of a file node. File entities may recursively render content
-                    // (e.g. document file entities). The content within file entities is inert
-                    // so shouldn't get any interactive behaviors.
+                    // Find all elements with the provided class names and exclude elements that are
+                    // children of a file node. File entities may recursively render content (e.g.
+                    // document file entities). The content within file entities is inert so shouldn't
+                    // get any interactive behaviors.
                     .map(className => `.${className}:not(.${fileClassName} .${className})`)
                     .join(", "),
             )) {
@@ -1408,8 +1406,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 let html: globalThis.Node = dom;
 
                 // If the clipboard content was wrapped in a `<div>` with no identifying
-                // characteristics then let's unwrap the wrapper `<div>` so it won't be
-                // included in the copied output.
+                // characteristics then let's unwrap the wrapper `<div>` so it won't be included in
+                // the copied output.
                 if (
                     html instanceof Element &&
                     html.tagName === "DIV" &&
@@ -1423,9 +1421,9 @@ export function ContentView<Content extends ContentWithReferences>({
                     html = htmlFragment;
                 }
 
-                // Get the author for this content. Only include author if we're copying
-                // from the start of the content (so the author info applies to the
-                // entire copied content, not just a partial selection).
+                // Get the author for this content. Only include author if we're copying from the
+                // start of the content (so the author info applies to the entire copied content,
+                // not just a partial selection).
                 const authorPrefixAccount =
                     getClipboardSerializerAuthorPrefix &&
                     startPos <= Selection.atStart(content.doc).from
@@ -1528,8 +1526,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 // Optimization: These are only needed by `<MessagingViewPointerToolbar>` on
-                // desktop clients after server-side render. So reduce the server response size
-                // by not including these properties on initial render.
+                // desktop clients after server-side render. So reduce the server response size by
+                // not including these properties on initial render.
                 data-room={platform !== "mobile" && !isInitialAppRender ? dataRoom : undefined}
                 data-index={platform !== "mobile" && !isInitialAppRender ? dataIndex : undefined}
                 dangerouslySetInnerHTML={
@@ -1578,8 +1576,8 @@ export function ContentView<Content extends ContentWithReferences>({
                         )
                     }
                     onStateChange={state => {
-                        // Once the tooltip completely disappears (after fade out completes) then we
-                        // can remove our tooltip state.
+                        // Once the tooltip completely disappears (after fade out completes) then we can
+                        // remove our tooltip state.
                         if (
                             !state.isHovered &&
                             !state.isFocused &&
@@ -1594,8 +1592,8 @@ export function ContentView<Content extends ContentWithReferences>({
             {isInitialAppRender && codeBlockDecorations.length > 0 && (
                 <script
                     // We only compute this script on the server. On the client we don't bother
-                    // rendering the script which allows us to avoid an extra `JSON.stringify()`
-                    // call on a potentially large object.
+                    // rendering the script which allows us to avoid an extra `JSON.stringify()` call
+                    // on a potentially large object.
                     suppressHydrationWarning
                     dangerouslySetInnerHTML={{
                         __html:

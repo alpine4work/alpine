@@ -1,9 +1,9 @@
 /**
- * Returns the first non-undefined value from the `findMap` function. A
- * combination of `Array.find()` and `Array.map()`.
+ * Returns the first non-undefined value from the `findMap` function. A combination
+ * of `Array.find()` and `Array.map()`.
  *
- * This is the same as `iterableFirst(filterMapIterable(iterable, findMap))`
- * but with one function.
+ * This is the same as `iterableFirst(filterMapIterable(iterable, findMap))` but
+ * with one function.
  */
 export function findMapIterable<Value, NewValue>(
     iterable: Iterable<Value>,

@@ -27,8 +27,8 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 
-// ProseMirror calls this function when `state.tr.scrollIntoView()`
-// transactions. Instead of logging a warning, do nothing.
+// ProseMirror calls this function when `state.tr.scrollIntoView()` transactions.
+// Instead of logging a warning, do nothing.
 window.scrollBy = () => {};
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
@@ -4004,20 +4004,21 @@ test("pressing backspace at start of second line in code block after file row do
         />,
     );
 
-    // Position cursor at the beginning of the second line in the code block
-    // The document structure: fileRow (pos 1), codeBlock start, first codeBlockLine start,
-    // "first line" (10 chars), first codeBlockLine end, second codeBlockLine start
-    // So the beginning of second line should be at position:
-    // 1 (fileRow) + 1 (codeBlock) + 1 (first codeBlockLine) + 10 (text) + 1 (end first) + 1 (start second) = 15
+    // Position cursor at the beginning of the second line in the code block The
+    // document structure: fileRow (pos 1), codeBlock start, first codeBlockLine start,
+    // "first line" (10 chars), first codeBlockLine end, second codeBlockLine start So
+    // the beginning of second line should be at position: 1 (fileRow) + 1
+    // (codeBlock) + 1 (first codeBlockLine) + 10 (text) + 1 (end first) + 1 (start
+    // second) = 15
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(15))));
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    // Default browser backspace isn't implemented so this won't delete a character
-    // in tests but will in the browser. We're testing backspace doesn't select the file above it.
-    // (see the backspace + fileRowLike handling in the plugin)
-    // The exact behavior will depend on the browser's default backspace handling
-    // but the key thing is that the file should not be selected
+    // Default browser backspace isn't implemented so this won't delete a character in
+    // tests but will in the browser. We're testing backspace doesn't select the file
+    // above it. (see the backspace + fileRowLike handling in the plugin) The exact
+    // behavior will depend on the browser's default backspace handling but the key
+    // thing is that the file should not be selected
     expect(getSelection().type).not.toEqual("node");
 });
 
@@ -4298,8 +4299,8 @@ test('auto balances `"` when typed', async () => {
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
-    // Second quote isn't deleted since JSDOM doesn't support default keyboard
-    // event handlers. Seeing no keymap handler run is interesting enough to test.
+    // Second quote isn't deleted since JSDOM doesn't support default keyboard event
+    // handlers. Seeing no keymap handler run is interesting enough to test.
     expect(getDoc().toString()).toEqual('doc(paragraph("\u201C\u201D"))');
 });
 
@@ -5577,8 +5578,8 @@ test("backspace from first to last in a gallery maintains file selection", () =>
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
-    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
-    // the file row is replaced with an empty paragraph.
+    // When deleting the last file in the last remaining file row (no adjacent
+    // fileRowLike), the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
@@ -5791,8 +5792,8 @@ test("backspace from last to first in a gallery maintains file selection", () =>
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
-    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
-    // the file row is replaced with an empty paragraph.
+    // When deleting the last file in the last remaining file row (no adjacent
+    // fileRowLike), the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
@@ -5961,8 +5962,8 @@ test("backspace from first to last in a gallery maintains file selection when su
     );
     expect(getSelection()).toEqual({type: "node", anchor: 5});
 
-    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
-    // the file row is replaced with an empty paragraph.
+    // When deleting the last file in the last remaining file row (no adjacent
+    // fileRowLike), the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
@@ -6151,8 +6152,8 @@ test("backspace from last to first in a gallery maintains file selection when su
     );
     expect(getSelection()).toEqual({type: "node", anchor: 5});
 
-    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
-    // the file row is replaced with an empty paragraph.
+    // When deleting the last file in the last remaining file row (no adjacent
+    // fileRowLike), the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
@@ -6321,8 +6322,8 @@ test("delete from first to last in a gallery maintains file selection", () => {
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
-    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
-    // the file row is replaced with an empty paragraph.
+    // When deleting the last file in the last remaining file row (no adjacent
+    // fileRowLike), the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
@@ -6511,8 +6512,8 @@ test("delete from last to first in a gallery maintains file selection", () => {
     );
     expect(getSelection()).toEqual({type: "node", anchor: 3});
 
-    // When deleting the last file in the last remaining file row (no adjacent fileRowLike),
-    // the file row is replaced with an empty paragraph.
+    // When deleting the last file in the last remaining file row (no adjacent
+    // fileRowLike), the file row is replaced with an empty paragraph.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toJSON()).toEqual(
@@ -6564,8 +6565,8 @@ test("backspace at the start of a paragraph selects the previous file", () => {
     expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
     expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
 
-    // Backspace in text is normally implemented by the browser but JSDOM doesn't implement
-    // default `contenteditable` keyboard behavior.
+    // Backspace in text is normally implemented by the browser but JSDOM doesn't
+    // implement default `contenteditable` keyboard behavior.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
@@ -6604,8 +6605,8 @@ test("delete at the end of a paragraph selects the next file", () => {
     expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
     expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
 
-    // Delete in text is normally implemented by the browser but JSDOM doesn't implement
-    // default `contenteditable` keyboard behavior.
+    // Delete in text is normally implemented by the browser but JSDOM doesn't
+    // implement default `contenteditable` keyboard behavior.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
@@ -6700,8 +6701,8 @@ test("delete at the end of a paragraph in a list item selects the next file", ()
     );
     expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
 
-    // Delete in text is normally implemented by the browser but JSDOM doesn't implement
-    // default `contenteditable` keyboard behavior.
+    // Delete in text is normally implemented by the browser but JSDOM doesn't
+    // implement default `contenteditable` keyboard behavior.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
@@ -7931,9 +7932,9 @@ test("pressing backspace at the start of a cell moves to the previous cell", asy
     );
     expect(getSelection()).toEqual({type: "text", anchor: 38, head: 38});
 
-    // Default browser backspace isn't implemented so this won't delete a character
-    // in tests but will in the browser. We're testing backspace doesn't navigate
-    // in this position.
+    // Default browser backspace isn't implemented so this won't delete a character in
+    // tests but will in the browser. We're testing backspace doesn't navigate in this
+    // position.
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
@@ -8054,9 +8055,9 @@ test("pressing delete at the end of a cell moves to the next cell", async () => 
     );
     expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
 
-    // Default browser delete isn't implemented so this won't delete a character
-    // in tests but will in the browser. We're testing delete doesn't navigate
-    // in this position.
+    // Default browser delete isn't implemented so this won't delete a character in
+    // tests but will in the browser. We're testing delete doesn't navigate in this
+    // position.
     fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
@@ -8728,7 +8729,8 @@ describe("arrow down", () => {
             />,
         );
 
-        // Position cursor at the end of the text in the last cell in the last row (after "b2")
+        // Position cursor at the end of the text in the last cell in the last row (after
+        // "b2")
         dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(24))));
 
         expect(getDoc().toString()).toEqual(
@@ -8771,7 +8773,8 @@ describe("arrow down", () => {
             />,
         );
 
-        // Position cursor at the end of the text in the last cell in the last row (after "b2")
+        // Position cursor at the end of the text in the last cell in the last row (after
+        // "b2")
         dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(24))));
 
         expect(getDoc().toString()).toEqual(
@@ -8866,7 +8869,8 @@ describe("arrow down", () => {
 
         fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
 
-        // Should not create a new paragraph since there's already content after the codeblock
+        // Should not create a new paragraph since there's already content after the
+        // codeblock
         expect(getDoc().toString()).toEqual(
             'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")), paragraph("after code"))',
         );
@@ -8895,7 +8899,8 @@ describe("arrow down", () => {
             />,
         );
 
-        // Position cursor in the middle of the last line of the codeblock in the table cell
+        // Position cursor in the middle of the last line of the codeblock in the table
+        // cell
         dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(30))));
 
         expect(getDoc().toString()).toEqual(
@@ -8934,7 +8939,8 @@ describe("arrow down", () => {
             />,
         );
 
-        // Position cursor in the middle of the last line of the codeblock in the table cell
+        // Position cursor in the middle of the last line of the codeblock in the table
+        // cell
         dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(30))));
 
         expect(getDoc().toString()).toEqual(
@@ -8943,13 +8949,15 @@ describe("arrow down", () => {
 
         fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
 
-        // Should NOT create a paragraph under the table (document structure should remain the same)
+        // Should NOT create a paragraph under the table (document structure should remain
+        // the same)
         expect(getDoc().toString()).toEqual(
             'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("console.log(\'hello\');"), codeBlockLine("return true;")), paragraph("after code")), tableCell(paragraph("other cell")))))',
         );
 
-        // Navigation behavior will depend on the specific implementation, but the key is that
-        // we don't create a new paragraph under the table when there's content after the code block
+        // Navigation behavior will depend on the specific implementation, but the key is
+        // that we don't create a new paragraph under the table when there's content after
+        // the code block
     });
 
     test("pressing arrow down in a quote block within a table cell with content below moves to the content in the cell", async () => {
@@ -8982,7 +8990,8 @@ describe("arrow down", () => {
 
         fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
 
-        // Should NOT create a paragraph under the table (document structure should remain the same)
+        // Should NOT create a paragraph under the table (document structure should remain
+        // the same)
         expect(getDoc().toString()).toEqual(
             'doc(table(tableRow(tableCell(quoteBlock(paragraph("This is a quote")), paragraph("after quote")), tableCell(paragraph("other cell")))))',
         );
@@ -9110,10 +9119,12 @@ describe("arrow down", () => {
         // Press up arrow to go back into the code block
         fireEvent.keyDown(getTextbox(), arrowUpKeyboardEvent());
 
-        // Press down arrow again - should NOT create another paragraph, just move to existing one
+        // Press down arrow again - should NOT create another paragraph, just move to
+        // existing one
         fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
 
-        // Should still have only one paragraph after the table - this will fail with current logic
+        // Should still have only one paragraph after the table - this will fail with
+        // current logic
         expect(getDoc().toString()).toEqual(
             'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"))), tableCell(paragraph("other cell")))), paragraph)',
         );

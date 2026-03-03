@@ -35,23 +35,23 @@ export const FilesTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 /**
-                 * Represents the total number of files uploaded to the space. Used to
-                 * implement file metering. If a space passes the file storage limit for their
-                 * paid plan then we'll start deleting old files.
+                 * Represents the total number of files uploaded to the space. Used to implement
+                 * file metering. If a space passes the file storage limit for their paid plan then
+                 * we'll start deleting old files.
                  */
                 {
                     name: "FileTotals",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
-                         * How many files total have been uploaded to the space? Includes files that
-                         * are currently uploading. Doesn't include deleted files.
+                         * How many files total have been uploaded to the space? Includes files that are
+                         * currently uploading. Doesn't include deleted files.
                          */
                         count: Schema.integer,
 
                         /**
-                         * What's the total size of files that have been uploaded to the space?
-                         * Includes files that are currently uploading. Doesn't include deleted files.
+                         * What's the total size of files that have been uploaded to the space? Includes
+                         * files that are currently uploading. Doesn't include deleted files.
                          */
                         contentLength: Schema.integer,
                     }),
@@ -61,28 +61,28 @@ export const FilesTable = DynamoTableSchema.new({
                  * A file uploaded to our product in a space.
                  *
                  * `FileId`s are chronologically ordered. So a DynamoDB query starting at
-                 * `getMinId()` will return the first files uploaded to a space. This sorting
-                 * is useful when a space exceeds its file upload quota and we need to delete
-                 * old files.
+                 * `getMinId()` will return the first files uploaded to a space. This sorting is
+                 * useful when a space exceeds its file upload quota and we need to delete old
+                 * files.
                  *
-                 * If you need the file's `createdTime` you can get it from the timestamp in
-                 * its `FileId`.
+                 * If you need the file's `createdTime` you can get it from the timestamp in its
+                 * `FileId`.
                  *
-                 * File items do not include any information about the entity which owns them.
-                 * For example, if you upload an image to a document the fact that the image is
-                 * associated with the document is stored in the documents table. This is
-                 * because the same file can be referenced in multiple different places. If you
-                 * copy a file in Alpine then paste it somewhere else in Alpine, we create a
-                 * new reference to the file instead of reuploading the file.
+                 * File items do not include any information about the entity which owns them. For
+                 * example, if you upload an image to a document the fact that the image is
+                 * associated with the document is stored in the documents table. This is because
+                 * the same file can be referenced in multiple different places. If you copy a file
+                 * in Alpine then paste it somewhere else in Alpine, we create a new reference to
+                 * the file instead of reuploading the file.
                  *
                  * File content is immutable after it's been uploaded.
                  *
                  * The file is stored in Cloudflare R2 with the key `${spaceId}/${fileId}`.
                  */
-                // TODO(calebmer): At some point we'll need to implement a file garbage
-                // collector. For example, you add a file to a document then you delete the
-                // document. That file should eventually be removed from our database and not
-                // count against your space byte count.
+                // TODO(calebmer): At some point we'll need to implement a file garbage collector.
+                // For example, you add a file to a document then you delete the document. That
+                // file should eventually be removed from our database and not count against your
+                // space byte count.
                 {
                     name: "File",
                     sortKeyAttributes: {
@@ -92,11 +92,10 @@ export const FilesTable = DynamoTableSchema.new({
                         /**
                          * The content type of this file.
                          *
-                         * The file's content type doesn't change after upload. If we don't know the
-                         * file's type after upload we set it to `application/octet-stream` (which
-                         * means unknown binary file). This means if we later add support for a content
-                         * type, previously uploaded files won't get support. Only newly uploaded
-                         * files.
+                         * The file's content type doesn't change after upload. If we don't know the file's
+                         * type after upload we set it to `application/octet-stream` (which means unknown
+                         * binary file). This means if we later add support for a content type, previously
+                         * uploaded files won't get support. Only newly uploaded files.
                          */
                         contentType: FileContentTypeSchema,
 
@@ -111,8 +110,8 @@ export const FilesTable = DynamoTableSchema.new({
                         uploaderId: Schema.id<AccountId>(),
 
                         /**
-                         * Is the file content currently uploading? True before we've finished saving
-                         * the file's content to Cloudflare R2. False afterwards.
+                         * Is the file content currently uploading? True before we've finished saving the
+                         * file's content to Cloudflare R2. False afterwards.
                          *
                          * Just because the file is done uploading doesn't mean it's done processing.
                          * `isUploading` may be false while `preview.isProcessing` is true.
@@ -120,20 +119,20 @@ export const FilesTable = DynamoTableSchema.new({
                         isUploading: Schema.boolean,
 
                         /**
-                         * An (ideally lossless) alternative to the file we can render on the client.
-                         * We support many more document types than what the client can actually
-                         * render. For example, the user may upload a `.tiff` image but `.tiff` images
-                         * can't be rendered in a web browser. Or the user may upload a Microsoft Word
-                         * document but we need to convert such a document to `.pdf` before we can
-                         * render it. This property records whether the file has an alternative.
+                         * An (ideally lossless) alternative to the file we can render on the client. We
+                         * support many more document types than what the client can actually render. For
+                         * example, the user may upload a `.tiff` image but `.tiff` images can't be
+                         * rendered in a web browser. Or the user may upload a Microsoft Word document but
+                         * we need to convert such a document to `.pdf` before we can render it. This
+                         * property records whether the file has an alternative.
                          *
-                         * If non-null the file has an alternative that'll be rendered instead of the
-                         * main file itself. If `isImagePreviewContent` is true then the alternative is
-                         * the same as what's in `preview.content`. (`isImagePreviewContent` being true
-                         * implies there must be a `preview.content`.)
+                         * If non-null the file has an alternative that'll be rendered instead of the main
+                         * file itself. If `isImagePreviewContent` is true then the alternative is the same
+                         * as what's in `preview.content`. (`isImagePreviewContent` being true implies
+                         * there must be a `preview.content`.)
                          *
-                         * The alternative is only rendered in the fullscreen file viewer. Though a
-                         * preview image may be generated from the alternative file.
+                         * The alternative is only rendered in the fullscreen file viewer. Though a preview
+                         * image may be generated from the alternative file.
                          *
                          * - If `alternative` has finished uploading and `isImagePreviewContent` is false
                          *   then the alternative file is stored in Cloudflare R2 with the key:
@@ -146,20 +145,19 @@ export const FilesTable = DynamoTableSchema.new({
                         alternative: FileAlternativeSchema.nullable().default(null),
 
                         /**
-                         * True if `alternative` is now null but at some point in time
-                         * `alternative` was set to `{isProcessing: true}`. This happens for the
-                         * `video/mp4` and `audio/mp4` content types which might be web safe or web
-                         * unsafe depending on the codecs used. So we set
-                         * `alternative: {isProcessing: true}` until we figure out the codecs. If we
-                         * have web safe codecs then we'll set `alternative` to `null` and this
-                         * property to `true`.
+                         * True if `alternative` is now null but at some point in time `alternative` was
+                         * set to `{isProcessing: true}`. This happens for the `video/mp4` and `audio/mp4`
+                         * content types which might be web safe or web unsafe depending on the codecs
+                         * used. So we set `alternative: {isProcessing: true}` until we figure out the
+                         * codecs. If we have web safe codecs then we'll set `alternative` to `null` and
+                         * this property to `true`.
                          */
                         hasProcessedNullAlternative: Schema.value(true).optional(),
 
                         /**
                          * A visual preview image for the file. Previews are a scaled down, often
-                         * non-interactive, display of a file. For example files displayed in a
-                         * document image gallery are previews.
+                         * non-interactive, display of a file. For example files displayed in a document
+                         * image gallery are previews.
                          *
                          * If the user clicks on a file it then opens up a fullscreen file viewer where
                          * they'll see their file in full resolution.
@@ -170,8 +168,8 @@ export const FilesTable = DynamoTableSchema.new({
                          *
                          * See the documentation on `FilePreview` for more information.
                          *
-                         * If `preview.content` is available then the preview file is stored in
-                         * Cloudflare R2 with the key: `${spaceId}/${fileId}-preview`.
+                         * If `preview.content` is available then the preview file is stored in Cloudflare
+                         * R2 with the key: `${spaceId}/${fileId}-preview`.
                          */
                         preview: FilePreviewSchema.nullable(),
                     }),
@@ -282,43 +280,41 @@ const fileAuthorizerAttachmentTargetTypesByTableSchema = new WeakMap<object, Set
  * Authorizes file access through an attachment target.
  *
  * `FileAuthorizer`s can either be bound or unbound. You create unbound
- * `FileAuthorizer`s with `new()` then use that to create bound
- * `FileAuthorizer`s with `bind()`. Unbound `FileAuthorizer`s define how to
- * authorize entities of the attachment target type you pass to `new()`. Bound
- * `FileAuthorizer`s can be used to authorize an individual entity.
+ * `FileAuthorizer`s with `new()` then use that to create bound `FileAuthorizer`s
+ * with `bind()`. Unbound `FileAuthorizer`s define how to authorize entities of the
+ * attachment target type you pass to `new()`. Bound `FileAuthorizer`s can be used
+ * to authorize an individual entity.
  *
- * The authorization function you provide in `FileAuthorizer.new()` should
- * cache results using `CacheContextModule`! We may call your authorization
- * function multiple times in the same action for the same target. By the time
- * you're loading files (e.g. via `getContentReferencesForNode()`) you've also
- * probably already loaded your entity's content so by leveraging the action
- * cache you shouldn't need to reauthorize at all.
+ * The authorization function you provide in `FileAuthorizer.new()` should cache
+ * results using `CacheContextModule`! We may call your authorization function
+ * multiple times in the same action for the same target. By the time you're
+ * loading files (e.g. via `getContentReferencesForNode()`) you've also probably
+ * already loaded your entity's content so by leveraging the action cache you
+ * shouldn't need to reauthorize at all.
  *
  * ### Why is the file authorization API designed this way?
  *
  * Simply, to avoid cyclic dependencies. To avoid cyclic dependencies the
- * `//server/files/data` package doesn't depend on attachment target type
- * packages. Instead the attachment target type packages depend on
- * `//server/files/data`.
+ * `//server/files/data` package doesn't depend on attachment target type packages.
+ * Instead the attachment target type packages depend on `//server/files/data`.
  *
  * For example, `//server/documents/data` depends on `//server/files/data` but
- * `//server/files/data` doesn't depend on `//server/documents/data`. That
- * means `//server/files/data` can't call `authorizeDocumentAccess()`! So
- * instead we construct a `FileDocumentAuthorizer`
- * (from `FileAuthorizer.new()`) in `//server/documents/data` next to
- * `DocumentsTable` and pass the result of
+ * `//server/files/data` doesn't depend on `//server/documents/data`. That means
+ * `//server/files/data` can't call `authorizeDocumentAccess()`! So instead we
+ * construct a `FileDocumentAuthorizer` (from `FileAuthorizer.new()`) in
+ * `//server/documents/data` next to `DocumentsTable` and pass the result of
  * `FileDocumentAuthorizer.bind(documentId)` to `//server/files/data` functions
  * that need to authorize files.
  *
- * To make sure instances of `FileAuthorizer` are trusted we require you to
- * pass a `DynamoTableSchema` to `FileAuthorizer.new()`. This proves you're in
- * the module that owns data manipulation and authorization for the
- * `DynamoTableSchema`. So you can create a trusted `FileAuthorizer` instance.
+ * To make sure instances of `FileAuthorizer` are trusted we require you to pass a
+ * `DynamoTableSchema` to `FileAuthorizer.new()`. This proves you're in the module
+ * that owns data manipulation and authorization for the `DynamoTableSchema`. So
+ * you can create a trusted `FileAuthorizer` instance.
  *
- * Our protections depend on TypeScript and ESLint errors. You can trivially
- * get around them by casting to `any` or with an ESLint disable comment.
- * That's fine attackers shouldn't be able to inject code so we only need to
- * encourage the safe patterns for developers.
+ * Our protections depend on TypeScript and ESLint errors. You can trivially get
+ * around them by casting to `any` or with an ESLint disable comment. That's fine
+ * attackers shouldn't be able to inject code so we only need to encourage the safe
+ * patterns for developers.
  */
 class FileAuthorizer<Bound extends boolean = true> {
     public readonly target: If<Bound, FileAttachmentTarget, null>;
@@ -387,15 +383,14 @@ class FileAuthorizerUnbound<
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
-        // We only want one authorizer instance per attachment target type. To enforce
-        // this we require you to pass in a `DynamoTableSchema` with the right name
-        // before the table has finished initializing.
+        // We only want one authorizer instance per attachment target type. To enforce this
+        // we require you to pass in a `DynamoTableSchema` with the right name before the
+        // table has finished initializing.
         //
-        // This leverages the infrastructure around `DynamoTableSchema` to make sure
-        // no `DynamoTableSchema` is exported outside the file where it's constructed.
-        // By tying file authorizers to `DynamoTableSchema` we also guarantee
-        // authorizers are only created when you have exclusive access to the
-        // underlying table.
+        // This leverages the infrastructure around `DynamoTableSchema` to make sure no
+        // `DynamoTableSchema` is exported outside the file where it's constructed. By
+        // tying file authorizers to `DynamoTableSchema` we also guarantee authorizers are
+        // only created when you have exclusive access to the underlying table.
         //
         // Authorizers may be exported.
         assert(

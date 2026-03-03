@@ -16,13 +16,13 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * This is a fork of the [`<StaticRouterProvider>` component in
- * `react-router`][1].
+ * This is a fork of the [`<StaticRouterProvider>` component in `react-router`][1].
  *
- * We forked this component to add support for our native mobile router. We've
- * also simplified some some bits we don't need.
+ * We forked this component to add support for our native mobile router. We've also
+ * simplified some some bits we don't need.
  *
- * [1]: https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router-dom/server.tsx#L96-L174
+ * [1]:
+ *     https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router-dom/server.tsx#L96-L174
  */
 export function AppStaticRouterProvider({
     context,

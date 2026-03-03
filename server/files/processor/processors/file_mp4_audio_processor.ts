@@ -66,8 +66,8 @@ export function createFileMp4AudioProcessor(contentType: FileMp4AudioContentType
                 }
             }
 
-            // If we have a web safe audio codec then we can use the cheaper web safe
-            // processor and skip an expensive transcode.
+            // If we have a web safe audio codec then we can use the cheaper web safe processor
+            // and skip an expensive transcode.
             if (!hasWebSafeAudioCodec) {
                 return processFileWebUnsafeAudio(context, inputUrl, {
                     signal,

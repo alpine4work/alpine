@@ -28,10 +28,10 @@ var __copyProps = (to, from, except, desc) => {
 var __toESM = (mod, isNodeMode, target) => (
     (target = mod != null ? __create(__getProtoOf(mod)) : {}),
     __copyProps(
-        // If the importer is in node compatibility mode or this is not an ESM
-        // file that has been converted to a CommonJS file using a Babel-
-        // compatible transform (i.e. "__esModule" has not been set), then set
-        // "default" to the CommonJS "module.exports" for node compatibility.
+        // If the importer is in node compatibility mode or this is not an ESM file that
+        // has been converted to a CommonJS file using a Babel- compatible transform (i.e.
+        // "\_\_esModule" has not been set), then set "default" to the CommonJS
+        // "module.exports" for node compatibility.
         isNodeMode || !mod || !mod.__esModule
             ? __defProp(target, "default", {value: mod, enumerable: true})
             : target,
@@ -1159,8 +1159,7 @@ var require_route = __commonJS({
             const models = Object.keys(conversions);
             for (let len = models.length, i = 0; i < len; i++) {
                 graph[models[i]] = {
-                    // http://jsperf.com/1-vs-infinity
-                    // micro-opt, but this is simple.
+                    // http://jsperf.com/1-vs-infinity micro-opt, but this is simple.
                     distance: -1,
                     parent: null,
                 };
@@ -1764,11 +1763,11 @@ var ErrorBase = class _ErrorBase extends Error {
         if (aggregateDedupeKey !== void 0) this.aggregateDedupeKey = aggregateDedupeKey;
     }
     /**
-     * Convert an unknown exception object into a coded error with the original
-     * error as the cause object.
+     * Convert an unknown exception object into a coded error with the original error
+     * as the cause object.
      *
-     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead
-     * prefer using a specific error like `FailedPreconditionError.from()`.
+     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead prefer
+     * using a specific error like `FailedPreconditionError.from()`.
      */
     static from(error, newMessage, {displayMessage} = {}) {
         const ErrorConstructor = this !== _ErrorBase ? this : UnknownError;
@@ -3473,8 +3472,8 @@ var GlResources = class {
 
 // shared/design/core/colors.js
 var colors = {
-    // Pure white background color is useful when embedding files since many files
-    // have white backgrounds and look odd on an off-white background.
+    // Pure white background color is useful when embedding files since many files have
+    // white backgrounds and look odd on an off-white background.
     "grey-0": "#ffffff",
     "grey-1": "#f8f8fc",
     "grey-5": "#ededf2",
@@ -3489,16 +3488,16 @@ var colors = {
     "grey-90": "#27272b",
     "grey-99": "#1a1a1e",
     "grey-100": "#0b0b0d",
-    // We have a set of slightly lighter greys for elevated surfaces in dark mode.
-    // When we render peeks on top of other content you have arbitrary peek content
-    // above other arbitrary content. In dark mode we can't use shadows to simulate
-    // depth and differentiate elements. So instead we make surfaces that are
-    // "higher up" lighter as if they're closer to a light source.
+    // We have a set of slightly lighter greys for elevated surfaces in dark mode. When
+    // we render peeks on top of other content you have arbitrary peek content above
+    // other arbitrary content. In dark mode we can't use shadows to simulate depth and
+    // differentiate elements. So instead we make surfaces that are "higher up" lighter
+    // as if they're closer to a light source.
     //
-    // Since peeks can contain arbitrary content we bake this property into the
-    // color system instead of writing a bunch of `isPeek` logic. These grey colors
-    // are just a hair lighter in peeks, it's a small detail that's almost
-    // unnoticeable but it helps reinforce a sense of depth subconsciously.
+    // Since peeks can contain arbitrary content we bake this property into the color
+    // system instead of writing a bunch of `isPeek` logic. These grey colors are just
+    // a hair lighter in peeks, it's a small detail that's almost unnoticeable but it
+    // helps reinforce a sense of depth subconsciously.
     "grey-70-elevated-1": "#515158",
     "grey-80-elevated-1": "#404045",
     "grey-90-elevated-1": "#2a2a2d",
@@ -3788,8 +3787,8 @@ var Lazy = class {
         this._get = get;
     }
     /**
-     * Get the value. If the value has not yet been computed then we will compute
-     * it synchronously.
+     * Get the value. If the value has not yet been computed then we will compute it
+     * synchronously.
      */
     get() {
         if (this._result === null) {
@@ -4055,8 +4054,9 @@ function willDrawBlobFactoryToCanvas(canvas, blobSettings) {
         ok: true,
         factory,
         // If we've started drawing a lot of blobs in the last second, we defer the drawing
-        // to avoid blocking the main thread for too long. This is a workaround for performance issues
-        // when drawing many blobs at once, especially on lower-end devices.
+        // to avoid blocking the main thread for too long. This is a workaround for
+        // performance issues when drawing many blobs at once, especially on lower-end
+        // devices.
         defer: window.__blobs.timing.length > 2,
     };
 }
@@ -4273,15 +4273,14 @@ var StableRandom = class {
     constructor(baseString) {
         this._baseString = baseString;
     }
-    /** Generate a random number between 0 and 1 based on  */
+    /** Generate a random number between 0 and 1 based on */
     random(keyString, index) {
         return cyrb53(this._baseString, keyString, index) / Number.MAX_SAFE_INTEGER;
     }
     /**
      * Generates a stable random integer between `a` and `b` (exclusive).
      *
-     * If `b` is not defined, generates a random integer between 0 and `a`
-     * (exclusive).
+     * If `b` is not defined, generates a random integer between 0 and `a` (exclusive).
      */
     randomInteger(keyString, index, a, b) {
         return Math.floor(this.randomFloat(keyString, index, a, b));
@@ -4298,8 +4297,8 @@ var StableRandom = class {
         return lerp(0, a, this.random(keyString, index));
     }
     /**
-     * Generate a random number following a normal distribution.
-     * Approximate range is -3 to 3.
+     * Generate a random number following a normal distribution. Approximate range is
+     * -3 to 3.
      */
     randomNormalDistribution(keyString, index) {
         const u = 1 - this.random(keyString, index);
@@ -4431,4 +4430,4 @@ if (typeof window !== "undefined") {
         window.__actuallyDrawBlobsForIntegrationTest = actuallyDrawBlobsForIntegrationTest;
     }
 }
-//# sourceMappingURL=blobs_script_bundle_debug_unminified.js.map
+// # sourceMappingURL=blobs_script_bundle_debug_unminified.js.map

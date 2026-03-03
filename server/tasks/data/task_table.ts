@@ -257,19 +257,19 @@ import {
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
- * The task actions table is the canonical representation of the data in our
- * task system. Everything else is derived from task actions. We should be able
- * to rebuild any of our structures from the task actions table. When an action
- * commits to this table it has been accepted by our system and should
- * propagate to all realtime clients.
+ * The task actions table is the canonical representation of the data in our task
+ * system. Everything else is derived from task actions. We should be able to
+ * rebuild any of our structures from the task actions table. When an action
+ * commits to this table it has been accepted by our system and should propagate to
+ * all realtime clients.
  *
  * In practice, we only end up reading the last ~24 hours of task actions as we
- * incrementally keep other databases, like OpenSearch, up-to-date. Eventually
- * we should find a way to archive old actions. We MUST keep old actions around
- * since we consider actions to be the canonical representation of data in our
- * task system but DynamoDB storage is expensive. Realistically old actions
- * are basically only accessed in disaster recovery scenarios so they can go
- * into low cost S3 storage.
+ * incrementally keep other databases, like OpenSearch, up-to-date. Eventually we
+ * should find a way to archive old actions. We MUST keep old actions around since
+ * we consider actions to be the canonical representation of data in our task
+ * system but DynamoDB storage is expensive. Realistically old actions are
+ * basically only accessed in disaster recovery scenarios so they can go into low
+ * cost S3 storage.
  */
 const TaskActionTable = DynamoTableSchema.new({
     name: "TaskActions",
@@ -293,8 +293,8 @@ const TaskActionTable = DynamoTableSchema.new({
                         committedTime: DynamoKeyAttributeSchema.date,
 
                         /**
-                         * An `Id` for uniquely representing an action. Also used to disambiguate
-                         * actions with identical `committedTime`s.
+                         * An `Id` for uniquely representing an action. Also used to disambiguate actions
+                         * with identical `committedTime`s.
                          */
                         actionTransactionId: DynamoKeyAttributeSchema.id<TaskActionTransactionId>(),
                     },
@@ -305,8 +305,8 @@ const TaskActionTable = DynamoTableSchema.new({
                         actions: Schema.array(TaskActionSchema),
 
                         /**
-                         * Has this action transaction been processed? To consider an action
-                         * transaction processed we must have:
+                         * Has this action transaction been processed? To consider an action transaction
+                         * processed we must have:
                          *
                          * 1. Indexed the transaction in OpenSearch
                          * 2. Applied the transaction on all relevant task realtime servers
@@ -319,8 +319,7 @@ const TaskActionTable = DynamoTableSchema.new({
                         /**
                          * The account who committed this action.
                          *
-                         * Nullable since action transactions before 2023-01-02 did not save
-                         * the `actorId`.
+                         * Nullable since action transactions before 2023-01-02 did not save the `actorId`.
                          */
                         actorId: Schema.id<AccountId>().nullable().default(null),
 
@@ -396,8 +395,8 @@ export const TaskStepCountByAccountId = createSchemaLazyTransformClass<
 
 /**
  * Data related to tasks. Contains some views of task actions (e.g. the
- * `EssentialAttributes` items) and some data unrelated to task fields which
- * don't participate in querying (like notes, comments, revision history).
+ * `EssentialAttributes` items) and some data unrelated to task fields which don't
+ * participate in querying (like notes, comments, revision history).
  */
 const TaskTable = DynamoTableSchema.new({
     name: "Tasks",
@@ -411,8 +410,8 @@ const TaskTable = DynamoTableSchema.new({
             sortRanges: [
                 // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
                 // these item at this point but we need minimal handling for backwards
-                // compatibility to avoid crashes since we have objects of this type saved in
-                // the database.
+                // compatibility to avoid crashes since we have objects of this type saved in the
+                // database.
                 {
                     name: "Notepad",
                     sortKeyAttributes: {},
@@ -431,11 +430,10 @@ const TaskTable = DynamoTableSchema.new({
 
                 // NOTE(calebmer, 2024-05-20): This exists for backwards compatibility purposes
                 // only. Task collections had affinity points before we implemented the generic
-                // search affinity system. We've sense migrated task collections to use the
-                // generic search affinity system but we have to keep this definition around
-                // for backwards compatibility. You shouldn't use items of this type!
-                // Eventually all the old task collection affinity items will expire and we can
-                // remove this.
+                // search affinity system. We've sense migrated task collections to use the generic
+                // search affinity system but we have to keep this definition around for backwards
+                // compatibility. You shouldn't use items of this type! Eventually all the old task
+                // collection affinity items will expire and we can remove this.
                 {
                     name: "TaskCollectionAffinity",
                     sortKeyAttributes: {
@@ -449,12 +447,12 @@ const TaskTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * When an account performs an action that causes them to lose access to some
-                 * task, we grant them temporary permission to execute some actions that will
-                 * undo that change in case they made a mistake. The account's permission to do
-                 * so is represented by a "lease". Given the ability to take action on a task
-                 * you no longer have access to is powerful in the hands of an attacker, leases
-                 * have the following restrictions:
+                 * When an account performs an action that causes them to lose access to some task,
+                 * we grant them temporary permission to execute some actions that will undo that
+                 * change in case they made a mistake. The account's permission to do so is
+                 * represented by a "lease". Given the ability to take action on a task you no
+                 * longer have access to is powerful in the hands of an attacker, leases have the
+                 * following restrictions:
                  *
                  * 1. You must be allowed to commit the actions at the time the lease is created
                  * 2. Leases live for a short time (<1 day)
@@ -469,42 +467,42 @@ const TaskTable = DynamoTableSchema.new({
                  * allowed. If you don't _need_ a lease, we don't bother creating one.
                  *
                  * The client only asks to create a lease if the task it's updating leaves its
-                 * view. Then it tries to create a lease with the action transaction that
-                 * caused the task to leave.
+                 * view. Then it tries to create a lease with the action transaction that caused
+                 * the task to leave.
                  *
-                 * We don't check that the actions you're leasing are an inversion of the
-                 * actions you're committing (even though that's what we expect from the
-                 * client). If an attack provides an unrelated set of actions that's ok. Leases
-                 * extend how long you can commit actions that were valid at the time of lease
-                 * creation. So actions must be safe when leased in the first place.
+                 * We don't check that the actions you're leasing are an inversion of the actions
+                 * you're committing (even though that's what we expect from the client). If an
+                 * attack provides an unrelated set of actions that's ok. Leases extend how long
+                 * you can commit actions that were valid at the time of lease creation. So actions
+                 * must be safe when leased in the first place.
                  *
                  * ## Why restriction 3?
                  *
-                 * Updating a task in any way invalidates any lease currently held on
-                 * the task. Example attack this protects against:
+                 * Updating a task in any way invalidates any lease currently held on the task.
+                 * Example attack this protects against:
                  *
                  * 1. Manager assigns a task to their report asking them to fill out their
                  *    performance self review
-                 * 2. Report fills out the self review section and assigns it back to the
-                 *    manager (creating a lease to add them back as the assignee)
+                 * 2. Report fills out the self review section and assigns it back to the manager
+                 *    (creating a lease to add them back as the assignee)
                  * 3. After the manager fills out their notes, the report executes the lease.
                  *    Bringing the task back to them so they can see the private notes.
                  *
                  * By invalidating a lease after an update sophisticated users can't do this
                  * attack.
                  *
-                 * In principle, a user could be allowed to permanently view a task at the
-                 * moment they lost access. Since a user could trivially copy the task down to
-                 * their computer while they have access. However a user is not allowed to see
-                 * new updates after they lose access. (In practice, a user can see updates
-                 * until `WebSocketServer` reauthorizes their WebSocket connection which may
-                 * take a couple minutes.) Invalidating leases prevents the user from seeing
-                 * new updates after they lose access.
+                 * In principle, a user could be allowed to permanently view a task at the moment
+                 * they lost access. Since a user could trivially copy the task down to their
+                 * computer while they have access. However a user is not allowed to see new
+                 * updates after they lose access. (In practice, a user can see updates until
+                 * `WebSocketServer` reauthorizes their WebSocket connection which may take a
+                 * couple minutes.) Invalidating leases prevents the user from seeing new updates
+                 * after they lose access.
                  *
-                 * (In the example attack we propose, a regular user could still add the task
-                 * to a private collection of theirs to retain access, this is expected. This
-                 * case shouldn't weaken our security posture elsewhere. We may need protection
-                 * against retaining access with a private collection someday.)
+                 * (In the example attack we propose, a regular user could still add the task to a
+                 * private collection of theirs to retain access, this is expected. This case
+                 * shouldn't weaken our security posture elsewhere. We may need protection against
+                 * retaining access with a private collection someday.)
                  */
                 {
                     name: "TaskActionTransactionLease",
@@ -532,55 +530,52 @@ const TaskTable = DynamoTableSchema.new({
                         createdTime: HybridLogicalTimeSchema,
 
                         /**
-                         * The account who created this collection. Unlike tasks, the `creatorId` does
-                         * not influence permissions. Only the `accessPolicy` influences permissions.
-                         * The collection creator may lose access if they are removed from the
-                         * `accessPolicy`.
+                         * The account who created this collection. Unlike tasks, the `creatorId` does not
+                         * influence permissions. Only the `accessPolicy` influences permissions. The
+                         * collection creator may lose access if they are removed from the `accessPolicy`.
                          */
                         creatorId: Schema.id<AccountId>().nullable().default(null),
 
-                        // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our
-                        // collection in DynamoDB so we can create a full `TaskCollectionModel`. The
-                        // collection is considered deleted if `rawDeletedTime` is null or
-                        // `rawUndeletedTime` is larger than `rawDeletedTime`.
+                        // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our collection
+                        // in DynamoDB so we can create a full `TaskCollectionModel`. The collection is
+                        // considered deleted if `rawDeletedTime` is null or `rawUndeletedTime` is larger
+                        // than `rawDeletedTime`.
                         rawDeletedTime: HybridLogicalTimeSchema.nullable(),
                         rawUndeletedTime: HybridLogicalTimeSchema.nullable(),
 
-                        // We include the `name` and `color` of our collection in its
-                        // `EssentialAttributes` since we load the `EssentialAttributes` object to
-                        // render searched collections.
+                        // We include the `name` and `color` of our collection in its `EssentialAttributes`
+                        // since we load the `EssentialAttributes` object to render searched collections.
                         name: LabelStringRegister.schema,
                         color: TaskCollectionColorRegister.schema,
 
                         /**
-                         * Who is allowed to access the collection and with what permission
-                         * level.
+                         * Who is allowed to access the collection and with what permission level.
                          */
                         accessPolicy: AccessPolicyRegister.schema,
 
                         /**
-                         * Have we added a feed candidate entry for the collection? We add an entry
-                         * when the collection is shared with some `defaultGrant`. But if you revoke
-                         * the `defaultGrant` then add it again we don't want to add another feed
-                         * candidate entry.
+                         * Have we added a feed candidate entry for the collection? We add an entry when
+                         * the collection is shared with some `defaultGrant`. But if you revoke the
+                         * `defaultGrant` then add it again we don't want to add another feed candidate
+                         * entry.
                          */
                         hasAddedFeedCandidateEntry: Schema.boolean.default(false),
 
                         /**
-                         * The total number of tasks in the collection. Open and closed. Not
-                         * including deleted tasks.
+                         * The total number of tasks in the collection. Open and closed. Not including
+                         * deleted tasks.
                          *
-                         * Doesn't use the same `addedChildTaskCount`/`removedChildTaskCount` format
-                         * as a task since these numbers aren't shared over realtime (since they would
-                         * update so frequently). Though if we wanted to migrate to that format it
-                         * should be pretty easy: rename this property to `addedTaskCount` and add a
-                         * `removedTaskCount` property that defaults to 0.
+                         * Doesn't use the same `addedChildTaskCount`/`removedChildTaskCount` format as a
+                         * task since these numbers aren't shared over realtime (since they would update so
+                         * frequently). Though if we wanted to migrate to that format it should be pretty
+                         * easy: rename this property to `addedTaskCount` and add a `removedTaskCount`
+                         * property that defaults to 0.
                          */
                         taskCount: Schema.integer,
 
                         /**
-                         * The number of open tasks in the collection. Not including deleted tasks. You
-                         * can figure out the number of closed tasks with `taskCount - openTaskCount`.
+                         * The number of open tasks in the collection. Not including deleted tasks. You can
+                         * figure out the number of closed tasks with `taskCount - openTaskCount`.
                          */
                         openTaskCount: Schema.integer,
 
@@ -589,10 +584,10 @@ const TaskTable = DynamoTableSchema.new({
                          *
                          * We present this to users as the task's last updated time.
                          *
-                         * Unfortunately, DynamoDB doesn't have a `max()` function in update
-                         * expressions so we can't update this perfectly atomically. This value may not
-                         * monotonically go forwards and instead temporarily go backwards if we commit
-                         * an action with an older time than an action we previously committed.
+                         * Unfortunately, DynamoDB doesn't have a `max()` function in update expressions so
+                         * we can't update this perfectly atomically. This value may not monotonically go
+                         * forwards and instead temporarily go backwards if we commit an action with an
+                         * older time than an action we previously committed.
                          */
                         lastTaskAddedTime: HybridLogicalTimeSchema.nullable(),
                     }),
@@ -614,8 +609,8 @@ const TaskTable = DynamoTableSchema.new({
                         /**
                          * The account who created this task.
                          *
-                         * The creator is included in the task's access policy by default, but may
-                         * lose access if removed from the access policy.
+                         * The creator is included in the task's access policy by default, but may lose
+                         * access if removed from the access policy.
                          */
                         creatorId: Schema.id<AccountId>(),
 
@@ -625,9 +620,9 @@ const TaskTable = DynamoTableSchema.new({
                         createdTime: HybridLogicalTimeSchema,
 
                         /**
-                         * The time this task was deleted. We keep a record of deleted tasks so they
-                         * may be undeleted. It's critical to check this property when looking at task
-                         * items so you know whether it's been deleted or not.
+                         * The time this task was deleted. We keep a record of deleted tasks so they may be
+                         * undeleted. It's critical to check this property when looking at task items so
+                         * you know whether it's been deleted or not.
                          */
                         deletedTime: HybridLogicalTimeSchema.nullable(),
 
@@ -641,20 +636,19 @@ const TaskTable = DynamoTableSchema.new({
                          *
                          * ## Permissions
                          *
-                         * We inherit permissions from this task. So if you have edit access to the
-                         * parent task then you also have edit access to this task.
+                         * We inherit permissions from this task. So if you have edit access to the parent
+                         * task then you also have edit access to this task.
                          *
-                         * You may have broader permissions to a child task. For example, you can edit
-                         * a child task but not its parent task. Or view a child task but not its
-                         * parent task.
+                         * You may have broader permissions to a child task. For example, you can edit a
+                         * child task but not its parent task. Or view a child task but not its parent
+                         * task.
                          *
                          * ## Parent deletion
                          *
-                         * When a parent task is deleted we don't update the `parentTaskId` attribute
-                         * of child tasks. You must be careful to check that the `parentTaskId` task
-                         * actually exists and is not deleted. We leave gravestones around for deleted
-                         * tasks so you should always be able to find a task object even if it's
-                         * deleted.
+                         * When a parent task is deleted we don't update the `parentTaskId` attribute of
+                         * child tasks. You must be careful to check that the `parentTaskId` task actually
+                         * exists and is not deleted. We leave gravestones around for deleted tasks so you
+                         * should always be able to find a task object even if it's deleted.
                          *
                          * If the parent task is undeleted the child task is again unaffected.
                          *
@@ -662,25 +656,23 @@ const TaskTable = DynamoTableSchema.new({
                          *
                          * There is no restriction on how deep you can nest child tasks.
                          *
-                         * Task circular dependencies are not allowed. Though clients may temporarily
-                         * have circular dependencies. This is because:
+                         * Task circular dependencies are not allowed. Though clients may temporarily have
+                         * circular dependencies. This is because:
                          *
                          * - Task actions may be applied out-of-order
-                         * - We may not load the entire task parent hierarchy so we won't know to
-                         *   reject an operation that creates a circular dependency
+                         * - We may not load the entire task parent hierarchy so we won't know to reject an
+                         *   operation that creates a circular dependency
                          *
-                         * So clients should be careful not to crash on circular dependencies. However,
-                         * a canonical task representation will never have circular dependencies.
+                         * So clients should be careful not to crash on circular dependencies. However, a
+                         * canonical task representation will never have circular dependencies.
                          *
-                         * There may also be items in this table that have a circular dependency
-                         * because deleted tasks do not count in a dependency chain. If you are
-                         * iterating through a parent task chain, make sure to `break` if you see a
-                         * deleted parent task.
+                         * There may also be items in this table that have a circular dependency because
+                         * deleted tasks do not count in a dependency chain. If you are iterating through a
+                         * parent task chain, make sure to `break` if you see a deleted parent task.
                          */
                         parentTaskId: TaskParentTaskIdRegister.schema,
 
-                        // See the documentation of `TaskUpdateChildrenCountsAction` for more
-                        // information.
+                        // See the documentation of `TaskUpdateChildrenCountsAction` for more information.
                         addedChildTaskCount: Schema.integer,
                         removedChildTaskCount: Schema.integer,
                         addedClosedChildTaskCount: Schema.integer,
@@ -689,18 +681,18 @@ const TaskTable = DynamoTableSchema.new({
                         /**
                          * All of this task's current children.
                          *
-                         * Stored in binary since that's much more space efficient than storing as
-                         * strings. 1kb (used by 1 WCU) costs ~64 128 bit `Id`s.
+                         * Stored in binary since that's much more space efficient than storing as strings.
+                         * 1kb (used by 1 WCU) costs ~64 128 bit `Id`s.
                          *
-                         * Unlike `addedChildTaskCount` these are our current child tasks. If a child
-                         * task is removed then we remove it from the set. If a child task is deleted
-                         * it stays in the set, though.
+                         * Unlike `addedChildTaskCount` these are our current child tasks. If a child task
+                         * is removed then we remove it from the set. If a child task is deleted it stays
+                         * in the set, though.
                          */
                         childTaskIds: IdByteSetSchema.get<TaskId>(),
 
                         /**
-                         * The collections this task is a part of. A task inherits the highest access
-                         * level from its collections.
+                         * The collections this task is a part of. A task inherits the highest access level
+                         * from its collections.
                          */
                         collections: TaskCollectionSet.schema,
 
@@ -717,9 +709,9 @@ const TaskTable = DynamoTableSchema.new({
                         accessPolicy: AccessPolicyRegister.schema.nullable().default(null),
 
                         /**
-                         * Leases are valid as long as the task is unmodified. This is how we keep
-                         * track of that. When we create a lease it's set here. When the task is
-                         * modified this is set to null.
+                         * Leases are valid as long as the task is unmodified. This is how we keep track of
+                         * that. When we create a lease it's set here. When the task is modified this is
+                         * set to null.
                          */
                         validLeaseId: Schema.id<TaskActionTransactionLeaseId>()
                             .nullable()
@@ -728,27 +720,27 @@ const TaskTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * Information regarding the task's comments. Including comment count and the
-                 * next comment index.
+                 * Information regarding the task's comments. Including comment count and the next
+                 * comment index.
                  */
-                // NOTE(calebmer, 2024-06-05): Comment information is in a separate DynamoDB
-                // item for tasks unlike the `commentsSummary` or `messagesSummary` properties
-                // in the chat, forum, and document messaging systems which live in the main
-                // attributes object for their respective entities. It's hard to predict
-                // without sufficient production data, but I'm starting to suspect that for
-                // messaging rooms that themselves carry a lot of data (just posts and tasks
-                // right now) it may be more efficient to have a separate `CommentsSummary`
-                // item than to have a `commentsSummary` property on the main item.
+                // NOTE(calebmer, 2024-06-05): Comment information is in a separate DynamoDB item
+                // for tasks unlike the `commentsSummary` or `messagesSummary` properties in the
+                // chat, forum, and document messaging systems which live in the main attributes
+                // object for their respective entities. It's hard to predict without sufficient
+                // production data, but I'm starting to suspect that for messaging rooms that
+                // themselves carry a lot of data (just posts and tasks right now) it may be more
+                // efficient to have a separate `CommentsSummary` item than to have a
+                // `commentsSummary` property on the main item.
                 //
-                // If we had a `commentsSummary` property in a task's `EssentialAttributes`
-                // item then if the combined object exceeds 1kb we have to pay an extra
-                // DynamoDB WCU when either updating `EssentialAttributes` or
-                // creating/updating any comment. In binary ~7 `Id`s (at 128 bits each) are
-                // enough to fill a 1kb WCU. So a separate `CommentsSummary` item saves WCUs.
+                // If we had a `commentsSummary` property in a task's `EssentialAttributes` item
+                // then if the combined object exceeds 1kb we have to pay an extra DynamoDB WCU
+                // when either updating `EssentialAttributes` or creating/updating any comment. In
+                // binary ~7 `Id`s (at 128 bits each) are enough to fill a 1kb WCU. So a separate
+                // `CommentsSummary` item saves WCUs.
                 //
-                // A separate `CommentsSummary` item doesn't increase our DynamoDB read cost
-                // (RCUs) if we're careful to read them with a DynamoDB `query()` (instead of
-                // `getItem()`) since they're physically next to each other on disk.
+                // A separate `CommentsSummary` item doesn't increase our DynamoDB read cost (RCUs)
+                // if we're careful to read them with a DynamoDB `query()` (instead of `getItem()`)
+                // since they're physically next to each other on disk.
                 {
                     name: "CommentsSummary",
                     sortKeyAttributes: {},
@@ -760,8 +752,8 @@ const TaskTable = DynamoTableSchema.new({
 
                         /**
                          * All the accounts which have commented on the task and the number of comments
-                         * they have made. The map is ordered by when the account first commented on
-                         * the task.
+                         * they have made. The map is ordered by when the account first commented on the
+                         * task.
                          *
                          * This map can grow unbounded. When a user deletes a comment it leaves a
                          * gravestone so comment counts should never be decremented.
@@ -772,18 +764,17 @@ const TaskTable = DynamoTableSchema.new({
                         ),
 
                         /**
-                         * All the accounts which have been mentioned at some point in the task's
-                         * comments or task's content and how many times the account was mentioned.
+                         * All the accounts which have been mentioned at some point in the task's comments
+                         * or task's content and how many times the account was mentioned.
                          *
-                         * Accounts that exist in the map with a mention count of zero have a
-                         * special meaning:
+                         * Accounts that exist in the map with a mention count of zero have a special
+                         * meaning:
                          *
                          * - If an account exists in the map they were mentioned at some point
-                         * - If an account exists in the map with a mention count of zero then they
-                         *   were mentioned at some point but all mentions have been removed by updates
-                         * - If an account does not exist in the map they were never mentioned in
-                         *   the task
-                         **/
+                         * - If an account exists in the map with a mention count of zero then they were
+                         *   mentioned at some point but all mentions have been removed by updates
+                         * - If an account does not exist in the map they were never mentioned in the task
+                         */
                         mentionCountByAccountId: Schema.map(
                             Schema.id<AccountId>(),
                             Schema.integer.min(0),
@@ -795,41 +786,41 @@ const TaskTable = DynamoTableSchema.new({
                  * All queryable task data is updated through `TaskAction`s and indexed in
                  * OpenSearch. Task notes are a freeform, collaborative, text area that's not
                  * queryable. We store task notes in DynamoDB which is a completely separate
-                 * read/write path for task notes to avoid paying the storage cost of putting
-                 * notes in OpenSearch and the load cost of frequent writes on
-                 * `TaskRealtimeService`.
+                 * read/write path for task notes to avoid paying the storage cost of putting notes
+                 * in OpenSearch and the load cost of frequent writes on `TaskRealtimeService`.
                  *
                  * Reading and writing task notes needs basically the same implementation as
                  * document content. However, since we expect task notes to be shorter, less
-                 * collaborative, and unlikely to be edited after they're initially written
-                 * we're going for a simpler implementation of realtime content editing.
+                 * collaborative, and unlikely to be edited after they're initially written we're
+                 * going for a simpler implementation of realtime content editing.
                  *
-                 * A notable difference between this collaborative content implementation and
-                 * our document collaborative content implementation is we don't keep track of
-                 * all steps ever applied to the task. Since we don't care about showing a full
-                 * content version history for task notes (like we want to show for documents).
-                 * We do want to have a task activity feed but that's a separate system.
+                 * A notable difference between this collaborative content implementation and our
+                 * document collaborative content implementation is we don't keep track of all
+                 * steps ever applied to the task. Since we don't care about showing a full content
+                 * version history for task notes (like we want to show for documents). We do want
+                 * to have a task activity feed but that's a separate system.
                  *
-                 * Using Y.js would be nice. However, Y.js replaces the whole document whenever
-                 * a change occurs which doesn't play nice with [ProseMirror decorations and
-                 * other plugins][1]. Having a single collaborative framework to deal with for
+                 * Using Y.js would be nice. However, Y.js replaces the whole document whenever a
+                 * change occurs which doesn't play nice with [ProseMirror decorations and other
+                 * plugins][1]. Having a single collaborative framework to deal with for
                  * `<ContentEditor>` simplifies developing out our editor.
                  *
-                 * [1]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488/5
+                 * [1]:
+                 *     https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488/5
                  */
                 {
                     name: "Notes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
-                         * The space the task is in. Copied from our `EssentialAttributes` item to
-                         * avoid an extra fetch when we just need the `SpaceId`.
+                         * The space the task is in. Copied from our `EssentialAttributes` item to avoid an
+                         * extra fetch when we just need the `SpaceId`.
                          */
                         spaceId: Schema.id<SpaceId>(),
 
                         /**
-                         * The current content version. Keeps track of the number of steps taken
-                         * against this content.
+                         * The current content version. Keeps track of the number of steps taken against
+                         * this content.
                          */
                         version: Schema.integer,
 
@@ -841,23 +832,23 @@ const TaskTable = DynamoTableSchema.new({
                         /**
                          * Keep track of the number of steps contributed by various `AccountId`s after
                          * `version` 0. Excluding steps contributed by `creatorId`. You can compute
-                         * `creatorId`'s `stepCount` by adding all step counts in this map then
-                         * subtracting that from `version`.
+                         * `creatorId`'s `stepCount` by adding all step counts in this map then subtracting
+                         * that from `version`.
                          *
-                         * This is a simple way to determine who's contributed to the task and by
-                         * what amount. However, this is only a valid measure of the amount each
-                         * account has contributed assuming the relative added content size of each
-                         * step is the same. It's possible an account pastes a lot of content and
-                         * that's only counted as one step. Approaches of measuring contribution that
-                         * take pastes into effect would be less efficient and more prone to error.
+                         * This is a simple way to determine who's contributed to the task and by what
+                         * amount. However, this is only a valid measure of the amount each account has
+                         * contributed assuming the relative added content size of each step is the same.
+                         * It's possible an account pastes a lot of content and that's only counted as one
+                         * step. Approaches of measuring contribution that take pastes into effect would be
+                         * less efficient and more prone to error.
                          *
-                         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits
-                         * in UTF-8. That means for one 4kb DynamoDB read unit we can fit 250 `Id`s in
-                         * binary but only 153 `Id`s in UTF-8.
+                         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits in
+                         * UTF-8. That means for one 4kb DynamoDB read unit we can fit 250 `Id`s in binary
+                         * but only 153 `Id`s in UTF-8.
                          *
-                         * This map was not around prior to 2024-01-01. So documents created before
-                         * then (and until this deploys) will not have an accurate step count map. All
-                         * steps will be counted towards the `creatorId`.
+                         * This map was not around prior to 2024-01-01. So documents created before then
+                         * (and until this deploys) will not have an accurate step count map. All steps
+                         * will be counted towards the `creatorId`.
                          *
                          * You can add this to the `continuousActionCount` property of
                          * `approximateActionCountByAccountId` to get an overall relative measure of
@@ -901,9 +892,9 @@ const TaskTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * Whenever a message is updated we add a `MessageUpdates` item. So when
-                 * clients need to backfill realtime events they missed while disconnected from
-                 * a WebSocket server they can query this sort range to catch up.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when clients
+                 * need to backfill realtime events they missed while disconnected from a WebSocket
+                 * server they can query this sort range to catch up.
                  *
                  * The event includes the `messageIndex` and the new `version` of the message.
                  * During backfill we load the new version of the item.
@@ -916,18 +907,17 @@ const TaskTable = DynamoTableSchema.new({
                  * efficient for the streaming use case.
                  *
                  * Named `MessageUpdates` instead of `CommentUpdates` so we can have shared
-                 * utilities for querying this sort range that work across all messaging
-                 * surfaces.
+                 * utilities for querying this sort range that work across all messaging surfaces.
                  */
                 {
                     name: "MessageUpdates",
                     sortKeyAttributes: {
-                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
-                        // could. Through a query that starts at the client's last `messageIndex` and
-                        // ends at the checkpoint's `eventTime`.
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we could.
+                        // Through a query that starts at the client's last `messageIndex` and ends at the
+                        // checkpoint's `eventTime`.
                         eventTime: DynamoKeyAttributeSchema.date.reverse(),
-                        // All the data is in the key so we can safely use create-or-replace to add
-                        // items to the table without worrying we're overriding some other data.
+                        // All the data is in the key so we can safely use create-or-replace to add items
+                        // to the table without worrying we're overriding some other data.
                         messageIndex: DynamoKeyAttributeSchema.integer,
                         version: DynamoKeyAttributeSchema.integer,
                     },
@@ -935,10 +925,10 @@ const TaskTable = DynamoTableSchema.new({
                     attributes: Schema.object({}),
                 },
 
-                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
-                // events to a new sort range: `MessageUpdates`. Leaving this around until all
-                // old `CommentChangeLog` items expire. At which point we can remove this from
-                // the DynamoDB schema.
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime events
+                // to a new sort range: `MessageUpdates`. Leaving this around until all old
+                // `CommentChangeLog` items expire. At which point we can remove this from the
+                // DynamoDB schema.
                 {
                     name: "CommentChangeLog",
                     sortKeyAttributes: {
@@ -1042,8 +1032,7 @@ export const FileTaskAuthorizer = FileAuthorizer.new(
 );
 
 /**
- * Scan every task and task collection in our database. Use when
- * migrating data.
+ * Scan every task and task collection in our database. Use when migrating data.
  */
 export async function* expensiveScanEveryTaskAndTaskCollectionForMigration(
     context: DynamoContext,
@@ -1074,8 +1063,7 @@ export async function* expensiveScanEveryTaskAndTaskCollectionForMigration(
 
 /**
  * We added `assigneePosition` on 2025-03-10. This migration makes sure
- * `rawAssigneePosition` and `assigneePosition` exist on every task in
- * OpenSearch.
+ * `rawAssigneePosition` and `assigneePosition` exist on every task in OpenSearch.
  */
 export async function runIndexTaskInitialAssigneePositionMigration(
     context: Context<DynamoContextModules & {opensearch: OpensearchContextModule}>,
@@ -1112,12 +1100,12 @@ export async function runIndexTaskInitialAssigneePositionMigration(
  * Reindex every task action in our task actions table to rebuild our task
  * OpenSearch index.
  *
- * This migration needs to be run in two steps. The first step creates all the
- * task docs in OpenSearch. The second step applies all non-create updates. We
- * need to create docs first since if an update action doesn't find the task
- * doc it's updating it'll retry until the task doc exists. We can't guarantee
- * the scan will find create actions first so we run the migration in two
- * steps to guarantee tasks are created before updated.
+ * This migration needs to be run in two steps. The first step creates all the task
+ * docs in OpenSearch. The second step applies all non-create updates. We need to
+ * create docs first since if an update action doesn't find the task doc it's
+ * updating it'll retry until the task doc exists. We can't guarantee the scan will
+ * find create actions first so we run the migration in two steps to guarantee
+ * tasks are created before updated.
  */
 export async function runIndexEveryTaskActionStep1Of2(
     context: TaskRealtimeProcessContext,
@@ -1152,9 +1140,9 @@ export async function runIndexEveryTaskActionStep1Of2(
                     }),
                     {...item, actions: createActions},
                     {
-                        // Don't record search affinity interactions when backfilling OpenSearch.
-                        // Search affinity interactions should only be recorded immediately after the
-                        // action is commit.
+                        // Don't record search affinity interactions when backfilling OpenSearch. Search
+                        // affinity interactions should only be recorded immediately after the action is
+                        // commit.
                         withoutSearchAffinityEntityInteraction: true,
                     },
                 ),
@@ -1169,12 +1157,12 @@ export async function runIndexEveryTaskActionStep1Of2(
  * Reindex every task action in our task actions table to rebuild our task
  * OpenSearch index.
  *
- * This migration needs to be run in two steps. The first step creates all the
- * task docs in OpenSearch. The second step applies all non-create updates. We
- * need to create docs first since if an update action doesn't find the task
- * doc it's updating it'll retry until the task doc exists. We can't guarantee
- * the scan will find create actions first so we run the migration in two
- * steps to guarantee tasks are created before updated.
+ * This migration needs to be run in two steps. The first step creates all the task
+ * docs in OpenSearch. The second step applies all non-create updates. We need to
+ * create docs first since if an update action doesn't find the task doc it's
+ * updating it'll retry until the task doc exists. We can't guarantee the scan will
+ * find create actions first so we run the migration in two steps to guarantee
+ * tasks are created before updated.
  */
 export async function runIndexEveryTaskActionStep2Of2(
     context: TaskRealtimeProcessContext,
@@ -1201,8 +1189,8 @@ export async function runIndexEveryTaskActionStep2Of2(
         if (updateActions.length === 0) continue;
 
         let action = () =>
-            // Once all our task mutexes unlock, now we wait for a concurrency mutex to
-            // unlock before indexing the task.
+            // Once all our task mutexes unlock, now we wait for a concurrency mutex to unlock
+            // before indexing the task.
             concurrencyMutexes[concurrencyMutexSequence++ % concurrencyMutexes.length]!.withLock(
                 () =>
                     indexTaskActionTransactionAssumingItsCommitted(
@@ -1216,12 +1204,12 @@ export async function runIndexEveryTaskActionStep2Of2(
                         }),
                         {...item, actions: updateActions},
                         {
-                            // Don't record search affinity interactions when backfilling OpenSearch.
-                            // Search affinity interactions should only be recorded immediately after the
-                            // action is commit.
+                            // Don't record search affinity interactions when backfilling OpenSearch. Search
+                            // affinity interactions should only be recorded immediately after the action is
+                            // commit.
                             withoutSearchAffinityEntityInteraction: true,
-                            // Perform more retries while indexing during this migration. Since we may have
-                            // a lot of update contention while trying to reindex all past actions at once.
+                            // Perform more retries while indexing during this migration. Since we may have a
+                            // lot of update contention while trying to reindex all past actions at once.
                             maxRetryAttemptCount: defaultMaxRetryAttemptCount * 2,
                         },
                     ),
@@ -1229,28 +1217,27 @@ export async function runIndexEveryTaskActionStep2Of2(
 
         // We only want one transaction per task to be running at a time. Otherwise the
         // transactions will conflict creating a lot of retries. So we have a mutex per
-        // `TaskId` and will only start indexing once the mutex for the first task in
-        // the transaction unlocks.
+        // `TaskId` and will only start indexing once the mutex for the first task in the
+        // transaction unlocks.
         //
-        // This is purely an optimization, it's not necessary for correctness. We could
-        // run all actions at the same time and accept retries for tasks trying to
-        // update the same data. In practice, I've found this migration has a 50%
-        // failure rate since we'll often be updating 20+ `UpdateTitle` actions on the
-        // same task at once which are constantly conflicting with each other causing
-        // failures.
+        // This is purely an optimization, it's not necessary for correctness. We could run
+        // all actions at the same time and accept retries for tasks trying to update the
+        // same data. In practice, I've found this migration has a 50% failure rate since
+        // we'll often be updating 20+ `UpdateTitle` actions on the same task at once which
+        // are constantly conflicting with each other causing failures.
         //
-        // We only use the mutex for the first task in the transaction because
-        // otherwise we're at risk of deadlocks. For example, transaction A that
-        // updates `task1` then `task2` and another transaction B that updates
-        // `task2` then `task1`. If we're not careful, transaction A will lock the
-        // mutex for `task1` while transaction B locks the mutex for `task2`. Then
-        // transaction A tries to lock the mutex for `task2` as well at the same time
-        // transaction B tries to lock the mutex for `task1`. Boom, deadlock!
+        // We only use the mutex for the first task in the transaction because otherwise
+        // we're at risk of deadlocks. For example, transaction A that updates `task1` then
+        // `task2` and another transaction B that updates `task2` then `task1`. If we're
+        // not careful, transaction A will lock the mutex for `task1` while transaction B
+        // locks the mutex for `task2`. Then transaction A tries to lock the mutex for
+        // `task2` as well at the same time transaction B tries to lock the mutex for
+        // `task1`. Boom, deadlock!
         //
         // Since we use mutexes mostly as an optimization for when we're indexing many
         // `UpdateTitle` actions at once we think it's acceptable to let conflicting
-        // multi-task transactions run (they're rarer and usually not near each other
-        // in the database).
+        // multi-task transactions run (they're rarer and usually not near each other in
+        // the database).
         const taskIdForMutex = findMapIterable(updateActions, action =>
             action.type === "UpdateTask" ? action.taskId : undefined,
         );
@@ -1349,22 +1336,21 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
     : null;
 
 /**
- * Commit a transaction of `TaskAction`s. Authorizes that each action is
- * valid before committing it.
+ * Commit a transaction of `TaskAction`s. Authorizes that each action is valid
+ * before committing it.
  *
- * When actions are applied to some view they are commutative and idempotent.
- * That means you can apply them in any order and you can apply them multiple
- * times. However, this function is not commutative and idempotent.
+ * When actions are applied to some view they are commutative and idempotent. That
+ * means you can apply them in any order and you can apply them multiple times.
+ * However, this function is not commutative and idempotent.
  *
  * To successfully commit an action you need to be allowed to modify the data
- * specified in the action. This means committing actions depends on the
- * current state, hence this function can't be commutative.
+ * specified in the action. This means committing actions depends on the current
+ * state, hence this function can't be commutative.
  *
  * However, because we implement authorization here it means once an action is
- * committed any downstream consumers don't need to factor in authorization
- * rules at all. Downstream consumers can apply actions in any order (thanks to
- * their commutative property) multiple times (thanks to their idempotent
- * property).
+ * committed any downstream consumers don't need to factor in authorization rules
+ * at all. Downstream consumers can apply actions in any order (thanks to their
+ * commutative property) multiple times (thanks to their idempotent property).
  */
 export function commitTaskActionTransaction(
     context: ServerSessionActionContext,
@@ -1391,8 +1377,8 @@ export function commitTaskActionTransaction(
             },
         });
 
-        // In our local environment, before committing make sure task indexes exist.
-        // That way:
+        // In our local environment, before committing make sure task indexes exist. That
+        // way:
         //
         // 1. If there's an error creating task indexes it prevents actions from being
         //    committed
@@ -1447,8 +1433,7 @@ export function commitTaskActionTransaction(
             actionTransactionItem,
         );
 
-        // Make sure `endTime` is greater than `startTime` in case there was clock
-        // skew.
+        // Make sure `endTime` is greater than `startTime` in case there was clock skew.
         const endTime = Math.max(startTime, Date.now());
 
         // Send a notification for all collections updated via the `UpdateAccessPolicy`
@@ -1482,14 +1467,14 @@ export function commitTaskActionTransaction(
             }
         }
 
-        // Try and wait until the transaction is processed before returning to the
-        // client. We only wait up to 100ms then let the transaction processing
-        // finish in the background.
+        // Try and wait until the transaction is processed before returning to the client.
+        // We only wait up to 100ms then let the transaction processing finish in the
+        // background.
         //
         // Given the client only sends one `commitTaskActionTransaction()` request at a
-        // time, this helps reduce conflicts when indexing many sequential actions on
-        // the same task (e.g. from typing in the title). And helps other users
-        // connected to realtime see these actions in the same order they were made.
+        // time, this helps reduce conflicts when indexing many sequential actions on the
+        // same task (e.g. from typing in the title). And helps other users connected to
+        // realtime see these actions in the same order they were made.
         await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
 
         return {extraActions};
@@ -1514,30 +1499,28 @@ async function afterCommitTaskActionTransaction(
 
     // Always wait for us to apply the transaction in `TaskRealtimeService`. This
     // allows us to have read-after-write consistency with
-    // `commitTaskActionTransaction()` as the write and `context.tasks.loadQuery()`
-    // as the read (or anything else that makes a request to
-    // `TaskRealtimeService`).
+    // `commitTaskActionTransaction()` as the write and `context.tasks.loadQuery()` as
+    // the read (or anything else that makes a request to `TaskRealtimeService`).
     //
-    // If you wait for `commitTaskActionTransaction()` to finish, you're guaranteed
-    // any read to a `TaskRealtimeService` instance will see your newly committed
-    // data.
+    // If you wait for `commitTaskActionTransaction()` to finish, you're guaranteed any
+    // read to a `TaskRealtimeService` instance will see your newly committed data.
     await processPromise.applyActionTransactionInRealtimeServicePromise;
 
     return {processPromise};
 }
 
 /**
- * Query our unprocessed action transaction index and process any transactions
- * that have been in there for too long. It's important for security that we
- * finish processing action transactions within `TaskRealtimeActionHistory`'s
- * 10 minute window.
+ * Query our unprocessed action transaction index and process any transactions that
+ * have been in there for too long. It's important for security that we finish
+ * processing action transactions within `TaskRealtimeActionHistory`'s 10 minute
+ * window.
  *
  * We have a cron job that runs this function once every 3 minutes so we get 3
- * chances in that 10 minute window to process action transactions that failed
- * to process the first time.
+ * chances in that 10 minute window to process action transactions that failed to
+ * process the first time.
  *
- * We add the number of action transactions this function needs to process to
- * the provided `span`.
+ * We add the number of action transactions this function needs to process to the
+ * provided `span`.
  */
 export async function retryUnprocessedTaskActionTransactions(
     context: Context<Omit<ServerActionContextModules, "actor">>,
@@ -1548,9 +1531,9 @@ export async function retryUnprocessedTaskActionTransactions(
     const indexItems = await arrayFromAsyncIterable(
         UnprocessedActionTransactionsIndex.query(context, {
             partitionKey: {wasProcessed: false},
-            // Unprocessed action transactions that are less than 12 seconds old are
-            // probably being actively processed. Only retry processing after a task has
-            // been unprocessed for more than 12 seconds.
+            // Unprocessed action transactions that are less than 12 seconds old are probably
+            // being actively processed. Only retry processing after a task has been
+            // unprocessed for more than 12 seconds.
             //
             // p99 action transaction processing currently peeks at ~6s.
             endSortKey: {committedTime: new Date(currentTime - 1000 * 12)},
@@ -1565,9 +1548,9 @@ export async function retryUnprocessedTaskActionTransactions(
             const item = await TaskActionTable.getItem(context, indexItem);
 
             // `UpdateAccountName` actions take a lot longer to process than other actions
-            // since they need to wait for the task index to refresh. Don't retry
-            // processing of an `UpdateAccountName` action until it has been twice the task
-            // index refresh delay interval.
+            // since they need to wait for the task index to refresh. Don't retry processing of
+            // an `UpdateAccountName` action until it has been twice the task index refresh
+            // delay interval.
             if (
                 item.actions.some(action => action.type === "UpdateAccountName") &&
                 item.committedTime.getTime() + taskIndexWaitForRefreshDelayMs * 2 < currentTime
@@ -1608,8 +1591,8 @@ function processTaskActionTransaction(
                 applyActionTransactionInRealtimeServicePromise,
             ]);
 
-            // Once we've finished processing, flip the `wasProcessed` flag to true which
-            // will also remove this transaction from our unprocessed transactions index.
+            // Once we've finished processing, flip the `wasProcessed` flag to true which will
+            // also remove this transaction from our unprocessed transactions index.
             await TaskActionTable.createOrReplaceItem(context, {
                 ...actionTransactionItem,
                 wasProcessed: true,
@@ -1630,10 +1613,10 @@ const taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression =
     "SET updateLockVersion = if_not_exists(updateLockVersion, :zero) + :one, taskCount = taskCount + :taskCountDelta, openTaskCount = openTaskCount + :openTaskCountDelta";
 
 /**
- * Abstraction for managing state during a `commitTaskActionTransaction()`
- * call. A task may be updated multiple times within a transaction so we need
- * to keep track of previous writes and return them if another action in the
- * transaction attempts to read again.
+ * Abstraction for managing state during a `commitTaskActionTransaction()` call. A
+ * task may be updated multiple times within a transaction so we need to keep track
+ * of previous writes and return them if another action in the transaction attempts
+ * to read again.
  */
 class TaskActionTransactionCommitState {
     private readonly _context: ServerSessionActionContext;
@@ -1730,10 +1713,10 @@ class TaskActionTransactionCommitState {
 
                 // If we can't find the lease we attempt to commit without it.
                 //
-                // - The lease may have expired. In that case the user should get an
-                //   authorization failure.
-                // - The client may have asked us to create a lease but we detected they don't
-                //   need one so we didn't create a lease.
+                // - The lease may have expired. In that case the user should get an authorization
+                //   failure.
+                // - The client may have asked us to create a lease but we detected they don't need
+                //   one so we didn't create a lease.
                 if (!leaseItem || leaseItem.expirationTime.getTime() < Date.now()) {
                     leaseId = null;
                 } else {
@@ -1758,12 +1741,12 @@ class TaskActionTransactionCommitState {
             await state._prepareCommit(actions);
 
             if (createLeaseIfLostAccess) {
-                // The client tries to create a lease when a task leaves its view. If the
-                // actions that cause the task to leave would cause the undo actions to fail
-                // then we create a lease.
+                // The client tries to create a lease when a task leaves its view. If the actions
+                // that cause the task to leave would cause the undo actions to fail then we create
+                // a lease.
                 //
-                // This is an optimization. All the data needed to execute this should be
-                // cached. Allows us to avoid creating leases when they're unnecessary.
+                // This is an optimization. All the data needed to execute this should be cached.
+                // Allows us to avoid creating leases when they're unnecessary.
                 let hasLostAccess = false;
                 try {
                     const forkedState = state._fork();
@@ -1782,8 +1765,8 @@ class TaskActionTransactionCommitState {
                 }
 
                 if (hasLostAccess) {
-                    // Create a new state object and make sure we're allowed to commit the actions
-                    // we want a lease for BEFORE the actions that cause us to lose access.
+                    // Create a new state object and make sure we're allowed to commit the actions we
+                    // want a lease for BEFORE the actions that cause us to lose access.
                     try {
                         const testState = new TaskActionTransactionCommitState(context, {
                             spaceId,
@@ -1825,8 +1808,7 @@ class TaskActionTransactionCommitState {
                         accountId: context.actor.getAccountId(),
                         leaseId: createLeaseIfLostAccess.id,
                         actions: createLeaseIfLostAccess.actions,
-                        // Leases have a short expiration time. You may not use a lease after
-                        // two hours.
+                        // Leases have a short expiration time. You may not use a lease after two hours.
                         expirationTime: addHours(new Date(state._startTime), 2),
                     });
                 }
@@ -1888,9 +1870,8 @@ class TaskActionTransactionCommitState {
                     throw exhaustive(transactionEntry.action);
             }
 
-            // If children counts were updated then we want to commit an extra action with
-            // the authoritative child counts so all other clients have the correct
-            // children count.
+            // If children counts were updated then we want to commit an extra action with the
+            // authoritative child counts so all other clients have the correct children count.
             if (transactionEntry.shouldCommitExtraUpdateChildrenCountAction) {
                 extraActions.push({
                     type: "UpdateTask",
@@ -2002,8 +1983,8 @@ class TaskActionTransactionCommitState {
             await TaskActionTable.createOrReplaceItem(this._context, actionTransactionItem);
         }
 
-        // Hooray! We've successfully committed the transaction. Now run our after
-        // commit actions...
+        // Hooray! We've successfully committed the transaction. Now run our after commit
+        // actions...
         if (this._afterCommitActions.length > 0) {
             await runAllPromises(this._afterCommitActions.map(action => action(this._context)));
         }
@@ -2015,9 +1996,9 @@ class TaskActionTransactionCommitState {
     }
 
     /**
-     * Fork this commit state object so you can attempt to prepare more actions
-     * based on the updates we've already made to the state without affecting the
-     * original state's committed data.
+     * Fork this commit state object so you can attempt to prepare more actions based
+     * on the updates we've already made to the state without affecting the original
+     * state's committed data.
      */
     private _fork() {
         const newState = new TaskActionTransactionCommitState(this._context, {
@@ -2051,15 +2032,15 @@ class TaskActionTransactionCommitState {
     }
 
     /**
-     * Clients specify change times for various properties and we use change times
-     * to resolve conflicting updates. Clients may specify a change time at any
-     * point in the past (maybe they are syncing offline updates) but they may not
-     * specify a change time too far in the future.
+     * Clients specify change times for various properties and we use change times to
+     * resolve conflicting updates. Clients may specify a change time at any point in
+     * the past (maybe they are syncing offline updates) but they may not specify a
+     * change time too far in the future.
      *
      * We provide some wiggle room to account for clock skew. It's required that
      * clients use NTP to get a time (through our `/api/time` route implemented in
-     * `EdgeService`) that's consistent with other clients instead of relying on
-     * the device clock.
+     * `EdgeService`) that's consistent with other clients instead of relying on the
+     * device clock.
      */
     public isTimeReasonable(time: number): boolean {
         return time - this._startTime < 1000 * 60 * 2;
@@ -2127,8 +2108,8 @@ class TaskActionTransactionCommitState {
         {
             shouldCommitExtraUpdateChildrenCountAction = false,
         }: {
-            // If set to true then we will add an `UpdateChildrenCount` action to the end
-            // of the current transaction before committing.
+            // If set to true then we will add an `UpdateChildrenCount` action to the end of
+            // the current transaction before committing.
             shouldCommitExtraUpdateChildrenCountAction?: boolean;
         } = {},
     ) {
@@ -2194,10 +2175,9 @@ class TaskActionTransactionCommitState {
     }
 
     /**
-     * If the action time was more than an hour in the past then we don't set it as
-     * the new `lastTaskAddedTime` since it would look like the last update time
-     * was skipping backwards since we can't run `max()` in a DynamoDB update
-     * expression.
+     * If the action time was more than an hour in the past then we don't set it as the
+     * new `lastTaskAddedTime` since it would look like the last update time was
+     * skipping backwards since we can't run `max()` in a DynamoDB update expression.
      */
     private _isCollectionLastTaskAddedTimeReasonable(time: HybridLogicalTime) {
         return this._startTime - time[0] < 1000 * 60;
@@ -2242,8 +2222,8 @@ class TaskActionTransactionCommitState {
                 throw new FailedPreconditionError("Space mismatch");
 
             // If we have an atomic update transaction entry, we need to apply it when the
-            // collection is loaded. Since we can't put an entry in `collectionItemById`
-            // when the update is applied.
+            // collection is loaded. Since we can't put an entry in `collectionItemById` when
+            // the update is applied.
             const transactionEntry = this._transactionEntryByCollectionId.get(collectionId);
             if (transactionEntry?.action === "AtomicallyUpdateItemAttributes") {
                 collectionItem = this._applyCollectionUpdateItemAttributes(
@@ -2324,8 +2304,8 @@ class TaskActionTransactionCommitState {
                 break;
             }
             case "AtomicallyUpdateItemAttributes": {
-                // We don't need to apply atomic updates here since they should have already
-                // been applied when the calling code read the collection from our state.
+                // We don't need to apply atomic updates here since they should have already been
+                // applied when the calling code read the collection from our state.
 
                 this._transactionEntryByCollectionId.set(collectionItem.collectionId, {
                     action: "DirectlyUpdateItem",
@@ -2382,8 +2362,8 @@ class TaskActionTransactionCommitState {
                         ? update.lastTaskAddedTime
                         : transactionEntry.lastTaskAddedTime;
 
-                // If a collection item has been loaded then we need to apply our update to
-                // that item.
+                // If a collection item has been loaded then we need to apply our update to that
+                // item.
                 const collectionItemPromise = this._collectionItemById.get(collectionId);
                 if (collectionItemPromise) {
                     this._collectionItemById.set(
@@ -2466,8 +2446,8 @@ class TaskActionTransactionCommitState {
     /**
      * Run some code after the action transaction has successfully committed.
      *
-     * You can't register after commit actions when creating a lease (an error will
-     * be thrown). Since we don't actually commit lease actions until later.
+     * You can't register after commit actions when creating a lease (an error will be
+     * thrown). Since we don't actually commit lease actions until later.
      */
     public registerAfterCommitAction(
         action: (context: ServerSessionActionContext) => Promise<void>,
@@ -2479,17 +2459,17 @@ class TaskActionTransactionCommitState {
 const circularTaskDependencyErrorDisplayMessage = errorDisplayMessage`Can\u2019t move a task to the subtasks of one of its own subtasks. Check your task\u2019s subtasks and try removing the one you want to move your task into.`;
 
 async function actuallyCommitTaskActionTransaction(
-    // We intentionally don't pass in `context` since we want all DynamoDB access
-    // to go through this `state` object. That way we force reads to go through our
-    // local cache.
+    // We intentionally don't pass in `context` since we want all DynamoDB access to go
+    // through this `state` object. That way we force reads to go through our local
+    // cache.
     state: TaskActionTransactionCommitState,
     spaceId: SpaceId,
     actionTransaction: ReadonlyArray<TaskAction>,
 ) {
     for (const action of actionTransaction) {
-        // Make sure our action time isn't too far in the future. That would mean
-        // future updates all need to use the `ticks` property of `HybridLogicalTime`
-        // and couldn't express the update time with a real time.
+        // Make sure our action time isn't too far in the future. That would mean future
+        // updates all need to use the `ticks` property of `HybridLogicalTime` and couldn't
+        // express the update time with a real time.
         if (!state.isTimeReasonable(action.time[0])) {
             throw new InvalidArgumentError("Action time too far in the future");
         }
@@ -2512,10 +2492,9 @@ async function actuallyCommitTaskActionTransaction(
                             taskId,
                             spaceId,
                             // TODO(calebmer, #api): Think about bot "credit". Ideally bots come with an
-                            // initiator. The initiator should get partial credit. For example task created
-                            // by Caleb (with ChatGPT). Counting steps on documents and tasks should be
-                            // similar. "caleb's docs" in search should find docs written by me (with
-                            // ChatGPT).
+                            // initiator. The initiator should get partial credit. For example task created by
+                            // Caleb (with ChatGPT). Counting steps on documents and tasks should be similar.
+                            // "caleb's docs" in search should find docs written by me (with ChatGPT).
                             creatorId: taskAction.creatorId,
                             createdTime: action.time,
                             deletedTime: null,
@@ -2528,11 +2507,11 @@ async function actuallyCommitTaskActionTransaction(
                             childTaskIds: new Set(),
                             collections: TaskCollectionSet.empty,
                             assigneeId: new TaskAssigneeAccountIdRegister(null, action.time),
-                            // Empty tasks have an access policy of null for historic reasons. When we
-                            // added `accessPolicy` to tasks all existing task index docs default their
+                            // Empty tasks have an access policy of null for historic reasons. When we added
+                            // `accessPolicy` to tasks all existing task index docs default their
                             // `accessPolicy` to null. So the behavior of a task without an
-                            // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in
-                            // the first place.
+                            // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in the
+                            // first place.
                             accessPolicy: null,
                             validLeaseId: null,
                         });
@@ -2557,17 +2536,17 @@ async function actuallyCommitTaskActionTransaction(
                         let currentParentTaskItem = taskItem;
 
                         while (currentParentTaskItem.parentTaskId.value !== null) {
-                            // We don't allow task circular dependencies which would cause infinite
-                            // looping. Deleted tasks break the circular dependency chain. So a circular
-                            // dependency may exist involving a deleted task. When we undelete, we need to
-                            // make sure it doesn't create a circular dependency.
+                            // We don't allow task circular dependencies which would cause infinite looping.
+                            // Deleted tasks break the circular dependency chain. So a circular dependency may
+                            // exist involving a deleted task. When we undelete, we need to make sure it
+                            // doesn't create a circular dependency.
                             if (seenTaskIds.has(currentParentTaskItem.parentTaskId.value)) {
                                 throw new FailedPreconditionError(
                                     "Undeleting task would create a circular dependency",
                                     {
                                         // NOTE(calebmer): Ideally the error message would have a hint. This error case
-                                        // seems pretty rare. I'd want to know what the UI of this looks like to write
-                                        // an appropriate hint. (e.g. Can you see the old parent task?)
+                                        // seems pretty rare. I'd want to know what the UI of this looks like to write an
+                                        // appropriate hint. (e.g. Can you see the old parent task?)
                                         displayMessage: errorDisplayMessage`Undoing task deletion would make the task its own subtask.`,
                                     },
                                 );
@@ -2700,17 +2679,17 @@ async function actuallyCommitTaskActionTransaction(
                                 }
 
                                 // We want to prevent the creation of cycles even during race conditions. So we
-                                // call `updateTaskItemLockVersion()` on critical parent tasks that can't
-                                // update without us knowing about it. We call this method on:
+                                // call `updateTaskItemLockVersion()` on critical parent tasks that can't update
+                                // without us knowing about it. We call this method on:
                                 //
                                 // 1. The root parent task in the new parent task chain
                                 // 2. The root parent task in the old parent task chain
                                 //
-                                // This has the effect of forcing any change to subtask structure under a root
-                                // task to be committed serially. If the root task itself is made the subtask
-                                // of some other task than that update too must be serialized with changes to
-                                // its subtask structure. By serializing updates to subtask structure we can
-                                // make sure no circular dependencies are introduced.
+                                // This has the effect of forcing any change to subtask structure under a root task
+                                // to be committed serially. If the root task itself is made the subtask of some
+                                // other task than that update too must be serialized with changes to its subtask
+                                // structure. By serializing updates to subtask structure we can make sure no
+                                // circular dependencies are introduced.
                                 await runAllPromiseThunks(
                                     // Authorize new parent `TaskId`:
                                     async () => {
@@ -2736,8 +2715,8 @@ async function actuallyCommitTaskActionTransaction(
                                                 "Parent task is deleted",
                                             );
 
-                                        // Make sure we have edit access to the parent task in order to make this task
-                                        // a child of it.
+                                        // Make sure we have edit access to the parent task in order to make this task a
+                                        // child of it.
                                         await state.authorizeTaskItemAccess(
                                             newParentTaskItem,
                                             "Edit",
@@ -2752,9 +2731,9 @@ async function actuallyCommitTaskActionTransaction(
                                         while (
                                             currentNewParentTaskItem.parentTaskId.value !== null
                                         ) {
-                                            // We don't allow task circular dependencies which would cause infinite
-                                            // looping. If we see that updating our `parentTaskId` would create a circular
-                                            // dependency then error.
+                                            // We don't allow task circular dependencies which would cause infinite looping. If
+                                            // we see that updating our `parentTaskId` would create a circular dependency then
+                                            // error.
                                             if (
                                                 seenTaskIds.has(
                                                     currentNewParentTaskItem.parentTaskId.value,
@@ -2769,8 +2748,8 @@ async function actuallyCommitTaskActionTransaction(
                                                 );
                                             }
 
-                                            // Parent task loading may be cached by our `authorizeTaskItemAccess()`
-                                            // call earlier.
+                                            // Parent task loading may be cached by our `authorizeTaskItemAccess()` call
+                                            // earlier.
                                             const nextNewParentTaskItem = await state.getTaskItem(
                                                 currentNewParentTaskItem.parentTaskId.value,
                                             );
@@ -2795,21 +2774,20 @@ async function actuallyCommitTaskActionTransaction(
                                         );
                                         if (oldParentTaskItem.deletedTime) return;
 
-                                        // We allow you to change the parent of a task you have edit access to even if
-                                        // you don't have access to the _current_ parent task. This is because we also
-                                        // allow you to delete tasks even when you don't have access to the current
-                                        // parent task. That operation will remove a child task from a parent task so
-                                        // it follows a user is allowed to remove tasks they have access to from
-                                        // unknown parents.
+                                        // We allow you to change the parent of a task you have edit access to even if you
+                                        // don't have access to the _current_ parent task. This is because we also allow
+                                        // you to delete tasks even when you don't have access to the current parent task.
+                                        // That operation will remove a child task from a parent task so it follows a user
+                                        // is allowed to remove tasks they have access to from unknown parents.
                                         //
                                         // Should we allow deleting a task when you don't have access to the parent?
-                                        // Arguably not. But it's hard to explain a restriction like that in the UI and
-                                        // the restriction is not too bad if we explain it in the revision feed.
+                                        // Arguably not. But it's hard to explain a restriction like that in the UI and the
+                                        // restriction is not too bad if we explain it in the revision feed.
                                         //
-                                        // TODO(calebmer): When we add revision history, deleting or changing the
-                                        // parent of a child task should add a revision history entry to the parent
-                                        // task. That way a user who has access to the child but not the parent can
-                                        // have their changes audited.
+                                        // TODO(calebmer): When we add revision history, deleting or changing the parent of
+                                        // a child task should add a revision history entry to the parent task. That way a
+                                        // user who has access to the child but not the parent can have their changes
+                                        // audited.
 
                                         let currentOldParentTaskItem = oldParentTaskItem;
 
@@ -2846,8 +2824,8 @@ async function actuallyCommitTaskActionTransaction(
                                     }),
                                 });
 
-                                // If the parent task changed then increment our counters such that we remove
-                                // our task from the old parent and add our task to the new parent.
+                                // If the parent task changed then increment our counters such that we remove our
+                                // task from the old parent and add our task to the new parent.
                                 if (oldParentTaskId.value !== newParentTaskId.value) {
                                     await runAllPromiseThunks(
                                         async () => {
@@ -2939,8 +2917,8 @@ async function actuallyCommitTaskActionTransaction(
                             case "UpdateChildrenCounts": {
                                 // These actions may only be generated by the server.
                                 //
-                                // See the documentation on `TaskUpdateChildrenCountsAction` for more
-                                // information on why this isn't allowed.
+                                // See the documentation on `TaskUpdateChildrenCountsAction` for more information
+                                // on why this isn't allowed.
                                 throw new InvalidArgumentError(
                                     "Clients are not allowed to commit an `UpdateChildrenCounts` action",
                                 );
@@ -3148,9 +3126,9 @@ async function actuallyCommitTaskActionTransaction(
                                 if (
                                     taskAction.assignee &&
                                     // We intentionally use `getAccountIfExists()` instead of
-                                    // `isAccountMemberOfSpace()` here. If an account is removed from a
-                                    // space it should still be ok setting the removed account as a task
-                                    // assignee. Though it's probably unwise for a user to do so.
+                                    // `isAccountMemberOfSpace()` here. If an account is removed from a space it should
+                                    // still be ok setting the removed account as a task assignee. Though it's probably
+                                    // unwise for a user to do so.
                                     !(await state.getAccountIfExists(
                                         taskAction.assignee.assigneeId,
                                     ))
@@ -3214,23 +3192,22 @@ async function actuallyCommitTaskActionTransaction(
                                 break;
                             }
                             case "UpdateTitle": {
-                                // Y.js uses Lamport timestamps which we don't need to validate for
-                                // reasonableness.
+                                // Y.js uses Lamport timestamps which we don't need to validate for reasonableness.
                                 break;
                             }
                             case "UpdateDueDate": {
-                                // We don't store due date in essential attributes and action time
-                                // is validated above.
+                                // We don't store due date in essential attributes and action time is validated
+                                // above.
                                 break;
                             }
                             case "UpdatePriority": {
-                                // We don't store priority in essential attributes and action time
-                                // is validated above.
+                                // We don't store priority in essential attributes and action time is validated
+                                // above.
                                 break;
                             }
                             case "UpdateLayout": {
-                                // We don't store layout in essential attributes and action time
-                                // is validated above.
+                                // We don't store layout in essential attributes and action time is validated
+                                // above.
                                 break;
                             }
                             case "UpdateAccessPolicy": {
@@ -3325,10 +3302,9 @@ async function actuallyCommitTaskActionTransaction(
                                 event: "Created",
                             };
 
-                            // If we created a public task collection then add a feed candidate entry after
-                            // 15 minutes. We wait 15 minutes to give the user the chance to add some tasks
-                            // to the collection. So the feed entry we publish doesn't show an empty task
-                            // collection.
+                            // If we created a public task collection then add a feed candidate entry after 15
+                            // minutes. We wait 15 minutes to give the user the chance to add some tasks to the
+                            // collection. So the feed entry we publish doesn't show an empty task collection.
                             if (newCollectionItem.hasAddedFeedCandidateEntry) {
                                 context.jobs.send(
                                     {
@@ -3366,8 +3342,7 @@ async function actuallyCommitTaskActionTransaction(
                             );
                         }
 
-                        // If `isTaskCollectionItemDeleted()` returns true then we have
-                        // `rawDeletedTime`.
+                        // If `isTaskCollectionItemDeleted()` returns true then we have `rawDeletedTime`.
                         assert(collectionItem.rawDeletedTime);
 
                         await state.authorizeCollectionAccessAllowingDeletedCollections(
@@ -3489,10 +3464,10 @@ async function actuallyCommitTaskActionTransaction(
                                     hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                                 });
 
-                                // If we're sharing a task collection for the first time then add a feed
-                                // candidate entry after 15 minutes. We wait 15 minutes to give the user the
-                                // chance to add some tasks to the collection. So the feed entry we publish
-                                // doesn't show an empty task collection.
+                                // If we're sharing a task collection for the first time then add a feed candidate
+                                // entry after 15 minutes. We wait 15 minutes to give the user the chance to add
+                                // some tasks to the collection. So the feed entry we publish doesn't show an empty
+                                // task collection.
                                 //
                                 // Unless there are 8 or more open tasks. Then we add the feed candidate entry
                                 // immediately since we have enough tasks to render a good preview in feed.
@@ -3543,8 +3518,8 @@ async function actuallyCommitTaskActionTransaction(
             }
             case "UpdateAccountName": {
                 // Clients can't commit this action whenever they'd like by calling
-                // `commitTaskActionTransaction()`. We only commit this action when updating
-                // an account's name.
+                // `commitTaskActionTransaction()`. We only commit this action when updating an
+                // account's name.
                 throw new InvalidArgumentError(
                     "Clients are not allowed to commit an `UpdateAccountName` action",
                 );
@@ -3615,8 +3590,7 @@ export function deleteTaskAndAllChildren(
                     taskId: parentTaskId,
                 }));
 
-            // We want to keep track of both the root parent task and the first
-            // parent task.
+            // We want to keep track of both the root parent task and the first parent task.
             if (parentTaskItem === null) {
                 parentTaskItem = rootParentTaskItem;
             }
@@ -3651,8 +3625,8 @@ export function deleteTaskAndAllChildren(
                     }
 
                     // Keep track of `seenTaskIds` since while child tasks child be an acyclic tree
-                    // where each node is unique, there may be concurrent task updates which cause
-                    // us to observe something different.
+                    // where each node is unique, there may be concurrent task updates which cause us
+                    // to observe something different.
                     if (seenTaskIds.has(childTaskItem.taskId)) return;
 
                     await addTaskItem(childTaskItem);
@@ -3691,15 +3665,15 @@ export function deleteTaskAndAllChildren(
 
         const transactionEntries: Array<DynamoTransactionEntry> = [];
 
-        // Whenever we update a task's parent, we increment the `updateLockVersion` of
-        // the root parent task. This way we can force updates to the child tree
-        // structure to happen in sequence so we can validate there are no cycles.
+        // Whenever we update a task's parent, we increment the `updateLockVersion` of the
+        // root parent task. This way we can force updates to the child tree structure to
+        // happen in sequence so we can validate there are no cycles.
         //
         // Force our recursive task deletion to be a part of this update sequence.
         if (
             rootParentTaskItem.taskId !== taskItem.taskId &&
-            // We'll update `parentTaskItem` below so if it's the same as
-            // `rootParentTaskItem` then we don't need to update `rootParentTaskItem`.
+            // We'll update `parentTaskItem` below so if it's the same as `rootParentTaskItem`
+            // then we don't need to update `rootParentTaskItem`.
             rootParentTaskItem.taskId !== parentTaskItem?.taskId
         ) {
             transactionEntries.push(
@@ -3782,8 +3756,8 @@ export function deleteTaskAndAllChildren(
 
                         return {
                             type: "UpdateTask",
-                            // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above
-                            // the action time.
+                            // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above the
+                            // action time.
                             time: [actionTime[0], actionTime[1] + 1],
                             taskId: newTaskItem.taskId,
                             taskAction: {
@@ -3797,8 +3771,8 @@ export function deleteTaskAndAllChildren(
                     ? cast<Array<TaskAction>>([
                           {
                               type: "UpdateTask",
-                              // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above
-                              // the action time.
+                              // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above the
+                              // action time.
                               time: [actionTime[0], actionTime[1] + 1],
                               taskId: parentTaskItem.taskId,
                               taskAction: {
@@ -3928,18 +3902,18 @@ export function duplicateTaskAndAllChildren(
             };
         };
 
-        // Our dynamo transaction limit is 100 actions. If we exceed that, we'll throw an error.
-        // We don't want to keep resolving children if we already know we're going to fail.
-        // For now, we just track the total child task count and throw if we exceed it.
+        // Our dynamo transaction limit is 100 actions. If we exceed that, we'll throw an
+        // error. We don't want to keep resolving children if we already know we're going
+        // to fail. For now, we just track the total child task count and throw if we
+        // exceed it.
         const maxClonedObjectCount = 100;
         let totalClonedObjectCount = 1;
 
         /**
          * Aggregates all actions for a task and its children.
          *
-         * @param currentTaskId The ID of the current task.
-         * @param parentTaskId The ID of the parent task.
-         * @returns
+         * @param currentTaskId The ID of the current task. @param parentTaskId The ID of
+         * the parent task. @returns
          */
         const aggregateRecursiveActions = async (currentTaskId: TaskId, parentTaskId?: TaskId) => {
             const loadQueriesPromise = context.tasks.loadQueries(taskItem.spaceId, {
@@ -4012,9 +3986,9 @@ export function duplicateTaskAndAllChildren(
                     if (childTask.task.getParent()?.taskId !== currentTaskId) return;
 
                     // There's an edge case / race condition where we could produce a cycle. If so,
-                    // just ignore the child task and break the cycle.
-                    // There is an incredibly small chance where  we would try to fetch the same
-                    // task multiple times AFTER this check. We don't handle that here.
+                    // just ignore the child task and break the cycle. There is an incredibly small
+                    // chance where we would try to fetch the same task multiple times AFTER this
+                    // check. We don't handle that here.
                     if (clonedTaskIds.has(childTask.task.id)) {
                         return;
                     }
@@ -4060,8 +4034,8 @@ export function duplicateTaskAndAllChildren(
 
                         if (childTaskNotesItem) {
                             totalClonedObjectCount++;
-                            // Pass newCurrentTaskId as parentTaskId to indicate this is a child task.
-                            // This prevents variable substitution from being applied to child notes.
+                            // Pass newCurrentTaskId as parentTaskId to indicate this is a child task. This
+                            // prevents variable substitution from being applied to child notes.
                             const newChildTaskNotesItem = createNotesClone(
                                 newCurrentTaskId,
                                 childTaskNotesItem,
@@ -4095,9 +4069,9 @@ export function duplicateTaskAndAllChildren(
         assertExists(newRootTaskId);
         const returnedTaskId = newRootTaskId!;
 
-        // Attach files from the source task notes to the new task notes BEFORE
-        // committing the transaction. This prevents a race condition where a user
-        // opens the newly created task before file attachments complete.
+        // Attach files from the source task notes to the new task notes BEFORE committing
+        // the transaction. This prevents a race condition where a user opens the newly
+        // created task before file attachments complete.
         if (attachFiles.length > 0) {
             await runAllPromises(
                 flatMapIterable(attachFiles, ({fromTaskId, toTaskId, fileIds}) =>
@@ -4112,9 +4086,9 @@ export function duplicateTaskAndAllChildren(
                                 taskId: toTaskId,
                             }),
 
-                            // The new task hasn't been created yet. So don't authorize we have access
-                            // since doing so will throw a `NotFoundError`. We definitely have access to
-                            // the new task since our actor is about to create it.
+                            // The new task hasn't been created yet. So don't authorize we have access since
+                            // doing so will throw a `NotFoundError`. We definitely have access to the new task
+                            // since our actor is about to create it.
                             dangerouslySkipToAuthorizeTargetAccess: true,
                         }),
                     ),
@@ -4135,9 +4109,9 @@ export function duplicateTaskAndAllChildren(
 }
 
 /**
- * The task part required for implementing `updateOurAccountName()`.
- * Commits an `UpdateAccountName` action to every space the account is in then
- * once the transaction has committed begins indexing the action.
+ * The task part required for implementing `updateOurAccountName()`. Commits an
+ * `UpdateAccountName` action to every space the account is in then once the
+ * transaction has committed begins indexing the action.
  */
 export function internalGetUpdateOurAccountNameTaskTransactionEntries(
     context: ServerSessionActionContext,
@@ -4189,8 +4163,7 @@ export function internalGetUpdateOurAccountNameTaskTransactionEntries(
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();
 
 /**
- * Get all action transactions since the provided start time in the
- * provided space.
+ * Get all action transactions since the provided start time in the provided space.
  */
 export async function backfillTaskActionTransactionHistory(
     context: Context<{
@@ -4210,8 +4183,8 @@ export async function backfillTaskActionTransactionHistory(
         actions: ReadonlyArray<TaskAction>;
     }>
 > {
-    // Must have system access since we return all actions. We don't
-    // filter out actions the current session doesn't have access to.
+    // Must have system access since we return all actions. We don't filter out actions
+    // the current session doesn't have access to.
     context.actor.authorizeSystem();
 
     await authorizeSpaceAccess(context, spaceId);
@@ -4251,15 +4224,14 @@ const TaskItemAuthorizationCache = new DynamoContextCache<
     TaskId,
     TaskEssentialAttributesItem | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
 /**
- * Gets a task to be used in authorization. If used in `TaskRealtimeService`
- * then you may provide a loader function to use an in-memory task
- * representation.
+ * Gets a task to be used in authorization. If used in `TaskRealtimeService` then
+ * you may provide a loader function to use an in-memory task representation.
  *
  * 1. Attempts to get an in-memory task representation when used in
  *    `TaskRealtimeService` with `getTaskIndexDocIfExists`.
@@ -4267,8 +4239,8 @@ const TaskItemAuthorizationCache = new DynamoContextCache<
  * 2. Otherwise loads the task from the database (cached within the action
  *    context).
  *
- * We force `getTaskIndexDocIfExists` to be synchronous. If you don't have the
- * task in memory then we should load from DynamoDB, not OpenSearch.
+ * We force `getTaskIndexDocIfExists` to be synchronous. If you don't have the task
+ * in memory then we should load from DynamoDB, not OpenSearch.
  */
 async function getTaskItemForAuthorization(
     context: Context<{
@@ -4323,25 +4295,24 @@ const TaskCollectionItemAuthorizationCache = new DynamoContextCache<
     TaskCollectionId,
     TaskCollectionEssentialAttributesItem | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
 /**
- * Gets a collection to be used in authorization. If used in
- * `TaskRealtimeService` then you may provide a loader function to use an
- * in-memory collection representation.
+ * Gets a collection to be used in authorization. If used in `TaskRealtimeService`
+ * then you may provide a loader function to use an in-memory collection
+ * representation.
  *
  * 1. Attempts to get an in-memory collection representation when used in
  *    `TaskRealtimeService` with `getCollectionIndexDocIfExists`.
  *
- * 2. Otherwise loads the collection from the database (cached within the
- *    action context).
+ * 2. Otherwise loads the collection from the database (cached within the action
+ *    context).
  *
- * We force `getCollectionIndexDocIfExists` to be synchronous. If you don't
- * have the collection in memory then we should load from DynamoDB, not
- * OpenSearch.
+ * We force `getCollectionIndexDocIfExists` to be synchronous. If you don't have
+ * the collection in memory then we should load from DynamoDB, not OpenSearch.
  */
 async function getTaskCollectionItemForAuthorization(
     context: Context<{
@@ -4438,8 +4409,8 @@ async function authorizeTaskCollectionItemAccessIfPossible(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     if (isTaskCollectionItemDeleted(collectionItem)) {
-        // If the actor couldn't view the collection then use a "permission denied"
-        // error to avoid leaking that the collection was deleted.
+        // If the actor couldn't view the collection then use a "permission denied" error
+        // to avoid leaking that the collection was deleted.
         const result = await authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
             context,
             collectionItem,
@@ -4450,9 +4421,9 @@ async function authorizeTaskCollectionItemAccessIfPossible(
 
         return {
             ok: false,
-            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of
-            // this error will render not found errors as "Deleted" and
-            // `ErrorCode.PermissionDenied` as "Private".
+            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of this
+            // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
+            // as "Private".
             error: new NotFoundError("Task collection was deleted", {
                 aggregateDedupeKey: collectionItem.collectionId,
                 displayMessage: taskCollectionDeletedErrorDisplayMessage,
@@ -4496,13 +4467,13 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPoss
 }
 
 /**
- * Tests if the context's actor is allowed to access the provided collection
- * with the provided access level. Throws an error if access is unauthorized.
+ * Tests if the context's actor is allowed to access the provided collection with
+ * the provided access level. Throws an error if access is unauthorized.
  *
  * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
+ * up-to-date in-memory you may pass in a `loaders` object to use your in-memory
+ * task instead. See the disclaimers on `authorizeTaskQueryAccess()` before using
+ * the `loaders` object.
  */
 export async function authorizeTaskCollectionAccess(
     context: TaskRealtimeActionContext,
@@ -4528,13 +4499,13 @@ export async function authorizeTaskCollectionAccess(
 }
 
 /**
- * Tests if the context's actor is allowed to access the provided collection
- * with the provided access level. Returns an error if access is unauthorized.
+ * Tests if the context's actor is allowed to access the provided collection with
+ * the provided access level. Returns an error if access is unauthorized.
  *
  * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
+ * up-to-date in-memory you may pass in a `loaders` object to use your in-memory
+ * task instead. See the disclaimers on `authorizeTaskQueryAccess()` before using
+ * the `loaders` object.
  */
 export async function authorizeTaskCollectionAccessIfPossible(
     context: TaskRealtimeActionContext,
@@ -4567,18 +4538,18 @@ export async function authorizeTaskCollectionAccessIfPossible(
 }
 
 /**
- * Can the provided account access the provided collection index doc? Returns
- * false if not.
+ * Can the provided account access the provided collection index doc? Returns false
+ * if not.
  *
- * Be careful when using this function! You are expected to provide index docs
- * from an up-to-date source. You should not directly load from OpenSearch
- * since OpenSearch is at least 30 seconds behind at all times. This function
- * is only really safely useful in `TaskRealtimeService` which maintains
+ * Be careful when using this function! You are expected to provide index docs from
+ * an up-to-date source. You should not directly load from OpenSearch since
+ * OpenSearch is at least 30 seconds behind at all times. This function is only
+ * really safely useful in `TaskRealtimeService` which maintains
  * `TaskCollectionIndexDoc`s up-to-date in-memory.
  *
  * If you use this function you are taking on your own authorization
- * responsibilities. Like properly stopping data from being sent to the client
- * when this function returns false.
+ * responsibilities. Like properly stopping data from being sent to the client when
+ * this function returns false.
  */
 export function authorizeTaskCollectionIndexDocAccessIfPossible(
     context: TaskRealtimeActionContext,
@@ -4599,9 +4570,9 @@ export function authorizeTaskCollectionIndexDocAccessIfPossible(
  * provided access level. Throws an error if access is unauthorized.
  *
  * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
+ * up-to-date in-memory you may pass in a `loaders` object to use your in-memory
+ * task instead. See the disclaimers on `authorizeTaskQueryAccess()` before using
+ * the `loaders` object.
  */
 export async function authorizeTaskAccess(
     context: TaskRealtimeActionContext,
@@ -4640,9 +4611,9 @@ export async function authorizeTaskAccess(
  * provided access level. Returns an error result if access is unauthorized.
  *
  * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
+ * up-to-date in-memory you may pass in a `loaders` object to use your in-memory
+ * task instead. See the disclaimers on `authorizeTaskQueryAccess()` before using
+ * the `loaders` object.
  */
 export async function authorizeTaskAccessIfPossible(
     context: TaskRealtimeActionContext,
@@ -4676,13 +4647,13 @@ export async function authorizeTaskAccessIfPossible(
 }
 
 /**
- * Tests if the context's actor is allowed to access the provided task item
- * with the provided access level. Throws an error if access is unauthorized.
+ * Tests if the context's actor is allowed to access the provided task item with
+ * the provided access level. Throws an error if access is unauthorized.
  *
  * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
- * up-to-date in-memory you may pass in a `loaders` object to use your
- * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
- * before using the `loaders` object.
+ * up-to-date in-memory you may pass in a `loaders` object to use your in-memory
+ * task instead. See the disclaimers on `authorizeTaskQueryAccess()` before using
+ * the `loaders` object.
  */
 async function authorizeTaskItemAccess(
     context: ServerActionContext,
@@ -4754,9 +4725,9 @@ async function authorizeTaskItemAccessIfPossible(
 
         return {
             ok: false,
-            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of
-            // this error will render not found errors as "Deleted" and
-            // `ErrorCode.PermissionDenied` as "Private".
+            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of this
+            // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
+            // as "Private".
             error: new NotFoundError("Task was deleted", {
                 aggregateDedupeKey: taskItem.taskId,
                 displayMessage: taskDeletedErrorDisplayMessage,
@@ -4849,8 +4820,8 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 return okResult;
             }
 
-            // An array of `TaskCollectionId`s that authorize access to the task or `null`
-            // if no `TaskCollectionId`s authorize access to the task.
+            // An array of `TaskCollectionId`s that authorize access to the task or `null` if
+            // no `TaskCollectionId`s authorize access to the task.
             const authorizingCollectionItems = await runAllPromises(
                 taskItem.collections.getArray().map(async ({collectionId}) => {
                     const collectionItem = await loaders.getCollectionItem(collectionId);
@@ -4870,15 +4841,15 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 }),
             );
 
-            // We evaluate the access policies for all collections on a task but we only
-            // need one passing access policy.
+            // We evaluate the access policies for all collections on a task but we only need
+            // one passing access policy.
             if (authorizingCollectionItems.some(isNonNullable)) return okResult;
 
             if (taskItem.parentTaskId.value) {
                 const parentTaskItem = await loaders.getTaskItem(taskItem.parentTaskId.value);
 
-                // Parent tasks implicitly grant access to all of their child tasks. If we have
-                // a parent task that is not deleted then check it before throwing a permission
+                // Parent tasks implicitly grant access to all of their child tasks. If we have a
+                // parent task that is not deleted then check it before throwing a permission
                 // denied error.
                 if (!parentTaskItem.deletedTime) {
                     return authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
@@ -4902,17 +4873,17 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
             };
         }
 
-        // NOTE(calebmer): When authorizing whether a `Bot` has access to a task, we
-        // need to collect everyone who has access to the task together at once and
-        // compare that against the bot's scope.
+        // NOTE(calebmer): When authorizing whether a `Bot` has access to a task, we need
+        // to collect everyone who has access to the task together at once and compare that
+        // against the bot's scope.
         //
         // Unlike authorization for a `Session` actor where we take a more optimized
-        // approach looking through each piece of a task one-by-one and only loading
-        // the next referenced task/collection if we haven't authorized earlier.
+        // approach looking through each piece of a task one-by-one and only loading the
+        // next referenced task/collection if we haven't authorized earlier.
         case "Bot": {
-            // Optimization: Before we go and load the task's full access policy, see if we
-            // can authorize task access using just the information immediately available
-            // in the task. The task's access policy and assignee.
+            // Optimization: Before we go and load the task's full access policy, see if we can
+            // authorize task access using just the information immediately available in the
+            // task. The task's access policy and assignee.
             //
             // Useful if a user is in a personal chat and asking their bot to read their
             // personal tasks.
@@ -5014,8 +4985,8 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
         return taskItem;
     })();
 
-    // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
-    // the same `TaskId` later.
+    // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for the
+    // same `TaskId` later.
     TaskItemAuthorizationCache.set(context, consistency, taskId, taskItemPromise);
 
     taskItem = await taskItemPromise;
@@ -5082,8 +5053,8 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
         return item;
     })();
 
-    // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
-    // the same `TaskId` later.
+    // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for the
+    // same `TaskId` later.
     TaskItemAuthorizationCache.set(context, consistency, taskId, itemPromise);
 
     item = await itemPromise;
@@ -5138,8 +5109,8 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
 }
 
 /**
- * Load the task's access policy for a bot scoped to the task. Used
- * when evaluating whether a bot has permissions to certain resources.
+ * Load the task's access policy for a bot scoped to the task. Used when evaluating
+ * whether a bot has permissions to certain resources.
  *
  * We grant access to the task based on:
  *
@@ -5279,8 +5250,7 @@ const TaskCommentItemContextCache = new DynamoContextCache<
     `${TaskId}:${number}`,
     MessageItem | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -5422,9 +5392,8 @@ async function createTaskCommentModelFromItem(
 }
 
 /**
- * This enables us to get the current owner of the Task. Since Tasks can
- * constantly be re-assigned we return the current Assignee or the
- * original Task creator.
+ * This enables us to get the current owner of the Task. Since Tasks can constantly
+ * be re-assigned we return the current Assignee or the original Task creator.
  */
 export async function getTaskOwnerIfPossible(
     context: ServerActionContext,
@@ -5465,8 +5434,9 @@ export async function getTaskNotificationSubscribers(
 
     const assigneeId = taskItem.assigneeId?.value;
 
-    // note(maximchen, 2024-07-24): It is an open design question whether a old assignee
-    // should stay subscribed to notifications even after they have been unassigned.
+    // note(maximchen, 2024-07-24): It is an open design question whether a old
+    // assignee should stay subscribed to notifications even after they have been
+    // unassigned.
     const accountIds = new Set(
         concatIterables(
             [taskItem.creatorId],
@@ -5546,8 +5516,8 @@ export function updateTaskCommentContent(
                 updateLockVersion: commentsSummaryItem.updateLockVersion,
             }),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
                 sortRangeType: "MessageUpdates",
@@ -5635,8 +5605,8 @@ export function deleteTaskComment(
                 updateLockVersion: commentsSummaryItem.updateLockVersion,
             }),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
                 sortRangeType: "MessageUpdates",
@@ -5712,8 +5682,8 @@ export function setTaskCommentReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
                 sortRangeType: "MessageUpdates",
@@ -5783,8 +5753,8 @@ export function deleteTaskCommentReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
                 sortRangeType: "MessageUpdates",
@@ -5917,8 +5887,8 @@ export async function createTaskComment(
             },
         );
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const createdTime = overrideCreatedTimeForTest ?? currentTime;
@@ -5990,9 +5960,9 @@ export async function createTaskComment(
                       {isConditionCheckErrorRetriable: true},
                   ),
 
-            // If this is a stream comment then create the stream state item.
-            // Create-or-replace is safe since we know the comment index doesn't exist from
-            // our other condition checks.
+            // If this is a stream comment then create the stream state item. Create-or-replace
+            // is safe since we know the comment index doesn't exist from our other condition
+            // checks.
             ...(isStream
                 ? [
                       TaskTable.transactionCreateOrReplaceItem({
@@ -6057,9 +6027,8 @@ export async function createTaskComment(
             {delaySeconds: isStream ? messageStreamIndexSearchEntityDelaySeconds : 0},
         );
 
-        // Only increase affinity score if we have a session actor. Don't increase
-        // affinity score if this is a system actor sending a message on behalf of an
-        // account.
+        // Only increase affinity score if we have a session actor. Don't increase affinity
+        // score if this is a system actor sending a message on behalf of an account.
         if (context.actor.type === "Session") {
             const sessionContext = context.actor.authorizeSession();
 
@@ -6099,11 +6068,11 @@ export async function createTaskComment(
  * Update a part of the comment stream.
  *
  * Comment streams are made up of multiple parts. Only the bot that created a
- * stream can update the stream. A bot can only create new parts or update the
- * last part of the stream.
+ * stream can update the stream. A bot can only create new parts or update the last
+ * part of the stream.
  *
- * Currently, you completely replace a part when you update it. We may allow
- * more granular part updates in the future.
+ * Currently, you completely replace a part when you update it. We may allow more
+ * granular part updates in the future.
  */
 export function putTaskCommentStreamPart(
     context: ServerActionContext,
@@ -6318,13 +6287,13 @@ export function putTaskCommentStreamPart(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/task-notes/${taskId}/broadcast-put-message-stream-part`,
@@ -6345,16 +6314,16 @@ export function putTaskCommentStreamPart(
 }
 
 /**
- * We send a notification event for a message stream once the first content
- * stream part is finished. A stream part is considered finished when a new
- * part is created after. Only the last stream part can be updated, all other
- * stream parts are frozen.
+ * We send a notification event for a message stream once the first content stream
+ * part is finished. A stream part is considered finished when a new part is
+ * created after. Only the last stream part can be updated, all other stream parts
+ * are frozen.
  *
- * So practically this means for most streams the notification is sent once we
- * put the second part (`partIndex === 1`) not the first part.
+ * So practically this means for most streams the notification is sent once we put
+ * the second part (`partIndex === 1`) not the first part.
  *
- * Unless this is a timeout error completion, in that case we send the
- * notification immediately since there will be no more parts.
+ * Unless this is a timeout error completion, in that case we send the notification
+ * immediately since there will be no more parts.
  */
 async function getNotificationEventForPutTaskCommentStreamPart(
     context: DynamoContext,
@@ -6387,9 +6356,9 @@ async function getNotificationEventForPutTaskCommentStreamPart(
     } else if (partIndex === 0) {
         return null;
     } else {
-        // If we're creating a new part then read the previous part we're finishing. If
-        // the previous part is a content part then send a notification using the
-        // content from that part.
+        // If we're creating a new part then read the previous part we're finishing. If the
+        // previous part is a content part then send a notification using the content from
+        // that part.
 
         const previousPartItem = await TaskTable.getItem(
             context,
@@ -6431,8 +6400,8 @@ async function getNotificationEventForPutTaskCommentStreamPart(
 /**
  * Completes a comment stream. After this parts can't be added or updated.
  *
- * This function is idempotent. If the stream is already completed this method
- * does nothing.
+ * This function is idempotent. If the stream is already completed this method does
+ * nothing.
  */
 export function completeTaskCommentStream(
     context: ServerActionContext,
@@ -6487,8 +6456,8 @@ export function completeTaskCommentStream(
 
         let notificationEvent: NotificationEvent | null = null;
 
-        // If we haven't sent a notification event for this message stream yet then
-        // send one now!
+        // If we haven't sent a notification event for this message stream yet then send
+        // one now!
         if (item.pendingNotificationEvent) {
             const previousPartItem =
                 item.partCount > 0
@@ -6529,8 +6498,8 @@ export function completeTaskCommentStream(
             };
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const completedTime = new Date(Date.now());
 
         await TaskTable.directlyUpdateItem(context, {
@@ -6547,13 +6516,13 @@ export function completeTaskCommentStream(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/task-notes/${taskId}/broadcast-complete-message-stream`,
@@ -6575,8 +6544,8 @@ export function completeTaskCommentStream(
 /**
  * Pings a message stream and updates its `lastPingTime`.
  *
- * This function is idempotent. If the stream hasn't been pinged in a while this method
- * will update its `lastPingTime`.
+ * This function is idempotent. If the stream hasn't been pinged in a while this
+ * method will update its `lastPingTime`.
  */
 export function pingTaskCommentStream(
     context: ServerActionContext,
@@ -6628,8 +6597,8 @@ export function pingTaskCommentStream(
             throw createCantPingStaleMessageStreamError();
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const lastPingTime =
@@ -6801,8 +6770,8 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
     };
 
     const loadOtherReferencedComment = (commentIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -6835,14 +6804,14 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
                 loadOtherReferencedCommentFromParent(item.payload.parent);
             }
 
-            // Don't propagate `consistency` when loading model references. We
-            // accept references can have eventual consistency.
+            // Don't propagate `consistency` when loading model references. We accept
+            // references can have eventual consistency.
             return createTaskCommentModelFromItem(context, spaceId, taskId, item);
         }),
     );
 
-    // Keep loading other referenced comments until we have all of them. A
-    // referenced comment may itself reference more comments.
+    // Keep loading other referenced comments until we have all of them. A referenced
+    // comment may itself reference more comments.
     while (otherReferencedCommentPromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
         otherReferencedCommentPromiseByIndex = new Map();
@@ -6924,9 +6893,9 @@ export async function getTaskCommentPayloadsFromStart(
 /**
  * Efficiently load a task's notes and initial comments at the same time.
  *
- * If the actor doesn't have comment access to the task then `initialComments`
- * will be null. We'll still return the task's notes though. Hence when the
- * function name says "optional" initial comments.
+ * If the actor doesn't have comment access to the task then `initialComments` will
+ * be null. We'll still return the task's notes though. Hence when the function
+ * name says "optional" initial comments.
  */
 export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
     context: ServerActionContext,
@@ -6948,9 +6917,9 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
         commentsSummaryItem: TaskCommentsSummaryItem | null;
     }>();
 
-    // Don't report unhandled rejections to this promise resolver as unhandled
-    // errors. Otherwise if we can't find the task and return null we'll get an
-    // "Uncaught exception" log with this error.
+    // Don't report unhandled rejections to this promise resolver as unhandled errors.
+    // Otherwise if we can't find the task and return null we'll get an "Uncaught
+    // exception" log with this error.
     authorizationPromiseResolver.promise.catch(() => {});
 
     const commentAuthorizationResultPromise = authorizationPromiseResolver.promise.then(
@@ -6965,8 +6934,8 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
         },
     );
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [task, commentAuthorizationResultResult, commentsResult] = await runAllPromises([
@@ -6991,9 +6960,9 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
                                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                                     notesItem?.content ?? emptyTaskNotesContent,
                                     // Preload small files so we don't have to show a placeholder for them. This
-                                    // improves UX at the cost slowing the initial load. Right now we preload
-                                    // <100kb files up to 400kb. We'll have to tune this to find the right balance
-                                    // between UX and the performance hit.
+                                    // improves UX at the cost slowing the initial load. Right now we preload <100kb
+                                    // files up to 400kb. We'll have to tune this to find the right balance between UX
+                                    // and the performance hit.
                                     {withPreloadedFiles: true},
                                 ),
                         },
@@ -7002,28 +6971,28 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
                 };
             },
         ).finally(() => {
-            // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId`
-            // in failure scenarios.
+            // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId` in
+            // failure scenarios.
             if (!authorizationPromiseResolver.isSettled()) {
                 authorizationPromiseResolver.reject(createTaskNotFoundError(taskId));
             }
         }),
 
         // This promise may throw if the task isn't found because it depends on
-        // `authorizationPromiseResolver`. If the task isn't found we want to return
-        // null, not throw here. So `captureResultPromise()` to catch not found errors
-        // so we don't throw them until after we check that the task exists.
+        // `authorizationPromiseResolver`. If the task isn't found we want to return null,
+        // not throw here. So `captureResultPromise()` to catch not found errors so we
+        // don't throw them until after we check that the task exists.
         //
-        // This gives us a result of a result. The inner result is whether or not we
-        // have comment access and controls whether we return `comments` from this
-        // function or not.
+        // This gives us a result of a result. The inner result is whether or not we have
+        // comment access and controls whether we return `comments` from this function or
+        // not.
         captureResultPromise(commentAuthorizationResultPromise),
 
         captureResultPromise(
             getTaskCommentsFromStartAssumingAuthorizedTask(context, {
                 taskId,
-                // If we don't have comment authorization then throw in `getSpaceId` so we
-                // don't continue loading more referenced comments or `TaskCommentModel`s.
+                // If we don't have comment authorization then throw in `getSpaceId` so we don't
+                // continue loading more referenced comments or `TaskCommentModel`s.
                 getSpaceId: () => commentAuthorizationResultPromise.then(unwrapResult),
                 limit: commentsLimit,
                 afterCommentIndex: null,
@@ -7040,12 +7009,11 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
     return {
         notes,
 
-        // Only return the comments we fetched if the session actor has access to
-        // comments. Otherwise we return null. A little wasteful since we will have
-        // fetched all the comments before deciding to return null. But we expect the
-        // code path where `commentAuthorizationResult.ok` is false to be much less
-        // common than the code path where we need comments so we're ok being a little
-        // wasteful.
+        // Only return the comments we fetched if the session actor has access to comments.
+        // Otherwise we return null. A little wasteful since we will have fetched all the
+        // comments before deciding to return null. But we expect the code path where
+        // `commentAuthorizationResult.ok` is false to be much less common than the code
+        // path where we need comments so we're ok being a little wasteful.
         initialComments: commentAuthorizationResult.ok
             ? (() => {
                   const {comments, otherReferencedComments} = unwrapResult(commentsResult);
@@ -7145,10 +7113,10 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
     const queryStartCommentIndex = Math.max(
         typeof beforeCommentIndex === "number"
             ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
         typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
     );
@@ -7193,8 +7161,8 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
     };
 
     const loadOtherReferencedComment = (commentIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -7228,8 +7196,8 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
         }),
     );
 
-    // Keep loading other referenced comments until we have all of them. A
-    // referenced comment may itself reference more comments.
+    // Keep loading other referenced comments until we have all of them. A referenced
+    // comment may itself reference more comments.
     while (otherReferencedCommentPromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
         otherReferencedCommentPromiseByIndex = new Map();
@@ -7274,10 +7242,10 @@ export async function getTaskCommentPayloadsFromEnd(
     const queryStartCommentIndex = Math.max(
         typeof beforeCommentIndex === "number"
             ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
         typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
     );
@@ -7354,10 +7322,10 @@ export async function backfillTaskComments(
                 limit: newCommentLimit,
                 afterCommentIndex: clientCommentCount - 1,
                 beforeCommentIndex: null,
-                // Use a strong read consistency when backfilling. This guarantees the caller
-                // will observe all realtime events before this function call. Realtime events
-                // that happen during the function call may be missed. You should be subscribed
-                // to new realtime events before starting to backfill.
+                // Use a strong read consistency when backfilling. This guarantees the caller will
+                // observe all realtime events before this function call. Realtime events that
+                // happen during the function call may be missed. You should be subscribed to new
+                // realtime events before starting to backfill.
                 consistency: "Strong",
             }),
             runBackfillMessageUpdates(context, {
@@ -7394,18 +7362,18 @@ export async function backfillTaskComments(
 }
 
 /**
- * Can the provided account access the provided task index doc? Returns false
- * if not.
+ * Can the provided account access the provided task index doc? Returns false if
+ * not.
  *
- * Be careful when using this function! You are expected to provide index docs
- * from an up-to-date source. You should not directly load from OpenSearch
- * since OpenSearch is at least 30 seconds behind at all times. This function
- * is only really safely useful in `TaskRealtimeService` which maintains
- * `TaskIndexDoc`s up-to-date in-memory.
+ * Be careful when using this function! You are expected to provide index docs from
+ * an up-to-date source. You should not directly load from OpenSearch since
+ * OpenSearch is at least 30 seconds behind at all times. This function is only
+ * really safely useful in `TaskRealtimeService` which maintains `TaskIndexDoc`s
+ * up-to-date in-memory.
  *
  * If you use this function you are taking on your own authorization
- * responsibilities. Like properly stopping data from being sent to the client
- * when this function returns false.
+ * responsibilities. Like properly stopping data from being sent to the client when
+ * this function returns false.
  */
 export function authorizeTaskIndexDocAccessIfPossible(
     context: TaskRealtimeActionContext,
@@ -7436,22 +7404,19 @@ export function authorizeTaskIndexDocAccessIfPossible(
 }
 
 /**
- * Tests if we are allowed to execute a query with the provided filters and
- * sorts. Throws an error if unauthorized. If authorized then that means all
- * tasks in the query are also authorized and we don't need to check each task
- * individually.
+ * Tests if we are allowed to execute a query with the provided filters and sorts.
+ * Throws an error if unauthorized. If authorized then that means all tasks in the
+ * query are also authorized and we don't need to check each task individually.
  *
- * Consults DynamoDB by default but if you're in `TaskRealtimeService` and have
- * an up-to-date in-memory representation of tasks then you may provide the
- * `getTaskIndexDocIfExists` function and `getCollectionIndexDocIfExists`
- * function to skip making network requests for tasks/collections that exist in
- * memory.
+ * Consults DynamoDB by default but if you're in `TaskRealtimeService` and have an
+ * up-to-date in-memory representation of tasks then you may provide the
+ * `getTaskIndexDocIfExists` function and `getCollectionIndexDocIfExists` function
+ * to skip making network requests for tasks/collections that exist in memory.
  *
- * Be careful using `getTaskIndexDocIfExists` and
- * `getCollectionIndexDocIfExists`! Data loaded from the OpenSearch task index
- * is at least 30sec behind since that's the refresh interval. Only use those
- * options if you're in `TaskRealtimeService` and have an up-to-date in-memory
- * representation of tasks.
+ * Be careful using `getTaskIndexDocIfExists` and `getCollectionIndexDocIfExists`!
+ * Data loaded from the OpenSearch task index is at least 30sec behind since that's
+ * the refresh interval. Only use those options if you're in `TaskRealtimeService`
+ * and have an up-to-date in-memory representation of tasks.
  */
 export async function authorizeTaskQueryAccess(
     context: TaskRealtimeActionContext,
@@ -7475,15 +7440,15 @@ export async function authorizeTaskQueryAccess(
 ) {
     let hasAccess = false;
 
-    // Account has edit access to all tasks they created. So authorize if we have
-    // an exclusive creator filter for our session account.
+    // Account has edit access to all tasks they created. So authorize if we have an
+    // exclusive creator filter for our session account.
     if (
         context.actor.type === "Session" &&
         filters.creatorFilter?.accountIds.size === 1 &&
         filters.creatorFilter.type === "OneOf" &&
         filters.creatorFilter.accountIds.has(context.actor.getAccountId()) &&
-        // You must be a space member to filter for tasks you created. If you lost
-        // access to a space you can't filter for your own tasks anymore.
+        // You must be a space member to filter for tasks you created. If you lost access
+        // to a space you can't filter for your own tasks anymore.
         (await isAccountMemberOfSpaceWithoutAuthorization(
             context,
             spaceId,
@@ -7493,8 +7458,8 @@ export async function authorizeTaskQueryAccess(
         hasAccess = true;
     }
 
-    // Account has edit access to tasks it is assigned to. So authorize if we have
-    // an exclusive assignee filter for our session account.
+    // Account has edit access to tasks it is assigned to. So authorize if we have an
+    // exclusive assignee filter for our session account.
     if (
         context.actor.type === "Session" &&
         filters.assigneeFilter?.accountIds.size === 1 &&
@@ -7542,9 +7507,9 @@ export async function authorizeTaskQueryAccess(
                     // For this filter to grant access, we need to guarantee the query only returns
                     // tasks that have at least one collection we can view.
                     //
-                    // A normalized collections filter is in [conjunctive normal form][1]. That
-                    // means if one of the "AND"ed clauses narrows down to only viewable collections
-                    // this filter can grant access. That's what we check here.
+                    // A normalized collections filter is in [conjunctive normal form][1]. That means
+                    // if one of the "AND"ed clauses narrows down to only viewable collections this
+                    // filter can grant access. That's what we check here.
                     //
                     // [1]: https://en.wikipedia.org/wiki/Conjunctive_normal_form
                     if (iterableEvery(clause, ([term, not]) => term !== "IsEmpty" && !not)) {
@@ -7573,10 +7538,10 @@ export async function authorizeTaskQueryAccess(
         },
         async () => {
             // Must have space access to filter by hidden accounts. We only send account
-            // information for assignees to actors without space access (e.g. anonymous
-            // actors viewing a collection they have access to via `urlGrant`). Allowing an
-            // actor without space access to filter by hidden accounts could reveal
-            // information we don't want them to see.
+            // information for assignees to actors without space access (e.g. anonymous actors
+            // viewing a collection they have access to via `urlGrant`). Allowing an actor
+            // without space access to filter by hidden accounts could reveal information we
+            // don't want them to see.
             if (filters.creatorFilter || filters.assignerFilter) {
                 await authorizeSpaceAccess(context, spaceId);
             }
@@ -7586,9 +7551,9 @@ export async function authorizeTaskQueryAccess(
                 sorts.map(async sort => {
                     switch (sort.type) {
                         case "ParentPosition": {
-                            // You are not allowed to sort by parent position unless you are also filtering
-                            // by the parent task. This is because sorting by parent position reveals
-                            // information about the parent task which might not be visible to you.
+                            // You are not allowed to sort by parent position unless you are also filtering by
+                            // the parent task. This is because sorting by parent position reveals information
+                            // about the parent task which might not be visible to you.
                             if (filters.parentFilter) break;
 
                             throw new PermissionDeniedError(
@@ -7596,8 +7561,8 @@ export async function authorizeTaskQueryAccess(
                             );
                         }
                         case "CollectionPosition": {
-                            // Optimization: If our filter contains the collection then we will authorize
-                            // view access above.
+                            // Optimization: If our filter contains the collection then we will authorize view
+                            // access above.
                             if (
                                 filters.collectionsFilter?.some(clause =>
                                     clause.has(sort.collectionId),
@@ -7623,16 +7588,16 @@ export async function authorizeTaskQueryAccess(
                             break;
                         }
                         case "AssigneePosition": {
-                            // A task's assignee position is private to the account whom the task is
-                            // assigned. Only allow sorting by assignee position when also filtering for
-                            // tasks assigned to you.
+                            // A task's assignee position is private to the account whom the task is assigned.
+                            // Only allow sorting by assignee position when also filtering for tasks assigned
+                            // to you.
                             if (
                                 context.actor.type === "Session" &&
                                 filters.assigneeFilter?.accountIds.size === 1 &&
                                 filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
                             ) {
-                                // If the actor doesn't have space access then throw an "actor doesn't have
-                                // space access" error.
+                                // If the actor doesn't have space access then throw an "actor doesn't have space
+                                // access" error.
                                 await authorizeSpaceAccess(context, spaceId);
 
                                 break;
@@ -7645,10 +7610,10 @@ export async function authorizeTaskQueryAccess(
                         case "Creator":
                         case "Assigner": {
                             // Must have space access to sort by hidden accounts. We only send account
-                            // information for assignees to actors without space access (e.g. anonymous
-                            // actors viewing a collection they have access to via `urlGrant`). Allowing an
-                            // actor without space access to sort by hidden accounts could reveal
-                            // information we don't want them to see.
+                            // information for assignees to actors without space access (e.g. anonymous actors
+                            // viewing a collection they have access to via `urlGrant`). Allowing an actor
+                            // without space access to sort by hidden accounts could reveal information we
+                            // don't want them to see.
                             await authorizeSpaceAccess(context, spaceId);
                             break;
                         }
@@ -7661,8 +7626,8 @@ export async function authorizeTaskQueryAccess(
     );
 
     if (!hasAccess) {
-        // If the actor doesn't have space access then throw an "actor doesn't have
-        // space access" error.
+        // If the actor doesn't have space access then throw an "actor doesn't have space
+        // access" error.
         await authorizeSpaceAccess(context, spaceId);
 
         throw new PermissionDeniedError(
@@ -7673,14 +7638,13 @@ export async function authorizeTaskQueryAccess(
 
 /**
  * If you have a `TaskIndexDoc` then you have all the data that's in a
- * `TaskEssentialAttributesItem`. This function converts between the two
- * formats.
+ * `TaskEssentialAttributesItem`. This function converts between the two formats.
  *
- * Be careful when using this function! Loading a `TaskIndexDoc` from
- * OpenSearch is at least 30sec behind a `TaskEssentialAttributesItem` loaded
- * from DynamoDB since 30sec is our OpenSearch refresh rate. If you're in
- * `TaskRealtimeService` then you have up-to-date `TaskIndexDoc`s in
- * `TaskRealtimeStore` so those are ok to use with this function.
+ * Be careful when using this function! Loading a `TaskIndexDoc` from OpenSearch is
+ * at least 30sec behind a `TaskEssentialAttributesItem` loaded from DynamoDB since
+ * 30sec is our OpenSearch refresh rate. If you're in `TaskRealtimeService` then
+ * you have up-to-date `TaskIndexDoc`s in `TaskRealtimeStore` so those are ok to
+ * use with this function.
  */
 function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesItemBase {
     return {
@@ -7707,9 +7671,9 @@ function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesI
 }
 
 /**
- * If you have a `TaskCollectionIndexDoc` then you have all the data that's in
- * a `TaskCollectionEssentialAttributesItem`. This function converts between
- * the two formats.
+ * If you have a `TaskCollectionIndexDoc` then you have all the data that's in a
+ * `TaskCollectionEssentialAttributesItem`. This function converts between the two
+ * formats.
  *
  * Be careful when using this function! See the disclaimer on
  * `convertTaskIndexDocToItem()`.
@@ -7799,8 +7763,8 @@ export function getTaskNotesContentWithCustomReferences<Content>(
 }
 
 /**
- * Get the current notes content for some task. Returns null if the task
- * doesn't exist.
+ * Get the current notes content for some task. Returns null if the task doesn't
+ * exist.
  */
 export function getTaskNotesContentIfExists(
     context: ServerActionContext,
@@ -7825,9 +7789,9 @@ export function getTaskNotesContentIfExists(
                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                     notesItem?.content ?? emptyTaskNotesContent,
                     // Preload small files so we don't have to show a placeholder for them. This
-                    // improves UX at the cost slowing the initial load. Right now we preload
-                    // <100kb files up to 400kb. We'll have to tune this to find the right balance
-                    // between UX and the performance hit.
+                    // improves UX at the cost slowing the initial load. Right now we preload <100kb
+                    // files up to 400kb. We'll have to tune this to find the right balance between UX
+                    // and the performance hit.
                     {withPreloadedFiles: true},
                 ),
             },
@@ -7836,8 +7800,8 @@ export function getTaskNotesContentIfExists(
 }
 
 /**
- * Get the current notes content for some task. Throws an error if the task
- * doesn't exist.
+ * Get the current notes content for some task. Throws an error if the task doesn't
+ * exist.
  */
 export async function getTaskNotesContent(
     context: ServerActionContext,
@@ -7853,14 +7817,13 @@ export async function getTaskNotesContent(
 }
 
 /**
- * Updates the task's notes with the provided steps. Uses optimistic
- * concurrency control so rejects any updates that have `version` set to the
- * wrong value.
+ * Updates the task's notes with the provided steps. Uses optimistic concurrency
+ * control so rejects any updates that have `version` set to the wrong value.
  *
  * It's important that task note updating should be solely managed by the
- * `TaskNotesCollaborationService` Durable Object. If you get an incorrect
- * version error, we don't know what steps you're missing since we don't keep
- * track of old steps (unlike document content). There's no way to recover!
+ * `TaskNotesCollaborationService` Durable Object. If you get an incorrect version
+ * error, we don't know what steps you're missing since we don't keep track of old
+ * steps (unlike document content). There's no way to recover!
  */
 export function updateTaskNotesContent(
     context: ServerSessionActionContext,
@@ -8009,8 +7972,8 @@ export function updateTaskNotesContent(
 
 // After how many months should our expansion state expire?
 //
-// We expire expansion state to not incur storage costs for dead views,
-// accounts, or browsers.
+// We expire expansion state to not incur storage costs for dead views, accounts,
+// or browsers.
 //
 // The expiration time should be long enough that the user doesn't remember or
 // doesn't care about losing any expansion state.
@@ -8021,21 +7984,19 @@ const taskGridViewExpansionStateExpirationMonths = 4;
 
 // After how many months should we renew expansion state expiration times?
 //
-// We renew expansion state items that are close to expiring if the user
-// accesses them so we don't expire expansion states that are actively being
-// used.
+// We renew expansion state items that are close to expiring if the user accesses
+// them so we don't expire expansion states that are actively being used.
 const taskGridViewExpansionStateExpirationRenewalMonths = 2;
 
 /**
  * Get the key we use for storing the expansion state of a grid view.
  *
- * Uniqueness is not guaranteed! We hash `filters` and `sorts` to avoid storing
- * the entire query definition. However as with any hash function collisions
- * are very unlikely but possible.
+ * Uniqueness is not guaranteed! We hash `filters` and `sorts` to avoid storing the
+ * entire query definition. However as with any hash function collisions are very
+ * unlikely but possible.
  *
- * For the purpose of grid view expansion state we find collisions acceptable
- * given expansion state is also partitioned by `SpaceId`, `AccountId`, and
- * `BrowserId`.
+ * For the purpose of grid view expansion state we find collisions acceptable given
+ * expansion state is also partitioned by `SpaceId`, `AccountId`, and `BrowserId`.
  */
 function getTaskGridViewExpansionStateKey({
     filters,
@@ -8053,8 +8014,8 @@ function getTaskGridViewExpansionStateKey({
     const queryKey1 = queryKey.slice(0, queryKeyMidpointIndex);
     const queryKey2 = queryKey.slice(queryKeyMidpointIndex);
 
-    // We use two hashes (one on the first half of the key, one on the second half)
-    // as any easy way to reduce collision chance. However collisions are still not
+    // We use two hashes (one on the first half of the key, one on the second half) as
+    // any easy way to reduce collision chance. However collisions are still not
     // impossible.
     //
     // Thread describing this issue:
@@ -8110,9 +8071,8 @@ export async function updateTaskGridViewExpansionState(
 }
 
 /**
- * Get the `TaskGridViewExpansionState` for this browser. If the state hasn't
- * been updated in a while and is about to expire then we extend the expiration
- * time.
+ * Get the `TaskGridViewExpansionState` for this browser. If the state hasn't been
+ * updated in a while and is about to expire then we extend the expiration time.
  */
 export async function getTaskGridViewExpansionState(
     context: TaskRealtimeSessionActionContext,
@@ -8145,8 +8105,8 @@ export async function getTaskGridViewExpansionState(
         {consistency},
     );
 
-    // If the grid view's expansion state hasn't been updated in a while but is
-    // still being read then we want to extend its expiration time.
+    // If the grid view's expansion state hasn't been updated in a while but is still
+    // being read then we want to extend its expiration time.
     if (
         item &&
         differenceInMonths(item.expirationTime, new Date()) <=
@@ -8186,10 +8146,10 @@ function createTaskCollectionModelSearchResultFromItem(
 }
 
 /**
- * Print the body text snippet we include in a task collection search result.
- * If the user doesn't have access to the task collection then we return null
- * instead of throwing. Since the search index (which calls this function) may
- * have out-of-date data.
+ * Print the body text snippet we include in a task collection search result. If
+ * the user doesn't have access to the task collection then we return null instead
+ * of throwing. Since the search index (which calls this function) may have
+ * out-of-date data.
  */
 export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
     context: ServerAccountActionContext,
@@ -8229,10 +8189,10 @@ export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
 }
 
 /**
- * Get the search result description of a task collection if the task
- * collection exists and the actor has access to it. Throws an error if the
- * actor doesn't have access to the task collection. If the task collection
- * exists but is deleted we return it if the user has access.
+ * Get the search result description of a task collection if the task collection
+ * exists and the actor has access to it. Throws an error if the actor doesn't have
+ * access to the task collection. If the task collection exists but is deleted we
+ * return it if the user has access.
  */
 export async function getTaskCollectionSearchResult(
     context: ServerActionContext,
@@ -8254,10 +8214,10 @@ export async function getTaskCollectionSearchResult(
 }
 
 /**
- * Get the search result description of a task collection if the task
- * collection exists and the actor has access to it. Returns null if the
- * collection doesn't exist or the account doesn't have access. If the task
- * collection exists but is deleted we return null.
+ * Get the search result description of a task collection if the task collection
+ * exists and the actor has access to it. Returns null if the collection doesn't
+ * exist or the account doesn't have access. If the task collection exists but is
+ * deleted we return null.
  */
 export async function getTaskCollectionSearchResultIfPossible(
     context: ServerSessionActionContext,
@@ -8339,8 +8299,8 @@ export async function getTaskCommentParentContent(
             });
 
             return {
-                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
-                // have the same author and the list is not empty.
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all
+                // messages have the same author and the list is not empty.
                 authorId: messageItems[0]!.authorId,
                 content: getTruncatedParentMessagesRangeContentWithoutReferences({
                     messages: messageItems,

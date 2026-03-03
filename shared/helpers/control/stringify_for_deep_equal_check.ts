@@ -4,9 +4,9 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
- * A value that can be passed into `stringifyForDeepEqualCheck()`. Functions
- * and custom classes can't be passed to `stringifyForDeepEqualCheck()`. We'll
- * throw an error if you try.
+ * A value that can be passed into `stringifyForDeepEqualCheck()`. Functions and
+ * custom classes can't be passed to `stringifyForDeepEqualCheck()`. We'll throw an
+ * error if you try.
  *
  * Only certain primitive types are handled.
  */
@@ -52,20 +52,19 @@ type StringifiableSetValueForDeepEqualCheck<ReplacedValue> = ReadonlySet<
  * should always be the same as `isDeepEqual(value1, value2)`.
  *
  * Useful if you are placing an arbitrary object into a `Map` key and want
- * structurally identical objects to map to the same thing. Or are interacting
- * with other systems and need a deep equality check that knows about
- * JavaScript semantics.
+ * structurally identical objects to map to the same thing. Or are interacting with
+ * other systems and need a deep equality check that knows about JavaScript
+ * semantics.
  *
  * Stringifies to a JSON-like language but because we support types like maps,
- * sets, and dates it's not exactly JSON. We don't currently have a parser for
- * this format. Currently, this format is a subset of JavaScript.
+ * sets, and dates it's not exactly JSON. We don't currently have a parser for this
+ * format. Currently, this format is a subset of JavaScript.
  *
- * Throws an error if we run into an unsupported type. Unlike `isDeepEqual()`
- * which will return false. You may provide a `replacer` function to stringify
- * these types in a custom way.
+ * Throws an error if we run into an unsupported type. Unlike `isDeepEqual()` which
+ * will return false. You may provide a `replacer` function to stringify these
+ * types in a custom way.
  *
- * You could use the `json-stable-stringify` library if your value is plain
- * JSON.
+ * You could use the `json-stable-stringify` library if your value is plain JSON.
  */
 function actuallyStringifyForDeepEqualCheck(
     value: StringifiableValueForDeepEqualCheck<never>,

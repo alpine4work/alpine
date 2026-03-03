@@ -23,9 +23,8 @@ const SearchEntityRegistryContext = createGlobalContext(
  * On the client you have global access to the search entity registry. Not just
  * access through React context.
  *
- * If the global registry hasn't been initialized yet (since a context
- * provider component hasn't mounted) then calling this function will
- * initialize it.
+ * If the global registry hasn't been initialized yet (since a context provider
+ * component hasn't mounted) then calling this function will initialize it.
  *
  * Will throw an error if we're not running in a web browser.
  */
@@ -38,9 +37,9 @@ export function getSearchEntityRegistry(spaceId: SpaceId): SearchEntityRegistry 
 }
 
 /**
- * Gets the search entity registry for our app. Used to normalize our
- * presentation of entities on the client even when we've loaded different data
- * objects for the entities.
+ * Gets the search entity registry for our app. Used to normalize our presentation
+ * of entities on the client even when we've loaded different data objects for the
+ * entities.
  *
  * If we're in a web browser we have one global registry instance.
  */
@@ -63,9 +62,9 @@ export function useSearchEntityRegistryForSpaceId(spaceId: SpaceId): SearchEntit
 }
 
 /**
- * Returns up-to-date data for the provided entity that's the same as
- * everywhere else the entity is presented. If we observe the entity's data
- * change this hook will re-render with the new data.
+ * Returns up-to-date data for the provided entity that's the same as everywhere
+ * else the entity is presented. If we observe the entity's data change this hook
+ * will re-render with the new data.
  */
 export function useSearchEntityModel(
     entity: SearchEntityModel | SearchEntityModelData,
@@ -92,9 +91,8 @@ export function useSearchEntityModel(
             } else if (!(entity instanceof AccountModel)) {
                 return null;
             }
-            // If this is an `AccountModel` then read the latest data from
-            // `accountRegistry` and map it into the expected `SearchEntityModelData`
-            // format.
+            // If this is an `AccountModel` then read the latest data from `accountRegistry`
+            // and map it into the expected `SearchEntityModelData` format.
             else {
                 return accountRegistry.getAccountStore(entity).map(
                     (data): Replace<SearchEntityModelData, {readonly id: SearchEntityId}> => ({

@@ -18,9 +18,9 @@ process.stdout.write(
             // Include our conditional imports since we need them at runtime.
             imports: packageJsonContents.imports,
 
-            // Don't include ever dependency in `package_light.json`. Only the
-            // dependencies code at runtime/buildtime need to see. The Remix compiler
-            // needs to see the versions for all of these dependencies:
+            // Don't include ever dependency in `package_light.json`. Only the dependencies
+            // code at runtime/buildtime need to see. The Remix compiler needs to see the
+            // versions for all of these dependencies:
             //
             // https://github.com/remix-run/remix/blob/9bdc908c9d47870dee51b2a8ff6d783bce3c666e/packages/remix-dev/config.ts#L700-L792
             dependencies: Object.fromEntries(

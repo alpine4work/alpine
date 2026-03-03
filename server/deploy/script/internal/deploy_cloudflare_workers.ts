@@ -11,8 +11,8 @@ const maxCloudflareDeployAttempts = 3;
 const sleepBetweenAttemptsMs = 3000;
 
 /**
- * Deploys a Cloudflare worker with retry logic for any errors.
- * Retries up to 2 times with a sleep between attempts.
+ * Deploys a Cloudflare worker with retry logic for any errors. Retries up to 2
+ * times with a sleep between attempts.
  */
 async function deployCloudflareWorkerWithRetry(
     context: Context<{tracer: TracerContextModule}>,
@@ -109,8 +109,8 @@ async function applyCloudflareD1Migrations(
 
 /**
  * Deploy Cloudflare by running `bazel run //server/edge:wrangler -- deploy`.
- * Should behave the same as if you run it locally. Except locally to
- * authenticate you need to run `bazel run //server/edge:wrangler -- login`.
+ * Should behave the same as if you run it locally. Except locally to authenticate
+ * you need to run `bazel run //server/edge:wrangler -- login`.
  */
 export async function deployCloudflareWorkers(
     context: Context<{

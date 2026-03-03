@@ -31,8 +31,8 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 
 /**
- * Route requests to `TaskRealtimeService` by getting information about running
- * EC2 instances from [ECS][1].
+ * Route requests to `TaskRealtimeService` by getting information about running EC2
+ * instances from [ECS][1].
  *
  * [1]: https://aws.amazon.com/ecs/
  */
@@ -187,8 +187,8 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
 
                 assert(1 <= partitionNumber && partitionNumber <= partitionCount);
 
-                // During a deploy, we may have a provisioning ECS task that hasn't been
-                // assigned a container yet.
+                // During a deploy, we may have a provisioning ECS task that hasn't been assigned a
+                // container yet.
                 if (!task.containerInstanceArn) continue;
 
                 const containerInstance = output.containerInstanceByArn.get(
@@ -212,8 +212,8 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                     )?.stringSetValue ?? [];
 
                 // `containerInstance.registeredResources` has all the ports registered by AWS
-                // itself. `containerInstance.remainingResources` has all the ports registered
-                // by AWS and all of our container ports. Removing
+                // itself. `containerInstance.remainingResources` has all the ports registered by
+                // AWS and all of our container ports. Removing
                 // `containerInstance.registeredResources` from
                 // `containerInstance.remainingResources` gives us our container's ports.
                 //
@@ -223,24 +223,24 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                 // >   describes the ports that were reserved by the Amazon ECS container agent
                 // >   when it registered the container instance with Amazon ECS.
                 // > - **remainingResources:** [...] For port resource types, this parameter
-                // >   describes the ports that were reserved by the Amazon ECS container agent
-                // >   (at instance registration time) and any task containers that have
-                // >   reserved port mappings on the host (with the `host` or `bridge` network
-                // >   mode). [...]
+                // >   describes the ports that were reserved by the Amazon ECS container agent (at
+                // >   instance registration time) and any task containers that have reserved port
+                // >   mappings on the host (with the `host` or `bridge` network mode). [...]
                 //
-                // [1]: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerInstance.html
+                // [1]:
+                //     https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerInstance.html
                 const portSet = new Set(remainingResourcesPorts);
 
                 for (const registeredResourcesPort of registeredResourcesPorts) {
                     portSet.delete(registeredResourcesPort);
                 }
 
-                // We have a small proxy server on port 80 for Cloudflare since Cloudflare can
-                // only connect to default ports.
+                // We have a small proxy server on port 80 for Cloudflare since Cloudflare can only
+                // connect to default ports.
                 portSet.delete("80");
 
-                // Make sure port array is sorted so we consistently route to the same worker
-                // when picking an index based on `SpaceId`.
+                // Make sure port array is sorted so we consistently route to the same worker when
+                // picking an index based on `SpaceId`.
                 const ports = Array.from(portSet).sort();
 
                 const networkInterface = containerInstance.ec2InstanceId
@@ -253,8 +253,8 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                     );
                 }
 
-                // We use the public DNS name since Cloudflare doesn't like directly connecting
-                // to IP addresses.
+                // We use the public DNS name since Cloudflare doesn't like directly connecting to
+                // IP addresses.
                 const publicDnsName = networkInterface.Association?.PublicDnsName;
 
                 if (!publicDnsName) {
@@ -284,8 +284,8 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
         context: ServerProcessContext,
     ): AsyncIterableIterator<ListTasksCommandOutput> {
         // `ListTasks` can only return 100 entries at a time and
-        // `DescribeTasks`/`DescribeContainerInstances` can only consume 100 entries at
-        // a time.
+        // `DescribeTasks`/`DescribeContainerInstances` can only consume 100 entries at a
+        // time.
         const maxResults = 100;
 
         let nextToken: string | undefined;
@@ -394,19 +394,18 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                         Filters: [
                             // It appears that `DescribeNetworkInterfaces` iterates through ALL EC2 network
                             // interfaces in our AWS account. This is inefficient when we have many EC2
-                            // instances running. From reading [the documentation][1] it seems like
-                            // `group-id` (referencing a security group) is indexed and may speed up our
-                            // request.
+                            // instances running. From reading [the documentation][1] it seems like `group-id`
+                            // (referencing a security group) is indexed and may speed up our request.
                             //
-                            // > If you have a large number of network interfaces, the operation fails
-                            // > unless you use pagination or one of the following filters: `group-id`,
-                            // > `mac-address`, `private-dns-name`, `private-ip-address`, `subnet-id`,
-                            // > or `vpc-id`.
+                            // > If you have a large number of network interfaces, the operation fails unless
+                            // > you use pagination or one of the following filters: `group-id`, `mac-address`,
+                            // > `private-dns-name`, `private-ip-address`, `subnet-id`, or `vpc-id`.
                             //
-                            // So we filter by the security group for `TaskRealtimeService` in addition to
-                            // the EC2 instance IDs we're looking for.
+                            // So we filter by the security group for `TaskRealtimeService` in addition to the
+                            // EC2 instance IDs we're looking for.
                             //
-                            // [1]: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeNetworkInterfaces.html
+                            // [1]:
+                            //     https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeNetworkInterfaces.html
                             {
                                 Name: "group-id",
                                 Values: [this._securityGroupId],

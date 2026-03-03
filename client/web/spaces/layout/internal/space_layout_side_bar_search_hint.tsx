@@ -21,9 +21,9 @@ import {Schema} from "~/shared/schema/schema.js";
 const SpaceLayoutSideBarSearchHintSchema = Schema.boolean.nullable();
 
 /**
- * Wraps the search `IconButton` and shows an onboarding hint overlay when the
- * user navigates away from the feed view for the first time. This teaches users
- * about Command-P to access their suggested items.
+ * Wraps the search `IconButton` and shows an onboarding hint overlay when the user
+ * navigates away from the feed view for the first time. This teaches users about
+ * Command-P to access their suggested items.
  */
 export function SpaceLayoutSideBarSearchHint({
     isSearchModalOpen,
@@ -44,9 +44,9 @@ export function SpaceLayoutSideBarSearchHint({
     // Detect feed view from current route. The feed view is the space home page.
     const isOnFeedView = location.pathname === `/s/${space.id}`;
 
-    // Update state when on feed view: arm the hint if it hasn't been dismissed.
-    // We check localStorage directly to avoid a race condition where
-    // `useLocalStorage` returns the default value before loading from storage.
+    // Update state when on feed view: arm the hint if it hasn't been dismissed. We
+    // check localStorage directly to avoid a race condition where `useLocalStorage`
+    // returns the default value before loading from storage.
     useEffect(() => {
         // Only set to true if `hintState` is null after we've loaded from storage.
         // `hintState` will always be null on initial app render because we don't have

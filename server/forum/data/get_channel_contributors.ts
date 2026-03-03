@@ -17,10 +17,10 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * Get an array of all the accounts which have contributed to this channel. We
- * consider an account a contributor if they've created the channel, posted in
- * the channel, or commented in the channel. The array is sorted with the top
- * contributors first. If multiple accounts have contributed the same amount
- * then we put the account who contributed first, first in the list.
+ * consider an account a contributor if they've created the channel, posted in the
+ * channel, or commented in the channel. The array is sorted with the top
+ * contributors first. If multiple accounts have contributed the same amount then
+ * we put the account who contributed first, first in the list.
  */
 export async function getChannelContributors(
     context: ServerActionContext,
@@ -54,8 +54,8 @@ export async function getChannelContributors(
 
     const cachedPromise = promise.then(async result => (result ? result.channelItem : null));
 
-    // Make sure errors thrown by this promise aren't treated as uncaught
-    // exceptions. We catch them below when we await `getPromise`.
+    // Make sure errors thrown by this promise aren't treated as uncaught exceptions.
+    // We catch them below when we await `getPromise`.
     cachedPromise.catch(() => {});
 
     // If we're loading the channel, we can use the channel item in our
@@ -77,8 +77,7 @@ export async function getChannelContributors(
 
         // Top contributor accounts are sorted by:
         //
-        // 1. Who has the highest contribution count up to
-        //    `maxChannelTopContributorCount`
+        // 1. Who has the highest contribution count up to `maxChannelTopContributorCount`
         // 2. Earliest contribution time
         const contributorPromises: Array<Promise<AccountModel>> = [];
 

@@ -17,9 +17,9 @@ import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Plain data representation for marks used in duplication. This doesn't depend
- * on ProseMirror types, making it usable across different content schemas
- * (documents, task notes, messages).
+ * Plain data representation for marks used in duplication. This doesn't depend on
+ * ProseMirror types, making it usable across different content schemas (documents,
+ * task notes, messages).
  */
 export type ContentDuplicationMark =
     | {readonly type: "italic"}
@@ -152,15 +152,14 @@ function isContentDuplicationMarkInSet(
 }
 
 /**
- * Extract duplication variables from content. Used by the client to
- * determine if we should show the variable input form and to encode variables
- * in the URL.
+ * Extract duplication variables from content. Used by the client to determine if
+ * we should show the variable input form and to encode variables in the URL.
  *
- * @param doc - The ProseMirror document to extract variables from.
- * @param options.additionalText - Additional plain text strings to scan for
- *   variables (e.g. task title). Variables found here are merged with content
- *   variables. If a variable appears only in additionalText, it's always Text
- *   type. If a variable appears in both, Content type is demoted to Text.
+ * @param doc - The ProseMirror document to extract variables from. @param
+ * options.additionalText - Additional plain text strings to scan for variables
+ * (e.g. task title). Variables found here are merged with content variables. If a
+ * variable appears only in additionalText, it's always Text type. If a variable
+ * appears in both, Content type is demoted to Text.
  */
 export function extractContentDuplicationVariableSchema(
     doc: Node,
@@ -235,8 +234,8 @@ export function extractContentDuplicationVariableSchema(
 
             let text = childNode.text!;
 
-            // Trim the text. We allow variables with trailing whitespace to be considered
-            // rich text content.
+            // Trim the text. We allow variables with trailing whitespace to be considered rich
+            // text content.
             if (childNodeIndex === 0) text = text.trimStart();
             if (childNodeIndex === node.content.content.length - 1) text = text.trimEnd();
 
@@ -273,8 +272,7 @@ export function extractContentDuplicationVariableSchema(
                             state.name += character;
                             state.marks ??= childNodeMarks;
 
-                            // We only use marks that are applied to every character in the
-                            // variable's name.
+                            // We only use marks that are applied to every character in the variable's name.
                             if (childNodeMarks !== state.marks) {
                                 state.marks = state.marks.filter(mark =>
                                     isContentDuplicationMarkInSet(mark, childNodeMarks),
@@ -299,9 +297,9 @@ export function extractContentDuplicationVariableSchema(
 
                         const existingVariable = variableByName.get(name);
 
-                        // This is rich text content if all variables with this name are in
-                        // their own empty root-level paragraph AND the variable wasn't found
-                        // in additionalText (which means it needs to work in plain text).
+                        // This is rich text content if all variables with this name are in their own empty
+                        // root-level paragraph AND the variable wasn't found in additionalText (which
+                        // means it needs to work in plain text).
                         const isContentInThisOccurrence =
                             nodePos !== null &&
                             node.type.name === "paragraph" &&
@@ -311,14 +309,14 @@ export function extractContentDuplicationVariableSchema(
                             textIndex === text.length - 1;
 
                         variableByName.set(name, {
-                            // Only Content if this occurrence is content AND all previous
-                            // occurrences were also content. If a variable appeared in
-                            // additionalText, existingVariable.isContent will be false.
+                            // Only Content if this occurrence is content AND all previous occurrences were
+                            // also content. If a variable appeared in additionalText,
+                            // existingVariable.isContent will be false.
                             isContent:
                                 (existingVariable?.isContent ?? true) && isContentInThisOccurrence,
 
-                            // We only use marks that are applied to every variable name wherever
-                            // it appears in the document.
+                            // We only use marks that are applied to every variable name wherever it appears in
+                            // the document.
                             marks:
                                 existingVariable === undefined
                                     ? marks
@@ -337,9 +335,9 @@ export function extractContentDuplicationVariableSchema(
 }
 
 /**
- * Mark type to bit position mapping for binary encoding. We use bits 0-3 to
- * encode which simple marks (non-highlight) are present on a Text variable.
- * Highlight is handled separately since it has a color attribute.
+ * Mark type to bit position mapping for binary encoding. We use bits 0-3 to encode
+ * which simple marks (non-highlight) are present on a Text variable. Highlight is
+ * handled separately since it has a color attribute.
  */
 const bitPositionByContentDuplicationMarkType: Readonly<
     Record<Exclude<ContentDuplicationMark["type"], "highlight">, number>
@@ -351,8 +349,8 @@ const bitPositionByContentDuplicationMarkType: Readonly<
 };
 
 /**
- * Highlight color to byte value mapping for binary encoding. We use bits 4-7
- * of the marks byte to encode the highlight color (0 = no highlight).
+ * Highlight color to byte value mapping for binary encoding. We use bits 4-7 of
+ * the marks byte to encode the highlight color (0 = no highlight).
  */
 const byteValueByHighlightColor: Readonly<Record<HighlightColor, number>> = {
     [HighlightColor.Red]: 1,
@@ -374,12 +372,13 @@ const highlightColorByByteValue: ReadonlyMap<number, HighlightColor> = new Map(
  * format with base64 encoding.
  *
  * Binary format:
+ *
  * - Byte 0: Version marker (high bit = 1) + entry count (7 bits)
  * - For each entry:
- *   - Byte: Type (1 = Text, 2 = Content)
- *   - For Text: Byte with marks bitset
- *   - Byte: Name length (UTF-8 byte length)
- *   - Bytes: Name (UTF-8 encoded)
+ *     - Byte: Type (1 = Text, 2 = Content)
+ *     - For Text: Byte with marks bitset
+ *     - Byte: Name length (UTF-8 byte length)
+ *     - Bytes: Name (UTF-8 encoded)
  */
 export function encodeContentDuplicationVariableSchemaForUrl(
     schema: ContentDuplicationVariableSchema,
@@ -515,8 +514,8 @@ export function decodeContentDuplicationVariableSchemaFromUrl(
 }
 
 /**
- * Replace duplication variables in document content with actual values.
- * Works with any ProseMirror Node type (DocumentContent, TaskNotesContent, etc.).
+ * Replace duplication variables in document content with actual values. Works with
+ * any ProseMirror Node type (DocumentContent, TaskNotesContent, etc.).
  */
 export function applyContentDuplicationVariableValues(
     doc: Node,
@@ -647,9 +646,9 @@ export function applyContentDuplicationVariableValues(
                                     slice: new Slice(trimmedValueContent.content, 0, 0),
                                 });
 
-                                // Break to outer loop to defend against case where there are now two variables
-                                // in this block. To have a content value we must have had content schema. To
-                                // have a content schema the value was the only one on its block.
+                                // Break to outer loop to defend against case where there are now two variables in
+                                // this block. To have a content value we must have had content schema. To have a
+                                // content schema the value was the only one on its block.
                                 break outer;
                             }
                             default:
@@ -677,8 +676,8 @@ export function applyContentDuplicationVariableValues(
 }
 
 /**
- * Apply duplication values to plain text (e.g. task titles).
- * Only Text values are used; Content values are kept as-is.
+ * Apply duplication values to plain text (e.g. task titles). Only Text values are
+ * used; Content values are kept as-is.
  */
 export function applyContentDuplicationVariableValuesToText(
     text: string,

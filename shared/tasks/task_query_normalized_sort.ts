@@ -5,8 +5,8 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 /**
  * We use normalized sorts for actually executing query sorting. The normalized
- * sort type also supports some internal sorts we don't allow users to
- * configure in the UI.
+ * sort type also supports some internal sorts we don't allow users to configure in
+ * the UI.
  */
 export type TaskQueryNormalizedSort =
     | TaskQueryBasicNormalizedSort
@@ -176,8 +176,8 @@ export function normalizeTaskQuerySorts(
         });
     }
 
-    // If there was no created time sort explicitly included, then add one at the
-    // end so we don't end up sorting by the fallback (`TaskId`).
+    // If there was no created time sort explicitly included, then add one at the end
+    // so we don't end up sorting by the fallback (`TaskId`).
     if (!sortTypes.has("CreatedTime")) {
         normalizedSorts.push({
             type: "CreatedTime",

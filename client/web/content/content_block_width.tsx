@@ -17,34 +17,33 @@ const ContentBlockWidthContext = createContext<{
 
 /**
  * Returns the pixel width of a block of content in either `<ContentEditor>` or
- * `<ContentView>`. Normally, a block's width is determined by CSS
- * (specifically something like `width: 100%; max-width: var(--max-block-width);`
- * see `blockStyles` in `content.css.ts`). However, sometimes we need to know
- * the block width at render time to properly layout certain views. Namely
- * tables and file rows. This function computes the block width with
- * information available at render time (it also runs on the server).
+ * `<ContentView>`. Normally, a block's width is determined by CSS (specifically
+ * something like `width: 100%; max-width: var(--max-block-width);` see
+ * `blockStyles` in `content.css.ts`). However, sometimes we need to know the block
+ * width at render time to properly layout certain views. Namely tables and file
+ * rows. This function computes the block width with information available at
+ * render time (it also runs on the server).
  *
- * This function depends on parents rendering
- * `<ContentBlockWidthContextProvider>` when they restrict width available to
- * content. For example, `<MessageView>` must render
- * `<ContentBlockWidthContextProvider>` to take away avatar space from content
- * and `<PostListView>` must render `<ContentBlockWidthContextProvider>` to
+ * This function depends on parents rendering `<ContentBlockWidthContextProvider>`
+ * when they restrict width available to content. For example, `<MessageView>` must
+ * render `<ContentBlockWidthContextProvider>` to take away avatar space from
+ * content and `<PostListView>` must render `<ContentBlockWidthContextProvider>` to
  * take away space from the channel aside.
  *
  * This function isn't perfect. Without any modification, we assume the window
  * width is `clientInfo.screenWidth`. So if you have a large screen width but a
  * window width that's narrower than the max block width, there will be a
- * discrepancy between the pixel value you get here and what CSS renders.
- * Leading to tables or file rows being lain out assuming a larger block width
- * than what we actually have available.
+ * discrepancy between the pixel value you get here and what CSS renders. Leading
+ * to tables or file rows being lain out assuming a larger block width than what we
+ * actually have available.
  *
  * It's unclear how to fix this issue. We don't know the window width at server
  * render time. The window width can change between different web browser tabs
- * (unlike the screen width which is why the screen width is in `ClientInfo`
- * but not the window width). We think the current calculation, even with its
- * inaccuracies, is good enough for now and can make the calculation more
- * specific as we find problematic bugs that arise from an occasionally
- * inaccurate block width calculation.
+ * (unlike the screen width which is why the screen width is in `ClientInfo` but
+ * not the window width). We think the current calculation, even with its
+ * inaccuracies, is good enough for now and can make the calculation more specific
+ * as we find problematic bugs that arise from an occasionally inaccurate block
+ * width calculation.
  */
 // We don't care about Fast Refresh in this file since it won't be
 // edited often.
@@ -111,9 +110,9 @@ export function useContentBlockAvailableWidth() {
  * server. Uses similar logic to CSS to accomplish this. With properties like
  * `width`, `maxWidth`, `paddingLeft`, and `paddingRight`.
  *
- * We assume there will be at least `screenPaddingX` of padding between the
- * content and screen width. So when you set `width` there's some assumed
- * padding you can optionally declare.
+ * We assume there will be at least `screenPaddingX` of padding between the content
+ * and screen width. So when you set `width` there's some assumed padding you can
+ * optionally declare.
  */
 export function ContentBlockWidthContextProvider({
     isDisabled = false,

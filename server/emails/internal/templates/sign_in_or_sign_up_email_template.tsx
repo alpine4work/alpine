@@ -21,15 +21,16 @@ export function SignInOrSignUpEmailTemplate({
      * user has their phone nearby they can see a push notification with the code
      * without having to open their email client.
      *
-     * However, it is also a security risk! Consider a screen share where the user
-     * is trying to sign in and the notification appears. Or an attacker who has
-     * access to a locked phone where they can see push notifications.
+     * However, it is also a security risk! Consider a screen share where the user is
+     * trying to sign in and the notification appears. Or an attacker who has access to
+     * a locked phone where they can see push notifications.
      *
-     * So we only include the code in the subject if the account the user is
-     * signing into is low value. For instance, when the user is creating a new
-     * account so the account is empty.
+     * So we only include the code in the subject if the account the user is signing
+     * into is low value. For instance, when the user is creating a new account so the
+     * account is empty.
      *
      * See:
+     *
      * - https://security.stackexchange.com/questions/238162/is-it-safe-to-send-verification-code-in-the-subject-of-the-email
      * - https://github.com/mozilla/fxa/issues/3567
      */

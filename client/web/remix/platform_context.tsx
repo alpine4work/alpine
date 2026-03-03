@@ -31,8 +31,8 @@ export function usePlatform(): Platform {
 /**
  * Can the user's primary input mechanism hover?
  *
- * Uses the CSS media query `(hover: none)`. When server rendering we use the
- * same value as `platform === "mobile"` then update on initial client render.
+ * Uses the CSS media query `(hover: none)`. When server rendering we use the same
+ * value as `platform === "mobile"` then update on initial client render.
  */
 export function useCanPrimaryInputHover(): boolean {
     const canPrimaryInputHover = useContext(CanPrimaryInputHoverContext);
@@ -48,10 +48,10 @@ export function useCanPrimaryInputHover(): boolean {
 }
 
 /**
- * Does this `ClientInfo` mean the initial app render will be considered to be
- * a mobile render? Whether we render in mobile mode is ultimately determined
- * by the window size but during a server render we only have the device's
- * screen size in our `ClientInfo` cookie.
+ * Does this `ClientInfo` mean the initial app render will be considered to be a
+ * mobile render? Whether we render in mobile mode is ultimately determined by the
+ * window size but during a server render we only have the device's screen size in
+ * our `ClientInfo` cookie.
  */
 export function getInitialAppRenderPlatform(clientInfo: ClientInfo): Platform {
     return clientInfo.isNativeMobile || clientInfo.screenWidth <= mobilePlatformMaxWindowWidth
@@ -60,9 +60,8 @@ export function getInitialAppRenderPlatform(clientInfo: ClientInfo): Platform {
 }
 
 /**
- * Get the current `Platform` for the app without listening for changes.
- * Prefer using `usePlatform()` so if the platform changes your component will
- * re-render.
+ * Get the current `Platform` for the app without listening for changes. Prefer
+ * using `usePlatform()` so if the platform changes your component will re-render.
  */
 export function getPlatformWithoutListening(): Platform {
     return !!NativeMobileBridge || window.innerWidth <= mobilePlatformMaxWindowWidth
@@ -78,15 +77,15 @@ let sharedMediaQueryListener: {
 
 /**
  * Subscribe to changes that might update `Platform`. To know for sure whether
- * `Platform` changed you must call `getPlatformWithoutListening()`. Generally
- * you should prefer using `usePlatform()` since it adds one window size
- * listener for the entire React component tree. But this function can be
- * useful if you can't use React for some reason.
+ * `Platform` changed you must call `getPlatformWithoutListening()`. Generally you
+ * should prefer using `usePlatform()` since it adds one window size listener for
+ * the entire React component tree. But this function can be useful if you can't
+ * use React for some reason.
  */
 export function subscribeToPlatformChange(listener: () => void): () => void {
-    // We use one shared event listener for changes to our media query so we can
-    // have one React `flushSync()` transaction for all DOM updates that need to
-    // happen in response to the platform changing.
+    // We use one shared event listener for changes to our media query so we can have
+    // one React `flushSync()` transaction for all DOM updates that need to happen in
+    // response to the platform changing.
     if (sharedMediaQueryListener === null) {
         const listeners = new Set<() => void>();
 

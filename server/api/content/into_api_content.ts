@@ -75,8 +75,7 @@ function* intoApiContentBlockElements(
         nodeIndex++;
 
         if (node.type.name === "title") {
-            // Noop. Ignore document title nodes. Document titles will be
-            // handled separately.
+            // Noop. Ignore document title nodes. Document titles will be handled separately.
             continue;
         }
 
@@ -195,6 +194,7 @@ function* intoApiContentListBlockElements(
                 const itemOrderStart = item.node?.attrs.orderStart ?? undefined;
 
                 // "Merge" the list item into the last element if
+                //
                 // 1. The last element is an ordered list
                 // 2. The current list item has no explicit `orderStart` attribute.
                 if (lastElement?.type === "OrderedList" && itemOrderStart === undefined) {
@@ -386,17 +386,16 @@ function intoApiContentBlockElement(
         case "fileRow":
         case "fileFloat":
         case "fileRowTable": {
-            // TODO(ifitzsimmons, #ai): Add support for file attachments. Currently,
-            // the agent has no way to actually read file attachments, so there's no
-            // need to spend time implementing this conversion right now. My primary
-            // concern is that I don't want the agent to fail any time it reads content
-            // with attachments.
+            // TODO(ifitzsimmons, #ai): Add support for file attachments. Currently, the agent
+            // has no way to actually read file attachments, so there's no need to spend time
+            // implementing this conversion right now. My primary concern is that I don't want
+            // the agent to fail any time it reads content with attachments.
             //
             // If we were to publish our API, we'd also need to make sure that this is
             // implemented.
             //
-            // In any case, I'm deprioritizing this work for launch. I'll get back to this
-            // if I have time.
+            // In any case, I'm deprioritizing this work for launch. I'll get back to this if I
+            // have time.
             //
             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/55rd1cnzfvcqeq21qceb4pzpfw
             return {

@@ -13,8 +13,8 @@ import {
 export function getExpectedAccessLevelForUpdateDocumentContentSteps(
     steps: ReadonlyArray<Step>,
 ): "Edit" | "Comment" {
-    // If the client is ONLY adding or removing comment marks then it's ok if they
-    // have the comment access level instead of the edit access level.
+    // If the client is ONLY adding or removing comment marks then it's ok if they have
+    // the comment access level instead of the edit access level.
     if (
         steps.every(
             step =>

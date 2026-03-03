@@ -1,6 +1,6 @@
 /**
- * Clones an object but removes any keys in the key array. An implementation of
- * the TypeScript `Omit` type. Only copies object own properties.
+ * Clones an object but removes any keys in the key array. An implementation of the
+ * TypeScript `Omit` type. Only copies object own properties.
  */
 export function omitObject<Value extends {}, Keys extends string & keyof Value>(
     value: Value,

@@ -20,8 +20,8 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
  * Get the `TaskPosition` for a new task in a query that's sorted by
  * `TaskPosition`s (e.g. the my tasks view or child task query).
  *
- * This function is to help implement the `getMoveTaskToQueryActions()` prop
- * of `useTaskGridViewVirtualizedList()`.
+ * This function is to help implement the `getMoveTaskToQueryActions()` prop of
+ * `useTaskGridViewVirtualizedList()`.
  */
 export function getNewTaskPositionForQuerySortedByPosition(
     time: HybridLogicalTime,

@@ -3,12 +3,12 @@ import {useLifecycleRef} from "~/client/web/helpers/refs/use_lifecycle_ref.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
- * A better implementation of `react-aria`'s `useHover()` that follows our
- * reusable component conventions (lifecycle refs). It's better in that it
- * supports the mouse moving into an overlay as cancelling the hover.
+ * A better implementation of `react-aria`'s `useHover()` that follows our reusable
+ * component conventions (lifecycle refs). It's better in that it supports the
+ * mouse moving into an overlay as cancelling the hover.
  */
-// TODO(calebmer): I think this is better than `react-aria`'s `useHover()` on
-// every dimension. We should replace our use of `useHover()` with this hook.
+// TODO(calebmer): I think this is better than `react-aria`'s `useHover()` on every
+// dimension. We should replace our use of `useHover()` with this hook.
 export function useHoverWithOverlaySupport(): [
     isHovered: boolean,
     hoverRef: RefCallback<HTMLElement>,

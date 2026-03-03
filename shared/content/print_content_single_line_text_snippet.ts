@@ -28,30 +28,30 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  * Match different new-line formats. [Same newline regex that's in
  * `compromise`][1].
  *
- * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ * [1]:
+ *     https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
 const newLineRegExp = /(?:(?:\r?\n|\r)+)/g;
 
 /**
- * Takes some content and prints it as a single line plain text snippet. This
- * plain text preview is used for inbox entry content previews and search
- * result content previews.
+ * Takes some content and prints it as a single line plain text snippet. This plain
+ * text preview is used for inbox entry content previews and search result content
+ * previews.
  *
  * `getContentSnippet()` can be used to extract some piece of content and this
  * function can be used for printing that content to a plain text preview.
  *
  * Doesn't take `ContentReferences` and instead takes individual
- * `getAccountIfExists` and `getSearchEntityIfExists` functions to load
- * referenced data. Since different callers need to provide content references
- * in different ways. For example, on the client we want to use
- * `AccountRegistry` and `SearchEntityRegistry` to make sure we're rendering
- * up-to-date data whereas on the server we don't have a normalized registry
- * and may want to use the directly available `AccountModel.initialData` or
- * `SearchEntityModel.initialData`.
+ * `getAccountIfExists` and `getSearchEntityIfExists` functions to load referenced
+ * data. Since different callers need to provide content references in different
+ * ways. For example, on the client we want to use `AccountRegistry` and
+ * `SearchEntityRegistry` to make sure we're rendering up-to-date data whereas on
+ * the server we don't have a normalized registry and may want to use the directly
+ * available `AccountModel.initialData` or `SearchEntityModel.initialData`.
  *
  * On the client, generally you should call
- * `printContentSingleLineTextSnippetForClient()` which provides a more
- * convenient interface.
+ * `printContentSingleLineTextSnippetForClient()` which provides a more convenient
+ * interface.
  */
 export function printContentSingleLineTextSnippet(
     content: Node,
@@ -90,18 +90,17 @@ export function printContentSingleLineTextSnippet(
 
 /**
  * Same as `printContentSingleLineTextSnippet()` (see the documentation on that
- * function) but we preserve the styling for marks where
- * `shouldPreserveMark()` returns true. Used for showing search result content
- * previews since we need to highlight matched words.
+ * function) but we preserve the styling for marks where `shouldPreserveMark()`
+ * returns true. Used for showing search result content previews since we need to
+ * highlight matched words.
  *
  * Doesn't take `ContentReferences` and instead takes individual
- * `getAccountIfExists` and `getSearchEntityIfExists` functions to load
- * referenced data. Since different callers need to provide content references
- * in different ways. For example, on the client we want to use
- * `AccountRegistry` and `SearchEntityRegistry` to make sure we're rendering
- * up-to-date data whereas on the server we don't have a normalized registry
- * and may want to use the directly available `AccountModel.initialData` or
- * `SearchEntityModel.initialData`.
+ * `getAccountIfExists` and `getSearchEntityIfExists` functions to load referenced
+ * data. Since different callers need to provide content references in different
+ * ways. For example, on the client we want to use `AccountRegistry` and
+ * `SearchEntityRegistry` to make sure we're rendering up-to-date data whereas on
+ * the server we don't have a normalized registry and may want to use the directly
+ * available `AccountModel.initialData` or `SearchEntityModel.initialData`.
  */
 export function printContentSingleLineTextSnippetPreservingMarks(
     content: Node,
@@ -130,13 +129,13 @@ export function printContentSingleLineTextSnippetPreservingMarks(
         if (text.length === 0) return;
         isTrimmingStart = false;
 
-        // Reset file noun number whenever we print non-file text. File noun number
-        // should only be shared for adjacent files of the same type.
+        // Reset file noun number whenever we print non-file text. File noun number should
+        // only be shared for adjacent files of the same type.
         fileNounNumberState = null;
 
         // Break punctuation is used to separate content which otherwise would have
-        // rendered on separate lines. For example, we put a period after a heading
-        // then print the paragraph which follows.
+        // rendered on separate lines. For example, we put a period after a heading then
+        // print the paragraph which follows.
         if (breakPunctuation !== null) {
             const lastSegment = segments[segments.length - 1];
 
@@ -149,14 +148,14 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                         ? actualPreservedMarks
                         : emptyArray;
 
-                // If a sentence is already ended with punctuation, we don't want to add our
-                // break punctuation. If a sentence is ended with punctuation, then a quote
-                // character that also counts.
+                // If a sentence is already ended with punctuation, we don't want to add our break
+                // punctuation. If a sentence is ended with punctuation, then a quote character
+                // that also counts.
                 if (doesStringEndWithPunctuation(lastSegment.text)) {
                     actuallyPrint(" ");
                 } else {
-                    // Add any marks from the break punctuation to `preservedMarks` which gets
-                    // cleared below.
+                    // Add any marks from the break punctuation to `preservedMarks` which gets cleared
+                    // below.
                     if (breakPunctuation.marks.length > 0) {
                         const newPreservedMarks = [...preservedMarks];
 
@@ -274,8 +273,8 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             case "divider": {
                 break;
             }
-            // Don't print a single-line text representation of floating files since we
-            // likely won't print in the location a user would expect.
+            // Don't print a single-line text representation of floating files since we likely
+            // won't print in the location a user would expect.
             case "fileFloat": {
                 break;
             }
@@ -334,11 +333,11 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             case "text": {
                 let isFirstLine = true;
 
-                // `paragraph` text shouldn't contain newlines (instead if should have
-                // `break`s) but it is possible to sneak them in with
-                // `state.tr.insertText("\n")`. If `whitespace: "pre"` is set on the
-                // ProseMirror node type then newlines will be allowed. For example ProseMirror
-                // recommends building code blocks with `whitespace: "pre"`.
+                // `paragraph` text shouldn't contain newlines (instead if should have `break`s)
+                // but it is possible to sneak them in with `state.tr.insertText("\n")`. If
+                // `whitespace: "pre"` is set on the ProseMirror node type then newlines will be
+                // allowed. For example ProseMirror recommends building code blocks with
+                // `whitespace: "pre"`.
                 for (const lineText of node.text!.split(newLineRegExp)) {
                     if (!isFirstLine) breakPunctuation = {marks: emptyArray, text: ""};
                     isFirstLine = false;
@@ -349,8 +348,8 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             }
             case "break": {
                 // A break doesn't always separate ideas. Sometimes its contribution is purely
-                // visual. We still want a space between the content it breaks apart but no
-                // other punctuation.
+                // visual. We still want a space between the content it breaks apart but no other
+                // punctuation.
                 breakPunctuation = {marks: emptyArray, text: ""};
                 break;
             }

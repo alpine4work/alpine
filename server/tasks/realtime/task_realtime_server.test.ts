@@ -3192,8 +3192,7 @@ test("after loading tasks we will replay actions that hide tasks", async () => {
 // NOTE(calebmer): This test was flaky due to a bug in OpenSearch:
 // https://github.com/opensearch-project/OpenSearch/issues/9537
 //
-// Should be fixed after a Lucene upgrade to 9.8 which happens in
-// OpenSearch 2.12.
+// Should be fixed after a Lucene upgrade to 9.8 which happens in OpenSearch 2.12.
 // https://github.com/opensearch-project/OpenSearch/blob/97c1bf01ff511c4db74dc8a81045447b009bec29/release-notes/opensearch.release-notes-2.12.0.md
 test("after loading tasks we will replay actions that move tasks", async () => {
     const space = await TestSpace.create(context);

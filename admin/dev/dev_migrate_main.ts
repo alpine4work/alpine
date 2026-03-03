@@ -16,8 +16,8 @@ const parsePort = (portString: string | undefined) => {
     return port;
 };
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
+// Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
+// picks them up.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
@@ -43,7 +43,8 @@ const subprocess = spawn(
         `--dynamoLocalPort=${dynamoLocalPort}`,
         `--opensearchLocalPort=${opensearchLocalPort}`,
         `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+        // original job queue url
         `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
         `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
         `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,

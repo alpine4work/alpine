@@ -15,13 +15,14 @@ import {
 } from "~/shared/schema/schema.js";
 
 /**
- * An abstract, type-safe, representation of a [DynamoDB condition
- * expression][1] in a convenient to define format.
+ * An abstract, type-safe, representation of a [DynamoDB condition expression][1]
+ * in a convenient to define format.
  *
  * Convert into a `DynamoConditionExpression` with
  * `DynamoConditionExpression.from()` to compile to a string.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html
  */
 export type DynamoCondition<Item extends {[key: string]: any}> =
     | DynamoConditionObject<Item>
@@ -32,15 +33,15 @@ export type DynamoConditionObject<Item extends {[key: string]: any}> = {
 };
 
 /**
- * An abstract, type-safe, representation of a [DynamoDB condition
- * expression][1].
+ * An abstract, type-safe, representation of a [DynamoDB condition expression][1].
  *
- * Conditions assume the underlying item exists. If the underlying item does
- * not exist then the condition may not work as expected. We try to add an
- * `attribute_exists(partitionKey) and ...` before any compiled condition to
- * make sure the item exists.
+ * Conditions assume the underlying item exists. If the underlying item does not
+ * exist then the condition may not work as expected. We try to add an
+ * `attribute_exists(partitionKey) and ...` before any compiled condition to make
+ * sure the item exists.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html
  */
 export abstract class DynamoConditionExpression<Value> {
     /**
@@ -135,8 +136,8 @@ export abstract class DynamoConditionExpression<Value> {
     }
 
     /**
-     * Passes if the value is between the first and second value or equal to
-     * the first or second value.
+     * Passes if the value is between the first and second value or equal to the first
+     * or second value.
      */
     public static between<Value>(
         value1: NonUndefined<Value>,
@@ -146,8 +147,8 @@ export abstract class DynamoConditionExpression<Value> {
     }
 
     /**
-     * Passes if the value is equal to one of the values in the provided set. The
-     * set of values must be non-empty.
+     * Passes if the value is equal to one of the values in the provided set. The set
+     * of values must be non-empty.
      */
     public static in<Value>(
         values: ReadonlyArray<NonUndefined<Value>>,
@@ -158,8 +159,8 @@ export abstract class DynamoConditionExpression<Value> {
     /**
      * Passes if the attribute exists.
      *
-     * This is different from `DynamoConditionExpression.eq(null)` which checks if
-     * the attribute value is null. In JavaScript, a property that doesn't exist is
+     * This is different from `DynamoConditionExpression.eq(null)` which checks if the
+     * attribute value is null. In JavaScript, a property that doesn't exist is
      * represented by `undefined`.
      */
     public static exists<Value extends undefined>(): DynamoConditionExpression<Value> {
@@ -183,26 +184,25 @@ export abstract class DynamoConditionExpression<Value> {
     }
 
     /**
-     * True if the underlying condition is false and false if the underlying
-     * condition is true.
+     * True if the underlying condition is false and false if the underlying condition
+     * is true.
      */
     public not(): DynamoConditionExpression<Value> {
         return new DynamoConditionNotExpression(this);
     }
 
     /**
-     * Unsafely create a condition expression directly from a string if you
-     * don't want to deal with the type-safe intermediate layer.
+     * Unsafely create a condition expression directly from a string if you don't want
+     * to deal with the type-safe intermediate layer.
      *
-     * Only use this as a last resort when the condition you want is not
-     * expressible in the type system.
+     * Only use this as a last resort when the condition you want is not expressible in
+     * the type system.
      *
      * May optionally provide a `precedence` to avoid unnecessary parentheses.
      *
-     * You can break the meaning of an expression pretty spectacularly by misusing
-     * this combinator. For instance adding extra parentheses where they are not
-     * supposed to go. The name is prefixed with `_unsafe` to discourage use for
-     * this reason.
+     * You can break the meaning of an expression pretty spectacularly by misusing this
+     * combinator. For instance adding extra parentheses where they are not supposed to
+     * go. The name is prefixed with `_unsafe` to discourage use for this reason.
      */
     public static _unsafeRaw(
         string: string,
@@ -212,8 +212,8 @@ export abstract class DynamoConditionExpression<Value> {
     }
 
     /**
-     * Compile our condition expression into a string. Driven by the
-     * underlying schema to serialize values.
+     * Compile our condition expression into a string. Driven by the underlying schema
+     * to serialize values.
      *
      * Returns the precedence of the compiled string in case you need to compose
      * expressions.
@@ -228,10 +228,11 @@ export abstract class DynamoConditionExpression<Value> {
 }
 
 /**
- * Precedence levels for a DynamoDB condition expression. See the [precedence
- * in conditions][1] section.
+ * Precedence levels for a DynamoDB condition expression. See the [precedence in
+ * conditions][1] section.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.OperatorsAndFunctions.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.OperatorsAndFunctions.html
  */
 export enum DynamoConditionExpressionPrecedence {
     Comparator = 1,
@@ -242,8 +243,8 @@ export enum DynamoConditionExpressionPrecedence {
     And = 6,
     Or = 7,
     // The highest level of precedence which doesn't correspond to any actual
-    // expressions. Used when you want to force parentheses around an expression in
-    // all cases.
+    // expressions. Used when you want to force parentheses around an expression in all
+    // cases.
     Top = 8,
 }
 
@@ -289,10 +290,9 @@ export class DynamoConditionExpressionCompilationContext {
     }
 
     /**
-     * Get the string pointing to the attribute we are comparing against.
-     * Referencing this attribute will ignore the fact that our schema may have a
-     * default value. Prefer `compileAttributeCheck()` when possible to support
-     * defaults.
+     * Get the string pointing to the attribute we are comparing against. Referencing
+     * this attribute will ignore the fact that our schema may have a default value.
+     * Prefer `compileAttributeCheck()` when possible to support defaults.
      *
      * Will throw if this is the root compilation context since we can't compare
      * against the root document.
@@ -308,8 +308,7 @@ export class DynamoConditionExpressionCompilationContext {
     /**
      * Reference an attribute in a DynamoDB condition string.
      *
-     * We need to escape the name if it is not an identifier or it is a
-     * reserved word.
+     * We need to escape the name if it is not an identifier or it is a reserved word.
      */
     public referenceAttribute(key: string): string {
         if (isIdentifier(key) && !dynamoReservedWords.has(key.toUpperCase())) return key;
@@ -329,10 +328,9 @@ export class DynamoConditionExpressionCompilationContext {
     }
 
     /**
-     * Compiles a check against an attribute. We ask for a function input because
-     * we may actually compile two checks. One against the actual attribute (when
-     * it exists) and one against the default value (if the attribute doesn't
-     * exist).
+     * Compiles a check against an attribute. We ask for a function input because we
+     * may actually compile two checks. One against the actual attribute (when it
+     * exists) and one against the default value (if the attribute doesn't exist).
      */
     public compileAttributeCheck(
         compile: (attributeString: string) => {
@@ -363,9 +361,9 @@ export class DynamoConditionExpressionCompilationContext {
     }
 
     /**
-     * To insert a value into a condition expression we need a variable reference.
-     * This function creates a fresh variable identifier and stores an assignment
-     * to that variable.
+     * To insert a value into a condition expression we need a variable reference. This
+     * function creates a fresh variable identifier and stores an assignment to that
+     * variable.
      */
     public addVariable(value: SchemaSerializedValue): string {
         return getOrSetDefaultMapValue(
@@ -411,9 +409,9 @@ class DynamoConditionAttributeExpression<
 
         const serializedKey = propertySchema.serializedKey ?? this._key;
 
-        // Attempt to get the default value for a property by sniffing the schema. If
-        // the schema has a default value, then we want our conditions to run against
-        // the default value when the attribute doesn't exist.
+        // Attempt to get the default value for a property by sniffing the schema. If the
+        // schema has a default value, then we want our conditions to run against the
+        // default value when the attribute doesn't exist.
         let defaultValue: DynamoConditionExpressionCompilationDefault;
         try {
             const value = propertySchema.deserializeProperty({}, serializedKey, this._key);

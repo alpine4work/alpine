@@ -6,13 +6,11 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 /**
  * Prepares a task action before we send it to the client. When we call this
- * function we've already authorized that the `TaskAction` is against an entity
- * the account has access to. However, the action may still contain some data
- * the account is not allowed to see. So filter out that data before sending an
- * event.
+ * function we've already authorized that the `TaskAction` is against an entity the
+ * account has access to. However, the action may still contain some data the
+ * account is not allowed to see. So filter out that data before sending an event.
  *
- * If this function returns null then we shouldn't send the action to the
- * client.
+ * If this function returns null then we shouldn't send the action to the client.
  */
 export async function prepareTaskActionForClient(
     action: TaskAction,

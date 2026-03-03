@@ -8,8 +8,8 @@ import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
- * Client for interacting with [Logo.dev][1] which we use for figuring out the
- * name of a company based on an email domain that's signed up.
+ * Client for interacting with [Logo.dev][1] which we use for figuring out the name
+ * of a company based on an email domain that's signed up.
  *
  * [1]: https://www.logo.dev
  */
@@ -20,8 +20,8 @@ export abstract class LogoDevContextModuleBase
     implements ForkableContextModuleBase
 {
     /**
-     * Describe a company using the [Logo.dev brand API][1]. Returns null if no
-     * company was found.
+     * Describe a company using the [Logo.dev brand API][1]. Returns null if no company
+     * was found.
      *
      * [1]: https://docs.logo.dev/describe/introduction
      */
@@ -103,9 +103,8 @@ export class LogoDevContextModule extends LogoDevContextModuleBase {
                         },
                     });
 
-                    // It would seem that sometimes Logo.dev returns a 202 response with no `name`
-                    // only a `msg` property containing `not found, looking up` when a domain isn't
-                    // found.
+                    // It would seem that sometimes Logo.dev returns a 202 response with no `name` only
+                    // a `msg` property containing `not found, looking up` when a domain isn't found.
                     if (!description.name) return null;
 
                     return {

@@ -41,8 +41,8 @@ export function SearchEntityViewTitle({
     const spacingScale = useSpacingScale();
 
     // TODO: Consider using some more sophisticated truncation strategy for long words.
-    // We could pull this into a <Truncate> component and use some JS to measure text width
-    // and insert break points as needed.
+    // We could pull this into a <Truncate> component and use some JS to measure text
+    // width and insert break points as needed.
     const shouldBreakWords = useMemo(() => {
         const words = splitUnicodeDefaultWordBoundary(entityData.title || "");
         const firstWordLength = countGraphemes(words[0] || "");
@@ -173,10 +173,10 @@ function SearchEntityViewMedia({
                     </Box>
                 );
             } else {
-                // Render a grey circle for chats that don't have an `AccountPile` media. We
-                // want to communicate it's a multi-person chat so we don't want to render one
-                // account. This case should happen rarely. Just `RoomChat`s that only a single
-                // person has messaged so far.
+                // Render a grey circle for chats that don't have an `AccountPile` media. We want
+                // to communicate it's a multi-person chat so we don't want to render one account.
+                // This case should happen rarely. Just `RoomChat`s that only a single person has
+                // messaged so far.
                 return (
                     <Box
                         display="inline-flex"

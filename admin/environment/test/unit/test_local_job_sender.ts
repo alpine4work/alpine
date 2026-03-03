@@ -21,12 +21,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * An implementation of `JobSenderBase` that runs in the current
- * process in test environments instead of going through SQS. This trades the
- * delivery and retry guarantees of SQS for convenience.
+ * An implementation of `JobSenderBase` that runs in the current process in test
+ * environments instead of going through SQS. This trades the delivery and retry
+ * guarantees of SQS for convenience.
  *
- * With this context module you don't need to run a local copy of SQS in tests
- * to execute jobs. By default `createTestContext()` ignores all jobs. You must
+ * With this context module you don't need to run a local copy of SQS in tests to
+ * execute jobs. By default `createTestContext()` ignores all jobs. You must
  * provide a `processJob` implementation ot `createTestContext()`.
  */
 export class TestLocalJobSender implements JobSenderBase {

@@ -2,29 +2,27 @@ import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 
 /**
- * Function that allows the user to perform a couple transformations on an
- * async iterable at once:
+ * Function that allows the user to perform a couple transformations on an async
+ * iterable at once:
  *
  * 1. Map values into new values (same as `Array.map()`)
  * 2. Filter out values (same as `Array.filter()`)
  * 3. Limit the number of items pulled from the async iterable (similar to
  *    `Array.slice(0, limit)`)
- * 4. Convert the async iterable into an array (same as
- *    `arrayFromAsyncIterable()`)
+ * 4. Convert the async iterable into an array (same as `arrayFromAsyncIterable()`)
  *
- * Importantly, unlike many async iterable map implementations the map function
- * may return a promise and all promises are run in parallel. Instead of
- * waiting for promises to resolve in sequence.
+ * Importantly, unlike many async iterable map implementations the map function may
+ * return a promise and all promises are run in parallel. Instead of waiting for
+ * promises to resolve in sequence.
  *
- * We also don't return from the function on first rejection, instead waiting
- * for all parallel executed promises to settle.
+ * We also don't return from the function on first rejection, instead waiting for
+ * all parallel executed promises to settle.
  *
  * Ideally we could get behavior like this from a composable async iterator
- * combinator library but writing a high quality `parallelMap()` combinator
- * that returns an async iterator is tricky and you want each promise to be
- * awaited even if one rejects (or a consumer breaks out of a loop). It's
- * easier when you're returning a promise of an array. Which is why this all
- * gets clumped together.
+ * combinator library but writing a high quality `parallelMap()` combinator that
+ * returns an async iterator is tricky and you want each promise to be awaited even
+ * if one rejects (or a consumer breaks out of a loop). It's easier when you're
+ * returning a promise of an array. Which is why this all gets clumped together.
  */
 export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue>(
     iterable: AsyncIterable<Value>,
@@ -81,9 +79,9 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
                 },
             );
 
-            // Stall iteration when going to the next item would surpass our limit. If
-            // later a mapped item is filtered out then we'll resume iteration trying to
-            // find a new value.
+            // Stall iteration when going to the next item would surpass our limit. If later a
+            // mapped item is filtered out then we'll resume iteration trying to find a new
+            // value.
             if (index + 1 === limit + filteredValueCount) {
                 limitStallPromiseResolver = createPromiseResolver();
                 const {done} = await limitStallPromiseResolver.promise;
@@ -91,8 +89,8 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
             }
         }
     } finally {
-        // Make sure we always wait for any promise we started to resolve. If any
-        // promise threw while we were awaiting, rethrow that error.
+        // Make sure we always wait for any promise we started to resolve. If any promise
+        // threw while we were awaiting, rethrow that error.
         await Promise.allSettled(promises);
 
         if (errors.length > 0) throw createAggregateError(errors);

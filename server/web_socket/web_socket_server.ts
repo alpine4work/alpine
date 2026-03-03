@@ -90,27 +90,27 @@ export interface WebSocketServerConnectionBase<
     EventStub,
 > {
     /**
-     * Implementation of the procedures defined by the the WebSocket protocol used
-     * by this connection.
+     * Implementation of the procedures defined by the the WebSocket protocol used by
+     * this connection.
      */
-    // If `Protocol` matches `anySecret` then we consider it to be the `any` type.
-    // If `Protocol` is `any` then make the full `procedures` object `any` to
-    // simplify some compatibility checks.
+    // If `Protocol` matches `anySecret` then we consider it to be the `any` type. If
+    // `Protocol` is `any` then make the full `procedures` object `any` to simplify
+    // some compatibility checks.
     readonly procedures: [Protocol] extends [typeof anySecret]
         ? any
         : WebSocketConnectionProcedures<ActionContextModules, Protocol>;
 
     /**
-     * Authorizes that the session has access to the entity we're connected to. We
-     * run this function every couple minutes so if the session loses access we
-     * eventually shut down the connection.
+     * Authorizes that the session has access to the entity we're connected to. We run
+     * this function every couple minutes so if the session loses access we eventually
+     * shut down the connection.
      */
     authorize(context: Context<ActionContextModules>): Promise<void>;
 
     /**
      * Converts an event stub into the actual event we'll send to clients. This is
-     * important for permissions as it allows us to perform any data loading we
-     * might need with the connection account's access level.
+     * important for permissions as it allows us to perform any data loading we might
+     * need with the connection account's access level.
      */
     transformEvent(
         context: Context<ActionContextModules>,
@@ -184,8 +184,8 @@ export class WebSocketServer<
     private _isClosed = false;
 
     /**
-     * Used to pass a `context` object from our `close()` function call to the
-     * event listener which logs a close event.
+     * Used to pass a `context` object from our `close()` function call to the event
+     * listener which logs a close event.
      */
     private readonly _contextForCloseEventListenerRef: {
         current: Context<ProcessContextModules> | Context<ActionContextModules> | null;
@@ -215,22 +215,21 @@ export class WebSocketServer<
     }
 
     private _maybeStartExpirationInterval() {
-        // When we get our first connection, start an interval to expire sockets we
-        // haven't received a message from in a while.
+        // When we get our first connection, start an interval to expire sockets we haven't
+        // received a message from in a while.
         //
-        // We need to occasionally send a heartbeat to our clients. If the power goes
-        // out we'll have a connection that never closes itself.
+        // We need to occasionally send a heartbeat to our clients. If the power goes out
+        // we'll have a connection that never closes itself.
         if (this._connections.size === 0 || this._expirationInterval !== null) return;
 
         let currentTimeMs = Date.now();
 
-        // TODO(calebmer): Implement this with durable object alarms so the time
-        // works correctly.
+        // TODO(calebmer): Implement this with durable object alarms so the time works
+        // correctly.
         this._expirationInterval = createInterval(() => {
-            // This is a workaround for Cloudflare `Date.now()` always returning the same
-            // time for a given request. Whenever our interval runs, increment the time by
-            // the interval time.
-            // https://developers.cloudflare.com/workers/learning/security-model
+            // This is a workaround for Cloudflare `Date.now()` always returning the same time
+            // for a given request. Whenever our interval runs, increment the time by the
+            // interval time. https://developers.cloudflare.com/workers/learning/security-model
             currentTimeMs += webSocketExpirationTimeoutMs / 2;
 
             void this._processContext.tracer.withSpan(
@@ -248,16 +247,16 @@ export class WebSocketServer<
                         );
 
                         // In case the `close` event hasn't fired yet (maybe the connection is in the
-                        // process of closing), look for closed connections in our expiration interval
-                        // loop and remove them from our connection set.
+                        // process of closing), look for closed connections in our expiration interval loop
+                        // and remove them from our connection set.
                         //
                         // NOTE(calebmer, 2022-12-27): I'm observing the `close` event not firing after
                         // `serverSocket.close()` and I'm not sure whether it is a bug or not.
                         //
-                        // NOTE(calebmer, 2023-02-23): I think what's happening is the WebSocket moves
-                        // into the closing state (so `isClosed()` returns true) but it hasn't fully
-                        // closed yet so the `close` event doesn't fire. We could clean the code up a
-                        // bit with this knowledge if it's true.
+                        // NOTE(calebmer, 2023-02-23): I think what's happening is the WebSocket moves into
+                        // the closing state (so `isClosed()` returns true) but it hasn't fully closed yet
+                        // so the `close` event doesn't fire. We could clean the code up a bit with this
+                        // knowledge if it's true.
                         if (connection.isClosed()) {
                             this._handleConnectionClose(
                                 context as Context<ProcessContextModules>,
@@ -278,9 +277,9 @@ export class WebSocketServer<
             ActionContextModules & {actor: SessionActorContextModule}
         >,
         request: Request,
-        // NOTE(calebmer): Allow the caller to manually provide a `Response` class in
-        // Jest tests. Jest is being weird about setting the `Response` global. This is
-        // likely a bug in Jest. When it's fixed we can remove this.
+        // NOTE(calebmer): Allow the caller to manually provide a `Response` class in Jest
+        // tests. Jest is being weird about setting the `Response` global. This is likely a
+        // bug in Jest. When it's fixed we can remove this.
         {responseClassForTest}: {responseClassForTest?: typeof Response} = {},
     ): Promise<Response> {
         if (this._isClosed)
@@ -298,9 +297,9 @@ export class WebSocketServer<
 
         const response = new (responseClassForTest ?? Response)(null, {
             status: 101,
-            // Cloudflare's WebSocket implementation doesn't fully comply with the
-            // TypeScript DOM WebSocket type (e.g. there is no `bufferedAmount` or
-            // `binaryType` property) but everything seems to be fine regardless.
+            // Cloudflare's WebSocket implementation doesn't fully comply with the TypeScript
+            // DOM WebSocket type (e.g. there is no `bufferedAmount` or `binaryType` property)
+            // but everything seems to be fine regardless.
             webSocket: clientSocket as any as globalThis.WebSocket,
         });
 
@@ -370,8 +369,8 @@ export class WebSocketServer<
 
         serverSocket.addEventListener("close", () => {
             this._handleConnectionClose(
-                // Hopefully this is fired synchronously and we get the context object passed
-                // into our `close()` call.
+                // Hopefully this is fired synchronously and we get the context object passed into
+                // our `close()` call.
                 this._contextForCloseEventListenerRef.current ?? connectionProcessContext,
                 connection,
             );
@@ -391,8 +390,8 @@ export class WebSocketServer<
     /**
      * Close the connection and clean it up from our internal state.
      *
-     * Idempotent since we've sometimes observed the WebSocket `close` event not
-     * firing so we call this function multiple times when a socket is closing.
+     * Idempotent since we've sometimes observed the WebSocket `close` event not firing
+     * so we call this function multiple times when a socket is closing.
      */
     private _handleConnectionClose(
         context: Context<ProcessContextModules> | Context<ActionContextModules>,
@@ -418,8 +417,8 @@ export class WebSocketServer<
                     await connection.connection.handleClose?.(context);
                     finishSpan();
                 } catch (error) {
-                    // Don't re-throw error. Adding it to the span is enough. We don't need it to
-                    // also be logged as an uncaught exception.
+                    // Don't re-throw error. Adding it to the span is enough. We don't need it to also
+                    // be logged as an uncaught exception.
                     span.addException(error);
                     finishSpan();
                 }
@@ -503,9 +502,9 @@ export class WebSocketServer<
             for (const connection of this._connections.values()) {
                 connection.close(context as Context<ProcessContextModules>, 1001);
 
-                // NOTE(calebmer): In case the `close` event wasn't fired manually call our
-                // event handler. Since I've seen the close event not fire before in response
-                // to calling `close()` I'm paranoid and adding a second call here.
+                // NOTE(calebmer): In case the `close` event wasn't fired manually call our event
+                // handler. Since I've seen the close event not fire before in response to calling
+                // `close()` I'm paranoid and adding a second call here.
                 this._handleConnectionClose(context as Context<ProcessContextModules>, connection);
             }
         });
@@ -528,9 +527,9 @@ export class WebSocketServer<
             for (const connection of this._connections.values()) {
                 connection.closeWithError(context as Context<ProcessContextModules>, error);
 
-                // NOTE(calebmer): In case the `close` event wasn't fired manually call our
-                // event handler. Since I've seen the close event not fire before in response
-                // to calling `close()` I'm paranoid and adding a second call here.
+                // NOTE(calebmer): In case the `close` event wasn't fired manually call our event
+                // handler. Since I've seen the close event not fire before in response to calling
+                // `close()` I'm paranoid and adding a second call here.
                 this._handleConnectionClose(context as Context<ProcessContextModules>, connection);
             }
         });
@@ -542,9 +541,9 @@ export class WebSocketServer<
      * Closes the server as well so that you can't make new WebSocket connections.
      */
     // TODO(calebmer): This is used by our Node.js WebSocket server implementation
-    // during graceful shutdowns. I'd like for it to be used during a Durable
-    // Object shutdown due to a deploy too. It's unclear to me how Durable Object
-    // deploys work and if they're naturally graceful.
+    // during graceful shutdowns. I'd like for it to be used during a Durable Object
+    // shutdown due to a deploy too. It's unclear to me how Durable Object deploys work
+    // and if they're naturally graceful.
     public softCloseAll(context: Context<ProcessContextModules>): Promise<void> {
         this._isClosed = true;
 
@@ -558,9 +557,9 @@ export class WebSocketServer<
     }
 
     /**
-     * Creates a new test connection for our WebSocket server. Can only be used in
-     * Jest unit tests because it does not implement the full WebSocket
-     * client/server interface which only works in a trusted environment.
+     * Creates a new test connection for our WebSocket server. Can only be used in Jest
+     * unit tests because it does not implement the full WebSocket client/server
+     * interface which only works in a trusted environment.
      */
     public async connectForTest(
         originalConnectActionContext: Context<
@@ -617,8 +616,8 @@ export class WebSocketServer<
                 context.process.waitUntil(
                     connection
                         .authorize()
-                        // We throw a close error in the test connection wrapper after a test completes
-                        // on our own. The developer can catch a close error with `getCloseError()`.
+                        // We throw a close error in the test connection wrapper after a test completes on
+                        // our own. The developer can catch a close error with `getCloseError()`.
                         .catch(() => {}),
                 );
             },
@@ -649,8 +648,8 @@ export class WebSocketServer<
 
         connection.subscribeToClose(() => {
             this._handleConnectionClose(
-                // Hopefully this is fired synchronously and we get the context object passed
-                // into our `close()` call.
+                // Hopefully this is fired synchronously and we get the context object passed into
+                // our `close()` call.
                 this._contextForCloseEventListenerRef.current ?? connectionProcessContext,
                 connection,
             );
@@ -676,8 +675,8 @@ export class WebSocketServer<
 }
 
 /**
- * WebSocket server connections are implemented either with a real WebSocket
- * client or a test WebSocket client only available in unit tests.
+ * WebSocket server connections are implemented either with a real WebSocket client
+ * or a test WebSocket client only available in unit tests.
  */
 interface WebSocketServerConnectionWrapperBase<
     ProcessContextModules extends {},
@@ -706,23 +705,21 @@ interface WebSocketServerConnectionWrapperBase<
     close(context: Context<ProcessContextModules>, code?: number, reason?: string): void;
 
     /**
-     * Sends an error as the last message then closes the connection. Does nothing
-     * if the connection is already closed.
+     * Sends an error as the last message then closes the connection. Does nothing if
+     * the connection is already closed.
      */
     closeWithError(context: Context<ProcessContextModules>, error: unknown): void;
 
     /**
-     * Is the connection soft closed? While soft closed we stop sending the
-     * connection new messages but wait to fully close until we've sent
-     * acknowledgements for any messages previously sent by the client. The client
-     * is responsible for fully closing the connection once it has received all of
-     * its acknowledgements.
+     * Is the connection soft closed? While soft closed we stop sending the connection
+     * new messages but wait to fully close until we've sent acknowledgements for any
+     * messages previously sent by the client. The client is responsible for fully
+     * closing the connection once it has received all of its acknowledgements.
      */
     isSoftClosed(): boolean;
 
     /**
-     * Soft closes the connection. Does nothing if the connection is already
-     * closed.
+     * Soft closes the connection. Does nothing if the connection is already closed.
      */
     softClose(context: Context<ProcessContextModules>): Promise<void>;
 
@@ -736,9 +733,9 @@ interface WebSocketServerConnectionWrapperBase<
     ): SafeFloatingPromise<void>;
 
     /**
-     * The WebSocket server will try to occasionally expire connections that have
-     * gone offline. When the WebSocket server's expiration check timer triggers it
-     * calls this function. Does nothing if the connection is already closed.
+     * The WebSocket server will try to occasionally expire connections that have gone
+     * offline. When the WebSocket server's expiration check timer triggers it calls
+     * this function. Does nothing if the connection is already closed.
      */
     maybeExpire(context: Context<ProcessContextModules>, currentTimeMs: number): void;
 }
@@ -746,25 +743,24 @@ interface WebSocketServerConnectionWrapperBase<
 const webSocketConnectionAuthorizationSpanName = "Authorizing WebSocket connection";
 
 /**
- * A successful WebSocket connection authorization is invalidated after this
- * time period. At this point, we block all message sending and receiving until
+ * A successful WebSocket connection authorization is invalidated after this time
+ * period. At this point, we block all message sending and receiving until
  * authorization is revalidated.
  */
 const webSocketConnectionAuthorizationInvalidatedMs = 1000 * 60 * 2;
 
 /**
  * After this time period has elapsed since our last WebSocket connection
- * authorization, we re-run authorization to make sure we're still authorized.
- * This value is less than `webSocketConnectionAuthorizationInvalidatedMs` so
- * that we can run authorization in the background without blocking the sending
- * or receiving of realtime messages.
+ * authorization, we re-run authorization to make sure we're still authorized. This
+ * value is less than `webSocketConnectionAuthorizationInvalidatedMs` so that we
+ * can run authorization in the background without blocking the sending or
+ * receiving of realtime messages.
  *
  * In practice, this is the true interval at which we refresh WebSocket
  * authorization.
  *
  * Authorization is refreshed lazily when the connection has activity. If the
- * connection is sitting idle with only ping/pong then we don't run
- * authorization.
+ * connection is sitting idle with only ping/pong then we don't run authorization.
  */
 const webSocketConnectionAuthorizationRevalidateMs =
     webSocketConnectionAuthorizationInvalidatedMs - 1000 * 10;
@@ -814,16 +810,16 @@ class WebSocketServerConnectionWrapper<
     private _lastMessageTime: number = Date.now();
 
     /**
-     * Is the connection soft closed? While soft closed the connection can not send
-     * or receive new messages. It also stops showing up in
-     * `iterateOtherConnections()` so it's not observable by other connections.
-     * However it still receives ping/pong events and message acknowledgements.
-     * Clients will go into this state when the user requested a close but we still
-     * are waiting on some message acknowledgements.
+     * Is the connection soft closed? While soft closed the connection can not send or
+     * receive new messages. It also stops showing up in `iterateOtherConnections()` so
+     * it's not observable by other connections. However it still receives ping/pong
+     * events and message acknowledgements. Clients will go into this state when the
+     * user requested a close but we still are waiting on some message
+     * acknowledgements.
      *
      * The client is expected to close the WebSocket when it is done receiving its
-     * message acknowledgements. The server does not keep track of the remaining
-     * number of unacknowledged messages.
+     * message acknowledgements. The server does not keep track of the remaining number
+     * of unacknowledged messages.
      */
     private _isSoftClosed = false;
 
@@ -837,8 +833,8 @@ class WebSocketServerConnectionWrapper<
     private _authorizationState: {
         startTime: number;
         promise: Promise<void> & {
-            // Allow us to synchronously check whether the authorization promise has
-            // been fulfilled.
+            // Allow us to synchronously check whether the authorization promise has been
+            // fulfilled.
             status?: "fulfilled";
         };
         next: {
@@ -956,8 +952,8 @@ class WebSocketServerConnectionWrapper<
                             });
 
                             // If the client soft closed our connection we won't accept new procedures. We
-                            // still process ping/pong messages since that tells us the connection is
-                            // still alive.
+                            // still process ping/pong messages since that tells us the connection is still
+                            // alive.
                             //
                             // It is important that this comes before any `await`s like our
                             // `await Session.get()` below so we don't have any race conditions between the
@@ -968,11 +964,11 @@ class WebSocketServerConnectionWrapper<
                                 );
 
                             switch (message.type) {
-                                // In response to a ping event, we want to send "pong" to the client so it
-                                // knows we are alive and didn't silently disconnect.
+                                // In response to a ping event, we want to send "pong" to the client so it knows we
+                                // are alive and didn't silently disconnect.
                                 //
-                                // We want to skip authorization when sending the `Pong` message. We should
-                                // only authorize if the connection is actively being used.
+                                // We want to skip authorization when sending the `Pong` message. We should only
+                                // authorize if the connection is actively being used.
                                 case "Ping": {
                                     const messageType = "Pong";
 
@@ -991,8 +987,7 @@ class WebSocketServerConnectionWrapper<
                                 }
                                 case "ProcedureRequest": {
                                     const promise = (async () => {
-                                        // Make sure we are authorized before processing a procedure from the
-                                        // client...
+                                        // Make sure we are authorized before processing a procedure from the client...
                                         await this._authorize(context);
 
                                         const {
@@ -1074,8 +1069,8 @@ class WebSocketServerConnectionWrapper<
         // If our socket is already closed then we don't need to expire.
         if (this.isClosed()) return;
 
-        // If we haven't gotten a message from the client in a while, close it. Maybe
-        // the client's power went out and it silently went away without telling us.
+        // If we haven't gotten a message from the client in a while, close it. Maybe the
+        // client's power went out and it silently went away without telling us.
         if (currentTimeMs - this._lastMessageTime >= webSocketExpirationTimeoutMs) {
             this.close(context, 1002, "WebSocket connection expired due to inactivity");
             return;
@@ -1118,10 +1113,9 @@ class WebSocketServerConnectionWrapper<
         const actuallyAuthorize = (isBlocking: boolean) => {
             if (
                 "actor" in context &&
-                // We can only use the current context when the actor of the current context is
-                // the same account as the connection we're trying to authorize. Otherwise
-                // we'll run the authorization function with the wrong account which is very
-                // bad!
+                // We can only use the current context when the actor of the current context is the
+                // same account as the connection we're trying to authorize. Otherwise we'll run
+                // the authorization function with the wrong account which is very bad!
                 context.actor.type === "Session" &&
                 context.actor.getAccountId() === this._accountId
             ) {
@@ -1188,15 +1182,15 @@ class WebSocketServerConnectionWrapper<
         // This branch runs if one of the following is true:
         //
         // 1. This connection hasn't authorized yet; OR
-        // 2. We have an authorization promise that's invalidated and have not started
-        //    a new authorization promise in the background; OR
-        // 3. We had started a new authorization promise in the background but enough
-        //    time has passed that the background authorization promise has become
-        //    invalidated; OR
+        // 2. We have an authorization promise that's invalidated and have not started a
+        //    new authorization promise in the background; OR
+        // 3. We had started a new authorization promise in the background but enough time
+        //    has passed that the background authorization promise has become invalidated;
+        //    OR
         // 4. Reauthorization is forced by the `force` flag.
         //
-        // We reach case 3 if the branch above sets the new authorization promise but
-        // the new authorization promise is also invalidated.
+        // We reach case 3 if the branch above sets the new authorization promise but the
+        // new authorization promise is also invalidated.
         if (
             force ||
             this._authorizationState === null ||
@@ -1219,8 +1213,8 @@ class WebSocketServerConnectionWrapper<
         }
 
         // If we've passed our revalidation timeout then re-run authorization in the
-        // background. Once our current authorization promise expires we can switch to
-        // this one.
+        // background. Once our current authorization promise expires we can switch to this
+        // one.
         if (
             currentTime - this._authorizationState.startTime >
                 webSocketConnectionAuthorizationRevalidateMs &&
@@ -1248,8 +1242,8 @@ class WebSocketServerConnectionWrapper<
 
         const newAuthorizationPromise = this._authorizationState.promise;
 
-        // If we have a new authorization promise then register callbacks for when
-        // it finishes...
+        // If we have a new authorization promise then register callbacks for when it
+        // finishes...
         if (oldAuthorizationPromise !== newAuthorizationPromise) {
             context.process.waitUntil(
                 newAuthorizationPromise.then(
@@ -1290,12 +1284,11 @@ class WebSocketServerConnectionWrapper<
         originalContext: Context<ProcessContextModules> | Context<ActionContextModules>,
         eventStub: EventStub,
     ): SafeFloatingPromise<void> {
-        // Do not send events to a soft closed WebSocket. A soft closed WebSocket is
-        // in the process of cleaning up and only expects acknowledgements for
-        // previously sent procedures and pong messages.
+        // Do not send events to a soft closed WebSocket. A soft closed WebSocket is in the
+        // process of cleaning up and only expects acknowledgements for previously sent
+        // procedures and pong messages.
         //
-        // Once the client receives all of its procedure responses then it closes
-        // for real.
+        // Once the client receives all of its procedure responses then it closes for real.
         if (this.isClosed() || this._isSoftClosed) return voidSafeFloatingPromise;
 
         const run = async (
@@ -1326,8 +1319,8 @@ class WebSocketServerConnectionWrapper<
 
                 // If `transformEvent()` fails then close the WebSocket connection. We want to
                 // close in case `transformEvent()` throws because the actor lost access to the
-                // underlying resource we're connected to. The client will decide to reconnect
-                // if needed.
+                // underlying resource we're connected to. The client will decide to reconnect if
+                // needed.
                 this.closeWithError(context, error);
                 return;
             }
@@ -1349,10 +1342,10 @@ class WebSocketServerConnectionWrapper<
             );
         };
 
-        // If we're calling `sendEvent()` with a session actor matching this
-        // connection's `AccountId` then we can use the current context to call
-        // `transformEvent()`. Otherwise we need to use our forker to get a context
-        // with an actor matching the context's `AccountId`.
+        // If we're calling `sendEvent()` with a session actor matching this connection's
+        // `AccountId` then we can use the current context to call `transformEvent()`.
+        // Otherwise we need to use our forker to get a context with an actor matching the
+        // context's `AccountId`.
         if (
             "actor" in originalContext &&
             originalContext.actor.type === "Session" &&
@@ -1376,13 +1369,12 @@ class WebSocketServerConnectionWrapper<
             return originalContext.process.waitUntil(
                 this._detachedForker.withForkFromCustomSpan(
                     {span, finishSpan},
-                    // If this is an action context, then we want to share the action cache and
-                    // batches with the forked context. Importantly, if `sendEvent()` is called
-                    // multiple times we want any RPC calls made by `transformEvent()` to be batched
-                    // together.
+                    // If this is an action context, then we want to share the action cache and batches
+                    // with the forked context. Importantly, if `sendEvent()` is called multiple times
+                    // we want any RPC calls made by `transformEvent()` to be batched together.
                     //
-                    // For example, when `MessagingRealtimeConnection` sends `NewMessage` events and
-                    // we need to call the `getChatMessageReferences()` RPC. Those
+                    // For example, when `MessagingRealtimeConnection` sends `NewMessage` events and we
+                    // need to call the `getChatMessageReferences()` RPC. Those
                     // `getChatMessageReferences()` RPC calls should be batched.
                     "batch" in originalContext
                         ? ({
@@ -1404,8 +1396,8 @@ class WebSocketServerConnectionWrapper<
         message: Exclude<WebSocketMessageFromServer<Protocol>, {readonly type: "Event"}>,
     ) {
         // This assert is extra protection in addition to the TypeScript
-        // `Exclude<Message, {type: "Event"}>` to really make sure the actor isn't
-        // calling this function with an event.
+        // `Exclude<Message, {type: "Event"}>` to really make sure the actor isn't calling
+        // this function with an event.
         assert(cast<string>(message.type) !== "Event", "Must use `sendEvent()` to send events");
 
         this._dangerouslySendRawMessageEvenWhenSoftClosed(context, message);
@@ -1414,12 +1406,12 @@ class WebSocketServerConnectionWrapper<
     /**
      * Send a message over our WebSocket connection.
      *
-     * Dangerous since you must guarantee the message is well-formed as this only
-     * takes a string.
+     * Dangerous since you must guarantee the message is well-formed as this only takes
+     * a string.
      *
-     * Will send a message even when the connection is soft closed! We should only
-     * be sending ping/pong and acknowledgement messages when soft closed. If you
-     * are calling this function you should check `isSoftClosed()` before calling.
+     * Will send a message even when the connection is soft closed! We should only be
+     * sending ping/pong and acknowledgement messages when soft closed. If you are
+     * calling this function you should check `isSoftClosed()` before calling.
      */
     private _dangerouslySendRawMessageEvenWhenSoftClosed(
         context: Context<ProcessContextModules> | Context<ActionContextModules>,
@@ -1472,16 +1464,16 @@ class WebSocketServerConnectionWrapper<
         message: string,
     ) {
         // Don't send messages to a closed WebSocket. The WebSocket may not have been
-        // cleaned up yet because it is closing. We will definitely cleanup the
-        // WebSocket on our expiration pass if missed the close event.
+        // cleaned up yet because it is closing. We will definitely cleanup the WebSocket
+        // on our expiration pass if missed the close event.
         if (this.isClosed()) {
             return;
         }
 
         this._socket.send(message);
 
-        // If `messageType` is null then the caller has disabled logging. Hopefully
-        // because they've logged an event of their own.
+        // If `messageType` is null then the caller has disabled logging. Hopefully because
+        // they've logged an event of their own.
         if (messageType !== null) {
             context.tracer.log(`Sent WebSocket message ${messageType}`, {
                 webSocket: {
@@ -1495,8 +1487,8 @@ class WebSocketServerConnectionWrapper<
     /**
      * Close the underlying WebSocket with the provided code and reason.
      *
-     * The close codes can be found [here][1]. The reason string can be an
-     * arbitrary string explaining why we are closing.
+     * The close codes can be found [here][1]. The reason string can be an arbitrary
+     * string explaining why we are closing.
      *
      * [1]: https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1
      */
@@ -1519,8 +1511,8 @@ class WebSocketServerConnectionWrapper<
 
     /**
      * Sends an error message then closes the underlying WebSocket. Useful for
-     * communicating to the client why we're closing so the client can show an
-     * error message to the user (if it was a user error not a system error).
+     * communicating to the client why we're closing so the client can show an error
+     * message to the user (if it was a user error not a system error).
      *
      * If the WebSocket is already closed this does nothing.
      */
@@ -1544,15 +1536,15 @@ class WebSocketServerConnectionWrapper<
 
     /**
      * Wait for any pending procedure requests to finish then close the underlying
-     * WebSocket. This is a peaceful way to close a WebSocket connection since any
-     * work started by the client is completed. (e.g. Database writes.)
+     * WebSocket. This is a peaceful way to close a WebSocket connection since any work
+     * started by the client is completed. (e.g. Database writes.)
      *
-     * This is typically used during a graceful server shutdown to make sure work
-     * is completed before we kill the server.
+     * This is typically used during a graceful server shutdown to make sure work is
+     * completed before we kill the server.
      *
-     * We tell the client we're soft closing so they're expected to immediately
-     * start a new connection. In the graceful server shutdown case the client will
-     * be redirected to a live server.
+     * We tell the client we're soft closing so they're expected to immediately start a
+     * new connection. In the graceful server shutdown case the client will be
+     * redirected to a live server.
      */
     public async softClose(
         context: Context<ProcessContextModules> | Context<ActionContextModules>,
@@ -1627,14 +1619,14 @@ export interface WebSocketServerTestConnection<
 
     /**
      * Get all events sent by the WebSocket server to the client since the last
-     * `takeEvents()` call. Calling this function will clear the array so if
-     * you call it immediately it will be empty.
+     * `takeEvents()` call. Calling this function will clear the array so if you call
+     * it immediately it will be empty.
      *
-     * If you have a subscriber with `subscribeToEvents()` then messages observed
-     * by that function will still show up in `takeEvents()`.
+     * If you have a subscriber with `subscribeToEvents()` then messages observed by
+     * that function will still show up in `takeEvents()`.
      *
-     * This function allows you to pull new messages, `subscribeToEvents()` lets
-     * the server push new messages to you.
+     * This function allows you to pull new messages, `subscribeToEvents()` lets the
+     * server push new messages to you.
      */
     takeEvents(): Array<WebSocketProtocolEventType<Protocol>>;
 
@@ -1643,22 +1635,21 @@ export interface WebSocketServerTestConnection<
      * `takeEvents()` call.
      *
      * Unlike `takeEvents()`, calling this function won't clear the buffered event
-     * array. You can keep calling `peekEvents()` repeatedly and get the same
-     * result.
+     * array. You can keep calling `peekEvents()` repeatedly and get the same result.
      */
     peekEvents(): Array<WebSocketProtocolEventType<Protocol>>;
 
     /**
-     * Subscribe to events from the server as they are published. Returns a
-     * function that lets you unsubscribe.
+     * Subscribe to events from the server as they are published. Returns a function
+     * that lets you unsubscribe.
      */
     subscribeToEvents(
         listener: (message: WebSocketProtocolEventType<Protocol>) => void,
     ): () => void;
 
     /**
-     * Run the connection's authorization procedure to reauthorize. If
-     * authorization fails then the connection will be closed.
+     * Run the connection's authorization procedure to reauthorize. If authorization
+     * fails then the connection will be closed.
      */
     authorize(): Promise<void>;
 
@@ -1673,8 +1664,8 @@ export interface WebSocketServerTestConnection<
     close(): void;
 
     /**
-     * If the connection was closed with an error this will be the error provided
-     * when closed.
+     * If the connection was closed with an error this will be the error provided when
+     * closed.
      */
     getCloseError(): unknown;
 }
@@ -1758,8 +1749,8 @@ class WebSocketServerTestConnectionWrapper<
         assertExists(afterNextCallbacksForTest).push(async () => {
             await ProcessContextModule.waitForTestTasks();
 
-            // In tests, authorize every connection after the current test completes to
-            // make sure we didn't lose access while the test was executing.
+            // In tests, authorize every connection after the current test completes to make
+            // sure we didn't lose access while the test was executing.
             if (!this._isClosed) {
                 await this._detachedForker.withFork(
                     webSocketConnectionAuthorizationSpanName,
@@ -1818,8 +1809,8 @@ class WebSocketServerTestConnectionWrapper<
         return this._detachedForker.withFork(
             webSocketConnectionAuthorizationSpanName,
             (context, span) => {
-                // Considered non-blocking since we aren't blocking any WebSocket operations
-                // like sending or receiving events.
+                // Considered non-blocking since we aren't blocking any WebSocket operations like
+                // sending or receiving events.
                 span.addData({common: {isBlocking: false}});
 
                 return this.connection.authorize(context).catch(error => {
@@ -1843,8 +1834,8 @@ class WebSocketServerTestConnectionWrapper<
     public closeWithError(context: Context<{}>, error: unknown) {
         this._closeError = {hasError: true, error, wasCaught: false};
 
-        // Don't send `ClosingWithError` message. Test connections only record events
-        // not arbitrary messages.
+        // Don't send `ClosingWithError` message. Test connections only record events not
+        // arbitrary messages.
 
         this.close();
     }
@@ -1905,8 +1896,8 @@ class WebSocketServerTestConnectionWrapper<
 
                 // If `transformEvent()` fails then close the WebSocket connection. We want to
                 // close in case `transformEvent()` throws because the actor lost access to the
-                // underlying resource we're connected to. The client will decide to reconnect
-                // if needed.
+                // underlying resource we're connected to. The client will decide to reconnect if
+                // needed.
                 this.closeWithError(context, error);
                 return;
             }
@@ -1919,10 +1910,10 @@ class WebSocketServerTestConnectionWrapper<
             this._events.emit(event);
         };
 
-        // If we're calling `sendEvent()` with a session actor matching this
-        // connection's `AccountId` then we can use the current context to call
-        // `transformEvent()`. Otherwise we need to use our forker to get a context
-        // with an actor matching the context's `AccountId`.
+        // If we're calling `sendEvent()` with a session actor matching this connection's
+        // `AccountId` then we can use the current context to call `transformEvent()`.
+        // Otherwise we need to use our forker to get a context with an actor matching the
+        // context's `AccountId`.
         if (
             "actor" in originalContext &&
             originalContext.actor.type === "Session" &&
@@ -1946,13 +1937,12 @@ class WebSocketServerTestConnectionWrapper<
             return originalContext.process.waitUntil(
                 this._detachedForker.withForkFromCustomSpan(
                     {span, finishSpan},
-                    // If this is an action context, then we want to share the action cache and
-                    // batches with the forked context. Importantly, if `sendEvent()` is called
-                    // multiple times we want any RPC calls made by `transformEvent()` to be batched
-                    // together.
+                    // If this is an action context, then we want to share the action cache and batches
+                    // with the forked context. Importantly, if `sendEvent()` is called multiple times
+                    // we want any RPC calls made by `transformEvent()` to be batched together.
                     //
-                    // For example, when `MessagingRealtimeConnection` sends `NewMessage` events and
-                    // we need to call the `getChatMessageReferences()` RPC. Those
+                    // For example, when `MessagingRealtimeConnection` sends `NewMessage` events and we
+                    // need to call the `getChatMessageReferences()` RPC. Those
                     // `getChatMessageReferences()` RPC calls should be batched.
                     "batch" in originalContext
                         ? ({

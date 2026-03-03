@@ -15,9 +15,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Validates an access policy update. If we're creating the access policy than
- * `oldAccessPolicy` will be null. Starts by running
- * `validateAccessPolicyUpdate()` which is the same check run by the client
- * optimistically when the access policy changes to show the user an error.
+ * `oldAccessPolicy` will be null. Starts by running `validateAccessPolicyUpdate()`
+ * which is the same check run by the client optimistically when the access policy
+ * changes to show the user an error.
  */
 export async function validateAccessPolicyUpdateForServer(
     context: ServerAccountActionContext,
@@ -28,9 +28,9 @@ export async function validateAccessPolicyUpdateForServer(
 ) {
     if (context.actor.type === "Bot" && oldAccessPolicy !== null) {
         // NOTE(ifitzsimmons, #ai): There's no system limitation that prevents bots from
-        // updating access policies we simply just haven't built this capability yet.
-        // As of writing (2026-01-29) bots cannot update content (aside from stream parts
-        // in a message).
+        // updating access policies we simply just haven't built this capability yet. As of
+        // writing (2026-01-29) bots cannot update content (aside from stream parts in a
+        // message).
         throw new PermissionDeniedError("Bots can’t update access policies");
     }
 
@@ -57,9 +57,9 @@ export async function validateAccessPolicyUpdateForServer(
         mapIterable(newAccessPolicy.accountGrantById.keys(), async accountId => {
             if (oldAccessPolicy?.accountGrantById.has(accountId)) return;
 
-            // Can't share with bot accounts. Bot accounts aren't granted access through
-            // direct sharing. Instead when you mention a bot they get access to whatever
-            // you mentioned the bot on for a short period of time.
+            // Can't share with bot accounts. Bot accounts aren't granted access through direct
+            // sharing. Instead when you mention a bot they get access to whatever you
+            // mentioned the bot on for a short period of time.
             if (await isBotSpaceAccount(context, spaceId, accountId)) {
                 throw new PermissionDeniedError("Can\u2019t grant access to a bot account");
             }

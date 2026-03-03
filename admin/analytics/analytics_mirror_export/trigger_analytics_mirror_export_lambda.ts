@@ -27,9 +27,9 @@ const exportBucketPrefix = assertExists(
 /**
  * Lambda handler that triggers DynamoDB exports for dimension tables.
  *
- * This Lambda is scheduled to run daily and triggers point-in-time exports
- * for the Accounts and Spaces tables. The exports are written to S3 and
- * trigger the transform Lambda when complete.
+ * This Lambda is scheduled to run daily and triggers point-in-time exports for the
+ * Accounts and Spaces tables. The exports are written to S3 and trigger the
+ * transform Lambda when complete.
  */
 export const handler: ScheduledHandler = async (event, context) => {
     await withLambdaTimeout(context, new AbortController(), async () => {

@@ -171,9 +171,9 @@ function TaskQueryRouteInner() {
 
     const {filterReferences: initialFilterReferences} = useLoaderDataWithSchema(LoaderSchema);
 
-    // We don't have an entity which can accrue affinity points when looking at a
-    // view. Maybe in the future we should allow users to save named views that
-    // appear in search?
+    // We don't have an entity which can accrue affinity points when looking at a view.
+    // Maybe in the future we should allow users to save named views that appear in
+    // search?
     const affinityManager = useTaskClientStoreSearchAffinityManager(null);
 
     return (
@@ -201,9 +201,9 @@ function TaskQueryRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
 
@@ -226,9 +226,9 @@ function TaskQueryRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
                 }}
@@ -243,9 +243,9 @@ function TaskQueryRouteInner() {
 
                     setSearchParams(newSearchParams, {
                         replace: true,
-                        // Don't revalidate when updating search params from here. We can't use the
-                        // stable `shouldRevalidate` route function because if the user navigates to
-                        // a new URL we want to load new data and re-render the route.
+                        // Don't revalidate when updating search params from here. We can't use the stable
+                        // `shouldRevalidate` route function because if the user navigates to a new URL we
+                        // want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
                 }}

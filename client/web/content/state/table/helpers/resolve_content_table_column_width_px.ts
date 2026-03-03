@@ -15,12 +15,12 @@ export type ContentEditorTableLayout = {
 assertAssignableTypes<ContentTableMap, ContentEditorTableLayout>();
 
 /**
- * Computes the absolute pixel width of each column in a table. Implements the
- * same algorithm CSS grid will use to layout our table in the DOM.
+ * Computes the absolute pixel width of each column in a table. Implements the same
+ * algorithm CSS grid will use to layout our table in the DOM.
  *
  * `totalColumnWidth` must be the sum of all `columnWidths`. Most of the time
- * you'll have precomputed this value so we required you to pass it in so we
- * don't have to compute it again.
+ * you'll have precomputed this value so we required you to pass it in so we don't
+ * have to compute it again.
  */
 export const resolveContentTableColumnWidthPx = createCachedFunction(
     (spacingScale: SpacingScale, blockWidthPx: number, tableLayout: ContentEditorTableLayout) => {
@@ -36,21 +36,20 @@ export const resolveContentTableColumnWidthPx = createCachedFunction(
 );
 
 /**
- * Computes the absolute pixel width of each column in a table. Implements the
- * same algorithm CSS grid will use to layout our table in the DOM.
+ * Computes the absolute pixel width of each column in a table. Implements the same
+ * algorithm CSS grid will use to layout our table in the DOM.
  *
  * `totalColumnWidth` must be the sum of all `columnWidths`. Most of the time
- * you'll have precomputed this value so we required you to pass it in so we
- * don't have to compute it again.
+ * you'll have precomputed this value so we required you to pass it in so we don't
+ * have to compute it again.
  *
  * This function is not cached. Only call this function if you're confident the
  * inputs will change frequently so caching would add more overhead than it's
  * worth.
  */
 // NOTE(calebmer): Normally, since this has 6 arguments, I'd write this with a
-// named argument object. But since this code will be called in a hot path
-// (every frame) so I'm using positional arguments to avoid an extra object
-// allocation.
+// named argument object. But since this code will be called in a hot path (every
+// frame) so I'm using positional arguments to avoid an extra object allocation.
 function resolveContentTableColumnWidthPxWithoutCache(
     totalColumnWidth: number,
     columnWidths: ReadonlyArray<number>,
@@ -115,15 +114,14 @@ function resolveContentTableColumnWidthPxWithoutCache(
             totalColumnWidthPxVariable,
             kiwi.Operator.Le,
             totalColumnWidthPx,
-            // If we have a bunch of columns and the `tableWidth` hasn't grown (e.g. right
-            // now when you paste columns the `tableWidth` doesn't grow) then our total
-            // column width is going to exceed the expected column width so lower the
+            // If we have a bunch of columns and the `tableWidth` hasn't grown (e.g. right now
+            // when you paste columns the `tableWidth` doesn't grow) then our total column
+            // width is going to exceed the expected column width so lower the
             // less-than-or-equal-to constraint from required to "very strong"
             // (`kiwi.Strength.strong` is the same as `kiwi.Strength.create(1, 0, 0)`).
             //
-            // NOTE(calebmer): In this case aren't all columns going to be
-            // `columnMinWidthPx` anyway? Maybe we should early return an array that's just
-            // `columnMinWidthPx`s.
+            // NOTE(calebmer): In this case aren't all columns going to be `columnMinWidthPx`
+            // anyway? Maybe we should early return an array that's just `columnMinWidthPx`s.
             columnWidths.length * columnMinWidthPx > totalColumnWidthPx
                 ? kiwi.Strength.create(2, 0, 0)
                 : kiwi.Strength.required,
@@ -141,14 +139,13 @@ function resolveContentTableColumnWidthPxWithoutCache(
         ),
     );
 
-    // Make sure the column widths maintain the same order. If two column widths
-    // are equal, they should still be equal after solving. If one column width is
-    // less than another it should continue to be less than the other after
-    // solving.
+    // Make sure the column widths maintain the same order. If two column widths are
+    // equal, they should still be equal after solving. If one column width is less
+    // than another it should continue to be less than the other after solving.
     //
-    // We leverage the transitive property here. By establishing the first variable
-    // is less than the second and the second variable is less than the third
-    // variable, therefore the first variable must be less than the third variable.
+    // We leverage the transitive property here. By establishing the first variable is
+    // less than the second and the second variable is less than the third variable,
+    // therefore the first variable must be less than the third variable.
     let previousColumnWidthPxVariableEntry: readonly [number, kiwi.Variable] | null = null;
     for (const columnWidthPxVariableEntry of columnWidthPxVariableEntries
         .slice()

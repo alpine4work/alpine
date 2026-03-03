@@ -8,8 +8,8 @@ import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.j
  */
 export type ProsemirrorVisitor = {
     /**
-     * Called for ProseMirror nodes. If this function returns false then we will
-     * not visit the children or marks of this node.
+     * Called for ProseMirror nodes. If this function returns false then we will not
+     * visit the children or marks of this node.
      */
     readonly visitNode?: (node: Node) => boolean | void;
 
@@ -85,8 +85,8 @@ export function visitProsemirrorSlice(slice: Slice, visitor: ProsemirrorVisitor)
 /**
  * Call the visitor for all relevant objects in the provided step.
  *
- * If the step removes a mark we don't visit the mark since the mark is not
- * present in the content.
+ * If the step removes a mark we don't visit the mark since the mark is not present
+ * in the content.
  */
 export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor) {
     const step = rootStep as ExhaustiveStep;

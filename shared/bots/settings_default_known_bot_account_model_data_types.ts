@@ -7,8 +7,8 @@ import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {AccountModelDataForAvatarDesign} from "~/shared/spaces/get_account_avatar_design.js";
 
 /**
- * The type for default account data for known bots. We use this to render a
- * bot in settings before a bot account has actually been instantiated.
+ * The type for default account data for known bots. We use this to render a bot in
+ * settings before a bot account has actually been instantiated.
  *
  * The default account data is always in the `Removed` state.
  */
@@ -32,8 +32,8 @@ export const SettingsDefaultKnownBotAccountModelDataSchema: Schema<SettingsDefau
     });
 
 /**
- * Type that's both `DefaultKnownBotAccountModelData` and `AccountModelData`
- * are assignable to.
+ * Type that's both `DefaultKnownBotAccountModelData` and `AccountModelData` are
+ * assignable to.
  */
 export type SettingsDefaultKnownBotAccountModelDataBase = AccountModelDataForAvatarDesign &
     Pick<AccountModelData, "name">;

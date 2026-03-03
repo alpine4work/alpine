@@ -19,18 +19,17 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
  *
  * For `Map`s and `Set`s the insertion order does not matter.
  *
- * The contents of a `Set` must be referentially equal. We will not try to
- * check deep equality on set values if they are objects. Same with `Map` keys.
+ * The contents of a `Set` must be referentially equal. We will not try to check
+ * deep equality on set values if they are objects. Same with `Map` keys.
  *
- * For non-plain object values that aren't otherwise supported (e.g.
- * ProseMirror `Node`s) we'll check referential equality (`a === b`) and if
- * that fails we'll return false.
+ * For non-plain object values that aren't otherwise supported (e.g. ProseMirror
+ * `Node`s) we'll check referential equality (`a === b`) and if that fails we'll
+ * return false.
  */
-// NOTE(calebmer): I chose to manually write a deep equality implementation
-// instead of using the common Lodash implementation since at a previous job I
-// discovered Lodash considers
-// `isEqual(new Map([['x', [1, 2]]]), new Map([['x', [2, 1]]]))` to be true!
-// Beware of Lodash deep equality.
+// NOTE(calebmer): I chose to manually write a deep equality implementation instead
+// of using the common Lodash implementation since at a previous job I discovered
+// Lodash considers `isEqual(new Map([['x', [1, 2]]]), new Map([['x', [2, 1]]]))`
+// to be true! Beware of Lodash deep equality.
 export function isDeepEqual(value1: unknown, value2: unknown): boolean {
     if (value1 === value2) return true;
 
@@ -46,9 +45,9 @@ export function isDeepEqual(value1: unknown, value2: unknown): boolean {
         );
     }
 
-    // For numbers, `Object.is()` considers `NaN` as equal to `NaN`. This is the
-    // same algorithm used by `Set.has()` and `Map.has()`.
-    // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+    // For numbers, `Object.is()` considers `NaN` as equal to `NaN`. This is the same
+    // algorithm used by `Set.has()` and `Map.has()`. See:
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
     if (typeof value1 === "number" && typeof value2 === "number") {
         return Object.is(value1, value2);
     }

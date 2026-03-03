@@ -87,9 +87,8 @@ export function InboxEntryView({
     withBackgroundIfPressed?: boolean;
     withEntryTime?: boolean;
     // Because entries are virtualized, we need to set these properties so screen
-    // readers can correctly announce what position the user is in no matter
-    // what's in the DOM.
-    // https://w3c.github.io/aria/#aria-setsize
+    // readers can correctly announce what position the user is in no matter what's in
+    // the DOM. https://w3c.github.io/aria/#aria-setsize
     "aria-setsize"?: number;
     "aria-posinset"?: number;
     deletedItemAnimation?: {
@@ -128,8 +127,8 @@ export function InboxEntryView({
                 setArchiveFilterMoreMenuButtonState({isExpanded: false});
             },
             overlayFadeOutAnimationDurationMs +
-                // Wait a bit before setting `isExpanded` to false so `isHovered` state can
-                // become true and actions don't temporarily blink out of existence.
+                // Wait a bit before setting `isExpanded` to false so `isHovered` state can become
+                // true and actions don't temporarily blink out of existence.
                 perceivedAsInstantLimitMs,
         );
 
@@ -173,15 +172,15 @@ export function InboxEntryView({
         }
     }, [deletedItemAnimation, entry]);
 
-    // Watch all parent elements of our content editor for scroll events. When a
-    // scroll event occurs we call `setIsPressed(false)`.
+    // Watch all parent elements of our content editor for scroll events. When a scroll
+    // event occurs we call `setIsPressed(false)`.
     //
     // This replicates the behavior in `@react-aria/interactions` where a press is
-    // cancelled when a parent element scrolls. This behavior is important for
-    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // cancelled when a parent element scrolls. This behavior is important for mobile
+    // since the user must press somewhere on the screen to scroll. Normally
     // `pointercancel` should be dispatched when the user scrolls while pressing on
-    // some element but when the CSS `touch-action: manipulation` is set the press
-    // is not cancelled.
+    // some element but when the CSS `touch-action: manipulation` is set the press is
+    // not cancelled.
     useEffect(() => {
         if (!isPressed) return;
 
@@ -235,8 +234,8 @@ export function InboxEntryView({
     useEffect(() => {
         if (filter !== "New") return;
 
-        // If the user can hover then we'll show a "Done" button when the user hovers
-        // over the entry.
+        // If the user can hover then we'll show a "Done" button when the user hovers over
+        // the entry.
         if (canPrimaryInputHover) return;
 
         const entryElement = assertExists(entryRef.current);
@@ -332,8 +331,8 @@ export function InboxEntryView({
                             touchSwipeStateRef.current = null;
                         });
                     }
-                    // The user swiped enough to archive the inbox entry. Animate the entry
-                    // offscreen and perform archival with an animation.
+                    // The user swiped enough to archive the inbox entry. Animate the entry offscreen
+                    // and perform archival with an animation.
                     else {
                         const animation = animate(
                             entryContentElement,
@@ -357,11 +356,11 @@ export function InboxEntryView({
                 const translateX =
                     (touch.clientX - touchState.initialClientX - horizontalActivationDistance) *
                     // We slow the drag animation down to make it feel like the user is dragging
-                    // something heavy. But also this ends up smoothing out the animation! We only
-                    // get `touchmove` events every whole pixel. But on devices like iPhone every
-                    // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
-                    // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
-                    // across multiple hardware pixels per move.
+                    // something heavy. But also this ends up smoothing out the animation! We only get
+                    // `touchmove` events every whole pixel. But on devices like iPhone every virtual
+                    // pixel is actually rendered by 2 to 3 hardware pixels. So animating 1:1 with
+                    // `touchmove` events can looking subtly coarse since we're jumping across multiple
+                    // hardware pixels per move.
                     (1 / 2);
 
                 const touchSwipeIconElement = touchSwipeIconRef.current;
@@ -453,8 +452,8 @@ export function InboxEntryView({
                 return;
             }
 
-            // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
-            // shown on hover).
+            // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>` shown
+            // on hover).
             if (event.target instanceof Node && !entryElement.contains(event.target)) {
                 setIsPressed(false);
                 return;
@@ -517,13 +516,13 @@ export function InboxEntryView({
             paddingBottom={withMarginBottom ? "1" : undefined}
             style={{minHeight: inboxEntryViewMinHeight}}
             // NOTE(calebmer): Not using `usePress()` here because that hook does something
-            // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
-            // to not be focused after a click.
+            // weird with `event.preventDefault()` that causes the listbox in `<InboxView>` to
+            // not be focused after a click.
             onPointerDown={event => {
                 if (touchSwipeState !== null) return;
 
-                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
-                // shown on hover).
+                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>` shown
+                // on hover).
                 if (event.target instanceof Node && !event.currentTarget.contains(event.target))
                     return;
 
@@ -538,8 +537,8 @@ export function InboxEntryView({
                 zIndex="0"
                 style={
                     // We use `backgroundColorVar` to draw an outline around avatars. Even though we
-                    // use an absolutely positioned element to set the background color we still
-                    // want `backgroundColorVar` to reflect the right value.
+                    // use an absolutely positioned element to set the background color we still want
+                    // `backgroundColorVar` to reflect the right value.
                     backgroundColor
                         ? assignInlineVars({[backgroundColorVar]: colorSchemeVars[backgroundColor]})
                         : undefined
@@ -547,9 +546,9 @@ export function InboxEntryView({
             >
                 {!canPrimaryInputHover && (
                     // Render this background on touch devices when the swipe to archive gesture is
-                    // enabled. When we archive an entry, the entries below it animate up to cover
-                    // the deleted entry. Those entries need a background color to actually obscure
-                    // the deleted entry.
+                    // enabled. When we archive an entry, the entries below it animate up to cover the
+                    // deleted entry. Those entries need a background color to actually obscure the
+                    // deleted entry.
                     <Box
                         position="absolute"
                         inset="0"
@@ -579,9 +578,9 @@ export function InboxEntryView({
                         right="2.5"
                         zIndex="-10"
                         style={{
-                            // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                            // 1px to layout. Layout needs to be precise since this is rendered in a
-                            // virtualized list.
+                            // Draw border with a `box-shadow` instead of `border` so it doesn't contribute 1px
+                            // to layout. Layout needs to be precise since this is rendered in a virtualized
+                            // list.
                             boxShadow: [
                                 `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                                 ...(withBorderTop
@@ -908,8 +907,7 @@ function getPrimaryBrandIconByType(
         case "Document":
             return (
                 // Scooch document icon right a little to balance it visually with other icons.
-                // Given the document icon has a vertical orientation vs horizontal
-                // orientation.
+                // Given the document icon has a vertical orientation vs horizontal orientation.
                 <Box position="relative" style={{right: "-0.0625rem"}}>
                     <DocumentBrandIcon />
                 </Box>

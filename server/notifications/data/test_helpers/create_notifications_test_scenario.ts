@@ -8,8 +8,8 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
-// We create a new scenario for every test so the inbox isn't shared between
-// test runs.
+// We create a new scenario for every test so the inbox isn't shared between test
+// runs.
 export async function createNotificationsTestScenario(context: TestContext) {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);

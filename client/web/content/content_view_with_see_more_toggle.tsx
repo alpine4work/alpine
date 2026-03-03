@@ -26,8 +26,8 @@ export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferenc
     );
     if (!isShowingAllContent && !isContentSnippetTruncated) setIsShowingAllContent(true);
 
-    // If we're running a `jumpAnimation` while content is closed then open the
-    // content so we can see what the jump animation is trying to highlight!
+    // If we're running a `jumpAnimation` while content is closed then open the content
+    // so we can see what the jump animation is trying to highlight!
     if (!isShowingAllContent && isContentSnippetTruncated && props.jumpAnimation)
         setIsShowingAllContent(true);
 
@@ -75,10 +75,9 @@ export function ContentViewWithSeeMoreToggleBase<Content extends ContentWithRefe
     } | null>(null);
 
     // When the user presses "See less" then after rendering we want to scroll the
-    // nearest scrollable parent such that the bottom of the post's content stays
-    // in the same place on screen. Instead of leaving the scroll position as it is
-    // which can end up showing completely unrelated content in a large scroll
-    // view.
+    // nearest scrollable parent such that the bottom of the post's content stays in
+    // the same place on screen. Instead of leaving the scroll position as it is which
+    // can end up showing completely unrelated content in a large scroll view.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isShowingAllContent) return;
 

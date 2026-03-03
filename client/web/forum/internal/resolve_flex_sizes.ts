@@ -1,8 +1,7 @@
 /**
- * Performs a [simple flexbox layout algorithm][1] that currently only takes
- * into account max sizes and flex ratios. Can be used to layout on either a
- * vertical or horizontal axis. The name "size" is independent of what axis
- * we're laying out.
+ * Performs a [simple flexbox layout algorithm][1] that currently only takes into
+ * account max sizes and flex ratios. Can be used to layout on either a vertical or
+ * horizontal axis. The name "size" is independent of what axis we're laying out.
  *
  * [1]: https://css-tricks.com/snippets/css/a-guide-to-flexbox
  */

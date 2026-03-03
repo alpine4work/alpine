@@ -41,7 +41,7 @@ function createKinesisResponse(
 }
 
 beforeEach(() => {
-    // Force production mode so _isLocal is false
+    // Force production mode so \_isLocal is false
     process.env.NODE_ENV = "production";
 });
 

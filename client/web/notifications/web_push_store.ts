@@ -3,8 +3,9 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
-// If the schema of the web push store changes, increment the version number to apply the changes.
-// Note that data from the previous version will not carry over to the new version.
+// If the schema of the web push store changes, increment the version number to
+// apply the changes. Note that data from the previous version will not carry over
+// to the new version.
 const webPushDatabaseVersion = 1;
 const webPushDatabaseName = "webPushStore";
 const vapidPublicKeyVersion = 1;
@@ -40,12 +41,12 @@ const webPushStore = new Lazy(
         deleteWebPushSubscription: (browserId: BrowserId) => Promise<void>;
         clearAllWebPushSubscriptions: () => Promise<void>;
     } => {
-        // NOTE: Don't worry that we never close this connection.[1]
-        // [1]: https://stackoverflow.com/questions/34915581/indexeddb-when-to-close-a-connection/34927204#34927204
+        // NOTE: Don't worry that we never close this connection.[1] [1]:
+        // https://stackoverflow.com/questions/34915581/indexeddb-when-to-close-a-connection/34927204#34927204
         const openRequest = globalThis.indexedDB.open(webPushDatabaseName, webPushDatabaseVersion);
 
-        // Create the initial object stores, this event fires when the database is created or if its
-        // version number is incremented.
+        // Create the initial object stores, this event fires when the database is created
+        // or if its version number is incremented.
         openRequest.onupgradeneeded = () => {
             const database = openRequest.result;
             database.createObjectStore("webPushSubscriptions", {keyPath: "browserId"});

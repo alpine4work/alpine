@@ -46,14 +46,14 @@ type RpcImplementationOptions<Input, Output> = {
 };
 
 /**
- * Implements a set of RPCs on the server. RPCs are defined in `~/shared/rpc`
- * and implemented in `~/server/rpc`. This way the client has access to the RPC
+ * Implements a set of RPCs on the server. RPCs are defined in `~/shared/rpc` and
+ * implemented in `~/server/rpc`. This way the client has access to the RPC
  * definitions but only the server can actually implement them.
  *
- * You pass a `visibility` array to decide which services may call this RPC. We
- * get the name from Bazel `visibility`. In the future we may actually enforce
- * who can call an RPC with Bazel visibility for better static analysis, code
- * colocation, and bundle splitting.
+ * You pass a `visibility` array to decide which services may call this RPC. We get
+ * the name from Bazel `visibility`. In the future we may actually enforce who can
+ * call an RPC with Bazel visibility for better static analysis, code colocation,
+ * and bundle splitting.
  */
 export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<any, any>}>(
     definitions: Definitions,
@@ -119,21 +119,21 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
                 const tracerBase = context.tracer.getTracer();
                 const tracer = tracerBase.getRoot();
 
-                // `tracerBase instanceof TracerSpan` doesn't work because in `AppService`, due
-                // to our hot reloading setup, `tracerBase` may come from a different
-                // JavaScript runtime.
+                // `tracerBase instanceof TracerSpan` doesn't work because in `AppService`, due to
+                // our hot reloading setup, `tracerBase` may come from a different JavaScript
+                // runtime.
                 const parentSpan = hasOwnProperty(tracerBase, "traceId")
                     ? (tracerBase as TracerSpan)
                     : null;
 
-                // Create a span manually. If `replaceTracerPropagationContext` is set then we
-                // want to use the `traceId`/`parentId` of the span in `context` but we want to
-                // use the propagated data from `replaceTracerPropagationContext`.
+                // Create a span manually. If `replaceTracerPropagationContext` is set then we want
+                // to use the `traceId`/`parentId` of the span in `context` but we want to use the
+                // propagated data from `replaceTracerPropagationContext`.
                 //
                 // This is important for when `WorkerRpcContextModule` calls
-                // `/api/rpc/_batchByActor` because we want to use the right
-                // `context.accountId` for each call. We don't want to use the
-                // `context.accountId` of the first call which happens to be the span parent.
+                // `/api/rpc/_batchByActor` because we want to use the right `context.accountId`
+                // for each call. We don't want to use the `context.accountId` of the first call
+                // which happens to be the span parent.
                 const {span, finishSpan} = TracerSpan._start(
                     tracer,
                     // Inherit the parent span's clock if available.
@@ -162,10 +162,10 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
                         });
 
                         // RPCs may only be executed from specific services. For instance, you can only
-                        // call `updateDocumentContent()` from `DocumentCollaborationService`. If
-                        // anyone else was able to call `updateDocumentContent()` then it would break
-                        // `DocumentCollaborationService`'s centralized knowledge of the current
-                        // document version.
+                        // call `updateDocumentContent()` from `DocumentCollaborationService`. If anyone
+                        // else was able to call `updateDocumentContent()` then it would break
+                        // `DocumentCollaborationService`'s centralized knowledge of the current document
+                        // version.
                         const isVisible =
                             visibility === "Public" ||
                             visibility.has(context.actor.serviceName) ||
@@ -204,8 +204,8 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
             return {
                 execute,
                 executeWithoutSerialization: (context, callId, input, options) => {
-                    // Make sure the input is well formed beyond complying with the TypeScript
-                    // types without doing a full serialization/deserialization.
+                    // Make sure the input is well formed beyond complying with the TypeScript types
+                    // without doing a full serialization/deserialization.
                     definition.inputSchema.validate?.(input);
 
                     return executeWithoutSerialization(context, callId, input, options);

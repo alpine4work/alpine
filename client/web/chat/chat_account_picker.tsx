@@ -160,11 +160,11 @@ function createChatAccountPickerSearchUnknownChatItemStore(
 }
 
 /**
- * Limit of search results we'll fetch on the client. We don't lazy load more
- * when the user scrolls, instead the user needs to narrow their search.
+ * Limit of search results we'll fetch on the client. We don't lazy load more when
+ * the user scrolls, instead the user needs to narrow their search.
  *
- * This is enough to give the user some choice while they scroll while not
- * using too many resources.
+ * This is enough to give the user some choice while they scroll while not using
+ * too many resources.
  */
 const searchRoomChatsByKeywordsLimit = 20;
 
@@ -283,8 +283,8 @@ function useChatAccountPickerItems({
                     (otherAccountDatas): ChatAccountPickerItem => {
                         const sortedOtherAccountDatas = Array.from(otherAccountDatas);
 
-                        // Selected accounts go to the end. We should prefer showing accounts that
-                        // haven't been selected yet.
+                        // Selected accounts go to the end. We should prefer showing accounts that haven't
+                        // been selected yet.
                         sortedOtherAccountDatas.sort((a, b) => {
                             if (selectedAccountIds.has(a.id) && selectedAccountIds.has(b.id))
                                 return 0;
@@ -328,8 +328,8 @@ function useChatAccountPickerItems({
 
         const affinityScoreByKey = new Map<ChatAccountPickerItem["key"], number>();
 
-        // Include chats from our affinity list. So the user can quickly select a chat
-        // they have an affinity for.
+        // Include chats from our affinity list. So the user can quickly select a chat they
+        // have an affinity for.
         if (searchByAffinityOutput) {
             for (const result of concatIterables(
                 searchByAffinityOutput.results,
@@ -347,8 +347,8 @@ function useChatAccountPickerItems({
                     case "Chat": {
                         affinityScoreByKey.set(`Chat:${entityIdObject.chatId}`, result.score);
 
-                        // If this direct chat was already in `suggestedChats` then don't include it
-                        // again as an `UnknownChat`.
+                        // If this direct chat was already in `suggestedChats` then don't include it again
+                        // as an `UnknownChat`.
                         if (seenDirectChatIds.has(entityIdObject.chatId)) break;
 
                         itemStores.push(
@@ -371,8 +371,8 @@ function useChatAccountPickerItems({
 
         return Store.mapMany(itemStores, items =>
             items.slice().sort((item1, item2) => {
-                // Suggested direct chats always go first. If you're typing in account names
-                // we want to help you create a direct group chat.
+                // Suggested direct chats always go first. If you're typing in account names we
+                // want to help you create a direct group chat.
                 if (item1.type === "SuggestedDirectChat" && item2.type === "SuggestedDirectChat")
                     return 0;
                 if (item1.type === "SuggestedDirectChat") return -1;
@@ -387,8 +387,8 @@ function useChatAccountPickerItems({
                 if (score1 !== undefined) return -1;
                 if (score2 !== undefined) return 1;
 
-                // Use the sort order from the server. The server returns accounts in
-                // affinity order.
+                // Use the sort order from the server. The server returns accounts in affinity
+                // order.
                 return 0;
             }),
         );
@@ -404,8 +404,8 @@ function useChatAccountPickerItems({
 
     const allItems = useStore(allItemsStore);
 
-    // Remove items that match our selection. Items should help the user
-    // autocomplete. Items that won't add to their selection are not useful.
+    // Remove items that match our selection. Items should help the user autocomplete.
+    // Items that won't add to their selection are not useful.
     const itemsWithoutSelection = useMemo(() => {
         return allItems.filter(item => {
             switch (item.type) {
@@ -413,8 +413,8 @@ function useChatAccountPickerItems({
                 case "Account": {
                     return !selectedAccountIds.has(item.accountData.id);
                 }
-                // At least one account in the recommended chat should not already be selected
-                // for it to show up.
+                // At least one account in the recommended chat should not already be selected for
+                // it to show up.
                 case "SuggestedDirectChat": {
                     return item.otherAccountDatas.some(
                         accountData => !selectedAccountIds.has(accountData.id),
@@ -422,9 +422,9 @@ function useChatAccountPickerItems({
                 }
                 case "SearchUnknownChat": {
                     // If this is the currently selected chat then filter it out. Otherwise, leave
-                    // chats from `searchByAffinity` in even if it's a direct chat where all
-                    // accounts are selected. Since it has a high affinity score, we think it's
-                    // good to give the user a shortcut to return back to this chat.
+                    // chats from `searchByAffinity` in even if it's a direct chat where all accounts
+                    // are selected. Since it has a high affinity score, we think it's good to give the
+                    // user a shortcut to return back to this chat.
 
                     if (loaderSelectedChatId && item.key === `Chat:${loaderSelectedChatId}`)
                         return false;
@@ -450,8 +450,8 @@ function useChatAccountPickerItems({
             if (activeSearchQuery === "") {
                 // Don't include removed accounts in the initial rendered account list.
                 //
-                // TODO(calebmer): When searching, removed accounts should rank lower. How do
-                // we give them a lower score while still allowing users to find them?
+                // TODO(calebmer): When searching, removed accounts should rank lower. How do we
+                // give them a lower score while still allowing users to find them?
                 return new ConstStore(
                     itemsWithoutSelection.filter(
                         item =>
@@ -465,9 +465,9 @@ function useChatAccountPickerItems({
             const locallySearchedItemsAboveThreshold: Array<ChatAccountPickerItem> = [];
             const locallySearchedItemsBelowThreshold: Array<ChatAccountPickerItem> = [];
 
-            // Pick an arbitrary threshold at which locally searched items are rendered
-            // above our `searchRoomChatsByKeywords` results and which locally searched
-            // items are rendered below our `searchRoomChatsByKeywords` results.
+            // Pick an arbitrary threshold at which locally searched items are rendered above
+            // our `searchRoomChatsByKeywords` results and which locally searched items are
+            // rendered below our `searchRoomChatsByKeywords` results.
             for (const {item, score} of locallySearchedItems) {
                 if (score! >= 0.2) {
                     locallySearchedItemsBelowThreshold.push(item);
@@ -611,9 +611,9 @@ export function ChatAccountPicker({
         [selectedItemsLength],
     );
 
-    // When this is set to true we allow the next animation then no more
-    // animations. Most interactions that control whether the picker is open/close
-    // are direct interactions that shouldn't be animated.
+    // When this is set to true we allow the next animation then no more animations.
+    // Most interactions that control whether the picker is open/close are direct
+    // interactions that shouldn't be animated.
     const [shouldOverlayAnimate, setShouldOverlayAnimate] = useState(false);
     useEffect(() => {
         if (!shouldOverlayAnimate) return;
@@ -634,16 +634,16 @@ export function ChatAccountPicker({
         abortController: AbortController;
     } | null>(null);
 
-    // If the search changed such that the item is no longer visible or the
-    // combobox has closed then cancel our request.
+    // If the search changed such that the item is no longer visible or the combobox
+    // has closed then cancel our request.
     if (pendingItemState && (!isComboBoxOpen || !searchedItemByKey.has(pendingItemState.key))) {
         pendingItemState.abortController.abort();
         setPendingItemState(null);
     }
 
     const comboBoxProps: ComboBoxStateOptions<ChatAccountPickerItem> = {
-        // We need to know whether the combobox is open or not to decide whether we
-        // should load accounts.
+        // We need to know whether the combobox is open or not to decide whether we should
+        // load accounts.
         onOpenChange: setIsComboBoxOpen,
 
         label: "To",
@@ -656,8 +656,8 @@ export function ChatAccountPicker({
 
         inputValue: searchQuery,
         onInputChange: searchQuery => {
-            // Don't allow changing the query text while a room chat is selected. You're
-            // only allowed to press backspace.
+            // Don't allow changing the query text while a room chat is selected. You're only
+            // allowed to press backspace.
             if (selectionState.type === "RoomChat") return;
 
             setSearchQuery({searchQuery, shouldCloseComboBox: false});
@@ -682,10 +682,10 @@ export function ChatAccountPicker({
         },
 
         onBlur: event => {
-            // Chrome dispatches a "fake" blur event when the user has an element focused
-            // but then clicks on another window, focusing that window but leaving our
-            // current window visible. `blur` is dispatched but `document.activeElement`
-            // doesn't change!
+            // Chrome dispatches a "fake" blur event when the user has an element focused but
+            // then clicks on another window, focusing that window but leaving our current
+            // window visible. `blur` is dispatched but `document.activeElement` doesn't
+            // change!
             //
             // Detect this case. If we receive a `blur` event but `document.activeElement`
             // hasn't changed then escalate to a real blur.
@@ -693,15 +693,15 @@ export function ChatAccountPicker({
                 event.target.blur();
             }
 
-            // Animate when the combobox loses focus. Losing focus is typically not a
-            // direct user interaction. e.g. Clicking outside of the text box. Tabbing out
-            // of the text box we consider an indirect interaction since the animation can
-            // highlight to the user that their state is going away.
+            // Animate when the combobox loses focus. Losing focus is typically not a direct
+            // user interaction. e.g. Clicking outside of the text box. Tabbing out of the text
+            // box we consider an indirect interaction since the animation can highlight to the
+            // user that their state is going away.
             setShouldOverlayAnimate(true);
         },
 
-        // No key is ever selected by the combobox. Instead when a selection occurs we
-        // add it to a list of selected values.
+        // No key is ever selected by the combobox. Instead when a selection occurs we add
+        // it to a list of selected values.
         selectedKey: null,
         onSelectionChange: key => {
             setSearchQuery({searchQuery: "", shouldCloseComboBox: true});
@@ -741,8 +741,8 @@ export function ChatAccountPicker({
 
                         return [
                             ...selectedAccounts,
-                            // Select accounts from the chat object that haven't been selected yet,
-                            // preserving the order of already selected accounts.
+                            // Select accounts from the chat object that haven't been selected yet, preserving
+                            // the order of already selected accounts.
                             ...item.chat.definition.accounts.filter(
                                 account =>
                                     account.id !== currentAccount?.id &&
@@ -757,24 +757,21 @@ export function ChatAccountPicker({
                 case "SearchUnknownChat": {
                     const chatId = assertId<ChatId>(key.slice("Chat:".length));
 
-                    // Direct chats have an `AccountPile` media type with a non-null
-                    // `accountCount`. Assume the chat is a room chat otherwise.
+                    // Direct chats have an `AccountPile` media type with a non-null `accountCount`.
+                    // Assume the chat is a room chat otherwise.
                     //
-                    // - For direct chats we want to set selected accounts to all members in
-                    //   the chat.
+                    // - For direct chats we want to set selected accounts to all members in the chat.
                     //
-                    // - For room chats we want to set the selection state to just our one room
-                    //   chat. You can't add people after the room chat, you can only clear the
-                    //   room chat.
+                    // - For room chats we want to set the selection state to just our one room chat.
+                    //   You can't add people after the room chat, you can only clear the room chat.
                     if (item.media?.type !== "AccountPile" || item.media.accountCount === null) {
                         onSelectRoomChat({id: chatId, name: item.textValue});
                     } else {
                         const abortController = new AbortController();
 
                         setPendingItemState(oldPendingItemState => {
-                            // Make absolutely sure we abort any previous pending item. We should abort
-                            // above in this function but we're scared of strange concurrent React race
-                            // conditions.
+                            // Make absolutely sure we abort any previous pending item. We should abort above
+                            // in this function but we're scared of strange concurrent React race conditions.
                             if (oldPendingItemState) oldPendingItemState.abortController.abort();
 
                             return {key, abortController};
@@ -784,8 +781,8 @@ export function ChatAccountPicker({
                             .then(({chat}) => {
                                 if (abortController.signal.aborted) return;
 
-                                // This is actually a room chat! This could happen during a race condition
-                                // where a direct chat is turned into a room chat.
+                                // This is actually a room chat! This could happen during a race condition where a
+                                // direct chat is turned into a room chat.
                                 if (chat.definition.type !== "Direct") {
                                     onSelectRoomChat({id: chatId, name: chat.definition.name});
                                     return;
@@ -825,8 +822,8 @@ export function ChatAccountPicker({
 
     const comboBoxState = useComboBoxState(comboBoxProps);
 
-    // The combobox must always be closed when we have a room chat selected. Since
-    // you can't add anything new into the combobox.
+    // The combobox must always be closed when we have a room chat selected. Since you
+    // can't add anything new into the combobox.
     if (selectionState.type === "RoomChat" && comboBoxState.isOpen) {
         comboBoxState.close();
     }
@@ -844,14 +841,14 @@ export function ChatAccountPicker({
         setSearchQuery({searchQuery, shouldCloseComboBox: false});
     }, [comboBoxState, searchQuery, selectedItems.length, shouldCloseComboBox]);
 
-    // If there are no selected accounts, we should always consider the combobox to
-    // be open. Our `<Overlay>` component is set to always be visible if
-    // `selectedItems.length === 0` even if `comboBoxState.isOpen` is false.
-    // Catch up `comboBoxState` to this reality in an effect.
+    // If there are no selected accounts, we should always consider the combobox to be
+    // open. Our `<Overlay>` component is set to always be visible if
+    // `selectedItems.length === 0` even if `comboBoxState.isOpen` is false. Catch up
+    // `comboBoxState` to this reality in an effect.
     //
     // NOTE(calebmer): Admittedly, this is pretty hacky! I think we've outgrown
-    // `react-aria`'s `useCombobox()`. Ideally we'd write our own combobox logic
-    // which has first-class support for always-open comboboxes.
+    // `react-aria`'s `useCombobox()`. Ideally we'd write our own combobox logic which
+    // has first-class support for always-open comboboxes.
     useEffect(() => {
         if (!comboBoxState.isOpen && selectedItems.length === 0) {
             comboBoxState.open();
@@ -860,16 +857,15 @@ export function ChatAccountPicker({
         }
     }, [comboBoxState, selectedItems.length]);
 
-    // Auto-focus the first result when the user is typing a search query. This
-    // allows the user to press Enter immediately to select the first result
-    // instead of having to press the down arrow first.
+    // Auto-focus the first result when the user is typing a search query. This allows
+    // the user to press Enter immediately to select the first result instead of having
+    // to press the down arrow first.
     //
-    // TODO: This causes an inperceivable flash where the focus ring isn't visible on the first
-    // paint. Using `useLayoutEffectWithoutServerSideWarning` doesn't help because
-    // `useComboBoxState` resets `focusedKey` to null during render when items
-    // change. Our effect sets it back, but the re-render with the correct
-    // focusedKey is preempted by the next keystroke. Fixing this is deeper than
-    // this component.
+    // TODO: This causes an inperceivable flash where the focus ring isn't visible on
+    // the first paint. Using `useLayoutEffectWithoutServerSideWarning` doesn't help
+    // because `useComboBoxState` resets `focusedKey` to null during render when items
+    // change. Our effect sets it back, but the re-render with the correct focusedKey
+    // is preempted by the next keystroke. Fixing this is deeper than this component.
     useEffect(() => {
         if (searchQuery !== "" && searchedItems.length > 0) {
             const firstItem = searchedItems[0];
@@ -907,8 +903,8 @@ export function ChatAccountPicker({
                         break;
                     }
 
-                    // If we are at the beginning of the combobox text input, the backspace key
-                    // will delete the last selected account.
+                    // If we are at the beginning of the combobox text input, the backspace key will
+                    // delete the last selected account.
                     case "Backspace": {
                         if (
                             selectedItems.length > 0 &&
@@ -937,8 +933,8 @@ export function ChatAccountPicker({
                         }
                         break;
                     }
-                    // If we are at the beginning of the combobox text input, the arrow left key
-                    // will focus a previously selected account if we have one.
+                    // If we are at the beginning of the combobox text input, the arrow left key will
+                    // focus a previously selected account if we have one.
                     case "ArrowLeft": {
                         if (
                             selectedItems.length > 0 &&
@@ -958,10 +954,10 @@ export function ChatAccountPicker({
                         event.preventDefault();
                         event.stopPropagation();
 
-                        // HACK: We're programmatically moving focus, but we're just hijacking
-                        // the tab key here, so we should make sure we maintain the
-                        // correct interaction modality, but NOT show the focus ring for
-                        // this action. Focus rings do not show in pointer modality.
+                        // HACK: We're programmatically moving focus, but we're just hijacking the tab key
+                        // here, so we should make sure we maintain the correct interaction modality, but
+                        // NOT show the focus ring for this action. Focus rings do not show in pointer
+                        // modality.
                         const interactionModality = getInteractionModality();
                         setInteractionModality("pointer");
                         focusMessageInput();
@@ -1000,9 +996,9 @@ export function ChatAccountPicker({
             if (event.pointerType === "mouse") {
                 assertExists(inputRef.current).focus();
 
-                // As a convenience, if you tap on this element while it's already focused but
-                // the combobox isn't open then open the combobox. After you select an option
-                // the combobox closes but the user may want to select another account.
+                // As a convenience, if you tap on this element while it's already focused but the
+                // combobox isn't open then open the combobox. After you select an option the
+                // combobox closes but the user may want to select another account.
                 if (!comboBoxState.isOpen && selectionState.type !== "RoomChat") {
                     comboBoxState.open();
                 }
@@ -1015,9 +1011,9 @@ export function ChatAccountPicker({
             if (event.pointerType !== "mouse") {
                 assertExists(inputRef.current).focus();
 
-                // As a convenience, if you tap on this element while it's already focused but
-                // the combobox isn't open then open the combobox. After you select an option
-                // the combobox closes but the user may want to select another account.
+                // As a convenience, if you tap on this element while it's already focused but the
+                // combobox isn't open then open the combobox. After you select an option the
+                // combobox closes but the user may want to select another account.
                 if (!comboBoxState.isOpen && selectionState.type !== "RoomChat") {
                     comboBoxState.open();
                 }
@@ -1027,10 +1023,9 @@ export function ChatAccountPicker({
 
     return (
         <OverlayAnimated
-            // Force the overlay to be open if there are no selected accounts. In an effect
-            // we call `comboBoxState.open()` even when `selectedItems.length` is 0 but
-            // before that we want to make sure the overlay is visible so it doesn't
-            // flash in.
+            // Force the overlay to be open if there are no selected accounts. In an effect we
+            // call `comboBoxState.open()` even when `selectedItems.length` is 0 but before
+            // that we want to make sure the overlay is visible so it doesn't flash in.
             isVisible={comboBoxState.isOpen || selectedItems.length === 0}
             disableAnimationIn={true}
             disableAnimationOut={!shouldOverlayAnimate}
@@ -1054,8 +1049,8 @@ export function ChatAccountPicker({
                 isVisibleWhenFocusWithin={true}
                 // Render below the listbox overlay.
                 overlayZIndex="-10"
-                // If we are selecting an item within the combobox show a focus ring there,
-                // not here.
+                // If we are selecting an item within the combobox show a focus ring there, not
+                // here.
                 isDisabled={
                     comboBoxState.isOpen && comboBoxState.selectionManager.focusedKey !== null
                 }
@@ -1126,14 +1121,14 @@ export function ChatAccountPicker({
                                 selectedItems.length === 0 ? "Search for people…" : undefined
                             }
                             // By default `<input>` elements have a `min-width` determined by the `size`
-                            // property. We want our `<input>`s `min-width` to be determined by our CSS
-                            // so set it to a small value as not to matter.
+                            // property. We want our `<input>`s `min-width` to be determined by our CSS so set
+                            // it to a small value as not to matter.
                             // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
                             size={1}
                             // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
-                            // disables these capabilities because the user has combobox suggestions.
-                            // However, fixing typos at the OS level when typos are common (like on iOS)
-                            // is really useful.
+                            // disables these capabilities because the user has combobox suggestions. However,
+                            // fixing typos at the OS level when typos are common (like on iOS) is really
+                            // useful.
                             autoCorrect={undefined}
                             spellCheck={undefined}
                             onKeyDown={event => {
@@ -1143,27 +1138,27 @@ export function ChatAccountPicker({
                                 ) {
                                     // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                     // whenever `Enter` is pressed][1] whether or not an option is focused. If an
-                                    // option isn't focused this just closes the combobox and leaves the user
-                                    // confused. Is what they typed the new value or not? It's not, you can tell
-                                    // since the avatar doesn't change. This is particularly confusing on mobile
-                                    // where the user may hit the return key expecting the first value in the menu
-                                    // to be selected. But that won't happen, the menu will just close.
+                                    // option isn't focused this just closes the combobox and leaves the user confused.
+                                    // Is what they typed the new value or not? It's not, you can tell since the avatar
+                                    // doesn't change. This is particularly confusing on mobile where the user may hit
+                                    // the return key expecting the first value in the menu to be selected. But that
+                                    // won't happen, the menu will just close.
                                     //
                                     // So intercept this case and don't call into `@react-aria/combobox`.
                                     //
-                                    // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                    // [1]:
+                                    //     https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
                                 } else if (event.key === "Escape" && selectedItems.length === 0) {
-                                    // Since the combobox will never close when there are no selected accounts, let
-                                    // the escape key press propagate up. If we're in a peek that means closing
-                                    // the peek.
+                                    // Since the combobox will never close when there are no selected accounts, let the
+                                    // escape key press propagate up. If we're in a peek that means closing the peek.
                                 } else {
                                     inputProps.onKeyDown?.(event);
                                 }
                             }}
                             onPointerDown={event => {
-                                // As a convenience, if you tap on this element while it's already focused but
-                                // the combobox isn't open then open the combobox. After you select an option
-                                // the combobox closes but the user may want to select another account.
+                                // As a convenience, if you tap on this element while it's already focused but the
+                                // combobox isn't open then open the combobox. After you select an option the
+                                // combobox closes but the user may want to select another account.
                                 //
                                 // We have to be a little careful and make sure this doesn't break the default
                                 // browser behavior of focusing the input if it's unfocused.
@@ -1197,8 +1192,8 @@ export function ChatAccountPicker({
                             )}
                         </Box>
                         <Box
-                            // Redundant and takes up too much space on mobile. The user can tap on the
-                            // input to open the dropdown.
+                            // Redundant and takes up too much space on mobile. The user can tap on the input
+                            // to open the dropdown.
                             //
                             // We still need it in the DOM, though, or else `react-aria` gets confused.
                             display={platform === "mobile" ? "none" : undefined}
@@ -1285,8 +1280,8 @@ function ChatAccountPickerSelectedItem({
                 }
                 break;
             }
-            // Arrow keys navigate through selected accounts. Only the first selected
-            // account is focusable since you use arrow keys to navigate between accounts.
+            // Arrow keys navigate through selected accounts. Only the first selected account
+            // is focusable since you use arrow keys to navigate between accounts.
             case "ArrowLeft": {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1294,8 +1289,8 @@ function ChatAccountPickerSelectedItem({
                 selectedItemRefs[index - 1]?.current?.focus();
                 break;
             }
-            // Arrow keys navigate through selected accounts. Only the first selected
-            // account is focusable since you use arrow keys to navigate between accounts.
+            // Arrow keys navigate through selected accounts. Only the first selected account
+            // is focusable since you use arrow keys to navigate between accounts.
             case "ArrowRight": {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1308,9 +1303,9 @@ function ChatAccountPickerSelectedItem({
                 break;
             }
             default: {
-                // If the user presses a letter then interpret that as the user trying to
-                // replace the focused account. So delete the selected account and add the text
-                // to our search input.
+                // If the user presses a letter then interpret that as the user trying to replace
+                // the focused account. So delete the selected account and add the text to our
+                // search input.
                 if (/^[0-9a-zA-Z]$/.test(event.key)) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1368,9 +1363,9 @@ function ChatAccountPickerSelectedItem({
                 alignItems="center"
                 tabIndex={index === 0 ? 0 : -1}
                 // On mobile we want taps to fallthrough and focus the combobox input instead of
-                // selecting the account. On mobile you can only press backspace to delete the
-                // last account, you can't delete a specific account (unless you have an
-                // external keyboard, then you can use arrow keys).
+                // selecting the account. On mobile you can only press backspace to delete the last
+                // account, you can't delete a specific account (unless you have an external
+                // keyboard, then you can use arrow keys).
                 pointerEvents={platform !== "mobile" ? undefined : "none"}
                 onKeyDown={handleKeyDown}
             >
@@ -1403,8 +1398,8 @@ function ChatAccountPickerSelectedItem({
                         <IconButton
                             size="xs"
                             variant="quiet-above-grey-5-background"
-                            // The user focuses the pill as a whole and hits the delete key to delete using
-                            // the keyboard.
+                            // The user focuses the pill as a whole and hits the delete key to delete using the
+                            // keyboard.
                             isTabbable={false}
                             description="Remove"
                             withoutTooltip={true}
@@ -1446,10 +1441,9 @@ function ChatAccountPickerListBox({
 
     return (
         <div
-            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
-            // doesn't need to add a resize listener to every child. This means we need to
-            // provide `useListBox()` a `scrollRef` if we want to scroll to the
-            // focused option.
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()` doesn't
+            // need to add a resize listener to every child. This means we need to provide
+            // `useListBox()` a `scrollRef` if we want to scroll to the focused option.
             ref={useMergedRefs(useScrollbar(), scrollRef)}
             className={classNames(
                 greyElevated2ClassName,
@@ -1468,8 +1462,8 @@ function ChatAccountPickerListBox({
         >
             <ul {...listBoxProps} ref={listBoxRef}>
                 {isLoadingInitialItems ? (
-                    // Normally the initial items are preloaded and we shouldn't need to show a
-                    // loading spinner. But just in case we have this fallback.
+                    // Normally the initial items are preloaded and we shouldn't need to show a loading
+                    // spinner. But just in case we have this fallback.
                     <Box
                         padding="1.5"
                         display="flex"
@@ -1518,12 +1512,11 @@ function ChatAccountPickerListBoxOption({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
@@ -1603,10 +1596,10 @@ function ChatAccountPickerListBoxOptionItem({
 
             switch (item.media.type) {
                 case "Account": {
-                    // Render a grey circle for chats that don't have an `AccountPile` media. We
-                    // want to communicate it's a multi-person chat so we don't want to render one
-                    // account. This case should happen rarely. Just `RoomChat`s that only a single
-                    // person has messaged so far.
+                    // Render a grey circle for chats that don't have an `AccountPile` media. We want
+                    // to communicate it's a multi-person chat so we don't want to render one account.
+                    // This case should happen rarely. Just `RoomChat`s that only a single person has
+                    // messaged so far.
                     media = (
                         <ChatAccountPickerListBoxOptionItemAccountAvatarPileWithUnknownCount
                             accountData1={null}
@@ -1622,9 +1615,9 @@ function ChatAccountPickerListBoxOptionItem({
                             <ChatAccountPickerListBoxOptionItemAccountAvatarPileWithKnownCount
                                 accountData={item.media.previewAccountDatas[0]!}
                                 accountCount={
-                                    // Subtract one because we assume our actor is in this chat (safe assumption
-                                    // since you can't see a direct chat you're not in) and we want the count to be
-                                    // non-actor accounts.
+                                    // Subtract one because we assume our actor is in this chat (safe assumption since
+                                    // you can't see a direct chat you're not in) and we want the count to be non-actor
+                                    // accounts.
                                     item.media.accountCount - 1
                                 }
                                 isPressed={isPressed}
@@ -1635,8 +1628,8 @@ function ChatAccountPickerListBoxOptionItem({
                         media = (
                             <ChatAccountPickerListBoxOptionItemAccountAvatarPileWithUnknownCount
                                 accountData1={item.media.previewAccountDatas[1]!}
-                                // The second account covers the first. So use whichever was ranked first
-                                // as `accountData2`.
+                                // The second account covers the first. So use whichever was ranked first as
+                                // `accountData2`.
                                 accountData2={item.media.previewAccountDatas[0]!}
                                 isPressed={isPressed}
                             />

@@ -173,9 +173,9 @@ class DocumentCollaborationDurableObject {
 
                                 if (!otherWebSocketServer.hasConnections()) continue;
 
-                                // If this WebSocket server has comment access but the other doesn't then strip
-                                // any comments from the event before sending it to peer WebSockets of
-                                // different access levels.
+                                // If this WebSocket server has comment access but the other doesn't then strip any
+                                // comments from the event before sending it to peer WebSockets of different access
+                                // levels.
                                 if (
                                     hasAccessLevel(accessLevel, "Comment") &&
                                     !hasAccessLevel(otherAccessLevel, "Comment")
@@ -433,9 +433,9 @@ function stripDocumentCollaborationEventComments(
     event: DocumentCollaborationEventStub,
 ): DocumentCollaborationEventStub | null {
     // Code style: Manually recreate the event objects so that we can be absolutely
-    // sure comment data isn't slipping into `eventWithoutComments`. Especially
-    // when we add new fields in the future, we want TypeScript to error and the
-    // developer to consider whether comment information needs to be stripped.
+    // sure comment data isn't slipping into `eventWithoutComments`. Especially when we
+    // add new fields in the future, we want TypeScript to error and the developer to
+    // consider whether comment information needs to be stripped.
     switch (event.type) {
         case "UpdateContentWithoutPersistence": {
             return {

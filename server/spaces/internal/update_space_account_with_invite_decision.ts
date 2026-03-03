@@ -15,10 +15,10 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
 
 /**
- * Update the account space state with the decision made by the account
- * regarding the invitation to the space. If the account rejects the invitation,
- * the account is marked as "Removed" with a reason of "InviteRejectedAsSpam".
- * If the account accepts the invitation, the account is marked as "Active".
+ * Update the account space state with the decision made by the account regarding
+ * the invitation to the space. If the account rejects the invitation, the account
+ * is marked as "Removed" with a reason of "InviteRejectedAsSpam". If the account
+ * accepts the invitation, the account is marked as "Active".
  */
 export async function updateSpaceAccountWithInviteDecision(
     context: ServerSessionActionContext,
@@ -109,10 +109,10 @@ export async function updateSpaceAccountWithInviteDecision(
                 }),
             );
 
-            // Make sure to update our account's name in the task system as well when an
-            // invite is accepted. The task system denormalizes account names so we can
-            // efficiently sort alphabetically by account name (e.g. sort alphabetically by
-            // task assignee name).
+            // Make sure to update our account's name in the task system as well when an invite
+            // is accepted. The task system denormalizes account names so we can efficiently
+            // sort alphabetically by account name (e.g. sort alphabetically by task assignee
+            // name).
             const taskTransactionEntries =
                 context.tasksInjection.internalGetUpdateOurAccountNameTaskTransactionEntries({
                     spaceIds: new Set([spaceId]),
@@ -152,8 +152,8 @@ export async function updateSpaceAccountWithInviteDecision(
                               spaceId,
                           },
                           // If there's an eventual consistency lag and we don't read the welcome package
-                          // item then the new user will have nothing in their suggested list which is a
-                          // bad experience!
+                          // item then the new user will have nothing in their suggested list which is a bad
+                          // experience!
                           {consistency: "Strong"},
                       ),
                       suggestedAccountIds:
@@ -184,9 +184,8 @@ export async function updateSpaceAccountWithInviteDecision(
 
         if (newAccountStateType === "Active") {
             // Reindex the account in the space. Since when made active the account name
-            // changes from the temporary email address account name to the real account
-            // name. This will recursively update any search entities where the account is
-            // mentioned.
+            // changes from the temporary email address account name to the real account name.
+            // This will recursively update any search entities where the account is mentioned.
             context.jobs.send({
                 type: "IndexSearchEntity",
                 spaceId,
@@ -198,8 +197,8 @@ export async function updateSpaceAccountWithInviteDecision(
             });
 
             // After we've accepted the space invite, run some additional non-critical
-            // initialization logic. If any initialization here fails, the account will
-            // still be successfully in the space, but there may be some small issues.
+            // initialization logic. If any initialization here fails, the account will still
+            // be successfully in the space, but there may be some small issues.
             if (!spaceAccountItem.state.wasPreviouslyRemoved && welcomePackageItemPromise) {
                 const {welcomePackageItem, suggestedAccountIds} = await welcomePackageItemPromise;
                 if (welcomePackageItem) {

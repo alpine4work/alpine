@@ -153,13 +153,13 @@ export function useInboxState(props: {
                     // Wait to resolve our optimistic update until we receive a realtime event that
                     // turns our optimistic update into a noop.
                     //
-                    // That's because we don't trust that by the time `promise` resolves we've seen
-                    // the realtime event from our WebSocket. `promise` may be from an RPC call
-                    // which kicks off a background `NotificationEvent` job that eventually sends
-                    // the realtime event we're looking for. We don't want to resolve our optimistic
-                    // update until that background job finishes and we've seen the realtime event.
-                    // Otherwise unrelated realtime events may overwrite our optimistic update
-                    // causing the UI to glitch for the user.
+                    // That's because we don't trust that by the time `promise` resolves we've seen the
+                    // realtime event from our WebSocket. `promise` may be from an RPC call which kicks
+                    // off a background `NotificationEvent` job that eventually sends the realtime
+                    // event we're looking for. We don't want to resolve our optimistic update until
+                    // that background job finishes and we've seen the realtime event. Otherwise
+                    // unrelated realtime events may overwrite our optimistic update causing the UI to
+                    // glitch for the user.
                     waitForQueryWithoutOptimisticUpdates(query => update(query) === query),
                 ),
                 update,
@@ -208,9 +208,9 @@ export function useInboxState(props: {
                     // Also observe the inbox when we successfully connect to realtime. When we're
                     // connected to realtime this also incidentally means the page is visible.
                     //
-                    // We find this a pretty reasonable place to say "ok, the user is actually
-                    // looking at the inbox" whether they are looking at the inbox page or the
-                    // inbox preview overlay.
+                    // We find this a pretty reasonable place to say "ok, the user is actually looking
+                    // at the inbox" whether they are looking at the inbox page or the inbox preview
+                    // overlay.
                     //
                     // It's also nice that we create an RPC batch with the backfill request.
                     observeInbox(context, {spaceId: space.id}).catch(error => {
@@ -278,8 +278,8 @@ export function useInboxState(props: {
                 if (!afterCursor) return {isLoading: false};
 
                 const promise = (async () => {
-                    // The limit of items we will load is one view worth of entries. This gives
-                    // the user some space to scroll and read before we need to load more entries.
+                    // The limit of items we will load is one view worth of entries. This gives the
+                    // user some space to scroll and read before we need to load more entries.
                     const limit = Math.max(
                         20,
                         Math.ceil(

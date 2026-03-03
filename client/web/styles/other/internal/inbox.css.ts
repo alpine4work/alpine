@@ -16,10 +16,9 @@ const overlayArrowUpRightAnimationKeyframes = keyframes({
     },
 });
 
-// Don't make the user wait too long before they see the animation again. They
-// may see the animation once out of the corner of their eye, then focus in. If
-// they stare at the button for a while they may be frustrated if it
-// doesn't move.
+// Don't make the user wait too long before they see the animation again. They may
+// see the animation once out of the corner of their eye, then focus in. If they
+// stare at the button for a while they may be frustrated if it doesn't move.
 export const overlayArrowUpRightAnimationDelay = 2250;
 
 export const overlayArrowUpRightAnimationDuration = 750;

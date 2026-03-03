@@ -67,21 +67,21 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
- * This class is the main component of our task realtime implementation. It
- * keeps track of queries and tasks that clients are subscribed to and keeps
- * them up-to-date in realtime for a space.
+ * This class is the main component of our task realtime implementation. It keeps
+ * track of queries and tasks that clients are subscribed to and keeps them
+ * up-to-date in realtime for a space.
  *
- * The store itself has a map of `TaskId`s to task objects and a set of
- * subscribed queries. When you load a query we check to see if the exact query
- * already exists, if it doesn't then we load the query fresh and start
- * tracking it in our store.
+ * The store itself has a map of `TaskId`s to task objects and a set of subscribed
+ * queries. When you load a query we check to see if the exact query already
+ * exists, if it doesn't then we load the query fresh and start tracking it in our
+ * store.
  *
- * Whenever the task realtime server receives a new action transaction, it must
- * add it to the realtime action history and apply it to the relevant store.
+ * Whenever the task realtime server receives a new action transaction, it must add
+ * it to the realtime action history and apply it to the relevant store.
  */
-// TODO(calebmer, #tracer): I'd like to add some task realtime query store
-// metrics using whatever metrics system we setup. Metrics like query count,
-// task count, collection count, and query subscription count would be useful.
+// TODO(calebmer, #tracer): I'd like to add some task realtime query store metrics
+// using whatever metrics system we setup. Metrics like query count, task count,
+// collection count, and query subscription count would be useful.
 export class TaskRealtimeStore {
     public readonly spaceId: SpaceId;
     private readonly _internal: TaskRealtimeStoreInternal;
@@ -115,8 +115,8 @@ export class TaskRealtimeStore {
         context.tracer.withSpanSync("Destroying task realtime query store", context => {
             this._isDestroyed = true;
 
-            // Calling this should have the server delete its reference to this store. That
-            // way the next request will create a fresh store.
+            // Calling this should have the server delete its reference to this store. That way
+            // the next request will create a fresh store.
             this._onFatalError();
 
             this._internal.onFatalError(
@@ -131,8 +131,8 @@ export class TaskRealtimeStore {
 
     /**
      * Any error from our task realtime query store destroys the store and prevents
-     * anyone from interacting with the store. Connections which were subscribed to
-     * the store are closed with an `InternalError` so may try to reconnect.
+     * anyone from interacting with the store. Connections which were subscribed to the
+     * store are closed with an `InternalError` so may try to reconnect.
      *
      * It's an arrow function so we can pass it around as a value without calling
      * `this._withErrorHandling.bind(this)`.
@@ -145,9 +145,8 @@ export class TaskRealtimeStore {
 
         return action().then(
             value => {
-                // If our query store was destroyed while the action was running then we don't
-                // want to return a result which may have corrupt results. Instead throw an
-                // error.
+                // If our query store was destroyed while the action was running then we don't want
+                // to return a result which may have corrupt results. Instead throw an error.
                 if (this._isDestroyed) {
                     throw new InternalError(
                         "Can\u2019t return result because task realtime query store was destroyed",
@@ -257,8 +256,8 @@ export class TaskRealtimeStore {
         assert(!this._isDestroyed);
 
         // No error handling since this method is relatively self contained and should
-        // handle errors gracefully on its own without putting the store class in
-        // partially failed state.
+        // handle errors gracefully on its own without putting the store class in partially
+        // failed state.
         const taskEntry = await this._internal.loadTaskEntry(context, taskId);
 
         return taskEntry.task;
@@ -271,8 +270,8 @@ export class TaskRealtimeStore {
         assert(!this._isDestroyed);
 
         // No error handling since this method is relatively self contained and should
-        // handle errors gracefully on its own without putting the store class in
-        // partially failed state.
+        // handle errors gracefully on its own without putting the store class in partially
+        // failed state.
         const collectionEntry = await this._internal.loadCollectionEntry(context, collectionId);
 
         return collectionEntry.collection;
@@ -306,71 +305,68 @@ export const taskRealtimeStoreBeforeLoadTaskTestCheckpoint = new TestCheckpoint<
 export const taskRealtimeStoreBeforeLoadCollectionTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 // Our store implementation has some public methods that `TaskRealtimeQuery` is
-// allowed to call but external users of `TaskRealtimeStore` should not
-// (e.g. `onQueryTasksLoad`). These methods are public on this internal class
-// and we have a wrapper `TaskRealtimeStore` class with a public interface.
+// allowed to call but external users of `TaskRealtimeStore` should not (e.g.
+// `onQueryTasksLoad`). These methods are public on this internal class and we have
+// a wrapper `TaskRealtimeStore` class with a public interface.
 export class TaskRealtimeStoreInternal {
     public readonly spaceId: SpaceId;
     public readonly actionHistory: ReadonlyTaskRealtimeActionHistory;
 
     /**
      * Ensure that we have a full action history for this store's space when the
-     * promise resolves. If our service was recently discovered that means we
-     * haven't been receiving actions so we don't have a full view of history.
+     * promise resolves. If our service was recently discovered that means we haven't
+     * been receiving actions so we don't have a full view of history.
      */
     public readonly ensureFullActionHistory: (
         context: TaskRealtimeSystemActionContext,
     ) => Promise<void>;
 
     /**
-     * Tell our realtime server that we should schedule an eviction for this store.
-     * The server has an eviction timer and will call the evict procedure on any
-     * stores which need an eviction.
+     * Tell our realtime server that we should schedule an eviction for this store. The
+     * server has an eviction timer and will call the evict procedure on any stores
+     * which need an eviction.
      *
      * If this function is called multiple times before our eviction procedure is
      * called it will only register our store once.
      *
-     * Calling this function is an optimization to avoid needing to call the
-     * eviction procedure on every store whenever the server eviction timer fires.
-     * So it's ok to occasionally run an eviction procedure on our store when the
-     * store has no evictable items.
+     * Calling this function is an optimization to avoid needing to call the eviction
+     * procedure on every store whenever the server eviction timer fires. So it's ok to
+     * occasionally run an eviction procedure on our store when the store has no
+     * evictable items.
      */
     private readonly _scheduleEviction: () => void;
 
     /**
      * All the queries maintained by our query store. The queries are keyed by
-     * `{filters, sorts}` stringified by `stringifyForDeepEqualCheck()`. This
-     * allows us to efficiently reuse a query that shares normalized filters
-     * and sorts.
+     * `{filters, sorts}` stringified by `stringifyForDeepEqualCheck()`. This allows us
+     * to efficiently reuse a query that shares normalized filters and sorts.
      */
     private readonly _queries = new Map<string, TaskRealtimeQuery>();
 
     /**
      * Multiple queries may refer to the same task so we store task objects here
-     * instead of in `TaskRealtimeQuery`. We keep a reference to all the queries
-     * which subscribe to the task and evict any tasks that have no subscribed
-     * queries.
+     * instead of in `TaskRealtimeQuery`. We keep a reference to all the queries which
+     * subscribe to the task and evict any tasks that have no subscribed queries.
      *
-     * Queries a task is visible in are accessible in the `queryDependencies` set.
-     * A task may not be visible in every query whose filters pass for the task.
-     * That's because when we load 100 tasks for a new query, we don't want to
-     * spend the time checking whether those tasks are part of unrelated queries.
-     * Queries discover new visible tasks in two ways:
+     * Queries a task is visible in are accessible in the `queryDependencies` set. A
+     * task may not be visible in every query whose filters pass for the task. That's
+     * because when we load 100 tasks for a new query, we don't want to spend the time
+     * checking whether those tasks are part of unrelated queries. Queries discover new
+     * visible tasks in two ways:
      *
-     * 1. When loading more tasks a query consults OpenSearch and the action
-     *    history to find new visible tasks in its new loaded range
+     * 1. When loading more tasks a query consults OpenSearch and the action history to
+     *    find new visible tasks in its new loaded range
      * 2. When actions are applied a hidden task may become visible
      */
     private readonly _taskEntryById = new Map<TaskId, TaskRealtimeStoreTaskEntry>();
 
     /**
-     * If we see an action that affects a task in a way that might make it visible
-     * in one of our queries then we need to load the full task from OpenSearch so
-     * we can add it to the query (after confirming the task matches our query's
-     * filters).
+     * If we see an action that affects a task in a way that might make it visible in
+     * one of our queries then we need to load the full task from OpenSearch so we can
+     * add it to the query (after confirming the task matches our query's filters).
      *
-     * If we are currently loading a task it will show up in this map. That way we
-     * can dedupe requests to load tasks.
+     * If we are currently loading a task it will show up in this map. That way we can
+     * dedupe requests to load tasks.
      */
     private readonly _loadingTaskPromiseById = new Map<
         TaskId,
@@ -383,8 +379,8 @@ export class TaskRealtimeStoreInternal {
     }> | null = null;
 
     /**
-     * Collections we've loaded from OpenSearch and keep up-to-date in realtime in
-     * our store.
+     * Collections we've loaded from OpenSearch and keep up-to-date in realtime in our
+     * store.
      *
      * Similar to `taskEntryById`.
      */
@@ -407,26 +403,24 @@ export class TaskRealtimeStoreInternal {
     }> | null = null;
 
     // The set of items to evict from our query store the next time our server's
-    // eviction timeout is called. It's essential we evict items from the store in
-    // a timely manner when they're no longer referenced or else we'll have a
-    // memory leak and eventually our server will fail with an out-of-memory
-    // exception.
+    // eviction timeout is called. It's essential we evict items from the store in a
+    // timely manner when they're no longer referenced or else we'll have a memory leak
+    // and eventually our server will fail with an out-of-memory exception.
     //
     // Each item type has two sets. The "open" set and the "next" set.
     //
-    // - The open set is where we add newly evictable items. When the last
-    //   reference to, say, a task is removed then we add it to the `TaskId` open
-    //   evictable set and schedule an eviction.
+    // - The open set is where we add newly evictable items. When the last reference
+    //   to, say, a task is removed then we add it to the `TaskId` open evictable set
+    //   and schedule an eviction.
     //
-    // - The next set is the set of items we'll actually evict when the eviction
-    //   timer runs. When the eviction timer runs we evict everything in the next
-    //   set and move the open set to the next set.
+    // - The next set is the set of items we'll actually evict when the eviction timer
+    //   runs. When the eviction timer runs we evict everything in the next set and
+    //   move the open set to the next set.
     //
     // We use this two-set setup so that once an item is made evictable it has a
-    // guaranteed minimum duration it will stay alive in case some other client
-    // wants to rescue it from eviction. When an item is made evictable it will
-    // stay alive for at least one eviction timeout duration (configured at the
-    // server level).
+    // guaranteed minimum duration it will stay alive in case some other client wants
+    // to rescue it from eviction. When an item is made evictable it will stay alive
+    // for at least one eviction timeout duration (configured at the server level).
     private _isEvicting = false;
     private _openEvictableQueries = new Set<TaskRealtimeQuery>();
     private _nextEvictableQueries = new Set<TaskRealtimeQuery>();
@@ -454,8 +448,8 @@ export class TaskRealtimeStoreInternal {
 
     public assertCorrectForTest() {
         // We run this validation in `development` and `test` since maintaining state
-        // correctly across the store and query class is a little tricky to get right
-        // but critical to the operation of the task realtime service.
+        // correctly across the store and query class is a little tricky to get right but
+        // critical to the operation of the task realtime service.
         assert(process.env.NODE_ENV !== "production");
 
         const visibleTaskIdsByQuery = new Map<TaskRealtimeQuery, Set<TaskId>>();
@@ -495,24 +489,24 @@ export class TaskRealtimeStoreInternal {
     }
 
     /**
-     * If a task is loaded in our store then this function will return it. The
-     * task is up-to-date in realtime.
+     * If a task is loaded in our store then this function will return it. The task is
+     * up-to-date in realtime.
      */
     public getTaskIfLoaded(taskId: TaskId) {
         return this._taskEntryById.get(taskId)?.task;
     }
 
     /**
-     * If a collection is loaded in our store then this function will return it.
-     * The collection is up-to-date in realtime.
+     * If a collection is loaded in our store then this function will return it. The
+     * collection is up-to-date in realtime.
      */
     public getCollectionIfLoaded(collectionId: TaskCollectionId) {
         return this._collectionEntryById.get(collectionId)?.collection;
     }
 
     /**
-     * Get the task entry for the provided `TaskId` if the task exists and is
-     * loaded in our store.
+     * Get the task entry for the provided `TaskId` if the task exists and is loaded in
+     * our store.
      */
     public getTaskEntryIfExists(taskId: TaskId): TaskRealtimeStoreTaskEntry | undefined {
         return this._taskEntryById.get(taskId);
@@ -540,8 +534,8 @@ export class TaskRealtimeStoreInternal {
     }
 
     /**
-     * Ensure an entry exists in our store for the provided task. If we create a
-     * new entry we will return `isFresh: true`.
+     * Ensure an entry exists in our store for the provided task. If we create a new
+     * entry we will return `isFresh: true`.
      */
     public ensureTaskEntry(task: TaskIndexDoc): {
         isFresh: boolean;
@@ -550,8 +544,8 @@ export class TaskRealtimeStoreInternal {
         const taskEntry = this._taskEntryById.get(task.id);
         if (taskEntry !== undefined) return {isFresh: false, taskEntry};
 
-        // If we haven't seen this task before it's "fresh". The task may be outdated
-        // so we'll need to apply the actions from our action history to catch it up.
+        // If we haven't seen this task before it's "fresh". The task may be outdated so
+        // we'll need to apply the actions from our action history to catch it up.
         const freshTaskEntry = new TaskRealtimeStoreTaskEntry(this, task);
         this._taskEntryById.set(task.id, freshTaskEntry);
 
@@ -560,8 +554,8 @@ export class TaskRealtimeStoreInternal {
 
     /**
      * Get a query for the provided filters and sorts. We will reuse queries with
-     * identical filters and sorts. If a subscription is not promptly added then
-     * the query will be evicted on the next eviction cycle.
+     * identical filters and sorts. If a subscription is not promptly added then the
+     * query will be evicted on the next eviction cycle.
      */
     public getQuery({
         filters,
@@ -579,15 +573,14 @@ export class TaskRealtimeStoreInternal {
 
     /**
      * Executes a query and keeps it up-to-date in realtime as long as there are
-     * subscribers. If an equivalent query is already in our store then we reuse
-     * the already loaded data from that query.
+     * subscribers. If an equivalent query is already in our store then we reuse the
+     * already loaded data from that query.
      *
-     * May return fewer tasks than we requested with `limit`. This happens in
-     * realtime edge cases where we start loading tasks before a realtime event
-     * that moves tasks outside of the loaded range. Also remember that we start
-     * loading tasks from OpenSearch which is ~60s behind. Up to the client to
-     * check how many tasks were loaded and decide whether they need to load
-     * more tasks.
+     * May return fewer tasks than we requested with `limit`. This happens in realtime
+     * edge cases where we start loading tasks before a realtime event that moves tasks
+     * outside of the loaded range. Also remember that we start loading tasks from
+     * OpenSearch which is ~60s behind. Up to the client to check how many tasks were
+     * loaded and decide whether they need to load more tasks.
      */
     public async loadQuery(
         context: TaskRealtimeSystemActionContext,
@@ -622,13 +615,13 @@ export class TaskRealtimeStoreInternal {
      * transaction to our action history. Does the following:
      *
      * - Reports any updates to subscribed queries
-     * - If the transaction hides a task in a query then we remove the task from
-     *   the query
-     * - We iterate through all queries to see if an updated task that was hidden
-     *   in the query will now be visible
-     * - If the transaction updates a task that's not in our store then we ignore
-     *   it unless we suspect the updated task will be visible in a query, then we
-     *   load the task from OpenSearch and check
+     * - If the transaction hides a task in a query then we remove the task from the
+     *   query
+     * - We iterate through all queries to see if an updated task that was hidden in
+     *   the query will now be visible
+     * - If the transaction updates a task that's not in our store then we ignore it
+     *   unless we suspect the updated task will be visible in a query, then we load
+     *   the task from OpenSearch and check
      */
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
@@ -658,9 +651,9 @@ export class TaskRealtimeStoreInternal {
         );
     }
 
-    // The synchronous part of `applyActionTransaction()`. Carefully updates our
-    // data structures while assuming no concurrent code is running which would
-    // observe a partial state.
+    // The synchronous part of `applyActionTransaction()`. Carefully updates our data
+    // structures while assuming no concurrent code is running which would observe a
+    // partial state.
     private _applyActionTransactionSync(
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
@@ -677,8 +670,8 @@ export class TaskRealtimeStoreInternal {
                 // query subscription set may change when we call into our event handlers like
                 // `query.onVisibleTaskUpdate()`.
                 //
-                // We only want to update subscriptions that were subscribed at the start of
-                // this function call.
+                // We only want to update subscriptions that were subscribed at the start of this
+                // function call.
                 taskReferencesSubscriptions: Array<TaskRealtimeTaskReferencesSubscriptionBase>;
             }
         >();
@@ -725,8 +718,8 @@ export class TaskRealtimeStoreInternal {
                         // received. If OpenSearch has already incorporated an action then
                         // `oldTask === newTask` but we still want to deliver the action to the client.
                         //
-                        // This also means we deliver all actions to the client regardless of whether
-                        // its a noop. This seems like good behavior.
+                        // This also means we deliver all actions to the client regardless of whether its a
+                        // noop. This seems like good behavior.
                         getOrSetDefaultMapValue(taskEntryUpdateById, action.taskId, () => ({
                             taskEntry,
                             oldTask,
@@ -767,9 +760,9 @@ export class TaskRealtimeStoreInternal {
                             ),
                         })).actions.push(action);
                     }
-                    // If we do not have an entry for this task, then check with all our queries to
-                    // see if this action might result in a new visible task. We need to load these
-                    // tasks to fully compare them against the query's filters.
+                    // If we do not have an entry for this task, then check with all our queries to see
+                    // if this action might result in a new visible task. We need to load these tasks
+                    // to fully compare them against the query's filters.
                     else {
                         for (const query of this._queries.values()) {
                             if (
@@ -845,20 +838,20 @@ export class TaskRealtimeStoreInternal {
                         const oldTask = taskEntry.task;
                         const newTask = applyTaskUpdateAccountNameToTaskIndexDoc(oldTask, action);
 
-                        // If nothing changed in the task (probably because the account is not
-                        // referenced by the task) then ignore and carry on.
+                        // If nothing changed in the task (probably because the account is not referenced
+                        // by the task) then ignore and carry on.
                         if (oldTask === newTask) break;
 
                         taskEntry.task = newTask;
 
                         // Clients won't see this action if no affected tasks were updated.
                         //
-                        // This is different than the `UpdateTask` and `UpdateCollection` behavior
-                        // where we always send actions down to clients even if the task doesn't
-                        // change. For correctness, it should be ok to not send noop actions. More so
-                        // we choose to send noop actions for completeness. Sending a noop update
-                        // account name action to every task regardless of whether it's affected seems
-                        // inefficient so we're ok sacrificing completeness.
+                        // This is different than the `UpdateTask` and `UpdateCollection` behavior where we
+                        // always send actions down to clients even if the task doesn't change. For
+                        // correctness, it should be ok to not send noop actions. More so we choose to send
+                        // noop actions for completeness. Sending a noop update account name action to
+                        // every task regardless of whether it's affected seems inefficient so we're ok
+                        // sacrificing completeness.
                         getOrSetDefaultMapValue(taskEntryUpdateById, newTask.id, () => ({
                             taskEntry,
                             oldTask,
@@ -879,7 +872,7 @@ export class TaskRealtimeStoreInternal {
         }
 
         // 1. Process collection updates in task references subscriptions (query
-        // subscriptions and task subscriptions) and direct collection subscriptions.
+        //    subscriptions and task subscriptions) and direct collection subscriptions.
         for (const {
             collectionEntry,
             oldCollection,
@@ -976,8 +969,8 @@ export class TaskRealtimeStoreInternal {
                 }
             }
 
-            // Attempt to add updated tasks to all our queries in case an update made
-            // the task visible in the query.
+            // Attempt to add updated tasks to all our queries in case an update made the task
+            // visible in the query.
             for (const query of this._queries.values()) {
                 if (taskEntry.hasQueryDependent(query)) continue;
 
@@ -1003,9 +996,9 @@ export class TaskRealtimeStoreInternal {
         assert(this._onReferencedTaskAddOrRemove === null);
         this._onReferencedTaskAddOrRemove = onReferencedTaskAddOrRemove;
         try {
-            // 2. Process task updates in task references subscriptions (query
-            // subscriptions and task subscriptions), direct task subscriptions, and direct
-            // query subscriptions.
+            // 2. Process task updates in task references subscriptions (query subscriptions
+            //    and task subscriptions), direct task subscriptions, and direct query
+            //    subscriptions.
             for (const taskEntryUpdate of taskEntryUpdateById.values()) {
                 applyTaskEntryUpdate(taskEntryUpdate);
             }
@@ -1026,9 +1019,9 @@ export class TaskRealtimeStoreInternal {
                 const taskEntry = await this.loadTaskEntry(context, taskId);
 
                 for (const query of queries) {
-                    // If the task is still not visible in this query (some concurrent process may
-                    // have made it visible) then attempt to add the task to the query given the
-                    // task passes the query's filters.
+                    // If the task is still not visible in this query (some concurrent process may have
+                    // made it visible) then attempt to add the task to the query given the task passes
+                    // the query's filters.
                     if (!taskEntry.hasQueryDependent(query)) {
                         const {isVisible} = query.maybeAddVisibleTask(
                             context,
@@ -1045,8 +1038,8 @@ export class TaskRealtimeStoreInternal {
 
         // Once we are done applying our action transaction, send the built events to
         // connected clients! In the process of updating we will have found out which
-        // actions need to go to which clients while still preserving the atomicity of
-        // a transaction.
+        // actions need to go to which clients while still preserving the atomicity of a
+        // transaction.
         await eventBuilder.finishAndSendEvents(context);
     }
 
@@ -1062,12 +1055,11 @@ export class TaskRealtimeStoreInternal {
      * Batches and dedupes load requests behind the scenes.
      *
      * If we can't find a task then we'll retry for a bit and eventually throw an
-     * error. It's expected when you call this method that the underlying task
-     * exists. If it doesn't that must mean our index is stale so we retry for
-     * a bit.
+     * error. It's expected when you call this method that the underlying task exists.
+     * If it doesn't that must mean our index is stale so we retry for a bit.
      *
-     * Returns a `PromiseImmediate` that resolves synchronously if the task is
-     * already available in the store.
+     * Returns a `PromiseImmediate` that resolves synchronously if the task is already
+     * available in the store.
      */
     public loadTaskEntry(
         context: TaskRealtimeSystemActionContext,
@@ -1115,8 +1107,8 @@ export class TaskRealtimeStoreInternal {
         const promiseResolver = createPromiseResolver<TaskRealtimeStoreTaskEntry | null>();
         this._scheduledTaskLoadBatch.push({taskId, promiseResolver});
 
-        // Once the promise has settled, delete it from `loadingTaskPromiseById`. You
-        // can now get the task from `taskEntryById`.
+        // Once the promise has settled, delete it from `loadingTaskPromiseById`. You can
+        // now get the task from `taskEntryById`.
         //
         // If the task entry is evicted then we should create a new loading promise.
         promiseResolver.promise.then(
@@ -1151,10 +1143,10 @@ export class TaskRealtimeStoreInternal {
         this._executeLoadTaskBatchSync(context, taskLoadBatch, tasks);
     }
 
-    // The synchronous part of `_executeLoadTaskBatch()` to be run after the
-    // network request. It's useful to make this synchronous since we'll be
-    // updating our internal store state and we don't want to think about
-    // concurrent readers/writers.
+    // The synchronous part of `_executeLoadTaskBatch()` to be run after the network
+    // request. It's useful to make this synchronous since we'll be updating our
+    // internal store state and we don't want to think about concurrent
+    // readers/writers.
     private _executeLoadTaskBatchSync(
         context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
@@ -1174,8 +1166,8 @@ export class TaskRealtimeStoreInternal {
             }
         >();
 
-        // Check if any of the tasks were loaded concurrently while we were waiting on
-        // our network request. We can immediately resolve any that were.
+        // Check if any of the tasks were loaded concurrently while we were waiting on our
+        // network request. We can immediately resolve any that were.
         for (let i = 0; i < taskLoadBatch.length; i++) {
             const {taskId, promiseResolver} = taskLoadBatch[i]!;
             const taskEntry = this._taskEntryById.get(taskId);
@@ -1202,8 +1194,8 @@ export class TaskRealtimeStoreInternal {
             }
         }
 
-        // Catch up our tasks which are freshly loaded from OpenSearch with any actions
-        // in our history so they're up-to-date in realtime.
+        // Catch up our tasks which are freshly loaded from OpenSearch with any actions in
+        // our history so they're up-to-date in realtime.
         for (const [taskId, {freshTask, promiseResolver}] of freshTaskById) {
             let task = freshTask;
 
@@ -1289,8 +1281,8 @@ export class TaskRealtimeStoreInternal {
         const promiseResolver = createPromiseResolver<TaskRealtimeStoreCollectionEntry | null>();
         this._scheduledCollectionLoadBatch.push({collectionId, promiseResolver});
 
-        // Once the promise has settled, delete it from `loadingCollectionPromiseById`.
-        // You can now get the task from `collectionEntryById`.
+        // Once the promise has settled, delete it from `loadingCollectionPromiseById`. You
+        // can now get the task from `collectionEntryById`.
         //
         // If the task entry is evicted then we should create a new loading promise.
         promiseResolver.promise.then(
@@ -1317,8 +1309,8 @@ export class TaskRealtimeStoreInternal {
                 collectionLoadBatch.map(({collectionId}) => collectionId),
             ),
             // We need to make sure we have a full action history store before calling
-            // `_executeLoadCollectionBatchSync()` which needs the action history to catch
-            // up our OpenSearch query result.
+            // `_executeLoadCollectionBatchSync()` which needs the action history to catch up
+            // our OpenSearch query result.
             this.ensureFullActionHistory(context),
         ]);
 
@@ -1326,9 +1318,9 @@ export class TaskRealtimeStoreInternal {
     }
 
     // The synchronous part of `_executeLoadCollectionBatch()` to be run after the
-    // network request. It's useful to make this synchronous since we'll be
-    // updating our internal store state and we don't want to think about
-    // concurrent readers/writers.
+    // network request. It's useful to make this synchronous since we'll be updating
+    // our internal store state and we don't want to think about concurrent
+    // readers/writers.
     private _executeLoadCollectionBatchSync(
         context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
@@ -1348,8 +1340,8 @@ export class TaskRealtimeStoreInternal {
             }
         >();
 
-        // Check if any of the collections were loaded concurrently while we were
-        // waiting on our network request. We can immediately resolve any that were.
+        // Check if any of the collections were loaded concurrently while we were waiting
+        // on our network request. We can immediately resolve any that were.
         for (let i = 0; i < collectionLoadBatch.length; i++) {
             const {collectionId, promiseResolver} = collectionLoadBatch[i]!;
             const collectionEntry = this._collectionEntryById.get(collectionId);
@@ -1471,13 +1463,13 @@ export class TaskRealtimeStoreInternal {
             this._nextEvictableCollectionIds = this._openEvictableCollectionIds;
             this._openEvictableCollectionIds = new Set();
 
-            // If in the process of evicting one of our items, another item becomes
-            // evictable then we want to evict that item too. Since it means the previous
-            // item we evicted was its one reference and that one reference was dead.
+            // If in the process of evicting one of our items, another item becomes evictable
+            // then we want to evict that item too. Since it means the previous item we evicted
+            // was its one reference and that one reference was dead.
             //
-            // This happens when we destroy queries. If a query has 10 loaded tasks which
-            // have no other references when the query is destroyed then we also want to
-            // evict those tasks.
+            // This happens when we destroy queries. If a query has 10 loaded tasks which have
+            // no other references when the query is destroyed then we also want to evict those
+            // tasks.
             while (
                 (evictQueries && evictQueries.size > 0) ||
                 (evictTaskIds && evictTaskIds.size > 0) ||
@@ -1532,9 +1524,8 @@ export class TaskRealtimeStoreInternal {
                 }
             }
 
-            // If we have more to evict in our `next*` evictable sets then schedule an
-            // eviction for the next timer run. Our `open*` evictable sets should be
-            // exhausted.
+            // If we have more to evict in our `next*` evictable sets then schedule an eviction
+            // for the next timer run. Our `open*` evictable sets should be exhausted.
             if (this._getEvictableCount() > 0) this._scheduleEviction();
         } finally {
             this._isEvicting = false;
@@ -1570,8 +1561,8 @@ export class TaskRealtimeStoreTaskEntry {
     public task: TaskIndexDoc;
 
     /**
-     * Queries that depend on this task. If a query is in this set then our task
-     * must be visible in the query.
+     * Queries that depend on this task. If a query is in this set then our task must
+     * be visible in the query.
      */
     private readonly _queryDependents = new Set<TaskRealtimeQuery>();
 
@@ -1686,8 +1677,8 @@ export class TaskRealtimeStoreCollectionEntry {
         new Set<TaskRealtimeCollectionSubscriptionInternal>();
 
     /**
-     * A task references all of its collections and all collections of task
-     * parents, recursively.
+     * A task references all of its collections and all collections of task parents,
+     * recursively.
      */
     private readonly _taskReferencesSubscriptionDependents =
         new Set<TaskRealtimeTaskReferencesSubscriptionBase>();
@@ -1698,9 +1689,9 @@ export class TaskRealtimeStoreCollectionEntry {
 
         this.store.addEvictableCollectionId(this.collection.id);
 
-        // In test and development environments make sure
-        // `this.collection = newCollection` never changes the `TaskCollectionId`. In
-        // production this is a simple property getter/setter.
+        // In test and development environments make sure `this.collection = newCollection`
+        // never changes the `TaskCollectionId`. In production this is a simple property
+        // getter/setter.
         if (process.env.NODE_ENV !== "production") {
             let currentCollection = initialCollection;
             Object.defineProperty(this, "collection", {

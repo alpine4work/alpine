@@ -78,8 +78,8 @@ async function main() {
 main().then(
     () => {
         // Immediately exit once `main()` finishes. Don't wait for any pending timeouts
-        // keeping the process alive. `withDevContext()` will wait for all
-        // `waitUntil()` calls to complete before resolving.
+        // keeping the process alive. `withDevContext()` will wait for all `waitUntil()`
+        // calls to complete before resolving.
         process.exit(0);
     },
     error => {
@@ -87,8 +87,8 @@ main().then(
         console.error(error);
 
         // Immediately exit once `main()` finishes. Don't wait for any pending timeouts
-        // keeping the process alive. `withDevContext()` will wait for all
-        // `waitUntil()` calls to complete before resolving.
+        // keeping the process alive. `withDevContext()` will wait for all `waitUntil()`
+        // calls to complete before resolving.
         process.exit(1);
     },
 );

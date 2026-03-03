@@ -14,19 +14,21 @@ const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
 /**
  * Development importer context module that uses the local filesystem.
  *
- * Instead of uploading to S3, files are stored in the dev environment
- * data directory. The presigned URL points to a development-only endpoint
- * served by the app service.
+ * Instead of uploading to S3, files are stored in the dev environment data
+ * directory. The presigned URL points to a development-only endpoint served by the
+ * app service.
  *
  * ## How it works
+ *
  * 1. `createPresignedUploadUrl` returns a URL like
  *    `http://localhost:3010/dev/import-upload/{importKey}`
  * 2. The client PUTs the file to this URL
- * 3. The dev endpoint (defined in `app/routes/dev.import-upload.$.tsx`) saves
- *    the file to `{devEnvPaths.data}/import-uploads/{importKey}`
+ * 3. The dev endpoint (defined in `app/routes/dev.import-upload.$.tsx`) saves the
+ *    file to `{devEnvPaths.data}/import-uploads/{importKey}`
  * 4. `readUploadedFile` reads directly from the filesystem
  *
  * ## File location
+ *
  * Files are stored at: `{devEnvPaths.data}/import-uploads/{importKey}`
  *
  * Run `dev path data` to see the data directory path on your machine.
@@ -54,8 +56,8 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
         contentType: string;
         contentLength: number;
     }): Promise<PresignedUploadUrlResult> {
-        // In development, point to the local dev endpoint.
-        // The endpoint is defined in `app/routes/dev.import-upload.$.tsx`.
+        // In development, point to the local dev endpoint. The endpoint is defined in
+        // `app/routes/dev.import-upload.$.tsx`.
         const presignedUploadUrl = `${this._context.constants.edgeServiceUrl}/dev/import-upload/${importKey}`;
 
         return {presignedUploadUrl, importKey};
@@ -78,8 +80,8 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
     }
 
     /**
-     * Writes a file to the dev upload directory. Called by the dev upload
-     * endpoint to save files that would normally go to S3.
+     * Writes a file to the dev upload directory. Called by the dev upload endpoint to
+     * save files that would normally go to S3.
      */
     public writeUploadedFile(importKey: string, data: Uint8Array): void {
         const filePath = this._getUploadPath(importKey);

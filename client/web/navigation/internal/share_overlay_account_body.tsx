@@ -68,8 +68,8 @@ export function ShareOverlayAccountBody({
 
     const messageMaxHeightPx =
         contentStyles.paragraphLineHeightPx[spacingScale] *
-            // Less max height on mobile since there's less vertical screen space and we
-            // don't let the outer view scroll. Only the inner view.
+            // Less max height on mobile since there's less vertical screen space and we don't
+            // let the outer view scroll. Only the inner view.
             (platform === "mobile" ? 7 : 10) +
         messageInputEditorPaddingYPx[platform][spacingScale] * 2;
 
@@ -154,9 +154,9 @@ export function ShareOverlayAccountBody({
                                             : null,
                                     );
 
-                                    // Increase affinity points for all accounts this actor granted access to with
-                                    // a high intent update since the user clearly wants to show something to the
-                                    // granted accounts.
+                                    // Increase affinity points for all accounts this actor granted access to with a
+                                    // high intent update since the user clearly wants to show something to the granted
+                                    // accounts.
                                     for (const account of selectedAccounts) {
                                         void markSearchAffinityEntityInteraction(context, {
                                             spaceId: space.id,
@@ -191,8 +191,8 @@ export function ShareOverlayAccountBody({
                             zIndex="10"
                             borderRadius="1.5"
                             style={{
-                                // Use `box-shadow` instead of `border` so drawing the border doesn't take
-                                // space in the layout.
+                                // Use `box-shadow` instead of `border` so drawing the border doesn't take space in
+                                // the layout.
                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                             }}
                         />
@@ -264,9 +264,9 @@ export function ShareOverlayAccountBody({
                                         : null,
                                 );
 
-                                // Increase affinity points for all accounts this actor granted access to with
-                                // a high intent update since the user clearly wants to show something to the
-                                // granted accounts.
+                                // Increase affinity points for all accounts this actor granted access to with a
+                                // high intent update since the user clearly wants to show something to the granted
+                                // accounts.
                                 for (const account of selectedAccounts) {
                                     void markSearchAffinityEntityInteraction(context, {
                                         spaceId: space.id,

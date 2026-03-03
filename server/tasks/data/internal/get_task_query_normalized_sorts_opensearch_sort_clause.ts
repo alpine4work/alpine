@@ -121,33 +121,33 @@ const minInt64 = -(2n ** 63n);
  * This function returns a cursor with `bigint`s which must be stringified with
  * `json-bigint` because OpenSearch can parse large number literals into `long`s.
  *
- * The implementation of this function is highly dependent on the
- * implementation of both `getTaskQueryNormalizedSortCursorValueFromIndexDoc()`
- * and `getTaskQueryNormalizedSortsOpensearchSortClause()`!
+ * The implementation of this function is highly dependent on the implementation of
+ * both `getTaskQueryNormalizedSortCursorValueFromIndexDoc()` and
+ * `getTaskQueryNormalizedSortsOpensearchSortClause()`!
  *
  * - `getTaskQueryNormalizedSortCursorValueFromIndexDoc()` is what creates our
  *   `TaskQuerySortCursor`s on the server which we're taking as input to this
  *   function. The type it chooses to use for every sort item is very relevant.
  *
- * - `getTaskQueryNormalizedSortsOpensearchSortClause()` is what creates our
- *   sort definition for OpenSearch. Sometimes it uses odd formats to satisfy
- *   OpenSearch (e.g. for `CollectionPosition`) or uses multiple values for one
- *   sort item (e.g. for `AssigneePosition`).
+ * - `getTaskQueryNormalizedSortsOpensearchSortClause()` is what creates our sort
+ *   definition for OpenSearch. Sometimes it uses odd formats to satisfy OpenSearch
+ *   (e.g. for `CollectionPosition`) or uses multiple values for one sort item
+ *   (e.g. for `AssigneePosition`).
  *
  * You need to look at both functions when implementing this one to produce the
  * right value.
  *
- * Why can't we use the `sort` property returned by the OpenSearch search API
- * you might ask? Well, it includes `long`s as integer literals which will be
- * cast to 64-bit floats when JavaScript parses them losing precision. Also, we
- * need to get cursors for `TaskIndexDoc`s we didn't use the search API to load
- * (e.g. when we add newly visible tasks to a query).
+ * Why can't we use the `sort` property returned by the OpenSearch search API you
+ * might ask? Well, it includes `long`s as integer literals which will be cast to
+ * 64-bit floats when JavaScript parses them losing precision. Also, we need to get
+ * cursors for `TaskIndexDoc`s we didn't use the search API to load (e.g. when we
+ * add newly visible tasks to a query).
  *
- * So we construct our `TaskQuerySortCursor` from a parsed `TaskIndexDoc` and
- * need to convert it back to the lower-level format before sending back to
- * OpenSearch.
+ * So we construct our `TaskQuerySortCursor` from a parsed `TaskIndexDoc` and need
+ * to convert it back to the lower-level format before sending back to OpenSearch.
  *
- * [1]: https://opensearch.org/docs/latest/search-plugins/searching-data/paginate/#the-search_after-parameter
+ * [1]:
+ *     https://opensearch.org/docs/latest/search-plugins/searching-data/paginate/#the-search_after-parameter
  */
 export function convertTaskQuerySortCursorToOpensearchCursor(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
@@ -168,8 +168,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "Priority": {
                 if (sortValue === null) {
-                    // OpenSearch returns the max/min value for a numeric type in the cursor when
-                    // it's missing instead of null.
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when it's
+                    // missing instead of null.
                     newCursor.push(
                         (sort.direction === "Descending" && sort.missing === "Last") ||
                             (sort.direction === "Ascending" && sort.missing === "First")
@@ -184,8 +184,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "Layout": {
                 if (sortValue === null) {
-                    // OpenSearch returns the max/min value for a numeric type in the cursor when
-                    // it's missing instead of null.
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when it's
+                    // missing instead of null.
                     newCursor.push(
                         (sort.direction === "Descending" && sort.missing === "Last") ||
                             (sort.direction === "Ascending" && sort.missing === "First")
@@ -211,8 +211,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "DueDate": {
                 if (sortValue === null) {
-                    // OpenSearch returns the max/min value for a numeric type in the cursor when
-                    // it's missing instead of null.
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when it's
+                    // missing instead of null.
                     newCursor.push(
                         (sort.direction === "Descending" && sort.missing === "Last") ||
                             (sort.direction === "Ascending" && sort.missing === "First")
@@ -232,8 +232,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             case "ClosedTime":
             case "ActivatedTime": {
                 if (sortValue === null) {
-                    // OpenSearch returns the max/min value for a numeric type in the cursor when
-                    // it's missing instead of null.
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when it's
+                    // missing instead of null.
                     newCursor.push(
                         (sort.direction === "Descending" && sort.missing === "Last") ||
                             (sort.direction === "Ascending" && sort.missing === "First")
@@ -251,8 +251,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "ParentPosition": {
                 if (sortValue === null) {
-                    // OpenSearch returns the max/min value for a numeric type in the cursor when
-                    // it's missing instead of null.
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when it's
+                    // missing instead of null.
                     newCursor.push(
                         (sort.direction === "Descending" && sort.missing === "Last") ||
                             (sort.direction === "Ascending" && sort.missing === "First")
@@ -276,8 +276,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "CollectionPosition": {
                 if (sortValue === null) {
-                    // The missing value for `CollectionPosition` is one of these symbols according
-                    // to `getTaskQueryNormalizedSortsOpensearchSortClause()`.
+                    // The missing value for `CollectionPosition` is one of these symbols according to
+                    // `getTaskQueryNormalizedSortsOpensearchSortClause()`.
                     //
                     // We use a script for this sort which can't return a null value.
                     newCursor.push(
@@ -290,9 +290,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                               : "~",
                     );
                 } else {
-                    // This sort item is sorted by
-                    // `getTaskQueryNormalizedSortsOpensearchSortClause()` a script that
-                    // concatenates a `HybridLogicalTime` and an `OrderKey` together.
+                    // This sort item is sorted by `getTaskQueryNormalizedSortsOpensearchSortClause()`
+                    // a script that concatenates a `HybridLogicalTime` and an `OrderKey` together.
                     //
                     // The cursor for this sort item is an array with three items created by
                     // `getTaskQueryNormalizedSortCursorValueFromIndexDoc()`.
@@ -312,8 +311,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
             }
             case "AssigneePosition": {
                 if (sortValue === null) {
-                    // OpenSearch returns the max/min value for a numeric type in the cursor when
-                    // it's missing instead of null.
+                    // OpenSearch returns the max/min value for a numeric type in the cursor when it's
+                    // missing instead of null.
                     newCursor.push(
                         (sort.direction === "Descending" && sort.missing === "Last") ||
                             (sort.direction === "Ascending" && sort.missing === "First")

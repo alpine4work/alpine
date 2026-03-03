@@ -17,8 +17,9 @@ import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
-// Verify time is still a valid time for this inbox's schedule just in case their schedule has
-// changed. Specifying a lag time of 0 ensures we'll get back the same time if it's still valid.
+// Verify time is still a valid time for this inbox's schedule just in case their
+// schedule has changed. Specifying a lag time of 0 ensures we'll get back the same
+// time if it's still valid.
 function isSendTimeEqualToExpectedScheduledDigestTime({
     timeZone,
     sendTime,
@@ -38,9 +39,10 @@ function isSendTimeEqualToExpectedScheduledDigestTime({
 }
 
 /**
- * Sends a digest notification email for the given inbox. Checks if the given account is not a bot, has
- * space access, and is eligible to receive a digest. If not, we still update `digestNotificationsLastSentTime`
- * to ensure they are not eligible again until their inbox is updated.
+ * Sends a digest notification email for the given inbox. Checks if the given
+ * account is not a bot, has space access, and is eligible to receive a digest. If
+ * not, we still update `digestNotificationsLastSentTime` to ensure they are not
+ * eligible again until their inbox is updated.
  */
 export async function sendNotificationDigestForInbox(
     context: Context<ServerSystemActionContextModules & {email: EmailContextModuleBase}>,
@@ -53,8 +55,9 @@ export async function sendNotificationDigestForInbox(
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    // We only want to send an email once, so if we have to retry the dynamo transaction below but
-    // have already sent an email, we need to make sure we don't send it again.
+    // We only want to send an email once, so if we have to retry the dynamo
+    // transaction below but have already sent an email, we need to make sure we don't
+    // send it again.
     let hasSent = false;
 
     return context.dynamo.retryTransaction(async context => {

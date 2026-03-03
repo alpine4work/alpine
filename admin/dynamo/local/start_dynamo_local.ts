@@ -26,10 +26,11 @@ export type DynamoLocal = {
 };
 
 /**
- * Start running a [local DynamoDB][1] process with the database persisted to
- * the provided path and listening on the provided port.
+ * Start running a [local DynamoDB][1] process with the database persisted to the
+ * provided path and listening on the provided port.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html
  */
 export async function startDynamoLocal({
     dataPath,

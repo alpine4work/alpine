@@ -32,11 +32,10 @@ async function main() {
  * file paths provided by \`//app/static\` which excludes Remix build assets.
  *
  * This is a generated file which must always have at least the file paths in
- * \`//app/static\`. However, we may have more paths! When you delete a file
- * from \`//app/static\` it stays in this set. Since an old client in
- * production may need the deleted file. Our deploy script keeps old static
- * files around in Cloudflare R2 for 30 days after they've been removed for old
- * clients.
+ * \`//app/static\`. However, we may have more paths! When you delete a file from
+ * \`//app/static\` it stays in this set. Since an old client in production may need
+ * the deleted file. Our deploy script keeps old static files around in Cloudflare
+ * R2 for 30 days after they've been removed for old clients.
  *
  * You may manually delete old paths from this set and commit if you need to
  * reclaim a route that was previously served by a static file.

@@ -39,8 +39,7 @@ export function TextShimmer({
 }: {
     width: Sprinkles["maxWidth"];
     color?: "grey-5" | "grey-10";
-    // Helps create a "ragged edge" for text which may otherwise have the
-    // same width.
+    // Helps create a "ragged edge" for text which may otherwise have the same width.
     ragRight?: Spacing | "random";
     fontSize: FontSize | {readonly fontSize: string; readonly lineHeight: string};
     withoutPulseAnimation?: boolean;

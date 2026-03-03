@@ -60,7 +60,9 @@ function getAllDocuments(result: NotionImportMappedReferencesResult) {
     return docs;
 }
 
-/** Helper to check if a references map contains a specific DocumentId as a value. */
+/**
+ * Helper to check if a references map contains a specific DocumentId as a value.
+ */
 function referencesHasDocumentId(references: Map<string, string>, documentId: string): boolean {
     for (const refDocumentId of references.values()) {
         if (refDocumentId === documentId) return true;
@@ -69,10 +71,11 @@ function referencesHasDocumentId(references: Map<string, string>, documentId: st
 }
 
 /**
- * Helper to get the document path based on the nested mode.
- * In flat mode, paths are at root. In nested mode, child paths include parent directory.
- * Note: In nested mode, directory names use only the document title (not "title notionId").
- * @param ancestors - Array of parent documents from root to immediate parent (e.g., [grandparent, parent])
+ * Helper to get the document path based on the nested mode. In flat mode, paths
+ * are at root. In nested mode, child paths include parent directory. Note: In
+ * nested mode, directory names use only the document title (not "title notionId").
+ * @param ancestors - Array of parent documents from root to immediate parent
+ * (e.g., [grandparent, parent])
  */
 function getDocumentPath(
     document: ExportedNotionDocument,
@@ -204,7 +207,8 @@ describe.each([false, true])("with nested=%p", nested => {
 
             // Page should exist
             expect(docs[`Project ${page.notionId}.md`]).toBeDefined();
-            // Inline database .md wrapper should be excluded (its content is embedded as a table)
+            // Inline database .md wrapper should be excluded (its content is embedded as a
+            // table)
             expect(docs[`Inline Tasks ${inlineDatabase.notionId}.md`]).toBeUndefined();
         });
 
@@ -223,8 +227,8 @@ describe.each([false, true])("with nested=%p", nested => {
         });
 
         test("child database mentioned inline in parent body is excluded", () => {
-            // A database that is a child AND mentioned in parent's body content
-            // should be treated as inline (excluded)
+            // A database that is a child AND mentioned in parent's body content should be
+            // treated as inline (excluded)
             const childDatabase = new ExportedNotionDatabase("Child DB", [["Col"], ["Val"]]);
             // Reference the database inline in the body (after ---) using toCsvReference
             const parent = new ExportedNotionDocument(
@@ -249,8 +253,8 @@ describe.each([false, true])("with nested=%p", nested => {
         });
 
         test("child database not mentioned inline in parent body is included", () => {
-            // A database that is a child but NOT mentioned in parent's body
-            // should create a document
+            // A database that is a child but NOT mentioned in parent's body should create a
+            // document
             const childDatabase = new ExportedNotionDatabase("Child DB", [["Col"], ["Val"]]);
             const parent = new ExportedNotionDocument("Parent", "Some content", [childDatabase]);
             const zip = createZip([parent]);
@@ -294,7 +298,8 @@ describe.each([false, true])("with nested=%p", nested => {
             );
             const documents = getAllDocuments(result);
 
-            // Set up the database-children relationship manually (since test helper doesn't support it)
+            // Set up the database-children relationship manually (since test helper doesn't
+            // support it)
             const aliceDocumentEntry = Object.entries(documents).find(([p]) =>
                 p.includes("Alice"),
             )?.[1];
@@ -340,8 +345,8 @@ describe.each([false, true])("with nested=%p", nested => {
             );
             const docs = getAllDocuments(result);
 
-            // Find the relevant entries
-            // In nested mode, database children paths include the parent document's title
+            // Find the relevant entries In nested mode, database children paths include the
+            // parent document's title
             const parentPath = `Project ${parent.notionId}.md`;
             const databaseChildPrefix = nested ? "Project/Team" : "Team";
             const alicePath = `${databaseChildPrefix}/Alice ${aliceDocument.notionId}.md`;
@@ -364,12 +369,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(aliceEntry).toBeDefined();
             expect(bobEntry).toBeDefined();
 
-            // Children should have parent = grandparent (the document containing the inline database)
+            // Children should have parent = grandparent (the document containing the inline
+            // database)
             expect(aliceEntry!.parent?.documentId).toBe(parentEntry!.id);
             expect(bobEntry!.parent?.documentId).toBe(parentEntry!.id);
 
-            // But children should NOT be in grandparent's children set
-            // (they only appear as links in table cells)
+            // But children should NOT be in grandparent's children set (they only appear as
+            // links in table cells)
             expect(parentEntry!.children.has(aliceEntry!.id)).toBe(false);
             expect(parentEntry!.children.has(bobEntry!.id)).toBe(false);
 
@@ -416,10 +422,9 @@ describe.each([false, true])("with nested=%p", nested => {
         });
 
         test("root-level CSV-only database WITHOUT teamspaces uses implicit workspace teamspace", () => {
-            // This tests the fix for the bug where CSV-only databases at the root
-            // level of an export WITHOUT teamspaces would have orphaned children.
-            // Previously, teamspaceId was null in this case, so children wouldn't
-            // be tracked in rootLevelCsvDatabases.
+            // This tests the fix for the bug where CSV-only databases at the root level of an
+            // export WITHOUT teamspaces would have orphaned children. Previously, teamspaceId
+            // was null in this case, so children wouldn't be tracked in rootLevelCsvDatabases.
 
             // Create child documents for a root-level inline database
             const person1 = new ExportedNotionDocument("Alice", "Alice's profile");
@@ -455,8 +460,8 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(databaseInfo).toBeDefined();
             expect(databaseInfo!.childPaths.length).toBe(2);
 
-            // The teamspaceId should be the workspace ID (implicit teamspace)
-            // When there are no explicit teamspaces, the workspace itself is used
+            // The teamspaceId should be the workspace ID (implicit teamspace) When there are
+            // no explicit teamspaces, the workspace itself is used
             expect(databaseInfo!.teamspaceId).toBe(result.notionWorkspaceId);
 
             // Verify the implicit teamspace exists and has the workspace name
@@ -500,8 +505,7 @@ describe.each([false, true])("with nested=%p", nested => {
             );
             const docs = getAllDocuments(result);
 
-            // Find the entries
-            // In nested mode, paths include parent document's title
+            // Find the entries In nested mode, paths include parent document's title
             const projectPath = `Project ${project.notionId}.md`;
             const databasePrefix = nested ? "Project" : "";
             const taskDatabasePath = databasePrefix
@@ -576,8 +580,8 @@ describe.each([false, true])("with nested=%p", nested => {
         });
 
         test("deeply nested database (3 levels) maintains correct hierarchy", () => {
-            // Create a deeply nested structure:
-            // Workspace > Project > Sprint > Tasks (database) > Task items
+            // Create a deeply nested structure: Workspace > Project > Sprint > Tasks
+            // (database) > Task items
             const taskItem = new ExportedNotionDocument("Fix Bug", "Fix the bug");
 
             const tasksDatabase = new ExportedNotionDatabase(
@@ -602,8 +606,7 @@ describe.each([false, true])("with nested=%p", nested => {
             );
             const docs = getAllDocuments(result);
 
-            // Find all entries
-            // In nested mode, each level adds to the path prefix
+            // Find all entries In nested mode, each level adds to the path prefix
             const projectPath = `Project Alpha ${project.notionId}.md`;
             const sprintPath = nested
                 ? `Project Alpha/Sprint 1 ${sprint.notionId}.md`
@@ -849,7 +852,8 @@ describe.each([false, true])("with nested=%p", nested => {
         });
 
         test("deep nesting without content: hasChildrenHeader is false for all", () => {
-            // Documents without content don't get a --- divider, so no children header to remove
+            // Documents without content don't get a --- divider, so no children header to
+            // remove
             const grandchild = new ExportedNotionDocument("Grandchild", "");
             const child = new ExportedNotionDocument("Child", "", [grandchild]);
             const parent = new ExportedNotionDocument("Parent", "", [child]);
@@ -870,7 +874,8 @@ describe.each([false, true])("with nested=%p", nested => {
         });
 
         test("deep nesting with content: parents have hasChildrenHeader true", () => {
-            // Documents with content AND children get a --- divider, so children header should be removed
+            // Documents with content AND children get a --- divider, so children header should
+            // be removed
             const grandchild = new ExportedNotionDocument("Grandchild", "grandchild content");
             const child = new ExportedNotionDocument("Child", "child content", [grandchild]);
             const parent = new ExportedNotionDocument("Parent", "parent content", [child]);
@@ -1091,8 +1096,7 @@ describe.each([false, true])("with nested=%p", nested => {
         const fileExtensions = {image: ".png", video: ".mp4", audio: ".mp3"};
 
         test("5 layers deep, 25+ children per root, 25 files and 25 references", () => {
-            // --- Build tree A (5 layers deep) ---
-            // Layer 5 (deepest leaves under A)
+            // --- Build tree A (5 layers deep) --- Layer 5 (deepest leaves under A)
             const a0000 = new ExportedNotionDocument("A-0-0-0-0", "");
             const a0001 = new ExportedNotionDocument("A-0-0-0-1", "");
 
@@ -1122,8 +1126,7 @@ describe.each([false, true])("with nested=%p", nested => {
             // Layer 1 (Root A)
             const rootA = new ExportedNotionDocument("Root A", "", allAChildren);
 
-            // --- Build tree B (5 layers deep) ---
-            // Layer 5 (deepest leaves under B)
+            // --- Build tree B (5 layers deep) --- Layer 5 (deepest leaves under B)
             const b0000 = new ExportedNotionDocument("B-0-0-0-0", "");
             const b0001 = new ExportedNotionDocument("B-0-0-0-1", "");
 
@@ -1233,8 +1236,8 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(Object.keys(docs)).toHaveLength(allDocs.length);
             expect(Object.keys(result.filesToUpload)).toHaveLength(arbitraryReferenceCount * 2);
 
-            // --- Build path map for nested mode ---
-            // In nested mode, directory names use only the title (not "title notionId")
+            // --- Build path map for nested mode --- In nested mode, directory names use only
+            // the title (not "title notionId")
             const pathMap = new Map<ExportedNotionDocument, string>();
             function buildPath(
                 doc: ExportedNotionDocument,
@@ -1384,8 +1387,8 @@ describe.each([false, true])("with nested=%p", nested => {
             assertDoc(a03, {parent: a0, children: [], references: [], filePaths: []});
             assertDoc(a04, {parent: a0, children: [], references: [], filePaths: []});
 
-            // --- Assert A-1 (25 files, no doc references) ---
-            // In nested mode, files are in "Parent Title/Doc Title/" directories
+            // --- Assert A-1 (25 files, no doc references) --- In nested mode, files are in
+            // "Parent Title/Doc Title/" directories
             const a1FileDir = nested ? "Root A/A-1/" : "";
             const a1FilePaths = a1Files.map((f, i) => {
                 const ext = fileExtensions[fileTypes[i % 3]!];
@@ -1468,8 +1471,8 @@ describe.each([false, true])("with nested=%p", nested => {
             assertDoc(b03, {parent: b0, children: [], references: [], filePaths: []});
             assertDoc(b04, {parent: b0, children: [], references: [], filePaths: []});
 
-            // --- Assert B-1 (25 files, no doc references) ---
-            // In nested mode, files are in "Parent Title/Doc Title/" directories
+            // --- Assert B-1 (25 files, no doc references) --- In nested mode, files are in
+            // "Parent Title/Doc Title/" directories
             const b1FileDir = nested ? "Root B/B-1/" : "";
             const b1FilePaths = b1Files.map((f, i) => {
                 const ext = fileExtensions[fileTypes[i % 3]!];
@@ -1524,8 +1527,8 @@ describe.each([false, true])("with nested=%p", nested => {
 });
 
 describe("real notion export fixtures", () => {
-    // These tests use real exports from Notion to verify the parser
-    // handles actual Notion export format correctly.
+    // These tests use real exports from Notion to verify the parser handles actual
+    // Notion export format correctly.
 
     function readFixture(name: string): Uint8Array {
         const runfiles = process.env.RUNFILES;
@@ -1717,9 +1720,9 @@ describe("real notion export fixtures", () => {
         const markdownTests = `Markdown Tests ${ids.markdownTests}.md`;
 
         // Note: Children of CSV-only inline databases do NOT have parent-child
-        // relationships. They are only tracked in inlineDatabaseChildren for
-        // cell linking in the table. This is by design to avoid having them
-        // appear both in the table cells AND in a "Child documents" section.
+        // relationships. They are only tracked in inlineDatabaseChildren for cell linking
+        // in the table. This is by design to avoid having them appear both in the table
+        // cells AND in a "Child documents" section.
         assertResultWithAssertions(result, docPaths, filePaths, {
             [`Empty ${ids.empty}.md`]: {},
             [pageParent]: {
@@ -1758,8 +1761,8 @@ describe("real notion export fixtures", () => {
                 references: [`Getting Started ${ids.gettingStarted}.md`],
             },
             // Children of CSV-only databases have parent = grandparent (the document
-            // containing the inline database). They have a "Parent document" link but
-            // don't appear in the parent's "Child documents" section.
+            // containing the inline database). They have a "Parent document" link but don't
+            // appear in the parent's "Child documents" section.
             [`Publish release notes ${ids.publishRelease}.md`]: {parent: pageParent},
             [`Untitled ${ids.untitled1}.md`]: {parent: pageParent},
             [`Improve website copy ${ids.improveWebsite}.md`]: {parent: pageParent},
@@ -1889,8 +1892,8 @@ describe("real notion export fixtures", () => {
         const toDoList = `To Do List ${ids.toDoList}.md`;
 
         // Note: Children of CSV-only inline databases do NOT have parent-child
-        // relationships. They are only tracked in inlineDatabaseChildren for
-        // cell linking in the table.
+        // relationships. They are only tracked in inlineDatabaseChildren for cell linking
+        // in the table.
         assertResultWithAssertions(result, docPaths, filePaths, {
             [`Empty ${ids.empty}.md`]: {},
             [pageParent]: {
@@ -2369,8 +2372,8 @@ describe("teamspace filtering", () => {
 
 describe("Home file filtering", () => {
     test("Home file with only CSV links at teamspace root is excluded", () => {
-        // Create a Home file that only has CSV links (should be filtered).
-        // Use raw CSV link syntax since we don't need real CSV files in the zip.
+        // Create a Home file that only has CSV links (should be filtered). Use raw CSV
+        // link syntax since we don't need real CSV files in the zip.
         const homeWithCsvOnly = new ExportedNotionDocument(
             "Home",
             "[Tasks](Tasks%20abc123.csv)\n\n[My tasks](My%20tasks%20def456.csv)",

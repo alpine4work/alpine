@@ -2,8 +2,8 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Schema for the document creator's "from" field, indicating what created
- * the document on behalf of the creator.
+ * Schema for the document creator's "from" field, indicating what created the
+ * document on behalf of the creator.
  *
  * - `Bot`: The document was created by a bot on behalf of the creator.
  * - `Importer`: The document was imported from an external source.

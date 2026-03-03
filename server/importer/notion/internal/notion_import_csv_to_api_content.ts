@@ -8,17 +8,17 @@ import {
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 /**
- * Normalizes a row to have exactly the expected number of columns.
- * If there are more fields than expected (due to unquoted commas), we join
- * the extra fields into the last cell with commas. We can't know where the
- * content actually belongs, so this is the safest non-failure behavior.
+ * Normalizes a row to have exactly the expected number of columns. If there are
+ * more fields than expected (due to unquoted commas), we join the extra fields
+ * into the last cell with commas. We can't know where the content actually
+ * belongs, so this is the safest non-failure behavior.
  */
 function normalizeRowToColumnCount(row: Array<string>, columnCount: number): Array<string> {
     if (row.length <= columnCount) {
         return row;
     }
-    // Take the first (columnCount - 1) fields as-is, then join the rest
-    // into the last field with commas (restoring the original separators).
+    // Take the first (columnCount - 1) fields as-is, then join the rest into the last
+    // field with commas (restoring the original separators).
     const normalizedRow = row.slice(0, columnCount - 1);
     const lastCellParts = row.slice(columnCount - 1);
     normalizedRow.push(lastCellParts.join(", "));
@@ -52,6 +52,7 @@ function parseCSVLine(line: string): Array<string> {
 
 /**
  * Escape cell content for table display:
+ *
  * - Replace pipe characters with escaped version
  * - Replace newlines with spaces
  */
@@ -60,8 +61,8 @@ function escapeCell(cell: string): string {
 }
 
 /**
- * Create an inline element for a cell, either as a mention or as text.
- * Returns null for empty cells (ProseMirror doesn't allow empty text nodes).
+ * Create an inline element for a cell, either as a mention or as text. Returns
+ * null for empty cells (ProseMirror doesn't allow empty text nodes).
  */
 function createCellInlineElement(
     cell: string,
@@ -92,8 +93,8 @@ function createCellInlineElement(
 }
 
 /**
- * Create a table cell with a paragraph containing the inline element.
- * If inlineElement is null (empty cell), creates a paragraph with no content.
+ * Create a table cell with a paragraph containing the inline element. If
+ * inlineElement is null (empty cell), creates a paragraph with no content.
  */
 function createTableCell(
     inlineElement: ApiContentInlineElement | null,
@@ -109,25 +110,25 @@ function createTableCell(
 }
 
 /**
- * Convert CSV content to an API content table block element.
- * If childTitleToDocumentId is provided, cells that exactly match a child title
- * will be converted to document mentions.
+ * Convert CSV content to an API content table block element. If
+ * childTitleToDocumentId is provided, cells that exactly match a child title will
+ * be converted to document mentions.
  *
- * Note on handling malformed CSV with unquoted commas:
- * If a data row has more fields than the header row (due to unquoted commas in
- * cell content), we cannot reliably determine which field the extra content
- * belongs to. As a graceful degradation, we dump all remaining content into the
- * last cell. This preserves the data rather than dropping it or failing.
+ * Note on handling malformed CSV with unquoted commas: If a data row has more
+ * fields than the header row (due to unquoted commas in cell content), we cannot
+ * reliably determine which field the extra content belongs to. As a graceful
+ * degradation, we dump all remaining content into the last cell. This preserves
+ * the data rather than dropping it or failing.
  *
  * Returns null if the CSV is empty or has fewer than 2 columns.
  *
  * TODO: Handle duplicates in child names
- *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0211b7ghybjssvgxarkbw1edac
+ * https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0211b7ghybjssvgxarkbw1edac
  *
  * @see README.md "Database Children and Cell Linking" section for how
- *     childTitleToDocumentId is used to convert cells to document links.
- * @see README.md "Inline vs Full-Page Databases" section for when this
- *     function is called to embed database tables.
+ * childTitleToDocumentId is used to convert cells to document links. @see
+ * README.md "Inline vs Full-Page Databases" section for when this function is
+ * called to embed database tables.
  */
 export function notionImportCsvToApiContent(
     csvContent: string,

@@ -86,14 +86,14 @@ export function FeedView({
         title: space.name,
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
-        // This is a route for a root tab in our mobile app so don't show the back
-        // button. It wouldn't work.
+        // This is a route for a root tab in our mobile app so don't show the back button.
+        // It wouldn't work.
         withoutMobileBackButton: true,
     });
 
-    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
-    // expanded comments on mobile. So make sure to close them all.
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+    // in a new route. `<PostListView>` will throw if you pass in `posts` with expanded
+    // comments on mobile. So make sure to close them all.
     if (platform === "mobile" && feed.hasOpenPostComments()) {
         setFeed(feed => feed.closeAllPostComments());
     }
@@ -147,8 +147,8 @@ export function FeedView({
                 onOptimisticPostRealtimeEventTransaction={useCallback(
                     (promise, postId, update) => {
                         setFeedOptimistically(promise, (feed, promiseValue) => {
-                            // Once `promise` resolves, use the event transaction from `promise` to update
-                            // the posts instead of our optimistic updater.
+                            // Once `promise` resolves, use the event transaction from `promise` to update the
+                            // posts instead of our optimistic updater.
                             if (promiseValue) {
                                 return feed.handleEventTransaction(promiseValue);
                             }
@@ -160,8 +160,8 @@ export function FeedView({
                             const newPostItem = {
                                 ...oldPostItem,
                                 // Always pretend like our optimistic update is one version higher than what's
-                                // currently in state. Once `promise` resolves then we'll update the item with
-                                // the real version.
+                                // currently in state. Once `promise` resolves then we'll update the item with the
+                                // real version.
                                 version: oldPostItem.version + 1,
                                 model: newPost,
                             };
@@ -173,9 +173,9 @@ export function FeedView({
                     },
                     [setFeedOptimistically],
                 )}
-                // The amount of space to reserve for our left sidebar. We render the sidebar
-                // using `extraChildren`. We also reserve some right sidebar space on large
-                // screens to visually center our post content.
+                // The amount of space to reserve for our left sidebar. We render the sidebar using
+                // `extraChildren`. We also reserve some right sidebar space on large screens to
+                // visually center our post content.
                 sideBarLeftSize={sideBarLeftSize}
                 sideBarRightSize={sideBarRightSize}
                 extraChildren={

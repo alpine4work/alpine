@@ -100,8 +100,8 @@ export const searchStaticEntityById: {
 };
 
 /**
- * A lazy Fuse.js index for static entities. Used by our search implementation
- * to allow the user to take actions from the search modal.
+ * A lazy Fuse.js index for static entities. Used by our search implementation to
+ * allow the user to take actions from the search modal.
  */
 export const searchStaticEntityIndex = new Lazy(() => {
     const entities: Array<{
@@ -128,8 +128,8 @@ export const searchStaticEntityIndex = new Lazy(() => {
 
     return new Fuse(entities, {
         includeScore: true,
-        // Must match more characters than "Create". Otherwise the user would see all
-        // the create commands when typing "Create" all at once.
+        // Must match more characters than "Create". Otherwise the user would see all the
+        // create commands when typing "Create" all at once.
         minMatchCharLength: "Create".length + 1,
         keys: [{name: "text"}],
     });

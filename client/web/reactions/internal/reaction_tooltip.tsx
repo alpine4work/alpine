@@ -142,8 +142,7 @@ function ReactionTooltipContent({
                     accountNames.unshift(introduction ? "you" : "You");
                 }
 
-                // Use the unknown account name for any accounts we didn't find in
-                // `allAccounts`.
+                // Use the unknown account name for any accounts we didn't find in `allAccounts`.
                 while (
                     accountNames.length < maxAccountNameCount &&
                     reactionAccountIds.size > accountNames.length

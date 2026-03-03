@@ -25,15 +25,15 @@ const schemaCompositeDescriptionTypes: {
 /**
  * Schema descriptions may be circular objects so they can not be safely
  * `JSON.stringify()`ied. Schema descriptions also end up frequently reusing
- * sub-descriptions when complex objects are reused multiple times throughout
- * the schema.
+ * sub-descriptions when complex objects are reused multiple times throughout the
+ * schema.
  *
- * This function takes a schema description and transforms it into a
- * representation that is smaller and JSON safe. If an identical composite
- * schema appears twice in the description, we will add a `referenceId` to the
- * first time the schema appears and then reference it later with
- * `type: "Reference"`. All references appear in the tree after the first
- * reference appeared when traversing depth first.
+ * This function takes a schema description and transforms it into a representation
+ * that is smaller and JSON safe. If an identical composite schema appears twice in
+ * the description, we will add a `referenceId` to the first time the schema
+ * appears and then reference it later with `type: "Reference"`. All references
+ * appear in the tree after the first reference appeared when traversing depth
+ * first.
  */
 export function serializeSchemaDescriptionToJsonSafeValue(value: JsonValue): JsonValue {
     const referenceByValue = new Map<
@@ -59,8 +59,8 @@ export function serializeSchemaDescriptionToJsonSafeValue(value: JsonValue): Jso
 
                     referenceByValue.set(value, {referenceId: newReferenceId, newValue});
                 } else {
-                    // Make sure the new value includes the reference id so we know what this
-                    // reference object is pointing to.
+                    // Make sure the new value includes the reference id so we know what this reference
+                    // object is pointing to.
                     (reference.newValue as any).referenceId = reference.referenceId;
                     return {type: "Reference", reuseReferenceId: reference.referenceId};
                 }
@@ -86,8 +86,8 @@ export function serializeSchemaDescriptionToJsonSafeValue(value: JsonValue): Jso
 /**
  * This function takes a JSON-safe schema description (serialized by
  * `serializeSchemaDescriptionToJsonSafeValue()`) and converts it back into a
- * schema description. Replacing all the `type: "Reference"` descriptions with
- * the actual schema description even when that creates a cycle.
+ * schema description. Replacing all the `type: "Reference"` descriptions with the
+ * actual schema description even when that creates a cycle.
  */
 export function deserializeSchemaDescriptionFromJsonSafeValue(value: JsonValue): JsonValue {
     const newValueByReferenceId = new Map<string, JsonObjectValue>();

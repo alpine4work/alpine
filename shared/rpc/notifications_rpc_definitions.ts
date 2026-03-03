@@ -143,9 +143,9 @@ export const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread = defineR
 
 export const observeInbox = defineRpc({
     name: "observeInbox",
-    // Increments the inbox generation twice if called twice. (Arguably this
-    // behavior is fine and similar to incrementing an update lock version twice
-    // which we consider idempotent.)
+    // Increments the inbox generation twice if called twice. (Arguably this behavior
+    // is fine and similar to incrementing an update lock version twice which we
+    // consider idempotent.)
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),

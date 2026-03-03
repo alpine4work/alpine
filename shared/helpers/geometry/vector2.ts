@@ -2,11 +2,10 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 
 /**
- * A [vector][1] in two dimensions. Vectors are made up of a distance
- * (magnitude) and direction (angle). This class defines a vector as an
- * (x, y) coordinate in cartesian space (where the initial point is
- * (0, 0)) but has getters which allow you to manipulate the vector in
- * polar form.
+ * A [vector][1] in two dimensions. Vectors are made up of a distance (magnitude)
+ * and direction (angle). This class defines a vector as an (x, y) coordinate in
+ * cartesian space (where the initial point is (0, 0)) but has getters which allow
+ * you to manipulate the vector in polar form.
  *
  * [1]: https://en.wikipedia.org/wiki/Euclidean_vector
  */

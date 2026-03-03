@@ -99,9 +99,9 @@ describe("generateDeterministicNotionDocumentIdSync", () => {
     });
 
     test("same workspace imported into different spaces has different IDs", () => {
-        // This is the key property: importing the same Notion workspace
-        // into different Alpine spaces should produce different document IDs
-        // to avoid cross-space collisions
+        // This is the key property: importing the same Notion workspace into different
+        // Alpine spaces should produce different document IDs to avoid cross-space
+        // collisions
         const idInSpace1 = generateDeterministicNotionDocumentIdSync(
             spaceId1,
             workspaceId1,
@@ -117,8 +117,8 @@ describe("generateDeterministicNotionDocumentIdSync", () => {
     });
 
     test("same workspace imported into same space multiple times has same IDs", () => {
-        // This is the idempotency property: re-importing should produce
-        // the same document IDs for the same documents
+        // This is the idempotency property: re-importing should produce the same document
+        // IDs for the same documents
         const firstImport = generateDeterministicNotionDocumentIdSync(
             spaceId1,
             workspaceId1,

@@ -55,8 +55,8 @@ export async function createSpaceForAccountAsAdmin(
 }
 
 /**
- * Creates a space and adds the given user as the `Owner` of the space.
- * This creates all resources associated with a new account, including:
+ * Creates a space and adds the given user as the `Owner` of the space. This
+ * creates all resources associated with a new account, including:
  *
  * - A Welcome channel
  * - Starter tasks for the user
@@ -123,9 +123,9 @@ async function actuallyCreateSpace(
                 ...welcomePackageTransactionEntries,
             ]),
 
-            // Faster to add affinity points separately from our create space transaction.
-            // We don't care if there are some affinity point items floating around for a
-            // space that doesn't exist.
+            // Faster to add affinity points separately from our create space transaction. We
+            // don't care if there are some affinity point items floating around for a space
+            // that doesn't exist.
             dangerouslyApplySpaceWelcomePackage(context, {
                 accountId: ownerAccountId,
                 welcomePackageItem,

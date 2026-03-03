@@ -34,25 +34,25 @@ export type PeekRemixEmbedRouter = Router & {
 export function usePeekRemixEmbedRouter() {
     // Oh look! Remix internals.
     //
-    // For peeks we want to create a mini navigation context embedded in our
-    // app. We want that navigation context to have the same behaviors as
-    // navigating in our app more generally:
+    // For peeks we want to create a mini navigation context embedded in our app. We
+    // want that navigation context to have the same behaviors as navigating in our app
+    // more generally:
     //
     // - Wait to navigate while loader data and route modules load
-    // - Use the same `useNavigate()` hooks in component code which automatically
-    //   go to the right place
+    // - Use the same `useNavigate()` hooks in component code which automatically go to
+    //   the right place
     // - Data load is powered by a Remix loader function
     //
     // However, we want our embedded peek navigation stack to be separate from the
-    // browser's navigation stack. You should be able to navigate in the browser
-    // and navigate in the peek independently.
+    // browser's navigation stack. You should be able to navigate in the browser and
+    // navigate in the peek independently.
     //
     // To accomplish this we reuse Remix's data loading and routing internals to
-    // create, effectively, another instance of Remix! This is very undocumented,
-    // will be tricky to upgrade, and requires some patching of Remix and React
-    // Router. However, the effect it creates is incredible and differentiates
-    // us from other productivity tools. You have (multiple) full navigation
-    // contexts on the page at once.
+    // create, effectively, another instance of Remix! This is very undocumented, will
+    // be tricky to upgrade, and requires some patching of Remix and React Router.
+    // However, the effect it creates is incredible and differentiates us from other
+    // productivity tools. You have (multiple) full navigation contexts on the page at
+    // once.
     const remixContext = useContext(RemixContext);
     assert(remixContext, "Expected remix context");
 
@@ -64,16 +64,16 @@ export function usePeekRemixEmbedRouter() {
     const remixOriginalRoutesForPeek: Array<DataRouteObject> = (remixContext as any)
         .originalRoutesForPeek;
 
-    // We only want to allow peek routes to be rendered from a peek embed. So take
-    // the full route tree from our remix context and create a new tree with just
-    // the peek routes.
+    // We only want to allow peek routes to be rendered from a peek embed. So take the
+    // full route tree from our remix context and create a new tree with just the peek
+    // routes.
     //
-    // A warning will be logged if you try to access a non-peek URL from this
-    // instance of React Router.
+    // A warning will be logged if you try to access a non-peek URL from this instance
+    // of React Router.
     const peekRoutes: Array<DataRouteObject> = useMemo(() => {
         try {
-            // It's important that we use the original routes object since it'll update
-            // after `route.lazy()` is called thanks to `makeLazyDataRouteSelfUpdating()`.
+            // It's important that we use the original routes object since it'll update after
+            // `route.lazy()` is called thanks to `makeLazyDataRouteSelfUpdating()`.
             const routes = remixOriginalRoutesForPeek;
             assert(routes.length === 1);
             const rootRoute = routes[0]!;
@@ -114,8 +114,7 @@ export function usePeekRemixEmbedRouter() {
                     history: {
                         ...history,
 
-                        // Spreading copies the current value of getters so manually override
-                        // the getters.
+                        // Spreading copies the current value of getters so manually override the getters.
                         // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/history.ts#L276-L284
                         get index() {
                             return history.index;
@@ -130,8 +129,8 @@ export function usePeekRemixEmbedRouter() {
                             return history.location;
                         },
 
-                        // By default, memory history will return a URL with the domain
-                        // `http://localhost` (no port). Make sure to use the right domain.
+                        // By default, memory history will return a URL with the domain `http://localhost`
+                        // (no port). Make sure to use the right domain.
                         createURL: to => new URL(history.createHref(to), window.location.origin),
                     },
                     hydrationData,
@@ -146,8 +145,7 @@ export function usePeekRemixEmbedRouter() {
                 const peekRouter: PeekRemixEmbedRouter = {
                     ...router,
 
-                    // Spreading copies the current value of getters so manually override
-                    // the getters.
+                    // Spreading copies the current value of getters so manually override the getters.
                     // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L2508-L2516
                     get basename() {
                         return router.basename;
@@ -184,8 +182,8 @@ export function usePeekRemixEmbedRouter() {
                             }
                         }
 
-                        // Otherwise, navigate to the URL in the broader product. This should close
-                        // all our peeks.
+                        // Otherwise, navigate to the URL in the broader product. This should close all our
+                        // peeks.
                         return navigate(to, options);
                     },
                 };

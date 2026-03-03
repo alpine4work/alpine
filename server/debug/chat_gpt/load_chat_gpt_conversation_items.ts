@@ -50,12 +50,12 @@ export async function loadChatGptConversationItems(
                 type: "Bot",
                 spaceId,
                 accountId: chatGptAccountId,
-                // VERY IMPORTANT: Use the actor `AccountId` as the scope so we only see stuff
-                // the actor has access to. If we use the `Chat` as the scope we're implicitly
-                // granting access to the chat to any actor who tries to open this page!
+                // VERY IMPORTANT: Use the actor `AccountId` as the scope so we only see stuff the
+                // actor has access to. If we use the `Chat` as the scope we're implicitly granting
+                // access to the chat to any actor who tries to open this page!
                 //
-                // TODO(ifitzsimmons, #ai): Write an integration test to make sure permissions
-                // work properly.
+                // TODO(ifitzsimmons, #ai): Write an integration test to make sure permissions work
+                // properly.
                 scope: {type: "Account", accountId: context.actor.getAccountId()},
             },
         );
@@ -126,11 +126,11 @@ export async function loadChatGptConversationItems(
                     break;
                 }
                 case "function_call_output": {
-                    // TODO(ifitzsimmons, #ai): As of OpenAI API v6, function calls can return
-                    // a list of items, including images, files, and text content. We don't currently
-                    // support these types of function call outputs -- all of our tool calls return
-                    // strings. However, we do have plans to support these types of function calls
-                    // in the future and when we do, we'll need to update this logic.
+                    // TODO(ifitzsimmons, #ai): As of OpenAI API v6, function calls can return a list
+                    // of items, including images, files, and text content. We don't currently support
+                    // these types of function call outputs -- all of our tool calls return strings.
+                    // However, we do have plans to support these types of function calls in the future
+                    // and when we do, we'll need to update this logic.
                     assert(
                         typeof item.output === "string",
                         "Function call output must be a string",
@@ -150,9 +150,8 @@ export async function loadChatGptConversationItems(
 
             if (!content) return item;
 
-            // Technically `_world_` below isn't italicized if you're following the
-            // CommonMark spec. Since text on an adjacent line to HTML is considered more
-            // HTML.
+            // Technically `_world_` below isn't italicized if you're following the CommonMark
+            // spec. Since text on an adjacent line to HTML is considered more HTML.
             //
             // ```
             // <human name="Alice>
@@ -170,9 +169,8 @@ export async function loadChatGptConversationItems(
             // </human>
             // ```
             //
-            // The following adds extra newlines next to HTML open/close tags so Prettier
-            // and Lezer (which are sticklers for valid syntax) parse our Markdown
-            // correctly.
+            // The following adds extra newlines next to HTML open/close tags so Prettier and
+            // Lezer (which are sticklers for valid syntax) parse our Markdown correctly.
             if (content.prettierParser === "markdown") {
                 content.text = content.text
                     .replaceAll(/^<[a-z]+[^>]*>\n\n?/gm, substring =>

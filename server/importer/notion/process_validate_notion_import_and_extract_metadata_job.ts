@@ -9,9 +9,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportTeamspaceOptions} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
- * Validates a Notion import by downloading the uploaded zip, checking for
- * a valid Notion export structure (index.html), and extracting metadata
- * (workspace name and teamspaces).
+ * Validates a Notion import by downloading the uploaded zip, checking for a valid
+ * Notion export structure (index.html), and extracting metadata (workspace name
+ * and teamspaces).
  *
  * If valid: Updates the import item with workspace name and teamspace options,
  * sets status to "Validated".
@@ -84,6 +84,7 @@ export async function processValidateNotionImportAndExtractMetadataJob(
             : new Map([["default", metadata.workspaceName]]);
 
     // Build teamspace import options with smart defaults:
+    //
     // - If the teamspace name contains "private" or "shared", default to Private
     //   (Notion often has these teamspaces by default that are only visible to you.
     //   "Shared" does not mean global, so keep them private.)

@@ -15,13 +15,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
- * The fallback file aspect ratio we use when we don't have a way to preview
- * the file. For example binary files or files with an error message.
+ * The fallback file aspect ratio we use when we don't have a way to preview the
+ * file. For example binary files or files with an error message.
  */
 const fallbackFileAspectRatio = 3 / 2;
 
-// Use the larger `remPx` size (mobile) and the larger block max width
-// (mobile). The file will be scaled down as necessary.
+// Use the larger `remPx` size (mobile) and the larger block max width (mobile).
+// The file will be scaled down as necessary.
 const largeFallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxBySpacingScale.large;
 const largeFallbackFileHeight = largeFallbackFileWidth / fallbackFileAspectRatio;
 const largeFallbackFileSize = {width: largeFallbackFileWidth, height: largeFallbackFileHeight};
@@ -30,12 +30,11 @@ const smallFallbackFileWidth = 200;
 const smallFallbackFileHeight = smallFallbackFileWidth / fallbackFileAspectRatio;
 const smallFallbackFileSize = {width: smallFallbackFileWidth, height: smallFallbackFileHeight};
 
-// Aspect ratio of letter paper.
-// https://en.wikipedia.org/wiki/Letter_(paper_size)
+// Aspect ratio of letter paper. https://en.wikipedia.org/wiki/Letter_(paper_size)
 const letterPaperAspectRatio = 17 / 22;
 
-// Round numbers to 3 decimal places so we sending less data over the
-// network in our generated HTML.
+// Round numbers to 3 decimal places so we sending less data over the network in
+// our generated HTML.
 function round3(n: number) {
     return Math.round(n * 10 ** 3) / 10 ** 3;
 }
@@ -51,16 +50,15 @@ export type ContentFileLayout = {
 };
 
 /**
- * Layout the files in a file row. Uses the [Cassowary algorithm][1]
- * (specifically the [`@lume/kiwi`][2] JavaScript implementation) to determine
- * the most aesthetic layout for up to three files in a row. The key constraint
- * of our layout algorithm is all files should share the same height and should
- * ideally fill our full content width all while preserving the underlying
- * files' aspect ratios.
+ * Layout the files in a file row. Uses the [Cassowary algorithm][1] (specifically
+ * the [`@lume/kiwi`][2] JavaScript implementation) to determine the most aesthetic
+ * layout for up to three files in a row. The key constraint of our layout
+ * algorithm is all files should share the same height and should ideally fill our
+ * full content width all while preserving the underlying files' aspect ratios.
  *
- * [Apple's Auto Layout framework][3] for iOS and OS X development is also
- * based on the Cassowary algorithm. Which is what gives us confidence for the
- * performance of this approach.
+ * [Apple's Auto Layout framework][3] for iOS and OS X development is also based on
+ * the Cassowary algorithm. Which is what gives us confidence for the performance
+ * of this approach.
  *
  * Layout satisfies the following constraints:
  *
@@ -71,7 +69,8 @@ export type ContentFileLayout = {
  *
  * [1]: https://en.wikipedia.org/wiki/Cassowary_(software)
  * [2]: https://github.com/lume/kiwi
- * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
+ * [3]:
+ *     https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
 export function computeContentFileRowLikeLayout<
     Files extends Array<FileModelData | FileEntityId | null>,
@@ -135,12 +134,12 @@ export function computeContentFileRowLikeLayout<
         }
 
         // Add `width` bounds. `width` should be larger than our min file size and less
-        // than the file's original width (since making a small file larger will start
-        // to add resize artifacts).
+        // than the file's original width (since making a small file larger will start to
+        // add resize artifacts).
         //
-        // The maximum width is also implicitly bound by the constraint we add below
-        // this loop adding up all `widthVariables` and requiring that they're less
-        // than our file row's width.
+        // The maximum width is also implicitly bound by the constraint we add below this
+        // loop adding up all `widthVariables` and requiring that they're less than our
+        // file row's width.
         {
             const maxWidth = width !== null ? Math.max(minWidth, width) : null;
 
@@ -173,9 +172,9 @@ export function computeContentFileRowLikeLayout<
                         ),
                     );
                 } else {
-                    // If there's no `maxWidth` (because there's no `width`) then we want the file
-                    // to be close to a fair share of the block width. But it's perfectly fine to
-                    // break this constraint.
+                    // If there's no `maxWidth` (because there's no `width`) then we want the file to
+                    // be close to a fair share of the block width. But it's perfectly fine to break
+                    // this constraint.
                     solver.addConstraint(
                         new kiwi.Constraint(
                             widthVariable,
@@ -245,9 +244,9 @@ export function computeContentFileRowLikeLayout<
         // Maintain the aspect ratio of the file as best we can. This constraint isn't
         // required, the solver may break it if necessary.
         //
-        // If there's no `width` then the aspect ratio is flexible. But we still add
-        // this constraint with a `>=` operator to make sure the file doesn't get
-        // squished next to other files.
+        // If there's no `width` then the aspect ratio is flexible. But we still add this
+        // constraint with a `>=` operator to make sure the file doesn't get squished next
+        // to other files.
         solver.addConstraint(
             new kiwi.Constraint(
                 widthVariable.minus(
@@ -267,14 +266,14 @@ export function computeContentFileRowLikeLayout<
     }
 
     // When we add up all our widths it must be less than the total `fileRowWidth`.
-    // Ideally the width is exactly equal to `fileRowWidth` but that's not possible
-    // if we have smaller files.
+    // Ideally the width is exactly equal to `fileRowWidth` but that's not possible if
+    // we have smaller files.
     //
     // `fileRowWidth` is best case. We don't rerun our layout function whenever the
     // file row's width changes. Instead we hope we're taking up the full block max
-    // width or we're taking the full screen on smaller devices. If the file row
-    // width isn't exactly what we expect then we'll have to start cropping content
-    // in the file.
+    // width or we're taking the full screen on smaller devices. If the file row width
+    // isn't exactly what we expect then we'll have to start cropping content in the
+    // file.
     {
         let widthExpression: kiwi.Variable | kiwi.Expression = sizeVariables[0]!.width;
 
@@ -287,8 +286,8 @@ export function computeContentFileRowLikeLayout<
 
         // If all the files in the row were `minWidth` and still wouldn't fit in
         // `blockWidth` then we remove the constraint that our widths must sum up to
-        // `blockWidth`. This only kicks in for recursive document file entities which
-        // end up rendering documents at a very small size.
+        // `blockWidth`. This only kicks in for recursive document file entities which end
+        // up rendering documents at a very small size.
         if (
             blockWidth >=
             minWidth * maxFileCount + contentStyles.fileRowGapWidthRem * remPx * (maxFileCount - 1)
@@ -303,9 +302,9 @@ export function computeContentFileRowLikeLayout<
             );
         }
 
-        // We think it's most aesthetically pleasing when files fill our row's full
-        // width. However, it might not be possible to fill the full width so this
-        // constraint isn't required.
+        // We think it's most aesthetically pleasing when files fill our row's full width.
+        // However, it might not be possible to fill the full width so this constraint
+        // isn't required.
         solver.addConstraint(
             new kiwi.Constraint(
                 widthExpression,
@@ -316,8 +315,8 @@ export function computeContentFileRowLikeLayout<
         );
     }
 
-    // Helps in tie-breaking scenarios. Try to preserve the size of each file
-    // relative to each other.
+    // Helps in tie-breaking scenarios. Try to preserve the size of each file relative
+    // to each other.
     const weakerStrength = kiwi.Strength.create(0.0, 0.0, 0.5);
 
     for (let i = 0; i < sizeVariables.length; i++) {
@@ -378,13 +377,13 @@ export function computeContentFileRowLikeLayout<
 }
 
 /**
- * Layout the file in a file float. Uses the [Cassowary algorithm][1]
- * (specifically the [`@lume/kiwi`][2] JavaScript implementation) to determine
- * the best aesthetic layout.
+ * Layout the file in a file float. Uses the [Cassowary algorithm][1] (specifically
+ * the [`@lume/kiwi`][2] JavaScript implementation) to determine the best aesthetic
+ * layout.
  *
- * [Apple's Auto Layout framework][3] for iOS and OS X development is also
- * based on the Cassowary algorithm. Which is what gives us confidence for the
- * performance of this approach.
+ * [Apple's Auto Layout framework][3] for iOS and OS X development is also based on
+ * the Cassowary algorithm. Which is what gives us confidence for the performance
+ * of this approach.
  *
  * Layout satisfies the following constraints:
  *
@@ -395,7 +394,8 @@ export function computeContentFileRowLikeLayout<
  *
  * [1]: https://en.wikipedia.org/wiki/Cassowary_(software)
  * [2]: https://github.com/lume/kiwi
- * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
+ * [3]:
+ *     https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
 export function computeContentFileFloatLayout(
     direction: "left" | "right",
@@ -431,12 +431,12 @@ export function computeContentFileFloatLayout(
     const heightVariable = new kiwi.Variable();
 
     // Add `width` bounds. `width` should be larger than our min file size and less
-    // than the file's original width (since making a small file larger will start
-    // to add resize artifacts).
+    // than the file's original width (since making a small file larger will start to
+    // add resize artifacts).
     //
-    // The maximum width is also implicitly bound by the constraint we add below
-    // this loop adding up all `widthVariables` and requiring that they're less
-    // than our file row's width.
+    // The maximum width is also implicitly bound by the constraint we add below this
+    // loop adding up all `widthVariables` and requiring that they're less than our
+    // file row's width.
     {
         const minWidth = contentStyles.fileMinSizeRem * remPx;
         const maxWidth = width !== null ? clamp(minWidth, width, fileFloatMaxWidth) : null;
@@ -470,15 +470,15 @@ export function computeContentFileFloatLayout(
                     ),
                 );
 
-                // Ideally we match the file's width. But it's not required. If our width is
-                // larger than the max width the solver will maximize our width variable.
+                // Ideally we match the file's width. But it's not required. If our width is larger
+                // than the max width the solver will maximize our width variable.
                 solver.addConstraint(
                     new kiwi.Constraint(widthVariable, kiwi.Operator.Eq, width, kiwi.Strength.weak),
                 );
             } else {
-                // If there's no `maxWidth` (because there's no `width`) then we want the file
-                // to be close to a 1/3 of the block width. But it's perfectly fine to break
-                // this constraint.
+                // If there's no `maxWidth` (because there's no `width`) then we want the file to
+                // be close to a 1/3 of the block width. But it's perfectly fine to break this
+                // constraint.
                 solver.addConstraint(
                     new kiwi.Constraint(
                         widthVariable,
@@ -559,25 +559,25 @@ export function computeContentFileFloatLayout(
 
     solver.updateVariables();
 
-    // Get our initial height from the solver then let's try rounding the height to
-    // the nearest number of paragraph lines. By rounding the file height to
-    // paragraph lines we can neatly fit our file next to text which'll flow
-    // naturally around the file.
+    // Get our initial height from the solver then let's try rounding the height to the
+    // nearest number of paragraph lines. By rounding the file height to paragraph
+    // lines we can neatly fit our file next to text which'll flow naturally around the
+    // file.
     {
         let lineCount =
             (heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2) /
             contentStyles.paragraphLineHeightPx[spacingScale];
 
-        // We actually are rounding to the nearest `n + 0.7` line count (where `n` is
-        // an integer) that's smaller than the original file height. We have to strike
-        // this balance where the bottom margin around the file looks good in as many
-        // scenarios as possible. The two main scenarios we consider are:
+        // We actually are rounding to the nearest `n + 0.7` line count (where `n` is an
+        // integer) that's smaller than the original file height. We have to strike this
+        // balance where the bottom margin around the file looks good in as many scenarios
+        // as possible. The two main scenarios we consider are:
         //
         // 1. When there's a single full paragraph to the right of the file
         // 2. When there's two paragraphs to the right of the file
         //
-        // 0.7 is the value we found through optical alignment that balances whitespace
-        // in these two scenarios. [Some example images][1] of the cases we're testing.
+        // 0.7 is the value we found through optical alignment that balances whitespace in
+        // these two scenarios. [Some example images][1] of the cases we're testing.
         //
         // [1]: https://gist.github.com/calebmer/6f3d44fbc6c3748cd75db7ac9faddd13
         const lineCountRemainder = 0.7;
@@ -605,26 +605,26 @@ export function computeContentFileFloatLayout(
 }
 
 /**
- * We treat all files as half their actual size in order to prevent up-scaling
- * on retina displays.
- *
- * A retina display is one where [`devicePixelRatio`][1] is greater than 1.
- * Most retina display's have a `devicePixelRatio` of 2. (Some newer iPhones
- * have a `devicePixelRatio` of 3.)
- *
- * The theory here is that these days enough displays are retina displays that
- * we should make sure files look crisp on retina displays and gracefully
- * degrade on non-retina displays. Additionally, we're betting that most image
- * files are optimized to look good on retina displays (since they're probably
- * being produced on retina displays).
- *
- * Basically all mobile phones have retina displays. Many monitors also have
+ * We treat all files as half their actual size in order to prevent up-scaling on
  * retina displays.
  *
+ * A retina display is one where [`devicePixelRatio`][1] is greater than 1. Most
+ * retina display's have a `devicePixelRatio` of 2. (Some newer iPhones have a
+ * `devicePixelRatio` of 3.)
+ *
+ * The theory here is that these days enough displays are retina displays that we
+ * should make sure files look crisp on retina displays and gracefully degrade on
+ * non-retina displays. Additionally, we're betting that most image files are
+ * optimized to look good on retina displays (since they're probably being produced
+ * on retina displays).
+ *
+ * Basically all mobile phones have retina displays. Many monitors also have retina
+ * displays.
+ *
  * So to make sure a 400x300 image looks crisp on a retina display (with a
- * `devicePixelRatio` of 2) then we need to render the image at 200x150 (half
- * the original size). We apply this down-scaling constant to images so the
- * size we use for layout is the half the actual file's size.
+ * `devicePixelRatio` of 2) then we need to render the image at 200x150 (half the
+ * original size). We apply this down-scaling constant to images so the size we use
+ * for layout is the half the actual file's size.
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio
  */
@@ -636,8 +636,8 @@ declare global {
 }
 
 // In development and test environments we look for
-// `__fileEntityPreviewSmallAspectRatio` which lets us fudge the aspect ratio
-// of file entity previews for screenshots.
+// `__fileEntityPreviewSmallAspectRatio` which lets us fudge the aspect ratio of
+// file entity previews for screenshots.
 const fileEntityPreviewSmallAspectRatio =
     process.env.NODE_ENV !== "production" &&
     typeof globalThis.__fileEntityPreviewSmallAspectRatio === "number"
@@ -646,10 +646,9 @@ const fileEntityPreviewSmallAspectRatio =
 
 /**
  * Get the original size of the file's preview in pixels. When laying out files
- * we'll try to preserve the width/height aspect ratio from this function. We
- * also won't grow the file to a size larger than the width/height returned by
- * this function but we will shrink files to fit in our available space if
- * necessary.
+ * we'll try to preserve the width/height aspect ratio from this function. We also
+ * won't grow the file to a size larger than the width/height returned by this
+ * function but we will shrink files to fit in our available space if necessary.
  */
 function getFileOrFileEntityPreviewSize(
     fileCount: number,
@@ -669,12 +668,12 @@ function getFileOrFileEntityPreviewSize(
     width: number | null;
     height: number;
 } {
-    // The file entity width is flexible. We want it to be as near the block width
-    // as possible. But the file entity's height when there's:
+    // The file entity width is flexible. We want it to be as near the block width as
+    // possible. But the file entity's height when there's:
     //
     // - One file should be the same as `<DocumentCommentThreadPreview>`.
-    // - Three files should be a height that gives a letter paper aspect ratio
-    //   assuming there are two other entities in the row.
+    // - Three files should be a height that gives a letter paper aspect ratio assuming
+    //   there are two other entities in the row.
     // - Two files should be in between the height of one file and three files.
     if (typeof file === "string") {
         const maxBlockWidthPercent =
@@ -685,8 +684,8 @@ function getFileOrFileEntityPreviewSize(
 
         if (
             fileCount <= 1 &&
-            // To better support tables, we only permit this short height if the block
-            // width is at least half of the max block width.
+            // To better support tables, we only permit this short height if the block width is
+            // at least half of the max block width.
             maxBlockWidthPercent > 1 / 2
         ) {
             return {width: null, height: startHeight};
@@ -696,8 +695,8 @@ function getFileOrFileEntityPreviewSize(
 
         if (
             fileCount <= 2 &&
-            // To better support tables, we only permit this medium height if the block
-            // width is at least a third of the max block width.
+            // To better support tables, we only permit this medium height if the block width
+            // is at least a third of the max block width.
             maxBlockWidthPercent > 1 / 3
         ) {
             const middleHeight = startHeight + (endHeight - startHeight) / 2;
@@ -712,10 +711,9 @@ function getFileOrFileEntityPreviewSize(
 
 /**
  * Get the original size of the file's preview in pixels. When laying out files
- * we'll try to preserve the width/height aspect ratio from this function. We
- * also won't grow the file to a size larger than the width/height returned by
- * this function but we will shrink files to fit in our available space if
- * necessary.
+ * we'll try to preserve the width/height aspect ratio from this function. We also
+ * won't grow the file to a size larger than the width/height returned by this
+ * function but we will shrink files to fit in our available space if necessary.
  */
 export function getFilePreviewSize(file: FileModelData | null): {
     width: number;
@@ -727,19 +725,18 @@ export function getFilePreviewSize(file: FileModelData | null): {
 
     switch (file.preview.type) {
         case "Audio": {
-            // Use the larger `remPx` size (mobile). The file will be scaled down as
-            // necessary.
+            // Use the larger `remPx` size (mobile). The file will be scaled down as necessary.
             const width = largeFallbackFileWidth;
             const height = width / maxFilePreviewAspectRatio;
             return {width, height};
         }
         case "Code": {
-            // Pick an aspect ratio that shows all 16 lines of code and a line width of
-            // almost exactly 80 characters (at font size 75).
+            // Pick an aspect ratio that shows all 16 lines of code and a line width of almost
+            // exactly 80 characters (at font size 75).
             const aspectRatio = 63 / 32;
 
-            // Use the larger `remPx` size (mobile) and the larger block max width
-            // (mobile). The file will be scaled down as necessary.
+            // Use the larger `remPx` size (mobile) and the larger block max width (mobile).
+            // The file will be scaled down as necessary.
             const width = largeFallbackFileWidth;
             const height = largeFallbackFileWidth / aspectRatio;
             return {width, height};
@@ -755,15 +752,15 @@ export function getFilePreviewSize(file: FileModelData | null): {
             return {
                 width:
                     file.preview.size.width /
-                    // Files that already are at a scale of 2 or more don't need to be downscaled.
-                    // We render PDFs at 2x their actual width/height so they look good on retina
-                    // displays at their proper size.
+                    // Files that already are at a scale of 2 or more don't need to be downscaled. We
+                    // render PDFs at 2x their actual width/height so they look good on retina displays
+                    // at their proper size.
                     Math.max(downScale, file.preview.size.scale),
                 height:
                     file.preview.size.height /
-                    // Files that already are at a scale of 2 or more don't need to be downscaled.
-                    // We render PDFs at 2x their actual width/height so they look good on retina
-                    // displays at their proper size.
+                    // Files that already are at a scale of 2 or more don't need to be downscaled. We
+                    // render PDFs at 2x their actual width/height so they look good on retina displays
+                    // at their proper size.
                     Math.max(downScale, file.preview.size.scale),
             };
         }

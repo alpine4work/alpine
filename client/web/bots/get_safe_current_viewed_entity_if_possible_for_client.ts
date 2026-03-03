@@ -7,14 +7,16 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  * When sending a chat message notification event, we want to make sure that we
  * only propagate the currently viewed entity if it's in a 1:1 chat with a bot.
  *
- * IMPORTANT: Keep this function in sync with `getSafeCurrentlyViewedEntityIfPossibleForServer`
+ * IMPORTANT: Keep this function in sync with
+ * `getSafeCurrentlyViewedEntityIfPossibleForServer`
  */
-// TODO(ifitzsimmons, share-entity-with-agents): This should support a multi-agent chat.
-// For example, I should be able to start a chat with ChatGPT and Cursor and they should
-// both have access to the entity that I'm looking at. However, this involves some careful
-// thought. We don't want to do a bunch of async work here and slow down the agent's
-// response. We probably want to check `isBotSpaceAccount` for every account id (other than
-// the author) and return false as soon as we find a human.
+// TODO(ifitzsimmons, share-entity-with-agents): This should support a multi-agent
+// chat. For example, I should be able to start a chat with ChatGPT and Cursor and
+// they should both have access to the entity that I'm looking at. However, this
+// involves some careful thought. We don't want to do a bunch of async work here
+// and slow down the agent's response. We probably want to check
+// `isBotSpaceAccount` for every account id (other than the author) and return
+// false as soon as we find a human.
 export function getSafeCurrentlyViewedEntityIfPossibleForClient(
     context: SpaceContext,
     chat: ChatModel | undefined,

@@ -26,8 +26,8 @@ import {
     TaskQueryNormalizedFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `getTaskQueryNormalizedFiltersTaskIndexQueryClause()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
@@ -61,8 +61,8 @@ export function getTaskQueryNormalizedFiltersOpensearchQueryClause(
 ): OpensearchQueryClause<TaskIndexFlattenedKeys> {
     return {
         bool: {
-            // OpenSearch query clauses to be used in a filter context. Query clauses in
-            // a filter context may be cached.
+            // OpenSearch query clauses to be used in a filter context. Query clauses in a
+            // filter context may be cached.
             // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
             filter: [
                 // Only return tasks in a single space.
@@ -80,17 +80,17 @@ export function getTaskQueryNormalizedFiltersOpensearchQueryClause(
  * Get the OpenSearch filter query clauses for the provided normalized filters.
  * These clauses should be "and"ed together.
  *
- * These query clauses should also be executed in a filter context so
- * OpenSearch caches them.
+ * These query clauses should also be executed in a filter context so OpenSearch
+ * caches them.
  */
 function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
     filters: TaskQueryNormalizedFilters,
 ): Array<OpensearchQueryClause<TaskIndexFlattenedKeys>> {
     const filterQueryClauses: Array<OpensearchQueryClause<TaskIndexFlattenedKeys>> = [];
 
-    // Optimization: Use `status.value.type` when possible since that's a part of
-    // our index sort. Which will make the search more efficient since we can skip
-    // over documents.
+    // Optimization: Use `status.value.type` when possible since that's a part of our
+    // index sort. Which will make the search more efficient since we can skip over
+    // documents.
     if (
         filters.displayStatusFilter.ifOpenActive &&
         filters.displayStatusFilter.ifOpenInactive &&
@@ -188,14 +188,13 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
                             return {exists: {field: "collections.ids"}};
                         }
                     } else {
-                        // NOTE(calebmer): While this is supported in theory by our normalized filter
-                        // type, there's currently no way to construct this filter since you'd need to
-                        // say `collections.has(collectionId) || collections.size === 0` and we don't
-                        // currently have an "OR" operator.
+                        // NOTE(calebmer): While this is supported in theory by our normalized filter type,
+                        // there's currently no way to construct this filter since you'd need to say
+                        // `collections.has(collectionId) || collections.size === 0` and we don't currently
+                        // have an "OR" operator.
                         //
                         // The only "OR" construction we support right now is testing for one of a few
-                        // collections:
-                        // `collections.has(collectionId1) || collections.has(collectionId2)`.
+                        // collections: `collections.has(collectionId1) || collections.has(collectionId2)`.
                         if (!not) {
                             return {
                                 bool: {

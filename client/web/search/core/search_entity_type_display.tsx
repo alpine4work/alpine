@@ -23,15 +23,15 @@ import {
  *
  * - `name`: The name we present this search entity with.
  *
- * - `isAccountMediaAuthor`: If the `SearchEntityModel` object has a `media`
- *   object with type `Account` then consider this account as the author of the
- *   search entity. Visually we end up putting the author name next to the
- *   search result body snippet to communicate authorship.
+ * - `isAccountMediaAuthor`: If the `SearchEntityModel` object has a `media` object
+ *   with type `Account` then consider this account as the author of the search
+ *   entity. Visually we end up putting the author name next to the search result
+ *   body snippet to communicate authorship.
  *
- * - `isPost`: Is this a post entity? Post entities shouldn't render their
- *   title and body at the same time (since the title duplicates content from
- *   the body) and we expect a post's body/title to always start with
- *   "in ${channelName}: " expecting the author name to be added in front.
+ * - `isPost`: Is this a post entity? Post entities shouldn't render their title
+ *   and body at the same time (since the title duplicates content from the body)
+ *   and we expect a post's body/title to always start with "in ${channelName}: "
+ *   expecting the author name to be added in front.
  */
 export type SearchEntityTypeDisplay = {
     type: SearchEntityType;
@@ -39,9 +39,9 @@ export type SearchEntityTypeDisplay = {
     isAccountMediaAuthor?: boolean;
 };
 
-// NOTE(calebmer): The icons used here for create actions are the same icons
-// used in `<SpaceLayoutSideBarCreateButton/>`. If you change an icon here you
-// should also change it there.
+// NOTE(calebmer): The icons used here for create actions are the same icons used
+// in `<SpaceLayoutSideBarCreateButton/>`. If you change an icon here you should
+// also change it there.
 export function getSearchEntityTypeDisplay(entityId: SearchEntityId): SearchEntityTypeDisplay {
     switch (entityId) {
         case "CreateChatMessage": {

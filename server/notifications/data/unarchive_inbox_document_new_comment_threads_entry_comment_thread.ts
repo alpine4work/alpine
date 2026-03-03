@@ -8,8 +8,7 @@ import {FailedPreconditionError} from "~/shared/error/error.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Unarchives an individual comment thread in a new comment threads inbox
- * entry.
+ * Unarchives an individual comment thread in a new comment threads inbox entry.
  */
 export async function unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(
     context: ServerSessionActionContext,
@@ -69,9 +68,9 @@ export async function unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(
                     documentCommentThreadEntryItemKey,
                 );
 
-            // Set `archiveNewCommentThreadsEntryAgain` to true so the next time we update
-            // the `DocumentCommentThreadEntry` we'll also archive the comment thread in
-            // this `DocumentNewCommentThreadsEntry` again. By default,
+            // Set `archiveNewCommentThreadsEntryAgain` to true so the next time we update the
+            // `DocumentCommentThreadEntry` we'll also archive the comment thread in this
+            // `DocumentNewCommentThreadsEntry` again. By default,
             // `updateInboxDocumentCommentThreadEntry()` only archives
             // `DocumentNewCommentThreadsEntry` when creating `DocumentCommentThreadEntry`.
             addAdditionalTransactionEntry(

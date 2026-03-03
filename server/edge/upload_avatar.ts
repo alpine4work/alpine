@@ -230,27 +230,27 @@ async function finishUploadingAvatar(
             });
         }
         case "bot": {
-            // NOTE(ifitzsimmons, #bots): When updating the avatar for a bot, it will take some time
-            // before the avatar is fanned out to all of the bot accounts (the spaces in which the
-            // bot lives). So there are a couple of important things to note for the future:
+            // NOTE(ifitzsimmons, #bots): When updating the avatar for a bot, it will take some
+            // time before the avatar is fanned out to all of the bot accounts (the spaces in
+            // which the bot lives). So there are a couple of important things to note for the
+            // future:
             //
-            // 1. If we *do* build a bot management page (which I figure we will eventually), I
+            // 1. If we _do_ build a bot management page (which I figure we will eventually), I
             //    imagine we'll need a `BotRegistry` so that we can call the equivalent of
-            //    `accountRegistry.immediatelyUpdateAccountStoreIfExists(response.account)` after
-            //    the bot's avatar is finished uploading. This will update the bot's avatar in
-            //    a "Bot Settings" page immediately.
-            // 2. However, outside of the settings page, the Bot Avatar should and will be served
-            //    by the `Account#Avatar` item for a bot in a given space. This means that a user
-            //    will see the bot's avatar updated in the settings page, but there may be a delay
-            //    until they see the new avatar reflected in all other surfaces. We can handle this
-            //    one of two ways:
-            //    a. On the client, check the BotRegistry for every bot account and merge the avatar
-            //    from the registry into the account store's account data if they do not match.
-            //    b. Educate users that it may take some time for the avatar updates to be reflected
-            //    in the app after updating.
+            //    `accountRegistry.immediatelyUpdateAccountStoreIfExists(response.account)`
+            //    after the bot's avatar is finished uploading. This will update the bot's
+            //    avatar in a "Bot Settings" page immediately.
+            // 2. However, outside of the settings page, the Bot Avatar should and will be
+            //    served by the `Account#Avatar` item for a bot in a given space. This means
+            //    that a user will see the bot's avatar updated in the settings page, but there
+            //    may be a delay until they see the new avatar reflected in all other surfaces.
+            //    We can handle this one of two ways: a. On the client, check the BotRegistry
+            //    for every bot account and merge the avatar from the registry into the account
+            //    store's account data if they do not match. b. Educate users that it may take
+            //    some time for the avatar updates to be reflected in the app after updating.
             //
-            // These are both future considerations, but do impact the design of bot avatar (and
-            // bot name) updates.
+            // These are both future considerations, but do impact the design of bot avatar
+            // (and bot name) updates.
             const {bot} = await finishUploadingBotAvatar(context, {
                 avatarContent,
                 avatarId,

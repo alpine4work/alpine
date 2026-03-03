@@ -45,73 +45,73 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * Resize a file from Cloudflare R2. You provide the `width` as a URL search
- * param and we'll maintain the file's aspect ratio. You can't upscale the file
- * so we'll ignore `width`'s larger than the file's own width. Always outputs
- * the file as AVIF. Since AVIF is our preferred format for generating preview
- * images ([source][1], [source][2]). AVIF has full browser support, provides
- * better compression than JPEG and WebP, and has alpha channel support (unlike
- * JPEG).
+ * Resize a file from Cloudflare R2. You provide the `width` as a URL search param
+ * and we'll maintain the file's aspect ratio. You can't upscale the file so we'll
+ * ignore `width`'s larger than the file's own width. Always outputs the file as
+ * AVIF. Since AVIF is our preferred format for generating preview images
+ * ([source][1], [source][2]). AVIF has full browser support, provides better
+ * compression than JPEG and WebP, and has alpha channel support (unlike JPEG).
  *
  * ## Why not use [Cloudflare Images][3]?
  *
- * Cloudflare has an image resizing offering. We evaluated using Cloudflare
- * Images but decided against it because:
+ * Cloudflare has an image resizing offering. We evaluated using Cloudflare Images
+ * but decided against it because:
  *
  * 1. As of 2024-09-27 Cloudflare Images doesn't support AVIF as an input format
  *    ([source][4], [source][5]). Which is the format we generate preview images
  *    in.
  *
- * 2. As of 2024-09-27 Cloudflare Images doesn't directly support resizing
- *    images from Cloudflare R2 in Cloudflare Workers. It's resize API for
- *    Cloudflare Workers is on the [`cf` object passed to `fetch()`][6] which
- *    doesn't have an equivalent for the R2 workers binding. So instead, you
- *    need to use a workaround like using [`aws4fetch` instead of the
- *    Cloudflare R2 binding][7].
+ * 2. As of 2024-09-27 Cloudflare Images doesn't directly support resizing images
+ *    from Cloudflare R2 in Cloudflare Workers. It's resize API for Cloudflare
+ *    Workers is on the [`cf` object passed to `fetch()`][6] which doesn't have an
+ *    equivalent for the R2 workers binding. So instead, you need to use a
+ *    workaround like using [`aws4fetch` instead of the Cloudflare R2 binding][7].
  *
- * 2 we can workaround, 1 we can't. We'd have create `.jpeg` preview images
- * instead which would increase our storage costs. Which isn't too big a deal
- * but is annoying.
+ * 2 we can workaround, 1 we can't. We'd have create `.jpeg` preview images instead
+ * which would increase our storage costs. Which isn't too big a deal but is
+ * annoying.
  *
- * Cloudflare image resizing pricing didn't seem unreasonable to us but some
- * users online ([source][8]) have complained. Hopefully our own solution in
+ * Cloudflare image resizing pricing didn't seem unreasonable to us but some users
+ * online ([source][8]) have complained. Hopefully our own solution in
  * `FileProcessorService` saves us some money.
  *
  * Ultimately, we decided that it's not hard to extend `FileProcessorService`,
  * which is already responsible for a lot of file manipulations, to support
- * resizing. And it gives us flexibility in the future to optimize our solution
- * for cost.
+ * resizing. And it gives us flexibility in the future to optimize our solution for
+ * cost.
  *
  * Cloudflare's image resizing product is probably faster. So it may be worth
  * considering migrating one day. The fastest possible implementation is likely
- * some Rust Cloudflare Worker that performs resizing at the edge. This is
- * probably what Cloudflare's image resizing product is doing. We could write a
- * worker that does this ourselves if we wanted to optimize our solution for
- * speed.
+ * some Rust Cloudflare Worker that performs resizing at the edge. This is probably
+ * what Cloudflare's image resizing product is doing. We could write a worker that
+ * does this ourselves if we wanted to optimize our solution for speed.
  *
  * ## Why use FFmpeg instead of `sharp`?
  *
- * `FileProcessorService` uses two tools which can perform image resizing.
- * FFmpeg and sharp. We use FFmpeg since it has better stream input/output
- * support. `sharp` has a stream input API but in reality that API waits for
- * the stream to complete, builds the full buffer in memory, and sends that to
- * its native libvips dependency. FFmpeg, on the other hand, is an executable
- * we can stream data into via stdin. But even better, FFmpeg supports HTTP
- * inputs which is great for when a seekable input is required! We can provide
- * a presigned Cloudflare R2 URL to FFmpeg and it'll efficiently load the data
- * it needs.
+ * `FileProcessorService` uses two tools which can perform image resizing. FFmpeg
+ * and sharp. We use FFmpeg since it has better stream input/output support.
+ * `sharp` has a stream input API but in reality that API waits for the stream to
+ * complete, builds the full buffer in memory, and sends that to its native libvips
+ * dependency. FFmpeg, on the other hand, is an executable we can stream data into
+ * via stdin. But even better, FFmpeg supports HTTP inputs which is great for when
+ * a seekable input is required! We can provide a presigned Cloudflare R2 URL to
+ * FFmpeg and it'll efficiently load the data it needs.
  *
- * Also `sharp` only supports still images. So to resize animated GIFs and keep
- * the animation we need to use FFmpeg.
+ * Also `sharp` only supports still images. So to resize animated GIFs and keep the
+ * animation we need to use FFmpeg.
  *
- * [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+ * [1]:
+ *     https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
  * [2]: https://jakearchibald.com/2020/avif-has-landed
  * [3]: https://developers.cloudflare.com/images
  * [4]: https://developers.cloudflare.com/images/transform-images
  * [5]: https://community.cloudflare.com/t/support-avif-as-input-images/667113
- * [6]: https://developers.cloudflare.com/images/transform-images/transform-via-workers
- * [7]: https://community.cloudflare.com/t/transfrom-image-via-worker/666917/2?u=calebmeredith8
- * [8]: https://www.reddit.com/r/CloudFlare/comments/17do770/new_cloudflare_images_pricing_still_seems/
+ * [6]:
+ *     https://developers.cloudflare.com/images/transform-images/transform-via-workers
+ * [7]:
+ *     https://community.cloudflare.com/t/transfrom-image-via-worker/666917/2?u=calebmeredith8
+ * [8]:
+ *     https://www.reddit.com/r/CloudFlare/comments/17do770/new_cloudflare_images_pricing_still_seems/
  */
 export async function resizeFile(
     context: FileProcessorActionContext,
@@ -129,9 +129,9 @@ export async function resizeFile(
         spaceId: SpaceId;
         fileId: FileId;
         temporaryDirectoryPath: string;
-        // TODO(ifitzsimmons, #file-processor-service-migration): Remove this
-        // parameter once we've migrated to the new service. We will no longer need
-        // to worry about process fibers when this hosted only on AWS Lambda
+        // TODO(ifitzsimmons, #file-processor-service-migration): Remove this parameter
+        // once we've migrated to the new service. We will no longer need to worry about
+        // process fibers when this hosted only on AWS Lambda
         withFiber: <Modules extends {tracer: TracerContextModule}, Value>(
             context: Context<Modules>,
             action: () => Promise<Value>,
@@ -142,9 +142,10 @@ export async function resizeFile(
 
     if (request.method !== "GET") throw new InvalidArgumentError("Invalid HTTP request method");
 
-    // TODO(rmtobin, 2025-10-22, #resources-service): Remove `EdgeService` once we've migrated to the new service.
-    // Make sure we've been proxied through `EdgeService` or `ResourceService` when uploading a file. We
-    // don't support resizing from other services like `JobQueueService`.
+    // TODO(rmtobin, 2025-10-22, #resources-service): Remove `EdgeService` once we've
+    // migrated to the new service. Make sure we've been proxied through `EdgeService`
+    // or `ResourceService` when uploading a file. We don't support resizing from other
+    // services like `JobQueueService`.
     if (
         context.actor.serviceName !== "EdgeService" &&
         context.actor.serviceName !== "ResourceService"
@@ -153,8 +154,8 @@ export async function resizeFile(
             "Only `EdgeService` or `ResourceService` can resize a file",
         );
 
-    // Make sure `EdgeService` or `ResourceService` is using a system action to resize. That way we
-    // don't have to authenticate file access through attachments.
+    // Make sure `EdgeService` or `ResourceService` is using a system action to resize.
+    // That way we don't have to authenticate file access through attachments.
     context.actor.authorizeSystem();
 
     const widthString = url.searchParams.get("width");
@@ -172,16 +173,16 @@ export async function resizeFile(
     parentSpan.addData({common: {width}});
 
     // To use resources more efficiently we run our resize in a `JobQueueConsumer`
-    // fiber. That way if our CPU is busy processing files from the job queue we
-    // wait to resize until that's done. Also if multiple resize requests come in
-    // at once we'll throttle processing to a rate our machine can handle.
+    // fiber. That way if our CPU is busy processing files from the job queue we wait
+    // to resize until that's done. Also if multiple resize requests come in at once
+    // we'll throttle processing to a rate our machine can handle.
     return withFiber(context, () =>
         withTemporaryDirectory(parentTemporaryDirectoryPath, `${fileId}_${width}_`, run),
     );
 
     async function run(temporaryDirectoryPath: string) {
-        // If while waiting on a fiber the request was aborted then throw. Don't
-        // process the request.
+        // If while waiting on a fiber the request was aborted then throw. Don't process
+        // the request.
         if (request.signal.aborted) throw request.signal.reason;
 
         const outputPath = joinPath(temporaryDirectoryPath, "output.avif");
@@ -261,8 +262,8 @@ export async function resizeFile(
         }
 
         if (contentType === "image/gif") {
-            // NOTE(ifitzsimmons, 2025-09-23, #dont-resize-gifs): We stopped resizing gifs because
-            // they take too long (often timing out at 30 seconds).
+            // NOTE(ifitzsimmons, 2025-09-23, #dont-resize-gifs): We stopped resizing gifs
+            // because they take too long (often timing out at 30 seconds).
             throw new FailedPreconditionError(quote`Resizing ${contentType} is not supported`);
         }
 
@@ -334,47 +335,45 @@ export async function resizeFile(
                 const subprocess = spawn(
                     ffmpegExecutablePath,
                     [
-                        // We download the file from Cloudflare R2 to our temporary directory since
-                        // we've seen some bugs when FFmpeg is provided a URL (which puts it in
-                        // streaming mode).
+                        // We download the file from Cloudflare R2 to our temporary directory since we've
+                        // seen some bugs when FFmpeg is provided a URL (which puts it in streaming mode).
                         //
                         // See:
                         // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cxpqqg6pcz846nda3fxthwn0pw
                         "-i",
                         inputPath,
-                        // Limit the number of threads for FFmpeg to reduce resource contention
-                        // in `FileProcessorService`.
+                        // Limit the number of threads for FFmpeg to reduce resource contention in
+                        // `FileProcessorService`.
                         "-threads",
                         String(ffmpegThreadCount),
                         // Dealing with the `.avif` format in FFmpeg is annoying. A transparent `.avif`
-                        // image has two streams, a grayscale alpha channel stream and an color
-                        // stream. Whereas a transparent `.png` image has just one RGBA color stream.
+                        // image has two streams, a grayscale alpha channel stream and an color stream.
+                        // Whereas a transparent `.png` image has just one RGBA color stream.
                         //
-                        // So for any transparent image we need to make sure we have two streams that
-                        // go into the `.avif` encoder. The first being the color stream and the second
-                        // being the alpha stream.
+                        // So for any transparent image we need to make sure we have two streams that go
+                        // into the `.avif` encoder. The first being the color stream and the second being
+                        // the alpha stream.
                         //
-                        // - `.jpeg` files don't have transparency so we apply the filter to the one
-                        //   stream and that's it
+                        // - `.jpeg` files don't have transparency so we apply the filter to the one stream
+                        //   and that's it
                         //
                         // - `.avif` files with transparency have two streams. The first is their alpha
                         //   grayscale stream and the second is their color stream. We need to flip the
                         //   order of these streams before passing them into our `.avif` encoder.
                         //
-                        // - Any file type that's not `.avif` (e.g. `.png`) we create a second stream
-                        //   with the `alphaextract` filter to just get the alpha part of the image.
-                        //   Then we pass those two streams to our `.avif` encoder.
+                        // - Any file type that's not `.avif` (e.g. `.png`) we create a second stream with
+                        //   the `alphaextract` filter to just get the alpha part of the image. Then we
+                        //   pass those two streams to our `.avif` encoder.
                         //
-                        //
-                        // NOTE(calebmer, 2024-10-04): Animated AVIF files I've found have four
-                        // streams. The first two streams appear to be still screenshots and the second
-                        // two streams are the animated grayscale/color streams. So I'm not sure if
-                        // non-animated AVIFs are consistently 2 streams in the order grayscale, color
-                        // in FFmpeg or just what I've tested with. Likewise I'm not sure if animated
-                        // AVIFs are consistently 4 streams in a predictable order. Hopefully, FFmpeg
-                        // always returns AVIF streams in a consistent order. If not we'll need to use
-                        // `ffprobe` to figure out the right streams to use. But that's annoying since
-                        // we don't have the input file data available in memory.
+                        // NOTE(calebmer, 2024-10-04): Animated AVIF files I've found have four streams.
+                        // The first two streams appear to be still screenshots and the second two streams
+                        // are the animated grayscale/color streams. So I'm not sure if non-animated AVIFs
+                        // are consistently 2 streams in the order grayscale, color in FFmpeg or just what
+                        // I've tested with. Likewise I'm not sure if animated AVIFs are consistently 4
+                        // streams in a predictable order. Hopefully, FFmpeg always returns AVIF streams in
+                        // a consistent order. If not we'll need to use `ffprobe` to figure out the right
+                        // streams to use. But that's annoying since we don't have the input file data
+                        // available in memory.
                         ...(isDefinitelyMissingAlphaChannel
                             ? ["-vf", filter]
                             : contentType === "image/avif"
@@ -390,40 +389,39 @@ export async function resizeFile(
                         // Output file is in `.avif` format.
                         //
                         // AVIF is our preferred format for generating preview images ([source][1],
-                        // [source][2]). AVIF has full browser support, provides better compression
-                        // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+                        // [source][2]). AVIF has full browser support, provides better compression than
+                        // JPEG and WebP, and has alpha channel support (unlike JPEG).
                         //
-                        // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                        // [1]:
+                        //     https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
                         // [2]: https://jakearchibald.com/2020/avif-has-landed
                         "-f",
                         "avif",
-                        // Should control quality. Quality is between 0 and 63 where 0 is the best
-                        // quality (lossless). We want relatively high quality preview images while
-                        // still getting some compression.
+                        // Should control quality. Quality is between 0 and 63 where 0 is the best quality
+                        // (lossless). We want relatively high quality preview images while still getting
+                        // some compression.
                         //
                         // https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality
                         "-crf",
                         "10",
-                        // Prefer faster encoding and less efficient compression. The default is
-                        // 1 which is heavily balanced towards preferring slower encoding and more
-                        // efficient compression.
-                        //
-                        // Since users may be waiting on our resize operation to view a file (in case
-                        // of cache miss) we want to respond quickly without sacrificing too much
+                        // Prefer faster encoding and less efficient compression. The default is 1 which is
+                        // heavily balanced towards preferring slower encoding and more efficient
                         // compression.
+                        //
+                        // Since users may be waiting on our resize operation to view a file (in case of
+                        // cache miss) we want to respond quickly without sacrificing too much compression.
                         //
                         // https://trac.ffmpeg.org/wiki/Encode/AV1#ControllingSpeedQuality
                         "-cpu-used",
                         "8",
-                        // According to the documentation, -cpu-used can only be set to values > 5
-                        // when -deadline is set to realtime.
+                        // According to the documentation, -cpu-used can only be set to values > 5 when
+                        // -deadline is set to realtime.
                         //
                         // https://trac.ffmpeg.org/wiki/Encode/VP9#DeadlineQuality
                         "-deadline",
                         "realtime",
-                        // We must output to a file. We can't output to stdout when taking a screenshot
-                        // or else we get the error "[avif] muxer does not support non seekable
-                        // output".
+                        // We must output to a file. We can't output to stdout when taking a screenshot or
+                        // else we get the error "[avif] muxer does not support non seekable output".
                         //
                         // Ideally we'd pipe `subprocess.stdout` to `res` so we don't have to create a
                         // temporary file on disk but AVIF doesn't support this unfortunately.
@@ -488,17 +486,17 @@ export async function resizeFile(
                     "content-length": String((await fs.stat(outputPath)).size),
                     // After resizing, the result should be cached.
                     //
-                    // - `private`: A user can only see files they have access to. Don't store
-                    //   files in a shared cache since an attacker may be able to see a file they
-                    //   don't have access to.
+                    // - `private`: A user can only see files they have access to. Don't store files in
+                    //   a shared cache since an attacker may be able to see a file they don't have
+                    //   access to.
                     //
-                    // - `immutable`: Files are immutable after they've been uploaded. While
-                    //   hitting this route will resize the file on demand causing the bytes to not
-                    //   be strictly the same over time, the perceived result to the end user will
-                    //   never change so it's safe to cache this response as an immutable value.
+                    // - `immutable`: Files are immutable after they've been uploaded. While hitting
+                    //   this route will resize the file on demand causing the bytes to not be strictly
+                    //   the same over time, the perceived result to the end user will never change so
+                    //   it's safe to cache this response as an immutable value.
                     //
-                    // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
-                    //   the file after that and request again if needed.
+                    // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of the
+                    //   file after that and request again if needed.
                     "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
                 },
             },

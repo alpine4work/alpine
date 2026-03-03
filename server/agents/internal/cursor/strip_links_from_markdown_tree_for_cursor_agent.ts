@@ -16,9 +16,9 @@ export function stripLinksFromMarkdownTreeForCursorAgent(
             ) {
                 node.children.splice(index, 1, ...child.children);
 
-                // If we're stripping an account link, add an `@` prefix to the text to
-                // communicate the text is a mention which is important context. Importantly,
-                // we want cursor mentions to be presented as `@Cursor`.
+                // If we're stripping an account link, add an `@` prefix to the text to communicate
+                // the text is a mention which is important context. Importantly, we want cursor
+                // mentions to be presented as `@Cursor`.
                 if (child.type === "link" && child.url.startsWith("/account/")) {
                     node.children.splice(index, 0, {type: "text", value: "@"});
                 }

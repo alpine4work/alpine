@@ -9,8 +9,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * synchronously if the promise is resolved.
  *
  * Implements the "thenable" API so you can await these promises in async/await
- * functions. However, awaiting the promise will turn it into a regular
- * promise. If you want to preserve the immediate behavior you need to use
+ * functions. However, awaiting the promise will turn it into a regular promise. If
+ * you want to preserve the immediate behavior you need to use
  * `PromiseImmediate.then()`.
  *
  * Useful in a React Suspense world where you need async values to return
@@ -121,8 +121,8 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     /**
      * Get the current internal state of the promise.
      */
-    // NOTE(calebmer): If the `use()` React RFC is adopted we should consider
-    // exposing our promise's state in the same way this RFC specifies:
+    // NOTE(calebmer): If the `use()` React RFC is adopted we should consider exposing
+    // our promise's state in the same way this RFC specifies:
     // https://github.com/acdlite/rfcs/blob/9c21ca1/text/0000-first-class-support-for-promises.md#reading-the-result-of-a-promise-that-was-read-previously
     public getStateWithoutListening(): PromiseState<Value> {
         return this._state;
@@ -136,8 +136,8 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     }
 
     /**
-     * Get the fulfilled promise value or throw an error if the promise is
-     * still pending.
+     * Get the fulfilled promise value or throw an error if the promise is still
+     * pending.
      */
     public getOrThrow(): Value {
         switch (this._state.status) {
@@ -153,8 +153,8 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     }
 
     /**
-     * Get the fulfilled promise value or return undefined if the promise is
-     * still pending.
+     * Get the fulfilled promise value or return undefined if the promise is still
+     * pending.
      */
     public getIfAvailable(): Value | undefined {
         switch (this._state.status) {
@@ -184,8 +184,8 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     }
 
     /**
-     * Same behavior as `Promise.then()` except if the promise is not pending we
-     * will synchronously call our callbacks.
+     * Same behavior as `Promise.then()` except if the promise is not pending we will
+     * synchronously call our callbacks.
      */
     public then<NewValue1 = Value, NewValue2 = never>(
         onResolved?: ((value: Value) => NewValue1 | PromiseLike<NewValue1>) | null,

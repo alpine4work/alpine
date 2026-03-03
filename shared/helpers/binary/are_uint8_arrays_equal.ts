@@ -1,8 +1,7 @@
 /**
  * Check if two byte arrays are equal to each other.
  */
-// Adapted from:
-// https://stackoverflow.com/a/52181275/1568890
+// Adapted from: https://stackoverflow.com/a/52181275/1568890
 export function areUint8ArraysEqual(array1: Uint8Array, array2: Uint8Array): boolean {
     if (array1 === array2) return true;
     if (array1.byteLength != array2.byteLength) return false;

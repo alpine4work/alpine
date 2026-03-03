@@ -40,13 +40,13 @@ const sideBarSpaceByContainerWidthRem =
 /**
  * The space actually occupied by our space layout sidebar.
  *
- * On large screens we want to allocate 0 space for the sidebar. This will
- * cause content to be visually centered on the screen ignoring space from the
- * sidebar. But on smaller screens we need the sidebar to take up space in our
- * layout so we don't end up rendering content underneath the sidebar.
+ * On large screens we want to allocate 0 space for the sidebar. This will cause
+ * content to be visually centered on the screen ignoring space from the sidebar.
+ * But on smaller screens we need the sidebar to take up space in our layout so we
+ * don't end up rendering content underneath the sidebar.
  *
- * This `calc()` expression calculates the amount of space to allocate the
- * sidebar based on the container width.
+ * This `calc()` expression calculates the amount of space to allocate the sidebar
+ * based on the container width.
  */
 export const sideBarSpace = `clamp(${minSideBarSpaceRem}rem, ${maxSideBarSpaceRem}rem + (100vw - ${containerWidthForMaxSideBarSpaceRem}rem) * ${sideBarSpaceByContainerWidthRem}, ${maxSideBarSpaceRem}rem)`;
 

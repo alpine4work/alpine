@@ -50,8 +50,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     const url = new URL(request.url);
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId)).ok;
@@ -85,8 +85,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
     {
-        // Account name in title won't update when account changes without reload
-        // because we're using `initialData`.
+        // Account name in title won't update when account changes without reload because
+        // we're using `initialData`.
         title: `Post by ${getAccountShortNameWithoutFullNameTooltip(
             post.model.author.initialData,
         )} in ${post.model.channel.name}`,
@@ -107,8 +107,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("parent");
     nextUrl.searchParams.delete("parent");
 
-    // The client removes the `create` and `focus` search params. Don't revalidate
-    // when the client does this.
+    // The client removes the `create` and `focus` search params. Don't revalidate when
+    // the client does this.
     if (currentUrl.toString() === nextUrl.toString()) {
         return false;
     }
@@ -130,8 +130,8 @@ export default function PostRoute() {
         const scrollString = searchParams.get("scroll");
         if (!scrollString) return null;
 
-        // NOTE(calebmer): Prefix with `file-` since in the future I could see us
-        // initially scrolling to headings or other things in the post.
+        // NOTE(calebmer): Prefix with `file-` since in the future I could see us initially
+        // scrolling to headings or other things in the post.
         if (scrollString.startsWith("file-")) {
             const fileId = scrollString.slice(5);
             if (!isId<FileId>(fileId)) {
@@ -168,14 +168,14 @@ export default function PostRoute() {
         }
     }, [searchParams, setSearchParams]);
 
-    // Spending time with a post accrues affinity points to the channel the post
-    // was made in. If you're reading a post and its comments this probably means
-    // the topic of the post (the channel) is relevant to you as well.
+    // Spending time with a post accrues affinity points to the channel the post was
+    // made in. If you're reading a post and its comments this probably means the topic
+    // of the post (the channel) is relevant to you as well.
     //
-    // We don't give posts themselves affinity points. That's because posts are
-    // fairly short lived (a couple days). However, we give channels affinity
-    // points so you could quickly jump to a channel if you're looking for a
-    // certain post inside the channel.
+    // We don't give posts themselves affinity points. That's because posts are fairly
+    // short lived (a couple days). However, we give channels affinity points so you
+    // could quickly jump to a channel if you're looking for a certain post inside the
+    // channel.
     useSearchAffinityViewEntityInteraction(`Channel:${post.model.channel.id}`);
 
     const node = (

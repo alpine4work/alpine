@@ -13,8 +13,8 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
  * import {agentInstructionsMarkdown as markdown} from "~/server/agents/internal/agent_instructions_markdown.js";
  * ```
  *
- * Since the template string needs to be named `markdown` to be correctly
- * formatted by Prettier.
+ * Since the template string needs to be named `markdown` to be correctly formatted
+ * by Prettier.
  */
 export function agentInstructionsMarkdown(
     template: TemplateStringsArray,
@@ -25,9 +25,8 @@ export function agentInstructionsMarkdown(
     const string = template[0]!;
 
     // Parse/print our instructions template using the same Markdown parser/printer
-    // that we use for printing API content. The fear is Markdown in an
-    // inconsistent format (the Markdown in this file is formatted by Prettier)
-    // will confuse LLMs.
+    // that we use for printing API content. The fear is Markdown in an inconsistent
+    // format (the Markdown in this file is formatted by Prettier) will confuse LLMs.
     return new Lazy(() => {
         const root = parseMarkdownTree(string.trim());
 

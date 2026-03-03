@@ -47,15 +47,15 @@ export function SpaceLayoutSideBar({
     const rootNavigate = useRootNavigate();
     const {isAppleDevice} = useClientInfo();
 
-    // Preload affinitive search entities so they're ready when the search modal
-    // opens. We expect search to be the primary way users navigate around the
-    // product so the search modal should open immediately.
+    // Preload affinitive search entities so they're ready when the search modal opens.
+    // We expect search to be the primary way users navigate around the product so the
+    // search modal should open immediately.
     usePreloadSearchByAffinity();
 
     const spaceSideBarSpacing = useSpaceSideBarSpacing();
 
-    // Used in `//admin/scenarios/screenshots` for taking a screenshot of a
-    // document with the space side bar hidden.
+    // Used in `//admin/scenarios/screenshots` for taking a screenshot of a document
+    // with the space side bar hidden.
     const [isHiddenForDev, setIsHiddenForDev] = useState(false);
     const [areNavigationButtonsHiddenForDev, setAreNavigationButtonsHiddenForDev] = useState(false);
 
@@ -82,9 +82,9 @@ export function SpaceLayoutSideBar({
             position="relative"
             flexShrink="0"
             style={{
-                // Routes that take up the full screen width always allocate space for the
-                // space layout sidebar instead of using dynamic space that attempts to
-                // visually center content.
+                // Routes that take up the full screen width always allocate space for the space
+                // layout sidebar instead of using dynamic space that attempts to visually center
+                // content.
                 width: {
                     Always: spaceLayoutStyles.sideBarWidth,
                     Never: 0,
@@ -189,10 +189,10 @@ function SpaceLayoutSideBarNavigationButtons() {
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                // NOTE(calebmer): Overriding Cmd+[ or Cmd+] does nothing in Chrome since
-                // browser level forward/backward shortcut can't be overridden. However,
-                // Chrome's behavior is exactly what we want! This implementation is here for
-                // other browsers or an eventual desktop app.
+                // NOTE(calebmer): Overriding Cmd+[ or Cmd+] does nothing in Chrome since browser
+                // level forward/backward shortcut can't be overridden. However, Chrome's behavior
+                // is exactly what we want! This implementation is here for other browsers or an
+                // eventual desktop app.
                 if (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey) {
                     if (event.key === "[") {
                         event.preventDefault();
@@ -261,8 +261,8 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                                       <Star
                                           weight="fill"
                                           className={sprinkles({
-                                              // Re-use the search favorite icon colors for the
-                                              // lifetime access purchase icon since they fit well.
+                                              // Re-use the search favorite icon colors for the lifetime access purchase icon
+                                              // since they fit well.
                                               fill: isPressed
                                                   ? searchFavoriteEntityIconPressedColor
                                                   : searchFavoriteEntityIconColor,
@@ -310,8 +310,8 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                 size="lg"
                 variant="image"
                 description="Account"
-                // The notification bell does not have a tooltip. It opens up an inbox preview
-                // on hover. It's weird if the buttons around it have tooltips.
+                // The notification bell does not have a tooltip. It opens up an inbox preview on
+                // hover. It's weird if the buttons around it have tooltips.
                 withoutTooltip={true}
             >
                 <AccountAvatar account={currentAccount} size="8" />

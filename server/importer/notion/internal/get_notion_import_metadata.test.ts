@@ -76,7 +76,8 @@ describe("getNotionImportMetadata", () => {
             const metadata = getNotionImportMetadata(rawFiles);
 
             expect(metadata).not.toBeNull();
-            // When there are no teamspaces, the workspace itself is used as an implicit teamspace
+            // When there are no teamspaces, the workspace itself is used as an implicit
+            // teamspace
             expect(metadata!.teamspaceNameById.size).toBe(1);
             expect(metadata!.teamspaceNameById.get(metadata!.workspaceId)).toBe("My Workspace");
         });

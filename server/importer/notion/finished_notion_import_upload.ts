@@ -10,6 +10,7 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
  * Called by the client after the file upload to S3/local storage completes.
  *
  * This function:
+ *
  * 1. Verifies the import exists and is in the correct state (UploadPending)
  * 2. Verifies the uploaded file exists in storage
  * 3. Transitions the import to Validating status
@@ -17,17 +18,18 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
  *
  * ## Why use an RPC instead of S3 event notifications?
  *
- * Previously, we used S3 event notifications to trigger a Lambda function
- * that would queue the validation job. This had several downsides:
+ * Previously, we used S3 event notifications to trigger a Lambda function that
+ * would queue the validation job. This had several downsides:
  *
- * - **Complexity**: Required Lambda infrastructure, IAM permissions, and
- *   S3 bucket notification configuration
- * - **Development friction**: Needed a separate dev endpoint to mimic the
- *   S3 -> Lambda flow locally
+ * - **Complexity**: Required Lambda infrastructure, IAM permissions, and S3 bucket
+ *   notification configuration
+ * - **Development friction**: Needed a separate dev endpoint to mimic the S3 ->
+ *   Lambda flow locally
  * - **Debugging**: Harder to trace issues across the async Lambda boundary
  * - **Timing**: S3 notifications can be delayed; RPC gives immediate feedback
  *
  * With this RPC approach:
+ *
  * - Same code path runs in dev and production
  * - Client controls exactly when validation starts (after upload completes)
  * - Full observability in the main request tracing

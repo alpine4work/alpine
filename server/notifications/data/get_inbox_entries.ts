@@ -61,8 +61,8 @@ export async function getInboxEntries(
         paginate: {type: "FromStart", afterCursor},
     });
 
-    // In test environments, if we've fetched all non-archived entries from the
-    // inbox then test the inbox attributes item has the correct entry count.
+    // In test environments, if we've fetched all non-archived entries from the inbox
+    // then test the inbox attributes item has the correct entry count.
     //
     // This works because we have a lot of Jest notification tests that load all
     // un-archived inbox entries.
@@ -102,8 +102,8 @@ export async function getInboxEntries(
 
 /**
  * Backfill any inbox entry updates between now and `checkpoint`. Use when you
- * connect to realtime after reading data to make sure you haven't missed
- * any updates.
+ * connect to realtime after reading data to make sure you haven't missed any
+ * updates.
  *
  * This will backfill updates both for non-archived and archived entries.
  */

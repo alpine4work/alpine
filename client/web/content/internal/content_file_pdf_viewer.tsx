@@ -61,9 +61,9 @@ export function ContentFilePdfViewer({
                     })}
                     title={getFileContentTypeName(file.contentType)}
                     src={src}
-                    // In WebKit the PDF `<iframe>` has no toolbar or sidebar and the PDF is
-                    // rendered to fill the available space. So render using our document's actual
-                    // size. In other rendering engines give the PDF `<iframe>` the full width.
+                    // In WebKit the PDF `<iframe>` has no toolbar or sidebar and the PDF is rendered
+                    // to fill the available space. So render using our document's actual size. In
+                    // other rendering engines give the PDF `<iframe>` the full width.
                     width={
                         clientInfo.renderingEngine === "WebKit" && platform !== "mobile"
                             ? fileSize.width * fileScale

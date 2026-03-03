@@ -1,6 +1,6 @@
 /**
- * These are the OAuth scopes we request for our Slack bot when we
- * connect a Slack workspace or account.
+ * These are the OAuth scopes we request for our Slack bot when we connect a Slack
+ * workspace or account.
  */
 export const slackBotOAuthScopes = new Set([
     "channels:read",

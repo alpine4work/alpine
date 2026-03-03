@@ -8,13 +8,13 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 
 const context = createTestContext();
 
-// Use TypeScript to make sure we have at least one file as a test case for
-// each of the `FileContentType`s we support.
+// Use TypeScript to make sure we have at least one file as a test case for each of
+// the `FileContentType`s we support.
 //
-// Tests that depend on LibreOffice are in a separate file since developer
-// machines may not have LibreOffice installed. So our developer testing tool
-// `dev test` won't run this test file unless LibreOffice is installed. But
-// `dev test` will run the rest of our content type tests.
+// Tests that depend on LibreOffice are in a separate file since developer machines
+// may not have LibreOffice installed. So our developer testing tool `dev test`
+// won't run this test file unless LibreOffice is installed. But `dev test` will
+// run the rest of our content type tests.
 const testCases: {
     [Key in FileMicrosoftOfficeDocumentContentType]: FileProcessorContentTypeTestCase;
 } = {
@@ -36,8 +36,8 @@ const testCases: {
                 similarPath: "file_examples_doc_100kb.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
     ],
@@ -59,8 +59,8 @@ const testCases: {
                 similarPath: "file_examples_docx_100kb.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
     ],
@@ -82,8 +82,8 @@ const testCases: {
                 similarPath: "file_examples_xls_50_rows.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
     ],
@@ -105,8 +105,8 @@ const testCases: {
                 similarPath: "file_examples_xlsx_50_rows.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
         {
@@ -127,8 +127,8 @@ const testCases: {
                 similarPath: "calebmer_typing_speed_percentile_calculator.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
         {
@@ -148,8 +148,8 @@ const testCases: {
                 similarPath: "calebmer_small_spreadsheet.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
     ],
@@ -171,8 +171,8 @@ const testCases: {
                 similarPath: "file_examples_ppt_250kb.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
     ],
@@ -194,8 +194,8 @@ const testCases: {
                 similarPath: "file_examples_pptx_250kb.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
         {
@@ -215,8 +215,8 @@ const testCases: {
                 similarPath: "calebmer_basic_presentation.avif",
             },
             // LibreOffice may generate files with meaningful differences between MacOS and
-            // Linux due to platform differences. For example, differences in font
-            // rendering. So use a generous tolerance.
+            // Linux due to platform differences. For example, differences in font rendering.
+            // So use a generous tolerance.
             looksSameTolerance: 120,
         },
     ],

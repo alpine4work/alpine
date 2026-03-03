@@ -160,8 +160,8 @@ export abstract class AgentDurableObjectBase<
 
     /**
      * Parse the route from a URL. We include the route in the tracer span for this
-     * request which helps since we can search our logs for all requests to a
-     * certain route.
+     * request which helps since we can search our logs for all requests to a certain
+     * route.
      */
     protected abstract _parseRoute(url: URL): [string, Route];
 
@@ -200,8 +200,7 @@ export abstract class AgentDurableObjectBase<
                 try {
                     const response = await this._processContext.get().with<{}, Response>(
                         {
-                            // Replace the tracer context module with one that uses our span for
-                            // this request.
+                            // Replace the tracer context module with one that uses our span for this request.
                             tracer: new TracerContextModule(span),
                         },
                         async actionContext => {
@@ -236,11 +235,12 @@ export abstract class AgentDurableObjectBase<
 
         const requestBody: ApiBotWebhookRequestBody = await request.json();
 
-        // TODO(ifitzsimmons): If this works, we'll probably want to execute the
-        // following logic before scheduling the event:
+        // TODO(ifitzsimmons): If this works, we'll probably want to execute the following
+        // logic before scheduling the event:
+        //
         // 1. Determine whether the agent needs to respond
-        // 2. If yes, create the message stream message and send its index
-        //    with the event payload.
+        // 2. If yes, create the message stream message and send its index with the event
+        //    payload.
         await this._actuallySchedule(context, {
             type: "ProcessWebhook",
             // Schedule the event for immediate execution.
@@ -304,8 +304,8 @@ export abstract class AgentDurableObjectBase<
 
                 await this.webhook(span, request);
             } catch (error) {
-                // Log errors in development since webhook errors aren't shown to the user in
-                // the UI. So we need to show webhook errors in our logs.
+                // Log errors in development since webhook errors aren't shown to the user in the
+                // UI. So we need to show webhook errors in our logs.
                 if (process.env.NODE_ENV !== "production") {
                     // eslint-disable-next-line no-console
                     console.error("Agent webhook failed:", error);
@@ -319,26 +319,26 @@ export abstract class AgentDurableObjectBase<
     /**
      * Alarm has run! Get all scheduled events before `time = now` and execute them.
      *
-     * If `alarm()` were to throw an uncaught error, it'll retry the process up to
-     * 6 times with exponential backoff [1]. We don't want to retry the entire process
-     * because that would cause us to process a message multiple times. If the alarm process
-     * fails due to any of the following, we'll emit a DataLossError.
+     * If `alarm()` were to throw an uncaught error, it'll retry the process up to 6
+     * times with exponential backoff [1]. We don't want to retry the entire process
+     * because that would cause us to process a message multiple times. If the alarm
+     * process fails due to any of the following, we'll emit a DataLossError.
      *
-     * 1. We fail to delete the scheduled event from storage. If this fails, the event will
-     *    be retried indefinitely (or until the Durable Object is deleted / has its state
-     *    cleared).
-     * 2. We fail to schedule the next alarm. If this fails the "event loop" will die (until
-     *    a new request is made to the Durable Object).
+     * 1. We fail to delete the scheduled event from storage. If this fails, the event
+     *    will be retried indefinitely (or until the Durable Object is deleted / has
+     *    its state cleared).
+     * 2. We fail to schedule the next alarm. If this fails the "event loop" will die
+     *    (until a new request is made to the Durable Object).
      */
     public async alarm() {
         // Acquire a lock as we remove the events scheduled for execution in this alarm
         // cycle. This prevents concurrent alarm cycles from processing the same events.
         //
-        // This also prevents us from scheduling the next alarm while we "dequeue"
-        // the events scheduled for execution right now. So let's say we have events [T1, T2, T3]
-        // scheduled for execution in this alarm cycle.
-        // If we call `_scheduleNextAlarm()` *before* we remove these events from storage,
-        // it will schedule a new alarm at time T1. This adds an extra, unnecessary alarm cycle.
+        // This also prevents us from scheduling the next alarm while we "dequeue" the
+        // events scheduled for execution right now. So let's say we have events [T1, T2,
+        // T3] scheduled for execution in this alarm cycle. If we call
+        // `_scheduleNextAlarm()` _before_ we remove these events from storage, it will
+        // schedule a new alarm at time T1. This adds an extra, unnecessary alarm cycle.
         const scheduledEvents = await this._scheduledEventsMutex.withLock(async () => {
             const scheduleEvents = await getAgentScheduleEventsBeforeDate(
                 this._state.storage,
@@ -395,8 +395,8 @@ export abstract class AgentDurableObjectBase<
                             },
                         });
 
-                        // The Durable Object only allows scheduling `ProcessWebhook` events and events
-                        // of the type `ScheduleEventRequest`.
+                        // The Durable Object only allows scheduling `ProcessWebhook` events and events of
+                        // the type `ScheduleEventRequest`.
                         if (scheduledEvent.type === "ProcessWebhook") {
                             const actualScheduledEvent =
                                 scheduledEvent as any as AgentProcessWebhookScheduleEventRequest;
@@ -406,8 +406,8 @@ export abstract class AgentDurableObjectBase<
                             await this._event(span, scheduledEvent as any as ScheduleEventRequest);
                         }
                     } catch (error) {
-                        // Log errors in development since webhook errors aren't shown to the user in
-                        // the UI. So we need to show webhook errors in our logs.
+                        // Log errors in development since webhook errors aren't shown to the user in the
+                        // UI. So we need to show webhook errors in our logs.
                         if (process.env.NODE_ENV !== "production") {
                             // eslint-disable-next-line no-console
                             console.error(
@@ -423,8 +423,8 @@ export abstract class AgentDurableObjectBase<
 
             await this._scheduleNextAlarm();
         } catch (error) {
-            // Log errors in development since event scheduling errors aren't shown to the user in
-            // the UI. So we need to show event scheduling errors in our logs.
+            // Log errors in development since event scheduling errors aren't shown to the user
+            // in the UI. So we need to show event scheduling errors in our logs.
             if (process.env.NODE_ENV !== "production") {
                 // eslint-disable-next-line no-console
                 console.error("Agent scheduled event failed:", error);

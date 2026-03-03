@@ -29,16 +29,16 @@ export interface CreateNotionImportCsvDatabaseDocumentOptions {
 }
 
 /**
- * Create a document for a root-level CSV-only database.
- * This creates a synthetic document that contains:
+ * Create a document for a root-level CSV-only database. This creates a synthetic
+ * document that contains:
+ *
  * - Parent link to the teamspace root document
  * - The CSV content as a table
  * - Links to child documents
  *
  * @see README.md "Teamspace Root Documents" section for root-level CSV databases
- *     that need synthetic documents.
- * @see README.md "Database Children and Cell Linking" section for how cell
- *     content is converted to links.
+ * that need synthetic documents. @see README.md "Database Children and Cell
+ * Linking" section for how cell content is converted to links.
  */
 export async function createNotionImportCsvDatabaseDocument(
     context: ServerSystemActionContext,
@@ -87,8 +87,8 @@ export async function createNotionImportCsvDatabaseDocument(
         elements.push(tableContent);
     }
 
-    // Note: We don't add a "Child documents" section for databases.
-    // The children are database rows and they already appear as cell mentions in the table.
+    // Note: We don't add a "Child documents" section for databases. The children are
+    // database rows and they already appear as cell mentions in the table.
 
     const apiContent: ApiContent = {elements};
 

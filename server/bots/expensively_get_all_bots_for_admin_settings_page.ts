@@ -7,11 +7,12 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 import {BotId} from "~/shared/id/types/id_types.js";
 
-// NOTE(ifitzsimmons, #bots): In order to support an internal bot management page, we need to
-// load all bots (with their avatars). Eventually, we should introduce an ownership model for
-// bots that enables indexing bots by owner. However, we don't have a really strong product
-// use case for bot "ownership" yet. Since the only bots are the ones that we've created, it's
-// okay to just get all the bots in the table with their avatars and API keys.
+// NOTE(ifitzsimmons, #bots): In order to support an internal bot management page,
+// we need to load all bots (with their avatars). Eventually, we should introduce
+// an ownership model for bots that enables indexing bots by owner. However, we
+// don't have a really strong product use case for bot "ownership" yet. Since the
+// only bots are the ones that we've created, it's okay to just get all the bots in
+// the table with their avatars and API keys.
 export async function expensivelyGetAllBotsForAdminSettingsPage(
     context: ServerActionContext,
 ): Promise<Array<BotForAdmin>> {

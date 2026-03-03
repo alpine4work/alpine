@@ -51,8 +51,8 @@ export function isTaskQueryMissingRequiredFilters(
         }
     }
 
-    // Assume that if the user filtered on a collection that they have access to
-    // the collection.
+    // Assume that if the user filtered on a collection that they have access to the
+    // collection.
     if (
         filters.collectionsFilter?.some(clause =>
             iterableEvery(clause, ([term, not]) => term !== "IsEmpty" && !not),
@@ -82,14 +82,13 @@ export type TaskQueryState = {
 };
 
 /**
- * Hook that allows you to change your query filters/sorts out locally without
- * a Remix navigation or `loader` call (which adds overhead).
+ * Hook that allows you to change your query filters/sorts out locally without a
+ * Remix navigation or `loader` call (which adds overhead).
  *
- * This hook is not required for rendering data based on a task query. You
- * could pass the `initialQuery` from the server directly into
- * `useTaskGridViewVirtualizedList()` or however you're choosing to render
- * the query. You only need this hook if you want to change the query's
- * filters/sorts.
+ * This hook is not required for rendering data based on a task query. You could
+ * pass the `initialQuery` from the server directly into
+ * `useTaskGridViewVirtualizedList()` or however you're choosing to render the
+ * query. You only need this hook if you want to change the query's filters/sorts.
  */
 export function useTaskQueryState({
     key,
@@ -110,9 +109,9 @@ export function useTaskQueryState({
     const {space, currentAccount} = useSpaceContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
-    // Custom views must start with a filter we know the user has access to. We
-    // don't yet support querying any set of tasks and dynamically filtering out
-    // ones the user doesn't have access to.
+    // Custom views must start with a filter we know the user has access to. We don't
+    // yet support querying any set of tasks and dynamically filtering out ones the
+    // user doesn't have access to.
     const isMissingRequiredFilters = useMemo(() => {
         if (!filters) return false;
         return isTaskQueryMissingRequiredFilters(currentAccount?.id, filters);
@@ -131,8 +130,8 @@ export function useTaskQueryState({
         [key],
     );
 
-    // Make sure the queries in `queryState` stay retained during this
-    // component's lifetime.
+    // Make sure the queries in `queryState` stay retained during this component's
+    // lifetime.
     useEffect(() => {
         queryState.activeQuery.query?.query.retain();
         queryState.pendingQuery?.retain();
@@ -149,8 +148,8 @@ export function useTaskQueryState({
         };
     }, [queryState.pendingQuery, queryState.activeQuery]);
 
-    // If the filters/sorts set by the user differ from the filters/sorts of the
-    // active query we're presenting then we need to start a new pending query in the
+    // If the filters/sorts set by the user differ from the filters/sorts of the active
+    // query we're presenting then we need to start a new pending query in the
     // background we'll swap out.
     useEffect(() => {
         const actualActiveQuery = queryState.activeQuery.isAvailable
@@ -186,13 +185,13 @@ export function useTaskQueryState({
                       query: null,
                   };
 
-        // Make sure comparing with `isDeepEqual()` is ok by checking that the types
-        // are equal.
+        // Make sure comparing with `isDeepEqual()` is ok by checking that the types are
+        // equal.
         assertEqualTypes<typeof actualActiveQuery, typeof expectedQuery>();
         assertEqualTypes<typeof actualPendingQuery, (typeof expectedQuery)["query"]>();
 
-        // If our filters/sorts do not equal the active query or the pending query then
-        // we need to start a new pending query.
+        // If our filters/sorts do not equal the active query or the pending query then we
+        // need to start a new pending query.
         if (
             stringifyForDeepEqualCheck<CalendarDate>(actualActiveQuery, date => date.toString()) ===
             stringifyForDeepEqualCheck<CalendarDate>(expectedQuery, date => date.toString())
@@ -239,16 +238,16 @@ export function useTaskQueryState({
         });
 
         return () => {
-            // Release after a microtask since when the component re-renders we
-            // synchronously call `retain()` in the above hook keeping the query alive.
+            // Release after a microtask since when the component re-renders we synchronously
+            // call `retain()` in the above hook keeping the query alive.
             scheduleMicrotask(() => {
                 newPendingQuery.release();
             });
         };
     }, [filters, isMissingRequiredFilters, queryState, setQueryState, sorts, space.id, store]);
 
-    // Once the pending query has finished loading, swap it out as the new
-    // active query.
+    // Once the pending query has finished loading, swap it out as the new active
+    // query.
     useEffect(() => {
         if (!queryState.pendingQuery) return;
         const {pendingQuery} = queryState;

@@ -12,14 +12,13 @@ import {TaskActionTransactionLeaseId, TaskId} from "~/shared/id/types/id_types.j
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
- * An entry in our undo stack. Entries need to identify the task we're
- * modifying so we can scroll to it and provide a way to actually perform the
- * undo action.
+ * An entry in our undo stack. Entries need to identify the task we're modifying so
+ * we can scroll to it and provide a way to actually perform the undo action.
  *
  * `rootParentTaskId` is included since even if we know the `TaskId` we're
- * updating, the `TaskId` may appear twice in our view. `rootParentTaskId`
- * helps us disambiguate the task's position. If a task is nested in a parent
- * task we know it's unique within that subtree.
+ * updating, the `TaskId` may appear twice in our view. `rootParentTaskId` helps us
+ * disambiguate the task's position. If a task is nested in a parent task we know
+ * it's unique within that subtree.
  */
 export type TaskUndoStackEntry<Extra = unknown> =
     | {
@@ -44,8 +43,8 @@ export type TaskUndoStackEntry<Extra = unknown> =
  * Maintains the state of our undo stack. Features:
  *
  * - Automatically handles releasing stack entries when no longer used
- * - Merges adjacent `UpdateTitle` actions that happen within a short window
- *   of time
+ * - Merges adjacent `UpdateTitle` actions that happen within a short window of
+ *   time
  * - Clears redo stack when progress is made
  */
 export function useTaskUndoStackState<Extra = unknown>({
@@ -68,8 +67,8 @@ export function useTaskUndoStackState<Extra = unknown>({
         [stateKey],
     );
 
-    // Clear the undo stack when the component unmounts. Undo stack entries may
-    // retain some data.
+    // Clear the undo stack when the component unmounts. Undo stack entries may retain
+    // some data.
     useEffect(() => {
         return () => {
             for (const entry of undoState.undoStackRef.current) entry.release();
@@ -106,8 +105,8 @@ export function useTaskUndoStackState<Extra = unknown>({
         // 4. This entry doesn't remove tasks from any queries (we check
         //    `entry.removedFromQueries` and `entry.leaseId` for this); AND
         //
-        // 5. This entry is in the same position in the view as the last one
-        //    (we check `entry.rootParentTaskId` hasn't changed)
+        // 5. This entry is in the same position in the view as the last one (we check
+        //    `entry.rootParentTaskId` hasn't changed)
         if (
             entry.type === "Actions" &&
             entry.removedFromQueries.size === 0 &&

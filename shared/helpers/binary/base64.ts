@@ -8,23 +8,22 @@
  *
  * Copyright (c) 2014 Jameson Little
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -39,8 +38,8 @@ const dictionaries = {
             valueByCharCode.set(charCodeByValue.charCodeAt(i), i);
         }
 
-        // Support decoding URL-safe base64 strings, as Node.js does.
-        // See: https://en.wikipedia.org/wiki/Base64#URL_applications
+        // Support decoding URL-safe base64 strings, as Node.js does. See:
+        // https://en.wikipedia.org/wiki/Base64#URL_applications
         valueByCharCode.set("-".charCodeAt(0), 62);
         valueByCharCode.set("_".charCodeAt(0), 63);
 
@@ -72,8 +71,8 @@ function getBase64StringLengths(string: string, includesPadding: boolean) {
     if (includesPadding && length % 4 > 0)
         throw new InvalidArgumentError("Invalid base64 string, length must be a multiple of 4");
 
-    // Trim off extra bytes after placeholder bytes are found
-    // See: https://github.com/beatgammit/base64-js/issues/42
+    // Trim off extra bytes after placeholder bytes are found See:
+    // https://github.com/beatgammit/base64-js/issues/42
     let dataLength = string.length;
     while (string[dataLength - 1] === "=") {
         dataLength = dataLength - 1;

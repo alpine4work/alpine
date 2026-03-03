@@ -71,9 +71,9 @@ function TaskQueryViewDesktopHeaderName(
                         //
                         // We implement double click with `onPointerDown` instead of `onDoubleClick`
                         // because `onDoubleClick` fires one pointer up but the browser performs text
-                        // selection on double click pointer down. So there's a small visual glitch
-                        // where you can see the browser selection after double click before pointer up
-                        // when you use `onDoubleClick`,
+                        // selection on double click pointer down. So there's a small visual glitch where
+                        // you can see the browser selection after double click before pointer up when you
+                        // use `onDoubleClick`,
                         event.preventDefault();
 
                         setIsEditingName(true);
@@ -195,8 +195,8 @@ function TaskQueryViewDesktopHeaderNameEditor({
                     title="Save view name"
                     description="Would you like to save your new view name?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

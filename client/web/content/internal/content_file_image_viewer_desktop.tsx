@@ -218,9 +218,8 @@ function ContentFileImageDesktopViewerInner({
             containerElement.scrollHeight;
     }, []);
 
-    // Whenever the zoom changes, we want to adjust our `scrollTop` and
-    // `scrollLeft` so that the center of our image stays in the same place as it
-    // was before the zoom.
+    // Whenever the zoom changes, we want to adjust our `scrollTop` and `scrollLeft` so
+    // that the center of our image stays in the same place as it was before the zoom.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (lastZoomScaleRef.current === zoomScale) return;
         lastZoomScaleRef.current = zoomScale;
@@ -272,9 +271,9 @@ function ContentFileImageDesktopViewerInner({
         // previews.
         imageContentElement.draggable = false;
 
-        // My theory here is we'll get better zoom performance if we render the image
-        // at it's maximum size then scale down since the browser prepares the image at
-        // its maximum size. There's no evidence to support this theory.
+        // My theory here is we'll get better zoom performance if we render the image at
+        // it's maximum size then scale down since the browser prepares the image at its
+        // maximum size. There's no evidence to support this theory.
         imageContentElement.style.width = `${maxScaledFileWidth}px`;
         imageContentElement.style.height = `${maxScaledFileHeight}px`;
         imageContentElement.style.maxWidth = "none";
@@ -293,18 +292,17 @@ function ContentFileImageDesktopViewerInner({
         imageContentElement.style.transform = "scale(1)";
         imageContentElement.style.willChange = "transform";
 
-        // NOTE (rmtobin, #desktop-webkit-weirdness): This avoids a bug in Safari where images
-        // rendered with a very large height/width and very small transform: scale value plus
-        // object-fit values that maintain aspect ratio are distorted.
-        // See https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/e31jfwc3pcr3dk8pjac93qnhrr
+        // NOTE (rmtobin, #desktop-webkit-weirdness): This avoids a bug in Safari where
+        // images rendered with a very large height/width and very small transform: scale
+        // value plus object-fit values that maintain aspect ratio are distorted. See
+        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/e31jfwc3pcr3dk8pjac93qnhrr
         imageContentElement.style.objectFit = "fill";
 
         imageElement.appendChild(imageContentElement);
 
-        // Wait for the browser to paint before calling `setIsLoaded(true)`. That way
-        // the CSS transition will perform the CSS cross fade animation correctly.
-        // `isLoaded` will already be true if the image was loaded when our component
-        // mounted.
+        // Wait for the browser to paint before calling `setIsLoaded(true)`. That way the
+        // CSS transition will perform the CSS cross fade animation correctly. `isLoaded`
+        // will already be true if the image was loaded when our component mounted.
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 setIsLoaded(true);
@@ -354,8 +352,8 @@ function ContentFileImageDesktopViewerInner({
             width="full"
             height="full"
             overflow="auto"
-            // We don't have support for horizontal scrollbars at the moment. So we choose
-            // to disable scrollbars entirely for now in the file viewer.
+            // We don't have support for horizontal scrollbars at the moment. So we choose to
+            // disable scrollbars entirely for now in the file viewer.
             //
             // TODO(calebmer): Implement horizontal scrollbars and use them here.
             data-scrollbar="false"

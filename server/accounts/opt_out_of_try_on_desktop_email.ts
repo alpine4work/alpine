@@ -7,8 +7,8 @@ export async function optOutOfTryOnDesktopEmail(context: ServerSessionActionCont
         partitionType: "TryOnDesktopEmailOptOut",
         sortRangeType: "Attributes",
         accountId: context.actor.getAccountId(),
-        // Expire the opt out item after 5 minutes (plus one second to account for
-        // clock skew). By that point the try on desktop email should've been sent.
+        // Expire the opt out item after 5 minutes (plus one second to account for clock
+        // skew). By that point the try on desktop email should've been sent.
         expirationTime: new Date(Date.now() + (scheduleTryOnDesktopEmailDelaySeconds + 1) * 1000),
     });
 }

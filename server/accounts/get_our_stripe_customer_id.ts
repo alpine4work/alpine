@@ -2,8 +2,8 @@ import {getAccountBillingItemIfExists} from "~/server/accounts/internal/get_acco
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 
 /**
- * Get the Stripe customer ID for our account. May or may not exist
- * if the account has not set up billing.
+ * Get the Stripe customer ID for our account. May or may not exist if the account
+ * has not set up billing.
  */
 export async function getOurStripeCustomerId(context: ServerActionContext): Promise<string | null> {
     const authorizedContext = context.actor.authorizeSession();

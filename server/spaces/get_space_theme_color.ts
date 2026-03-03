@@ -7,8 +7,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * Get the theme color for a space.
  *
- * This is safe to call without authorization since theme color is not
- * sensitive information and is used for UI styling purposes only.
+ * This is safe to call without authorization since theme color is not sensitive
+ * information and is used for UI styling purposes only.
  */
 export async function getSpaceThemeColor(
     context: DynamoContext,

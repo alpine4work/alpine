@@ -52,33 +52,32 @@ export function TaskCommentInput({
             // `<TaskDetailView>` sets `alwaysRegisterBottomBarFrame` to true. It's not a
             // "native mobile" bottom bar but it IS the only bottom bar in the virtualized
             // scroll view. It's just sticky via `position: sticky` instead of
-            // `display: flex; flex-direction: column` (like `<ChatView>`) because we want
-            // the message input to be hidden while you're looking at subtasks. (We're
-            // deprecating our native mobile app so `isBottomBar` doesn't exactly make
-            // sense any more. We should maybe remove it.)
+            // `display: flex; flex-direction: column` (like `<ChatView>`) because we want the
+            // message input to be hidden while you're looking at subtasks. (We're deprecating
+            // our native mobile app so `isBottomBar` doesn't exactly make sense any more. We
+            // should maybe remove it.)
             alwaysRegisterBottomBarFrame={true}
             messages={comments}
             onUpdateMessages={onUpdateComments}
             ensureFileAttachmentTarget={async () => {
-                // Make sure the task is created (and this isn't a ghost task) before creating
-                // a comment. This needs to run before we attach files to the comment.
+                // Make sure the task is created (and this isn't a ghost task) before creating a
+                // comment. This needs to run before we attach files to the comment.
                 await ensureCreateTask();
 
                 return fileAttachmentTarget;
             }}
             createMessage={async input => {
-                // It's important we call `getProcedures()` to get the latest `procedures`
-                // object instead of the stale one this closure captured at the start of
+                // It's important we call `getProcedures()` to get the latest `procedures` object
+                // instead of the stale one this closure captured at the start of
                 // `await ensureCreateTask()`.
                 //
-                // If we're indeed creating a task then before `await ensureCreateTask()`
-                // is called we have a `procedures` object that pushes pending procedure calls
-                // to an array. After `await ensureCreateTask()` finishes the
-                // `<TaskCommentInput>` component will have re-rendered and the `procedures`
-                // object will directly make procedure calls on the underlying WebSocket.
-                // However, if we use the `procedures` variable here we'll have the old version
-                // captured by this closure (React sure can be frustrating sometimes) which
-                // will do nothing.
+                // If we're indeed creating a task then before `await ensureCreateTask()` is called
+                // we have a `procedures` object that pushes pending procedure calls to an array.
+                // After `await ensureCreateTask()` finishes the `<TaskCommentInput>` component
+                // will have re-rendered and the `procedures` object will directly make procedure
+                // calls on the underlying WebSocket. However, if we use the `procedures` variable
+                // here we'll have the old version captured by this closure (React sure can be
+                // frustrating sometimes) which will do nothing.
                 await getProcedures().createComment({
                     parent: input.parent,
                     content: input.content,
@@ -87,8 +86,8 @@ export function TaskCommentInput({
                 });
             }}
             // If this is a ghost task then we shouldn't attach files to the
-            // `fileAttachmentTarget` until before we send the message. Since the task
-            // won't exist yet!
+            // `fileAttachmentTarget` until before we send the message. Since the task won't
+            // exist yet!
             fileAttachmentTarget={!isGhostTask ? fileAttachmentTarget : null}
             messageEditing={commentEditing}
             parent={parent}
@@ -98,9 +97,8 @@ export function TaskCommentInput({
                 await procedures.deleteComment({commentIndex});
             }}
             onShowTypingIndicator={() => {
-                // Don't show an error updating typing indicators to the user. We will see an
-                // error in our logs but the user won't see any weird behavior if the
-                // request fails.
+                // Don't show an error updating typing indicators to the user. We will see an error
+                // in our logs but the user won't see any weird behavior if the request fails.
                 procedures
                     .startTypingInCommentInput({})
                     .catch(error =>
@@ -111,9 +109,8 @@ export function TaskCommentInput({
                     );
             }}
             onHideTypingIndicator={() => {
-                // Don't show an error updating typing indicators to the user. We will see an
-                // error in our logs but the user won't see any weird behavior if the
-                // request fails.
+                // Don't show an error updating typing indicators to the user. We will see an error
+                // in our logs but the user won't see any weird behavior if the request fails.
                 procedures
                     .stopTypingInCommentInput({})
                     .catch(error =>

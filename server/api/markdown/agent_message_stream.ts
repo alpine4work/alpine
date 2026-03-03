@@ -34,23 +34,23 @@ export type AgentMessageStreamPart = {
  * Manages message streaming for agents. You stream text into this class with
  * `pushText()` and you turn that text into parts with `update()`.
  *
- * NOTE(calebmer): This class would make more sense in `//server/agents` since
- * it's specifically geared for LLM stream processing but we want to have
- * access to this class for the tests in this file.
+ * NOTE(calebmer): This class would make more sense in `//server/agents` since it's
+ * specifically geared for LLM stream processing but we want to have access to this
+ * class for the tests in this file.
  */
 export class AgentMessageStream {
     private readonly _spaceId: SpaceId;
     private readonly _getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
 
     private _textState: {
-        // When you call `pushText()` you must pass in a `TracerSpan`. This is the
-        // latest span passed into `pushText()`. The `putApiMessageStreamPart()` call
-        // for this content will use this span as its parent.
+        // When you call `pushText()` you must pass in a `TracerSpan`. This is the latest
+        // span passed into `pushText()`. The `putApiMessageStreamPart()` call for this
+        // content will use this span as its parent.
         //
-        // Most of the time, `pushText()` is called with the same span (this is the
-        // case for the ChatGPT agent at least). For the ChatGPT agent we want the
-        // content part span to be a child of the "OpenAI output item message" span
-        // created by `open_ai_client.ts`.
+        // Most of the time, `pushText()` is called with the same span (this is the case
+        // for the ChatGPT agent at least). For the ChatGPT agent we want the content part
+        // span to be a child of the "OpenAI output item message" span created by
+        // `open_ai_client.ts`.
         latestSpan: TracerSpan;
         text: string;
     } | null = null;
@@ -93,15 +93,15 @@ export class AgentMessageStream {
     }
 
     /**
-     * Update the parts of `AgentStreamMessage`. Returns parts we should `PUT` into
-     * the stream. Only ever returns an update to the last part (as of when this
-     * was called) and new parts after that. Only the last part of a stream can be
-     * updated at any given time. Always returns parts with the right `index`.
+     * Update the parts of `AgentStreamMessage`. Returns parts we should `PUT` into the
+     * stream. Only ever returns an update to the last part (as of when this was
+     * called) and new parts after that. Only the last part of a stream can be updated
+     * at any given time. Always returns parts with the right `index`.
      *
-     * Roughly each Markdown block is turned into a part. This balances performance
-     * and correctness. We don't want to update the entire agent message at once
-     * while it's streaming but we need a blocks worth of content to correctly
-     * parse styles like bold and italics.
+     * Roughly each Markdown block is turned into a part. This balances performance and
+     * correctness. We don't want to update the entire agent message at once while it's
+     * streaming but we need a blocks worth of content to correctly parse styles like
+     * bold and italics.
      *
      * You may pass in `newParts` to add non-content parts to the stream.
      */
@@ -145,6 +145,7 @@ export class AgentMessageStream {
                     //
                     // To address this, we wait until after markdown parsing and then "look back" to
                     // see if the previous element
+                    //
                     // 1. Was an ordered list item and
                     // 2. if yes, if the previous item's number was the neighbor of the current item's
                     //    number (e.g. the previous item was "3" and the current item is "4")
@@ -167,8 +168,8 @@ export class AgentMessageStream {
                     putParts.push({span: textSpan, part: firstPart});
                     this._parts.push(firstPart);
                 } else {
-                    // We're updating the last part, so the previous part is actually the second-to-last
-                    // part.
+                    // We're updating the last part, so the previous part is actually the
+                    // second-to-last part.
                     removeOrderStartFromOrderedListItemsIfNeeded(firstMarkdownPart, {
                         type: "AgentMessageStreamPart",
                         previousPartIndex: this._parts.length - 2,
@@ -195,32 +196,38 @@ export class AgentMessageStream {
                 const markdownPart = markdownParts[index]!;
                 const previousMarkdownPart = markdownParts[index - 1]!;
 
-                // So let's say a list was started by pushing `1. First item\n\n` into the class and
-                // calling `update()`. So `_parts` consists of a single part with the following
+                // So let's say a list was started by pushing `1. First item\n\n` into the class
+                // and calling `update()`. So `_parts` consists of a single part with the following
                 // representation:
+                //
                 // ```
                 // [orderedList(null, [paragraph("First item")])]
                 // ```
                 //
-                // Then `pushText` is called with `2. second item\n\n3. third item\n\n4. fourth item\n\n`
-                // and `update()` is called. `markdownParts` will consist of
+                // Then `pushText` is called with
+                // `2. second item\n\n3. third item\n\n4. fourth item\n\n` and `update()` is
+                // called. `markdownParts` will consist of
+                //
                 // ```
                 // [
                 //   orderedList(null, [paragraph("First item")])
                 //   orderedList({orderStart: 2}, [paragraph("Second item")]),
                 //   orderedList(null, [paragraph("Third item")]),
                 //   orderedList(null, [paragraph("Fourth item")])
-                //]
+                // ]
                 // ```
                 //
-                // We complete the first element of `_parts` and handle elements 2-4 in this loop. For
-                // the first element in this loop (the second element in `markdownParts`), we look back
-                // through the previous parts in `this._parts` to determine whether or not we should
-                // remove the explicit order start. In this case, we should.
+                // We complete the first element of `_parts` and handle elements 2-4 in this loop.
+                // For the first element in this loop (the second element in `markdownParts`), we
+                // look back through the previous parts in `this._parts` to determine whether or
+                // not we should remove the explicit order start. In this case, we should.
                 //
                 // Elements 3 & 4 don't have an ordered start, so they don't need to be removed. In
                 // theory, we should never have to remove the order start from markdown parts after
                 // the first 2 elements.
+                //
+                // ```
+                //
                 // ```
                 removeOrderStartFromOrderedListItemsIfNeeded(
                     markdownPart,
@@ -258,8 +265,8 @@ export class AgentMessageStream {
         }
 
         if (newPartPayloads.length > 0) {
-            // Reset the text. Any new text won't be replacing previous parts. It'll create
-            // new parts.
+            // Reset the text. Any new text won't be replacing previous parts. It'll create new
+            // parts.
             this._textState = null;
 
             for (const newPartPayload of newPartPayloads) {
@@ -300,22 +307,21 @@ export class AgentMessageStream {
         }
 
         const markdownRoot = parseMarkdownTree(text, {
-            // TODO(ifitzsimmons, #ai): remove this mdast patch
-            // Allow parsing `Check out [My Document][]` as a link even if there is no
-            // definition for `My Document`. We'll figure out the right link in our code.
+            // TODO(ifitzsimmons, #ai): remove this mdast patch Allow parsing
+            // `Check out [My Document][]` as a link even if there is no definition for
+            // `My Document`. We'll figure out the right link in our code.
             allowUndefinedLinkReferenceIdentifiers: true,
-            // Allow parsing `The quick **brown fox` as bold from `**` to the end of the
-            // text. Since while streaming Markdown we have to wait for the ending `**`.
+            // Allow parsing `The quick **brown fox` as bold from `**` to the end of the text.
+            // Since while streaming Markdown we have to wait for the ending `**`.
             allowAttentionWithoutClose: true,
-            // Allow parsing ``The quick `brown fox`` as bold from `` ` `` to the end of
-            // the text. Since while streaming Markdown we have to wait for the ending
-            // `` ` ``.
+            // Allow parsing ``The quick `brown fox`` as bold from `` ` `` to the end of the
+            // text. Since while streaming Markdown we have to wait for the ending `` ` ``.
             allowCodeTextWithoutClose: true,
             // Allow parsing `The quick [brown fox` and discard link characters so it's
             // interpreted as `The quick brown fox`.
             allowLabelWithoutClose: true,
-            // Allow parsing `The quick [brown fox](/some-path-` and discard link
-            // characters so it's interpreted as `The quick brown fox`.
+            // Allow parsing `The quick [brown fox](/some-path-` and discard link characters so
+            // it's interpreted as `The quick brown fox`.
             allowResourceWithoutClose: true,
         });
 
@@ -325,18 +331,18 @@ export class AgentMessageStream {
         // shorthand link representations. So for a Document titled "Dinosaurs are cool",
         // the markdown link looks like "[Dinosaurs are cool](document/dinosaurs-are-cool)"
         // We do this for token efficiency and also to give the LLM more context about the
-        // linked content. When streaming these links back to the client, we need to replace
-        // the shorthand link with the actual link to the internal entity.
+        // linked content. When streaming these links back to the client, we need to
+        // replace the shorthand link with the actual link to the internal entity.
         const traverse = (node: Parent) => {
             for (let index = 0; index < node.children.length; index++) {
                 const childNode = node.children[index]!;
 
                 if (childNode.type === "link") {
                     promiseWaiter.waitUntil(async () => {
-                        // TODO(ifitzsimmons, #format-non-mentionable-content): If the link
-                        // is not mentionable, `targetPath` will be null. We need to build a
-                        // plain link for non mentionable content and we also need to swap
-                        // the label so something more user friendly (`mentionLabel`).
+                        // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
+                        // mentionable, `targetPath` will be null. We need to build a plain link for non
+                        // mentionable content and we also need to swap the label so something more user
+                        // friendly (`mentionLabel`).
                         const targetPath = await this._getTargetPathIfExists(childNode.url);
 
                         if (!targetPath) return null;
@@ -354,8 +360,8 @@ export class AgentMessageStream {
                                 position: childNode.position,
                             };
                         } else {
-                            // If it's not mentionable, we'll create a direct link to the content.
-                            // For exampe, the link to a chat message will look someting like
+                            // If it's not mentionable, we'll create a direct link to the content. For exampe,
+                            // the link to a chat message will look someting like
                             // `/chats/${chatId}?message=${messageIndex}
                             assert(isApiNotMentionTargetPath(targetPath));
                             const targetPathObject = parseApiNotMentionTarget(targetPath);
@@ -399,8 +405,8 @@ function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockCo
             continue;
         }
 
-        // Optimization: Split lists into each top-level list item. This way we get
-        // more parts while streaming.
+        // Optimization: Split lists into each top-level list item. This way we get more
+        // parts while streaming.
         else if (content.type === "list") {
             for (let childIndex = 0; childIndex < content.children.length; childIndex++) {
                 const item = content.children[childIndex]!;
@@ -409,8 +415,8 @@ function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockCo
                     {
                         type: "list",
                         ordered: content.ordered,
-                        // Only set the order start for the first item in the list. Consecutive
-                        // ordered list items do not need `start` values.
+                        // Only set the order start for the first item in the list. Consecutive ordered
+                        // list items do not need `start` values.
                         start: childIndex === 0 ? content.start : undefined,
                         children: [item],
                         position: item.position,
@@ -419,8 +425,8 @@ function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockCo
             }
         }
 
-        // If this is table HTML then the entire table should be yielded as a single
-        // part. So wait until we see the closing `</table>` tag before yielding.
+        // If this is table HTML then the entire table should be yielded as a single part.
+        // So wait until we see the closing `</table>` tag before yielding.
         else if (content.type === "html" && content.value.match(/<table[^a-z0-9-]/i)) {
             const tableContents: Array<BlockContent> = [content];
 
@@ -477,6 +483,7 @@ function removeOrderStartFromOrderedListItemsIfNeeded(
         const currentListStart = item.start;
 
         // Two conditions to remove the order start:
+        //
         // 1. This list element starts at 1 and was not preceded by an ordered list item.
         //    there's no need to set explicit order start for lists starting at 1.
         // 2. This list element starts at the next number in the sequence of the previous
@@ -493,8 +500,8 @@ function removeOrderStartFromOrderedListItemsIfNeeded(
             };
         }
 
-        // If the list element starts at 1 and was preceded by an ordered list item,
-        // we need to preserve the explicit order start of 1. See the comment for
+        // If the list element starts at 1 and was preceded by an ordered list item, we
+        // need to preserve the explicit order start of 1. See the comment for
         // `addOrderedStartSpanToFirstItemInOrderedListIfNeeded` in
         // `print_api_content_to_markdown.ts` for more details.
         if (previousListItemNumber !== undefined && currentListStart === 1) {
@@ -546,12 +553,13 @@ function getPreviousListItemNumberFromPreviousPart(
 
 /**
  * This function looks backward from the list of block content until either:
+ *
  * 1. It finds a non-ordered list
  * 2. It finds a list with an explicit order start.
  *
- * Once it finds a non-ordered list OR an explicit order start, it adds them together to determine
- * where the list ended. For example, if `orderStart = 5` and there are 3 items, the list ended
- * at `7`.
+ * Once it finds a non-ordered list OR an explicit order start, it adds them
+ * together to determine where the list ended. For example, if `orderStart = 5` and
+ * there are 3 items, the list ended at `7`.
  */
 function getPreviousListOrderStartFromPreviousBlockContent(
     previousBlockContent: Array<BlockContent>,
@@ -630,8 +638,8 @@ function getPreviousListOrderStartFromPreviousAgentMessageStreamPart({
 }
 
 /**
- * Traverses a list of parts in reverse order until it finds a non-ordered list or an ordered
- * list with an explicit order start.
+ * Traverses a list of parts in reverse order until it finds a non-ordered list or
+ * an ordered list with an explicit order start.
  */
 function getListStartAndPreviousNumberOfItemsInListIfExists<
     Part extends BlockContent | ApiContentBlockElement,

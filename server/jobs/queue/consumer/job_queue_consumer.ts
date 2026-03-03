@@ -44,49 +44,48 @@ export const changeMessageVisibilityBatchTestCounter = new TestCounter<void>();
  *
  * From: https://aws.amazon.com/sqs/faqs
  *
- * > Q: When should I use Amazon SQS long polling, and when should I use Amazon
- * >    SQS short polling?
+ * > Q: When should I use Amazon SQS long polling, and when should I use Amazon SQS
+ * > short polling?
  * >
  * > A: In almost all cases, Amazon SQS long polling is preferable to short
- * >    polling. [...]
+ * > polling. [...]
  * >
  * > Q: What value should I use for my long-poll timeout?
  * >
- * > A: In general, you should use a maximum of 20 seconds for a long-poll
- * >    timeout. [...]
+ * > A: In general, you should use a maximum of 20 seconds for a long-poll timeout.
+ * > [...]
  */
 const receiveMessagesWaitTimeSeconds = 20;
 
 /**
  * AWS SQS [default visibility timeout is 30 seconds][1].
  *
- * [1]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
+ * [1]:
+ *     https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
  */
-// Use a faster timeout in unit tests so tests that exercise message retries
-// run in reasonable time.
+// Use a faster timeout in unit tests so tests that exercise message retries run in
+// reasonable time.
 const receiveMessagesVisibilityTimeoutSeconds = !import.meta.jest ? 30 : 3;
 
 /**
  * Processes jobs in our job queue. Features:
  *
- * - Long polling: We use AWS SQS long polling to improve efficiency and
- *   reduce cost.
+ * - Long polling: We use AWS SQS long polling to improve efficiency and reduce
+ *   cost.
  *
- * - Auto-scaling: We dynamically launch "[fibers][1]" to concurrently receive
- *   many messages based on how busy the queue is and scale back down once
- *   activity subsides. Fibers are a lightweight thread of execution. If you're
- *   familiar with [goroutines][1] they're similar to that. Fibers are like
- *   threads with the key difference being fibers use cooperative context
- *   switching on a single operating system thread instead of preemptive
- *   time-slicing.
+ * - Auto-scaling: We dynamically launch "[fibers][1]" to concurrently receive many
+ *   messages based on how busy the queue is and scale back down once activity
+ *   subsides. Fibers are a lightweight thread of execution. If you're familiar
+ *   with [goroutines][1] they're similar to that. Fibers are like threads with the
+ *   key difference being fibers use cooperative context switching on a single
+ *   operating system thread instead of preemptive time-slicing.
  *
- *   This allows a single JavaScript thread to process up to 100 jobs
- *   concurrently. Instead of the 10 message max on an SQS
- *   `ReceiveMessageCommand`.
+ *     This allows a single JavaScript thread to process up to 100 jobs
+ *     concurrently. Instead of the 10 message max on an SQS
+ *     `ReceiveMessageCommand`.
  *
- * - Heartbeats: If a message is taking a long time to process, we'll extend
- *   the message's visibility timeout so it isn't processed again by another
- *   job.
+ * - Heartbeats: If a message is taking a long time to process, we'll extend the
+ *   message's visibility timeout so it isn't processed again by another job.
  *
  * [1]: https://en.wikipedia.org/wiki/Fiber_(computer_science)
  * [2]: https://go.dev/tour/concurrency/1
@@ -141,40 +140,41 @@ export class JobQueueConsumer<
     private readonly _mainFiberPromiseWaiter = new PromiseWaiter();
 
     /**
-     * The maximum number of parallel `_consume()` calls we allow. After receiving
-     * some messages we immediately want to receive more while we process our current
-     * batch of messages.
+     * The maximum number of parallel `_consume()` calls we allow. After receiving some
+     * messages we immediately want to receive more while we process our current batch
+     * of messages.
      *
-     * This and `maxFiberMessageCount` determine the maximum number of jobs
-     * our consumer can process in one JavaScript thread at once. For example, if
-     * this value is 10 and `maxFiberMessageCount` is 10, then the maximum
-     * number of jobs our consumer can process at once is 100 (10 * 10). If we're
-     * running on a machine with 3 cores then each core will run a different
-     * Node.js worker process with its own queue consumer so we end up being able
-     * to process 300 messages at once.
+     * This and `maxFiberMessageCount` determine the maximum number of jobs our
+     * consumer can process in one JavaScript thread at once. For example, if this
+     * value is 10 and `maxFiberMessageCount` is 10, then the maximum number of jobs
+     * our consumer can process at once is 100 (10 \* 10). If we're running on a
+     * machine with 3 cores then each core will run a different Node.js worker process
+     * with its own queue consumer so we end up being able to process 300 messages at
+     * once.
      */
     private readonly _maxFiberCount: number;
 
     /**
-     * What is the maximum number of messages to return from one `_runFiber()`
-     * call? Same as the `MaxNumberOfMessages` parameter in the [SQS
-     * `ReceiveMessage` action][1]. Can't be greater than 10.
+     * What is the maximum number of messages to return from one `_runFiber()` call?
+     * Same as the `MaxNumberOfMessages` parameter in the [SQS `ReceiveMessage`
+     * action][1]. Can't be greater than 10.
      *
-     * This and `maxFiberCount` determine the maximum number of jobs our consumer
-     * can process in one JavaScript thread at once. For example, if this value is
-     * 10 and `maxFiberCount` is 10, then the maximum number of jobs our consumer
-     * can process at once is 100 (10 * 10). If we're running on a machine with 3
-     * cores then each core will run a different Node.js worker process with its
-     * own queue consumer so we end up being able to process 300 messages at once.
+     * This and `maxFiberCount` determine the maximum number of jobs our consumer can
+     * process in one JavaScript thread at once. For example, if this value is 10 and
+     * `maxFiberCount` is 10, then the maximum number of jobs our consumer can process
+     * at once is 100 (10 \* 10). If we're running on a machine with 3 cores then each
+     * core will run a different Node.js worker process with its own queue consumer so
+     * we end up being able to process 300 messages at once.
      *
-     * [1]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html
+     * [1]:
+     *     https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html
      */
     private readonly _maxFiberMessageCount: number;
 
-    // Every minute we create an activity span for our `JobQueueConsumer`. All
-    // fiber runs and other background activity run by the `JobQueueConsumer` is
-    // logged to this span. This allows us to conveniently debug the operations of
-    // our `JobQueueConsumer` on a timeline.
+    // Every minute we create an activity span for our `JobQueueConsumer`. All fiber
+    // runs and other background activity run by the `JobQueueConsumer` is logged to
+    // this span. This allows us to conveniently debug the operations of our
+    // `JobQueueConsumer` on a timeline.
     private _activitySpan!: TracerSpan;
     private _finishActivitySpan!: () => void;
     private _activityTimeout!: Timeout;
@@ -398,12 +398,11 @@ export class JobQueueConsumer<
         try {
             receiveMessageTestCounter.incrementForTest();
 
-            // Create an abort controller for each `ReceiveMessageCommand` call. It
-            // inherits from the class abort controller which is called when the consumer
-            // stops.
+            // Create an abort controller for each `ReceiveMessageCommand` call. It inherits
+            // from the class abort controller which is called when the consumer stops.
             //
-            // When `withFiber()` is called we abort an idle `ReceiveMessageCommand` to
-            // allow for our resize to run.
+            // When `withFiber()` is called we abort an idle `ReceiveMessageCommand` to allow
+            // for our resize to run.
             const receiveMessageAbortController = new AbortController();
 
             const handleAbort = () => {
@@ -450,9 +449,9 @@ export class JobQueueConsumer<
                                 MessageSystemAttributeNames: ["ApproximateReceiveCount"],
                             }),
                             // In tests environments, when `stop()` is called cancel SQS `ReceiveMessage`
-                            // requests instead of waiting out `WaitTimeSeconds`. In non-test environments
-                            // use our safer abort handling that continues waiting (so we don't have issues
-                            // when there's a race where SQS is just about to send us messages).
+                            // requests instead of waiting out `WaitTimeSeconds`. In non-test environments use
+                            // our safer abort handling that continues waiting (so we don't have issues when
+                            // there's a race where SQS is just about to send us messages).
                             isTestNodeEnvOrAdminScenariosScript
                                 ? {abortSignal: this._abortController.signal}
                                 : undefined,
@@ -479,20 +478,20 @@ export class JobQueueConsumer<
 
             // If our `ReceiveMessage` call was aborted then we don't actually cancel the
             // underlying command. The reason being we've encountered race conditions
-            // (including in our integration test `document_files_desktop.spec.ts`) where
-            // even though we've used an `AbortSignal` to cancel a request, SQS still might
-            // have pushed messages to our `ReceiveMessage` call and set those message
-            // visibility timeouts to `VisibilityTimeout` (30s is our current value) before
-            // SQS realizes the message was aborted. This means another queue consumer
-            // instance won't be able to pick up the message for another 30s. If this is a
-            // latency sensitive job (e.g. file processing) the user will be sitting,
-            // staring, waiting for the job to get picked up for 30s.
+            // (including in our integration test `document_files_desktop.spec.ts`) where even
+            // though we've used an `AbortSignal` to cancel a request, SQS still might have
+            // pushed messages to our `ReceiveMessage` call and set those message visibility
+            // timeouts to `VisibilityTimeout` (30s is our current value) before SQS realizes
+            // the message was aborted. This means another queue consumer instance won't be
+            // able to pick up the message for another 30s. If this is a latency sensitive job
+            // (e.g. file processing) the user will be sitting, staring, waiting for the job to
+            // get picked up for 30s.
             //
             // So instead what we do is when an abort happens we immediately decrement
             // `fiberCount` but we wait the remaining `WaitTimeSeconds` (20s is our current
-            // value). If we receive messages then we call `ChangeMessageVisibilityBatch`
-            // to set the message visibility timeouts to 0. This tells SQS we won't process
-            // these messages so someone else needs to.
+            // value). If we receive messages then we call `ChangeMessageVisibilityBatch` to
+            // set the message visibility timeouts to 0. This tells SQS we won't process these
+            // messages so someone else needs to.
             if (isReceiveMessageAborted) {
                 if (messages.length > 0) {
                     await fiberSpan.withSpan(
@@ -525,13 +524,13 @@ export class JobQueueConsumer<
                 return;
             }
 
-            // If we got some messages, then while we process them we want to try and
-            // consume more messages concurrently. Keep consuming messages until we reach
-            // a max number of fibers.
+            // If we got some messages, then while we process them we want to try and consume
+            // more messages concurrently. Keep consuming messages until we reach a max number
+            // of fibers.
             //
-            // If we un-aborted (`wasReceiveMessageAborted` is true) then we won't spawn a
-            // new fiber. There should already be an idle `ReceiveMessage` fiber from the
-            // main `_afterFiberFinish()` loop.
+            // If we un-aborted (`wasReceiveMessageAborted` is true) then we won't spawn a new
+            // fiber. There should already be an idle `ReceiveMessage` fiber from the main
+            // `_afterFiberFinish()` loop.
             if (!this._isStopped && messages.length > 0) {
                 if (this._fiberCount < this._maxFiberCount) {
                     this._mainFiberPromiseWaiter.waitUntil(this._runMainFiber());
@@ -566,8 +565,8 @@ export class JobQueueConsumer<
             const promiseResolver = createPromiseResolver();
 
             const updateQueue = () => {
-                // Batch delete messages we've successfully handled so we don't attempt to
-                // process them again.
+                // Batch delete messages we've successfully handled so we don't attempt to process
+                // them again.
                 if (deleteMessageReceiptHandles.length > 0) {
                     const receiptHandles = deleteMessageReceiptHandles;
                     deleteMessageReceiptHandles = [];
@@ -615,8 +614,8 @@ export class JobQueueConsumer<
                 }
 
                 // If we're still processing some messages, extend the visibility and schedule
-                // another queue update. This is called "heartbeat"ing and is described in the
-                // AWS documentation.
+                // another queue update. This is called "heartbeat"ing and is described in the AWS
+                // documentation.
                 //
                 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
                 if (messageStateSet.size > 0) {
@@ -698,8 +697,8 @@ export class JobQueueConsumer<
                             messageStateSet.delete(messageState);
                             if (messageStateSet.size === 0) promiseResolver.resolve();
 
-                            // We don't need to log errors since they've already been reported in the
-                            // "Process job" span.
+                            // We don't need to log errors since they've already been reported in the "Process
+                            // job" span.
                             //
                             // We leave the message in the queue so it can be processed by the next
                             // `ReceiveMessage` call.
@@ -710,8 +709,8 @@ export class JobQueueConsumer<
 
             await promiseResolver.promise;
 
-            // All of our jobs have finished processing. Calling `updateQueue()` deletes
-            // any messages that successfully finished.
+            // All of our jobs have finished processing. Calling `updateQueue()` deletes any
+            // messages that successfully finished.
             timeout.clear();
             updateQueue();
         } catch (error) {
@@ -722,8 +721,8 @@ export class JobQueueConsumer<
                 // https://github.com/awslabs/smithy-typescript/blob/a4b58b32ac2ae778917e276ba381527f551c2d3d/packages/node-http-handler/src/node-http-handler.ts#L170-L179
                 (error instanceof Error && error.name === "AbortError")
             ) {
-                // Ignore errors thrown by `AbortController` when `stop()` is called.
-                // Cancelling receive message commands when `stop()` is called is expected.
+                // Ignore errors thrown by `AbortController` when `stop()` is called. Cancelling
+                // receive message commands when `stop()` is called is expected.
             } else {
                 throw error;
             }
@@ -741,24 +740,23 @@ export class JobQueueConsumer<
     private _afterFiberFinish() {
         if (this._isStopped) return;
 
-        // If there's any pending external fibers then run them. We'll run pending
-        // external fibers until the queue is exhausted at which point we'll continue
-        // running our main fiber.
+        // If there's any pending external fibers then run them. We'll run pending external
+        // fibers until the queue is exhausted at which point we'll continue running our
+        // main fiber.
         //
         // NOTE(calebmer): This can lead to starvation issues! Let's take
-        // `FileProcessorService` as an example which runs resize requests in an
-        // external fiber. If we have many incoming resize requests then they'll starve
-        // out main fibers from running. We may need to build more advanced scheduling
-        // capabilities to make sure the main fiber doesn't get starved. We can also
-        // scale ourselves out of the problem by running plenty of file processor
-        // servers.
+        // `FileProcessorService` as an example which runs resize requests in an external
+        // fiber. If we have many incoming resize requests then they'll starve out main
+        // fibers from running. We may need to build more advanced scheduling capabilities
+        // to make sure the main fiber doesn't get starved. We can also scale ourselves out
+        // of the problem by running plenty of file processor servers.
         if (this._fiberCount < this._maxFiberCount) {
             const pendingExternalFiber = this._pendingExternalFibers.dequeue();
             pendingExternalFiber?.();
         }
 
-        // If there's a pending call we wanted to make but couldn't since we were
-        // at max fibers then start it now.
+        // If there's a pending call we wanted to make but couldn't since we were at max
+        // fibers then start it now.
         if (this._fiberCount < this._maxFiberCount && this._hasPendingMainFiber) {
             this._hasPendingMainFiber = false;
             this._mainFiberPromiseWaiter.waitUntil(this._runMainFiber());
@@ -788,10 +786,9 @@ export class JobQueueConsumer<
         try {
             const serializedMessageBody = JSON.parse(assertExists(message.Body));
 
-            // NOTE(calebmer): Job queue messages created before 2024-01-12 don't have a
-            // type. Default their type to `Regular`. Once we are a couple months past
-            // 2024-01-12, all jobs in our system should have a type and we can
-            // remove this.
+            // NOTE(calebmer): Job queue messages created before 2024-01-12 don't have a type.
+            // Default their type to `Regular`. Once we are a couple months past 2024-01-12,
+            // all jobs in our system should have a type and we can remove this.
             serializedMessageBody.type ??= "Regular";
 
             const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
@@ -812,10 +809,10 @@ export class JobQueueConsumer<
 
             fiberSpan.link(`Execution: ${handleSpanName}`, span);
 
-            // The time at which the job starts to be available for processing. The send
-            // time plus delay seconds. This will be a little earlier than when the job is
-            // truly available for processing since we don't include the latency of adding
-            // a job to SQS.
+            // The time at which the job starts to be available for processing. The send time
+            // plus delay seconds. This will be a little earlier than when the job is truly
+            // available for processing since we don't include the latency of adding a job to
+            // SQS.
             const jobStartTime =
                 messageBody.delaySeconds === 0
                     ? messageBody.sendTime
@@ -836,9 +833,9 @@ export class JobQueueConsumer<
                     delaySeconds: messageBody.delaySeconds,
                     queueDurationMs:
                         currentTime -
-                        // Don't include the delay in queue duration (use start time instead of send
-                        // time). The delay is intentional. We want to measure overall queue health.
-                        // Ideally the queue duration should be as close to zero as possible.
+                        // Don't include the delay in queue duration (use start time instead of send time).
+                        // The delay is intentional. We want to measure overall queue health. Ideally the
+                        // queue duration should be as close to zero as possible.
                         jobStartTime.getTime(),
                 },
             });
@@ -875,12 +872,12 @@ export class JobQueueConsumer<
                         cache: CacheContextModule.new(),
                         batch: BatchContextModule.new(),
                         // We're ok dangerously creating a space system actor here since we use AWS IAM
-                        // policies to only allow our services to send messages to our SQS queue. So we
-                        // can trust job objects to not be malicious.
+                        // policies to only allow our services to send messages to our SQS queue. So we can
+                        // trust job objects to not be malicious.
                         //
-                        // It's different for HTTP servers with routes to the public internet! For
-                        // those we need to be more careful and make sure we include a signed token to
-                        // correctly identify our services.
+                        // It's different for HTTP servers with routes to the public internet! For those we
+                        // need to be more careful and make sure we include a signed token to correctly
+                        // identify our services.
                         actor: SystemActorContextModule.dangerouslyNew(this._serviceName, spaceId),
                     },
                     actionContext =>
@@ -977,22 +974,22 @@ export class JobQueueConsumer<
      * 2. Processes each job. The fiber does not free up until all jobs finish
      *    processing.
      *
-     * So if `maxFiberCount` is 10 and `maxFiberMessageCount` is 5
-     * `JobQueueConsumer` can run 10 fibers which each process at most 5 messages.
+     * So if `maxFiberCount` is 10 and `maxFiberMessageCount` is 5 `JobQueueConsumer`
+     * can run 10 fibers which each process at most 5 messages.
      *
      * You may use this function if you need to run some action in a job queue
-     * processing service and want to share resources with `JobQueueConsumer`. If
-     * you call `withFiber()` once (in our configuration of `maxFiberCount` = 10
-     * and `maxFiberMessageCount` = 5) then it consumes one fiber for the duration
-     * of the action. So after calling `withFiber()` once there are only 9 fibers
-     * available to process messages.
+     * processing service and want to share resources with `JobQueueConsumer`. If you
+     * call `withFiber()` once (in our configuration of `maxFiberCount` = 10 and
+     * `maxFiberMessageCount` = 5) then it consumes one fiber for the duration of the
+     * action. So after calling `withFiber()` once there are only 9 fibers available to
+     * process messages.
      *
-     * If all fibers are being used to process messages then `withFiber()` will
-     * wait until a fiber is available.
+     * If all fibers are being used to process messages then `withFiber()` will wait
+     * until a fiber is available.
      *
      * IMPORTANT: Any fibers scheduled with `withFiber()` will run BEFORE
-     * `JobQueueConsumer` gets to schedule new fibers to consume SQS messages. This
-     * can lead to starvation issues where we never get to process SQS messages.
+     * `JobQueueConsumer` gets to schedule new fibers to consume SQS messages. This can
+     * lead to starvation issues where we never get to process SQS messages.
      */
     public readonly withFiber = <Modules extends {tracer: TracerContextModule}, Value>(
         context: Context<Modules>,
@@ -1011,9 +1008,8 @@ export class JobQueueConsumer<
                 this._pendingExternalFibers.enqueue(attempt);
 
                 // If there's an idle `ReceiveMessage` command then abort it so we can run our
-                // external fiber. If the command successfully aborts then
-                // `_afterFiberFinish()` will be called which'll run our pending external
-                // fiber.
+                // external fiber. If the command successfully aborts then `_afterFiberFinish()`
+                // will be called which'll run our pending external fiber.
                 for (const receiveMessageAbortController of this._receiveMessageAbortControllers) {
                     if (!receiveMessageAbortController.signal.aborted) {
                         receiveMessageAbortController.abort(

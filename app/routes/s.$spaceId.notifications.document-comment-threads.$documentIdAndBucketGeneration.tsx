@@ -121,8 +121,8 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const platform = getInitialAppRenderPlatform(clientInfo);
     const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     const {inboxEntry, document, commentThreads, initialCommentsByCommentThreadId} =
@@ -234,9 +234,9 @@ function DocumentNewCommentThreadsRouteInner2({
         initialDocument,
     });
 
-    // Spending time with document comment threads contributes affinity points
-    // to the document. Since the comment thread is discussing the document,
-    // the document is likely an artifact you care about.
+    // Spending time with document comment threads contributes affinity points to the
+    // document. Since the comment thread is discussing the document, the document is
+    // likely an artifact you care about.
     useSearchAffinityViewEntityInteraction(`Document:${documentId}`);
 
     const listViewRef = useRef<DocumentCommentThreadListViewRef>(null);
@@ -282,16 +282,16 @@ function DocumentNewCommentThreadsRouteInner2({
 
     const switchMobileCommentThreadIndexAbortControllerRef = useRef<AbortController | null>(null);
 
-    // When we switch between comment threads on mobile we may not have loaded
-    // comments for the comment thread! Our server `loader()` loads comments as if
-    // the comment threads are in a list you scroll through. Which they are on
-    // desktop. But on mobile the user paginates through comment threads. We want
-    // to make sure when the user navigates to a thread it has data so we don't
-    // flash loading indicators at them.
+    // When we switch between comment threads on mobile we may not have loaded comments
+    // for the comment thread! Our server `loader()` loads comments as if the comment
+    // threads are in a list you scroll through. Which they are on desktop. But on
+    // mobile the user paginates through comment threads. We want to make sure when the
+    // user navigates to a thread it has data so we don't flash loading indicators at
+    // them.
     //
-    // The server will typically load comments for the first 2-4 comment threads
-    // and after that mobile will need to fill in the blanks when the user switches
-    // comment threads.
+    // The server will typically load comments for the first 2-4 comment threads and
+    // after that mobile will need to fill in the blanks when the user switches comment
+    // threads.
     const switchMobileCommentThreadIndex = async (commentThreadIndex: number) => {
         const platform = getPlatformWithoutListening();
         if (platform !== "mobile") return;
@@ -339,9 +339,9 @@ function DocumentNewCommentThreadsRouteInner2({
 
                 setInitialCommentThreadResults(initialCommentThreadResults =>
                     initialCommentThreadResults.map(otherInitialCommentThreadResult => {
-                        // Find the result we want to update. It must be the exact same object we had
-                        // when we started loading data. If the object was removed or changed then we
-                        // don't update anything.
+                        // Find the result we want to update. It must be the exact same object we had when
+                        // we started loading data. If the object was removed or changed then we don't
+                        // update anything.
                         if (otherInitialCommentThreadResult !== initialCommentThreadResult)
                             return otherInitialCommentThreadResult;
 
@@ -390,9 +390,9 @@ function DocumentNewCommentThreadsRouteInner2({
                     <Box style={{fontVariantNumeric: "tabular-nums"}}>
                         {mobileCommentThreadIndex + 1} of {commentThreadCount} new{" "}
                         {
-                            // We just call it "threads" and not "comment threads" here (we call this
-                            // entity "comment threads" everywhere else) since "comment threads" visually
-                            // looks too long.
+                            // We just call it "threads" and not "comment threads" here (we call this entity
+                            // "comment threads" everywhere else) since "comment threads" visually looks too
+                            // long.
                             "threads"
                         }
                     </Box>
@@ -447,8 +447,8 @@ function DocumentNewCommentThreadsRouteInner2({
         expectedArchivedCommentThreadIds,
     );
 
-    // Make sure `archivedCommentThreadIdsWithoutOptimisticUpdates` is always equal
-    // to `expectedArchivedCommentThreadIds`.
+    // Make sure `archivedCommentThreadIdsWithoutOptimisticUpdates` is always equal to
+    // `expectedArchivedCommentThreadIds`.
     if (
         !isDeepEqual(
             expectedArchivedCommentThreadIds,
@@ -463,15 +463,15 @@ function DocumentNewCommentThreadsRouteInner2({
             event => {
                 if (event.entryKey !== inboxEntry.key) return;
 
-                // Wait for our inbox entry to update in realtime. The realtime update event
-                // may happen after `promise` resolves.
+                // Wait for our inbox entry to update in realtime. The realtime update event may
+                // happen after `promise` resolves.
                 const waitPromise = waitForExpectedArchivedCommentThreadIds(
                     archivedCommentThreadIds => archivedCommentThreadIds.has(event.commentThreadId),
                 );
 
-                // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
-                // if there's a new `latestCommentThread` we don't know the new
-                // `contentTextSnippet` on the client.
+                // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because if
+                // there's a new `latestCommentThread` we don't know the new `contentTextSnippet`
+                // on the client.
                 setArchivedCommentThreadIdsOptimistically(
                     event.promise.then(() => waitPromise).then(() => true),
                     (archivedCommentThreadIds, promiseValue) => {
@@ -508,8 +508,8 @@ function DocumentNewCommentThreadsRouteInner2({
                 commentThreadId,
             });
 
-            // If we're viewing new entries and by archiving this `commentThreadId` we've archived
-            // all commentThreads in the entry then navigate to the next entry.
+            // If we're viewing new entries and by archiving this `commentThreadId` we've
+            // archived all commentThreads in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
                 inboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel &&
@@ -537,15 +537,15 @@ function DocumentNewCommentThreadsRouteInner2({
                 reporter.displayError("Couldn\u2019t move notification to new", error);
             });
 
-            // Wait for our inbox entry to update in realtime. The realtime update event
-            // may happen after `promise` resolves.
+            // Wait for our inbox entry to update in realtime. The realtime update event may
+            // happen after `promise` resolves.
             const waitPromise = waitForExpectedArchivedCommentThreadIds(
                 archivedCommentThreadIds => !archivedCommentThreadIds.has(commentThreadId),
             );
 
-            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
-            // if there's a new `latestCommentThread` we don't know the new `contentTextSnippet` on
-            // the client.
+            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because if
+            // there's a new `latestCommentThread` we don't know the new `contentTextSnippet`
+            // on the client.
             setArchivedCommentThreadIdsOptimistically(
                 promise.then(() => waitPromise).then(() => true),
                 (archivedCommentThreadIds, promiseValue) => {
@@ -562,8 +562,8 @@ function DocumentNewCommentThreadsRouteInner2({
         <DocumentCommentThreadListView
             ref={listViewRef}
             // When rendering for mobile, we render one comment thread at a time. Instead of
-            // rendering them all in a list. Since our sticky comment input UI pattern
-            // doesn't work particularly well on mobile.
+            // rendering them all in a list. Since our sticky comment input UI pattern doesn't
+            // work particularly well on mobile.
             key={platform === "mobile" ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
             documentId={documentId}
             content={content}
@@ -582,8 +582,8 @@ function DocumentNewCommentThreadsRouteInner2({
                 rootNavigate(
                     `/s/${space.id}/documents/${documentId}?${
                         platform === "mobile"
-                            ? // On mobile, only scroll to where the comment lives in the document. Don't open
-                              // up the comment overlay.
+                            ? // On mobile, only scroll to where the comment lives in the document. Don't open up
+                              // the comment overlay.
                               `scroll=comments-${commentThreadId}`
                             : `comments=${commentThreadId}`
                     }`,
@@ -622,8 +622,8 @@ function DocumentNewCommentThreadsRouteInner2({
             isCommentThreadArchived={useMemo(() => {
                 if (commentThreadCount < 2) return;
 
-                // If this route was initially archived, we only let you "unarchive" the entry
-                // as a whole. You can't unarchive individual comment threads.
+                // If this route was initially archived, we only let you "unarchive" the entry as a
+                // whole. You can't unarchive individual comment threads.
                 if (initialIsArchived) return;
 
                 return (commentThreadId: DocumentCommentThreadId) =>

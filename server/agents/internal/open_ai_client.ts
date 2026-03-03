@@ -140,17 +140,18 @@ export class OpenAiClient implements OpenAiClientInterface {
                 async retry => {
                     try {
                         return this._client.responses.create(body, {
-                            // NOTE(ifitzsimmons, 2026-01-13): We've had several instances where the agent
-                            // ran for 15 minutes [1] while stuck waiting for a response from OpenAI (which
+                            // NOTE(ifitzsimmons, 2026-01-13): We've had several instances where the agent ran
+                            // for 15 minutes [1] while stuck waiting for a response from OpenAI (which
                             // allegedly sets a default of 10 minutes). Ultimately, OpenAI connection timeouts
-                            // will lead to "dropped" requests because the maximum durable object execution time
-                            // is 15 minutes (e.g. the durable object dies while waiting on a response from
-                            // OpenAI).
+                            // will lead to "dropped" requests because the maximum durable object execution
+                            // time is 15 minutes (e.g. the durable object dies while waiting on a response
+                            // from OpenAI).
                             //
                             // By adding a hard 2 minute timeout, we can avoid this issue. If OpenAI doesn't
                             // respond within 2 minutes, it will throw a retryable `APIConnectionTimeoutError`
                             //
-                            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9edwdyz9r9h7aeqpnbd152a0y0
+                            // [1]:
+                            //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9edwdyz9r9h7aeqpnbd152a0y0
                             timeout: 120_000, // 2 minutes
                         });
                     } catch (error) {
@@ -277,11 +278,13 @@ export class OpenAiClient implements OpenAiClientInterface {
 // them anyway just in case. Otherwise, we follow OpenAI's guidance [3] on retries.
 //
 // [1]: https://platform.openai.com/docs/guides/error-codes
-// [2]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
-// [3]: https://platform.openai.com/docs/guides/error-codes#python-library-error-types
+// [2]:
+//     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
+// [3]:
+//     https://platform.openai.com/docs/guides/error-codes#python-library-error-types
 function isRetryableApiError(error: APIError): boolean {
-    // Looking at the OpenAI source code, it looks like this exception is not given
-    // a status, so we check for it outside of the switch statement.
+    // Looking at the OpenAI source code, it looks like this exception is not given a
+    // status, so we check for it outside of the switch statement.
     if (error instanceof APIConnectionTimeoutError) return true;
 
     switch (error.status) {

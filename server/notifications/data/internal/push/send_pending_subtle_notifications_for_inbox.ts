@@ -29,10 +29,10 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {AccountModelDataWithoutAvatar} from "~/shared/spaces/account_model.js";
 
 /**
- * Send a single subtle push notification with the combined content of all pending subtle
- * notifications that have been queued for a given inbox. Uses affinity scores of the
- * accounts associated with the original subtle notifications to determine the content of
- * the notification.
+ * Send a single subtle push notification with the combined content of all pending
+ * subtle notifications that have been queued for a given inbox. Uses affinity
+ * scores of the accounts associated with the original subtle notifications to
+ * determine the content of the notification.
  */
 export async function sendPendingSubtleNotificationsForInbox(
     context: Context<
@@ -47,8 +47,8 @@ export async function sendPendingSubtleNotificationsForInbox(
         sendTime = new Date(),
     }: {accountId: AccountId; spaceId: SpaceId; sendTime?: Date},
 ) {
-    // If you're no longer a member of the space, you should not be notified about any events
-    // that have happened in that space.
+    // If you're no longer a member of the space, you should not be notified about any
+    // events that have happened in that space.
     if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
         await clearPendingSubtleNotificationsForInbox(context, {accountId, spaceId});
         return;
@@ -82,8 +82,8 @@ export async function sendPendingSubtleNotificationsForInbox(
         pendingSubtleNotifications,
     });
 
-    // If we don't have any content to send, clear out the pending quiet notifications and return
-    // without sending a notification.
+    // If we don't have any content to send, clear out the pending quiet notifications
+    // and return without sending a notification.
     if (!content) {
         await clearPendingSubtleNotificationsForInbox(context, {
             accountId: currentAccount.id,
@@ -95,9 +95,9 @@ export async function sendPendingSubtleNotificationsForInbox(
     const webPushNotificationContent = {
         title: content.title,
         body: content.body,
-        // `silent` refers to whether this notification will make a noise on delivery.
-        // This is different from native 'silent' push notifications where the notification
-        // is used for updates and not displayed - `silent` web push notifications are always
+        // `silent` refers to whether this notification will make a noise on delivery. This
+        // is different from native 'silent' push notifications where the notification is
+        // used for updates and not displayed - `silent` web push notifications are always
         // displayed.
         silent: true,
         data: {
@@ -206,8 +206,8 @@ export async function getPendingSubtleNotificationSummaryContent({
         },
     )}`;
 
-    // Get the most recent inbox entry for the author with the highest affinity to display in the
-    // body of the notification.
+    // Get the most recent inbox entry for the author with the highest affinity to
+    // display in the body of the notification.
     if (sortedAuthorAffinities[0] && potentialTopAccounts[0]) {
         const topAuthor = sortedAuthorAffinities[0];
         const associatedNotifications = Array.from(
@@ -244,7 +244,8 @@ export async function getPendingSubtleNotificationSummaryContent({
                 : authorsListString;
     }
 
-    // If we don't have an inbox entry for the top affinity author, get the most recent inbox entry.
+    // If we don't have an inbox entry for the top affinity author, get the most recent
+    // inbox entry.
     if (!inboxEntry) {
         const inboxEntryItems = await InboxEntriesIndex.realtimeQuery(context, {
             partitionKey: {

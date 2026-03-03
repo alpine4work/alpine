@@ -6,9 +6,9 @@ type MismatchArgs<Test> = Test extends true ? [] : [never];
 type Not<Test> = Test extends true ? false : true;
 
 /**
- * Tests that `Type1` is assignable to `Type2`. If `Type1` is not assignable
- * you will get a type error but not a runtime error. This function does
- * nothing at runtime.
+ * Tests that `Type1` is assignable to `Type2`. If `Type1` is not assignable you
+ * will get a type error but not a runtime error. This function does nothing at
+ * runtime.
  *
  * Useful for forcing a developer to update a piece of code when updating the
  * corresponding type. Or for explicitly declaring a type-level invariant.
@@ -26,8 +26,8 @@ export function assertAssignableTypes<Type1, Type2>(
 
 /**
  * Tests that `Type1` is NOT assignable to `Type2`. If `Type1` is assignable to
- * `Type2` you will get a type error but not a runtime error. This function
- * does nothing at runtime.
+ * `Type2` you will get a type error but not a runtime error. This function does
+ * nothing at runtime.
  *
  * Inverse of `assertAssignableTypes()`. See documentation on that function for
  * more information.

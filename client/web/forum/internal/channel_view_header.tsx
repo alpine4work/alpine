@@ -173,10 +173,9 @@ function ChannelViewHeaderMobileDescription({channel}: {channel: ChannelModel}) 
                     channel.description.doc.resolve(0),
                     {linesAbove: 0, linesBelow: 3},
                     {
-                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                        // want to be slightly more aggressive than the default grapheme count (which
-                        // counts the "l" character which is narrower) since we render the entire
-                        // snippet.
+                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
+                        // be slightly more aggressive than the default grapheme count (which counts the
+                        // "l" character which is narrower) since we render the entire snippet.
                         maxLineGraphemeCount: 72,
                     },
                 ),
@@ -204,10 +203,10 @@ function ChannelViewHeaderMobileDescription({channel}: {channel: ChannelModel}) 
     );
 }
 
-// `<ChannelViewHeaderMobileDescriptionEditor>` is not used on desktop. Instead
-// the channel description is in an aside. We forked this component from
-// `<ChannelViewAsideDescriptionEditor>`. Any changes made here should probably
-// be made there too.
+// `<ChannelViewHeaderMobileDescriptionEditor>` is not used on desktop. Instead the
+// channel description is in an aside. We forked this component from
+// `<ChannelViewAsideDescriptionEditor>`. Any changes made here should probably be
+// made there too.
 function ChannelViewHeaderMobileDescriptionEditor({
     channel,
     onCancel,
@@ -264,8 +263,8 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     marginBottom="-1"
                     borderRadius="1.5"
                     style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                        // CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
@@ -324,8 +323,8 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     title="Save channel description"
                     description="Would you like to save the channel description?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

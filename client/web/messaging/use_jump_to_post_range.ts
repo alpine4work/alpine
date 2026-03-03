@@ -23,8 +23,7 @@ export type JumpToPostRangeOptions = {
 };
 
 // NOTE(calebmer): This function was forked from `useJumpToMessageRange()`. Any
-// changes to this function maybe should be made to
-// `useJumpToMessageRange()` too.
+// changes to this function maybe should be made to `useJumpToMessageRange()` too.
 export function useJumpToPostRange({
     viewRef,
     scrollToIndexForPost,
@@ -65,9 +64,9 @@ export function useJumpToPostRange({
 
             scheduleAfterNavigationAnimation(() => {
                 // Wait a bit before highlighting in case the post component is immediately
-                // unmounted. This will happen if while measuring content the virtualized
-                // scroll view thinks this is offscreen before our scroll anchoring puts it
-                // back in place. Arguably this is a bug in the virtualized scroll view.
+                // unmounted. This will happen if while measuring content the virtualized scroll
+                // view thinks this is offscreen before our scroll anchoring puts it back in place.
+                // Arguably this is a bug in the virtualized scroll view.
                 createTimeout(() => {
                     const startTime = new Date();
 

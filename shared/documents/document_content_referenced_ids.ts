@@ -17,9 +17,9 @@ import {
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Just the IDs we need for loading a `ContentReferences` object. Useful to
- * perform optimizations against. If there are no `ContentReferencedIds` then
- * you don't need to make a network request.
+ * Just the IDs we need for loading a `ContentReferences` object. Useful to perform
+ * optimizations against. If there are no `ContentReferencedIds` then you don't
+ * need to make a network request.
  */
 export type DocumentContentReferencedIds = SchemaType<typeof DocumentContentReferencedIdsSchema>;
 

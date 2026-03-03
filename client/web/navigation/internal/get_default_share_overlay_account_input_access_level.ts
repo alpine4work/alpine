@@ -8,8 +8,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 /**
  * The default access level for `<ShareOverlayAccountInput>` is:
  *
- * 1. The merged access level from immediate/inherited `defaultGrant` if
- *    available
+ * 1. The merged access level from immediate/inherited `defaultGrant` if available
  * 2. `Edit` if there's any account grant already at `Edit` (it means someone
  *    discovered the hold-alt key trick)
  * 3. `Manage` otherwise
@@ -28,8 +27,8 @@ export function getDefaultShareOverlyAccountInputAccessLevel(
     );
     if (defaultGrantLevel) return defaultGrantLevel;
 
-    // Merge account grants by account with max access level, then use that merged
-    // map to decide if any account has `Edit` access.
+    // Merge account grants by account with max access level, then use that merged map
+    // to decide if any account has `Edit` access.
     const accountGrantLevelByAccountId = new Map<AccountId, AccessLevel>();
 
     for (const [accountId, accountGrant] of accessPolicy.accountGrantById) {

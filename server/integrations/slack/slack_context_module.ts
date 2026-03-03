@@ -12,8 +12,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {slackBotOAuthScopes} from "~/shared/integrations/slack/slack_bot_oauth_scopes.js";
 
 /**
- * Per-request cache of authenticated `WebClient`s, keyed by spaceId. Concurrent API calls within
- * the same request cycle for the same space share the same bot credentials.
+ * Per-request cache of authenticated `WebClient`s, keyed by spaceId. Concurrent
+ * API calls within the same request cycle for the same space share the same bot
+ * credentials.
  */
 const slackAuthenticatedBotClientCache = new ContextCache<SpaceId, WebClient>({
     whenActorChanges: "SafelyReset",
@@ -22,8 +23,8 @@ const slackAuthenticatedBotClientCache = new ContextCache<SpaceId, WebClient>({
 export class SlackContextModule extends SlackContextModuleBase {
     private readonly _clientId: string;
     private readonly _clientSecret: string;
-    // We pass in and store the base URL so we can construct an absolute redirect URI for the OAuth
-    // flow.
+    // We pass in and store the base URL so we can construct an absolute redirect URI
+    // for the OAuth flow.
     private readonly _authRedirectOrigin: string;
 
     constructor({
@@ -46,9 +47,9 @@ export class SlackContextModule extends SlackContextModuleBase {
     }
 
     /**
-     * Returns an authenticated WebClient for the given space, fetching bot credentials from the
-     * database if not yet cached for this request. Validates space access as part of the
-     * credential lookup.
+     * Returns an authenticated WebClient for the given space, fetching bot credentials
+     * from the database if not yet cached for this request. Validates space access as
+     * part of the credential lookup.
      */
     private _getAuthenticatedBotClientForSpace(
         context: ServerActionContext,
@@ -99,8 +100,8 @@ export class SlackContextModule extends SlackContextModuleBase {
         const botUserId = assertExists(response.bot_user_id);
         const botScopes = new Set(response.scope?.split(",") ?? []);
 
-        // Seed the cache so subsequent API calls in this request cycle don't need to fetch the
-        // token from the database.
+        // Seed the cache so subsequent API calls in this request cycle don't need to fetch
+        // the token from the database.
         slackAuthenticatedBotClientCache.set(context, spaceId, new WebClient(botToken));
 
         return {workspaceId, slackUserId, botToken, botUserId, botScopes};

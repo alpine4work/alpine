@@ -63,9 +63,9 @@ export function ChannelViewContributorsSection({
         [channel.accessPolicy, currentAccount?.id],
     );
 
-    // When we open the `<ShareNotificationOverlay>` we immediately focus the
-    // account input. Preload the account list so we don't need to show a loading
-    // spinner after focusing the account input.
+    // When we open the `<ShareNotificationOverlay>` we immediately focus the account
+    // input. Preload the account list so we don't need to show a loading spinner after
+    // focusing the account input.
     useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const [showShareMobileModal, setShowShareMobileModal] = useState(false);
@@ -94,9 +94,8 @@ export function ChannelViewContributorsSection({
         [previewAccounts],
     );
 
-    // Exclude previewed accounts from the share dialog. Since clearly those
-    // accounts already know about the channel. We want the user to share with new
-    // people!
+    // Exclude previewed accounts from the share dialog. Since clearly those accounts
+    // already know about the channel. We want the user to share with new people!
     const excludeAccountId = useCallback(
         (accountId: AccountId) => previewAccountIds.has(accountId),
         [previewAccountIds],
@@ -109,8 +108,8 @@ export function ChannelViewContributorsSection({
         assert(currentAccount);
 
         // If the user didn't change the access level then all we do is send a
-        // notification. If the user did change the access level then we need to update
-        // the channel's access policy with the new accounts.
+        // notification. If the user did change the access level then we need to update the
+        // channel's access policy with the new accounts.
         if (
             channel.accessPolicy.defaultGrant &&
             hasAccessLevel(channel.accessPolicy.defaultGrant.level, accessLevel)
@@ -149,15 +148,15 @@ export function ChannelViewContributorsSection({
                 topPreviewAccount="Last"
                 previewAccounts={previewAccounts}
                 lastAvatar={
-                    // You can't invite people unless there's a default grant (so you can reliably
-                    // send people a link) or you have manage access.
+                    // You can't invite people unless there's a default grant (so you can reliably send
+                    // people a link) or you have manage access.
                     !channel.accessPolicy.defaultGrant &&
                     !hasAccessLevel(accessLevel, "Manage") ? null : platform === "mobile" ? (
                         <IconButton
                             variant="quiet-darken"
                             size="base"
-                            // This button doesn't look interactive enough on its own. So use a pointer
-                            // cursor to make clear it's interactive.
+                            // This button doesn't look interactive enough on its own. So use a pointer cursor
+                            // to make clear it's interactive.
                             cursor="pointer"
                             description="Invite"
                             onPress={() => setShowShareMobileModal(true)}
@@ -179,8 +178,8 @@ export function ChannelViewContributorsSection({
                             <IconButton
                                 variant="quiet-darken"
                                 size="base"
-                                // This button doesn't look interactive enough on its own. So use a pointer
-                                // cursor to make clear it's interactive.
+                                // This button doesn't look interactive enough on its own. So use a pointer cursor
+                                // to make clear it's interactive.
                                 cursor="pointer"
                                 description="Invite"
                             >

@@ -11,8 +11,8 @@ export const ChatAttributesItemAuthorizationCache = new DynamoContextCache<
     ChatId,
     ChatAttributesItem | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 

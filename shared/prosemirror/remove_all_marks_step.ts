@@ -3,21 +3,20 @@ import {AddMarkStep, AddNodeMarkStep, Mappable, Step, StepResult} from "prosemir
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 
 /**
- * Remove all marks that match the provided mark object in the document. No
- * matter their location.
+ * Remove all marks that match the provided mark object in the document. No matter
+ * their location.
  *
  * Used to resolve comment threads in a way that is collaboration-safe. In case
- * another user is typing and changes the range of a comment in a way that
- * won't quite be mapped correctly against the range of the comment at the
- * version you dismissed at.
+ * another user is typing and changes the range of a comment in a way that won't
+ * quite be mapped correctly against the range of the comment at the version you
+ * dismissed at.
  *
- * Note that we don't have `fromJSON()` method implementations or a
- * corresponding `Step.jsonID()` step call. That's because whenever we're
- * parsing steps from JSON it's with a `Schema` created by
- * `createSchemaForProsemirrorSchema()` which knows about this step type.
- * Registering our class with `Step.jsonID()` causes issues with hot reloading.
- * Since this module may be evaluated multiple times but we can only register
- * in `prosemirror-transform` once.
+ * Note that we don't have `fromJSON()` method implementations or a corresponding
+ * `Step.jsonID()` step call. That's because whenever we're parsing steps from JSON
+ * it's with a `Schema` created by `createSchemaForProsemirrorSchema()` which knows
+ * about this step type. Registering our class with `Step.jsonID()` causes issues
+ * with hot reloading. Since this module may be evaluated multiple times but we can
+ * only register in `prosemirror-transform` once.
  */
 export class RemoveAllMarksStep extends Step {
     public override readonly jsonID = "removeAllMarks";
@@ -42,8 +41,8 @@ export class RemoveAllMarksStep extends Step {
                 const oldChildNode = node.child(i);
                 const newChildNode = remove(oldChildNode);
 
-                // If our child node changed then initialize the new children array so we
-                // return a new node...
+                // If our child node changed then initialize the new children array so we return a
+                // new node...
                 if (newChildNode !== oldChildNode && newChildren === null) {
                     newChildren = [];
                     for (let j = 0; j < i; j++) {
@@ -116,16 +115,15 @@ export type AddMarksAfterRemoveAllStepRange =
       };
 
 /**
- * A step to act as the inverse of `RemoveAllMarksStep`. Adds multiple
- * instances of a mark throughout the document.
+ * A step to act as the inverse of `RemoveAllMarksStep`. Adds multiple instances of
+ * a mark throughout the document.
  *
- * Note that we don't have `fromJSON()` method implementations or a
- * corresponding `Step.jsonID()` step call. That's because whenever we're
- * parsing steps from JSON it's with a `Schema` created by
- * `createSchemaForProsemirrorSchema()` which knows about this step type.
- * Registering our class with `Step.jsonID()` causes issues with hot reloading.
- * Since this module may be evaluated multiple times but we can only register
- * in `prosemirror-transform` once.
+ * Note that we don't have `fromJSON()` method implementations or a corresponding
+ * `Step.jsonID()` step call. That's because whenever we're parsing steps from JSON
+ * it's with a `Schema` created by `createSchemaForProsemirrorSchema()` which knows
+ * about this step type. Registering our class with `Step.jsonID()` causes issues
+ * with hot reloading. Since this module may be evaluated multiple times but we can
+ * only register in `prosemirror-transform` once.
  */
 export class AddMarksAfterRemoveAllStep extends Step {
     public override readonly jsonID = "addMarksAfterRemoveAll";

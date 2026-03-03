@@ -96,8 +96,8 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                             if (NativeMobileBridge) {
                                 NativeMobileBridge.session.switchSpace(otherSpace.id);
 
-                                // `switchSpace()` should destroy the current web browsing context and create a
-                                // new one.
+                                // `switchSpace()` should destroy the current web browsing context and create a new
+                                // one.
                                 await new Promise(() => {});
                             } else {
                                 await rootNavigate(`/s/${otherSpace.id}`);

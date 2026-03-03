@@ -82,9 +82,9 @@ function TaskQueryViewDesktopHeader(
         [],
     );
 
-    // We want to baseline align our `fontSize="200"` collection name with our
-    // centered `fontSize="75"` customization bar (filters and sort). Calculate
-    // the offset for center aligned `fontSize="200"` using font metrics.
+    // We want to baseline align our `fontSize="200"` collection name with our centered
+    // `fontSize="75"` customization bar (filters and sort). Calculate the offset for
+    // center aligned `fontSize="200"` using font metrics.
     const nameBaselineAlignmentMarginTop = useMemo(() => {
         const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
 
@@ -115,8 +115,8 @@ function TaskQueryViewDesktopHeader(
                 alignItems="center"
                 maxWidth="1/3"
                 style={{marginTop: nameBaselineAlignmentMarginTop}}
-                // Align the left edge of the desktop header name text with the left edge of
-                // the "Name" column header.
+                // Align the left edge of the desktop header name text with the left edge of the
+                // "Name" column header.
                 paddingLeft="5"
             >
                 <TaskQueryViewDesktopHeaderName

@@ -12,13 +12,13 @@ export type ScrollableParent = {
  * - Mouse wheel scrolling
  * - Touch pan gesture scrolling
  *
- * You may provide a `shouldAllowEvent()` function to allow some scroll events
- * to be allowed. You may want to allow scroll events in certain child elements
- * but not parent elements.
+ * You may provide a `shouldAllowEvent()` function to allow some scroll events to
+ * be allowed. You may want to allow scroll events in certain child elements but
+ * not parent elements.
  *
- * IMPORTANT: Works by adding a `{passive: false}` `touchmove` event handler.
- * This is bad for performance! Only disabled default scroll if absolutely
- * necessary and only in the states where it's necessary.
+ * IMPORTANT: Works by adding a `{passive: false}` `touchmove` event handler. This
+ * is bad for performance! Only disabled default scroll if absolutely necessary and
+ * only in the states where it's necessary.
  */
 export function disableScrollInteractions(
     target: HTMLElement,
@@ -33,9 +33,9 @@ export function disableScrollInteractions(
             return;
         }
 
-        // We cache the scrollable parent for the event target because this handler
-        // needs to run very fast given `{passive: false}` is set. Otherwise
-        // interaction performance (e.g. scroll performance) will be hurt.
+        // We cache the scrollable parent for the event target because this handler needs
+        // to run very fast given `{passive: false}` is set. Otherwise interaction
+        // performance (e.g. scroll performance) will be hurt.
         let targetScrollableParent = scrollableParentCache.get(event.target);
         if (targetScrollableParent === undefined) {
             targetScrollableParent = getScrollableParent(event.target);

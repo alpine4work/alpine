@@ -47,13 +47,12 @@ export class AwsSqs {
             },
         });
 
-        // TODO(ifitzsimmons, #file-processor-service-migration): When the record is dropped from
-        // the new processor use the originl FileProcessorJobQueue as the DLQ. This way, jobs that
-        // cannot be processed by the new Lambda processor will be retried by the ECS service.
-        // Once we have tuned the Lambdas accordingly, we can remove this queue and create a
-        // dedicated DLQ.
-        // When we are ready to clean up, we'll create a new DLQ for the Light processor and hook
-        // it up here
+        // TODO(ifitzsimmons, #file-processor-service-migration): When the record is
+        // dropped from the new processor use the originl FileProcessorJobQueue as the DLQ.
+        // This way, jobs that cannot be processed by the new Lambda processor will be
+        // retried by the ECS service. Once we have tuned the Lambdas accordingly, we can
+        // remove this queue and create a dedicated DLQ. When we are ready to clean up,
+        // we'll create a new DLQ for the Light processor and hook it up here
         const fileProcessorLightJobQueue = new Queue(construct, "FileProcessorLightJobQueue", {
             deadLetterQueue: {
                 queue: fileProcessorJobQueue,
@@ -62,13 +61,12 @@ export class AwsSqs {
             visibilityTimeout: Duration.millis(fileProcessorTimeoutMs),
         });
 
-        // TODO(ifitzsimmons, #file-processor-service-migration): When the record is dropped from
-        // the new processor use the originl FileProcessorJobQueue as the DLQ. This way, jobs that
-        // cannot be processed by the new Lambda processor will be retried by the ECS service.
-        // Once we have tuned the Lambdas accordingly, we can remove this queue and create a
-        // dedicated DLQ.
-        // When we are ready to clean up, we'll create a new DLQ for the Heavy processor and hook
-        // it up here
+        // TODO(ifitzsimmons, #file-processor-service-migration): When the record is
+        // dropped from the new processor use the originl FileProcessorJobQueue as the DLQ.
+        // This way, jobs that cannot be processed by the new Lambda processor will be
+        // retried by the ECS service. Once we have tuned the Lambdas accordingly, we can
+        // remove this queue and create a dedicated DLQ. When we are ready to clean up,
+        // we'll create a new DLQ for the Heavy processor and hook it up here
         const fileProcessorHeavyJobQueue = new Queue(construct, "FileProcessorHeavyJobQueue", {
             deadLetterQueue: {
                 queue: fileProcessorJobQueue,

@@ -22,9 +22,9 @@ const mispelledWordSuggestions = [
     },
 ];
 
-// We aren't testing the actual spell check logic here - we'll trust
-// the library is doing that. We want to test that we are calling the library,
-// and we get the data in the correct format.
+// We aren't testing the actual spell check logic here - we'll trust the library is
+// doing that. We want to test that we are calling the library, and we get the data
+// in the correct format.
 
 describe("actuallySpellCheckContent()", () => {
     test("returns empty array for empty text", async () => {

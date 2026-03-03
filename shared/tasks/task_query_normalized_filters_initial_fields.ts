@@ -9,8 +9,8 @@ import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `getTaskQueryNormalizedFiltersInitialFields()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
@@ -43,14 +43,13 @@ export type TaskQueryNormalizedFiltersInitialFields = {
 };
 
 /**
- * Get the initial fields for a task based on a task query's filters. This
- * function is best effort. We won't always be able to produce task fields that
- * match the filters. For example, if there's a created time filter, we can't
- * control the task creation time. When the choice for which value to pick is
- * ambiguous then we make a decision. For example, if a task can be medium or
- * high priority then we pick medium priority. It's unlikely that our decision
- * will be correct so the user will likely need to go and update any choice
- * we make.
+ * Get the initial fields for a task based on a task query's filters. This function
+ * is best effort. We won't always be able to produce task fields that match the
+ * filters. For example, if there's a created time filter, we can't control the
+ * task creation time. When the choice for which value to pick is ambiguous then we
+ * make a decision. For example, if a task can be medium or high priority then we
+ * pick medium priority. It's unlikely that our decision will be correct so the
+ * user will likely need to go and update any choice we make.
  */
 export function getTaskQueryNormalizedFiltersInitialFields(
     filters: TaskQueryNormalizedFilters,
@@ -190,10 +189,9 @@ export function getTaskQueryNormalizedFiltersInitialFields(
             case "Range": {
                 const filter = filters.dueDateFilter;
 
-                // We look for the closest date in our range filter to a week from today and
-                // set that as the due date. Setting the due date to a week from today feels
-                // better than setting it to today. Since generally due dates are set in the
-                // future.
+                // We look for the closest date in our range filter to a week from today and set
+                // that as the due date. Setting the due date to a week from today feels better
+                // than setting it to today. Since generally due dates are set in the future.
                 const date = evaluationContext.currentDate.add({days: 7});
 
                 // If the current date is within the range then let's use the current date!
@@ -207,8 +205,8 @@ export function getTaskQueryNormalizedFiltersInitialFields(
                 ) {
                     dueDate = date;
                 }
-                // If the current date is not within the range then let's use the closest day
-                // to the current date in the range.
+                // If the current date is not within the range then let's use the closest day to
+                // the current date in the range.
                 else {
                     if (
                         filter.exclusiveLowerBoundDate !== null &&

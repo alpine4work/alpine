@@ -66,7 +66,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
         {width: 100, name: "fourth-width", height: 200}, // < 1/4 block max
         {width: 200, name: "third-width", height: 300}, // < 1/3 block max
         {width: 300, name: "half-width", height: 400}, // < 1/2 block max
-        {width: 800, name: "full-width", height: 500}, // >= 1/2 block max
+        {width: 800, name: "full-width", height: 500}, // > = 1/2 block max
     ] as const;
     const platforms = ["desktop", "mobile"] as const;
 

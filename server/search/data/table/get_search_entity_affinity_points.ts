@@ -9,8 +9,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
- * Get the affinity score and its order key in an account's favorites list if it's a favorite for
- * the accounts in the given sort range
+ * Get the affinity score and its order key in an account's favorites list if it's
+ * a favorite for the accounts in the given sort range
  */
 export async function getAccountSearchAffinityEntitiesInRange(
     context: ServerActionContext,

@@ -65,10 +65,10 @@ export class TracerClient {
         dataset: HoneycombDataset;
         waitUntil: (promise: Promise<void>) => void;
         // TODO(ifitzsimmons, ##local-kinesis): In order to convert our log architecture
-        // such that all events go through Kinesis and are then forwarded to Honeycomb,
-        // we need to figure out how to represent this in our local environment. In
-        // the meantime, we are only using Kinesis to get our log data into S3, so
-        // this process is only necessary in production.
+        // such that all events go through Kinesis and are then forwarded to Honeycomb, we
+        // need to figure out how to represent this in our local environment. In the
+        // meantime, we are only using Kinesis to get our log data into S3, so this process
+        // is only necessary in production.
         kinesis?: KinesisClient;
     }) {
         this._apiKey = apiKey;
@@ -79,8 +79,8 @@ export class TracerClient {
     }
 
     /**
-     * Sends a single event to Honeycomb. Will group together events which
-     * ocurred in a short window of time and send them together in a batch.
+     * Sends a single event to Honeycomb. Will group together events which ocurred in a
+     * short window of time and send them together in a batch.
      */
     public sendEvent(event: TracerEvent) {
         // If no event batch is scheduled, then schedule one now.
@@ -100,10 +100,10 @@ export class TracerClient {
                 const timeoutPromiseResolver = createPromiseResolver();
                 const timeout = createTimeout(timeoutPromiseResolver.resolve, 500);
 
-                // We send events in a batch to Honeycomb twice a second. We want the
-                // delay to be long enough to include a meaningful amount of data but also
-                // short enough that it's tolerable to delay process shutdown by this duration.
-                // However, if flush() is called, we bypass the timeout.
+                // We send events in a batch to Honeycomb twice a second. We want the delay to be
+                // long enough to include a meaningful amount of data but also short enough that
+                // it's tolerable to delay process shutdown by this duration. However, if flush()
+                // is called, we bypass the timeout.
                 try {
                     await Promise.race([
                         timeoutPromiseResolver.promise,
@@ -119,10 +119,10 @@ export class TracerClient {
                 await runAllPromises([
                     sendEventsToHoneycomb(this._tracer, this._apiKey, this._dataset, events),
                     // TODO(ifitzsimmons, #local-kinesis): In order to convert our log architecture
-                    // such that all events go through Kinesis and are then forwarded to Honeycomb,
-                    // we need to figure out how to represent this in our local environment. In
-                    // the meantime, we are only using Kinesis to get our log data into S3, so
-                    // this process is only necessary in production.
+                    // such that all events go through Kinesis and are then forwarded to Honeycomb, we
+                    // need to figure out how to represent this in our local environment. In the
+                    // meantime, we are only using Kinesis to get our log data into S3, so this process
+                    // is only necessary in production.
                     this._kinesis ? sendEventsToKinesis(this._tracer, this._kinesis, events) : null,
                 ]);
             })().catch(error => {
@@ -147,25 +147,26 @@ export class TracerClient {
     }
 
     /**
-     * Flushes the scheduled event batch immediately, foregoing the 500ms batch interval.
+     * Flushes the scheduled event batch immediately, foregoing the 500ms batch
+     * interval.
      */
     public async flushScheduledEventBatch(): Promise<void> {
-        // NOTE(ifitzsimmons, 2025-08-06): Previously, we registered `waitUntil()` promises with the
-        // process shutdown manager to ensure that any pending Honeycomb event batches were sent before
-        // the process exited. This approach assumed we controlled the process lifecycle.
+        // NOTE(ifitzsimmons, 2025-08-06): Previously, we registered `waitUntil()` promises
+        // with the process shutdown manager to ensure that any pending Honeycomb event
+        // batches were sent before the process exited. This approach assumed we controlled
+        // the process lifecycle.
         //
-        // However, we don't always control the process. For example, AWS Lambda enforces its own
-        // timeout and terminates the process when the limit is reached. In such cases, we need a
-        // mechanism to flush the event batch before the process exits.
-        // If no batch is scheduled, nothing to flush
+        // However, we don't always control the process. For example, AWS Lambda enforces
+        // its own timeout and terminates the process when the limit is reached. In such
+        // cases, we need a mechanism to flush the event batch before the process exits. If
+        // no batch is scheduled, nothing to flush
         if (this._scheduledEventBatch === null) return;
         await this._scheduledEventBatch.flush();
     }
 
     /**
-     * [Create a marker][1] in Honeycomb. The API key must have the "manage
-     * markers" permission level. Useful for highlighting in Honeycomb when
-     * deploys occur.
+     * [Create a marker][1] in Honeycomb. The API key must have the "manage markers"
+     * permission level. Useful for highlighting in Honeycomb when deploys occur.
      *
      * [1]: https://docs.honeycomb.io/api/tag/Markers#operation/createMarker
      */
@@ -231,15 +232,15 @@ async function sendEventsToHoneycomb(
             );
 
             // Detect `?sig=` URL search params and redact them before sending events to
-            // Honeycomb. `?sig=` parameters would allow a developer to look at any users
-            // files without their permission just by looking at logs. The value of `?sig=`
-            // is a detached JWS (see `dangerouslySignUrl()`). So look for any
-            // base64 characters or `.`.
+            // Honeycomb. `?sig=` parameters would allow a developer to look at any users files
+            // without their permission just by looking at logs. The value of `?sig=` is a
+            // detached JWS (see `dangerouslySignUrl()`). So look for any base64 characters or
+            // `.`.
             //
-            // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
-            // signature.
+            // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon signature.
             //
-            // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+            // [1]:
+            //     https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
             bodyString = bodyString.replaceAll(
                 /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
                 `$1${debugRedactedString}`,

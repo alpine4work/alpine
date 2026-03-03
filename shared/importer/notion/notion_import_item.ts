@@ -5,8 +5,9 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * Status of a Notion import operation.
  *
  * Flow:
+ *
  * - User selects zip to upload
- * - Create item and return presigned upload URL  - UploadPending
+ * - Create item and return presigned upload URL - UploadPending
  * - UI finishes the upload and queues validation - QueuedValidation
  * - Validation job is queued - Validating
  * - Validation complete - Validated
@@ -22,7 +23,10 @@ export const NotionImportStatusSchema = Schema.union({
     ValidateQueued: Schema.object({type: Schema.value("ValidateQueued")}),
     /** File uploaded, validation job is processing. */
     Validating: Schema.object({type: Schema.value("Validating")}),
-    /** Validation complete. Workspace name and teamspaces extracted. Ready to start import. */
+    /**
+     * Validation complete. Workspace name and teamspaces extracted. Ready to start
+     * import.
+     */
     Validated: Schema.object({type: Schema.value("Validated")}),
     /** Import job queued and waiting to be processed. */
     ProcessQueued: Schema.object({type: Schema.value("ProcessQueued")}),
@@ -65,8 +69,7 @@ export const NotionImportItemSchema = Schema.object({
     workspaceName: Schema.string.nullable().default(null),
 
     /**
-     * S3 key for the uploaded zip file in the
-     * `import-uploads` bucket.
+     * S3 key for the uploaded zip file in the `import-uploads` bucket.
      */
     importKey: Schema.string,
 
@@ -86,8 +89,7 @@ export const NotionImportItemSchema = Schema.object({
     updatedTime: Schema.date,
 
     /**
-     * For each detected teamspace ID, the user's choice
-     * of how to import it.
+     * For each detected teamspace ID, the user's choice of how to import it.
      *
      * Only set after the zip has been uploaded and processed.
      */

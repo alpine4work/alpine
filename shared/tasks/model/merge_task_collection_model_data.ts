@@ -42,9 +42,9 @@ export function mergeTaskCollectionModelData(
         accessPolicy: collection1.accessPolicy.merge(collection2.accessPolicy),
     };
 
-    // Optimization: If nothing changed between `collection1` and the merged
-    // collection then return `collection1` so the new collection is referentially
-    // equal to the old one.
+    // Optimization: If nothing changed between `collection1` and the merged collection
+    // then return `collection1` so the new collection is referentially equal to the
+    // old one.
     if (isDeepEqual(collection1, newCollection)) return collection1;
 
     return newCollection;

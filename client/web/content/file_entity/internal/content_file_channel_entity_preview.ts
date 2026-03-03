@@ -106,8 +106,8 @@ export function renderContentFileChannelEntityPreview(
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: "3",
-                // Make sure we don't grow beyond the subscribe button height. The 500 font
-                // size name is 2px larger than the subscribe button height.
+                // Make sure we don't grow beyond the subscribe button height. The 500 font size
+                // name is 2px larger than the subscribe button height.
                 height: contentStyles.fileEntityPreviewSubscribeButtonHeight,
             }),
         );
@@ -172,8 +172,8 @@ export function renderContentFileChannelEntityPreview(
                 }),
             );
 
-            // The max number of accounts we can render in our preview. Calculates the
-            // amount of available space then divides by the avatar overlap width.
+            // The max number of accounts we can render in our preview. Calculates the amount
+            // of available space then divides by the avatar overlap width.
             const maxPreviewAccountCount = Math.floor(
                 (scaledWidthPx - convertRemLengthToPx(avatarSize, spacingScale)) /
                     convertRemLengthToPx(avatarOverlapWidth, spacingScale),
@@ -183,8 +183,8 @@ export function renderContentFileChannelEntityPreview(
 
             const previewAccounts = fileEntity.topContributors
                 .map(account => get(accountRegistry.getAccountStore(account)))
-                // If we have any removed accounts then sort them to the end of the array.
-                // Prefer showing accounts that are still a part of the space.
+                // If we have any removed accounts then sort them to the end of the array. Prefer
+                // showing accounts that are still a part of the space.
                 //
                 // Same sort as in `<ChannelViewContributorsSection>`.
                 .sort((account1, account2) => {
@@ -271,11 +271,10 @@ export function renderContentFileChannelEntityPreview(
                     // case). Make sure that block width doesn't exceed the max width, though
                     // (important for row of 1 recursive docs use case).
                     //
-                    // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in
-                    // documents because we turn off max width
-                    // (`contentStyles.withoutBlockMaxWidthDocClassName`) so the post extends
-                    // end-to-end within the preview. Usually, the file entity preview width
-                    // shouldn't be that much more than the block width.
+                    // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in documents
+                    // because we turn off max width (`contentStyles.withoutBlockMaxWidthDocClassName`)
+                    // so the post extends end-to-end within the preview. Usually, the file entity
+                    // preview width shouldn't be that much more than the block width.
                     blockWidth: scaledWidthPx,
                     transformScale: originalTransformScale * transformScale,
                     platform,

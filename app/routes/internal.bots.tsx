@@ -130,12 +130,12 @@ function BotRow({
 }) {
     const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
 
-    // NOTE(ifitzsimmons, 2025-12-15): We manage the bot avatar's state locally in this React
-    // component. Normally, we'd use something like a Registry to make sure that all data is
-    // in-sync across the app. In this case, that's unnecessary because this is the only
-    // surface in the application that renders the avatar content from `Bot#Avatar`. Keeping
-    // track of the bot state here means that the bot's avatar will change as soon as the
-    // upload is complete!
+    // NOTE(ifitzsimmons, 2025-12-15): We manage the bot avatar's state locally in this
+    // React component. Normally, we'd use something like a Registry to make sure that
+    // all data is in-sync across the app. In this case, that's unnecessary because
+    // this is the only surface in the application that renders the avatar content from
+    // `Bot#Avatar`. Keeping track of the bot state here means that the bot's avatar
+    // will change as soon as the upload is complete!
     const [botAvatar, setBotAvatar] = useState(bot.avatar);
 
     const toggleApiKeyVisibility = (index: number) => {
@@ -265,10 +265,9 @@ function BotRow({
                                         inputMode={visibleApiKeys.has(index) ? "text" : "password"}
                                         fontSize="75"
                                         value={apiKey}
-                                        // TODO(ifitzsimmons, 2025-12-15): Add endpoint for updating other
-                                        // bot properties. Bots can have multiple API keys, so this should
-                                        // ultimately be a list of API keys. But we'll probably want a key
-                                        // description?
+                                        // TODO(ifitzsimmons, 2025-12-15): Add endpoint for updating other bot properties.
+                                        // Bots can have multiple API keys, so this should ultimately be a list of API
+                                        // keys. But we'll probably want a key description?
                                         isReadOnly={true}
                                         onChange={() => {}}
                                     />
@@ -394,9 +393,9 @@ export function BotIconOverlay({avatarPx}: {avatarPx: number}) {
         position: "absolute",
         width: iconSize,
         height: iconSize,
-        // Position the SVG container just past the bounding box so that the ghost icon itself is
-        // drawn almost exactly at the bottom right corner of the box. This looks correct at all
-        // (tested) scales
+        // Position the SVG container just past the bounding box so that the ghost icon
+        // itself is drawn almost exactly at the bottom right corner of the box. This looks
+        // correct at all (tested) scales
         bottom: "-1px",
         right: "-1px",
     } as const;
@@ -409,8 +408,8 @@ export function BotIconOverlay({avatarPx}: {avatarPx: number}) {
                     ...iconStyleBase,
                     overflow: "hidden",
                 }}
-                // The stroke width gets scaled according to the ghost icons size, so
-                // this hardcoded value looks good at all (tested) scales.
+                // The stroke width gets scaled according to the ghost icons size, so this
+                // hardcoded value looks good at all (tested) scales.
                 strokeWidth={96}
             />
             <BotIcon

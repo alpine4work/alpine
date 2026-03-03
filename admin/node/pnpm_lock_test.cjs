@@ -14,19 +14,20 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // dependency for Slack integration.
     //
     // - `retry@^0.12.0` is a dependency of `promise-retry` which is a transitive
-    //    dependency of our patched @remix-run/dev@2.9.2 which is a major effort to upgrade.
+    //   dependency of our patched @remix-run/dev@2.9.2 which is a major effort to
+    //   upgrade.
     //
-    // - `eventemitter3` is both a direct dependency of `@slack/web-api` and a transitive
-    //    dependency through `p-queue`. Once `@slack/web-api` updates to a newer
-    //    version of `p-queue`, we can likely remove this duplicate.[1]
+    // - `eventemitter3` is both a direct dependency of `@slack/web-api` and a
+    //   transitive dependency through `p-queue`. Once `@slack/web-api` updates to a
+    //   newer version of `p-queue`, we can likely remove this duplicate.[1]
     //
     // [1]: https://github.com/slackapi/node-slack-sdk/pull/2506
     ["retry", ["0.12.0", "0.13.1"]],
     ["eventemitter3", ["4.0.7", "5.0.4"]],
 
     // Our `wrangler` dependency has an old version of `esbuild` we allow since we
-    // should be bundling our code with a newer version of `esbuild` before it gets
-    // to `wrangler`.
+    // should be bundling our code with a newer version of `esbuild` before it gets to
+    // `wrangler`.
     ["esbuild", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
     ["@esbuild/android-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
     ["@esbuild/android-arm", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
@@ -59,15 +60,15 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["@smithy/util-buffer-from", ["2.2.0", "4.0.0"]],
     ["@smithy/util-utf8", ["2.3.0", "4.0.0"]],
 
-    // We keep using Miniflare v2 in our development environment since it runs in
-    // a Node.js environment instead of a custom JavaScript VM (backed by
-    // `workerd`). This makes programs running with Miniflare v2 easier to debug
-    // since we can use the usual Node.js debugging processes.
+    // We keep using Miniflare v2 in our development environment since it runs in a
+    // Node.js environment instead of a custom JavaScript VM (backed by `workerd`).
+    // This makes programs running with Miniflare v2 easier to debug since we can use
+    // the usual Node.js debugging processes.
     ["miniflare", ["2.14.4", "3.20241106.0"]],
 
-    // NOTE(calebmer, 2024-08-13): Duplicate packages after adding dependencies
-    // for `aws-cdk` to `packageExtensions` that we can't easily resolve but
-    // shouldn't cause issues.
+    // NOTE(calebmer, 2024-08-13): Duplicate packages after adding dependencies for
+    // `aws-cdk` to `packageExtensions` that we can't easily resolve but shouldn't
+    // cause issues.
     ["agent-base", ["6.0.2", "7.1.3"]],
     ["ajv", ["6.12.6", "8.17.1"]],
     ["https-proxy-agent", ["5.0.1", "7.0.6"]],
@@ -77,24 +78,24 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["sprintf-js", ["1.0.3", "1.1.3"]],
     ["yaml", ["1.10.2", "2.5.0"]],
 
-    // NOTE(calebmer, 2024-08-26): We started using `whatwg-mimetype` but a
-    // dependency has an older major version.
+    // NOTE(calebmer, 2024-08-26): We started using `whatwg-mimetype` but a dependency
+    // has an older major version.
     ["whatwg-mimetype", ["3.0.0", "4.0.0"]],
 
-    // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same`
-    // that we can't easily resolve but shouldn't cause issues.
+    // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same` that we
+    // can't easily resolve but shouldn't cause issues.
     ["fs-extra", ["8.1.0", "9.1.0", "11.2.0"]],
     ["jsonfile", ["4.0.0", "6.1.0"]],
 
-    // NOTE(calebmer, 2024-11-15): Duplicate packages after upgrading `miniflare`
-    // v3 that we can't easily resolve but shouldn't cause issues.
+    // NOTE(calebmer, 2024-11-15): Duplicate packages after upgrading `miniflare` v3
+    // that we can't easily resolve but shouldn't cause issues.
     ["chokidar", ["3.6.0", "4.0.3"]],
     ["readdirp", ["3.6.0", "4.0.2"]],
     ["@jridgewell/trace-mapping", ["0.3.31", "0.3.9"]],
 
-    // NOTE(calebmer, 2025-04-15): Duplicate packages after upgrading `aws-cdk-lib`
-    // (to 2.189.1) and corresponding `@aws-sdk` packages that we can't easily
-    // resolve but shouldn't cause issues.
+    // NOTE(calebmer, 2025-04-15): Duplicate packages after upgrading `aws-cdk-lib` (to
+    // 2.189.1) and corresponding `@aws-sdk` packages that we can't easily resolve but
+    // shouldn't cause issues.
     ["diff", ["5.2.0", "7.0.0"]],
     ["events", ["1.1.1", "3.3.0"]],
     ["jackspeak", ["2.3.6", "4.1.0"]],
@@ -102,8 +103,8 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["tar-stream", ["2.2.0", "3.1.7"]],
 
     // NOTE(calebmer, 2025-08-21): Duplicate packages after adding `ajv`,
-    // `find-my-way`, `mustache`, `openapi-types`, `openapi-typescript`,
-    // `supertest`, and `negotiator` for `ApiService`.
+    // `find-my-way`, `mustache`, `openapi-types`, `openapi-typescript`, `supertest`,
+    // and `negotiator` for `ApiService`.
     ["parse-json", ["5.2.0", "8.3.0"]],
     ["qs", ["6.11.0", "6.14.0"]],
     ["negotiator", ["0.6.3", "1.0.0"]],
@@ -116,8 +117,8 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["mdast-util-frontmatter", ["1.0.0", "2.0.1"]],
     ["micromark-extension-frontmatter", ["1.0.0", "2.0.0"]],
 
-    // NOTE(rmtobin, 2025-09-18): Duplicate packages after adding `react-email` dependency for
-    // email-specific components and rendering.
+    // NOTE(rmtobin, 2025-09-18): Duplicate packages after adding `react-email`
+    // dependency for email-specific components and rendering.
     ["cli-cursor", ["3.1.0", "5.0.0"]],
     ["confbox", ["0.1.7", "0.2.2"]],
     ["fast-deep-equal", ["2.0.1", "3.1.3"]],
@@ -132,17 +133,16 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["prettier", ["2.8.8", "3.7.4"]],
     ["restore-cursor", ["3.1.0", "5.1.0"]],
 
-    // NOTE(calebmer, 2025-09-20): Duplicate packages after upgrading TypeScript
-    // to v5.9.2.
+    // NOTE(calebmer, 2025-09-20): Duplicate packages after upgrading TypeScript to
+    // v5.9.2.
     ["ignore", ["5.3.1", "7.0.5"]],
 
     // NOTE(calebmer, 2025-09-20): Duplicate packages after React to version 19.
     ["dom-accessibility-api", ["0.5.14", "0.6.3"]],
 
-    // NOTE(calebmer, 2024-08-08): List of packages from when we added this
-    // test. We did a quick skim to see if there were any packages we use where
-    // duplicate packages could be an issue and we tried to fix some easy
-    // duplicates.
+    // NOTE(calebmer, 2024-08-08): List of packages from when we added this test. We
+    // did a quick skim to see if there were any packages we use where duplicate
+    // packages could be an issue and we tried to fix some easy duplicates.
     //
     // Any new duplicate packages please try to add a section above with a comment
     // explaining why. npm packages man. Tough time.
@@ -324,8 +324,7 @@ async function main() {
         packageVersions.push(packageVersion);
     }
 
-    // Defense in case parsing failed and there were no packages in
-    // `pnpm-lock.yaml`.
+    // Defense in case parsing failed and there were no packages in `pnpm-lock.yaml`.
     if (packageVersionsByName.size === 0) {
         throw new Error("Found no packages");
     }

@@ -66,11 +66,10 @@ export function MessageViewTouchMenu<
     const menuActions: Array<MenuAction> = [];
     const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
-    // Don't allow replying if the message payload is empty. The UI shouldn't
-    // normally allow saving an empty message payload. We allow empty message
-    // payloads for messages that have attached files, however. In this special
-    // case we don't want to allow the user to reply since the reply message will
-    // include no text.
+    // Don't allow replying if the message payload is empty. The UI shouldn't normally
+    // allow saving an empty message payload. We allow empty message payloads for
+    // messages that have attached files, however. In this special case we don't want
+    // to allow the user to reply since the reply message will include no text.
     if (
         !isReadOnly &&
         !message.isOptimistic &&
@@ -151,10 +150,10 @@ export function MessageViewTouchMenu<
         const editContextMenuActions: Array<MenuAction> = [];
         contextMenuActions.push(editContextMenuActions);
 
-        // Don't allow editing if the message payload is empty. The UI shouldn't
-        // normally allow saving an empty message payload. We allow empty message
-        // payloads for messages that have attached files, however. In this special
-        // case we don't want to allow the user to add text alongside the files.
+        // Don't allow editing if the message payload is empty. The UI shouldn't normally
+        // allow saving an empty message payload. We allow empty message payloads for
+        // messages that have attached files, however. In this special case we don't want
+        // to allow the user to add text alongside the files.
         if (!isContentEmpty(messagePayload.content.doc)) {
             editContextMenuActions.push({
                 label: "Edit",

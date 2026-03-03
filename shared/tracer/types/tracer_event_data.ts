@@ -28,14 +28,12 @@ import type {TracerEventHttpSearchParamName} from "~/shared/tracer/helpers/trace
 /**
  * All data available in an event.
  *
- * Includes some properties that only the tracer may set that can't be
- * overridden.
+ * Includes some properties that only the tracer may set that can't be overridden.
  *
- * Any names relevant to [Honeycomb][1] need to be the same here but
- * camel case.
+ * Any names relevant to [Honeycomb][1] need to be the same here but camel case.
  *
- * `time` is not included. The event time is sent separately from the event
- * data as the [Honeycomb events API prescribes][2].
+ * `time` is not included. The event time is sent separately from the event data as
+ * the [Honeycomb events API prescribes][2].
  *
  * [1]: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/
  * [2]: https://docs.honeycomb.io/api/events/#batched-events-body
@@ -45,10 +43,9 @@ export type TracerEventFullData = TracerEventData & {
      * The name of the event. For spans this corresponds to the function or method
      * where the span was created. For events it's a short message.
      *
-     * We recommend keeping event names low cardinality. So no interpolation of
-     * user data like `Hello ${account.id}`. That way you can search for all events
-     * with a given name. Or easily find the event in the codebase through a
-     * string search.
+     * We recommend keeping event names low cardinality. So no interpolation of user
+     * data like `Hello ${account.id}`. That way you can search for all events with a
+     * given name. Or easily find the event in the codebase through a string search.
      */
     readonly name?: string;
 
@@ -68,15 +65,15 @@ export type TracerEventFullData = TracerEventData & {
      */
     readonly meta?: {
         /**
-         * Configure the kind of span annotation this is in Honeycomb.
-         * See: https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data
+         * Configure the kind of span annotation this is in Honeycomb. See:
+         * https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data
          */
         readonly annotationType?: "span_event" | "link";
 
         /**
-         * Must be set to true if this event comes from an untrusted client. If we find
-         * bad actors are polluting our dataset you can use this flag to filter out
-         * suspicious events.
+         * Must be set to true if this event comes from an untrusted client. If we find bad
+         * actors are polluting our dataset you can use this flag to filter out suspicious
+         * events.
          */
         readonly untrusted?: boolean;
 
@@ -88,8 +85,7 @@ export type TracerEventFullData = TracerEventData & {
     };
 
     /**
-     * If this event is part of a distributed trace then we populate this
-     * trace object.
+     * If this event is part of a distributed trace then we populate this trace object.
      */
     readonly trace?: {
         /** The ID of the trace this span belongs to. */
@@ -111,15 +107,15 @@ export type TracerEventFullData = TracerEventData & {
     };
 
     /**
-     * Information about the JavaScript runtime. Names come from the
-     * [ECMAScript][1] specification.
+     * Information about the JavaScript runtime. Names come from the [ECMAScript][1]
+     * specification.
      *
      * [1]: https://262.ecma-international.org/13.0
      */
     readonly js?: {
         /**
-         * Every realm is an instance of the JavaScript platform. We give every realm
-         * an ID.
+         * Every realm is an instance of the JavaScript platform. We give every realm an
+         * ID.
          *
          * Useful for figuring out the efficacy of an in-memory cache for instance.
          */
@@ -152,8 +148,8 @@ export type TracerEventExceptionDataBase = {
 
 export type TracerEventExceptionDataBaseWithCause = TracerEventExceptionDataBase & {
     /**
-     * If this error was caused by another error, we'll include the cause's
-     * information here nested underneath. Can include up to two causes.
+     * If this error was caused by another error, we'll include the cause's information
+     * here nested underneath. Can include up to two causes.
      */
     readonly cause?: TracerEventExceptionDataBase & {
         readonly cause?: TracerEventExceptionDataBase;
@@ -167,11 +163,12 @@ export type TracerEventData = {
     /**
      * General network connection attributes.
      *
-     * We use the [conventional OpenTelemetry network attribute names][1] but
-     * in camelCase. We convert all keys to snake_case before sending to telemetry
+     * We use the [conventional OpenTelemetry network attribute names][1] but in
+     * camelCase. We convert all keys to snake_case before sending to telemetry
      * services.
      *
-     * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/span-general.md
+     * [1]:
+     *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/span-general.md
      */
     readonly net?: {
         readonly sock?: {
@@ -188,8 +185,8 @@ export type TracerEventData = {
                 readonly name?: string;
 
                 /**
-                 * Remote socket peer address: IPv4 or IPv6 for internet protocols, path for
-                 * local communication.
+                 * Remote socket peer address: IPv4 or IPv6 for internet protocols, path for local
+                 * communication.
                  */
                 readonly addr?: string;
 
@@ -222,11 +219,12 @@ export type TracerEventData = {
      * If this event corresponds to an HTTP request, this attribute contains
      * information about that request.
      *
-     * We use the [conventional OpenTelemetry HTTP attribute names][1] but
-     * in camelCase. We convert all keys to snake_case before sending to telemetry
+     * We use the [conventional OpenTelemetry HTTP attribute names][1] but in
+     * camelCase. We convert all keys to snake_case before sending to telemetry
      * services.
      *
-     * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/http.md
+     * [1]:
+     *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/http.md
      */
     readonly http?: {
         /** HTTP request method. */
@@ -247,8 +245,7 @@ export type TracerEventData = {
 
             /**
              * If this request had a `Cookie` header this is an obfuscated approximation of
-             * that header. Mainly we'll include the cookie names but not the cookie
-             * values.
+             * that header. Mainly we'll include the cookie names but not the cookie values.
              */
             readonly obfuscatedCookieHeader?: string;
         };
@@ -258,9 +255,8 @@ export type TracerEventData = {
             readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string | number};
 
             /**
-             * If this request had a `Set-Cookie` header this is an obfuscated
-             * approximation of that header. Mainly we'll include the cookie names but not
-             * the cookie values.
+             * If this request had a `Set-Cookie` header this is an obfuscated approximation of
+             * that header. Mainly we'll include the cookie names but not the cookie values.
              */
             readonly obfuscatedSetCookieHeader?: string;
         };
@@ -278,14 +274,14 @@ export type TracerEventData = {
         readonly scheme?: string;
 
         /**
-         * The full request target as passed in a HTTP request line or equivalent.
-         * (e.g. `/path/12314/?q=foobar`.)
+         * The full request target as passed in a HTTP request line or equivalent. (e.g.
+         * `/path/12314/?q=foobar`.)
          */
         readonly target?: string;
 
         /**
-         * The matched route (path template in the format used by the respective
-         * server framework).
+         * The matched route (path template in the format used by the respective server
+         * framework).
          */
         readonly route?: string;
 
@@ -306,15 +302,14 @@ export type TracerEventData = {
 
         /**
          * The duration of the `fetch()` call. An HTTP span includes the response body
-         * download and parsing time. If you want to know only the amount of network
-         * time a fetch request spent you can use this field.
+         * download and parsing time. If you want to know only the amount of network time a
+         * fetch request spent you can use this field.
          *
-         * This duration does not include the time it takes to download the response
-         * body. This duration ends when we've received the HTTP request headers.
+         * This duration does not include the time it takes to download the response body.
+         * This duration ends when we've received the HTTP request headers.
          *
-         * If other synchronous work in the Node.js process is interrupting parsing
-         * of the fetch request, this field can be useful for isolating network
-         * performance.
+         * If other synchronous work in the Node.js process is interrupting parsing of the
+         * fetch request, this field can be useful for isolating network performance.
          */
         readonly fetchDurationMs?: number;
     };
@@ -325,25 +320,26 @@ export type TracerEventData = {
      *
      * Names use the [OpenTelemetry semantic conventions for exceptions][1].
      *
-     * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
+     * [1]:
+     *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
     readonly exception?: TracerEventExceptionDataBaseWithCause & {
         /**
-         * Is this an original exception? True if this is the first span we're adding
-         * this exception to and undefined if this exception has been propagated.
+         * Is this an original exception? True if this is the first span we're adding this
+         * exception to and undefined if this exception has been propagated.
          */
         readonly isOriginal?: true;
 
         /**
-         * If this error was propagated (`isOriginal` is undefined) then this
-         * identifies the trace/span the exception was originally thrown in.
+         * If this error was propagated (`isOriginal` is undefined) then this identifies
+         * the trace/span the exception was originally thrown in.
          *
          * If `traceId` is not set but `spanId` is set then `traceId` is implicitly the
          * same as the span's `traceId`.
          *
-         * If we're in a different trace then `time` will be set. `time` is the start
-         * time of the original span for this exception. It's necessary to [load the
-         * trace via URL][1].
+         * If we're in a different trace then `time` will be set. `time` is the start time
+         * of the original span for this exception. It's necessary to [load the trace via
+         * URL][1].
          *
          * [1]: https://docs.honeycomb.io/investigate/collaborate/share-trace/
          */
@@ -354,43 +350,43 @@ export type TracerEventData = {
         };
 
         /**
-         * If this is an aggregate error then this is the first of five errors
-         * included in tracing.
+         * If this is an aggregate error then this is the first of five errors included in
+         * tracing.
          */
         readonly aggregated1?: TracerEventExceptionDataBaseWithCause;
 
         /**
-         * If this is an aggregate error then this is the second of five errors
-         * included in tracing.
+         * If this is an aggregate error then this is the second of five errors included in
+         * tracing.
          */
         readonly aggregated2?: TracerEventExceptionDataBaseWithCause;
 
         /**
-         * If this is an aggregate error then this is the third of five errors
-         * included in tracing.
+         * If this is an aggregate error then this is the third of five errors included in
+         * tracing.
          */
         readonly aggregated3?: TracerEventExceptionDataBaseWithCause;
 
         /**
-         * If this is an aggregate error then this is the fourth of five errors
-         * included in tracing.
+         * If this is an aggregate error then this is the fourth of five errors included in
+         * tracing.
          */
         readonly aggregated4?: TracerEventExceptionDataBaseWithCause;
 
         /**
-         * If this is an aggregate error then this is the fifth of five errors
-         * included in tracing.
+         * If this is an aggregate error then this is the fifth of five errors included in
+         * tracing.
          */
         readonly aggregated5?: TracerEventExceptionDataBaseWithCause;
     };
 
     /**
-     * Generic span fields unrelated to a specific sub-system in our
-     * infrastructure. Useful if you're writing a one-off span and want to include
-     * some data but don't want to define entirely new event data fields.
+     * Generic span fields unrelated to a specific sub-system in our infrastructure.
+     * Useful if you're writing a one-off span and want to include some data but don't
+     * want to define entirely new event data fields.
      *
-     * You can't really compare these fields to each other across spans with
-     * different names.
+     * You can't really compare these fields to each other across spans with different
+     * names.
      */
     readonly common?: {
         /**
@@ -403,17 +399,16 @@ export type TracerEventData = {
         readonly type?: string;
 
         /**
-         * An identifier representing a branch of code that was executed. Should be
-         * low cardinality (recommended below 10 values) to be useful for
-         * grouping/filtering.
+         * An identifier representing a branch of code that was executed. Should be low
+         * cardinality (recommended below 10 values) to be useful for grouping/filtering.
          *
          * Should be an identifier (should pass `isIdentifier()`).
          */
         readonly branch?: string;
 
         /**
-         * A count of something related to the span. You should be able to tell what
-         * the count is referring to by the span name.
+         * A count of something related to the span. You should be able to tell what the
+         * count is referring to by the span name.
          */
         readonly count?: number;
 
@@ -422,8 +417,8 @@ export type TracerEventData = {
          * parallel with other spans (e.g. via `context.process.waitUntil()` or
          * `runAllPromises()`).
          *
-         * If this is set to true it implies the span could be run in parallel but in
-         * this instance it's not.
+         * If this is set to true it implies the span could be run in parallel but in this
+         * instance it's not.
          */
         readonly isBlocking?: boolean;
 
@@ -434,17 +429,17 @@ export type TracerEventData = {
         readonly didNothing?: boolean;
 
         /**
-         * If our span ran some process this is the duration of that process's
-         * execution. Useful if your span contains other work like setup/teardown
-         * before and after the process execution. Since you may use this property
-         * instead of creating another span to track just the process duration.
+         * If our span ran some process this is the duration of that process's execution.
+         * Useful if your span contains other work like setup/teardown before and after the
+         * process execution. Since you may use this property instead of creating another
+         * span to track just the process duration.
          */
         readonly processDurationMs?: number;
 
         /**
-         * If there was some delay in running our span then this is the duration of
-         * that delay. Useful if your span a delay and some other work so you can
-         * isolate that delay (e.g. a retry span) without creating another span.
+         * If there was some delay in running our span then this is the duration of that
+         * delay. Useful if your span a delay and some other work so you can isolate that
+         * delay (e.g. a retry span) without creating another span.
          */
         readonly delayDurationMs?: number;
 
@@ -470,15 +465,15 @@ export type TracerEventData = {
     };
 
     /**
-     * Information about where this event ocurred in the product. Usually set
-     * in the client's web browser then propagated.
+     * Information about where this event ocurred in the product. Usually set in the
+     * client's web browser then propagated.
      */
     readonly context?: {
         /**
          * The nearest span name starting with `Handle:`. This property is useful for
-         * grouping/filtering spans by the action in which they occur. For instance, if
-         * you want to sum all DynamoDB capacity consumed by a route you would filter
-         * by this handle.
+         * grouping/filtering spans by the action in which they occur. For instance, if you
+         * want to sum all DynamoDB capacity consumed by a route you would filter by this
+         * handle.
          *
          * If many OpenSearch requests were being made and you wanted to see where from,
          * you'd filter by this handle.
@@ -504,16 +499,16 @@ export type TracerEventData = {
         readonly botId?: BotId;
 
         /**
-         * If this action is being performed by a bot, this is the `AccountId`
-         * instantiated for the bot which is performing the action. `context.accountId`
-         * is reserved for the account which initiated the bot.
+         * If this action is being performed by a bot, this is the `AccountId` instantiated
+         * for the bot which is performing the action. `context.accountId` is reserved for
+         * the account which initiated the bot.
          */
         readonly botAccountId?: AccountId;
 
         /**
-         * True if the actor is accessing a space (in `context.spaceId`) it doesn't
-         * have access to. Will be true for anonymous requests and session actors that
-         * aren't a member of the space.
+         * True if the actor is accessing a space (in `context.spaceId`) it doesn't have
+         * access to. Will be true for anonymous requests and session actors that aren't a
+         * member of the space.
          */
         readonly withoutSpaceAccess?: boolean;
 
@@ -523,12 +518,14 @@ export type TracerEventData = {
         /** Information about the task the event was fired while looking at. */
         readonly taskId?: TaskId;
 
-        /** Information about the task collection the event was fired while looking at. */
+        /**
+         * Information about the task collection the event was fired while looking at.
+         */
         readonly taskCollectionId?: TaskCollectionId;
 
         // The below IDs can be rendered in a peek so they should also be included in
-        // `peek.context` to disambiguate between whether they are the primary content
-        // or peek content for our event.
+        // `peek.context` to disambiguate between whether they are the primary content or
+        // peek content for our event.
 
         /** Information about the document the event was fired while looking at. */
         readonly documentId?: DocumentId;
@@ -549,11 +546,11 @@ export type TracerEventData = {
          * If this event is coming from a peek then this object will be populated with
          * information about the peek.
          *
-         * IDs will be moved from the parent context into this object to disambiguate
-         * them. So if your peek is looking at a document and the peek is rendered on
-         * top of a document `context.documentId` will be the document ID in the peek
-         * you're directly interacting with whereas `context.peek.aboveDocumentId` will
-         * be the document ID the peek is rendered on top of.
+         * IDs will be moved from the parent context into this object to disambiguate them.
+         * So if your peek is looking at a document and the peek is rendered on top of a
+         * document `context.documentId` will be the document ID in the peek you're
+         * directly interacting with whereas `context.peek.aboveDocumentId` will be the
+         * document ID the peek is rendered on top of.
          */
         readonly peek?: {
             readonly aboveDocumentId?: DocumentId;
@@ -601,8 +598,8 @@ export type TracerEventData = {
      */
     readonly dynamodb?: {
         /**
-         * The DynamoDB action. We expect this to be set on every span that executes
-         * a DynamoDB action.
+         * The DynamoDB action. We expect this to be set on every span that executes a
+         * DynamoDB action.
          */
         readonly action?: string;
 
@@ -611,13 +608,13 @@ export type TracerEventData = {
          *
          * ### Batch behavior
          *
-         * If this is a batch read then we will take all our table names, sort them,
-         * and concatenate them with a `+`. So if you are only reading from one table
-         * in the batch you get just that table name. If you are reading from two
-         * tables in the batch you get `Table1+Table2`.
+         * If this is a batch read then we will take all our table names, sort them, and
+         * concatenate them with a `+`. So if you are only reading from one table in the
+         * batch you get just that table name. If you are reading from two tables in the
+         * batch you get `Table1+Table2`.
          *
-         * We sort the names so that every combination of tables is represented by the
-         * same string.
+         * We sort the names so that every combination of tables is represented by the same
+         * string.
          */
         readonly tableName?: string;
 
@@ -626,8 +623,8 @@ export type TracerEventData = {
          *
          * ### Batch behavior
          *
-         * If this is a batch read action then this will be true if any of the reads in
-         * the batch were consistent. Since consistent reads slow down the entire batch.
+         * If this is a batch read action then this will be true if any of the reads in the
+         * batch were consistent. Since consistent reads slow down the entire batch.
          *
          * We also happen to know that our code will separate consistent and eventual reads
          * into different batches. So "any read is consistent" usually means "every read is
@@ -636,8 +633,8 @@ export type TracerEventData = {
         readonly consistentRead?: boolean;
 
         /**
-         * Capacity units consumed by table name. We will include an entry for every
-         * table in the action that consumed capacity.
+         * Capacity units consumed by table name. We will include an entry for every table
+         * in the action that consumed capacity.
          */
         readonly consumedCapacity?: {
             readonly [tableName: string]:
@@ -645,8 +642,8 @@ export type TracerEventData = {
                       readonly readCapacityUnits?: number;
                       readonly writeCapacityUnits?: number;
                   }
-                // TypeScript needs this to consider `readCapacityUnits` and
-                // `writeCapacityUnits` so the type when accessing an index prop is correct.
+                // TypeScript needs this to consider `readCapacityUnits` and `writeCapacityUnits`
+                // so the type when accessing an index prop is correct.
                 | number
                 | undefined;
 
@@ -664,9 +661,8 @@ export type TracerEventData = {
         readonly table?: {
             readonly [tableName: string]: {
                 /**
-                 * What partition type in the provided table are we accessing? If we're
-                 * accessing multiple partition types they'll be combined together with
-                 * a `+`.
+                 * What partition type in the provided table are we accessing? If we're accessing
+                 * multiple partition types they'll be combined together with a `+`.
                  */
                 readonly partitionType?: string;
 
@@ -677,8 +673,8 @@ export type TracerEventData = {
                     readonly [partitionType: string]: {
                         /**
                          * What sort range type in the provided table's partition are we accessing? If
-                         * we're accessing multiple sort range types they'll be combined together with
-                         * a `+`.
+                         * we're accessing multiple sort range types they'll be combined together with a
+                         * `+`.
                          */
                         readonly sortRangeType: string;
                     };
@@ -707,11 +703,11 @@ export type TracerEventData = {
         /** Information regarding a DynamoDB query. */
         readonly query?: {
             /**
-             * The expression we pass to DynamoDB. Must always include an equality term on
-             * the primary key. May optionally include range terms on the sort keys.
+             * The expression we pass to DynamoDB. Must always include an equality term on the
+             * primary key. May optionally include range terms on the sort keys.
              *
-             * Expressions never include values. They always have variable substitutes
-             * for values.
+             * Expressions never include values. They always have variable substitutes for
+             * values.
              */
             readonly keyConditionExpression?: string;
 
@@ -725,15 +721,14 @@ export type TracerEventData = {
             readonly limit?: number;
 
             /**
-             * Is there an exclusive start key on this query? True if we are reading the
-             * next page in a query.
+             * Is there an exclusive start key on this query? True if we are reading the next
+             * page in a query.
              */
             readonly hasExclusiveStartKey?: boolean;
 
             /**
-             * The number of items scanned when evaluating this query. May be larger than
-             * the number of items returned by the query if the query had a filter
-             * expression.
+             * The number of items scanned when evaluating this query. May be larger than the
+             * number of items returned by the query if the query had a filter expression.
              */
             readonly scannedCount?: number;
         };
@@ -747,15 +742,14 @@ export type TracerEventData = {
             readonly limit?: number;
 
             /**
-             * Is there an exclusive start key on this query? True if we are reading the
-             * next page in a query.
+             * Is there an exclusive start key on this query? True if we are reading the next
+             * page in a query.
              */
             readonly hasExclusiveStartKey?: boolean;
 
             /**
-             * The number of items scanned when evaluating this query. May be larger than
-             * the number of items returned by the query if the query had a filter
-             * expression.
+             * The number of items scanned when evaluating this query. May be larger than the
+             * number of items returned by the query if the query had a filter expression.
              */
             readonly scannedCount?: number;
         };
@@ -763,20 +757,20 @@ export type TracerEventData = {
         /** Information regarding a DynamoDB write transaction. */
         readonly transactWrite?: {
             /**
-             * A JSON object summarizing the transaction items. Does not include user
-             * values from the transaction.
+             * A JSON object summarizing the transaction items. Does not include user values
+             * from the transaction.
              */
             readonly items?: string;
 
             /**
-             * The number of items in the transaction. May be longer than the `items` array
-             * if we weren't able to summarize a transaction item.
+             * The number of items in the transaction. May be longer than the `items` array if
+             * we weren't able to summarize a transaction item.
              */
             readonly itemCount?: number;
 
             /**
-             * The client request token for the transaction. The client request token is
-             * used for executing idempotent transactions.
+             * The client request token for the transaction. The client request token is used
+             * for executing idempotent transactions.
              */
             readonly clientRequestToken?: string;
         };
@@ -792,7 +786,9 @@ export type TracerEventData = {
             /** The DynamoDB exception type. */
             readonly type?: string;
 
-            /** JSON string of cancellation reasons associated with a transaction failure. */
+            /**
+             * JSON string of cancellation reasons associated with a transaction failure.
+             */
             readonly cancellationReasons?: string;
         };
     };
@@ -800,8 +796,8 @@ export type TracerEventData = {
     /**
      * Information regarding AWS services.
      *
-     * For legacy reasons `dynamodb` is not in here. We created `dynamodb`
-     * attributes before we had this `aws` namespace.
+     * For legacy reasons `dynamodb` is not in here. We created `dynamodb` attributes
+     * before we had this `aws` namespace.
      */
     readonly aws?: {
         /** Information associated with AWS credentials. */
@@ -845,13 +841,16 @@ export type TracerEventData = {
             /** The number of messages involved in this SQS action. */
             readonly messageCount?: number;
 
-            /** The approximate number of times the message has been received by a queue consumer. Roughly equivalent to retry count. */
+            /**
+             * The approximate number of times the message has been received by a queue
+             * consumer. Roughly equivalent to retry count.
+             */
             readonly approximateReceiveCount?: number;
         };
 
         /**
-         * Information regarding AWS Elastic Container Service (ECS) which is AWS's
-         * version of Kubernetes.
+         * Information regarding AWS Elastic Container Service (ECS) which is AWS's version
+         * of Kubernetes.
          */
         readonly ecs?: {
             /** The ECS task ID */
@@ -891,10 +890,14 @@ export type TracerEventData = {
             /** What type of AWS resource is this referring to? */
             readonly resourceType?: string;
 
-            /** Status from the activity event which marks a resource as started deploying. */
+            /**
+             * Status from the activity event which marks a resource as started deploying.
+             */
             readonly startStatus?: string;
 
-            /** Reason from the activity event which marks a resource as started deploying. */
+            /**
+             * Reason from the activity event which marks a resource as started deploying.
+             */
             readonly startStatusReason?: string;
 
             /** Status from the activity event which marks an error deploying a resource. */
@@ -903,10 +906,14 @@ export type TracerEventData = {
             /** Reason from the activity event which marks an error deploying a resource. */
             readonly errorStatusReason?: string;
 
-            /** Status from the activity event which marks a resource as finished deploying. */
+            /**
+             * Status from the activity event which marks a resource as finished deploying.
+             */
             readonly finishStatus?: string;
 
-            /** Reason from the activity event which marks a resource as finished deploying. */
+            /**
+             * Reason from the activity event which marks a resource as finished deploying.
+             */
             readonly finishStatusReason?: string;
         };
 
@@ -937,9 +944,8 @@ export type TracerEventData = {
                 readonly expressionTimeZone?: string;
 
                 /**
-                 * If a flexible time window is enabled, the maximum amount of time in
-                 * minutes after the schedule is fired EventBridge can send an event to the
-                 * target.
+                 * If a flexible time window is enabled, the maximum amount of time in minutes
+                 * after the schedule is fired EventBridge can send an event to the target.
                  */
                 readonly maxFlexibleTimeWindowMinutes?: number;
 
@@ -977,26 +983,26 @@ export type TracerEventData = {
         /**
          * The ID of the connection our event is about.
          *
-         * There's also a `context.webSocketConnectionId` property so how do you tell
-         * which one to use? When there are two WebSockets involved in an operation the
-         * distinction is useful. For example, if one WebSocket is sending another an
-         * event then `context.webSocketConnectionId` will be the sender (the WebSocket
-         * taking the action) and `webSocket.connectionId` will be the receiver (the
-         * WebSocket receiving the event).
+         * There's also a `context.webSocketConnectionId` property so how do you tell which
+         * one to use? When there are two WebSockets involved in an operation the
+         * distinction is useful. For example, if one WebSocket is sending another an event
+         * then `context.webSocketConnectionId` will be the sender (the WebSocket taking
+         * the action) and `webSocket.connectionId` will be the receiver (the WebSocket
+         * receiving the event).
          *
-         * We recommend adding `webSocket.connectionId` to any direct WebSocket
-         * operation even when it's redundant with `context.webSocketConnectionId` for
-         * consistency. That way you can filter on `webSocket.connectionId` to see all
-         * of a WebSocket's activity.
+         * We recommend adding `webSocket.connectionId` to any direct WebSocket operation
+         * even when it's redundant with `context.webSocketConnectionId` for consistency.
+         * That way you can filter on `webSocket.connectionId` to see all of a WebSocket's
+         * activity.
          */
         readonly connectionId?: WebSocketConnectionId;
 
         /**
          * What is the type of the message we're processing?
          *
-         * This will be the most descriptive type of the message. So if we have a
-         * `Message` envelope this will be the type of the message inside. Otherwise it
-         * will be a system type like `Ping`, `Pong`, or `AcknowledgeMessage`.
+         * This will be the most descriptive type of the message. So if we have a `Message`
+         * envelope this will be the type of the message inside. Otherwise it will be a
+         * system type like `Ping`, `Pong`, or `AcknowledgeMessage`.
          */
         readonly messageType?: string;
     };
@@ -1015,8 +1021,8 @@ export type TracerEventData = {
             readonly startVersion?: number;
 
             /**
-             * The ending version (exclusive) in some collaborative content operation's
-             * version range.
+             * The ending version (exclusive) in some collaborative content operation's version
+             * range.
              */
             readonly endVersion?: number;
 
@@ -1040,7 +1046,10 @@ export type TracerEventData = {
         readonly eventId?: NotificationEventId;
 
         readonly emailDigest?: {
-            /** The reason an account was ineligible for a digest notification. Will be null if the account is eligible. */
+            /**
+             * The reason an account was ineligible for a digest notification. Will be null if
+             * the account is eligible.
+             */
             readonly ineligibleReason?: string;
 
             /** The time a digest notification is supposed to be sent. */
@@ -1051,8 +1060,8 @@ export type TracerEventData = {
     /** Information regarding the task product surface. */
     readonly tasks?: {
         /**
-         * Description for the action transaction we are processing. A list of
-         * comma separated action labels.
+         * Description for the action transaction we are processing. A list of comma
+         * separated action labels.
          */
         readonly actions?: string;
 
@@ -1102,8 +1111,7 @@ export type TracerEventData = {
             readonly seqNo?: number;
 
             /**
-             * The document's `_primary_term` property used for optimistic concurrency
-             * control.
+             * The document's `_primary_term` property used for optimistic concurrency control.
              */
             readonly primaryTerm?: number;
         };
@@ -1114,9 +1122,8 @@ export type TracerEventData = {
             readonly count?: number;
 
             /**
-             * The routing keys for the requested documents joined by commas. Only present
-             * if there's not one singular routing value for all the documents we're
-             * loading.
+             * The routing keys for the requested documents joined by commas. Only present if
+             * there's not one singular routing value for all the documents we're loading.
              */
             readonly routings?: string;
 
@@ -1155,8 +1162,7 @@ export type TracerEventData = {
             readonly ifPrimaryTerm?: number;
 
             /**
-             * The document's new `_seq_no` property used for optimistic concurrency
-             * control.
+             * The document's new `_seq_no` property used for optimistic concurrency control.
              */
             readonly seqNo?: number;
 
@@ -1173,9 +1179,8 @@ export type TracerEventData = {
             readonly count?: number;
 
             /**
-             * The routing keys for the requested documents joined by commas. Only present
-             * if there's not one singular routing value for all the documents we're
-             * loading.
+             * The routing keys for the requested documents joined by commas. Only present if
+             * there's not one singular routing value for all the documents we're loading.
              */
             readonly routings?: string;
 
@@ -1200,8 +1205,7 @@ export type TracerEventData = {
             readonly ifPrimaryTerms?: string;
 
             /**
-             * The document's new `_seq_no` property used for optimistic concurrency
-             * control.
+             * The document's new `_seq_no` property used for optimistic concurrency control.
              */
             readonly seqNos?: string;
 
@@ -1235,20 +1239,19 @@ export type TracerEventData = {
         readonly delaySeconds?: number;
 
         /**
-         * How long was this job idle in the queue before we picked it up for
-         * processing?
+         * How long was this job idle in the queue before we picked it up for processing?
          *
-         * Excludes `delaySeconds` since that's an intentional delay. The true amount
-         * of time the job spent in the queue is `queueDurationMs` + `delaySeconds`.
+         * Excludes `delaySeconds` since that's an intentional delay. The true amount of
+         * time the job spent in the queue is `queueDurationMs` + `delaySeconds`.
          */
         readonly queueDurationMs?: number;
 
         /**
          * Will we retry this job? True if the job threw an error. You can't look at
          * whether our span has an `exception.type` attribute to know if the job will
-         * retry. Since sometimes we add an exception to jobs that are considered
-         * completed (e.g. if we fail to process a corrupt file in the `ProcessFile`
-         * job we'll add the processing error to the job span but won't retry the job.)
+         * retry. Since sometimes we add an exception to jobs that are considered completed
+         * (e.g. if we fail to process a corrupt file in the `ProcessFile` job we'll add
+         * the processing error to the job span but won't retry the job.)
          */
         readonly willRetry?: boolean;
 
@@ -1291,8 +1294,8 @@ export type TracerEventData = {
     };
 
     /**
-     * When running a migration with our migration service we record useful
-     * information in this namespace.
+     * When running a migration with our migration service we record useful information
+     * in this namespace.
      */
     readonly migration?: {
         /** If this is a migration that runs in parallel, what segment are we in? */
@@ -1303,9 +1306,9 @@ export type TracerEventData = {
     };
 
     /**
-     * Information related to requests made to Apple Push Notification service
-     * (APNs). APNs uses the HTTP/2 protocol so a lot of data relate to APNs is
-     * stored in `http` tracer data. Particularly `http.request.headers` and
+     * Information related to requests made to Apple Push Notification service (APNs).
+     * APNs uses the HTTP/2 protocol so a lot of data relate to APNs is stored in
+     * `http` tracer data. Particularly `http.request.headers` and
      * `http.response.headers`.
      */
     readonly apns?: {
@@ -1315,16 +1318,20 @@ export type TracerEventData = {
         readonly connectionId?: ApnsConnectionId;
 
         /**
-         * Reason for a non-200 status code from APNs. Error reason strings are
-         * documented [here][1].
+         * Reason for a non-200 status code from APNs. Error reason strings are documented
+         * [here][1].
          *
-         * [1]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
+         * [1]:
+         *     https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
          */
         readonly errorReason?: string;
     };
 
     readonly webPush?: {
-        /** The origin of the web push service subscription endpoint like `https://fcm.googleapis.com` */
+        /**
+         * The origin of the web push service subscription endpoint like
+         * `https://fcm.googleapis.com`
+         */
         readonly subscriptionEndpointOrigin?: string;
 
         /** The ID of the browser we're sending the notification to. */
@@ -1339,8 +1346,8 @@ export type TracerEventData = {
      */
     readonly cloudflare?: {
         /**
-         * Information related to [Cloudflare R2][1]. Cloudflare's AWS S3
-         * compatible object storage service.
+         * Information related to [Cloudflare R2][1]. Cloudflare's AWS S3 compatible object
+         * storage service.
          *
          * [1]: https://developers.cloudflare.com/r2/
          */
@@ -1380,8 +1387,8 @@ export type TracerEventData = {
         };
 
         /**
-         * Information related to our use of Cloudflare Wrangler for deploying
-         * Cloudflare Workers.
+         * Information related to our use of Cloudflare Wrangler for deploying Cloudflare
+         * Workers.
          */
         readonly wrangler?: {
             /** The attempt number of a Cloudflare Wrangler deployment. */
@@ -1389,8 +1396,8 @@ export type TracerEventData = {
         };
 
         /**
-         * Information related to Cloudflare D1. Cloudflare's serverless
-         * SQL database service.
+         * Information related to Cloudflare D1. Cloudflare's serverless SQL database
+         * service.
          */
         readonly d1?: {
             /** The Cloudflare D1 action being executed. */
@@ -1434,9 +1441,9 @@ export type TracerEventData = {
     };
 
     /**
-     * Any data related to our `DeployService`'s deploy script. Most data related
-     * to a deploy can be found in `github.workflow.run` but there's some workflow
-     * agnostic data we want to record.
+     * Any data related to our `DeployService`'s deploy script. Most data related to a
+     * deploy can be found in `github.workflow.run` but there's some workflow agnostic
+     * data we want to record.
      */
     readonly deploy?: {
         /** Represents the active commit. */
@@ -1457,8 +1464,8 @@ export type TracerEventData = {
         readonly zonedTime?: string;
 
         /**
-         * Is `zonedTime` a time when we can run a deploy? True if its work hours on
-         * a weekday.
+         * Is `zonedTime` a time when we can run a deploy? True if its work hours on a
+         * weekday.
          */
         readonly isTimeDeployable?: boolean;
     };
@@ -1493,9 +1500,8 @@ export type TracerEventData = {
             readonly contentLength?: number;
 
             /**
-             * The ratio of the file alternative's content length to the file's own
-             * content length.
-             * (lower is better)
+             * The ratio of the file alternative's content length to the file's own content
+             * length. (lower is better)
              */
             readonly contentLengthRatio?: number;
         };
@@ -1508,8 +1514,7 @@ export type TracerEventData = {
             readonly contentLength?: number;
 
             /**
-             * The ratio of the file preview's content length to the file's own
-             * content length.
+             * The ratio of the file preview's content length to the file's own content length.
              */
             readonly contentLengthRatio?: number;
 
@@ -1536,13 +1541,12 @@ export type TracerEventData = {
         };
 
         /**
-         * Information from `FileProcessorService` typically concerning processing
-         * state.
+         * Information from `FileProcessorService` typically concerning processing state.
          */
         readonly processing?: {
             /**
-             * The duration of the alternative file processing. Notably not the duration of
-             * the alternative content.
+             * The duration of the alternative file processing. Notably not the duration of the
+             * alternative content.
              */
             readonly alternativeDurationMs?: number;
             readonly imagePreviewSizeDurationMs?: number;
@@ -1555,10 +1559,9 @@ export type TracerEventData = {
 
             /**
              * The ratio of the original file's duration to the file's processing duration.
-             * Answers the question: "For every second of the video, how many seconds does
-             * it take to process?".
-             * So if a 10 second video takes 40 seconds to process, this will be 0.25.
-             * If a 10 second video takes 5 seconds to process, this willbe 2.
+             * Answers the question: "For every second of the video, how many seconds does it
+             * take to process?". So if a 10 second video takes 40 seconds to process, this
+             * will be 0.25. If a 10 second video takes 5 seconds to process, this willbe 2.
              * (higher is better)
              */
             readonly imagePreviewVideoDurationToAlternativeProcessingDurationRatio?: number;
@@ -1572,7 +1575,9 @@ export type TracerEventData = {
                 /** The content length of the avatar. */
                 readonly resizedContentLength?: number;
 
-                /** The ratio of the avatar's content length to the file's own content length. */
+                /**
+                 * The ratio of the avatar's content length to the file's own content length.
+                 */
                 readonly resizedToOriginalContentLengthRatio?: number;
 
                 readonly request?: {
@@ -1615,9 +1620,11 @@ export type TracerEventData = {
      */
     readonly libreoffice?: {
         /**
-         * The [output filter][1] used when running the LibreOffice binary with `--convert-to`.
+         * The [output filter][1] used when running the LibreOffice binary with
+         * `--convert-to`.
          *
-         * [1]: https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
+         * [1]:
+         *     https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
          */
         readonly outputFilter?: string;
     };
@@ -1627,8 +1634,8 @@ export type TracerEventData = {
      */
     readonly ffmpeg?: {
         /**
-         * The codecs implicated in a call to FFmpeg. In the order provided by the
-         * file. When there are multiple codecs they're separated by a `/`.
+         * The codecs implicated in a call to FFmpeg. In the order provided by the file.
+         * When there are multiple codecs they're separated by a `/`.
          */
         readonly codecs?: string;
     };
@@ -1732,14 +1739,14 @@ export type TracerEventData = {
                 readonly usedMillicents?: number;
 
                 /**
-                 * Whether or not the total agent usage limit has been exceeded.
-                 * (now or in a previous request)
+                 * Whether or not the total agent usage limit has been exceeded. (now or in a
+                 * previous request)
                  */
                 readonly isPastTotalUsageLimit?: boolean;
 
                 /**
-                 * Whether or not the downgraded agent usage limit has been exceeded.
-                 * (now or in a previous request)
+                 * Whether or not the downgraded agent usage limit has been exceeded. (now or in a
+                 * previous request)
                  */
                 readonly isPastDowngradeUsageLimit?: boolean;
 
@@ -1816,8 +1823,8 @@ export type TracerEventData = {
             readonly minutesUntilExpiration?: number;
 
             /**
-             * How many hours until the account is unlocked? Only present if the account
-             * is locked.
+             * How many hours until the account is unlocked? Only present if the account is
+             * locked.
              */
             readonly hoursUntilUnlocked?: number;
         };
@@ -1913,7 +1920,8 @@ export type TracerEventDataBase = {
  *
  * - `Web`: A web browser implementing the [HTML specification][2] is our host.
  * - `Node`: A process running [Node.js][3] is our host.
- * - `CloudflareWorker`: The [Cloudflare Workers][4] serverless runtime is our host.
+ * - `CloudflareWorker`: The [Cloudflare Workers][4] serverless runtime is our
+ *   host.
  *
  * [1]: https://262.ecma-international.org/13.0/#sec-hosts-and-implementations
  * [2]: https://html.spec.whatwg.org

@@ -126,10 +126,10 @@ export type DeleteMessageReactionFunction<RoomKey extends string> = (
 }>;
 
 /**
- * Backfill messages and message changes the client is missing. Realtime could
- * be implemented by polling this method. However, this method is also
- * important for implementing push-based realtime as it fills the gap between
- * when data was loaded and when we connected to our realtime WebSocket.
+ * Backfill messages and message changes the client is missing. Realtime could be
+ * implemented by polling this method. However, this method is also important for
+ * implementing push-based realtime as it fills the gap between when data was
+ * loaded and when we connected to our realtime WebSocket.
  */
 export type BackfillMessagesFunction<
     RoomKey extends string,
@@ -160,9 +160,9 @@ export type BackfillMessagesFunction<
 }>;
 
 /**
- * Get a message but only at the specified version or a newer version. Useful
- * for serving realtime events where we know the message was updated to some
- * version but need to load the message with the session actor's permissions.
+ * Get a message but only at the specified version or a newer version. Useful for
+ * serving realtime events where we know the message was updated to some version
+ * but need to load the message with the session actor's permissions.
  */
 export type GetMessageAtVersionFunction<
     RoomKey extends string,
@@ -177,8 +177,7 @@ export type GetMessageAtVersionFunction<
 ) => Promise<Message>;
 
 /**
- * Get message references using the permissions associated with the session
- * actor.
+ * Get message references using the permissions associated with the session actor.
  */
 export type GetMessageReferencesFunction<RoomKey extends string> = (
     context: WorkerSessionActionContext,
@@ -245,10 +244,10 @@ export class MessagingRealtimeConnection<
     private readonly _createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
 
     /**
-     * We want to send `NewMessage` events to our client in order so that the
-     * client never has a gap in its state while users are actively typing
-     * messages. Since sending events is asynchronous we need a mutex to make sure
-     * there's only one function updating the queue at a time.
+     * We want to send `NewMessage` events to our client in order so that the client
+     * never has a gap in its state while users are actively typing messages. Since
+     * sending events is asynchronous we need a mutex to make sure there's only one
+     * function updating the queue at a time.
      */
     private readonly _queuedMessagesState = new MutexValue<{
         readonly nextMessageIndexToSend: number | null;
@@ -339,14 +338,14 @@ export class MessagingRealtimeConnection<
         await toConnection._queuedMessagesState.withLock(async stateRef => {
             const {nextMessageIndexToSend} = stateRef.current;
 
-            // If the connection is backfilling or we received this message out of order,
-            // queue it for later. If we have not received a message yet then we want to
-            // send it and start waiting for the message after it.
+            // If the connection is backfilling or we received this message out of order, queue
+            // it for later. If we have not received a message yet then we want to send it and
+            // start waiting for the message after it.
             if (nextMessageIndexToSend !== null && message.index !== nextMessageIndexToSend) {
                 if (message.index > nextMessageIndexToSend) {
                     // If the message needs to be queued for sending later, we still want to
-                    // immediately send our typing state update. In case another typing state
-                    // update happens later we don't want to clobber the update from this function.
+                    // immediately send our typing state update. In case another typing state update
+                    // happens later we don't want to clobber the update from this function.
                     if (
                         fromConnection._connectionId !== toConnection._connectionId &&
                         oldFromConnectionTypingState !== null
@@ -417,8 +416,8 @@ export class MessagingRealtimeConnection<
                 // This is the next message for our client! Send it.
                 if (message.index === nextMessageIndexToSend) {
                     // Loop again after processing some message from our queue. We may have a queue
-                    // that looks like this: `[3, 1, 2]`. In that case 1 and 2 may be processed in
-                    // the first iteration while 3 is processed in the second iteration.
+                    // that looks like this: `[3, 1, 2]`. In that case 1 and 2 may be processed in the
+                    // first iteration while 3 is processed in the second iteration.
                     loop = true;
 
                     sendMessages.push(message);
@@ -509,15 +508,15 @@ export class MessagingRealtimeConnection<
             //
             // 1. Backfill starts for connection B
             // 2. Connection A updates their typing state
-            // 3. Backfill response for connection B is created with connection A's
-            //    typing state
+            // 3. Backfill response for connection B is created with connection A's typing
+            //    state
             //
-            // We shouldn't have race conditions if connection A updates their typing state
-            // a second time after 3 because the rest of the code to send our call result
-            // is synchronous. So we will send the backfill response and then later send
-            // connection A's typing state update. If you add asynchronous execution
-            // between the point where we send the backfill response and construct the
-            // typing state backfill, you may have added a race condition bug.
+            // We shouldn't have race conditions if connection A updates their typing state a
+            // second time after 3 because the rest of the code to send our call result is
+            // synchronous. So we will send the backfill response and then later send
+            // connection A's typing state update. If you add asynchronous execution between
+            // the point where we send the backfill response and construct the typing state
+            // backfill, you may have added a race condition bug.
             typingStateByConnectionId: new Map(
                 filterMapIterable(this._iterateOtherConnections(), connection => {
                     const typingState = connection._typingState.getWithoutLock();
@@ -543,25 +542,24 @@ export class MessagingRealtimeConnection<
             createdTimeZone: TimeZone;
             fileIds: ReadonlyArray<FileId | FileEntityId>;
             /**
-             * The search entity id that the user is currently viewing while sending
-             * the chat message. We consider this to be dangerous because it enables
-             * other humans in a chat to see what a user is looking at based on the
-             * agent's response.
+             * The search entity id that the user is currently viewing while sending the chat
+             * message. We consider this to be dangerous because it enables other humans in a
+             * chat to see what a user is looking at based on the agent's response.
              *
              * We should only set this value if the user is in an "all-bot" chat.
              *
-             * We don't store this anywhere, but we do pass it along to agents. As an
-             * extra safety measure, we validate that the user is in a bot-only chat
-             * on the server before passing it along.
+             * We don't store this anywhere, but we do pass it along to agents. As an extra
+             * safety measure, we validate that the user is in a bot-only chat on the server
+             * before passing it along.
              */
             dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
         },
     ): Promise<{}> {
         assert(this.accountId === context.actor.getAccountId());
 
-        // TODO(calebmer): What if we sent clients an optimistic "message created"
-        // event before we confirmed the message was saved in the database? This would
-        // improve user perceived messaging latency.
+        // TODO(calebmer): What if we sent clients an optimistic "message created" event
+        // before we confirmed the message was saved in the database? This would improve
+        // user perceived messaging latency.
 
         const {index, createdTime} = await this._createMessage(context, {
             roomKey: this.roomKey,
@@ -828,9 +826,8 @@ export class MessagingRealtimeConnection<
         return {};
     }
 
-    // The stop typing function needs to be called outside of a `AppActionContext`
-    // when the connection is closing. This means it may not have authorization
-    // information.
+    // The stop typing function needs to be called outside of a `AppActionContext` when
+    // the connection is closing. This means it may not have authorization information.
     public async stopTypingInMessageInput(
         context: WorkerProcessContext,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -902,9 +899,9 @@ export class MessagingRealtimeConnection<
             this._queuedMessagesState.withLock(async stateRef => {
                 const {nextMessageIndexToSend} = stateRef.current;
 
-                // If the connection is backfilling or we received this message out of order,
-                // queue it for later. If we have not received a message yet then we want to
-                // send it and start waiting for the message after it.
+                // If the connection is backfilling or we received this message out of order, queue
+                // it for later. If we have not received a message yet then we want to send it and
+                // start waiting for the message after it.
                 if (nextMessageIndexToSend !== null && message.index !== nextMessageIndexToSend) {
                     if (message.index > nextMessageIndexToSend) {
                         stateRef.current = {

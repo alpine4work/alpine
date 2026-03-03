@@ -703,15 +703,18 @@ to be no more than 80 characters long _not_ including indentation.
 
 As an example, here's a comment with no indentation wrapped at 80 characters:
 
+<!-- prettier-ignore-start -->
 ```ts
 // The quick brown fox jumps over the lazy dog. The quick brown fox jumps over
 // the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown
 // fox jumps over the lazy dog.
 ```
+<!-- prettier-ignore-end -->
 
 Here is a comment with two levels of indentation (8 spaces). We make sure the comment is still 80
 characters wide.
 
+<!-- prettier-ignore-start -->
 ```ts
 // ✅ Yes
 
@@ -723,9 +726,11 @@ class C {
     }
 }
 ```
+<!-- prettier-ignore-end -->
 
 We don't wrap a comment with two levels of indentation at the file-wide 80 character mark.
 
+<!-- prettier-ignore-start -->
 ```ts
 // ❌ No
 
@@ -737,6 +742,7 @@ class C {
     }
 }
 ```
+<!-- prettier-ignore-end -->
 
 **💡 Why?** If we instead wrapped comments at the 100 character print width, whenever you indented
 or dedented code with a comment you'd need to reformat the comment around your print width. At 80
@@ -1555,35 +1561,29 @@ Don't group tests within a single `test` call.
 
 test("getChannelIfExists()", async () => {
     {
-        // returns channel when it exists and user has access
-        // ...
+        // returns channel when it exists and user has access ...
     }
 
     {
-        // returns null when channel does not exist
-        // ...
+        // returns null when channel does not exist ...
     }
 
     {
-        // throws PermissionDeniedError when user lacks access
-        // ...
+        // throws PermissionDeniedError when user lacks access ...
     }
 });
 
 test("getChannelIfPossible()", async () => {
     {
-        // returns result with channel when user has access
-        // ...
+        // returns result with channel when user has access ...
     }
 
     {
-        // returns null when channel does not exist
-        // ...
+        // returns null when channel does not exist ...
     }
 
     {
-        // returns error result when user lacks access
-        // ...
+        // returns error result when user lacks access ...
     }
 });
 ```
@@ -1649,10 +1649,11 @@ describe("isValidEmail()", () => {
 
     testCases.forEach(({input, expected}) => {
         // Result:
-        //   isValidEmail()
-        //     returns true for user@example.com
-        //     returns false for user@
-        //     returns false for userexample.com
+        //
+        // - isValidEmail()
+        //     - returns true for user@example.com
+        //     - returns false for user@
+        //     - returns false for userexample.com
         test(`returns ${expected} for ${input}`, () => {
             const result = isValidEmail(input);
             expect(result).toBe(expected);
@@ -1769,8 +1770,8 @@ test("creates new task with correct properties", async () => {
 
     expect(task.title).toBe("Buy groceries");
 
-    // This assertion is testing behavior not related to the test title
-    // Add another test to assert this behavior
+    // This assertion is testing behavior not related to the test title Add another
+    // test to assert this behavior
     const totalTaskCount = getUserTotalTaskCount("user123");
     expect(totalTaskCount).toBe(1);
 });

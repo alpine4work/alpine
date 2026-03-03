@@ -16,8 +16,8 @@ import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 export type NavigationBarRef = {
     /**
-     * Get the number of visible pixels for this navigation bar. Includes top safe
-     * area inset since the navigation bar is always visible in the safe area.
+     * Get the number of visible pixels for this navigation bar. Includes top safe area
+     * inset since the navigation bar is always visible in the safe area.
      */
     getVisibleHeight(): number;
 
@@ -37,8 +37,8 @@ export type NavigationBarShareButtonProps = {
         readonly explanations: InheritedAccessPolicyExplanations;
     };
     readonly onAccessPolicyChange: (
-        // The `notification` argument comes first to make it harder for the
-        // implementation of this function to ignore the `notification` argument.
+        // The `notification` argument comes first to make it harder for the implementation
+        // of this function to ignore the `notification` argument.
         notification: ShareNotification | null,
         accessPolicy: AccessPolicy,
     ) => MaybePromise<void>;
@@ -55,8 +55,8 @@ export type NavigationBarProps = {
     readonly ref?: Ref<NavigationBarRef>;
 
     /**
-     * Is the navigation bar actually rendered? If true then none of the navigation
-     * bar logic runs and you don't need to use `navigationBarResult`.
+     * Is the navigation bar actually rendered? If true then none of the navigation bar
+     * logic runs and you don't need to use `navigationBarResult`.
      *
      * `ref` will not be initialized if true.
      */
@@ -66,27 +66,27 @@ export type NavigationBarProps = {
      * When true, the navigation bar will scroll away when you scroll down and will
      * scroll back when you scroll up.
      *
-     * By default this is `true` on mobile and `false` on desktop. Since scrolling
-     * away the navigation bar feels natural on a touch screen and lets the user
-     * see more content. However, on desktop it doesn't feel natural and we have
-     * enough screen space that it doesn't hurt to always show the navigation bar.
+     * By default this is `true` on mobile and `false` on desktop. Since scrolling away
+     * the navigation bar feels natural on a touch screen and lets the user see more
+     * content. However, on desktop it doesn't feel natural and we have enough screen
+     * space that it doesn't hurt to always show the navigation bar.
      *
-     * Another argument for allowing scroll away on mobile but not desktop: on
-     * mobile the user is always focused on one task. Hiding the navigation bar
-     * helps them complete their one task. However, on desktop users are frequently
-     * multitasking. If we hide the navigation bar in a peek, for instance, if the
-     * user's attention leaves the peek when they come back to the peek they may
-     * have forgotten what the subject of the peek is.
+     * Another argument for allowing scroll away on mobile but not desktop: on mobile
+     * the user is always focused on one task. Hiding the navigation bar helps them
+     * complete their one task. However, on desktop users are frequently multitasking.
+     * If we hide the navigation bar in a peek, for instance, if the user's attention
+     * leaves the peek when they come back to the peek they may have forgotten what the
+     * subject of the peek is.
      *
-     * Scroll away behavior is the main purpose of our navigation bar hook. Since
-     * it's a complex interaction. Otherwise it would be easy for every route that
-     * needs a navigation bar to render `<NavigationBarContent>` themselves.
+     * Scroll away behavior is the main purpose of our navigation bar hook. Since it's
+     * a complex interaction. Otherwise it would be easy for every route that needs a
+     * navigation bar to render `<NavigationBarContent>` themselves.
      */
     readonly withScrollAway?: boolean;
 
     /**
-     * The title to display in the navigation bar. It will be truncated based
-     * on how much room is in the navigation bar.
+     * The title to display in the navigation bar. It will be truncated based on how
+     * much room is in the navigation bar.
      *
      * The title will not be displayed when scrolled to the top of the view.
      */
@@ -99,45 +99,44 @@ export type NavigationBarProps = {
     readonly getTitleBoundaryElement?: Memo<() => HTMLElement>;
 
     /**
-     * The title only displays once the user has scrolled this distance past the
-     * title boundary element's top.
+     * The title only displays once the user has scrolled this distance past the title
+     * boundary element's top.
      */
     readonly titleBoundaryMarginTop?: Spacing | RemLength;
 
     /**
-     * Don't let the title disappear when the navigation bar is scrolled to the
-     * top. This can lead to some cleaner designs.
+     * Don't let the title disappear when the navigation bar is scrolled to the top.
+     * This can lead to some cleaner designs.
      */
     readonly withoutDisappearingTitle?: boolean;
 
     /**
-     * A secondary title we render under the main title at a smaller size. Used to
-     * add a bit of extra detail.
+     * A secondary title we render under the main title at a smaller size. Used to add
+     * a bit of extra detail.
      */
     readonly subtitle?: ReactNode;
 
     /**
-     * Actions that are made available to the user in a menu button at the right of
-     * the navigation bar. These are secondary and tertiary actions where it
-     * doesn't make sense to give them their own screen space.
+     * Actions that are made available to the user in a menu button at the right of the
+     * navigation bar. These are secondary and tertiary actions where it doesn't make
+     * sense to give them their own screen space.
      */
     readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
-     * Extra content to render at the bottom of the context menu. Useful for
-     * displaying metadata like "Imported from..." text.
+     * Extra content to render at the bottom of the context menu. Useful for displaying
+     * metadata like "Imported from..." text.
      */
     readonly contextMenuExtraBottom?: ReactNode;
 
     /**
-     * Offset between the menu button and its menu. Defaults to
-     * `defaultTooltipOffset` (same as every other `<MenuButton>`). Generally, you
-     * shouldn't configure this so we maintain spacing consistency across the
-     * product.
+     * Offset between the menu button and its menu. Defaults to `defaultTooltipOffset`
+     * (same as every other `<MenuButton>`). Generally, you shouldn't configure this so
+     * we maintain spacing consistency across the product.
      *
-     * An example of where we use this: the subscribe button in channels is bigger
-     * than other buttons in the navigation bar and we want to move the menu
-     * further away from it.
+     * An example of where we use this: the subscribe button in channels is bigger than
+     * other buttons in the navigation bar and we want to move the menu further away
+     * from it.
      */
     readonly menuOffset?: Spacing;
 
@@ -160,11 +159,10 @@ export type NavigationBarProps = {
 
     /**
      * If provided, completely replace the actions in this navigation bar's content
-     * (which includes `menuActions` and `shareButton`) with the contents of this
-     * node.
+     * (which includes `menuActions` and `shareButton`) with the contents of this node.
      *
-     * Useful if you're entering an edit modality and need controls to exit the
-     * editing modality.
+     * Useful if you're entering an edit modality and need controls to exit the editing
+     * modality.
      */
     readonly replaceActions?: ReactNode;
 
@@ -178,39 +176,39 @@ export type NavigationBarProps = {
     /**
      * Only rendered on desktop (not mobile).
      *
-     * Controls at the far left of the navigation bar that renders at the top of
-     * our content and moves with the navigation bar. The title goes to the right
-     * of these controls.
+     * Controls at the far left of the navigation bar that renders at the top of our
+     * content and moves with the navigation bar. The title goes to the right of these
+     * controls.
      *
      * For example, tasks use the status button as a desktop control. So the status
-     * button renders at the very top of the task and when the user scrolls it's
-     * also a part of the navigation bar.
+     * button renders at the very top of the task and when the user scrolls it's also a
+     * part of the navigation bar.
      */
     readonly desktopControls?: ReactNode;
 
     /**
      * The amount of space all content in the navigation bar can occupy on desktop.
-     * This also has the effect of centering the title container (of this width)
-     * when set.
+     * This also has the effect of centering the title container (of this width) when
+     * set.
      *
-     * The difference between `desktopMaxWidth` and `desktopTitleMaxWidth` is that
-     * if `desktopTitleMaxWidth` is set then `menuActions` and `shareButton` will
-     * be aligned with the right side of the screen but if `desktopMaxWidth` is set
-     * then `menuActions` and `shareButton` are within the max width.
+     * The difference between `desktopMaxWidth` and `desktopTitleMaxWidth` is that if
+     * `desktopTitleMaxWidth` is set then `menuActions` and `shareButton` will be
+     * aligned with the right side of the screen but if `desktopMaxWidth` is set then
+     * `menuActions` and `shareButton` are within the max width.
      */
     readonly desktopMaxWidth?: Spacing | RemLength;
 
     /**
-     * The amount of space the title can occupy on desktop. This also has the
-     * effect of centering the title container (of this width) when set.
+     * The amount of space the title can occupy on desktop. This also has the effect of
+     * centering the title container (of this width) when set.
      */
     readonly desktopTitleMaxWidth?: Spacing | RemLength;
 
     /**
-     * When using `desktopTitleMaxWidth` we offset the title from the center by
-     * this much. Pushing the title to the left by half this value. It's used when
-     * your content is optically centered (disregarding the space layout sidebar
-     * width) to make sure the navigation bar title is optically centered as well.
+     * When using `desktopTitleMaxWidth` we offset the title from the center by this
+     * much. Pushing the title to the left by half this value. It's used when your
+     * content is optically centered (disregarding the space layout sidebar width) to
+     * make sure the navigation bar title is optically centered as well.
      */
     readonly desktopTitleMaxWidthCenterOffset?: Spacing | RemLength;
 
@@ -225,9 +223,8 @@ export type NavigationBarProps = {
     readonly desktopTitleFontWeight?: "semi-bold" | "bold";
 
     /**
-     * Slop we add to the left of the title element. You can use this if you don't
-     * want the title's `overflow="hidden"` to clip some UI the title renders to
-     * the left.
+     * Slop we add to the left of the title element. You can use this if you don't want
+     * the title's `overflow="hidden"` to clip some UI the title renders to the left.
      */
     readonly desktopTitleLeftSlop?: Spacing;
 
@@ -237,57 +234,57 @@ export type NavigationBarProps = {
     readonly desktopAdditionalActions?: ReactNode;
 
     /**
-     * Don't render a back button on mobile. Only set this to true for top level
-     * mobile tab routes.
+     * Don't render a back button on mobile. Only set this to true for top level mobile
+     * tab routes.
      */
     readonly withoutMobileBackButton?: boolean;
 
     /**
-     * The cover of the document. If provided, it will be displayed in the
-     * navigation bar. But it won't stick, it'll scroll with the content.
+     * The cover of the document. If provided, it will be displayed in the navigation
+     * bar. But it won't stick, it'll scroll with the content.
      */
     readonly contentCover?: ReactNode;
 
     /**
-     * The default route to navigate to when the back button is pressed and there
-     * is no previous page in browser history.
+     * The default route to navigate to when the back button is pressed and there is no
+     * previous page in browser history.
      */
     readonly defaultPreviousRoute?: MaybeThunk<string>;
 
     /**
      * By default, the navigation bar on mobile has a back button which calls
-     * `navigate(-1)`. If you'd like to provide custom back navigation behavior
-     * then you may pass this prop which will switch the back button to an "X"
-     * close button that calls the function when pressed.
+     * `navigate(-1)`. If you'd like to provide custom back navigation behavior then
+     * you may pass this prop which will switch the back button to an "X" close button
+     * that calls the function when pressed.
      *
-     * For instance, if you use this in a `<MobileFullScreenModal>` you need to
-     * close the modal instead of calling `navigate(-1)`.
+     * For instance, if you use this in a `<MobileFullScreenModal>` you need to close
+     * the modal instead of calling `navigate(-1)`.
      */
     readonly onMobileClose?: () => void;
 
     /**
      * By default, the navigation bar on mobile has a back button which calls
-     * `navigate(-1)`. If you'd like to provide custom back navigation behavior
-     * then you may pass this prop which will switch the back button to a "Cancel"
-     * button that calls the function when pressed.
+     * `navigate(-1)`. If you'd like to provide custom back navigation behavior then
+     * you may pass this prop which will switch the back button to a "Cancel" button
+     * that calls the function when pressed.
      *
-     * For instance, if you use this in a `<MobileFullScreenModal>` you need to
-     * close the modal instead of calling `navigate(-1)`.
+     * For instance, if you use this in a `<MobileFullScreenModal>` you need to close
+     * the modal instead of calling `navigate(-1)`.
      */
     readonly onMobileCancel?: () => void;
 };
 
 export type NavigationBarResult = {
     /**
-     * (Required) Attach this ref to the scroll view the navigation bar renders
-     * on top of.
+     * (Required) Attach this ref to the scroll view the navigation bar renders on top
+     * of.
      */
     scrollViewRef: RefCallback<HTMLElement>;
 
     /**
      * (Required) This element should be rendered inside a `position: relative`
-     * container of all content in the scroll view. It can't be rendered as a
-     * direct child of the scroll view.
+     * container of all content in the scroll view. It can't be rendered as a direct
+     * child of the scroll view.
      *
      * For example, this works:
      *
@@ -309,8 +306,8 @@ export type NavigationBarResult = {
      * </div>
      * ```
      *
-     * `navigationBar` needs to be 100% height of scrollable content. Not 100%
-     * height of the scrollable window.
+     * `navigationBar` needs to be 100% height of scrollable content. Not 100% height
+     * of the scrollable window.
      *
      * If you're attaching a navigation bar to a `<VirtualizedScrollView>` then
      * `navigationBar` may be put in the `extraChildren` prop.

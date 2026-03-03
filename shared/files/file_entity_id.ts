@@ -19,8 +19,8 @@ import {
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
- * Search entities you can create file nodes in content for. This embeds a
- * preview of the entity inline which looks nice within prose.
+ * Search entities you can create file nodes in content for. This embeds a preview
+ * of the entity inline which looks nice within prose.
  */
 export type FileEntityId =
     | `Document:${DocumentId}`

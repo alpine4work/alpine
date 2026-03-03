@@ -130,8 +130,8 @@ function ShareNotificationOverlay(
 
     return (
         <FocusScope
-            // If we're animating closed then don't contain focus since we need to move
-            // focus back to the overlay trigger button element.
+            // If we're animating closed then don't contain focus since we need to move focus
+            // back to the overlay trigger button element.
             contain={isVisible}
         >
             <Box
@@ -144,8 +144,8 @@ function ShareNotificationOverlay(
                 paddingY="5"
                 style={{
                     // Add just a little more width so it doesn't line up perfectly with other `96`
-                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has
-                    // a width of `96` (see `postListViewAsideMaxWidth`).
+                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has a
+                    // width of `96` (see `postListViewAsideMaxWidth`).
                     width: addRemLengths(spacing["96"], spacing["4"]),
                 }}
             >

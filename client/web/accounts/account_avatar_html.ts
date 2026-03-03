@@ -31,8 +31,8 @@ export const accountAvatarInnerClassName = sprinkles({
     overflow: "hidden",
 });
 
-// IMPORTANT: If you update the HTML here you should also update
-// `<AccountAvatar>` for code that render avatars in React.
+// IMPORTANT: If you update the HTML here you should also update `<AccountAvatar>`
+// for code that render avatars in React.
 /**
  * Renders an account avatar to an `HtmlElementGenerator` object. For rendering
  * avatars in `<ContentEditor>` where we can't render React UI.

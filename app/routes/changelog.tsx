@@ -26,8 +26,9 @@ import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model
 /**
  * Standalone route for `/changelog` that displays a specific document.
  *
- * This route duplicates some logic from `s.$spaceId.documents.$documentId._index.tsx`
- * because we can't reuse that route directly:
+ * This route duplicates some logic from
+ * `s.$spaceId.documents.$documentId._index.tsx` because we can't reuse that route
+ * directly:
  *
  * 1. **URL rewriting doesn't work**: Rewriting `/changelog` to
  *    `/s/.../documents/...` in EdgeService or via Cloudflare rules causes an

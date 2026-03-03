@@ -12,9 +12,9 @@ import {emptyObject} from "~/shared/helpers/object/empty_object.js";
  * On the server and on initial mount, the returned size will be null. If the
  * element is unmounted then the returned size will also be null.
  *
- * If you want to observe a different element then you need to change the
- * reference of the `ref` object passed in. We will only observe a new element
- * when this object changes.
+ * If you want to observe a different element then you need to change the reference
+ * of the `ref` object passed in. We will only observe a new element when this
+ * object changes.
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
  */
@@ -83,9 +83,9 @@ function createResizeObserver() {
 
             const lastEntry = lastResizeObserverEntryByElement.get(entry.target);
 
-            // We've seen some `ResizeObserver` events emitted when the width/height
-            // hasn't actually changed. So check to make sure the width/height has actually
-            // changed before calling any resize listeners.
+            // We've seen some `ResizeObserver` events emitted when the width/height hasn't
+            // actually changed. So check to make sure the width/height has actually changed
+            // before calling any resize listeners.
             if (
                 lastEntry === undefined ||
                 (lastEntry.borderBoxSize[0]?.inlineSize ?? 0) !==
@@ -129,9 +129,8 @@ function createResizeObserver() {
             return;
         }
 
-        // If every target from the last `ResizeObserver` notification has requested
-        // resize observer loop errors to be suppressed then we can safely suppress the
-        // error.
+        // If every target from the last `ResizeObserver` notification has requested resize
+        // observer loop errors to be suppressed then we can safely suppress the error.
         if (
             lastEntryTargets.size > 0 &&
             iterableEvery(lastEntryTargets, entryTarget =>
@@ -168,8 +167,8 @@ function createResizeObserver() {
 /**
  * Adds a resize listener for the provided element.
  *
- * We will construct a single `ResizeObserver` for all elements who want to
- * listen to resizes.
+ * We will construct a single `ResizeObserver` for all elements who want to listen
+ * to resizes.
  */
 export function addResizeListenerForElement(
     element: Element,
@@ -219,9 +218,8 @@ export function removeResizeListenerForElement(
 
 /**
  * Suppress the error message "ResizeObserver loop completed with undelivered
- * notifications" for resizes that affect the provided element. Sometimes we
- * change the layout of other elements in a resize observer and that's
- * expected.
+ * notifications" for resizes that affect the provided element. Sometimes we change
+ * the layout of other elements in a resize observer and that's expected.
  *
  * If you suppress errors for an element, document why it's fine.
  */
@@ -233,8 +231,7 @@ export function addSuppressResizeLoopErrorNotificationForElement(element: Elemen
 
 /**
  * Remove error suppression added by
- * `addSuppressResizeLoopErrorNotificationForElement()` for the provided
- * element.
+ * `addSuppressResizeLoopErrorNotificationForElement()` for the provided element.
  */
 export function removeSuppressResizeLoopErrorNotificationForElement(element: Element) {
     const count = suppressingResizeLoopErrorNotificationForElements.get(element) ?? 0;

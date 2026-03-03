@@ -50,8 +50,7 @@ export function getElementSafeAreaInsetBottomPx(element: Element): number {
 }
 
 /**
- * Get the value of the `--window-safe-area-inset-bottom` CSS variable in
- * pixels.
+ * Get the value of the `--window-safe-area-inset-bottom` CSS variable in pixels.
  */
 export function getElementWindowSafeAreaInsetBottomPx(element: Element): number {
     const windowSafeAreaInsetBottom = getComputedStyle(element).getPropertyValue(

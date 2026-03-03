@@ -59,8 +59,8 @@ function createFocusableTreeWalker(
 /**
  * Get the next focusable element in the tab sequence.
  *
- * You may also choose to include elements that are focusable but not a part of
- * the tab sequence (have `tabindex="-1"`).
+ * You may also choose to include elements that are focusable but not a part of the
+ * tab sequence (have `tabindex="-1"`).
  */
 export function getNextFocusableElementIfExists(
     element: Element | null,
@@ -87,8 +87,8 @@ export function getNextFocusableElementIfExists(
 /**
  * Get the previous focusable element in the tab sequence.
  *
- * You may also choose to include elements that are focusable but not a part of
- * the tab sequence (have `tabindex="-1"`).
+ * You may also choose to include elements that are focusable but not a part of the
+ * tab sequence (have `tabindex="-1"`).
  */
 export function getPreviousFocusableElementIfExists(
     element: Element | null,
@@ -104,8 +104,8 @@ export function getPreviousFocusableElementIfExists(
 /**
  * Get the last focusable element in the tab sequence.
  *
- * You may also choose to include elements that are focusable but not a part of
- * the tab sequence (have `tabindex="-1"`).
+ * You may also choose to include elements that are focusable but not a part of the
+ * tab sequence (have `tabindex="-1"`).
  */
 export function getLastFocusableElementIfExists(options?: {
     withinElement?: Element | null;

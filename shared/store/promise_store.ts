@@ -4,8 +4,8 @@ import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
- * Create a store which updates with a promise's state. Starts as pending when
- * the promise has resolved and transitions to fulfilled or rejected. After
+ * Create a store which updates with a promise's state. Starts as pending when the
+ * promise has resolved and transitions to fulfilled or rejected. After
  * transitioning to fulfilled or rejected the store will never change again.
  */
 export function createPromiseStore<Value>(promise: PromiseLike<Value>): Store<PromiseState<Value>> {

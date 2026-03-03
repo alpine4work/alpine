@@ -3,8 +3,8 @@ import {emojiFontFamily} from "~/client/web/styles/styles.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 
 /**
- * Render some text to React but make sure any emojis are wrapped in `<span>`s
- * with `emojiFontFamily`.
+ * Render some text to React but make sure any emojis are wrapped in `<span>`s with
+ * `emojiFontFamily`.
  */
 export function renderTextWithEmojiFontFamily(text: string): string | Array<ReactNode> {
     const nodes: Array<ReactNode> = [];

@@ -22,8 +22,8 @@ const context = createTestContext({
 });
 
 // We should have at least one `getSearchEntity()` test for every search entity
-// type. This object will have a TypeScript error whenever a new search entity
-// is added reminding developers to add a new test for the search entity.
+// type. This object will have a TypeScript error whenever a new search entity is
+// added reminding developers to add a new test for the search entity.
 const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]: () => void} = {
     Account: () => {
         test("can get account search entity", async () => {
@@ -656,18 +656,18 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
     },
     Task: () => {
         // Our `getSearchEntity()` tests for tasks are in
-        // `search_entity_index_tasks.test.ts` because we don't want to start
-        // OpenSearch in this test.
+        // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
+        // this test.
     },
     TaskCollection: () => {
         // Our `getSearchEntity()` tests for tasks are in
-        // `search_entity_index_tasks.test.ts` because we don't want to start
-        // OpenSearch in this test.
+        // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
+        // this test.
     },
     TaskComment: () => {
         // Our `getSearchEntity()` tests for tasks are in
-        // `search_entity_index_tasks.test.ts` because we don't want to start
-        // OpenSearch in this test.
+        // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
+        // this test.
     },
 };
 

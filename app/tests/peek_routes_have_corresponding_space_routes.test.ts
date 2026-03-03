@@ -37,8 +37,8 @@ test("every peek route has a corresponding space route and exports the same thin
         route => route.startsWith("s.$spaceId.peek.") && route !== "s.$spaceId.peek.js",
     );
 
-    // Make sure we have the right directory by verifying there is at least one
-    // peek route.
+    // Make sure we have the right directory by verifying there is at least one peek
+    // route.
     expect(peekRoutes.length > 0).toEqual(true);
 
     peekRoutes.sort();
@@ -46,8 +46,8 @@ test("every peek route has a corresponding space route and exports the same thin
     const actual = Object.fromEntries(
         await runAllPromises(
             peekRoutes.map(async peekRoute => {
-                // NOTE(calebmer): If you update this route ID normalization logic, look for
-                // other places that normalize route IDs. Like
+                // NOTE(calebmer): If you update this route ID normalization logic, look for other
+                // places that normalize route IDs. Like
                 // `makeSpaceDataRouteReuseInflightRequest()`.
                 let spacePath: string | null = joinPath(
                     routesPath,
@@ -63,9 +63,8 @@ test("every peek route has a corresponding space route and exports the same thin
                     peekRoute,
                     spaceModule
                         ? {
-                              // The peek module loader function must be exactly equal to the space module
-                              // loader function. This way we can use the data between the two
-                              // interchangeably.
+                              // The peek module loader function must be exactly equal to the space module loader
+                              // function. This way we can use the data between the two interchangeably.
                               loader: spaceModule.loader,
                               exportNames: Object.keys(spaceModule).sort(),
                           }
@@ -83,9 +82,8 @@ test("every peek route has a corresponding space route and exports the same thin
                 return [
                     peekRoute,
                     {
-                        // The peek module loader function must be exactly equal to the space module
-                        // loader function. This way we can use the data between the two
-                        // interchangeably.
+                        // The peek module loader function must be exactly equal to the space module loader
+                        // function. This way we can use the data between the two interchangeably.
                         loader: peekModule.loader,
                         exportNames: Object.keys(peekModule).sort(),
                     },

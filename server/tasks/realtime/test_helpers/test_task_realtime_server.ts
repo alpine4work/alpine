@@ -121,8 +121,8 @@ export class TestTaskRealtimeServer {
         afterTestEnds(() => this.waitForApplyActionTransactions());
         afterTestEnds(unsubscribe);
 
-        // When our test is finished, evict everything and make sure the server was
-        // truly emptied out.
+        // When our test is finished, evict everything and make sure the server was truly
+        // emptied out.
         afterTestEnds(async () => {
             await ProcessContextModule.waitForTestTasks();
             this.server.evictAllForTest();
@@ -188,9 +188,9 @@ export class TestTaskRealtimeServer {
     }
 
     /**
-     * Wait for all `indexTaskActionTransaction()` calls to resolve and for the
-     * task index to refresh. Then we also clear action history to act as if we're
-     * at a time far away from when the actions were commit.
+     * Wait for all `indexTaskActionTransaction()` calls to resolve and for the task
+     * index to refresh. Then we also clear action history to act as if we're at a time
+     * far away from when the actions were commit.
      */
     public async waitForIndexActionTransactions() {
         await waitForIndexActionTransactionsWithoutClearingActionHistory(this.context);
@@ -198,8 +198,8 @@ export class TestTaskRealtimeServer {
     }
 
     /**
-     * Wait until all parallel processing tasks have settled to make sure
-     * `loadQuery()` doesn't see stale data.
+     * Wait until all parallel processing tasks have settled to make sure `loadQuery()`
+     * doesn't see stale data.
      */
     public async wait() {
         await runAllPromises([
@@ -252,9 +252,8 @@ export class TestTaskRealtimeServer {
     }
 
     /**
-     * Similar to `session.action()` except the `tasks` context module
-     * supports methods that must call into `TaskRealtimeService` like
-     * `context.tasks.loadQueries()`.
+     * Similar to `session.action()` except the `tasks` context module supports methods
+     * that must call into `TaskRealtimeService` like `context.tasks.loadQueries()`.
      */
     public action(session: TestSession) {
         return session.action().clone({

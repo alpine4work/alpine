@@ -14,6 +14,7 @@ import {IdentityType} from "~/shared/helpers/types/identity_type.js";
  *
  * Implementation taken from [`ts-sql`][1].
  *
- * [1]: https://github.com/codemix/ts-sql/blob/de9dc91a30a0ce9340bed719ba6c0d564504ea56/src/Utils/ObjectUtils.ts
+ * [1]:
+ *     https://github.com/codemix/ts-sql/blob/de9dc91a30a0ce9340bed719ba6c0d564504ea56/src/Utils/ObjectUtils.ts
  */
 export type MergeObjectIntersection<T> = IdentityType<{readonly [K in keyof T]: T[K]}>;

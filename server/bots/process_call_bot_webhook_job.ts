@@ -34,8 +34,8 @@ export function setIsProcessCallBotWebhookJobCrashSimulatedForTest(value: boolea
 }
 
 /**
- * When processing a bot webhook job we'll retry failures up to three times
- * (after 2 seconds then 4 seconds). We time out requests after 10 seconds.
+ * When processing a bot webhook job we'll retry failures up to three times (after
+ * 2 seconds then 4 seconds). We time out requests after 10 seconds.
  */
 export async function processCallBotWebhookJob(
     context: Context<ServerSystemActionContextModules & {botWebhook: BotWebhookContextModule}>,
@@ -80,14 +80,13 @@ export async function processCallBotWebhookJob(
         return;
     }
 
-    // If the request was rejected but we have more attempts then reschedule the
-    // job and use `delaySeconds` to wait until the right time to retry.
+    // If the request was rejected but we have more attempts then reschedule the job
+    // and use `delaySeconds` to wait until the right time to retry.
     //
-    // We need this since if status is `Rejected` there's no job in the SQS queue
-    // which SQS will keep retrying. So we manually need to make sure we're
-    // rescheduling retries. We don't need to reschedule `Pending` jobs because SQS
-    // should manage retrying `Pending` jobs we lose track of (e.g. because of a
-    // process crash).
+    // We need this since if status is `Rejected` there's no job in the SQS queue which
+    // SQS will keep retrying. So we manually need to make sure we're rescheduling
+    // retries. We don't need to reschedule `Pending` jobs because SQS should manage
+    // retrying `Pending` jobs we lose track of (e.g. because of a process crash).
     if (
         eventItem.attempt.status.type === "Rejected" &&
         eventItem.attempt.number < botWebhookMaxRetryCount
@@ -104,14 +103,13 @@ export async function processCallBotWebhookJob(
 }
 
 /**
- * Only one process in our distributed system is allowed to make a webhook call
- * for a given event at a time. So before we call the webhook claim a "lease"
- * using the webhook event item.
+ * Only one process in our distributed system is allowed to make a webhook call for
+ * a given event at a time. So before we call the webhook claim a "lease" using the
+ * webhook event item.
  *
- * Leasing is successful if the event item doesn't exist or is in a rejected
- * state and has more retries. We can make a new webhook call after this.
- * Leasing is unsuccessful if there's record of a pending attempt in the bot
- * webhook table.
+ * Leasing is successful if the event item doesn't exist or is in a rejected state
+ * and has more retries. We can make a new webhook call after this. Leasing is
+ * unsuccessful if there's record of a pending attempt in the bot webhook table.
  */
 function leaseBotWebhookEventItem(
     job: CallBotWebhookJobDescription,
@@ -138,8 +136,7 @@ function leaseBotWebhookEventItem(
                     startTime: currentTime,
                     status: {type: "Pending"},
                 },
-                // Delete the event after 30 days. We don't need to keep a record longer
-                // than that.
+                // Delete the event after 30 days. We don't need to keep a record longer than that.
                 expirationTime: addDays(currentTime, 30),
             },
         };
@@ -165,8 +162,8 @@ function leaseBotWebhookEventItem(
         };
     }
 
-    // If the previous attempt was rejected (time out counts as rejected) and our
-    // retry wait time has passed then start a new attempt.
+    // If the previous attempt was rejected (time out counts as rejected) and our retry
+    // wait time has passed then start a new attempt.
     if (
         eventItem.attempt.status.type === "Rejected" &&
         eventItem.attempt.number < botWebhookMaxRetryCount &&
@@ -193,9 +190,9 @@ function leaseBotWebhookEventItem(
 }
 
 /**
- * We're allowed to call the webhook! Leasing the event was successful, we're
- * the only process in our distributed system allowed to make a call, so go
- * ahead and make the call.
+ * We're allowed to call the webhook! Leasing the event was successful, we're the
+ * only process in our distributed system allowed to make a call, so go ahead and
+ * make the call.
  */
 async function actuallyCallBotWebhook(
     context: Context<ServerSystemActionContextModules & {botWebhook: BotWebhookContextModule}>,
@@ -240,8 +237,8 @@ async function actuallyCallBotWebhook(
         spaceId: job.spaceId,
         botId: job.botId,
         botAccountId: job.botAccountId,
-        // TODO(calebmer, #public-api): Remove `accountId` after this commit deploys.
-        // It's only here for backwards compatibility purposes.
+        // TODO(calebmer, #public-api): Remove `accountId` after this commit deploys. It's
+        // only here for backwards compatibility purposes.
         accountId: job.botAccountId,
         accessToken,
         attempt: attemptNumber,
@@ -262,15 +259,15 @@ async function actuallyCallBotWebhook(
     }, botWebhookRequestTimeoutMs);
 
     try {
-        // TODO(calebmer, #public-api): When we start making requests to third-parties
-        // we don't want to expose the IP address of our AWS EC2 instances. Right now
-        // our AWS EC2 instances lives in a public VPC so if you have the IP address
-        // you'll be able to make requests to our servers which might be a problem.
+        // TODO(calebmer, #public-api): When we start making requests to third-parties we
+        // don't want to expose the IP address of our AWS EC2 instances. Right now our AWS
+        // EC2 instances lives in a public VPC so if you have the IP address you'll be able
+        // to make requests to our servers which might be a problem.
         //
-        // TODO(calebmer, #public-api): Tracing needs to behave differently when
-        // calling third-party services. We shouldn't use `AgentService` as the
-        // `serviceName` and maybe the route should be `/*` since we don't know the
-        // route structure of third-party services.
+        // TODO(calebmer, #public-api): Tracing needs to behave differently when calling
+        // third-party services. We shouldn't use `AgentService` as the `serviceName` and
+        // maybe the route should be `/*` since we don't know the route structure of
+        // third-party services.
         await fetchWithTracer(
             context.tracer.getTracer(),
             botWebhookUrl,
@@ -288,17 +285,16 @@ async function actuallyCallBotWebhook(
                 body: JSON.stringify(requestBody),
             },
             async response => {
-                // We don't use the response body. Cancel the stream so if the server returns a
-                // big response payload we don't pay for it.
+                // We don't use the response body. Cancel the stream so if the server returns a big
+                // response payload we don't pay for it.
                 //
                 // The webhook is responsible for calling any write methods on the API (e.g.
-                // `POST /chats/{id}/messages`) to update the app in response to the webhook
-                // event.
+                // `POST /chats/{id}/messages`) to update the app in response to the webhook event.
                 await response.body?.cancel();
 
-                // Only retry 5xx errors. We consider 2xx, 3xx, and 4xx status codes as
-                // successful delivery. Status codes like 400 and 401 (unauthorized) probably
-                // mean the recipient server is misconfigured.
+                // Only retry 5xx errors. We consider 2xx, 3xx, and 4xx status codes as successful
+                // delivery. Status codes like 400 and 401 (unauthorized) probably mean the
+                // recipient server is misconfigured.
                 if (response.status >= 500) {
                     rejectedReason = "ServerErrorStatusCode";
                     throw new UnknownError(`Webhook request failed with status ${response.status}`);
@@ -308,8 +304,7 @@ async function actuallyCallBotWebhook(
 
         timeout.clear();
 
-        // If we throw after this point, it's an internal error due to a bug in
-        // our code.
+        // If we throw after this point, it's an internal error due to a bug in our code.
         rejectedReason = "Internal";
 
         // Unit test helper for simulating a process crash.
@@ -321,9 +316,9 @@ async function actuallyCallBotWebhook(
             eventItem => {
                 // Make sure the event is still in our expected state.
                 //
-                // Defends against another `processCallBotWebhookJob()` running, deciding the
-                // call has timed out (maybe because of clock skew), and updating to a
-                // `Rejected` state or `Pending` state with a new `attemptNumber`.
+                // Defends against another `processCallBotWebhookJob()` running, deciding the call
+                // has timed out (maybe because of clock skew), and updating to a `Rejected` state
+                // or `Pending` state with a new `attemptNumber`.
                 if (eventItem.attempt.status.type !== "Pending") return eventItem;
                 if (eventItem.attempt.number !== attemptNumber) return eventItem;
 
@@ -349,9 +344,9 @@ async function actuallyCallBotWebhook(
             eventItem => {
                 // Make sure the event is still in our expected state.
                 //
-                // Defends against another `processCallBotWebhookJob()` running, deciding the
-                // call has timed out (maybe because of clock skew), and updating to a
-                // `Rejected` state or `Pending` state with a new `attemptNumber`.
+                // Defends against another `processCallBotWebhookJob()` running, deciding the call
+                // has timed out (maybe because of clock skew), and updating to a `Rejected` state
+                // or `Pending` state with a new `attemptNumber`.
                 if (eventItem.attempt.status.type !== "Pending") return eventItem;
                 if (eventItem.attempt.number !== attemptNumber) return eventItem;
 
@@ -366,8 +361,8 @@ async function actuallyCallBotWebhook(
             {initialItem: eventItem},
         );
 
-        // If we have more retries then send the job back to the queue with a delay so
-        // we can try again.
+        // If we have more retries then send the job back to the queue with a delay so we
+        // can try again.
         if (attemptNumber < botWebhookMaxRetryCount) {
             await context.jobs.sendAndWait(job, {
                 delaySeconds: Math.ceil((botWebhookRetryDelayIncrementMs * attemptNumber) / 1000),

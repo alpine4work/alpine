@@ -121,8 +121,8 @@ export function TaskCollectionView({
 }: {
     store: TaskClientStore;
     collectionId: TaskCollectionId;
-    // If `collectionSubscription` is null, that means we are creating a
-    // new collection.
+    // If `collectionSubscription` is null, that means we are creating a new
+    // collection.
     collectionSubscription: TaskClientCollectionSubscription | null;
     shouldInitiallyFocusEditableCollectionName: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
@@ -149,9 +149,8 @@ export function TaskCollectionView({
 
     const accessPolicy = useStore(
         useMemo((): Store<AccessPolicy> => {
-            // If there's no `collectionSubscription` it means we're creating the
-            // collection. When the user creates a collection they get the manage access
-            // level.
+            // If there's no `collectionSubscription` it means we're creating the collection.
+            // When the user creates a collection they get the manage access level.
             if (!collectionSubscription) {
                 return new ConstStore({
                     accountGrantById: currentAccount
@@ -257,12 +256,12 @@ export function TaskCollectionView({
         });
     }, [allFilters, collectionSubscription, currentAccount?.id, currentDate]);
 
-    // If no filters or sorts have been explicitly set then the user can manually
-    // sort by collection position.
+    // If no filters or sorts have been explicitly set then the user can manually sort
+    // by collection position.
     //
-    // If the collection view is filtered we automatically apply a sort since there
-    // can be some weirdness creating a task and expecting it to be in one place
-    // when there's no filter but instead it goes to another place.
+    // If the collection view is filtered we automatically apply a sort since there can
+    // be some weirdness creating a task and expecting it to be in one place when
+    // there's no filter but instead it goes to another place.
     const normalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = useMemo(() => {
         return filters.length === 0 && sorts.length === 0
             ? [
@@ -313,8 +312,8 @@ export function TaskCollectionView({
     }
 
     // If the actor doesn't have space access then we need to keep track of any
-    // accounts/collections referenced by the query. This is expensive (O(tasks))
-    // so it's important to only run this when `currentAccount` is null.
+    // accounts/collections referenced by the query. This is expensive (O(tasks)) so
+    // it's important to only run this when `currentAccount` is null.
     const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
         !currentAccount ? (queryState.activeQuery.query?.query ?? null) : null,
     );
@@ -473,8 +472,7 @@ export function TaskCollectionView({
                                     primaryButtonPressErrorTitle:
                                         "Couldn\u2019t delete task collection",
                                     onPrimaryButtonPress: async () => {
-                                        // Wait until navigation has finished to actually delete the
-                                        // collection.
+                                        // Wait until navigation has finished to actually delete the collection.
                                         await navigate(-1);
 
                                         store.commitTaskActionTransaction(
@@ -545,8 +543,8 @@ export function TaskCollectionView({
         [itemCountBeforeGridView],
     );
 
-    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
-    // items which precede our children grid view.
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of items
+    // which precede our children grid view.
     useImperativeHandle(
         gridViewRef,
         () => ({
@@ -634,11 +632,10 @@ export function TaskCollectionView({
 
             const query = queryState.activeQuery.query.query;
 
-            // If the query is auto-sorted we disable features that allow moving tasks into
-            // the query. Like hitting shift-tab to dedent or hitting enter to create a new
-            // task. We may want to re-enable some of these someday in auto-sorted queries.
-            // See the comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more
-            // discussion.
+            // If the query is auto-sorted we disable features that allow moving tasks into the
+            // query. Like hitting shift-tab to dedent or hitting enter to create a new task.
+            // We may want to re-enable some of these someday in auto-sorted queries. See the
+            // comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more discussion.
             if (!isTaskQueryManuallySorted(query.sorts)) return null;
 
             const time1 = store.clock.now();
@@ -687,9 +684,9 @@ export function TaskCollectionView({
 
             const query = queryState.activeQuery.query.query;
 
-            // If the query is auto-sorted we disable features that remove tasks from the
-            // grid view. Like tab to indent or drag and drop. Neither makes sense when you
-            // don't have control over the order of tasks.
+            // If the query is auto-sorted we disable features that remove tasks from the grid
+            // view. Like tab to indent or drag and drop. Neither makes sense when you don't
+            // have control over the order of tasks.
             if (!isTaskQueryManuallySorted(query.sorts)) return [];
 
             return [
@@ -702,9 +699,9 @@ export function TaskCollectionView({
             ];
         },
         columnHeaderControls: useMemo(() => {
-            // We don't have sticky column header controls when rendering in a mobile
-            // layout. Instead we render a navigation bar and render filters/sorts at the
-            // top of the view in a non-sticky manner.
+            // We don't have sticky column header controls when rendering in a mobile layout.
+            // Instead we render a navigation bar and render filters/sorts at the top of the
+            // view in a non-sticky manner.
             //
             // We do this for peeks too.
             if (routeLayout === "narrow") return;
@@ -894,9 +891,8 @@ export function TaskCollectionView({
                         () =>
                             routeLayout === "narrow"
                                 ? [
-                                      // Always render `<TaskQueryViewCustomizationMobileSection>`
-                                      // regardless of where we've scrolled. We can return focus there at
-                                      // any moment.
+                                      // Always render `<TaskQueryViewCustomizationMobileSection>` regardless of where
+                                      // we've scrolled. We can return focus there at any moment.
                                       0,
                                       ...alwaysRenderAdditionalGridViewItemIndexes.map(
                                           index => index + itemCountBeforeGridView,

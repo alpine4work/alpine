@@ -2,9 +2,9 @@ import {ReactNode} from "react";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 
 /**
- * Join a list of components into an English conjunction list. Does the same
- * thing as `joinPrettyConjunctionList()` but lets you have individual React
- * components for each list item.
+ * Join a list of components into an English conjunction list. Does the same thing
+ * as `joinPrettyConjunctionList()` but lets you have individual React components
+ * for each list item.
  */
 export function PrettyConjunctionList({
     list,

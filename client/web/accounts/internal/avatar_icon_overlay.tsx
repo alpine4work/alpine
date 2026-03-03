@@ -6,8 +6,8 @@ import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js
 // `renderAvatarIconOverlay()` for code that needs to render avatars in
 // `<ContentEditor>`.
 /**
- * This component carves out the bottom right area from the avatar in the shape of the icon.
- * It then draws the icon within that cutout space.
+ * This component carves out the bottom right area from the avatar in the shape of
+ * the icon. It then draws the icon within that cutout space.
  */
 export function AvatarIconOverlay({
     avatarPx,
@@ -22,9 +22,9 @@ export function AvatarIconOverlay({
         position: "absolute",
         width: iconSizePx,
         height: iconSizePx,
-        // Position the SVG container just past the bounding box so that the ghost icon itself is
-        // drawn almost exactly at the bottom right corner of the box. This looks correct at all
-        // (tested) scales
+        // Position the SVG container just past the bounding box so that the ghost icon
+        // itself is drawn almost exactly at the bottom right corner of the box. This looks
+        // correct at all (tested) scales
         bottom: "-1px",
         right: "-1px",
     } as const;
@@ -39,8 +39,8 @@ export function AvatarIconOverlay({
                     ...iconStyleBase,
                     overflow: "hidden",
                 }}
-                // The stroke width gets scaled according to the ghost icons size, so
-                // this hardcoded value looks good at all (tested) scales.
+                // The stroke width gets scaled according to the ghost icons size, so this
+                // hardcoded value looks good at all (tested) scales.
                 strokeWidth={96}
             />
             <Icon

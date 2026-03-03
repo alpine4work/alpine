@@ -15,8 +15,8 @@ import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * Authorize that the current account is allowed to access the chat.
  *
- * Cached at the action level so multiple requests with the same `ChatId` in
- * the same action will only load data from the database once.
+ * Cached at the action level so multiple requests with the same `ChatId` in the
+ * same action will only load data from the database once.
  */
 export async function authorizeChatAccess(
     context: ServerActionContext,
@@ -33,8 +33,8 @@ export async function authorizeChatAccess(
  * Authorize that the current account is allowed to access the chat. Returns a
  * result if authorization fails instead of throwing.
  *
- * Cached at the action level so multiple requests with the same `ChatId` in
- * the same action will only load data from the database once.
+ * Cached at the action level so multiple requests with the same `ChatId` in the
+ * same action will only load data from the database once.
  */
 export async function authorizeChatAccessIfPossible(
     context: ServerActionContext,
@@ -57,8 +57,7 @@ export async function authorizeChatAccessIfPossible(
  * If this is a session context, we also check that our session's account has
  * access to the chat.
  *
- * Returns some data related to the chat that exists on the item's we
- * query for.
+ * Returns some data related to the chat that exists on the item's we query for.
  */
 export async function authorizeChatAccessForAccount(
     context: ServerActionContext,
@@ -87,8 +86,7 @@ export async function authorizeChatAccessForAccount(
  * If this is a session context, we also check that our session's account has
  * access to the chat.
  *
- * Returns some data related to the chat that exists on the item's we
- * query for.
+ * Returns some data related to the chat that exists on the item's we query for.
  */
 export async function authorizeChatAccessForAccountIfPossible(
     context: ServerActionContext,

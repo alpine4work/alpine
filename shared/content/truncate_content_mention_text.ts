@@ -5,8 +5,8 @@ export const contentMentionTextTruncatedSuffix = " […]";
 
 export const contentMentionTextSoftMaxGraphemeCount = 90;
 
-// According to Claude, 99% of English words are 14 characters or shorter. So
-// we should safely be able to include an English word before we truncate.
+// According to Claude, 99% of English words are 14 characters or shorter. So we
+// should safely be able to include an English word before we truncate.
 export const contentMentionTextHardMaxGraphemeCount =
     contentMentionTextSoftMaxGraphemeCount + maxReasonableEnglishWordGraphemeCount;
 
@@ -39,8 +39,8 @@ export function truncateContentMentionText(string: string) {
 
     let truncatedString = string.slice(0, length);
 
-    // Add the truncated suffix. Unless the string already ends with the
-    // truncated suffix.
+    // Add the truncated suffix. Unless the string already ends with the truncated
+    // suffix.
     if (isTruncated && !truncatedString.endsWith(contentMentionTextTruncatedSuffix))
         truncatedString += contentMentionTextTruncatedSuffix;
 

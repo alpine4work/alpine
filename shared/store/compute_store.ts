@@ -6,17 +6,17 @@ import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_im
 import {Store} from "~/shared/store/store.js";
 
 /**
- * Creates a store that let's you run an arbitrary synchronous computation with
- * any number of dynamic store dependencies and return a result.
+ * Creates a store that let's you run an arbitrary synchronous computation with any
+ * number of dynamic store dependencies and return a result.
  *
- * In your computation function, if you want to read the value from a store
- * call `get(store)`. This not only gives you the current value of the store but
- * also registers the store as a dependency so if it changes in the future your
+ * In your computation function, if you want to read the value from a store call
+ * `get(store)`. This not only gives you the current value of the store but also
+ * registers the store as a dependency so if it changes in the future your
  * computation will be re-run.
  *
- * You can probably get the same effect as this store by using
- * `store.flatMap()` a bunch but a computation store is significantly more
- * ergonomic and doesn't create a bunch of intermediate store objects.
+ * You can probably get the same effect as this store by using `store.flatMap()` a
+ * bunch but a computation store is significantly more ergonomic and doesn't create
+ * a bunch of intermediate store objects.
  */
 export function computeStore<NewValue>(
     compute: (get: <Value>(store: Store<Value>) => Value) => NewValue,
@@ -26,13 +26,13 @@ export function computeStore<NewValue>(
 
 // NOTE(calebmer, 2023-09-22): When I worked at Airtable, I introduce a library
 // called Live that was similar to the `Store` helpers we have here. `Store` is
-// much more focused on incremental updates whereas Live was mostly focused on
-// the ergonomics of writing reactive client code. Live basically only provided
+// much more focused on incremental updates whereas Live was mostly focused on the
+// ergonomics of writing reactive client code. Live basically only provided
 // equivalents for `ValueStore` and `computeStore()` (no tree stores, no
 // `store.map()`). However, the ergonomics were a lot nicer. It established a
 // convention of "live" functions that were like async functions but reactive.
-// You'd write a live function by adding "Live" to the end of your function
-// name like this:
+// You'd write a live function by adding "Live" to the end of your function name
+// like this:
 //
 // ```js
 // function getNameLive(account) {
@@ -41,22 +41,22 @@ export function computeStore<NewValue>(
 // ```
 //
 // The wait it worked is the equivalent of `ValueStore` had a function called
-// `getWithoutListening()` (which has the same behavior as `getSnapshot()`) and
-// a function called `live()`. The `live()` function looked at a global "live
+// `getWithoutListening()` (which has the same behavior as `getSnapshot()`) and a
+// function called `live()`. The `live()` function looked at a global "live
 // context" variable and registered the store as a dependency when we were in a
-// live context. Outside of a live context that function threw. We had a lint
-// rule to make sure you only ever used live functions in live contexts.
+// live context. Outside of a live context that function threw. We had a lint rule
+// to make sure you only ever used live functions in live contexts.
 //
-// What's really ergonomic about this is you don't have to pass the `get`
-// function into live functions. Instead we lookup a global context variable.
-// With `computeStore()`, calling `get(store)` is not only less pretty than
+// What's really ergonomic about this is you don't have to pass the `get` function
+// into live functions. Instead we lookup a global context variable. With
+// `computeStore()`, calling `get(store)` is not only less pretty than
 // `store.live()` but it also makes it harder to build live abstractions like
 // `getFullNameLive(account)`.
 //
 // The downside of a global live context is it's implicit, not enforced by type
-// signatures, and can't support async functions. Maybe in the Cyberworlds
-// codebase we can leverage the `Context` object and attach a live context to
-// that? Since we have conventions around propagating that object.
+// signatures, and can't support async functions. Maybe in the Cyberworlds codebase
+// we can leverage the `Context` object and attach a live context to that? Since we
+// have conventions around propagating that object.
 class ComputationStore<NewValue> extends Store<NewValue> {
     private readonly _compute: (get: <Value>(store: Store<Value>) => Value) => NewValue;
     private readonly _oldValueResultByStore = new Map<Store<unknown>, Result<unknown>>();
@@ -70,12 +70,12 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public override isFinal(): boolean {
-        // This function should be fast. Recursively checking if all our stores are
-        // final defeats the point of this optimization. So pessimistically assume the
-        // store is not final.
+        // This function should be fast. Recursively checking if all our stores are final
+        // defeats the point of this optimization. So pessimistically assume the store is
+        // not final.
         //
-        // If the `get()` function passed to `compute()` was never called then this
-        // store is final.
+        // If the `get()` function passed to `compute()` was never called then this store
+        // is final.
         return this._newValueResult !== null && this._oldValueResultByStore.size === 0;
     }
 
@@ -91,16 +91,15 @@ class ComputationStore<NewValue> extends Store<NewValue> {
                     );
                 }
 
-                // Optimization: Final stores never update so don't bother recording the store
-                // in our dependencies.
+                // Optimization: Final stores never update so don't bother recording the store in
+                // our dependencies.
                 if (store.isFinal()) return store.getSnapshot();
 
                 const existingOldValueResult = this._oldValueResultByStore.get(store);
 
                 // If we previously read the value for this store then keep returning the same
                 // value. This does mean if a store updates during a computation (we strongly
-                // recommend against this) we'll keep returning the old value for just
-                // that store.
+                // recommend against this) we'll keep returning the old value for just that store.
                 if (existingOldValueResult !== undefined) {
                     return unwrapResult(existingOldValueResult) as Value;
                 } else {
@@ -134,9 +133,8 @@ class ComputationStore<NewValue> extends Store<NewValue> {
             return unwrapResult(this._newValueResult);
         }
 
-        // When testing if values changed we put new results into this map so we can
-        // reuse them later instead of calling `getSnapshot()` twice in one
-        // computation.
+        // When testing if values changed we put new results into this map so we can reuse
+        // them later instead of calling `getSnapshot()` twice in one computation.
         const updatedValueResultByStore = new Map<Store<unknown>, Result<unknown>>();
 
         const haveNoValuesChanged = iterableEvery(
@@ -173,8 +171,8 @@ class ComputationStore<NewValue> extends Store<NewValue> {
                 );
             }
 
-            // Optimization: Final stores never update so don't bother recording the store
-            // in our dependencies.
+            // Optimization: Final stores never update so don't bother recording the store in
+            // our dependencies.
             if (store.isFinal()) return store.getSnapshot();
 
             const existingOldValueResult = this._oldValueResultByStore.get(store);
@@ -202,8 +200,7 @@ class ComputationStore<NewValue> extends Store<NewValue> {
             //
             // If we previously read the value for this store then keep returning the same
             // value. This does mean if a store updates during a computation (we strongly
-            // recommend against this) we'll keep returning the old value for just
-            // that store.
+            // recommend against this) we'll keep returning the old value for just that store.
             return unwrapResult(existingOldValueResult) as Value;
         };
 

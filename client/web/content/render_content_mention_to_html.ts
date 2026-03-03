@@ -101,8 +101,8 @@ export function renderContentMentionToHtml(
                     ? getAccountShortNameWithoutFullNameTooltip(accountData)
                     : accountData.name;
 
-                // Replace spaces in the account name with no-break spaces. We want the entire
-                // pill to stay together and not wrap when we reach the end of a line of text.
+                // Replace spaces in the account name with no-break spaces. We want the entire pill
+                // to stay together and not wrap when we reach the end of a line of text.
                 //
                 // It's especially important that we don't wrap if this is the current account.
                 // Since our current account CSS doesn't support wrapped inline elements.
@@ -153,8 +153,8 @@ export function renderContentMentionToHtml(
                     children: createSvgHtmlGenerator(
                         entityIconSvg({
                             size: `${contentStyles.mentionIconSizeEm}em`,
-                            // We use a CSS variable for color so when we're inside a `blockQuoteClassName`
-                            // we use a slightly lighter grey,
+                            // We use a CSS variable for color so when we're inside a `blockQuoteClassName` we
+                            // use a slightly lighter grey,
                             color: contentStyles.mentionEntityIconColorVar,
                         }),
                     ),
@@ -242,10 +242,10 @@ export function renderContentMentionToHtml(
                         }),
                     );
                 } else {
-                    // Render a grey circle for chats that don't have an `AccountPile` media. We
-                    // want to communicate it's a multi-person chat so we don't want to render one
-                    // account. This case should happen rarely. Just `RoomChat`s that only a single
-                    // person has messaged so far.
+                    // Render a grey circle for chats that don't have an `AccountPile` media. We want
+                    // to communicate it's a multi-person chat so we don't want to render one account.
+                    // This case should happen rarely. Just `RoomChat`s that only a single person has
+                    // messaged so far.
                     html.appendChild(
                         renderContentMentionIcon({
                             width: "extra-wide",
@@ -259,8 +259,8 @@ export function renderContentMentionToHtml(
                     );
                 }
 
-                // Post titles are of the form "in ${channelName}: ". We rely on the client to
-                // add the account name to the post mention title.
+                // Post titles are of the form "in ${channelName}: ". We rely on the client to add
+                // the account name to the post mention title.
                 if (mention.type === "SearchEntity" && mention.entityId.startsWith("Post:")) {
                     text = `${getAccountShortNameWithoutFullNameTooltip(accountData)} ${text}`;
                 }
@@ -339,9 +339,9 @@ export function renderContentMentionToHtml(
                         children: renderTaskDisplayStatusCircle({
                             displayStatus: media.displayStatus,
                             size: contentStyles.mentionIconWithScalingSize,
-                            // Content mention icons render at size "7" then are scaled down based on the
-                            // font size. We want our task display circle to have a 1px border when scaled
-                            // down to "4" so use that ratio as the `scale` property.
+                            // Content mention icons render at size "7" then are scaled down based on the font
+                            // size. We want our task display circle to have a 1px border when scaled down to
+                            // "4" so use that ratio as the `scale` property.
                             scale: 4 / parseInt(contentStyles.mentionIconWithScalingSize, 10),
                         }),
                     }),
@@ -361,17 +361,16 @@ export function renderContentMentionToHtml(
         textHtml.setAttribute("data-testid", "ContentMentionText");
     }
 
-    // Add a little more right padding to current account mentions so the
-    // background color extends further to the right and looks nice. We have to use
-    // no-break space so that Chrome text selection highlight is contiguous across
-    // the mention (vs using `padding-right` which creates gaps in the selection).
+    // Add a little more right padding to current account mentions so the background
+    // color extends further to the right and looks nice. We have to use no-break space
+    // so that Chrome text selection highlight is contiguous across the mention (vs
+    // using `padding-right` which creates gaps in the selection).
     if (isCurrentAccountMention) {
         textHtml.appendChild(new HtmlTextGenerator("\u202F"));
     }
 
-    // We need a container element for `highlight` mark styles to be applied to.
-    // Our mention element may have a background color when mentioning the
-    // current account.
+    // We need a container element for `highlight` mark styles to be applied to. Our
+    // mention element may have a background color when mentioning the current account.
     const containerHtml =
         isInert || href === null ? new HtmlElementGenerator("span") : new HtmlElementGenerator("a");
 
@@ -408,14 +407,14 @@ function renderContentMentionIcon({
     );
     iconHtml.appendChild(childrenHtml);
 
-    // The width of this element is provided by some no-break space characters.
-    // That way if the user highlights the mention there will be consistent
-    // background color.
+    // The width of this element is provided by some no-break space characters. That
+    // way if the user highlights the mention there will be consistent background
+    // color.
     //
     // https://graphemica.com/%C2%A0
     //
-    // We need to be careful about the number of spaces we add since this needs to
-    // look good in monospace fonts too.
+    // We need to be careful about the number of spaces we add since this needs to look
+    // good in monospace fonts too.
     {
         const spaceHtml = iconContainerHtml.appendChild(new HtmlElementGenerator("span"));
         spaceHtml.setAttribute("class", contentStyles.mentionIconMonospaceSpaceClassName);

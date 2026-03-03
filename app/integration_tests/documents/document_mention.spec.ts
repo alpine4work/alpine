@@ -113,8 +113,8 @@ test("can see a mention added by another user", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    // Focusing the document in the second browser will wait for the document to
-    // be interactive.
+    // Focusing the document in the second browser will wait for the document to be
+    // interactive.
     await page2.getByRole("textbox", {name: "Document"}).focus();
 
     await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();

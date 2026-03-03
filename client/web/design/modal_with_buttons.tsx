@@ -136,11 +136,11 @@ function ModalWithButtons(
                                 setIsPrimaryButtonPending(false);
 
                                 if (!withoutCloseAfterPrimaryButtonPress) {
-                                    // Our animation principle is to respond to user input immediately
-                                    // without animation.
+                                    // Our animation principle is to respond to user input immediately without
+                                    // animation.
                                     //
-                                    // If the button had to go into a loading state we consider the click long
-                                    // enough ago that it is no longer a direct action.
+                                    // If the button had to go into a loading state we consider the click long enough
+                                    // ago that it is no longer a direct action.
                                     if (
                                         new Date().getTime() - promiseStartTime.getTime() >
                                         delayLoadingIndicatorLimitMs
@@ -192,11 +192,11 @@ function ModalWithButtons(
                                             const promiseStartTime = new Date();
 
                                             return promise.then(() => {
-                                                // Our animation principle is to respond to user input immediately
-                                                // without animation.
+                                                // Our animation principle is to respond to user input immediately without
+                                                // animation.
                                                 //
-                                                // If the button had to go into a loading state we consider the click long
-                                                // enough ago that it is no longer a direct action.
+                                                // If the button had to go into a loading state we consider the click long enough
+                                                // ago that it is no longer a direct action.
                                                 if (
                                                     new Date().getTime() -
                                                         promiseStartTime.getTime() >

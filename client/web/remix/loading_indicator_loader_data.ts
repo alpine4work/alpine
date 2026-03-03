@@ -21,9 +21,9 @@ export function isLoadingIndicatorLoaderData(
 }
 
 /**
- * If we have loading indicator loader data, this function will unwrap it to
- * the underlying loader data value. If the loading indicator promise is still
- * pending an error will be thrown! You may only unwrap once loading is done.
+ * If we have loading indicator loader data, this function will unwrap it to the
+ * underlying loader data value. If the loading indicator promise is still pending
+ * an error will be thrown! You may only unwrap once loading is done.
  */
 export function unwrapLoadingIndicatorLoaderData<Value>(loaderData: Value): Value {
     if (!isLoadingIndicatorLoaderData(loaderData)) return loaderData;

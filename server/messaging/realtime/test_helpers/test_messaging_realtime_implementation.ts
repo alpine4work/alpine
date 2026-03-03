@@ -3555,7 +3555,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 ]),
             );
 
-            // Pause before sending the update so we can connect new connections during the update
+            // Pause before sending the update so we can connect new connections during the
+            // update
             const pausePromise =
                 messagingRealtimeUpdateMessageContentBeforeSendTestCheckpoint.pauseForTest(
                     session3.account.id,

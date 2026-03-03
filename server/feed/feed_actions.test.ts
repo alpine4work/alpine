@@ -30,8 +30,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
-// Increase test timeout since some of these tests can take a while to setup
-// (e.g. they need to create hundreds of posts).
+// Increase test timeout since some of these tests can take a while to setup (e.g.
+// they need to create hundreds of posts).
 import.meta.jest.setTimeout(1000 * 30);
 
 import.meta.jest.useFakeTimers();
@@ -53,9 +53,9 @@ const context = createTestContext({
     },
 });
 
-// This is unrelated to our feed tests but we want a sanity check in at least
-// one test file to make sure our Jest internals hack in `createTestContext()`
-// works and the timeout we set at the top of this file isn't lowered to 10s.
+// This is unrelated to our feed tests but we want a sanity check in at least one
+// test file to make sure our Jest internals hack in `createTestContext()` works
+// and the timeout we set at the top of this file isn't lowered to 10s.
 assert((globalThis as any)[Symbol.for("TEST_TIMEOUT_SYMBOL")] === 1000 * 30);
 
 test("creating a post will create a feed candidate", async () => {
@@ -2793,8 +2793,8 @@ test("get and update feed gets new entries every call", async () => {
         ],
     });
 
-    // Currently, we put entries initiated by a session in their own feed. Should
-    // we change this to only show other people's stuff?
+    // Currently, we put entries initiated by a session in their own feed. Should we
+    // change this to only show other people's stuff?
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
@@ -4477,7 +4477,8 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add affinity points for session2's account (high affinity) from session3's perspective.
+    // Add affinity points for session2's account (high affinity) from session3's
+    // perspective.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session3.account.id,
@@ -4485,9 +4486,9 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
         points: 1000,
     });
 
-    // Create posts: session1 posts first (older), then session2 posts (newer).
-    // Without ranking, the feed would show session2's post first (chronological).
-    // With ranking, session2's post should still be first (high affinity + newer).
+    // Create posts: session1 posts first (older), then session2 posts (newer). Without
+    // ranking, the feed would show session2's post first (chronological). With
+    // ranking, session2's post should still be first (high affinity + newer).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4516,7 +4517,8 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add affinity points for session2's account (high affinity) from session3's perspective.
+    // Add affinity points for session2's account (high affinity) from session3's
+    // perspective.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session3.account.id,
@@ -4524,9 +4526,9 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
         points: 1000,
     });
 
-    // Create posts: session1 posts first (older), then session2 posts (newer).
-    // Without ranking, the feed would show session2's post first (chronological).
-    // With ranking, session2's post should still be first (high affinity + newer).
+    // Create posts: session1 posts first (older), then session2 posts (newer). Without
+    // ranking, the feed would show session2's post first (chronological). With
+    // ranking, session2's post should still be first (high affinity + newer).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel.createPost(session2);
     await ProcessContextModule.waitForTestTasks();
@@ -4556,9 +4558,9 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
     const channel2 = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add channel affinity points for channel1 (space-level affinity).
-    // Note: Channel affinity is space-level, not account-level, so any account
-    // viewing high-activity content from that channel increases its ranking.
+    // Add channel affinity points for channel1 (space-level affinity). Note: Channel
+    // affinity is space-level, not account-level, so any account viewing high-activity
+    // content from that channel increases its ranking.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session2.account.id,
@@ -4566,7 +4568,8 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
         points: 1000,
     });
 
-    // Create posts: first in channel2 (older, low affinity), then channel1 (newer, high affinity).
+    // Create posts: first in channel2 (older, low affinity), then channel1 (newer,
+    // high affinity).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel2.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4596,9 +4599,9 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
     const channel2 = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add channel affinity points for channel1 (space-level affinity).
-    // Note: Channel affinity is space-level, not account-level, so any account
-    // viewing high-activity content from that channel increases its ranking.
+    // Add channel affinity points for channel1 (space-level affinity). Note: Channel
+    // affinity is space-level, not account-level, so any account viewing high-activity
+    // content from that channel increases its ranking.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session2.account.id,
@@ -4606,7 +4609,8 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
         points: 1000,
     });
 
-    // Create posts: first in channel2 (older, low affinity), then channel1 (newer, high affinity).
+    // Create posts: first in channel2 (older, low affinity), then channel1 (newer,
+    // high affinity).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel1.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4635,8 +4639,8 @@ test("diversity: avoids consecutive posts from the same author", async () => {
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Give both session1 and session2 some affinity so their posts are ranked,
-    // but give session1 higher affinity so their posts would normally cluster.
+    // Give both session1 and session2 some affinity so their posts are ranked, but
+    // give session1 higher affinity so their posts would normally cluster.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session3.account.id,
@@ -4767,8 +4771,8 @@ test("zero-affinity entries use chronological order as tiebreaker", async () => 
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Create posts without any affinity data. They should appear in
-    // chronological order (newest first).
+    // Create posts without any affinity data. They should appear in chronological
+    // order (newest first).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel.createPost(session1);
     await ProcessContextModule.waitForTestTasks();

@@ -32,15 +32,13 @@ const webSocketErrorDialogEventEmitter = new EventEmitter();
  *
  * Features:
  *
- * - Automatically attempts to reconnect the WebSocket when it closes
- *   unexpectedly.
+ * - Automatically attempts to reconnect the WebSocket when it closes unexpectedly.
  * - Automatically disconnects the WebSocket when the user hides the page.
  * - Type safe messages using our schema framework.
- * - Automatic heart beating so the server knows our WebSocket is still alive
- *   and we know our server is still alive.
- * - Resolves URL by replacing the `http://` protocol with `ws://` or
- *   automatically adding the domain name if you use an absolute path like
- *   `/hello/world`.
+ * - Automatic heart beating so the server knows our WebSocket is still alive and
+ *   we know our server is still alive.
+ * - Resolves URL by replacing the `http://` protocol with `ws://` or automatically
+ *   adding the domain name if you use an absolute path like `/hello/world`.
  */
 export function useWebSocket<Protocol extends WebSocketProtocolBase>(
     serviceName: TracerServiceName,
@@ -120,10 +118,9 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
 
 /**
  * We may have multiple WebSocket connections at once. If the user loses all
- * connections at the same time (e.g. during a deploy or if the user goes into
- * a subway tunnel) then we should only show one lost connection error message
- * to the user. This hook manages presenting that one error message to the
- * user.
+ * connections at the same time (e.g. during a deploy or if the user goes into a
+ * subway tunnel) then we should only show one lost connection error message to the
+ * user. This hook manages presenting that one error message to the user.
  */
 export function useWebSocketErrorDialog(
     client: {reconnect(): void} | null,
@@ -133,10 +130,10 @@ export function useWebSocketErrorDialog(
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     // If the WebSocket closes due to an intended permissions error (we consider an
-    // error intended if it has a `displayMessage` that's meant to be read by
-    // users) then instead of opening a modal throw an error causing us to render
-    // the route error boundary. Since the error likely isn't transient and will
-    // persist even if the user tries to press "Retry".
+    // error intended if it has a `displayMessage` that's meant to be read by users)
+    // then instead of opening a modal throw an error causing us to render the route
+    // error boundary. Since the error likely isn't transient and will persist even if
+    // the user tries to press "Retry".
     if (
         errorState?.hasError &&
         errorState.error instanceof PermissionDeniedError &&
@@ -152,13 +149,13 @@ export function useWebSocketErrorDialog(
 
         if (!client || !errorState?.hasError) return;
 
-        // Only show one "Lost connection" dialog at a time. We may have multiple
-        // WebSocket connections that disconnect at the same time (e.g. during a deploy
-        // or if the user goes into a subway tunnel) but we should show the user only
-        // one lost connection error message.
+        // Only show one "Lost connection" dialog at a time. We may have multiple WebSocket
+        // connections that disconnect at the same time (e.g. during a deploy or if the
+        // user goes into a subway tunnel) but we should show the user only one lost
+        // connection error message.
         if (reporter.hasDialogWithKey(webSocketErrorDialogKey)) {
-            // If a lost connection dialog is already open, log any additional WebSocket
-            // errors we have to telemetry.
+            // If a lost connection dialog is already open, log any additional WebSocket errors
+            // we have to telemetry.
             reporter.logErrorWithoutDisplaying("Additional WebSocket error", errorState.error);
         } else {
             reporter.showDialog({
@@ -168,8 +165,8 @@ export function useWebSocketErrorDialog(
                     type: "Error",
                     error: errorState.error,
                 },
-                // User must explicitly press retry to close modal dialog. When the modal closes
-                // we will try loading again.
+                // User must explicitly press retry to close modal dialog. When the modal closes we
+                // will try loading again.
                 primaryButtonLabel: "Retry",
                 shouldHideCancelButton: true,
                 withoutCloseInteractions: true,

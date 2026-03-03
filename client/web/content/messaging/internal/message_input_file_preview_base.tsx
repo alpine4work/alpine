@@ -18,8 +18,7 @@ export function MessageInputFilePreviewBase({
                     variant="quiet-elevation-10"
                     description="Remove"
                     onPress={onRemove}
-                    // Not focusable so clicking on this button doesn't unfocus
-                    // the input.
+                    // Not focusable so clicking on this button doesn't unfocus the input.
                     isFocusable={false}
                 >
                     <X />

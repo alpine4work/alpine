@@ -1,6 +1,6 @@
 /**
- * Process the result of a Remix loader function like `@remix-run/router`.
- * Notably we parse the JSON body of `Response` types.
+ * Process the result of a Remix loader function like `@remix-run/router`. Notably
+ * we parse the JSON body of `Response` types.
  */
 export async function processLoaderResult(result: unknown): Promise<unknown> {
     if (!(result instanceof Response)) return result;

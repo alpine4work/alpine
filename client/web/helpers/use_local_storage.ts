@@ -4,9 +4,9 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
- * Use some data saved to [local storage][1]. Keeps our component up-to-date as
- * the data changes. Also makes sure when the local storage in our tab changes,
- * all other tabs that use the data are updated with a [broadcast channel][2].
+ * Use some data saved to [local storage][1]. Keeps our component up-to-date as the
+ * data changes. Also makes sure when the local storage in our tab changes, all
+ * other tabs that use the data are updated with a [broadcast channel][2].
  *
  * We recommend starting all keys with `cyberworlds/` since `localStorage` keys
  * live in a global namespace.
@@ -28,13 +28,13 @@ export function useLocalStorage<Value>(
 }
 
 /**
- * Use some data saved to [session storage][1]. Keeps our component up-to-date
- * as the data changes. Other tabs don't typically share the same session
- * storage, but in case they do we'll keep date in other tabs updated with a
- * [broadcast channel][2].
+ * Use some data saved to [session storage][1]. Keeps our component up-to-date as
+ * the data changes. Other tabs don't typically share the same session storage, but
+ * in case they do we'll keep date in other tabs updated with a [broadcast
+ * channel][2].
  *
- * We recommend starting all keys with `cyberworlds/` since `sessionStorage`
- * keys live in a global namespace.
+ * We recommend starting all keys with `cyberworlds/` since `sessionStorage` keys
+ * live in a global namespace.
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage
  * [2]: https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API
@@ -95,8 +95,8 @@ function useStorageBase<Value>(
         // Load any changes we missed while our `BroadcastChannel` was offline.
         reloadFromStorage();
 
-        // While waiting for the initial value to load from storage `isLoading` is
-        // true. Then once we get the first value it's updated to false.
+        // While waiting for the initial value to load from storage `isLoading` is true.
+        // Then once we get the first value it's updated to false.
         setIsLoading(false);
 
         return () => {
@@ -114,8 +114,7 @@ function useStorageBase<Value>(
         if (broadcastChannelRef.current) {
             broadcastChannelRef.current.postMessage({});
         } else {
-            // If our broadcast channel hasn't initialized yet, create a temporary
-            // one here.
+            // If our broadcast channel hasn't initialized yet, create a temporary one here.
             const broadcastChannel = new BroadcastChannel(key);
             broadcastChannel.postMessage({});
             broadcastChannel.close();

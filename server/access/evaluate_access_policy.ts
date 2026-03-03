@@ -20,8 +20,8 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Evaluates whether the `AccountId` has access to the access policy at
- * the provided access level.
+ * Evaluates whether the `AccountId` has access to the access policy at the
+ * provided access level.
  *
  * Returns true if the account has access.
  */
@@ -97,9 +97,9 @@ export async function evaluateAccessPolicy(
 
             // If this account is not a space member they can't have access.
             //
-            // Even if an account was previously a member, was removed, but is still listed
-            // in the `AccessPolicy` they can't access. An account can only access the
-            // resource if they're an active space member.
+            // Even if an account was previously a member, was removed, but is still listed in
+            // the `AccessPolicy` they can't access. An account can only access the resource if
+            // they're an active space member.
             if (
                 !(await isAccountMemberOfSpaceWithoutAuthorization(
                     context,
@@ -118,20 +118,19 @@ export async function evaluateAccessPolicy(
                 return true;
             }
 
-            // NOTE(calebmer): There's a massive vulnerability here if `urlGrant`ed actors
-            // get the ability to ask bots for information. Bots have access to anything
-            // that everyone in their scope has access to. However, right now we only check
-            // to make sure every space account in the scope has access!
+            // NOTE(calebmer): There's a massive vulnerability here if `urlGrant`ed actors get
+            // the ability to ask bots for information. Bots have access to anything that
+            // everyone in their scope has access to. However, right now we only check to make
+            // sure every space account in the scope has access!
             //
-            // So if a `urlGrant`ed actor that's not a space account (e.g. an anonymous
-            // actor) mentions "@ChatGPT find me such and such document" we'll happily
-            // comply and return them any document that has a `defaultGrant` (is public in
-            // the space).
+            // So if a `urlGrant`ed actor that's not a space account (e.g. an anonymous actor)
+            // mentions "@ChatGPT find me such and such document" we'll happily comply and
+            // return them any document that has a `defaultGrant` (is public in the space).
             //
             // This `assertEqualTypes()` will throw a TypeScript error if
             // `AccessPolicyUrlGrant` is ever expanded to include `AccessLevel`s other than
-            // `View`. If we can grant `Comment` access to `urlGrant`ed actors then we need
-            // to seriously reconsider bot permissions on a shared entity.
+            // `View`. If we can grant `Comment` access to `urlGrant`ed actors then we need to
+            // seriously reconsider bot permissions on a shared entity.
             assertEqualTypes<AccessPolicyUrlGrant["level"], "View">();
 
             const botAccessPolicy = await getBotAccessPolicy(
@@ -140,8 +139,7 @@ export async function evaluateAccessPolicy(
             );
 
             // If the bot's scope is everyone in the space and we didn't have
-            // `accessPolicy.defaultGrant` earlier then the bot can't read this private
-            // entity.
+            // `accessPolicy.defaultGrant` earlier then the bot can't read this private entity.
             if (botAccessPolicy.defaultGrant !== null) return false;
 
             let hasSomeAccountWithAccess = false;
@@ -153,8 +151,8 @@ export async function evaluateAccessPolicy(
                     hasSomeAccountWithAccess = true;
                 } else {
                     // Minor optimization: We filter out bots from
-                    // `accountIdsWithoutAccessBeforeMembershipCheck`. If this is our bot actor then
-                    // we already know it's a bot and can ignore it without a database request.
+                    // `accountIdsWithoutAccessBeforeMembershipCheck`. If this is our bot actor then we
+                    // already know it's a bot and can ignore it without a database request.
                     if (accountId === context.actor.getBotAccountId()) continue;
 
                     accountIdsWithoutAccessBeforeMembershipCheck.push(accountId);
@@ -169,9 +167,9 @@ export async function evaluateAccessPolicy(
                         const isMember = await isAccountMemberOfSpace(context, spaceId, accountId);
                         if (!isMember) return null;
 
-                        // If the account is a bot then it's fine if the bot doesn't have access to
-                        // this entity. Bots don't gain access through `AccessPolicy`, instead bots get
-                        // access based on some scope they're running in.
+                        // If the account is a bot then it's fine if the bot doesn't have access to this
+                        // entity. Bots don't gain access through `AccessPolicy`, instead bots get access
+                        // based on some scope they're running in.
                         const isBot = await isBotSpaceAccount(context, spaceId, accountId);
                         if (isBot) return null;
 
@@ -180,19 +178,18 @@ export async function evaluateAccessPolicy(
                 )
             ).filter(isNonNullable);
 
-            // If the bot scope had ANY accounts that don't have access to this entity then
-            // we don't grant the bot access to the entity.
+            // If the bot scope had ANY accounts that don't have access to this entity then we
+            // don't grant the bot access to the entity.
             //
-            // We make an exception for removed space accounts. If an account was a member
-            // of the space, added to an access policy, then removed from the space it's
-            // unlikely that account will be added to any new access policies (despite
-            // being in some old access policies).
+            // We make an exception for removed space accounts. If an account was a member of
+            // the space, added to an access policy, then removed from the space it's unlikely
+            // that account will be added to any new access policies (despite being in some old
+            // access policies).
             if (accountIdsWithoutAccess.length > 0) return false;
 
             // If there wasn't at least one account with access then we don't grant the bot
-            // access. This defends against bots getting really broad access when using a
-            // scope with an `accountGrantById` that's empty (or that has only removed
-            // accounts).
+            // access. This defends against bots getting really broad access when using a scope
+            // with an `accountGrantById` that's empty (or that has only removed accounts).
             if (!hasSomeAccountWithAccess) return false;
 
             // We checked all `accountGrantById`s. The bot has access.
@@ -226,9 +223,9 @@ export async function evaluateAccessPolicyForAccount(
     ) {
         // If this account is not a space member they can't have access.
         //
-        // Even if an account was previously a member, was removed, but is still listed
-        // in the `AccessPolicy` they can't access. An account can only access the
-        // resource if they're an active space member.
+        // Even if an account was previously a member, was removed, but is still listed in
+        // the `AccessPolicy` they can't access. An account can only access the resource if
+        // they're an active space member.
         //
         // Optimization: Only run if there's a `defaultGrant`. Otherwise we can return
         // false without making a database call.
@@ -244,12 +241,12 @@ export async function evaluateAccessPolicyForAccount(
     if (accountGrant && hasAccessLevel(accountGrant.level, expectedAccessLevel)) {
         // If this account is not a space member they can't have access.
         //
-        // Even if an account was previously a member, was removed, but is still listed
-        // in the `AccessPolicy` they can't access. An account can only access the
-        // resource if they're an active space member.
+        // Even if an account was previously a member, was removed, but is still listed in
+        // the `AccessPolicy` they can't access. An account can only access the resource if
+        // they're an active space member.
         //
-        // Optimization: Only run if there's an `accountGrant` for our actor. Otherwise
-        // we can return false without making a database call.
+        // Optimization: Only run if there's an `accountGrant` for our actor. Otherwise we
+        // can return false without making a database call.
         if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
             return false;
         }

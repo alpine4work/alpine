@@ -46,8 +46,8 @@ export function getChannelAndMetadataIfPossible(
     if (afterItemKey) {
         return (async () => {
             const [channelResult, queryResult] = await runAllPromises([
-                // Get the channel preview separately to make sure we're authorized to make
-                // this request.
+                // Get the channel preview separately to make sure we're authorized to make this
+                // request.
                 getChannelPreviewIfPossible(context, channelId, {consistency}),
 
                 ForumRealtimeTable.realtimeQuery(context, {
@@ -91,8 +91,8 @@ export function getChannelAndMetadataIfPossible(
                 throw new DataLossError("Expected the first query item to be the channel model");
             }
 
-            // Save the channel item to our authorization cache in case we try to load it
-            // again later.
+            // Save the channel item to our authorization cache in case we try to load it again
+            // later.
             ChannelPreviewItemAuthorizationCache.set(
                 context,
                 consistency,
@@ -110,9 +110,9 @@ export function getChannelAndMetadataIfPossible(
             return {ok: true, value: result};
         })().then(
             result => {
-                // All of these promise resolvers MUST have either been resolved or rejected by
-                // the end of this promise. So any promise resolvers that haven't been settled
-                // yet reject with an error as a safety mechanism.
+                // All of these promise resolvers MUST have either been resolved or rejected by the
+                // end of this promise. So any promise resolvers that haven't been settled yet
+                // reject with an error as a safety mechanism.
                 if (!channelPromiseResolver.isSettled()) {
                     if (!result) {
                         channelPromiseResolver.resolve(null);
@@ -133,10 +133,9 @@ export function getChannelAndMetadataIfPossible(
             },
         );
 
-        // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is
-        // waiting for this channel preview promise before it can return. But the
-        // channel preview promise is waiting on `ForumRealtimeTable.realtimeQuery()`
-        // to finish.
+        // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is waiting
+        // for this channel preview promise before it can return. But the channel preview
+        // promise is waiting on `ForumRealtimeTable.realtimeQuery()` to finish.
         const timeout = createTimeout(() => {
             channelPromiseResolver.reject(
                 new DeadlineExceededError(

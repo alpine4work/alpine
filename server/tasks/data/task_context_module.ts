@@ -42,8 +42,8 @@ import {
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
- * Helps perform work related to tasks that needs to interact with other
- * systems. Notably:
+ * Helps perform work related to tasks that needs to interact with other systems.
+ * Notably:
  *
  * - Escalating to system permission level when indexing a task action
  * - Communicating with the task realtime service
@@ -77,8 +77,8 @@ export class TaskContextModule extends TaskContextModuleBase {
 
     /**
      * Apply an action transaction in all the `TaskRealtimeService` servers that
-     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends
-     * the action to connected WebSockets as well.
+     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends the
+     * action to connected WebSockets as well.
      */
     public override applyActionTransactionInRealtimeService(
         this: TaskContextModule & ContextModuleBase<Omit<ServerActionContextModules, "actor">>,
@@ -115,11 +115,11 @@ export class TaskContextModule extends TaskContextModuleBase {
                     // Apply the action transaction in every host from our router since every host
                     // needs to be kept up-to-date in realtime.
                     //
-                    // We apply the action whether or not the host is healthy! The host will be in
-                    // an unhealthy state for a couple minutes after it starts up. That way all
-                    // processes can discover the host and start sending it action transactions
-                    // (through this very call). That way when a host is healthy we know it's
-                    // already been receiving all new committed action transactions.
+                    // We apply the action whether or not the host is healthy! The host will be in an
+                    // unhealthy state for a couple minutes after it starts up. That way all processes
+                    // can discover the host and start sending it action transactions (through this
+                    // very call). That way when a host is healthy we know it's already been receiving
+                    // all new committed action transactions.
                     hosts.map(async ({host}) => {
                         await retryWithExponentialBackoff(async retry => {
                             try {
@@ -172,9 +172,9 @@ export class TaskContextModule extends TaskContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public override async loadQueries(
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
@@ -190,8 +190,8 @@ export class TaskContextModule extends TaskContextModuleBase {
                       this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                  // to simplify code.
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                  // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
             this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
@@ -242,8 +242,8 @@ export class TaskContextModule extends TaskContextModuleBase {
                       this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                  // to simplify code.
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                  // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
             this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
@@ -291,8 +291,8 @@ export class TaskContextModule extends TaskContextModuleBase {
                       this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                  // to simplify code.
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                  // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
             this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
@@ -348,8 +348,8 @@ export async function waitForProcessTaskActionTransactionsForTest() {
 
     const errors: Array<unknown> = [];
 
-    // Wait for all promises to resolve. If there's an error, don't throw it until
-    // all promises have resolved.
+    // Wait for all promises to resolve. If there's an error, don't throw it until all
+    // promises have resolved.
     while (processTaskActionTransactionPromisesForTest.size > 0) {
         try {
             await runAllPromises(processTaskActionTransactionPromisesForTest);

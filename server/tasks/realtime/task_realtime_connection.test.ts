@@ -97,8 +97,8 @@ const context = createTestContext({
 });
 
 function createWebSocketServer(space: TestSpace) {
-    // Important that this is run before `TestTaskRealtimeServer`. We want to close
-    // the WebSocket server before running our realtime server cleanup.
+    // Important that this is run before `TestTaskRealtimeServer`. We want to close the
+    // WebSocket server before running our realtime server cleanup.
     afterTestEnds(() => webSocketServer.closeAll(context));
 
     const server = new TestTaskRealtimeServer(context);
@@ -310,9 +310,9 @@ function testTakeEvents(
 function massageUpdateEvent(updateEvent: TaskRealtimeUpdateEvent) {
     return {
         ...updateEvent,
-        // `backfillTasks` and `backfillCollections` may be returned in a
-        // non-deterministic order. So to prevent flaky test failures we turn them into
-        // an object where order doesn't matter to Jest when determining equality.
+        // `backfillTasks` and `backfillCollections` may be returned in a non-deterministic
+        // order. So to prevent flaky test failures we turn them into an object where order
+        // doesn't matter to Jest when determining equality.
         backfillTasks: Object.fromEntries(
             updateEvent.backfillTasks.map((task): [TaskId, unknown] => {
                 if (task.type !== "Authorized") return [task.taskId, task];
@@ -2364,11 +2364,11 @@ test("can update a referenced task in one query and remove the same referenced t
     const connection1 = await server.connectForTest(session1.action());
     const connection2 = await server.connectForTest(session2.action());
 
-    // In this test, I'm exercising updating a referenced task in a query and
-    // removing a referenced task in a different query in the same transaction.
-    // `connection1` subscribes to the query that'll update the task first and
-    // `connection2` subscribes to the query that'll remove the task first so we
-    // can test both execution orders.
+    // In this test, I'm exercising updating a referenced task in a query and removing
+    // a referenced task in a different query in the same transaction. `connection1`
+    // subscribes to the query that'll update the task first and `connection2`
+    // subscribes to the query that'll remove the task first so we can test both
+    // execution orders.
     {
         expect(
             await testSubscribeToQuery(
@@ -8123,8 +8123,8 @@ test("race condition: collection can be removed before previous collection has l
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
-    // We've reached `eventBuilder.send()` for our `collection` remove. But it's
-    // also blocked on loading `collection`.
+    // We've reached `eventBuilder.send()` for our `collection` remove. But it's also
+    // blocked on loading `collection`.
     const {unpause: unpause3} = await pausePromise3;
 
     expect(testTakeEvents(connection1)).toEqual([]);
@@ -8137,9 +8137,9 @@ test("race condition: collection can be removed before previous collection has l
 
     expect(
         testTakeEvents(connection1)
-            // Event order is not deterministic because both events depend on the
-            // collection to load. `RemoveCollection` needs the collection to load so we
-            // can tell if the collection is authorized or not.
+            // Event order is not deterministic because both events depend on the collection to
+            // load. `RemoveCollection` needs the collection to load so we can tell if the
+            // collection is authorized or not.
             .sort((event1, event2) =>
                 defaultCompareStrings(JSON.stringify(event1), JSON.stringify(event2)),
             ),
@@ -8305,8 +8305,8 @@ test("race condition: parent task can change before previous collection of paren
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
-    // We've reached `eventBuilder.send()` for our update. But it's also
-    // blocked on loading `collection`.
+    // We've reached `eventBuilder.send()` for our update. But it's also blocked on
+    // loading `collection`.
     const {unpause: unpause4} = await pausePromise4;
 
     expect(testTakeEvents(connection1)).toEqual([]);

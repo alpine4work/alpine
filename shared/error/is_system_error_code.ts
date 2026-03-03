@@ -2,10 +2,10 @@ import {InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**
- * Is this the code for a system error? System errors are errors we do not
- * expect under normal system operations. Unlike permission denied errors or
- * user input validation errors which can happen all the time as users interact
- * with our software. System errors should be promptly addressed and fixed.
+ * Is this the code for a system error? System errors are errors we do not expect
+ * under normal system operations. Unlike permission denied errors or user input
+ * validation errors which can happen all the time as users interact with our
+ * software. System errors should be promptly addressed and fixed.
  *
  * System errors correspond to an HTTP 500 status code (server's fault) whereas
  * other errors correspond to a 400 HTTP status code (client's fault).
@@ -45,8 +45,8 @@ export function isSystemErrorCode(code: ErrorCode): boolean {
  * Is this a system error?
  *
  * Uses `isSystemErrorCode()`. If the error is an `ErrorBase` error we use the
- * error code. Otherwise we default to `ErrorCode.Unknown` which is classified
- * as a system error.
+ * error code. Otherwise we default to `ErrorCode.Unknown` which is classified as a
+ * system error.
  */
 export function isSystemError(error: unknown): boolean {
     const code = getErrorCode(error);

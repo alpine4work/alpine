@@ -11,9 +11,9 @@ import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_mod
 import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
 
 /**
- * Updates the channel's `AccessPolicy` by adding account grants. This allows
- * you to avoid conflicting update race conditions since you're not replacing
- * the entire access policy.
+ * Updates the channel's `AccessPolicy` by adding account grants. This allows you
+ * to avoid conflicting update race conditions since you're not replacing the
+ * entire access policy.
  */
 export async function addAccountGrantsToChannelAccessPolicy(
     context: ServerSessionActionContext,

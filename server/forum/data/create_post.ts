@@ -84,8 +84,7 @@ export async function createPost(
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
 }> {
-    // You can only manually set a created time when building scenarios or
-    // in tests.
+    // You can only manually set a created time when building scenarios or in tests.
     if (overrideCreatedTimeForTest) {
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
@@ -104,9 +103,8 @@ export async function createPost(
         channelId,
         createdTime:
             overrideCreatedTimeForTest ??
-            // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
-            // this slightly awkward form to let tests mock different times for post
-            // creation.
+            // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use this
+            // slightly awkward form to let tests mock different times for post creation.
             new Date(Date.now()),
         createdTimeZone,
         authorId: context.actor.getPossiblyBotAccountId(),
@@ -120,15 +118,15 @@ export async function createPost(
         reactions: new ReactionSet(emptyMap),
     };
 
-    // Add our new post to the authorization cache BEFORE we create the post. That
-    // way when we attach files with `attachFileFromAttachment()` they'll read the
-    // post from this cache and won't throw a not found error.
+    // Add our new post to the authorization cache BEFORE we create the post. That way
+    // when we attach files with `attachFileFromAttachment()` they'll read the post
+    // from this cache and won't throw a not found error.
     PostItemAuthorizationCache.set(context, "Strong", postId, postItem);
 
     const fileIds = getPostContentFileIds(postItem.content);
 
-    // Make sure to attach all files to the post. So when someone else sees the
-    // post they can load the files.
+    // Make sure to attach all files to the post. So when someone else sees the post
+    // they can load the files.
     await runAllPromises(
         mapIterable(fileIds, async fileId => {
             if (draftId === null) {
@@ -166,12 +164,12 @@ export async function createPost(
         await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // We create the `PostFiles` item in a transaction instead of asynchronously
-            // with `context.process.waitUntil()` because we want the `PostFiles` realtime
-            // event to be applied atomically to clients alongside the create post realtime
-            // event. Otherwise `context.process.waitUntil()` would be fine. It's not
-            // critical to write this item so it's a bit of a bummer we double our DynamoDB
-            // WCU cost for posts with files.
+            // We create the `PostFiles` item in a transaction instead of asynchronously with
+            // `context.process.waitUntil()` because we want the `PostFiles` realtime event to
+            // be applied atomically to clients alongside the create post realtime event.
+            // Otherwise `context.process.waitUntil()` would be fine. It's not critical to
+            // write this item so it's a bit of a bummer we double our DynamoDB WCU cost for
+            // posts with files.
             ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheck({
                 partitionType: "Channel",
                 sortRangeType: "PostFiles",
@@ -228,12 +226,12 @@ function afterCreatePost(
     // creating the post and this code, we won't show the newly created post in the
     // home feed! Which is pretty bad.
     //
-    // I think we should probably move all this after-write logic to DynamoDB
-    // streams for reliability. We should make all this after-write logic
-    // idempotent and retry until the DynamoDB stream event is processed. Not just
-    // here but in `createPostComment()` and `sendChatMessage()` and
-    // `createChannel()`. Really anywhere that schedules some
-    // `context.process.waitUntil()` work after a write that we want done reliably.
+    // I think we should probably move all this after-write logic to DynamoDB streams
+    // for reliability. We should make all this after-write logic idempotent and retry
+    // until the DynamoDB stream event is processed. Not just here but in
+    // `createPostComment()` and `sendChatMessage()` and `createChannel()`. Really
+    // anywhere that schedules some `context.process.waitUntil()` work after a write
+    // that we want done reliably.
     context.process.waitUntil(async () => {
         await addFeedCandidateEntry(context, postItem.spaceId, {
             type: "Post",
@@ -244,19 +242,19 @@ function afterCreatePost(
         });
     });
 
-    // We don't delete our post draft in a transaction with post creation.
-    // It's ok if we don't successfully delete the draft. It'll stay in the user's
-    // draft list which is a glitch but it's fine if the glitch happens every 1 in
-    // 1 million times a post is created.
+    // We don't delete our post draft in a transaction with post creation. It's ok if
+    // we don't successfully delete the draft. It'll stay in the user's draft list
+    // which is a glitch but it's fine if the glitch happens every 1 in 1 million times
+    // a post is created.
     //
-    // We also make a best effort to detach files. There may be race conditions
-    // which prevent us from detaching all files. For example,
+    // We also make a best effort to detach files. There may be race conditions which
+    // prevent us from detaching all files. For example,
     // `getPostDraftFileAttachments()` is run with eventual consistency so may not
     // return a file attached a second ago. When we implement our file garbage
     // collector it'll be able to fully cleanup files from deleted drafts. (As of
-    // 2024-10-30 we haven't implemented the file garbage collector. When we add a
-    // file garbage collector, actually maybe it doesn't make sense to call
-    // `detachFile()` here. The garbage collector will collect anyway.)
+    // 2024-10-30 we haven't implemented the file garbage collector. When we add a file
+    // garbage collector, actually maybe it doesn't make sense to call `detachFile()`
+    // here. The garbage collector will collect anyway.)
     if (draftId !== null) {
         context.process.waitUntil(async () => {
             const [, fileIds] = await runAllPromises([
@@ -276,9 +274,9 @@ function afterCreatePost(
                 ),
             ]);
 
-            // Must run after the post draft has been successfully deleted. We don't want
-            // to delete attachments until after we know for certain the post draft has
-            // been deleted.
+            // Must run after the post draft has been successfully deleted. We don't want to
+            // delete attachments until after we know for certain the post draft has been
+            // deleted.
             await runAllPromises(
                 fileIds.map(fileId =>
                     detachFile(
@@ -297,8 +295,8 @@ function afterCreatePost(
     }
 
     // When a post is created, update the contributors map. It's ok to do this in
-    // `context.process.waitUntil()`. It's fine if `AppService` crashes and we
-    // don't record the contribution.
+    // `context.process.waitUntil()`. It's fine if `AppService` crashes and we don't
+    // record the contribution.
     context.process.waitUntil(async () => {
         let oldContributionCount = 0;
         let newContributionCount = 0;
@@ -347,9 +345,9 @@ function afterCreatePost(
             },
         );
 
-        // Reindex the channel whenever someone contributes for the first time
-        // (making them a minor contributor) or when someone maxes out their
-        // contribution count (making them a major contributor).
+        // Reindex the channel whenever someone contributes for the first time (making them
+        // a minor contributor) or when someone maxes out their contribution count (making
+        // them a major contributor).
         if (
             oldContributionCount !== newContributionCount &&
             (oldContributionCount === 0 || newContributionCount === maxChannelContributionCount)
@@ -392,20 +390,19 @@ function afterCreatePost(
         update: {
             type: "Post",
             postId,
-            // Nothing depends on this entity when it's created. Don't bother trying to
-            // reindex dependencies.
+            // Nothing depends on this entity when it's created. Don't bother trying to reindex
+            // dependencies.
             updatedTraits: {type: "None"},
         },
     });
 
-    // Posting in a channel accrues affinity points to the channel the post was
-    // made in. Choosing a channel to post in probably means the channel is
-    // relevant to you.
+    // Posting in a channel accrues affinity points to the channel the post was made
+    // in. Choosing a channel to post in probably means the channel is relevant to you.
     //
-    // We don't give posts themselves affinity points. That's because posts are
-    // fairly short lived (a couple days). However, we give channels affinity
-    // points so you could quickly jump to a channel if you're looking for a
-    // certain post inside the channel.
+    // We don't give posts themselves affinity points. That's because posts are fairly
+    // short lived (a couple days). However, we give channels affinity points so you
+    // could quickly jump to a channel if you're looking for a certain post inside the
+    // channel.
     //
     // Importantly, bots do not accrue affinity points.
     if (context.actor.type !== "Bot") {
@@ -420,12 +417,12 @@ function afterCreatePost(
             ),
         );
 
-        // Increase affinity points for all mentioned accounts with a high intent
-        // update since the user clearly wants the attention of the mentioned accounts.
+        // Increase affinity points for all mentioned accounts with a high intent update
+        // since the user clearly wants the attention of the mentioned accounts.
         //
-        // (If a mentioned account doesn't have access to this message should that
-        // still be a high intent update? For now we say yes since the user is
-        // explicitly choosing to reference them.)
+        // (If a mentioned account doesn't have access to this message should that still be
+        // a high intent update? For now we say yes since the user is explicitly choosing
+        // to reference them.)
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
                 if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {

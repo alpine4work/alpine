@@ -27,8 +27,8 @@ const contentClassNameAndVars = new Set<string>(
 );
 
 // CSS classes and variable names may change after minor modifications to our
-// vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking. We keep any class names declared in
+// vanilla extract CSS. So remove them from the HTML so we assert against so our
+// test doesn't keep breaking. We keep any class names declared in
 // `content_styles.ts` since those stay constant.
 function stripHtml(html: string): string {
     const element = document.createElement("div");

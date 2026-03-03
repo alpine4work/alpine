@@ -14,9 +14,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 /**
- * If `evaluateAccessPolicy()` returns `false` then call this function to
- * create a nice error message. We'll figure out the best error message to
- * present to the user.
+ * If `evaluateAccessPolicy()` returns `false` then call this function to create a
+ * nice error message. We'll figure out the best error message to present to the
+ * user.
  */
 export async function createAccessPolicyPermissionDeniedError(
     context: Context<{
@@ -38,9 +38,9 @@ export async function createAccessPolicyPermissionDeniedError(
         displayMessages: Record<AccessLevel, ErrorDisplayMessage>;
     },
 ): Promise<ErrorBase> {
-    // Throw an unauthenticated error if this is an anonymous user instead of
-    // returning false. We want to show the user the unauthenticated error display
-    // message when they don't have access.
+    // Throw an unauthenticated error if this is an anonymous user instead of returning
+    // false. We want to show the user the unauthenticated error display message when
+    // they don't have access.
     if (context.actor.type === "Anonymous") {
         return unauthenticatedSessionError();
     } else if (context.actor.type === "System" && context.actor.getSpaceId() !== spaceId) {

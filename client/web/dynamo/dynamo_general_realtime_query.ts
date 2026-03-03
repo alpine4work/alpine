@@ -38,9 +38,9 @@ export type DynamoGeneralRealtimeQueryItem<Model, Extra = never> =
       };
 
 /**
- * An immutable object representing the client state of a query against a
- * DynamoDB realtime table. Handles loading pages fetched from the server with
- * eventual consistency and receiving realtime events out-of-order.
+ * An immutable object representing the client state of a query against a DynamoDB
+ * realtime table. Handles loading pages fetched from the server with eventual
+ * consistency and receiving realtime events out-of-order.
  *
  * Realtime queries should be eventually correct within a few seconds.
  */
@@ -52,28 +52,27 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     private readonly _partitionKey: DynamoItemPartitionKey;
 
     /**
-     * The inclusive upper bound of items we should expect in this query. If an
-     * item with this key exists then it'll be included in the query.
+     * The inclusive upper bound of items we should expect in this query. If an item
+     * with this key exists then it'll be included in the query.
      */
     private readonly _startItemKey: DynamoItemKey | null;
 
     /**
-     * The inclusive lower bound of items we should expect in this query. If an
-     * item with this key exists then it'll be included in the query.
+     * The inclusive lower bound of items we should expect in this query. If an item
+     * with this key exists then it'll be included in the query.
      */
     private readonly _endItemKey: DynamoItemKey | null;
 
     /**
-     * All items we currently know about in our query in order. Items are ordered
-     * by the lexicographic order of their keys. We use a binary tree to maintain
-     * the order of our items while allowing for efficient, immutable, updates.
+     * All items we currently know about in our query in order. Items are ordered by
+     * the lexicographic order of their keys. We use a binary tree to maintain the
+     * order of our items while allowing for efficient, immutable, updates.
      *
-     * May contain items outside of the "loaded page". The loaded page is the slice
-     * of the query where we know the client has all items. This is what we return
-     * from `getItem()`. We include items outside of the loaded page since we may
-     * receive realtime events out of order. See the documentation on
-     * `loadedPageInfo` for an example. The loaded page is determined by
-     * `loadedPageItemSlice`.
+     * May contain items outside of the "loaded page". The loaded page is the slice of
+     * the query where we know the client has all items. This is what we return from
+     * `getItem()`. We include items outside of the loaded page since we may receive
+     * realtime events out of order. See the documentation on `loadedPageInfo` for an
+     * example. The loaded page is determined by `loadedPageItemSlice`.
      */
     private readonly _itemByKey: Tree<
         DynamoItemKey,
@@ -84,78 +83,76 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     >;
 
     /**
-     * A map of items that have been deleted and at what version they were deleted.
-     * We need to keep track of deleted items in our query since we receive
-     * realtime events out-of-order. If a user updates an item to V+1 then deletes
-     * the item (which sets the version in its gravestone to V+2) and our client
-     * receives the V+2 delete event before the V+1 update event then we need to
-     * ignore the V+1 update.
+     * A map of items that have been deleted and at what version they were deleted. We
+     * need to keep track of deleted items in our query since we receive realtime
+     * events out-of-order. If a user updates an item to V+1 then deletes the item
+     * (which sets the version in its gravestone to V+2) and our client receives the
+     * V+2 delete event before the V+1 update event then we need to ignore the V+1
+     * update.
      */
     private readonly _deletedItemByKey: ImmutableMap<DynamoItemKey, {readonly version: number}>;
 
     /**
-     * Information about the page of data loaded in this query so far. If null
-     * we've loaded the entire query! Nothing is outside our loaded window.
+     * Information about the page of data loaded in this query so far. If null we've
+     * loaded the entire query! Nothing is outside our loaded window.
      *
      * We can either be loading data starting from the top of the query or starting
-     * from the end of the query. This determines where the loading spinner
-     * appears in the resulting list.
+     * from the end of the query. This determines where the loading spinner appears in
+     * the resulting list.
      *
-     * Our realtime system guarantees that data within the loaded page is
-     * eventually correct within a couple seconds. (If you're receiving all the
-     * relevant realtime events that is.)
+     * Our realtime system guarantees that data within the loaded page is eventually
+     * correct within a couple seconds. (If you're receiving all the relevant realtime
+     * events that is.)
      *
-     * We may receive items from realtime that are outside of the loaded page. We
-     * keep them around in our query in case we load more data and the data is
-     * behind an event we received in realtime. Consider:
+     * We may receive items from realtime that are outside of the loaded page. We keep
+     * them around in our query in case we load more data and the data is behind an
+     * event we received in realtime. Consider:
      *
      * 1. We start loading a query of items N through N+10
      * 2. As a part of the query, the server loads item N+2 at version V
      * 3. User updates item N+2 to version V+1
      * 4. We receive a realtime update for item N+2 as version V+1
-     * 5. We receive the data from the server for items N through N+10 where item
-     *    N+2 is version V
+     * 5. We receive the data from the server for items N through N+10 where item N+2
+     *    is version V
      *
-     * In this case we don't want to throw away the realtime update we got in step
-     * 4 since we will need to apply it after step 5. So our solution is to keep
-     * the item around in our list data structure but not render it.
+     * In this case we don't want to throw away the realtime update we got in step 4
+     * since we will need to apply it after step 5. So our solution is to keep the item
+     * around in our list data structure but not render it.
      */
     private readonly _loadedPageInfo: DynamoGeneralRealtimeQueryLoadedPageInfo | null;
 
     /**
-     * This is a mutable piece of state inside our otherwise immutable data type.
-     * A functional programming sin! However, we do it since it's practical.
+     * This is a mutable piece of state inside our otherwise immutable data type. A
+     * functional programming sin! However, we do it since it's practical.
      *
      * The `ServerSynchronizationCheckpoint` tells us how up-to-date our client's
-     * realtime data is based on what's on the server. When we backfill realtime
-     * events we send our checkpoint to the server and the server will return all
-     * realtime events that happened between the checkpoint and now. So for example
-     * if our WebSocket disconnects for two minutes because the user lost internet,
-     * when the WebSocket reconnects we'll send the last checkpoint we had from the
-     * server (which is the time two minutes ago) and receive all realtime events
-     * we missed while we were disconnected.
+     * realtime data is based on what's on the server. When we backfill realtime events
+     * we send our checkpoint to the server and the server will return all realtime
+     * events that happened between the checkpoint and now. So for example if our
+     * WebSocket disconnects for two minutes because the user lost internet, when the
+     * WebSocket reconnects we'll send the last checkpoint we had from the server
+     * (which is the time two minutes ago) and receive all realtime events we missed
+     * while we were disconnected.
      *
      * The `ServerSynchronizationCheckpoint` is set:
      *
      * 1. When we initially load data.
      *
      * 2. Every `Ping`/`Pong` message from our WebSocket server. Since while we're
-     *    connected to the WebSocket server we know we're seeing all realtime
-     *    events. As soon as the WebSocket disconnects (and we stop receiving
-     *    `Pong` messages) our client data may be falling out-of-date with the
-     *    server since there's realtime events we're not seeing.
+     *    connected to the WebSocket server we know we're seeing all realtime events.
+     *    As soon as the WebSocket disconnects (and we stop receiving `Pong` messages)
+     *    our client data may be falling out-of-date with the server since there's
+     *    realtime events we're not seeing.
      *
-     * We ping the WebSocket server every minute. If this were an immutable
-     * property on the list we'd end up re-rendering the entire view
-     * depending on this list once per minute. Which feels inefficient. Especially
-     * if the user is actively interacting with the view and we block some other
-     * update.
+     * We ping the WebSocket server every minute. If this were an immutable property on
+     * the list we'd end up re-rendering the entire view depending on this list once
+     * per minute. Which feels inefficient. Especially if the user is actively
+     * interacting with the view and we block some other update.
      *
-     * Instead, we update a mutable property on the data type. This makes the data
-     * type "impure" in a functional programming sense but it's fine, we're not
-     * caching and reusing these objects. Making this a mutable property may be a
-     * premature optimization but mutability just doesn't seem like a big
-     * deal here.
+     * Instead, we update a mutable property on the data type. This makes the data type
+     * "impure" in a functional programming sense but it's fine, we're not caching and
+     * reusing these objects. Making this a mutable property may be a premature
+     * optimization but mutability just doesn't seem like a big deal here.
      */
     private _mutableCheckpoint: ServerSynchronizationCheckpoint;
 
@@ -183,8 +180,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         mutableCheckpoint: ServerSynchronizationCheckpoint;
     }) {
         // Run some data validity assertions to verify assumptions about our data in
-        // development and test environments but not in production since these
-        // assertions can be expensive.
+        // development and test environments but not in production since these assertions
+        // can be expensive.
         if (process.env.NODE_ENV !== "production") {
             assert(
                 iterableEvery(deletedItemByKey.keys(), key => itemByKey.get(key) === undefined),
@@ -268,8 +265,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                     loadedPageInfo = {type: "FromEnd", startItemKey: firstItem.key};
                 }
 
-                // If we initialized our query with a page starting before a certain cursor
-                // then that cursor is our actual end bound.
+                // If we initialized our query with a page starting before a certain cursor then
+                // that cursor is our actual end bound.
                 //
                 // We don't currently support initializing in the middle of a query.
                 if (
@@ -296,8 +293,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     /**
-     * Loads more data into the query. Only adds items to the loaded page if the
-     * new query result overlaps with data we already have.
+     * Loads more data into the query. Only adds items to the loaded page if the new
+     * query result overlaps with data we already have.
      */
     public loadMore(
         result: Omit<DynamoGeneralRealtimeQueryResult<Model>, "checkpoint">,
@@ -320,10 +317,9 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                     (query._startItemKey === null || item.key >= query._startItemKey) &&
                     (query._endItemKey === null || item.key <= query._endItemKey);
 
-                // Ignore items that aren't in our query's range. An item's primary key will
-                // never change so we don't need to store the item in a `itemVisibilityByKey`
-                // map with `isVisible: false` like we need to in
-                // `DynamoGeneralRealtimeIndexQuery`.
+                // Ignore items that aren't in our query's range. An item's primary key will never
+                // change so we don't need to store the item in a `itemVisibilityByKey` map with
+                // `isVisible: false` like we need to in `DynamoGeneralRealtimeIndexQuery`.
                 if (!isInRange) return;
 
                 return {
@@ -335,9 +331,9 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
 
         let loadedPageInfo = query._loadedPageInfo;
 
-        // Update the loaded page if our new page extends its bounds. That means the
-        // new page should start within the loaded page and should end outside of the
-        // loaded page.
+        // Update the loaded page if our new page extends its bounds. That means the new
+        // page should start within the loaded page and should end outside of the loaded
+        // page.
         switch (result.pageInfo.type) {
             case "FromStart": {
                 const lastItem =
@@ -411,8 +407,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     /**
-     * Handles realtime events from the server and incorporates them into our
-     * query. Will correctly handle events received out-of-order.
+     * Handles realtime events from the server and incorporates them into our query.
+     * Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
@@ -430,10 +426,9 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                             (this._startItemKey === null || event.item.key >= this._startItemKey) &&
                             (this._endItemKey === null || event.item.key <= this._endItemKey);
 
-                        // Ignore items that aren't in our query's range. An item's primary key will
-                        // never change so we don't need to store the item in a `itemVisibilityByKey`
-                        // map with `isVisible: false` like we need to in
-                        // `DynamoGeneralRealtimeIndexQuery`.
+                        // Ignore items that aren't in our query's range. An item's primary key will never
+                        // change so we don't need to store the item in a `itemVisibilityByKey` map with
+                        // `isVisible: false` like we need to in `DynamoGeneralRealtimeIndexQuery`.
                         if (!isInRange) {
                             return;
                         }
@@ -454,8 +449,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                         return {
                             isDeleted: false,
                             partitionKey: this._partitionKey,
-                            // Items outside of our index will not have the `Model` type. We assume the
-                            // server implementation is correct and the types will all work out.
+                            // Items outside of our index will not have the `Model` type. We assume the server
+                            // implementation is correct and the types will all work out.
                             item: event.item as DynamoGeneralRealtimeItem<Model>,
                         };
                     }
@@ -464,10 +459,9 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                             (this._startItemKey === null || event.item.key >= this._startItemKey) &&
                             (this._endItemKey === null || event.item.key <= this._endItemKey);
 
-                        // Ignore items that aren't in our query's range. An item's primary key will
-                        // never change so we don't need to store the item in a `itemVisibilityByKey`
-                        // map with `isVisible: false` like we need to in
-                        // `DynamoGeneralRealtimeIndexQuery`.
+                        // Ignore items that aren't in our query's range. An item's primary key will never
+                        // change so we don't need to store the item in a `itemVisibilityByKey` map with
+                        // `isVisible: false` like we need to in `DynamoGeneralRealtimeIndexQuery`.
                         if (!isInRange) {
                             return;
                         }
@@ -516,8 +510,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         let deletedItemByKey = this._deletedItemByKey;
 
         for (const itemEntry of itemEntries) {
-            // Make sure the item is in our query's range. Any items not in our query's
-            // range should have been filtered out before calling `_putItems()`.
+            // Make sure the item is in our query's range. Any items not in our query's range
+            // should have been filtered out before calling `_putItems()`.
             if (process.env.NODE_ENV !== "production") {
                 const isInRange =
                     (this._startItemKey === null || itemEntry.item.key >= this._startItemKey) &&
@@ -526,11 +520,11 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                 assert(isInRange);
 
                 // Quick, hacky, check that `this._partitionKey` is the prefix of
-                // `itemEntry.item.key` without decoding base64 data. This won't check the last
-                // 6 bits of the partition key are the same as the item key.
+                // `itemEntry.item.key` without decoding base64 data. This won't check the last 6
+                // bits of the partition key are the same as the item key.
                 //
-                // Callers to `_putItems()` should make sure that `this._partitionKey` is
-                // actually a prefix of `itemEntry.item.key`.
+                // Callers to `_putItems()` should make sure that `this._partitionKey` is actually
+                // a prefix of `itemEntry.item.key`.
                 assert(itemEntry.item.key.startsWith(this._partitionKey.slice(0, -1)));
             }
 
@@ -556,8 +550,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                     oldItemIterator.value ?? oldDeletedItem,
                 ).version;
 
-                // We may receive items out-of-order. Only put the latest the version of the
-                // item in our query.
+                // We may receive items out-of-order. Only put the latest the version of the item
+                // in our query.
                 if (oldItemVersion < itemEntry.item.version) {
                     if (itemEntry.isDeleted === false) {
                         if (oldItemIterator.value !== undefined) {
@@ -606,8 +600,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     /**
-     * Slice of `itemByKey` that is in our loaded page. Returns null if all
-     * items are visible (or if there are no items).
+     * Slice of `itemByKey` that is in our loaded page. Returns null if all items are
+     * visible (or if there are no items).
      *
      * Inclusive of `startIndex`. Exclusive of `endIndex`.
      *
@@ -664,8 +658,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                 let loadedItemByKey = this._itemByKey;
                 let iterator = loadedItemByKey.end;
 
-                // Remove items that are out of the loaded range until we find the last item in
-                // the loaded range.
+                // Remove items that are out of the loaded range until we find the last item in the
+                // loaded range.
                 while (iterator.valid) {
                     const key = iterator.key!;
 
@@ -683,8 +677,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                 let loadedItemByKey = this._itemByKey;
                 let iterator = loadedItemByKey.begin;
 
-                // Remove items that are out of the loaded range until we find the first item
-                // in the loaded range.
+                // Remove items that are out of the loaded range until we find the first item in
+                // the loaded range.
                 while (iterator.valid) {
                     const cursor = iterator.key!;
 
@@ -728,8 +722,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
 
     /**
      * Get the number of items rendered by our query. So may include one item for a
-     * loading indicator at the top or bottom of the query if we haven't loaded all
-     * our data yet.
+     * loading indicator at the top or bottom of the query if we haven't loaded all our
+     * data yet.
      */
     public getItemCount(): number {
         return this.getItemCountWithoutLoadingIndicator() + (this._loadedPageInfo ? 1 : 0);
@@ -746,10 +740,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             : this._itemByKey.length;
     }
 
-    // Optimization: If you are calling `getItem()` in sequence
-    // (`getItem(N)`, `getItem(N + 1)`, `getItem(N + 2)`, `getItem(N + 3)`, etc.)
-    // then we maintain a mutable iterator so your sequential `getItem()` calls are
-    // O(1) instead of O(log(n)).
+    // Optimization: If you are calling `getItem()` in sequence (`getItem(N)`,
+    // `getItem(N + 1)`, `getItem(N + 2)`, `getItem(N + 3)`, etc.) then we maintain a
+    // mutable iterator so your sequential `getItem()` calls are O(1) instead of
+    // O(log(n)).
     private _getItemIterator: {
         index: number;
         iterator: TreeIterator<
@@ -788,8 +782,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
 
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
 
-        // If our slice starts at index N then getting the item at position 2 should
-        // load the actual item at position N+2.
+        // If our slice starts at index N then getting the item at position 2 should load
+        // the actual item at position N+2.
         index += loadedPageItemSlice ? loadedPageItemSlice.startIndex : 0;
 
         // Make sure our index is in the slice bounds...
@@ -966,8 +960,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     /**
-     * Set the mutable checkpoint property on this query object. Noops if the
-     * provided `checkpoint` is older than the current checkpoint.
+     * Set the mutable checkpoint property on this query object. Noops if the provided
+     * `checkpoint` is older than the current checkpoint.
      */
     public setMutableCheckpoint(checkpoint: ServerSynchronizationCheckpoint): void {
         this._mutableCheckpoint =
@@ -977,14 +971,13 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     /**
-     * Set the `extra` property for the provided item. The `extra` property allows
-     * the client to attach some extra client-only data to an item in the query.
-     * For instance, channels attach the realtime comment data of a post in the
-     * `extra` property.
+     * Set the `extra` property for the provided item. The `extra` property allows the
+     * client to attach some extra client-only data to an item in the query. For
+     * instance, channels attach the realtime comment data of a post in the `extra`
+     * property.
      *
-     * You may update the `extra` of an item outside the loaded range with this
-     * method if the item exists in our query. (Because realtime has told us about
-     * it.)
+     * You may update the `extra` of an item outside the loaded range with this method
+     * if the item exists in our query. (Because realtime has told us about it.)
      */
     public updateItemExtraByKeyIfExists(
         key: DynamoItemKey,
@@ -1019,8 +1012,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     /**
      * Update the `extra` property of every item in the query.
      *
-     * Includes items outside of the query's loaded range. There may be items
-     * outside of the query's loaded range that realtime tells us about.
+     * Includes items outside of the query's loaded range. There may be items outside
+     * of the query's loaded range that realtime tells us about.
      */
     public updateAllItemExtras(
         update: (

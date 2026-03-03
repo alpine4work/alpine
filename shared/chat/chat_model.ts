@@ -59,8 +59,7 @@ export class ChatMessageModel
     )
     implements MessageModel<ChatId>
 {
-    // Make sure this property is available on this type and not just the
-    // interface.
+    // Make sure this property is available on this type and not just the interface.
     public readonly isOptimistic?: undefined;
 
     public getRoomKey() {

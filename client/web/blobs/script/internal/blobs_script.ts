@@ -51,11 +51,11 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number
         });
 
         // NOTE(imjoshin): In case multiple blobs are rendered with the same key, draw them
-        // all here. To reduce redundant draws, within drawBlobFactoryToCanvas we check if we've
-        // already drawn this blob and if so, skip it.
+        // all here. To reduce redundant draws, within drawBlobFactoryToCanvas we check if
+        // we've already drawn this blob and if so, skip it.
         canvas.forEach(canvas => {
-            // keep track of the settings used to draw the blobs
-            // so that we can redraw them when the color scheme changes
+            // keep track of the settings used to draw the blobs so that we can redraw them
+            // when the color scheme changes
             (canvas as HTMLCanvasElementWithBlobSettings)._blobsSettings = settings;
 
             drawBlobFactoryToCanvas(

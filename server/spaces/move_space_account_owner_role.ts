@@ -20,17 +20,18 @@ export const moveSpaceAccountOwnerRoleBeforeExecuteTestCheckpoint =
     new TestCheckpoint<`${SpaceId}:${AccountId}`>();
 
 /**
- * Move the ownership of a space to a new account and make previous `Owner` as `Admin`
+ * Move the ownership of a space to a new account and make previous `Owner` as
+ * `Admin`
  *
- * Each space should have only one `Owner` by default which is made during the creation of
- * space using `createAlphaSpaceAsAdmin`. After creation of space you can only edit `Owner`
- * role using this function.
+ * Each space should have only one `Owner` by default which is made during the
+ * creation of space using `createAlphaSpaceAsAdmin`. After creation of space you
+ * can only edit `Owner` role using this function.
  *
- * We make sure only `Owner` can transfer the ownership to other accounts in client as well as
- * server using `authorizeSpaceAccess(context, spaceId, "Owner")`
+ * We make sure only `Owner` can transfer the ownership to other accounts in client
+ * as well as server using `authorizeSpaceAccess(context, spaceId, "Owner")`
  *
- * Be careful while dealing with `Owner` of the space as you cannot enforce single owner using
- * Schema library so we need to do that in code manually.
+ * Be careful while dealing with `Owner` of the space as you cannot enforce single
+ * owner using Schema library so we need to do that in code manually.
  */
 export async function moveSpaceAccountOwnerRole(
     context: ServerSessionActionContext,
@@ -111,8 +112,8 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
         assert(oldSpaceAccountItem);
         assert(newSpaceAccountItem);
 
-        // Double check the old account is an owner. This is important if we need to
-        // retry the transaction.
+        // Double check the old account is an owner. This is important if we need to retry
+        // the transaction.
         if (oldSpaceAccountItem.role !== "Owner") {
             throw createAuthorizeSpaceAccessPermissionDeniedError(
                 spaceId,
@@ -131,8 +132,8 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
             throw new FailedPreconditionError("Can\u2019t move space owner role to bot account");
         }
 
-        // when `oldOwnerAccountId === newOwnerAccountId`, we don't need to update
-        // anything although this is impossible to do from Alpine UI.
+        // when `oldOwnerAccountId === newOwnerAccountId`, we don't need to update anything
+        // although this is impossible to do from Alpine UI.
         if (oldOwnerAccountId === newOwnerAccountId) {
             const account = createAccountModelFromItem(
                 {

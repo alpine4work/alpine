@@ -60,8 +60,8 @@ export function TaskPriorityIcon({
             break;
         }
         case "Urgent": {
-            // Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation
-            // mark bigger and duotone.
+            // Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation mark
+            // bigger and duotone.
             return (
                 <div className={taskPriorityIconUrgentContainerClassName}>
                     {shouldHighlightUrgent && (
@@ -122,8 +122,8 @@ export function TaskPriorityIcon({
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 32 32"
             className={taskPriorityIconClassName}
-            // Safari doesn't like `width` and `height` attributes being set to rem units
-            // so use `style` instead.
+            // Safari doesn't like `width` and `height` attributes being set to rem units so
+            // use `style` instead.
             style={{
                 width: spacing[size],
                 height: spacing[size],

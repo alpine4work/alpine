@@ -3,8 +3,8 @@ import {CSSProperties} from "react";
 /**
  * We use the ghost icon for removed account avatars.
  *
- * This component is a modified version of the `phosphor-react` `<Ghost>` icon.
- * The eyes are slightly bigger so that they look better at really small sizes.
+ * This component is a modified version of the `phosphor-react` `<Ghost>` icon. The
+ * eyes are slightly bigger so that they look better at really small sizes.
  */
 export function GhostIcon({
     color,

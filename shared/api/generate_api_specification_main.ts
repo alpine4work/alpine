@@ -49,15 +49,14 @@ async function main() {
         {escape: string => string},
     );
 
-    // Remove all comments from YAML. Comments are internal developer commentary
-    // that shouldn't be included in the public API specification.
+    // Remove all comments from YAML. Comments are internal developer commentary that
+    // shouldn't be included in the public API specification.
     specificationContent = specificationContent.replace(/^ *#[^\n]*\n+/gm, "");
 
     specificationContent = Yaml.stringify(
-        // Use `JSON.parse(JSON.stringify())` to get a deep copy of the schema so we
-        // don't end up with YAML references like `&a2` + `*a2`. This improves
-        // readability for the generated schema and makes the generated schema easier
-        // to code review.
+        // Use `JSON.parse(JSON.stringify())` to get a deep copy of the schema so we don't
+        // end up with YAML references like `&a2` + `*a2`. This improves readability for
+        // the generated schema and makes the generated schema easier to code review.
         JSON.parse(JSON.stringify(specialize(Yaml.parse(specificationContent)))),
         {indent: 4},
     );
@@ -306,8 +305,8 @@ main().catch(error => {
 });
 
 /**
- * API specification specialization is similar to C++ templates. It allows us
- * to conveniently declare multiple versions of the same underlying schema.
+ * API specification specialization is similar to C++ templates. It allows us to
+ * conveniently declare multiple versions of the same underlying schema.
  *
  * For any schema that ends with `_${specialization}`, we create a copy of ALL
  * schemas that reference the original schema and reference the specialization
@@ -319,32 +318,30 @@ main().catch(error => {
  * # Example
  *
  * In our schema we have `ContentMentionInlineElement` and
+ * `ContentMentionInlineElement_Response`. `ContentMentionInlineElement_Response`
+ * contains data loaded from the mention target (e.g. `title` and eventually data
+ * like the task status). However when creating a mention the user won't have this
+ * data available so they'll simply use `ContentMentionInlineElement` which does
+ * not include this data.
+ *
+ * So this distinction needs to bubble all the way up the JSON schema. Ultimately
+ * we need both a `Content` schema and a `Content_Response` schema. Where `Content`
+ * references `ContentMentionInlineElement` and `Content_Response` references
  * `ContentMentionInlineElement_Response`.
- * `ContentMentionInlineElement_Response` contains data loaded from the mention
- * target (e.g. `title` and eventually data like the task status). However when
- * creating a mention the user won't have this data available so they'll simply
- * use `ContentMentionInlineElement` which does not include this data.
  *
- * So this distinction needs to bubble all the way up the JSON schema.
- * Ultimately we need both a `Content` schema and a `Content_Response` schema.
- * Where `Content` references `ContentMentionInlineElement` and
- * `Content_Response` references `ContentMentionInlineElement_Response`.
- *
- * This specialization function performs this "bubbling". Generating a
- * `_Response` specialization for each schema that references
- * `ContentMentionInlineElement`.
+ * This specialization function performs this "bubbling". Generating a `_Response`
+ * specialization for each schema that references `ContentMentionInlineElement`.
  */
 function specialize(specification: unknown) {
     let iterationCount = 0;
     let specializationsBySchemaName = findSpecializations(specification);
 
-    // NOTE(calebmer): This implementation isn't particularly efficient. It's
-    // looping until we reach a "fix point". A point at which there are no new
-    // specializations to add. On large schemas, this can get expensive fast.
-    // This algorithm is in the neighborhood of O(n^2) though not as bad.
+    // NOTE(calebmer): This implementation isn't particularly efficient. It's looping
+    // until we reach a "fix point". A point at which there are no new specializations
+    // to add. On large schemas, this can get expensive fast. This algorithm is in the
+    // neighborhood of O(n^2) though not as bad.
     //
-    // We'll need some fancy algorithms here in the future to make this more
-    // efficient.
+    // We'll need some fancy algorithms here in the future to make this more efficient.
     while (specializationsBySchemaName.size > 0) {
         iterationCount++;
 
@@ -432,8 +429,8 @@ function applySpecializations(
                 specification.components.schemas[otherSpecializedSchemaName] =
                     newOtherSpecializedSchema;
 
-                // If this schema was already specialized, we don't need to recursively
-                // specialize references for this schema again.
+                // If this schema was already specialized, we don't need to recursively specialize
+                // references for this schema again.
                 if (!isAlreadySpecialized) {
                     getOrSetDefaultMapValue(
                         newSpecializationsBySchemaName,

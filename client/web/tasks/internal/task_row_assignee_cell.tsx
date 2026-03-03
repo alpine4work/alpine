@@ -142,8 +142,8 @@ function TaskRowAssigneeCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
-    // Disable expensive features until the user hovers/focuses the cell in
-    // question while not scrolling.
+    // Disable expensive features until the user hovers/focuses the cell in question
+    // while not scrolling.
     //
     // This improves scroll performance and initial load performance. Since we only
     // need to render the read-only version of a cell on initial load.
@@ -180,8 +180,8 @@ function TaskRowAssigneeCell(
     );
 
     const handleAssigneeAccountChange = (assigneeAccount: AccountModel | null) => {
-        // Currently, accounts without space access can't edit tasks. The max
-        // permission level of `urlGrant` is `View`.
+        // Currently, accounts without space access can't edit tasks. The max permission
+        // level of `urlGrant` is `View`.
         assert(currentAccount);
 
         commitActionTransaction(taskId => {
@@ -270,8 +270,8 @@ function TaskRowAssigneeCell(
                             style={{
                                 // Get around the `textCursorNotInheritedClassName` reset.
                                 cursor: !isReadOnly ? "text" : "auto",
-                                // `display: inline-flex` creates an inline layout which adds extra space
-                                // below the element. Adding `vertical-align` stops the space from being added.
+                                // `display: inline-flex` creates an inline layout which adds extra space below the
+                                // element. Adding `vertical-align` stops the space from being added.
                                 // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                                 verticalAlign: "top",
                             }}
@@ -280,9 +280,8 @@ function TaskRowAssigneeCell(
                             <AccountShortName
                                 className={previewNameClassName}
                                 account={assigneeAccountData}
-                                // Place the first row's tooltip below the name. Since we may have a
-                                // column header with a z-index higher than overlays so it can render
-                                // overlays when scrolled..
+                                // Place the first row's tooltip below the name. Since we may have a column header
+                                // with a z-index higher than overlays so it can render overlays when scrolled..
                                 tooltipPlacement={isFirstRow ? "bottom" : "top"}
                             />
                         </div>

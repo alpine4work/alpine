@@ -26,9 +26,9 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
-// NOTE(calebmer): The icons used here for create actions are the same icons
-// used in `<SearchEntityView/>`'s `getSearchEntityTypeDisplay()`. If you
-// change an icon here you should also change it there.
+// NOTE(calebmer): The icons used here for create actions are the same icons used
+// in `<SearchEntityView/>`'s `getSearchEntityTypeDisplay()`. If you change an icon
+// here you should also change it there.
 export function SpaceLayoutSideBarCreateButton() {
     const clientInfo = useClientInfo();
     const {space} = useSpaceContext();
@@ -41,9 +41,9 @@ export function SpaceLayoutSideBarCreateButton() {
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                // NOTE(calebmer): I'd really like to use Ctrl+N as the keyboard shortcut to
-                // open the create menu but unfortunately we can't override that shortcut in
-                // Chrome. When we ship a desktop app we should bind Ctrl+N to the create menu.
+                // NOTE(calebmer): I'd really like to use Ctrl+N as the keyboard shortcut to open
+                // the create menu but unfortunately we can't override that shortcut in Chrome.
+                // When we ship a desktop app we should bind Ctrl+N to the create menu.
                 if (
                     event.key === "m" &&
                     (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)

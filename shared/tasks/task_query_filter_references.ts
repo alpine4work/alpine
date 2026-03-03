@@ -35,16 +35,16 @@ export const emptyTaskQueryFilterReferences: TaskQueryFilterReferences = {
  * Is the provided `TaskQueryFilterReferences` object empty?
  */
 export function isEmptyTaskQueryFilterReferences(references: TaskQueryFilterReferences): boolean {
-    // If you add more data to `TaskQueryFilterReferences` in the future, you'll
-    // need to come back and update this function.
+    // If you add more data to `TaskQueryFilterReferences` in the future, you'll need
+    // to come back and update this function.
     assertEqualTypes<keyof TaskQueryFilterReferences, "accountById" | "collectionResultById">();
 
     return references.accountById.size === 0 && references.collectionResultById.size === 0;
 }
 
 /**
- * Merge two `TaskQueryFilterReferences` into one. References in the second
- * object will override references in the first.
+ * Merge two `TaskQueryFilterReferences` into one. References in the second object
+ * will override references in the first.
  */
 export function mergeTaskQueryFilterReferences(
     references1: TaskQueryFilterReferences,

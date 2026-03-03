@@ -138,11 +138,10 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
     const [withAnimation, setWithAnimation] = useState(false);
 
     // Keep re-applying the animation CSS class so the user notices the inbox arrow
-    // bounce encouraging them to open the fullscreen inbox. We believe the
-    // fullscreen inbox is a better UX when managing many notifications. If the
-    // user is spending a lot of time in the overlay when they have many
-    // notifications, we hope the animation will subtly prompt them into opening
-    // the fullscreen inbox.
+    // bounce encouraging them to open the fullscreen inbox. We believe the fullscreen
+    // inbox is a better UX when managing many notifications. If the user is spending a
+    // lot of time in the overlay when they have many notifications, we hope the
+    // animation will subtly prompt them into opening the fullscreen inbox.
     useEffect(() => {
         if (withoutAnimation) {
             setWithAnimation(false);
@@ -173,8 +172,8 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
             height="6"
             paddingX="1.5"
             fontSize="100"
-            // The inbox will show a loading shimmer when it opens. We don't need to
-            // also show a loading indicator here.
+            // The inbox will show a loading shimmer when it opens. We don't need to also show
+            // a loading indicator here.
             withoutLoadingIndicator
             iconGap="0.5"
             iconPlacement="end"
@@ -201,8 +200,8 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                     searchParams.set("tab", "old");
                 }
 
-                // Optimization: Since we know the first inbox entry we can include it in the
-                // URL so our backend can load data it in parallel.
+                // Optimization: Since we know the first inbox entry we can include it in the URL
+                // so our backend can load data it in parallel.
                 const firstItem = entriesRef.current?.getFirstItemIfExists();
                 if (firstItem) {
                     searchParams.set("selected", getEncodedInboxEntryPath(firstItem.model, "wide"));
@@ -284,11 +283,11 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const spacingScale = useSpacingScale();
 
-    // Whenever our query data changes, try loading more entries. In case our
-    // rendered range stayed the same but we now see the loading indicator.
+    // Whenever our query data changes, try loading more entries. In case our rendered
+    // range stayed the same but we now see the loading indicator.
     //
-    // This effect should also fire when `tryLoadingMore()` completes in case it
-    // didn't fully load the query.
+    // This effect should also fire when `tryLoadingMore()` completes in case it didn't
+    // fully load the query.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         query;
@@ -360,18 +359,17 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                 [filter, itemCount, onClose, query],
             )}
             extraChildrenOutsideContentElement={({contentHeight}) => (
-                // Our items all have a bottom border. This is good when there's less content
-                // than room to scroll since it creates a clear shape for the last item in the
-                // list.
+                // Our items all have a bottom border. This is good when there's less content than
+                // room to scroll since it creates a clear shape for the last item in the list.
                 //
                 // However, if there are enough items to scroll then when the user has fully
-                // scrolled we want the last item to *not* have a border bottom since the
-                // bottom of the screen creates that boundary. We don't need to render an extra
-                // line in the margins.
+                // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                // the screen creates that boundary. We don't need to render an extra line in the
+                // margins.
                 //
-                // This div covers the bottom border of the last item but only when there's
-                // enough content to scroll. Otherwise the bottom border needs to be visible to
-                // visually contain the last item. To debug this it's helpful to switch the
+                // This div covers the bottom border of the last item but only when there's enough
+                // content to scroll. Otherwise the bottom border needs to be visible to visually
+                // contain the last item. To debug this it's helpful to switch the
                 // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"

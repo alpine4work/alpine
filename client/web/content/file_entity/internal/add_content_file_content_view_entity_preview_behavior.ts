@@ -78,8 +78,8 @@ export function addContentFileContentViewEntityPreviewBehavior(
     );
 
     const fileEntityChildrenElements = Array.from(allFileElements).filter(child => {
-        // We don't want to handle any nested file entities here, as this
-        // function is recursive and the nested ones will be handled later.
+        // We don't want to handle any nested file entities here, as this function is
+        // recursive and the nested ones will be handled later.
         return child.parentElement?.closest(`.${contentStyles.fileEntityClassName}`) === element;
     });
 
@@ -88,9 +88,9 @@ export function addContentFileContentViewEntityPreviewBehavior(
 
         const fileIdString = fileElement.getAttribute("data-file");
 
-        // The `data-file` attribute must exist (thanks to the `withFileIdAttribute`)
-        // even if it's the string `"null"`. Just to make sure we're not incorrectly
-        // processing any file elements.
+        // The `data-file` attribute must exist (thanks to the `withFileIdAttribute`) even
+        // if it's the string `"null"`. Just to make sure we're not incorrectly processing
+        // any file elements.
         assert(fileIdString !== null);
 
         const fileId: FileId | FileEntityId | null =

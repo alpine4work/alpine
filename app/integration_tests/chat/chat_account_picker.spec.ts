@@ -227,8 +227,8 @@ test("after selecting one account suggested chats include chats containing that 
 
     await directOneOnOne.sendMessage(sessionActor, "one-on-one seed");
 
-    // We use session cipher here to exercise what happens when we don't have
-    // affinity for the group chat.
+    // We use session cipher here to exercise what happens when we don't have affinity
+    // for the group chat.
     await directGroup.sendMessage(sessionCipher, "group seed");
 
     await services.signIn(browserContext, sessionActor);

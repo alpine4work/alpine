@@ -47,9 +47,8 @@ export async function getFileTaskEntityModelIfPossible(
     spaceId: SpaceId,
     taskId: TaskId,
 ): Promise<Result<FileTaskEntityModel, ErrorBase>> {
-    // Since `context.tasks.loadQuery()` isn't always implemented in all unit tests
-    // we allow you to set a flag in Jest unit tests to return a mock task
-    // entity model.
+    // Since `context.tasks.loadQuery()` isn't always implemented in all unit tests we
+    // allow you to set a flag in Jest unit tests to return a mock task entity model.
     if (import.meta.jest && withMockFileTaskEntityModelForTest) {
         const unknownAccountData = AccountModel.getUnknown().initialData;
 
@@ -124,8 +123,8 @@ export async function getFileTaskEntityModelIfPossible(
                 // Normally, we prefer that functions explicitly return authorization errors
                 // instead of us using a try/catch which might pick up an unrelated permission
                 // error. However, in this case the `loadQueries()` function in
-                // `TaskRealtimeService` is complex enough that we're not going to bother
-                // updating its code to return explicit authorization errors for now.
+                // `TaskRealtimeService` is complex enough that we're not going to bother updating
+                // its code to return explicit authorization errors for now.
                 if (
                     (error instanceof PermissionDeniedError || error instanceof NotFoundError) &&
                     error.displayMessage
@@ -153,8 +152,8 @@ export async function getFileTaskEntityModelIfPossible(
         }),
     );
 
-    // If we don't have access to the task then `loadQueries()` should throw
-    // a `PermissionDeniedError`.
+    // If we don't have access to the task then `loadQueries()` should throw a
+    // `PermissionDeniedError`.
     assert(backfillTask.type !== "Unauthorized");
 
     // TODO(calebmer): What do deleted tasks look like?
@@ -177,8 +176,8 @@ export async function getFileTaskEntityModelIfPossible(
         depth: number;
     } | null = null;
 
-    // Recursively find the task's root parent and calculate the depth to the
-    // root parent.
+    // Recursively find the task's root parent and calculate the depth to the root
+    // parent.
     if (task.getParent() !== null) {
         parent = {
             rootTask: {type: "Authorized", task: task},
@@ -247,11 +246,10 @@ export async function getFileTaskEntityModelIfPossible(
         ok: true,
         value: {
             type: "Task",
-            // We use the max `HybridLogicalTime` across all the CRDTs we're
-            // returning as the version. While this isn't perfect (when merging two file
-            // entities one may have a newer collection name and the other may have a newer
-            // collection color) we consider it good enough. Most of the time we'll be
-            // reading the latest data.
+            // We use the max `HybridLogicalTime` across all the CRDTs we're returning as the
+            // version. While this isn't perfect (when merging two file entities one may have a
+            // newer collection name and the other may have a newer collection color) we
+            // consider it good enough. Most of the time we'll be reading the latest data.
             versions: maxTime,
             task,
             assignee,

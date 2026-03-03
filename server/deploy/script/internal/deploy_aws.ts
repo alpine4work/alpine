@@ -17,14 +17,13 @@ type StackActivity = {
 /**
  * This function runs `bazel run //admin/aws:cdk -- deploy --all`.
  *
- * There should be no functional difference from running that command from bash
- * or running this function from JavaScript. Except this function provides
- * tracing for the deploy.
+ * There should be no functional difference from running that command from bash or
+ * running this function from JavaScript. Except this function provides tracing for
+ * the deploy.
  *
- * The `aws-cdk` library's only publicly accessible API is its CLI tool.
- * However, the library also graciously provides its code built as individual
- * files. This allows us to hook into `aws-cdk`'s internals to add custom
- * tracing.
+ * The `aws-cdk` library's only publicly accessible API is its CLI tool. However,
+ * the library also graciously provides its code built as individual files. This
+ * allows us to hook into `aws-cdk`'s internals to add custom tracing.
  */
 export async function deployAws(parentSpan: TracerSpan) {
     const resourceById = new Map<
@@ -43,9 +42,9 @@ export async function deployAws(parentSpan: TracerSpan) {
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalActivity = assertExists(HistoryActivityPrinter.prototype.activity);
 
-    // The `HistoryActivityPrinter` class is what's responsible for printing
-    // updates to stdout during a deploy. We hook into this class so we can log
-    // updates to our tracing provider.
+    // The `HistoryActivityPrinter` class is what's responsible for printing updates to
+    // stdout during a deploy. We hook into this class so we can log updates to our
+    // tracing provider.
     //
     // https://github.com/aws/aws-cdk-cli/blob/4bd61490bf8d65b952f260bc99af93b9f70befe2/packages/%40aws-cdk/tmp-toolkit-helpers/src/private/activity-printer/history.ts#L14
     const overrideActivity: typeof originalActivity = function (
@@ -64,21 +63,19 @@ export async function deployAws(parentSpan: TracerSpan) {
             // Make sure `HistoryActivityPrinter` is used which we override with custom
             // logging.
             "--progress=events",
-            // Never ask for approval in CI for IAM or security group related changes.
-            // Instead of requiring approval when `cdk deploy` is run we have a separate
-            // mechanism to get approval.
+            // Never ask for approval in CI for IAM or security group related changes. Instead
+            // of requiring approval when `cdk deploy` is run we have a separate mechanism to
+            // get approval.
             //
-            // `//admin/aws:write_aws_app_templates` makes sure we have the full
-            // CloudFormation template written to our repository (e.g. the
-            // `admin/aws/templates/cyberworlds_stack.yaml` file). Any change to these
-            // template files requires a code review from our production engineering group.
-            // Who are trusted by the organization to carefully review changes to our AWS
-            // infrastructure to make sure there security vulnerabilities aren't
-            // introduced.
+            // `//admin/aws:write_aws_app_templates` makes sure we have the full CloudFormation
+            // template written to our repository (e.g. the
+            // `admin/aws/templates/cyberworlds_stack.yaml` file). Any change to these template
+            // files requires a code review from our production engineering group. Who are
+            // trusted by the organization to carefully review changes to our AWS
+            // infrastructure to make sure there security vulnerabilities aren't introduced.
             //
-            // Therefore, if tests have passed on our `main` branch for this commit that
-            // means approval for any IAM or security group changes has already been
-            // granted.
+            // Therefore, if tests have passed on our `main` branch for this commit that means
+            // approval for any IAM or security group changes has already been granted.
             //
             // See the documentation for this property here:
             // https://docs.aws.amazon.com/cdk/v2/guide/cli.html

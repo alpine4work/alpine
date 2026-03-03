@@ -185,8 +185,8 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     } else {
         await page.getByLabel("Post", {exact: true}).blur();
 
-        // TODO(calebmer): We should open a `<MobileModal>` on mobile when editing a
-        // post so we can have a save button in the header.
+        // TODO(calebmer): We should open a `<MobileModal>` on mobile when editing a post
+        // so we can have a save button in the header.
         await page
             .getByLabel("Post", {exact: true})
             .press(`${isMobile ? "Meta" : "ControlOrMeta"}+Enter`);

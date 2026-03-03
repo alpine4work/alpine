@@ -422,8 +422,8 @@ function TaskRowView(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    // Either `cursor` or `ghostTaskId` should be provided. This component
-    // transitions from a ghost task to a regular task when the user enters data.
+    // Either `cursor` or `ghostTaskId` should be provided. This component transitions
+    // from a ghost task to a regular task when the user enters data.
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
 
     const isInitialAppRender = useIsInitialAppRender();
@@ -484,30 +484,30 @@ function TaskRowView(
 
     // The difference between `hasEditAccessLevel` and `capabilities.isReadOnly` is
     // that `capabilities.isReadOnly` applies to the entire view whereas
-    // `hasEditAccessLevel` only applies to the current row. Individual rows in a
-    // view may or may not be editable depending on their collections. You may have
-    // a view that has some editable tasks and some non-editable tasks mixed
-    // together. How we decide which one to use:
+    // `hasEditAccessLevel` only applies to the current row. Individual rows in a view
+    // may or may not be editable depending on their collections. You may have a view
+    // that has some editable tasks and some non-editable tasks mixed together. How we
+    // decide which one to use:
     //
     // - `hasEditAccessLevel` for editing task fields.
     //
-    // - `capabilities.isReadOnly` for row dragging in manually ordered views. Even
-    //   if you can't edit the contents of a task, if you can edit the collection
-    //   then you can change the task's position in the collection.
+    // - `capabilities.isReadOnly` for row dragging in manually ordered views. Even if
+    //   you can't edit the contents of a task, if you can edit the collection then you
+    //   can change the task's position in the collection.
     //
-    // `hasEditAccessLevel` will never be true if `capabilities.isReadOnly` is
-    // true. Can get into this scenario if you're looking at a `<TaskDetailView>`
-    // read-only task which has a child task you can edit (because it's in an
-    // editable collection).
+    // `hasEditAccessLevel` will never be true if `capabilities.isReadOnly` is true.
+    // Can get into this scenario if you're looking at a `<TaskDetailView>` read-only
+    // task which has a child task you can edit (because it's in an editable
+    // collection).
     const hasEditAccessLevel = useMemo(
         () => !capabilities.isReadOnly && hasAccessLevel(accessLevel, "Edit"),
         [accessLevel, capabilities.isReadOnly],
     );
 
     // If `cursor` is non-null then we expect `task` to also be non-null and
-    // authorized. This component should only be rendered with `TaskId`s in the
-    // query's loaded range and if the task is in the query's loaded range we
-    // expect that it exists on the client and is authorized.
+    // authorized. This component should only be rendered with `TaskId`s in the query's
+    // loaded range and if the task is in the query's loaded range we expect that it
+    // exists on the client and is authorized.
     assert(
         cursor !== null
             ? task !== null && taskEntry?.authorizationState?.value.type === "Authorized"
@@ -546,16 +546,16 @@ function TaskRowView(
         };
 
         // If we are currently committing the title then add our update to our pending
-        // action transaction builder. We'll commit the pending action after our
-        // current action commits.
+        // action transaction builder. We'll commit the pending action after our current
+        // action commits.
         if (titleCommitStateRef.current) {
             if (titleCommitStateRef.current.pendingActionTransactionBuilder) {
                 titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
             } else {
-                // Circumvent `commitActionTransaction()` when writing subsequent
-                // task title updates. The first task title update will go through
-                // `commitActionTransaction()`, but after that we use the optimized
-                // title action transaction builder.
+                // Circumvent `commitActionTransaction()` when writing subsequent task title
+                // updates. The first task title update will go through
+                // `commitActionTransaction()`, but after that we use the optimized title action
+                // transaction builder.
                 assert(store instanceof TaskClientStore);
 
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
@@ -676,10 +676,10 @@ function TaskRowView(
         },
 
         // TODO(calebmer): `focusCell()` is a bit of a misnomer considering this also
-        // focuses dense field inputs if cells aren't available. Currently our
-        // nomenclature doesn't consider dense field inputs as "cells". It's great to
-        // have one `focus(column)` method for undo/redo though. Since if the undo
-        // target is, say, priority we can call `focus("Priority")`.
+        // focuses dense field inputs if cells aren't available. Currently our nomenclature
+        // doesn't consider dense field inputs as "cells". It's great to have one
+        // `focus(column)` method for undo/redo though. Since if the undo target is, say,
+        // priority we can call `focus("Priority")`.
         focusCell: (column: TaskGridViewColumn) => {
             switch (column) {
                 case "ExpandButton": {
@@ -706,9 +706,8 @@ function TaskRowView(
                         //
                         // 1. Try selecting all the text in a row title then hitting escape.
                         // 2. Try selecting all the text in an editable row title when you have a
-                        //    non-editable row right above it. Hit the up arrow. The above row title's
-                        //    cell should be focused (but not the contents since the row above isn't
-                        //    editable).
+                        //    non-editable row right above it. Hit the up arrow. The above row title's cell
+                        //    should be focused (but not the contents since the row above isn't editable).
                         //
                         // In both cases, I'm seeing the original selection still rendered in Chrome.
                         window.getSelection()?.empty();
@@ -760,9 +759,9 @@ function TaskRowView(
                 return;
             }
 
-            // Noop if the column isn't rendered. This means it should be safe for us to
-            // assert that the ref for our column exists since it shouldn't be included in
-            // `columns` unless it's rendered.
+            // Noop if the column isn't rendered. This means it should be safe for us to assert
+            // that the ref for our column exists since it shouldn't be included in `columns`
+            // unless it's rendered.
             if (!columns.includes(column)) return;
 
             switch (column) {
@@ -864,9 +863,9 @@ function TaskRowView(
             focusCell(previousColumn);
         },
 
-        // We implement the ARIA grid keyboard shortcuts for our grid view cells. We do
-        // not implement the full grid spec at the moment since our virtualized list
-        // approach leads to flattening all our rows in the DOM.
+        // We implement the ARIA grid keyboard shortcuts for our grid view cells. We do not
+        // implement the full grid spec at the moment since our virtualized list approach
+        // leads to flattening all our rows in the DOM.
         //
         // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
         //
@@ -874,14 +873,13 @@ function TaskRowView(
         // capture phase with `handleCellKeyDownCapture`.
         handleCellKeyDown: (column: TaskGridViewColumn, event: KeyboardEvent) => {
             switch (event.key) {
-                // Moves focus one cell to the left. If focus is on the left-most cell in the
-                // row, focus does not move.
-                // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+                // Moves focus one cell to the left. If focus is on the left-most cell in the row,
+                // focus does not move. https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowLeft": {
                     if (event.target !== event.currentTarget) {
                         if (!isTextInputElement(event.target)) {
-                            // If an arrow key event propagates to this point then prevent the default
-                            // browser scroll but don't navigate.
+                            // If an arrow key event propagates to this point then prevent the default browser
+                            // scroll but don't navigate.
                             event.preventDefault();
                             event.stopPropagation();
                         }
@@ -895,8 +893,8 @@ function TaskRowView(
                     setInteractionModality("keyboard");
 
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                        // Even though title isn't technically the first column, it's the first
-                        // editable column so we put the user there.
+                        // Even though title isn't technically the first column, it's the first editable
+                        // column so we put the user there.
                         focusCell("Title");
                     } else {
                         focusPreviousCell(column);
@@ -905,13 +903,12 @@ function TaskRowView(
                 }
 
                 // Moves focus one cell to the right. If focus is on the right-most cell in the
-                // row, focus does not move.
-                // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+                // row, focus does not move. https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowRight": {
                     if (event.target !== event.currentTarget) {
                         if (!isTextInputElement(event.target)) {
-                            // If an arrow key event propagates to this point then prevent the default
-                            // browser scroll but don't navigate.
+                            // If an arrow key event propagates to this point then prevent the default browser
+                            // scroll but don't navigate.
                             event.preventDefault();
                             event.stopPropagation();
                         }
@@ -932,14 +929,13 @@ function TaskRowView(
                     break;
                 }
 
-                // Moves focus one cell up. If focus is on the top cell in the column, focus
-                // does not move.
-                // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+                // Moves focus one cell up. If focus is on the top cell in the column, focus does
+                // not move. https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowUp": {
                     if (event.target !== event.currentTarget) {
                         if (!isTextInputElement(event.target)) {
-                            // If an arrow key event propagates to this point then prevent the default
-                            // browser scroll but don't navigate.
+                            // If an arrow key event propagates to this point then prevent the default browser
+                            // scroll but don't navigate.
                             event.preventDefault();
                             event.stopPropagation();
                         }
@@ -955,11 +951,11 @@ function TaskRowView(
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusFirstVisibleTaskCell(column);
                     } else if (column === "Title") {
-                        // This matters in a view with both editable task rows and non-editable task
-                        // rows. If you start pressing `ArrowUp`/`ArrowDown` in an editable task row,
-                        // move to a non-editable task row, then move to another editable task row then
-                        // we want to preserve the arrow navigation coord across the non-editable task
-                        // row even though it's not used.
+                        // This matters in a view with both editable task rows and non-editable task rows.
+                        // If you start pressing `ArrowUp`/`ArrowDown` in an editable task row, move to a
+                        // non-editable task row, then move to another editable task row then we want to
+                        // preserve the arrow navigation coord across the non-editable task row even though
+                        // it's not used.
                         //
                         // By passing null, if there's an arrow navigation coord then we'll use it.
                         // Otherwise we call `focusPreviousTaskCell("Title")`.
@@ -970,14 +966,13 @@ function TaskRowView(
                     break;
                 }
 
-                // Moves focus one cell down. If focus is on the bottom cell in the column,
-                // focus does not move.
-                // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+                // Moves focus one cell down. If focus is on the bottom cell in the column, focus
+                // does not move. https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowDown": {
                     if (event.target !== event.currentTarget) {
                         if (!isTextInputElement(event.target)) {
-                            // If an arrow key event propagates to this point then prevent the default
-                            // browser scroll but don't navigate.
+                            // If an arrow key event propagates to this point then prevent the default browser
+                            // scroll but don't navigate.
                             event.preventDefault();
                             event.stopPropagation();
                         }
@@ -993,11 +988,11 @@ function TaskRowView(
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusLastVisibleTaskCell(column);
                     } else if (column === "Title") {
-                        // This matters in a view with both editable task rows and non-editable task
-                        // rows. If you start pressing `ArrowUp`/`ArrowDown` in an editable task row,
-                        // move to a non-editable task row, then move to another editable task row then
-                        // we want to preserve the arrow navigation coord across the non-editable task
-                        // row even though it's not used.
+                        // This matters in a view with both editable task rows and non-editable task rows.
+                        // If you start pressing `ArrowUp`/`ArrowDown` in an editable task row, move to a
+                        // non-editable task row, then move to another editable task row then we want to
+                        // preserve the arrow navigation coord across the non-editable task row even though
+                        // it's not used.
                         //
                         // By passing null, if there's an arrow navigation coord then we'll use it.
                         // Otherwise we call `focusNextTaskCell("Title")`.
@@ -1008,9 +1003,9 @@ function TaskRowView(
                     break;
                 }
 
-                // Moves focus down an author-determined number of rows, typically scrolling so
-                // the bottom row in the currently visible set of rows becomes one of the first
-                // visible rows. If focus is in the last row of the grid, focus does not move.
+                // Moves focus down an author-determined number of rows, typically scrolling so the
+                // bottom row in the currently visible set of rows becomes one of the first visible
+                // rows. If focus is in the last row of the grid, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageDown": {
                     event.preventDefault();
@@ -1027,9 +1022,9 @@ function TaskRowView(
                     break;
                 }
 
-                // Moves focus up an author-determined number of rows, typically scrolling so
-                // the top row in the currently visible set of rows becomes one of the last
-                // visible rows. If focus is in the first row of the grid, focus does not move.
+                // Moves focus up an author-determined number of rows, typically scrolling so the
+                // top row in the currently visible set of rows becomes one of the last visible
+                // rows. If focus is in the first row of the grid, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageUp": {
                     event.preventDefault();
@@ -1049,8 +1044,8 @@ function TaskRowView(
                 // Moves focus to the first cell in the row that contains focus.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 //
-                // (We don't implement Ctrl+Home since we haven't implemented jumping to the
-                // end of the grid and scrolling up.)
+                // (We don't implement Ctrl+Home since we haven't implemented jumping to the end of
+                // the grid and scrolling up.)
                 case "Home": {
                     if (capabilities.hasColumns && !isTextInputElement(document.activeElement)) {
                         event.preventDefault();
@@ -1059,8 +1054,8 @@ function TaskRowView(
                         // Navigating between cells changes the interaction modality to keyboard.
                         setInteractionModality("keyboard");
 
-                        // Even though title isn't technically the first column, it's the first
-                        // editable column so we put the user there.
+                        // Even though title isn't technically the first column, it's the first editable
+                        // column so we put the user there.
                         focusCell("Title");
                     }
                     break;
@@ -1069,8 +1064,8 @@ function TaskRowView(
                 // Moves focus to the last cell in the row that contains focus.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 //
-                // (We don't implement Ctrl+Home since we haven't implemented jumping to the
-                // end of the grid and scrolling up.)
+                // (We don't implement Ctrl+Home since we haven't implemented jumping to the end of
+                // the grid and scrolling up.)
                 case "End": {
                     if (capabilities.hasColumns && !isTextInputElement(document.activeElement)) {
                         event.preventDefault();
@@ -1086,12 +1081,11 @@ function TaskRowView(
 
                 // `Enter`: Disables grid navigation and:
                 //
-                // - If the cell contains editable content, places focus in an input field,
-                //   such as a textbox. If the input is a single-line text field, a subsequent
-                //   press of `Enter` may either restore grid navigation functions or move
-                //   focus to an input field in a neighboring cell.
-                // - If the cell contains one or more widgets, places focus on the first
-                //   widget.
+                // - If the cell contains editable content, places focus in an input field, such as
+                //   a textbox. If the input is a single-line text field, a subsequent press of
+                //   `Enter` may either restore grid navigation functions or move focus to an input
+                //   field in a neighboring cell.
+                // - If the cell contains one or more widgets, places focus on the first widget.
                 //
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "Enter": {
@@ -1124,11 +1118,11 @@ function TaskRowView(
                 // Restores grid navigation. If content was being edited, it may also undo edits.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 //
-                // Being in the `keydown` capture phase is essential. In case the cell input has
-                // an `Escape` handler that simply closes a dropdown or blurs the input.
+                // Being in the `keydown` capture phase is essential. In case the cell input has an
+                // `Escape` handler that simply closes a dropdown or blurs the input.
                 case "Escape": {
-                    // If the escape key is pressed while a cell is directly focused then unfocus
-                    // the cell.
+                    // If the escape key is pressed while a cell is directly focused then unfocus the
+                    // cell.
                     if (event.target === event.currentTarget) {
                         event.preventDefault();
                         event.stopPropagation();
@@ -1136,19 +1130,19 @@ function TaskRowView(
                         break;
                     }
 
-                    // Don't focus the title cell when hitting "Escape". You can enter cell
-                    // navigation easily enough by using the arrow keys. We've found that consuming
-                    // escape key presses when focus is in a title can be annoying if a peek is open
-                    // since the user may want to close the peek instead and only accidentally have
-                    // their focus in a title.
+                    // Don't focus the title cell when hitting "Escape". You can enter cell navigation
+                    // easily enough by using the arrow keys. We've found that consuming escape key
+                    // presses when focus is in a title can be annoying if a peek is open since the
+                    // user may want to close the peek instead and only accidentally have their focus
+                    // in a title.
                     //
                     // Also, the cell focus for titles breaks the illusion of our task product being
                     // just like a document so we like reducing the cases where a user will see the
                     // title cell selection state.
                     //
-                    // Finally, if `capabilities.hasColumns` is false then title cell selection
-                    // should be disabled entirely. And we definitely shouldn't try focusing the
-                    // title cell here.
+                    // Finally, if `capabilities.hasColumns` is false then title cell selection should
+                    // be disabled entirely. And we definitely shouldn't try focusing the title cell
+                    // here.
                     if (column === "Title") break;
 
                     event.preventDefault();
@@ -1175,19 +1169,18 @@ function TaskRowView(
             assert(ghostTaskId);
 
             // Typing to create a task to replace the ghost row row only makes sense in a
-            // manually sorted query. We don't have control of task order in an
-            // auto-sorted query.
+            // manually sorted query. We don't have control of task order in an auto-sorted
+            // query.
             //
             // We should not show a ghost row in a manually sorted query.
             assert(isQueryManuallySorted);
 
-            // Currently, accounts without space access can't edit tasks. The max
-            // permission level of `urlGrant` is `View`.
+            // Currently, accounts without space access can't edit tasks. The max permission
+            // level of `urlGrant` is `View`.
             assert(currentAccount);
 
-            // Make sure any state update from the `onGhostTaskCreated` callback runs in
-            // the same React commit as our store updates (which use
-            // `useSyncExternalStore()`).
+            // Make sure any state update from the `onGhostTaskCreated` callback runs in the
+            // same React commit as our store updates (which use `useSyncExternalStore()`).
             return flushSync(() => {
                 disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(ghostTaskId);
 
@@ -1348,17 +1341,17 @@ function TaskRowView(
         );
     };
 
-    // Is the entire row draggable after a long touch? True if the query is
-    // manually sorted and we're on a mobile device.
+    // Is the entire row draggable after a long touch? True if the query is manually
+    // sorted and we're on a mobile device.
     //
-    // If we're in a mobile layout but the primary input can hover then there's
-    // no affordance for reordering task rows. Must either be on a desktop
-    // layout (so the drag handle is accessible) or be on a device without hover
-    // affordance (to enable touch dragging).
+    // If we're in a mobile layout but the primary input can hover then there's no
+    // affordance for reordering task rows. Must either be on a desktop layout (so the
+    // drag handle is accessible) or be on a device without hover affordance (to enable
+    // touch dragging).
     //
-    // This is because touch dragging requires `<TaskRowTitleInput>` to be in
-    // dual modality mode. Which is very inconvenient for devices with a mouse. So
-    // we prefer normal input editing over touch dragging.
+    // This is because touch dragging requires `<TaskRowTitleInput>` to be in dual
+    // modality mode. Which is very inconvenient for devices with a mouse. So we prefer
+    // normal input editing over touch dragging.
     const isDraggableAfterLongTouch =
         !canPrimaryInputHover && !capabilities.isReadOnly && isQueryManuallySorted && hasTask;
 
@@ -1367,9 +1360,9 @@ function TaskRowView(
     useEffect(() => {
         if (!isDraggableAfterLongTouch) return;
 
-        // If the row is focused and the keyboard is open then a long press won't start
-        // a drag. The keyboard must close first. Instead long presses will perform
-        // text selection.
+        // If the row is focused and the keyboard is open then a long press won't start a
+        // drag. The keyboard must close first. Instead long presses will perform text
+        // selection.
         if (isTextInputWithinFocusedIfMobile) return;
 
         const containerElement = assertExists(containerRef.current);
@@ -1389,7 +1382,8 @@ function TaskRowView(
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
-            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            // [1]:
+            //     https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             const longTouchTimeout = createTimeout(() => {
                 if (touchState?.longTouchTimeout === longTouchTimeout)
                     touchState.longTouchTimeout = null;
@@ -1406,8 +1400,8 @@ function TaskRowView(
                 // Dispatch a `pointercancel` event so that any `usePress()` hooks cancel their
                 // press when a drag starts. To see this work, on mobile try pressing on an
                 // assignee avatar in a dense field long enough to start dragging. Then release
-                // without moving the mouse. Without firing a `pointercancel` the assignee
-                // input will open since `pointerup` is fired and `usePress()` calls `onPress`.
+                // without moving the mouse. Without firing a `pointercancel` the assignee input
+                // will open since `pointerup` is fired and `usePress()` calls `onPress`.
                 //
                 // `pointerup` will still be dispatched but since we dispatched `pointercancel`
                 // first `usePress()` will have cancelled its press state.
@@ -1444,8 +1438,8 @@ function TaskRowView(
         containerElement.addEventListener("touchcancel", handleTouchCancel, {capture: true});
 
         // NOTE(calebmer): I've observed cases where `touchend` is not fired but
-        // `pointerup` is. Perhaps this occurs if the touched element is removed from
-        // the DOM? Listen to `pointerup` as a fallback for cancelling a long touch.
+        // `pointerup` is. Perhaps this occurs if the touched element is removed from the
+        // DOM? Listen to `pointerup` as a fallback for cancelling a long touch.
         containerElement.addEventListener("pointerup", handleTouchEnd, {capture: true});
 
         return () => {
@@ -1463,8 +1457,8 @@ function TaskRowView(
     const marginLeft: RemLength = `${
         !withoutPaddingLeft
             ? taskRowViewIndentationRem[platform] * parents.length +
-              // On mobile we don't show the expand button, but if the query is auto-sorted
-              // we still want to render row numbers in the expand button space.
+              // On mobile we don't show the expand button, but if the query is auto-sorted we
+              // still want to render row numbers in the expand button space.
               (platform !== "mobile" || canPrimaryInputHover
                   ? taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
                   : screenPaddingXRem.mobile +
@@ -1484,8 +1478,8 @@ function TaskRowView(
                 // 2. Adjacent borders share the same space so we don't get 2px dividers
                 boxShadow:
                     // The column header in a grid view renders a semi-translucent grey border. To
-                    // avoid drawing a border darker than `grey-5` at the top of the screen if this
-                    // is the first row in a grid with columns then only render a bottom border.
+                    // avoid drawing a border darker than `grey-5` at the top of the screen if this is
+                    // the first row in a grid with columns then only render a bottom border.
                     isFirstRow && withoutBorderTopIfFirstRow
                         ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                         : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
@@ -1558,8 +1552,8 @@ function TaskRowView(
                 minHeight: spacing[taskRowViewMinHeight],
                 position: "relative",
                 zIndex: "0",
-                // Important not to set `overflow="hidden"` here so that the collections overlay
-                // we open in edit mode can render outside the bounds of the row.
+                // Important not to set `overflow="hidden"` here so that the collections overlay we
+                // open in edit mode can render outside the bounds of the row.
                 overflow: undefined,
                 display: "flex",
             }}
@@ -1570,12 +1564,11 @@ function TaskRowView(
             <div
                 className={classNames(
                     marginLeftContainerClassName,
-                    // Create an illusion that the text editor extends into the margins by giving
-                    // the margin a text cursor and making it clickable putting focus in the task.
-                    // A double click selects the task text.
+                    // Create an illusion that the text editor extends into the margins by giving the
+                    // margin a text cursor and making it clickable putting focus in the task. A double
+                    // click selects the task text.
                     //
-                    // This is an affordance for mouse users, does not need to be usable
-                    // by keyboard.
+                    // This is an affordance for mouse users, does not need to be usable by keyboard.
                     hasEditAccessLevel && tasksStyles.textCursorNotInheritedClassName,
                 )}
                 style={{width: marginLeft}}
@@ -1641,8 +1634,8 @@ function TaskRowView(
                                 // Expand button is not tab focusable. Keyboard navigation within a task grid is
                                 // not done with tab navigation.
                                 isTabbable={false}
-                                // Don't show the tooltip when focused through keyboard navigation. It's a
-                                // little distracting to see it move as you arrow key up/down.
+                                // Don't show the tooltip when focused through keyboard navigation. It's a little
+                                // distracting to see it move as you arrow key up/down.
                                 isTooltipVisibleWhenFocused={false}
                                 size="xs"
                                 description="Open"
@@ -1650,9 +1643,9 @@ function TaskRowView(
                                 onPress={async () => {
                                     await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
 
-                                    // After opening a task, (probably the task was opened in a peek) then unfocus
-                                    // the button. That way keyboard events like "Escape" will be handled by the
-                                    // peek and not the button.
+                                    // After opening a task, (probably the task was opened in a peek) then unfocus the
+                                    // button. That way keyboard events like "Escape" will be handled by the peek and
+                                    // not the button.
                                     expandButtonRef.current?.blur();
                                 }}
                                 onFocusChange={setIsExpandButtonFocused}
@@ -1663,8 +1656,8 @@ function TaskRowView(
                             >
                                 {isHovered || isExpandButtonFocused ? (
                                     // Optimization: Only render this component when necessary. We've seen this
-                                    // component show up as expensive in the React profiler when rendering a task
-                                    // grid view.
+                                    // component show up as expensive in the React profiler when rendering a task grid
+                                    // view.
                                     <ArrowsOutSimple />
                                 ) : null}
                             </IconButton>
@@ -1681,8 +1674,8 @@ function TaskRowView(
                                 size={platform === "mobile" ? "5" : "4"}
                                 task={task}
                                 initialFields={null}
-                                // Disable the ability to tab to this button. Since there are so many tasks and
-                                // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
+                                // Disable the ability to tab to this button. Since there are so many tasks and the
+                                // `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
                                 // navigation.
                                 isFocusable={true}
                                 isTabbable={false}
@@ -1691,15 +1684,15 @@ function TaskRowView(
                                 onKeyDownCapture={event =>
                                     handleCellKeyDownCapture("StatusButton", event)
                                 }
-                                // Small UX detail that makes (I feel) a big difference. When you press the
-                                // status button to close a task, after releasing the task immediately animates
-                                // out if the query's filters don't allow closed tasks. This may confuse a user.
-                                // Why did the task do that? Where'd it go?
+                                // Small UX detail that makes (I feel) a big difference. When you press the status
+                                // button to close a task, after releasing the task immediately animates out if the
+                                // query's filters don't allow closed tasks. This may confuse a user. Why did the
+                                // task do that? Where'd it go?
                                 //
-                                // If the user is in a query where closed tasks are filtered out we show the
-                                // closed check when the user presses down on the status button. This way we
-                                // briefly show them what the new state of their task will be. And give them
-                                // the satisfaction of seeing a closed task.
+                                // If the user is in a query where closed tasks are filtered out we show the closed
+                                // check when the user presses down on the status button. This way we briefly show
+                                // them what the new state of their task will be. And give them the satisfaction of
+                                // seeing a closed task.
                                 shouldShowClosedStatusWhenPressed={
                                     query !== null && !query.filters.displayStatusFilter.ifClosed
                                 }
@@ -1729,12 +1722,11 @@ function TaskRowView(
                         ref={titleCellRef}
                         className={titleCellClassName}
                         // The focusable bit of a title cell is a sibling of the title input with
-                        // `pointer-events: none`. This is because we don't want clicking in the
-                        // title input to focus the title cell when the title input is readonly. By
-                        // default when you click somewhere in a browser, focus is moved to the nearest
-                        // `tabindex="-1"` parent index. We can't prevent this without calling
-                        // `event.preventDefault()` in the `pointerdown` event which also prevents the
-                        // user from selecting text.
+                        // `pointer-events: none`. This is because we don't want clicking in the title
+                        // input to focus the title cell when the title input is readonly. By default when
+                        // you click somewhere in a browser, focus is moved to the nearest `tabindex="-1"`
+                        // parent index. We can't prevent this without calling `event.preventDefault()` in
+                        // the `pointerdown` event which also prevents the user from selecting text.
                         tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
                         onKeyDown={event => {
                             switch (event.key) {
@@ -1872,12 +1864,11 @@ function TaskRowView(
                 style={{
                     flexShrink: 0,
                     width: spacing["5"],
-                    // Create an illusion that the text editor extends into the margins by giving
-                    // the margin a text cursor and making it clickable putting focus in the task.
-                    // A double click selects the task text.
+                    // Create an illusion that the text editor extends into the margins by giving the
+                    // margin a text cursor and making it clickable putting focus in the task. A double
+                    // click selects the task text.
                     //
-                    // This is an affordance for mouse users, does not need to be usable
-                    // by keyboard.
+                    // This is an affordance for mouse users, does not need to be usable by keyboard.
                     cursor: capabilities.hasColumns
                         ? undefined
                         : hasEditAccessLevel
@@ -1921,10 +1912,9 @@ function TaskRowView(
                         {borderCoverNode}
                         {node}
                         <TaskRowViewDenseFields
-                            // NOTE(calebmer): This component is not rendered by a fullscreen grid view
-                            // which may have many, many tasks. So we haven't spent time optimizing it yet.
-                            // However, if tasks with many children are common this component may slow
-                            // us down.
+                            // NOTE(calebmer): This component is not rendered by a fullscreen grid view which
+                            // may have many, many tasks. So we haven't spent time optimizing it yet. However,
+                            // if tasks with many children are common this component may slow us down.
                             ref={denseFieldsRef}
                             isReadOnly={!hasEditAccessLevel}
                             withoutAssigneeField={capabilities.withoutAssigneeField}
@@ -2011,8 +2001,8 @@ function TaskRowViewDragHandle({
 }) {
     const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
 
-    // When drag state updates, only re-render `<TaskRowViewDragHandle>`s. Not
-    // every row.
+    // When drag state updates, only re-render `<TaskRowViewDragHandle>`s. Not every
+    // row.
     const {
         attributes: draggableAttributes,
         listeners: {
@@ -2060,8 +2050,8 @@ function TaskRowViewDragHandle({
                         // immediately on press.
                         cursor: isDragHandlePressed ? "grabbing" : "grab",
                     })}
-                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is
-                    // not done with tab navigation.
+                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is not
+                    // done with tab navigation.
                     tabIndex={-1}
                 >
                     <DotsSixVertical size={spacing["3"]} />
@@ -2089,9 +2079,9 @@ function TaskRowViewDragAfterLongTouchController({
     onManuallyActivateTouchSensorRef: RefObject<((event: any) => void) | null>;
 }) {
     // When drag state updates, only re-render
-    // `<TaskRowViewDragAfterLongTouchController>`s. Not every row component.
-    // That's why we have this controller component instead of putting the
-    // `useDraggable()` hook directly in `<TaskRowView>`.
+    // `<TaskRowViewDragAfterLongTouchController>`s. Not every row component. That's
+    // why we have this controller component instead of putting the `useDraggable()`
+    // hook directly in `<TaskRowView>`.
     const {
         listeners: {
             // @ts-expect-error: Added by `TouchSensorWithManualActivation` but TypeScript
@@ -2120,10 +2110,10 @@ function TaskRowViewDragAfterLongTouchController({
         onManuallyActivateTouchSensor,
     ]);
 
-    // We need a DOM element for `@dnd-kit/core` to be able to correctly position
-    // our drag overlay. Render it at the beginning of our margin left with 0
-    // width. The user should not be able to interact with this element, it should
-    // only be used for spacing.
+    // We need a DOM element for `@dnd-kit/core` to be able to correctly position our
+    // drag overlay. Render it at the beginning of our margin left with 0 width. The
+    // user should not be able to interact with this element, it should only be used
+    // for spacing.
     return (
         <div
             ref={setDraggableNodeRef}

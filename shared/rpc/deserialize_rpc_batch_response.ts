@@ -22,8 +22,8 @@ export async function deserializeRpcBatchResponse(
                     stream: !result.done,
                 });
 
-                // If there's a newline in the output that means the content preceding the
-                // newline has at least one valid event maybe more.
+                // If there's a newline in the output that means the content preceding the newline
+                // has at least one valid event maybe more.
                 let newLineIndex = chunkString.lastIndexOf("\n");
 
                 if (newLineIndex !== -1) {
@@ -46,8 +46,8 @@ export async function deserializeRpcBatchResponse(
             }
         }
 
-        // Once we're done reading, we assume the last string is also valid JSON.
-        // Unless the string is empty. Then we assume it's a trailing newline.
+        // Once we're done reading, we assume the last string is also valid JSON. Unless
+        // the string is empty. Then we assume it's a trailing newline.
         if (unfinishedString.length !== 0) {
             yield unfinishedString;
         }
@@ -63,8 +63,8 @@ export async function deserializeRpcBatchResponse(
             throw new InternalError("Batch request included output for an unknown call");
         }
 
-        // If anything throws while processing the output for a single call,
-        // reject only that call's promise.
+        // If anything throws while processing the output for a single call, reject only
+        // that call's promise.
         if (!callOutput.ok) {
             call.outputPromiseResolver.reject(callOutput.error);
         } else {

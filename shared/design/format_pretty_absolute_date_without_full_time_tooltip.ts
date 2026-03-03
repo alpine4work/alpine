@@ -8,8 +8,7 @@ import {Locale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 /**
- * Format the provided `time` into a human readable string like
- * "Aug 6 at 1:06pm".
+ * Format the provided `time` into a human readable string like "Aug 6 at 1:06pm".
  */
 export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
     locale: Locale,
@@ -85,8 +84,8 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
 }
 
 /**
- * Format a number into a string with its English ordinal suffix. For example, 1 becomes "1st",
- * 2 becomes "2nd", 3 becomes "3rd", and so on.
+ * Format a number into a string with its English ordinal suffix. For example, 1
+ * becomes "1st", 2 becomes "2nd", 3 becomes "3rd", and so on.
  */
 function formatNumberWithOrdinal(number: number) {
     assert(number >= 0, "Cannot get ordinal for a negative number");

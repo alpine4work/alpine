@@ -15,12 +15,12 @@ import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/s
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**
- * Authorize that the authenticated account has access to the provided
- * `spaceId`. Throws if the account does not have access.
+ * Authorize that the authenticated account has access to the provided `spaceId`.
+ * Throws if the account does not have access.
  *
- * This function is mostly strongly consistent so it's safe to call in a
- * strongly consistent environment. See the documentation on
- * `isAccountMemberOfSpace()` for details about consistency guarantees.
+ * This function is mostly strongly consistent so it's safe to call in a strongly
+ * consistent environment. See the documentation on `isAccountMemberOfSpace()` for
+ * details about consistency guarantees.
  *
  * This function also checks the role of actor account in the current
  * space(`spaceId`) using optional property`expectedRole`.
@@ -86,8 +86,8 @@ export async function authorizeSpaceAccess(
 
 /**
  * Same as `authorizeSpaceAccess()` but instead of throwing an error when the
- * account doesn't have space access, we return a `Result` with the error. So
- * the caller can handle permission denied errors without throwing.
+ * account doesn't have space access, we return a `Result` with the error. So the
+ * caller can handle permission denied errors without throwing.
  *
  * The logic should be the exact same between this function and
  * `authorizeSpaceAccess()`.
@@ -119,8 +119,8 @@ export async function authorizeSpaceAccessIfPossible(
                 return {
                     ok: false,
                     get error() {
-                        // When this function is called, frequently we only check `ok`. So lazily
-                        // create an error only when needed.
+                        // When this function is called, frequently we only check `ok`. So lazily create an
+                        // error only when needed.
                         error ??= new PermissionDeniedError(
                             "Impersonated account actor doesn\u2019t have access to space",
                             {aggregateDedupeKey: spaceId},
@@ -144,8 +144,8 @@ export async function authorizeSpaceAccessIfPossible(
                 return {
                     ok: false,
                     get error() {
-                        // When this function is called, frequently we only check `ok`. So lazily
-                        // create an error only when needed.
+                        // When this function is called, frequently we only check `ok`. So lazily create an
+                        // error only when needed.
                         error ??= createAuthorizeSpaceAccessPermissionDeniedError(
                             spaceId,
                             accountId,
@@ -163,8 +163,8 @@ export async function authorizeSpaceAccessIfPossible(
                 return {
                     ok: false,
                     get error() {
-                        // When this function is called, frequently we only check `ok`. So lazily
-                        // create an error only when needed.
+                        // When this function is called, frequently we only check `ok`. So lazily create an
+                        // error only when needed.
                         error ??= new PermissionDeniedError(
                             "System actor doesn\u2019t have access to space",
                             {aggregateDedupeKey: spaceId},
@@ -181,8 +181,8 @@ export async function authorizeSpaceAccessIfPossible(
             return {
                 ok: false,
                 get error() {
-                    // When this function is called, frequently we only check `ok`. So lazily
-                    // create an error only when needed.
+                    // When this function is called, frequently we only check `ok`. So lazily create an
+                    // error only when needed.
                     error ??= unauthenticatedSessionError();
                     return error;
                 },

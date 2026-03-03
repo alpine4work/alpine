@@ -12,9 +12,9 @@ import {
 } from "~/shared/content/content_duplication_variable_schema.js";
 
 /**
- * Route for duplicating a task with template variable replacement.
- * No loader - schema and title are encoded in the URL search params.
- * Opens as a peek when navigated to.
+ * Route for duplicating a task with template variable replacement. No loader -
+ * schema and title are encoded in the URL search params. Opens as a peek when
+ * navigated to.
  */
 export default function TaskDuplicateRoute() {
     const context = useAppContext();

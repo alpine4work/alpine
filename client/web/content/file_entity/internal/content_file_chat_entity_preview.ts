@@ -203,11 +203,11 @@ export function renderContentFileChatEntityPreview(
                 nextMessage:
                     index < fileEntity.messages.length - 1 ? fileEntity.messages[index + 1]! : null,
                 messageByIndex,
-                // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in
-                // documents because we turn off max width in the message view
+                // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in documents
+                // because we turn off max width in the message view
                 // (`contentStyles.withoutBlockMaxWidthDocClassName`) so the post extends
-                // end-to-end within the preview. Usually, the file entity preview width
-                // shouldn't be that much more than the block width.
+                // end-to-end within the preview. Usually, the file entity preview width shouldn't
+                // be that much more than the block width.
                 blockWidthPx: scaledWidthPx,
                 getContext,
                 clientInfo,

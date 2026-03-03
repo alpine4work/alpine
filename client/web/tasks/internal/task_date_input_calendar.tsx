@@ -122,8 +122,8 @@ export function TaskDateInputCalendar({
         focusedValue: focusedDate,
         onFocusChange: setFocusedDate,
         // When we are at the end of the month you probably want to select dates next
-        // month. Showing two months at once saves you a click when you're near the end
-        // of the month.
+        // month. Showing two months at once saves you a click when you're near the end of
+        // the month.
         //
         // On mobile, we don't have enough space on screen for two months.
         selectionAlignment: "start",
@@ -136,10 +136,10 @@ export function TaskDateInputCalendar({
     const actualStartDate2 = platform !== "mobile" ? actualStartDate1.add({months: 1}) : null;
     const actualEndDate = originalState.visibleRange.end;
 
-    // We want dates for the full week in the first and last weeks of the month. To
-    // do this we modify our state such that that's our visible range. The
-    // `useCalendarState()` hook doesn't see this modification but that's ok. We
-    // want to use the month start date for navigation purposes.
+    // We want dates for the full week in the first and last weeks of the month. To do
+    // this we modify our state such that that's our visible range. The
+    // `useCalendarState()` hook doesn't see this modification but that's ok. We want
+    // to use the month start date for navigation purposes.
     const state: typeof originalState = {
         ...originalState,
         visibleRange: {
@@ -157,8 +157,7 @@ export function TaskDateInputCalendar({
         setFocusedDate: () => {
             // Noop for now. This is called at the same time as `selectDate()` by
             // `useCalendarCell()` but if we are selecting a date outside of
-            // `useCalendarState()`s visible range we don't want to update the
-            // start/end dates.
+            // `useCalendarState()`s visible range we don't want to update the start/end dates.
         },
     };
 
@@ -168,8 +167,8 @@ export function TaskDateInputCalendar({
         nextButtonProps,
     } = useCalendar(calendarProps, state);
 
-    // We manually adapt button props to our icon button component. Make sure there
-    // are no more props than what we expect.
+    // We manually adapt button props to our icon button component. Make sure there are
+    // no more props than what we expect.
     const expectedButtonProps = new Set(["aria-label", "isDisabled", "onPress", "onFocusChange"]);
     assert(isDeepEqual(new Set(Object.keys(nextButtonProps)), expectedButtonProps));
     assert(isDeepEqual(new Set(Object.keys(prevButtonProps)), expectedButtonProps));
@@ -186,10 +185,10 @@ export function TaskDateInputCalendar({
     const maxWeeksInMonth = weeksInMonth2 ? Math.max(weeksInMonth1, weeksInMonth2) : weeksInMonth1;
 
     // On mobile we want our single month calendar to always be the same height
-    // regardless of the number of weeks in the month. Typically, months are
-    // between 5-6 weeks long with 5 being more common (a rare February may be
-    // exactly 4 weeks long like February 2015). So size weeks based on the number
-    // of weeks in the month.
+    // regardless of the number of weeks in the month. Typically, months are between
+    // 5-6 weeks long with 5 being more common (a rare February may be exactly 4 weeks
+    // long like February 2015). So size weeks based on the number of weeks in the
+    // month.
     const weekHeightRem =
         platform === "mobile"
             ? mobileTaskDateInputCalendarWeeksHeightRem / maxWeeksInMonth
@@ -449,12 +448,12 @@ function TaskDateInputCalendarCell({
     const isDateSameMonthAsGridStartDate =
         date.month === gridStartDate.month && date.year === gridStartDate.year;
 
-    // We only want to show the selected circle once. When we have overlapping
-    // dates between adjacent months, only show the selected circle around the date
-    // in its month.
+    // We only want to show the selected circle once. When we have overlapping dates
+    // between adjacent months, only show the selected circle around the date in its
+    // month.
     //
-    // For overflow dates at the start/end of the calendar grids we want to show
-    // the selected circle there too since we don't render the adjacent month.
+    // For overflow dates at the start/end of the calendar grids we want to show the
+    // selected circle there too since we don't render the adjacent month.
     const isSelected =
         isPressed ||
         (_isSelected &&
@@ -487,8 +486,8 @@ function TaskDateInputCalendarCell({
                         backgroundColor: isSelected
                             ? "grey-10"
                             : // We use a hover state here since picking the right date requires some motor
-                              // precision. So hovering helps reduce the mental load as your mouse tracks to
-                              // the right position.
+                              // precision. So hovering helps reduce the mental load as your mouse tracks to the
+                              // right position.
                               isHovered
                               ? "grey-5"
                               : undefined,

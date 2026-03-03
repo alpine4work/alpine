@@ -36,8 +36,7 @@ test.beforeAll(async () => {
     collection = await TestTaskCollection.create(session1);
     await collection.access.grantDefault(session1);
 
-    // Used to control parallelism. We run 3 action transactions in parallel
-    // at once.
+    // Used to control parallelism. We run 3 action transactions in parallel at once.
     const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(3, () => new Mutex());
 
@@ -174,8 +173,8 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    // Hover over the cell to mount the input. For performance we don't initially
-    // mount the input.
+    // Hover over the cell to mount the input. For performance we don't initially mount
+    // the input.
     await taskLocator3.getByTestId("TaskRowPriorityCell").hover();
 
     await taskLocator3.getByLabel("Priority").click();
@@ -341,8 +340,8 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    // Hover over the cell to mount the input. For performance we don't initially
-    // mount the input.
+    // Hover over the cell to mount the input. For performance we don't initially mount
+    // the input.
     await taskLocator3.getByTestId("TaskRowPriorityCell").hover();
 
     await taskLocator3.getByLabel("Priority").click();

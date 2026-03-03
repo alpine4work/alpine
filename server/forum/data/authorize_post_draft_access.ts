@@ -42,17 +42,17 @@ export async function authorizePostDraftAccess(
             throw exhaustive(context.actor);
     }
 
-    // Note that we don't authorize whether the post draft actually exists or not.
-    // The session actor always has access to drafts with their `accountId` in the
-    // key and nothing in the draft item can change that. We don't check if the
-    // draft exists for performance because it's irrelevant to whether the account
-    // has access. Also since there's a race condition when create a post with a
-    // `draftId` between `getPostDraftFileAttachments()` (which calls this
-    // function) and DynamoDB deleting the draft item.
+    // Note that we don't authorize whether the post draft actually exists or not. The
+    // session actor always has access to drafts with their `accountId` in the key and
+    // nothing in the draft item can change that. We don't check if the draft exists
+    // for performance because it's irrelevant to whether the account has access. Also
+    // since there's a race condition when create a post with a `draftId` between
+    // `getPostDraftFileAttachments()` (which calls this function) and DynamoDB
+    // deleting the draft item.
 
-    // Note that we don't authorize whether you have access to
-    // `draftItem.channelId`. The draft author may have had access to the provided
-    // channel when they created the draft then subsequently lost access to the
-    // channel. If the user has lost access to the channel then we should consider
-    // `channelId` to be null.
+
+    // Note that we don't authorize whether you have access to `draftItem.channelId`.
+    // The draft author may have had access to the provided channel when they created
+    // the draft then subsequently lost access to the channel. If the user has lost
+    // access to the channel then we should consider `channelId` to be null.
 }

@@ -5,8 +5,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 assert(process.env.NODE_ENV === "development");
 
 // The focus event debugger is a useful tool if your elements are
-// focusing/unfocusing in ways you don't expect. It logs all focus events
-// allowing you to attach a debugger and explore the provenance of a focus.
+// focusing/unfocusing in ways you don't expect. It logs all focus events allowing
+// you to attach a debugger and explore the provenance of a focus.
 //
 // This script should not be imported in production or tests! It likely has a
 // pretty negative performance impact.

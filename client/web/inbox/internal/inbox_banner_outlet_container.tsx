@@ -83,8 +83,8 @@ export function InboxBannerOutletContainer({
             DynamoGeneralRealtimeItem<InboxEntryModel> & {readonly isDeleted?: true}
         >(parentEntry ?? initialEntry);
 
-    // If the parent provided a newer version of the entry we're rendering then use
-    // the parent's version.
+    // If the parent provided a newer version of the entry we're rendering then use the
+    // parent's version.
     if (
         parentEntry &&
         parentEntry.key === entryWithoutOptimisticUpdates.key &&
@@ -112,13 +112,13 @@ export function InboxBannerOutletContainer({
                     // Wait to resolve our optimistic update until we receive a realtime event that
                     // turns our optimistic update into a noop.
                     //
-                    // That's because we don't trust that by the time `promise` resolves we've seen
-                    // the realtime event from our WebSocket. `promise` may be from an RPC call
-                    // which kicks off a background `NotificationEvent` job that eventually sends
-                    // the realtime event we're looking for. We don't want to resolve our optimistic
-                    // update until that background job finishes and we've seen the realtime event.
-                    // Otherwise unrelated realtime events may overwrite our optimistic update
-                    // causing the UI to glitch for the user.
+                    // That's because we don't trust that by the time `promise` resolves we've seen the
+                    // realtime event from our WebSocket. `promise` may be from an RPC call which kicks
+                    // off a background `NotificationEvent` job that eventually sends the realtime
+                    // event we're looking for. We don't want to resolve our optimistic update until
+                    // that background job finishes and we've seen the realtime event. Otherwise
+                    // unrelated realtime events may overwrite our optimistic update causing the UI to
+                    // glitch for the user.
                     waitForEntryWithoutOptimisticUpdates(entry => update(entry) === entry),
                 ),
                 update,
@@ -161,9 +161,9 @@ export function InboxBannerOutletContainer({
         });
     }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
-    // If we're archiving the last post in a `ChannelPosts` inbox entry then we
-    // need to replace the `ChannelPosts` entry with an archived `PostComments`
-    // entry since the `ChannelPosts` entry will be deleted on the server!
+    // If we're archiving the last post in a `ChannelPosts` inbox entry then we need to
+    // replace the `ChannelPosts` entry with an archived `PostComments` entry since the
+    // `ChannelPosts` entry will be deleted on the server!
     useEffect(() => {
         return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
             if (event.entryKey !== entry.key) return;
@@ -197,8 +197,8 @@ export function InboxBannerOutletContainer({
 
             actuallyUpdateEntryOptimistically(
                 event.promise.then(() =>
-                    // Wait for the entry to be deleted in realtime before we fully replace
-                    // the entry for real.
+                    // Wait for the entry to be deleted in realtime before we fully replace the entry
+                    // for real.
                     waitForEntryWithoutOptimisticUpdates(entry => entry.isDeleted ?? false),
                 ),
                 () => replaceItem,
@@ -211,10 +211,10 @@ export function InboxBannerOutletContainer({
         waitForEntryWithoutOptimisticUpdates,
     ]);
 
-    // If we're archiving the last post in a `DocumentNewCommentThreads` inbox
-    // entry then we need to replace the `DocumentNewCommentThreads` entry with
-    // an archived `DocumentCommentThread` entry since the
-    // `DocumentNewCommentThreads` entry will be deleted on the server!
+    // If we're archiving the last post in a `DocumentNewCommentThreads` inbox entry
+    // then we need to replace the `DocumentNewCommentThreads` entry with an archived
+    // `DocumentCommentThread` entry since the `DocumentNewCommentThreads` entry will
+    // be deleted on the server!
     useEffect(() => {
         return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
             event => {
@@ -253,8 +253,8 @@ export function InboxBannerOutletContainer({
 
                 actuallyUpdateEntryOptimistically(
                     event.promise.then(() =>
-                        // Wait for the entry to be deleted in realtime before we fully replace
-                        // the entry for real.
+                        // Wait for the entry to be deleted in realtime before we fully replace the entry
+                        // for real.
                         waitForEntryWithoutOptimisticUpdates(entry => entry.isDeleted ?? false),
                     ),
                     () => replaceItem,
@@ -280,9 +280,9 @@ export function InboxBannerOutletContainer({
                 [subscribeToEvents],
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
-                // We don't need to reload the item if we were provided a `parentEntry`. Since
-                // the `parentEntry` is kept up-to-date in realtime. So we know we have the
-                // latest data.
+                // We don't need to reload the item if we were provided a `parentEntry`. Since the
+                // `parentEntry` is kept up-to-date in realtime. So we know we have the latest
+                // data.
                 if (withoutReloadItem) return;
 
                 const {entry} = await getInboxEntryWithStrongReadConsistency(context, {
@@ -318,12 +318,12 @@ export function InboxBannerOutletContainer({
             });
 
             if (!navigation && routeLayout === "narrow") {
-                // Navigate back, if this is in a peek we'll close the peek. If this is on
-                // mobile or we have no previous entries in browser history we'll go back to inbox.
+                // Navigate back, if this is in a peek we'll close the peek. If this is on mobile
+                // or we have no previous entries in browser history we'll go back to inbox.
                 //
-                // If this is a wide layout (desktop) then that's because the user expanded
-                // the notification. Don't navigate if the user took an intentional action to
-                // expand the peek.
+                // If this is a wide layout (desktop) then that's because the user expanded the
+                // notification. Don't navigate if the user took an intentional action to expand
+                // the peek.
                 if (navigationState.hasPreviousLocation) {
                     await navigate(-1);
                 } else {
@@ -341,8 +341,8 @@ export function InboxBannerOutletContainer({
                 }
             }
         }
-        // This button works as a toggle button. If you click it when the notification
-        // has already been archived then we'll unarchive.
+        // This button works as a toggle button. If you click it when the notification has
+        // already been archived then we'll unarchive.
         else {
             unarchiveInboxEntry({
                 entry,
@@ -369,8 +369,7 @@ export function InboxBannerOutletContainer({
                     event.stopPropagation();
 
                     if (!entry.model.isArchived) {
-                        // Programmatically click the button to correctly handle loading and
-                        // error states.
+                        // Programmatically click the button to correctly handle loading and error states.
                         if (doneButtonRef.current) {
                             doneButtonRef.current.press();
                         }
@@ -399,8 +398,8 @@ export function InboxBannerOutletContainer({
                             void navigation.selectEntry(navigation.previousEntry);
                         }
                     } else {
-                        // If the entry is already archived (e.g. because of a comment) we still want
-                        // Cmd-D to close the peek so users can maintain that workflow.
+                        // If the entry is already archived (e.g. because of a comment) we still want Cmd-D
+                        // to close the peek so users can maintain that workflow.
                         navigate(-1);
                     }
                 }
@@ -459,8 +458,8 @@ export function InboxBannerOutletContainer({
                                     size="xs"
                                     description="Open in inbox"
                                     tooltipPlacement="bottom"
-                                    // The inbox will show a loading shimmer when it opens. We don't need to
-                                    // also show a loading indicator here.
+                                    // The inbox will show a loading shimmer when it opens. We don't need to also show
+                                    // a loading indicator here.
                                     withoutLoadingIndicator
                                     pressErrorTitle="Couldn&#x2019;t open in inbox"
                                     onPress={async () => {

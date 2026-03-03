@@ -4,8 +4,8 @@ import {MessageContent, emptyMessageContent} from "~/shared/content/message_cont
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Dangerous since we create a channel item for `channelId` without checking whether a
- * channel with that `ChannelId` already exists!
+ * Dangerous since we create a channel item for `channelId` without checking
+ * whether a channel with that `ChannelId` already exists!
  */
 export function internalDangerouslyCreateChannelTransactionEntries(
     context: ServerActionContext,
@@ -43,9 +43,9 @@ export function internalDangerouslyCreateChannelTransactionEntries(
                     defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,
                 },
-                // We haven't actually added a feed candidate entry for this channel but we
-                // think it'd be weird if you unshared then re-shared this initial channel for
-                // the space to get a feed entry.
+                // We haven't actually added a feed candidate entry for this channel but we think
+                // it'd be weird if you unshared then re-shared this initial channel for the space
+                // to get a feed entry.
                 hasAddedFeedCandidateEntry: true,
             },
             {
@@ -56,8 +56,8 @@ export function internalDangerouslyCreateChannelTransactionEntries(
                         update: {
                             type: "Channel",
                             channelId,
-                            // Nothing depends on this entity when it's created. Don't bother trying to
-                            // reindex dependencies.
+                            // Nothing depends on this entity when it's created. Don't bother trying to reindex
+                            // dependencies.
                             updatedTraits: {type: "None"},
                         },
                     });

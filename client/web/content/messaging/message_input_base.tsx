@@ -243,8 +243,8 @@ const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
 export {MessageInputBaseForwardRef as MessageInputBase};
 
 /**
- * Presentational `<MessageInput>` component without any state associated with
- * the actual `<MessageInput>` component.
+ * Presentational `<MessageInput>` component without any state associated with the
+ * actual `<MessageInput>` component.
  *
  * `<MessageInputBase>` lives in `~/client/content` because
  * `<ContentEditorCommentInputFloater>` and
@@ -334,10 +334,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
             if (fileInfos.length === 0) return voidSafeFloatingPromise;
 
-            // Make sure the input is focused when we add files. So the user can hit
-            // "Enter" after dropping a file to send the message. This also has the effect
-            // of making sure `useRegisterBottomBarFrame()` isn't disabled so when the
-            // message input size changes we scroll.
+            // Make sure the input is focused when we add files. So the user can hit "Enter"
+            // after dropping a file to send the message. This also has the effect of making
+            // sure `useRegisterBottomBarFrame()` isn't disabled so when the message input size
+            // changes we scroll.
             assertExists(editorRef.current).focus({preventScroll: true});
 
             const promise = context.tracer.withSpan(spanName, async context => {
@@ -346,8 +346,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     attachmentTarget: fileAttachmentTarget,
                     addGlobalLoadingIndicator,
                     onAddFile: file => {
-                        // Noop if our input was unmounted (e.g. after the message is sent we remount
-                        // this component).
+                        // Noop if our input was unmounted (e.g. after the message is sent we remount this
+                        // component).
                         if (!isMounted()) return;
 
                         onAddFile(file);
@@ -385,8 +385,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onBeforeFocusFromReplyOrEditingChangeProp,
     );
 
-    // Focus the message input whenever the message we're replying to changes. Or
-    // if we start editing the message.
+    // Focus the message input whenever the message we're replying to changes. Or if we
+    // start editing the message.
     let focusKey: string | null = null;
 
     if (isEditingMessage) {
@@ -420,14 +420,14 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         const result = onBeforeFocusFromReplyOrEditingChange?.();
         if (result?.preventDefault) return;
 
-        // Make sure we've finished painting the change causing us to focus before
-        // actually focusing the editor.
+        // Make sure we've finished painting the change causing us to focus before actually
+        // focusing the editor.
         //
-        // NOTE(calebmer): Added this so that when you swipe to reply in our native
-        // mobile apps, the non-animated bottom bar frame change consistently happens
-        // before the animated keyboard frame change. Before adding double
-        // `requestAnimationFrame()` sometimes the keyboard animation would start
-        // before the bottom bar resize observer fired.
+        // NOTE(calebmer): Added this so that when you swipe to reply in our native mobile
+        // apps, the non-animated bottom bar frame change consistently happens before the
+        // animated keyboard frame change. Before adding double `requestAnimationFrame()`
+        // sometimes the keyboard animation would start before the bottom bar resize
+        // observer fired.
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 const editor = assertExists(editorRef.current);
@@ -463,9 +463,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         if (!shouldAlreadyByShowing) onShowTypingIndicator?.();
     };
 
-    // NOTE(calebmer): We don't call `hideTypingIndicator()` after sending a
-    // message. Our messaging realtime backend should automatically atomically hide
-    // the typing indicator when the client creates a message.
+    // NOTE(calebmer): We don't call `hideTypingIndicator()` after sending a message.
+    // Our messaging realtime backend should automatically atomically hide the typing
+    // indicator when the client creates a message.
     const hideTypingIndicator = useEvent(() => {
         if (typingIndicatorStateRef.current.shouldBeShowing) {
             typingIndicatorStateRef.current.timeout.clear();
@@ -492,15 +492,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onSendProp();
     };
 
-    // 1. On mobile, make sure our keyboard toolbar is visible when any text input
-    //    is focused
+    // 1. On mobile, make sure our keyboard toolbar is visible when any text input is
+    //    focused
     // 2. On mobile web, animate so our toolbar is visible. In our native app, the
     //    shell manages animating the toolbar so it's visible (done in an effect)
     //
     // We check for whether any text input is focused (not just the message input)
     // since on native mobile, the message input will slide up regardless when the
-    // keyboard opens whether the keyboard opened from the message input or
-    // something else (e.g. `<ChatAccountPicker>` element).
+    // keyboard opens whether the keyboard opened from the message input or something
+    // else (e.g. `<ChatAccountPicker>` element).
     const {isTextInputFocused: isKeyboardToolbarVisible} = useIsTextInputFocused({
         isDisabled: platform !== "mobile" || !isBottomBar,
     });
@@ -515,8 +515,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const hasInitiallyMountedRef = useRef(false);
     const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
 
-    // On initial mount if `isKeyboardToolbarVisible` is true then make sure we set
-    // the Motion Y translation variable to the correct initial value.
+    // On initial mount if `isKeyboardToolbarVisible` is true then make sure we set the
+    // Motion Y translation variable to the correct initial value.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
@@ -585,16 +585,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         setIsFocused(true);
         onFocus?.(event);
 
-        // HACK(calebmer, #mobile-webkit-weirdness): Absolute hack. We animate up
-        // message inputs in our native mobile wrapper so the animation is synced
-        // with the keyboard. However, sometimes WebKit doesn't know the selection
-        // has translated up as well. Calling blur/focus after the keyboard animation
-        // (which is ~2.5s) forces WebKit to re-render the selection in the right
-        // location.
+        // HACK(calebmer, #mobile-webkit-weirdness): Absolute hack. We animate up message
+        // inputs in our native mobile wrapper so the animation is synced with the
+        // keyboard. However, sometimes WebKit doesn't know the selection has translated up
+        // as well. Calling blur/focus after the keyboard animation (which is ~2.5s) forces
+        // WebKit to re-render the selection in the right location.
         //
-        // Ideally native code would find a way to animate the selection with the
-        // keyboard as well but I can't find a way to do that right now. My guess would
-        // be you gotta call `selectionWillChange()` and `selectionDidChange()` on
+        // Ideally native code would find a way to animate the selection with the keyboard
+        // as well but I can't find a way to do that right now. My guess would be you gotta
+        // call `selectionWillChange()` and `selectionDidChange()` on
         // [`UITextInputDelegate`][1] but I tried that and it didn't work.
         //
         // Or we find a different way to force the text cursor to re-render.
@@ -634,13 +633,13 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         // `<TaskDetailView>` sets `alwaysRegisterBottomBarFrame` to true. It's not a
         // "native mobile" bottom bar but it IS the only bottom bar in the virtualized
         // scroll view. It's just sticky via `position: sticky` instead of
-        // `display: flex; flex-direction: column` (like `<ChatView>`) because we want
-        // the message input to be hidden while you're looking at subtasks. (We're
-        // deprecating our native mobile app so `isBottomBar` doesn't exactly make
-        // sense any more. We should maybe remove it.)
+        // `display: flex; flex-direction: column` (like `<ChatView>`) because we want the
+        // message input to be hidden while you're looking at subtasks. (We're deprecating
+        // our native mobile app so `isBottomBar` doesn't exactly make sense any more. We
+        // should maybe remove it.)
         //
-        // TODO(calebmer): Ideally we'd only register the bottom bar frame when the
-        // input is "stuck" to the bottom of the viewport and not before that.
+        // TODO(calebmer): Ideally we'd only register the bottom bar frame when the input
+        // is "stuck" to the bottom of the viewport and not before that.
         isDisabled: !isBottomBar && !alwaysRegisterBottomBarFrame && !isFocused,
         withMobileKeyboardToolbar: true,
         isReplacingOtherBottomBar,
@@ -662,8 +661,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             if (!NativeMobileBridge) {
                 assertExists(editorRef.current).focus();
             } else {
-                // Focus after the navigation animation finishes. The keyboard can't open while
-                // the navigation animation is running.
+                // Focus after the navigation animation finishes. The keyboard can't open while the
+                // navigation animation is running.
                 NativeMobileBridge.navigation.scheduleAfterAnimation(() => {
                     assertExists(editorRef.current).focus();
                 });
@@ -725,8 +724,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 ref={inputRef}
                 // Completely remount the component if the `id` changes. The `id` only really
                 // changes if the message input stops being a native mobile bottom bar (aka
-                // `isInert` changes). That way our native wrapper app correctly detects the
-                // bottom bar change.
+                // `isInert` changes). That way our native wrapper app correctly detects the bottom
+                // bar change.
                 key={id}
                 data-testid={dataTestId}
                 id={id}
@@ -759,19 +758,21 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             : isBottomBar && platform === "mobile"
                               ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
                               : undefined,
-                    // Our native mobile wrapper looks for compositing layers created from an
-                    // element with an ID that starts with `nmbb-` and ties their position to
-                    // the tab bar and software keyboard. So we get smooth animations while the
-                    // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                    // layer we need to set `will-change: transform`. It's not specified that
-                    // `will-change: transform` MUST create a compositing layer, instead some
-                    // browser engines implement this hint themselves as an optimization.
+                    // Our native mobile wrapper looks for compositing layers created from an element
+                    // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                    // software keyboard. So we get smooth animations while the keyboard opens or the
+                    // tab bar shifts offscreen. To create a compositing layer we need to set
+                    // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                    // create a compositing layer, instead some browser engines implement this hint
+                    // themselves as an optimization.
                     //
-                    // It so happens that WebKit is one of those browsers. Here's the code in
-                    // WebKit that does this: [part 1][1], [part 2][2].
+                    // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                    // that does this: [part 1][1], [part 2][2].
                     //
-                    // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                    // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                    // [1]:
+                    //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                    // [2]:
+                    //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                     willChange:
                         isBottomBar && clientInfo.isNativeMobile && !isInert
                             ? "transform"
@@ -782,23 +783,22 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
                             : undefined,
                 }}
-                // Suppress React hydration warnings in our native mobile app. The native
-                // mobile app sets the `transform` property on this element. Sometimes before
-                // React finishes hydrating. This is expected, React can ignore the difference.
+                // Suppress React hydration warnings in our native mobile app. The native mobile
+                // app sets the `transform` property on this element. Sometimes before React
+                // finishes hydrating. This is expected, React can ignore the difference.
                 suppressHydrationWarning={
                     isBottomBar && clientInfo.isNativeMobile && !isInert ? true : undefined
                 }
                 onPointerDownCapture={event => {
                     const editor = assertExists(editorRef.current);
 
-                    // Tapping anywhere on the message input shouldn't unfocus the content editor
-                    // since that will hide the virtual keyboard on mobile.
+                    // Tapping anywhere on the message input shouldn't unfocus the content editor since
+                    // that will hide the virtual keyboard on mobile.
                     if (
                         event.target instanceof Element &&
                         // Exclude tapping in a portaled element. Like inputs in the link modal.
                         event.currentTarget.contains(event.target) &&
-                        // Exclude tapping in the message input itself. Tapping there should do
-                        // something.
+                        // Exclude tapping in the message input itself. Tapping there should do something.
                         !editor.contains(event.target) &&
                         // Exclude clicking on files since that should open the file viewer which will
                         // close the keyboard.
@@ -811,9 +811,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 <Box
                     // HACK: Fixes a bug where triple clicking on the last message in a
                     // `<MessagingView>` then dragging up in Chrome doesn't select the previous
-                    // message. The issue seemed to be there's no selectable element between the
-                    // last message and the message input `<ContentEditor>`. So for some reason
-                    // selection was being placed in the `<ContentEditor>` as the user drags up???
+                    // message. The issue seemed to be there's no selectable element between the last
+                    // message and the message input `<ContentEditor>`. So for some reason selection
+                    // was being placed in the `<ContentEditor>` as the user drags up???
                     //
                     // Adding an invisible element with `userSelect: text` and some text fixes this
                     // very strange issue. Using a `.` as an unassuming character in case this text
@@ -834,10 +834,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         pointerEvents="none"
                         position="absolute"
                         height="border"
-                        // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
-                        // than if we used `grey-5` directly. This is because the border operates more
-                        // like a shadow. When rendered over some other content (e.g. an image) the
-                        // image's colors show through the border but a little darker.
+                        // It's subtle, but `grey-5-translucent` ends up looking a lot nicer than if we
+                        // used `grey-5` directly. This is because the border operates more like a shadow.
+                        // When rendered over some other content (e.g. an image) the image's colors show
+                        // through the border but a little darker.
                         backgroundColor="grey-5-translucent"
                         style={{
                             top: -1,
@@ -852,8 +852,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     />
                 )}
                 <OverlayScopeContextProvider
-                // Render an overlay scope here so that overlays are animated with the
-                // keyboard opening.
+                // Render an overlay scope here so that overlays are animated with the keyboard
+                // opening.
                 >
                     <Box
                         ref={inputContentRef}
@@ -880,9 +880,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         }}
                         onDragEnter={event => {
                             // If this drag only has `text/plain` and `text/html` it's probably because the
-                            // user is dragging some content from either their browser or another app. If
-                            // the user is dragging text, we want to let the message input's
-                            // `<ContentEditor>` handle dropped text.
+                            // user is dragging some content from either their browser or another app. If the
+                            // user is dragging text, we want to let the message input's `<ContentEditor>`
+                            // handle dropped text.
                             const hasNonTextType = event.dataTransfer.types.some(type => {
                                 if (type === "Files") return true;
                                 const canonicalType = canonicalizeFileContentTypeIfExists(type);
@@ -899,12 +899,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         onDragLeave={() => {
                             // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
                             // reliably had access to `event.relatedTarget` we'd check:
-                            // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
-                            // to reset our drag state.
+                            // `event.currentTarget.contains(event.relatedTarget)` to know whether we need to
+                            // reset our drag state.
                             //
-                            // Instead we look at `dragenter` event counts. Once we reach 0 that means the
-                            // user has fully dragged out of the container. We got the idea for this fix
-                            // from [this Gist][2].
+                            // Instead we look at `dragenter` event counts. Once we reach 0 that means the user
+                            // has fully dragged out of the container. We got the idea for this fix from [this
+                            // Gist][2].
                             //
                             // We use this method in Chrome as well (even though we could use
                             // `event.relatedTarget`) to have consistent behavior across all browsers.
@@ -966,8 +966,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     type: "CancelEditing",
                                                 });
                                             }}
-                                            // Not focusable so clicking on this button doesn't unfocus
-                                            // the input.
+                                            // Not focusable so clicking on this button doesn't unfocus the input.
                                             isFocusable={false}
                                         >
                                             <X />
@@ -1012,18 +1011,17 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             messageInputEditorBorderRadiusPx[platform][
                                                 spacingScale
                                             ],
-                                        // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to
-                                        // render the border on top of `codeBlock` node sticky elements and to render
-                                        // the native scrollbar on top of `codeBlock` node sticky elements we need to:
+                                        // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to render
+                                        // the border on top of `codeBlock` node sticky elements and to render the native
+                                        // scrollbar on top of `codeBlock` node sticky elements we need to:
                                         //
                                         // 1. Render border in a `z-index: 10` element with
                                         //    `-webkit-transform: translateZ(0)`. Using
                                         //    `box-shadow: inset 0 0 0 1px grey-10` on a parent doesn't work.
                                         // 2. Set `z-index: 0` on the scroll container (this is important!).
                                         //
-                                        // WebKit only working in these specific conditions definitely seems to be a
-                                        // bug. Other browsers work without `-webkit-transform: translateZ(0)` for
-                                        // instance.
+                                        // WebKit only working in these specific conditions definitely seems to be a bug.
+                                        // Other browsers work without `-webkit-transform: translateZ(0)` for instance.
                                         transform: "translateZ(0)",
                                         WebkitTransform: "translateZ(0)",
                                     }}
@@ -1047,16 +1045,16 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     }}
                                 >
                                     {platform === "mobile" ? (
-                                        // On mobile, immediately open the file selector since there isn't much value
-                                        // to allowing the user to select a specific file type.
+                                        // On mobile, immediately open the file selector since there isn't much value to
+                                        // allowing the user to select a specific file type.
                                         <IconButton
                                             size={messageInputEditorIconButtonSize}
                                             description="Add"
                                             withoutTooltip={true}
-                                            // The add icon button is not focusable. That's because we don't want to
-                                            // remove focus from the message input when the add button is pressed. That
-                                            // way on mobile you can keep typing and sending messages because the software
-                                            // keyboard doesn't disappear.
+                                            // The add icon button is not focusable. That's because we don't want to remove
+                                            // focus from the message input when the add button is pressed. That way on mobile
+                                            // you can keep typing and sending messages because the software keyboard doesn't
+                                            // disappear.
                                             //
                                             // On desktop, hitting enter in the message input is sufficient for keyboard
                                             // control of the message input.
@@ -1066,9 +1064,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     assertExists(inputContainerRef.current),
                                                     {
                                                         multiple: true,
-                                                        // It's important to return focus before removing the temporary input element
-                                                        // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                        // finished.
+                                                        // It's important to return focus before removing the temporary input element so
+                                                        // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                                         onReturnFocus: () =>
                                                             editorRef.current?.focus(),
                                                     },
@@ -1095,8 +1092,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     ) : (
                                         <MenuButton
                                             withoutButtonElementRequirement={true}
-                                            // Generally since the message input is at the bottom of the screen the add
-                                            // menu opens above the input. Let's make that pattern consistent.
+                                            // Generally since the message input is at the bottom of the screen the add menu
+                                            // opens above the input. Let's make that pattern consistent.
                                             placement="top-start"
                                             actions={[
                                                 [
@@ -1112,9 +1109,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                                     multiple: true,
                                                                     acceptContentTypes:
                                                                         getFileImageContentTypes(),
-                                                                    // It's important to return focus before removing the temporary input element
-                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                    // finished.
+                                                                    // It's important to return focus before removing the temporary input element so
+                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                                                     onReturnFocus: () =>
                                                                         editorRef.current?.focus(),
                                                                 },
@@ -1151,9 +1147,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                                     multiple: true,
                                                                     acceptContentTypes:
                                                                         getFileVideoContentTypes(),
-                                                                    // It's important to return focus before removing the temporary input element
-                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                    // finished.
+                                                                    // It's important to return focus before removing the temporary input element so
+                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                                                     onReturnFocus: () =>
                                                                         editorRef.current?.focus(),
                                                                 },
@@ -1190,9 +1185,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                                     multiple: true,
                                                                     acceptContentTypes:
                                                                         getFileAudioContentTypes(),
-                                                                    // It's important to return focus before removing the temporary input element
-                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                    // finished.
+                                                                    // It's important to return focus before removing the temporary input element so
+                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                                                     onReturnFocus: () =>
                                                                         editorRef.current?.focus(),
                                                                 },
@@ -1227,9 +1221,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                                 ),
                                                                 {
                                                                     multiple: true,
-                                                                    // It's important to return focus before removing the temporary input element
-                                                                    // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                                                    // finished.
+                                                                    // It's important to return focus before removing the temporary input element so
+                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                                                     onReturnFocus: () =>
                                                                         editorRef.current?.focus(),
                                                                 },
@@ -1289,10 +1282,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 size={messageInputEditorIconButtonSize}
                                                 description="Add"
                                                 withoutTooltip={true}
-                                                // The add icon button is not focusable. That's because we don't want to
-                                                // remove focus from the message input when the add button is pressed. That
-                                                // way on mobile you can keep typing and sending messages because the software
-                                                // keyboard doesn't disappear.
+                                                // The add icon button is not focusable. That's because we don't want to remove
+                                                // focus from the message input when the add button is pressed. That way on mobile
+                                                // you can keep typing and sending messages because the software keyboard doesn't
+                                                // disappear.
                                                 //
                                                 // On desktop, hitting enter in the message input is sufficient for keyboard
                                                 // control of the message input.
@@ -1316,8 +1309,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 messageInputEditorBorderRadiusPx[platform][
                                                     spacingScale
                                                 ],
-                                            // Don't overlap the send button which is rendered at the bottom of
-                                            // the input.
+                                            // Don't overlap the send button which is rendered at the bottom of the input.
                                             insetBottom:
                                                 messageInputEditorMinHeightPx[platform][
                                                     spacingScale
@@ -1344,10 +1336,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     spacingScale
                                                 ],
                                         }}
-                                        // Turn off pointer events when we've dragged a file over this input. Otherwise
-                                        // the file is uploaded twice! Since we upload once for the `onDrop` handler on
-                                        // our parent element and again for the `onDrop` handler on the
-                                        // `<ContentEditor>`.
+                                        // Turn off pointer events when we've dragged a file over this input. Otherwise the
+                                        // file is uploaded twice! Since we upload once for the `onDrop` handler on our
+                                        // parent element and again for the `onDrop` handler on the `<ContentEditor>`.
                                         pointerEvents={
                                             !isDraggingFileWithin && dragEnterState?.hasNonTextType
                                                 ? "none"
@@ -1409,8 +1400,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         fileInfos,
                                                     )
                                                 }
-                                                // Don't render the default content editor mobile keyboard toolbar. We render
-                                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                                // Don't render the default content editor mobile keyboard toolbar. We render our
+                                                // own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                                 withoutMobileKeyboardToolbar={true}
                                                 // Message input is always editable, never interactive on mobile. So you can't
                                                 // click links among other things.
@@ -1444,10 +1435,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         onPress={onSend}
                                         isDisabled={isSendButtonDisabled}
                                         isPending={isSendButtonPending}
-                                        // The send icon button is not focusable. That's because we don't want to
-                                        // remove focus from the message input when the send button is pressed. That
-                                        // way on mobile you can keep typing and sending messages because the software
-                                        // keyboard doesn't disappear.
+                                        // The send icon button is not focusable. That's because we don't want to remove
+                                        // focus from the message input when the send button is pressed. That way on mobile
+                                        // you can keep typing and sending messages because the software keyboard doesn't
+                                        // disappear.
                                         //
                                         // On desktop, hitting enter in the message input is sufficient for keyboard
                                         // control of the message input.
@@ -1463,9 +1454,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 size={spacing["4"]}
                                                 weight={!isSendButtonDisabled ? "bold" : undefined}
                                                 style={{
-                                                    // Optically, this icon looks...off in our iOS native mobile app.
-                                                    // Presumably everywhere in Safari. If only we had a
-                                                    // `clientInfo.isWebKit` test.
+                                                    // Optically, this icon looks...off in our iOS native mobile app. Presumably
+                                                    // everywhere in Safari. If only we had a `clientInfo.isWebKit` test.
                                                     transform:
                                                         clientInfo.isNativeMobile &&
                                                         clientInfo.isAppleDevice
@@ -1565,12 +1555,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 </OverlayScopeContextProvider>
             </Box>
             {linkModalState && (
-                // Important: This must live outside the message input element which changes
-                // its `key` when it becomes inert which would cause this component to unmount.
+                // Important: This must live outside the message input element which changes its
+                // `key` when it becomes inert which would cause this component to unmount.
                 <MobileFullScreenModal
                     // Important: Tells `useConfirmSaveAfterLosingFocus()` (used by document comment
-                    // input) that when focus is within the link modal we're still actually editing
-                    // the comment input.
+                    // input) that when focus is within the link modal we're still actually editing the
+                    // comment input.
                     data-ownedby={containerId}
                     onClose={() => setLinkModalState(null)}
                 >
@@ -1585,30 +1575,29 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     inputContainerRef.current,
                                 );
 
-                                // In our native mobile app, blur the link modal input before animating the
-                                // modal closed. In our web mobile app, we want to keep focus in a hidden input
-                                // so the keyboard doesn't close.
+                                // In our native mobile app, blur the link modal input before animating the modal
+                                // closed. In our web mobile app, we want to keep focus in a hidden input so the
+                                // keyboard doesn't close.
                                 //
                                 // - In native mobile, even if we maintain focus in the DOM, iOS will do the
                                 //   keyboard open/close animation. We might as well control the timing there.
                                 //
-                                // - In web mobile, the keyboard open/close animation is incredibly janky since
-                                //   we don't have the same level of control as we do in native. So it feels
-                                //   better to keep the keyboard open the whole time.
+                                // - In web mobile, the keyboard open/close animation is incredibly janky since we
+                                //   don't have the same level of control as we do in native. So it feels better to
+                                //   keep the keyboard open the whole time.
                                 if (NativeMobileBridge) {
-                                    // Instead of blurring the link modal input, focus the toolbar element (which
-                                    // has the same effect). That way `useConfirmSaveAfterLosingFocus()` (which we
-                                    // use for document comment editing) sees that focus stays within the message
-                                    // input.
+                                    // Instead of blurring the link modal input, focus the toolbar element (which has
+                                    // the same effect). That way `useConfirmSaveAfterLosingFocus()` (which we use for
+                                    // document comment editing) sees that focus stays within the message input.
                                     inputContainerElement.focus();
 
                                     NativeMobileBridge.keyboard.scheduleAfterAnimation(() => {
                                         onCloseWithAnimation({withoutFocus: true});
                                     });
                                 } else {
-                                    // If there's currently an element with focus in the link modal, move focus to
-                                    // a temporary, invisible, element to keep the keyboard open. Once we've
-                                    // finished closing the modal then focus will return to the content editor.
+                                    // If there's currently an element with focus in the link modal, move focus to a
+                                    // temporary, invisible, element to keep the keyboard open. Once we've finished
+                                    // closing the modal then focus will return to the content editor.
                                     if (document.activeElement) {
                                         const temporaryInputElement =
                                             document.createElement("input");
@@ -1623,9 +1612,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         temporaryInputElement.style.top = "0px";
 
                                         // This is a hack. We want `react-aria`'s `<FocusScope contain>` to let us move
-                                        // focus to this temporary input element. If `react-aria` sees this attribute
-                                        // it allows moving focus to the element. This is designed for elements like
-                                        // toasts but we abuse it here.
+                                        // focus to this temporary input element. If `react-aria` sees this attribute it
+                                        // allows moving focus to the element. This is designed for elements like toasts
+                                        // but we abuse it here.
                                         //
                                         // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/focus/src/FocusScope.tsx#L405-L408
                                         temporaryInputElement.setAttribute(
@@ -1643,8 +1632,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
                                         // NOTE(calebmer): I'm not sure why we need this to get focus to stick on
                                         // `temporaryInputElement`, but we do. Probably something to do with
-                                        // `<FocusScope>`? If we don't have this then a focus event is never dispatched
-                                        // to `temporaryInputElement`.
+                                        // `<FocusScope>`? If we don't have this then a focus event is never dispatched to
+                                        // `temporaryInputElement`.
                                         scheduleMacrotask(() => {
                                             if (
                                                 inputContainerElement.contains(
@@ -1848,25 +1837,26 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                 <Box display="flex" gap="1.5">
                     <Box
                         {...pressProps}
-                        // This is a simulated link. When the user clicks on it our code navigates us
-                        // to the right message instead of relying on browser URL navigation.
+                        // This is a simulated link. When the user clicks on it our code navigates us to
+                        // the right message instead of relying on browser URL navigation.
                         //
-                        // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                        // See:
+                        // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
                         role="link"
-                        // `inline-flex` instead of `flex` so that the clickable area doesn't extend
-                        // full width when we have a short message.
+                        // `inline-flex` instead of `flex` so that the clickable area doesn't extend full
+                        // width when we have a short message.
                         display="inline-flex"
                         gap="1.5"
-                        // We don't use a pointer cursor for buttons in our product because buttons
-                        // they clearly appear clickable. We call this a strong affordance. A reply
-                        // preview is clickable and gives some affordance (different color) but it's a
-                        // weak affordance. So we use a pointer to make this element unambiguously
-                        // clickable.
+                        // We don't use a pointer cursor for buttons in our product because buttons they
+                        // clearly appear clickable. We call this a strong affordance. A reply preview is
+                        // clickable and gives some affordance (different color) but it's a weak
+                        // affordance. So we use a pointer to make this element unambiguously clickable.
                         //
                         // Also, this element is semantically a link which the pointer cursor was
                         // originally designed for.
                         //
-                        // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        // See:
+                        // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                         cursor="pointer"
                         maxWidth="full"
                     >
@@ -1916,8 +1906,8 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                         display="flex"
                         justifyContent="center"
                         alignItems="center"
-                        // Optically center the "x" button with the send button when it's placed all
-                        // the way on the right.
+                        // Optically center the "x" button with the send button when it's placed all the
+                        // way on the right.
                         paddingRight="0.5"
                         style={{
                             height: messageViewParentLineHeightPx[spacingScale],
@@ -1928,8 +1918,7 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                             description="Cancel reply"
                             tooltipPlacement="top"
                             onPress={onParentClear}
-                            // Not focusable so clicking on this button doesn't unfocus
-                            // the input.
+                            // Not focusable so clicking on this button doesn't unfocus the input.
                             isFocusable={false}
                         >
                             <X />

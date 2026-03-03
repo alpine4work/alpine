@@ -106,8 +106,8 @@ function handleStandardizedRequestListenerError(
     res: ServerResponse<IncomingMessage>,
     error: unknown,
 ) {
-    // `error` should have already been logged by our request handler which is
-    // wrapped in a span. We don't need to log it again.
+    // `error` should have already been logged by our request handler which is wrapped
+    // in a span. We don't need to log it again.
 
     if (res.headersSent) {
         res.end();
@@ -164,8 +164,8 @@ export function createStandardizedRequest(req: IncomingMessage, signal?: AbortSi
 }
 
 /**
- * Convert a Node.js request headers object to a WhatWG fetch request
- * headers object.
+ * Convert a Node.js request headers object to a WhatWG fetch request headers
+ * object.
  */
 export function createStandardizedHeaders(reqHeaders: IncomingHttpHeaders): Headers {
     const headers = new Headers();
@@ -190,11 +190,12 @@ export function createStandardizedHeaders(reqHeaders: IncomingHttpHeaders): Head
  */
 export function sendStandardizedResponse(res: ServerResponse, response: Response) {
     for (const [key, value] of response.headers.entries()) {
-        // The [`Set-Cookie` header][1] can be sent multiple times however the
-        // `Headers` object acts as a simple key/value store. We need to use our
+        // The [`Set-Cookie` header][1] can be sent multiple times however the `Headers`
+        // object acts as a simple key/value store. We need to use our
         // `getSetCookieHeaders()` to get the right value for this header.
         //
-        // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#see_also
+        // [1]:
+        //     https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#see_also
         if (/^set-cookie$/i.test(key)) {
             res.setHeader(key, getSetCookieHeaders(response.headers));
         } else {
@@ -261,7 +262,8 @@ export function createStandardizedServerBase(
  * WebSocket API][1] though the WebSocket server runs in Node.js, not in
  * Cloudflare.
  *
- * [1]: https://developers.cloudflare.com/workers/runtime-apis/websockets/use-websockets/
+ * [1]:
+ *     https://developers.cloudflare.com/workers/runtime-apis/websockets/use-websockets/
  */
 export function createStandardizedServerWithWebSockets<Route>(
     tracer: TracerRoot,
@@ -276,8 +278,8 @@ export function createStandardizedServerWithWebSockets<Route>(
 ) {
     const server = createStandardizedServer(tracer, shutdownManager, parseRoute, handleRequest);
 
-    // WebSocket server implementation is adapted from Miniflare. Cloudflare's
-    // Node.js implementation of their runtime.
+    // WebSocket server implementation is adapted from Miniflare. Cloudflare's Node.js
+    // implementation of their runtime.
     // https://github.com/cloudflare/miniflare/blob/7e4d906e19cc69cd3446512bfeb7f8aee3a2bda7/packages/http-server/src/index.ts#L358-L463
 
     const actuallyHandleWebSocketRequest = wrapWithTraceServerResponse(
@@ -331,8 +333,8 @@ export function createStandardizedServerWithWebSockets<Route>(
 
     server.on("upgrade", (req, socket, head) => {
         socket.on("error", error => {
-            // Thrown when the other side of the socket closes. This is normal. Ignore
-            // the error.
+            // Thrown when the other side of the socket closes. This is normal. Ignore the
+            // error.
             // https://stackoverflow.com/questions/2974021/what-does-econnreset-mean-in-the-context-of-an-af-local-socket
             if ("code" in error && (error.code === "ECONNRESET" || error.code === "EPIPE")) return;
 
@@ -362,13 +364,13 @@ export function createStandardizedServerWithWebSockets<Route>(
                 assert(socket instanceof Socket);
                 res.assignSocket(socket);
 
-                // Otherwise, send the response as is (e.g. unauthorized),
-                // always disabling live-reload as this is a WebSocket upgrade
+                // Otherwise, send the response as is (e.g. unauthorized), always disabling
+                // live-reload as this is a WebSocket upgrade
                 sendStandardizedResponse(res, response);
             },
             error => {
-                // `error` should have already been logged by our request handler which is
-                // wrapped in a span. We don't need to log it again.
+                // `error` should have already been logged by our request handler which is wrapped
+                // in a span. We don't need to log it again.
 
                 const res = new ServerResponse(req);
                 // `socket` is guaranteed to be an instance of `net.Socket`:

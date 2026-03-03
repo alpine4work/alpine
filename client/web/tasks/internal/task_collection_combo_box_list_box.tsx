@@ -77,26 +77,24 @@ export function TaskCollectionComboBoxListBox({
     }, [comboBoxState, pendingKey]);
 
     // If there are 0 items then we're in a loading state. If there's 1 item (the
-    // create button) then we either have no search results (input value is
-    // non-empty) or we should render our instructional placeholder as the
-    // empty state.
+    // create button) then we either have no search results (input value is non-empty)
+    // or we should render our instructional placeholder as the empty state.
     const shouldShowInstructionalPlaceholder =
         comboBoxState.collection.size > 0 &&
         createCollectionButtonItem &&
         // NOTE(calebmer): We need to use `isInputValueEmpty` from items since when
-        // react-aria closes a combobox overlay it renders the old set of items. If we
-        // use `comboBoxState.inputValue` with the old items of an empty search result
-        // then we'll flash the instructional placeholder.
+        // react-aria closes a combobox overlay it renders the old set of items. If we use
+        // `comboBoxState.inputValue` with the old items of an empty search result then
+        // we'll flash the instructional placeholder.
         createCollectionButtonItem.value!.isInputValueEmpty &&
         itemsWithoutCreateCollectionButton.length === 0;
 
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
             <div
-                // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
-                // doesn't need to add a resize listener to every child. This means we need to
-                // provide `useListBox()` a `scrollRef` if we want to scroll to the
-                // focused option.
+                // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()` doesn't
+                // need to add a resize listener to every child. This means we need to provide
+                // `useListBox()` a `scrollRef` if we want to scroll to the focused option.
                 ref={useMergedRefs(scrollRef, useScrollbar())}
                 className={sprinkles({
                     position: "relative",
@@ -204,12 +202,11 @@ function TaskCollectionComboBoxListBoxOption({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,

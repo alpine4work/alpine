@@ -36,14 +36,15 @@ type HandledNaturalLanguageFilter = {
     readonly openness: SearchNaturalLanguageFilter["openness"];
     readonly activeness: SearchNaturalLanguageFilter["activeness"];
 };
-// If you add a new key to SearchNaturalLanguageFilter, make sure to handle it
-// in `printSearchNaturalLanguageFilter` and add it to `HandledNaturalLanguageFilter`.
+// If you add a new key to SearchNaturalLanguageFilter, make sure to handle it in
+// `printSearchNaturalLanguageFilter` and add it to `HandledNaturalLanguageFilter`.
 assertEqualTypes<HandledNaturalLanguageFilter, SearchNaturalLanguageFilter>();
 
 /**
  * Converts a SearchNaturalLanguageFilter object into a human-readable string
  * representation. For example, a filter with entity types ["Document"], account
- * field "Creator", and a time range might become "documents created by John yesterday".
+ * field "Creator", and a time range might become "documents created by John
+ * yesterday".
  */
 export function printSearchNaturalLanguageFilter(
     filter: SearchNaturalLanguageFilter,
@@ -183,14 +184,15 @@ function printAccount(
     }
 
     if (time || date) {
-        // If we have any time/date filter, the time part will already say "created" or "updated"
-        // so just use "by" to avoid duplication like "created by X created yesterday"
+        // If we have any time/date filter, the time part will already say "created" or
+        // "updated" so just use "by" to avoid duplication like "created by X created
+        // yesterday"
         return `by ${accountNameString}`;
     }
 
     if (isPost) {
-        // For posts, always use "created" instead of "updated" since posts are authored
-        // by a single person.
+        // For posts, always use "created" instead of "updated" since posts are authored by
+        // a single person.
         return `created by ${accountNameString}`;
     }
 

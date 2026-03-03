@@ -67,8 +67,8 @@ let port: number;
 const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime, span) => {
         if (
-            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job queue
-            // system.
+            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job
+            // queue system.
             job.type === "ProcessFile" ||
             job.type === "ProcessFileLight" ||
             job.type === "ProcessFileHeavy"
@@ -356,9 +356,9 @@ test("must provide a valid Content-Type header to upload route", async () => {
 });
 
 // We use Node.js's raw `net.connect()` utilities in some tests to send an HTTP
-// request because we want to intentionally send requests outside of normal
-// HTTP syntax. For example writing more bytes than what's declared by
-// `Content-Length`. Or ending a request before it's finished. Node.js's
+// request because we want to intentionally send requests outside of normal HTTP
+// syntax. For example writing more bytes than what's declared by `Content-Length`.
+// Or ending a request before it's finished. Node.js's
 test("can upload file with raw `net.connect()` calls", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -499,8 +499,8 @@ Content-Length: ${requestBody.length}\r\n\
         );
     });
 
-    // Ignore any `EPIPE` errors from the socket. The server will close the socket
-    // once an error is returned causing our writes to possibly fail.
+    // Ignore any `EPIPE` errors from the socket. The server will close the socket once
+    // an error is returned causing our writes to possibly fail.
     try {
         await socketClosePromise;
     } catch (error) {
@@ -532,9 +532,8 @@ chunk\r\n\
 });
 
 // `http.createServer()` should truncate for us when we write more bytes than
-// what's in `Content-Length`. But we want to make sure this happens with a
-// test so we don't accidentally let attackers upload larger files then what
-// we allow.
+// what's in `Content-Length`. But we want to make sure this happens with a test so
+// we don't accidentally let attackers upload larger files then what we allow.
 test("if more data is written than what\u2019s in Content-Length server truncates the content and only processes the truncated content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();

@@ -43,8 +43,8 @@ function NewChatMessagingView(
     const spaceContext = useSpaceContext();
     let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
 
-    // We only send the currently viewed entity for 1:1 chats with a bot.
-    // We do some validation here and on the server.
+    // We only send the currently viewed entity for 1:1 chats with a bot. We do some
+    // validation here and on the server.
     currentlyViewingSearchEntityId = getSafeCurrentlyViewedEntityIfPossibleForClient(
         spaceContext,
         selectedChat?.chat,
@@ -67,10 +67,9 @@ function NewChatMessagingView(
             return;
         }
 
-        // Backfill the chat once realtime is connected. When we've connected to
-        // realtime we'll get all events from the time `isConnected` is true on but
-        // we'll have missed any events from when we weren't connected to the
-        // WebSocket.
+        // Backfill the chat once realtime is connected. When we've connected to realtime
+        // we'll get all events from the time `isConnected` is true on but we'll have
+        // missed any events from when we weren't connected to the WebSocket.
         if (lastBackfilledChatIdRef.current !== selectedChatId) {
             lastBackfilledChatIdRef.current = selectedChatId;
 
@@ -89,9 +88,9 @@ function NewChatMessagingView(
         });
     }, [context, isConnected, onUpdateSelectedChat, selectedChatId, subscribeToEvents]);
 
-    // This ref is used to preserve the message input state across React key
-    // changes. `<MessageInput>` will write state changes to the ref and initialize
-    // its state from the ref on remount.
+    // This ref is used to preserve the message input state across React key changes.
+    // `<MessageInput>` will write state changes to the ref and initialize its state
+    // from the ref on remount.
     const inputRestoreStateRef = useRef(null);
 
     const fileAttachmentTarget = useMemo((): FileAttachmentTarget | null => {
@@ -123,8 +122,8 @@ function NewChatMessagingView(
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}
             fileAttachmentTarget={fileAttachmentTarget}
-            // Since `selectedChat` may change we want to attach files right before the
-            // message is created instead of when files are added to the message input.
+            // Since `selectedChat` may change we want to attach files right before the message
+            // is created instead of when files are added to the message input.
             withAttachFileBeforeCreateMessage={true}
             getMessagesFromStart={useEvent(input => {
                 if (!selectedChat) {
@@ -191,10 +190,10 @@ function NewChatMessagingView(
             getMessageUrl={useCallback(
                 messageIndex => {
                     // This should never throw through (mostly) coincidence. The only messages you
-                    // should see when we don't know the chat are optimistic messages. You can not
-                    // copy the link of an optimistic message because we don't know the index. We
-                    // get the index when we connect to realtime when we discover the chat ID.
-                    // Therefore to have a message index we need a chat.
+                    // should see when we don't know the chat are optimistic messages. You can not copy
+                    // the link of an optimistic message because we don't know the index. We get the
+                    // index when we connect to realtime when we discover the chat ID. Therefore to
+                    // have a message index we need a chat.
                     if (!selectedChat) {
                         throw new InternalError(
                             "Should not be able to copy link of chat message when we don\u2019t know the chat",

@@ -138,8 +138,8 @@ export function renderContentFileTaskCollectionEntityPreview(
                 // Turn off text wrapping. This component emulates a single-line input.
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
                 "white-space: pre",
-                // `display: inline-block` creates an inline layout which adds extra space
-                // below the element. Adding `vertical-align` stops the space from being added.
+                // `display: inline-block` creates an inline layout which adds extra space below
+                // the element. Adding `vertical-align` stops the space from being added.
                 // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                 "vertical-align: top",
                 // Render contextual alternate glyphs. User text may be rendered here. Helpful

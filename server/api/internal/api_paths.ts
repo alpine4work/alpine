@@ -7,9 +7,9 @@ import {apiTasksPaths} from "~/server/api/internal/tasks/api_tasks_paths.js";
 
 export const apiPaths: Omit<
     ApiPaths,
-    // `/specification.yaml` is handled separately by `api_service_server.ts`. We
-    // don't handle it here because it returns YAML instead of JSON which this
-    // abstraction is designed for.
+    // `/specification.yaml` is handled separately by `api_service_server.ts`. We don't
+    // handle it here because it returns YAML instead of JSON which this abstraction is
+    // designed for.
     "/specification.yaml"
 > = {
     ...apiChatPaths,

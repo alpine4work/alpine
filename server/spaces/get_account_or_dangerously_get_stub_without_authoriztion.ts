@@ -7,12 +7,12 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * Calls `getAccount()` if the actor has space access and falls back to
- * `dangerouslyGetAccountStubIfExistsWithoutAuthorization()` if the actor
- * doesn't have space access.
+ * `dangerouslyGetAccountStubIfExistsWithoutAuthorization()` if the actor doesn't
+ * have space access.
  *
  * Please read the documentation on
- * `dangerouslyGetAccountStubIfExistsWithoutAuthorization()` before
- * deciding to use this function.
+ * `dangerouslyGetAccountStubIfExistsWithoutAuthorization()` before deciding to use
+ * this function.
  */
 export async function getAccountOrDangerouslyGetStubWithoutAuthorization(
     context: ServerActionContext,

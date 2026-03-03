@@ -65,19 +65,19 @@ export function ChannelViewNameEditor({
                             ref={useMergedRefs(
                                 inputRef,
                                 useConfirmSaveAfterLosingFocus({
-                                    // It's ok to unfocus while creating a channel and nothing has been input.
-                                    // This will happen when you create a channel, a peek opens, then you
-                                    // immediately close the peek.
+                                    // It's ok to unfocus while creating a channel and nothing has been input. This
+                                    // will happen when you create a channel, a peek opens, then you immediately close
+                                    // the peek.
                                     //
                                     // We won't auto-focus this input when create a channel through search.
                                     isDisabled: name.length === 0,
 
                                     shouldConfirmSave:
-                                        // If the initial name is empty, we are creating an optimistic collection and
-                                        // you must provide a name.
+                                        // If the initial name is empty, we are creating an optimistic collection and you
+                                        // must provide a name.
                                         initialName.length === 0 ||
-                                        // Otherwise if you delete all of the collection name it will revert back to
-                                        // the initial name.
+                                        // Otherwise if you delete all of the collection name it will revert back to the
+                                        // initial name.
                                         (name.length > 0 && name !== initialName),
                                     isConfirmingSave: shouldShowConfirmSaveDialog,
                                     onCancelSave: () => void onCancel(),
@@ -164,8 +164,8 @@ export function ChannelViewNameEditor({
                     title="Save channel name"
                     description="Would you like to save your new channel name?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

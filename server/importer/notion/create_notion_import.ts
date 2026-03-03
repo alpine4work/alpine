@@ -11,8 +11,8 @@ import {generateId} from "~/shared/id/id.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Creates a new Notion import record and generates a presigned S3
- * PutObject URL for the client to upload the zip file directly.
+ * Creates a new Notion import record and generates a presigned S3 PutObject URL
+ * for the client to upload the zip file directly.
  */
 export async function createNotionImport(
     context: ServerSessionActionContext & {importer: ImporterContextModuleBase},

@@ -30,8 +30,7 @@ export async function getPostRealtimeEvent(
                 eventTransaction.map(async eventStub => {
                     const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
 
-                    // Check that the `itemKey` we're reading is for the post we've
-                    // authorized.
+                    // Check that the `itemKey` we're reading is for the post we've authorized.
                     if (
                         itemKey.partitionType === "Post" &&
                         itemKey.postId === postId &&

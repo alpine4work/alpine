@@ -22,8 +22,8 @@ export const apiSpacesPaths: Pick<
 > = {
     "/accounts/{id}": {
         get: async (context, {pathParameters}) => {
-            // We load the account data using the `SpaceId` the bot is instantiated in. So
-            // if an account was removed from the space then our bot will see old data.
+            // We load the account data using the `SpaceId` the bot is instantiated in. So if
+            // an account was removed from the space then our bot will see old data.
             const account = await getApiAccount(
                 context,
                 context.actor.getSpaceId(),
@@ -41,8 +41,8 @@ export const apiSpacesPaths: Pick<
 
     "/accounts/{id}/mention": {
         get: async (context, {pathParameters}) => {
-            // We load the account data using the `SpaceId` the bot is instantiated in. So
-            // if an account was removed from the space then our bot will see old data.
+            // We load the account data using the `SpaceId` the bot is instantiated in. So if
+            // an account was removed from the space then our bot will see old data.
             const account = await getAccountWithoutAvatar(
                 context,
                 context.actor.getSpaceId(),
@@ -155,8 +155,8 @@ export const apiSpacesPaths: Pick<
                 limit,
                 timeZone: defaultTimeZone,
                 currentTime,
-                // TODO(ifitzsimmons, #ai): Figure out how to handle debug options.
-                // We should be able to debug the results returned by the bot.
+                // TODO(ifitzsimmons, #ai): Figure out how to handle debug options. We should be
+                // able to debug the results returned by the bot.
             });
 
             const semanticSearchEntityResultsPromise = searchBySemantics(newContext, {
@@ -165,8 +165,8 @@ export const apiSpacesPaths: Pick<
                 limit,
                 timeZone: defaultTimeZone,
                 currentTime,
-                // TODO(ifitzsimmons, #ai): Figure out how to handle debug options.
-                // We should be able to debug the results returned by the bot.
+                // TODO(ifitzsimmons, #ai): Figure out how to handle debug options. We should be
+                // able to debug the results returned by the bot.
             });
 
             const [keywordSearchResults, semanticSearchResults] = await runAllPromises([

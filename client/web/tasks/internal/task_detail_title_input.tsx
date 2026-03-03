@@ -95,17 +95,16 @@ function TaskDetailTitleInput(
         titleState: EditorState;
     } | null>(null);
 
-    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
-    // docs say only CSS-in-JS libraries should use it.
+    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the docs
+    // say only CSS-in-JS libraries should use it.
     //
     // Wait what?? A `rootElement` parameter??? That's not documented? What the what?
     //
-    // Read the documentation comment on `<TaskRowTitleInput>`. This is how we
-    // render the non-React ProseMirror `EditorView`. It's essential for
-    // performance on `<TaskRowTitleInput>`, it's not essential for performance
-    // here. But we use this pattern everywhere we render an `EditorView` for
-    // consistency and since we believe this is the proper way to manually mutate
-    // the DOM in React.
+    // Read the documentation comment on `<TaskRowTitleInput>`. This is how we render
+    // the non-React ProseMirror `EditorView`. It's essential for performance on
+    // `<TaskRowTitleInput>`, it's not essential for performance here. But we use this
+    // pattern everywhere we render an `EditorView` for consistency and since we
+    // believe this is the proper way to manually mutate the DOM in React.
     useInsertionEffect(
         (rootElement?: HTMLDivElement) => {
             // Wait for the client-side rerender before mounting our editor.
@@ -147,16 +146,15 @@ function TaskDetailTitleInput(
 
                     attributes: {
                         // Native spellcheck is often more distracting then it's worth. It puts a red
-                        // squiggly under names, nouns, industry terms, and oddly sometimes
-                        // contractions (like "they're", maybe has to do with curly quotes?).
+                        // squiggly under names, nouns, industry terms, and oddly sometimes contractions
+                        // (like "they're", maybe has to do with curly quotes?).
                         //
                         // It's also inconsistent with `<input>`s which don't have spellcheck on by
                         // default.
                         //
-                        // In iOS, however, the native spellchecker is _essential_ for proper
-                        // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
-                        // spell check results show up inline instead of requiring a right click (which
-                        // we override).
+                        // In iOS, however, the native spellchecker is _essential_ for proper document
+                        // editing. Since typos abound on mobile keyboards. Unlike on web, iOS spell check
+                        // results show up inline instead of requiring a right click (which we override).
                         ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
                     },
 
@@ -177,10 +175,10 @@ function TaskDetailTitleInput(
                                 }),
                             );
 
-                        // If the title was truncated through the model, we don't
-                        // run this optimization. We force update the editor state below.
-                        // TODO: Ideally we'd create a new transaction based on oldTitleState
-                        // with the updated steps instead of skipping this code completely.
+                        // If the title was truncated through the model, we don't run this optimization. We
+                        // force update the editor state below. TODO: Ideally we'd create a new transaction
+                        // based on oldTitleState with the updated steps instead of skipping this code
+                        // completely.
                         if (truncatedCharacterCount === 0) {
                             const newTitleState = oldTitleState.apply(
                                 transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
@@ -192,15 +190,15 @@ function TaskDetailTitleInput(
                             };
                         }
 
-                        // We must flush synchronously. Since ProseMirror preserves local DOM
-                        // state when we call `updateState()` synchronously but won't otherwise.
+                        // We must flush synchronously. Since ProseMirror preserves local DOM state when we
+                        // call `updateState()` synchronously but won't otherwise.
                         //
-                        // See the "Efficient updating" section in the [editor view guide][1].
-                        // If we don't synchronously apply the transaction it is considered
-                        // cancelled. A quote from the guide:
+                        // See the "Efficient updating" section in the [editor view guide][1]. If we don't
+                        // synchronously apply the transaction it is considered cancelled. A quote from the
+                        // guide:
                         //
-                        // > When such a transaction is canceled or modified somehow, the view
-                        // > will undo the DOM change...
+                        // > When such a transaction is canceled or modified somehow, the view will undo
+                        // > the DOM change...
                         //
                         // [1]: https://prosemirror.net/docs/guide/#view
                         flushSync(() => {
@@ -212,8 +210,8 @@ function TaskDetailTitleInput(
                 },
             );
 
-            // Update `viewRef` and call any callbacks that were waiting for the view to
-            // be ready.
+            // Update `viewRef` and call any callbacks that were waiting for the view to be
+            // ready.
             {
                 const callbacks = !viewRef.current.isReady ? viewRef.current.callbacks : [];
 
@@ -256,15 +254,15 @@ function TaskDetailTitleInput(
             };
 
             // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
-            // careful about what you put in here. Ideally we never destroy the
-            // `EditorView` while this component is mounted.
+            // careful about what you put in here. Ideally we never destroy the `EditorView`
+            // while this component is mounted.
         },
         [isInitialAppRender],
     );
 
-    // Reconcile our imperative `EditorView` state with state from React. If this
-    // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
-    // then this should be flushed synchronously given this is a layout effect.
+    // Reconcile our imperative `EditorView` state with state from React. If this is
+    // run by `dispatchTransaction()` (which updates state in `flushSync()`) then this
+    // should be flushed synchronously given this is a layout effect.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInitialAppRender) return;
 
@@ -284,39 +282,40 @@ function TaskDetailTitleInput(
 
         const transaction = state.tr;
 
-        // If something externally changes the title (e.g. another user in realtime or
-        // an undo) then we completely replace the ProseMirror content with the new
-        // content. Then manually move the selection to its new position.
+        // If something externally changes the title (e.g. another user in realtime or an
+        // undo) then we completely replace the ProseMirror content with the new content.
+        // Then manually move the selection to its new position.
         //
         // This is the same approach [`y-prosemirror` uses][1]. This approach has
         // [meaningful drawbacks][2]. Namely any decorations being maintained via
-        // `decorationSet.map()` will be wiped away by the full replace. We don't have
-        // any decorations on this editor currently so it's not an issue for us right
-        // now.
+        // `decorationSet.map()` will be wiped away by the full replace. We don't have any
+        // decorations on this editor currently so it's not an issue for us right now.
         //
-        // It should be possible to compute a precise text diff between `oldTitle` and
-        // the new `title` using the Yjs CRDT structure. Then call
-        // `transaction.replace()` just for the changed text ranges. This would
-        // preserve anything that needs to be `map()`ed along by ProseMirror (like
-        // decorations for some plugins). However, such an algorithm would be
-        // challenging to write so we copy the dumb `y-prosemirror` strategy for now.
+        // It should be possible to compute a precise text diff between `oldTitle` and the
+        // new `title` using the Yjs CRDT structure. Then call `transaction.replace()` just
+        // for the changed text ranges. This would preserve anything that needs to be
+        // `map()`ed along by ProseMirror (like decorations for some plugins). However,
+        // such an algorithm would be challenging to write so we copy the dumb
+        // `y-prosemirror` strategy for now.
         //
-        // [1]: https://github.com/yjs/y-prosemirror/blob/15a3862640d4a0d02eae8cbf895f4c9927413a9e/src/plugins/sync-plugin.js#L567-L571
-        // [2]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
+        // [1]:
+        //     https://github.com/yjs/y-prosemirror/blob/15a3862640d4a0d02eae8cbf895f4c9927413a9e/src/plugins/sync-plugin.js#L567-L571
+        // [2]:
+        //     https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
         transaction.replace(
             0,
             state.doc.content.size,
             new Slice(Fragment.from(title.getProsemirrorNode()), 0, 0),
         );
 
-        // Move the selection to a new position using Yjs relative positions.
-        // The Yjs CRDT contains enough information to map positions on its own without
-        // needing the intermediate updates.
+        // Move the selection to a new position using Yjs relative positions. The Yjs CRDT
+        // contains enough information to map positions on its own without needing the
+        // intermediate updates.
         //
         // TODO(calebmer): If this title update is from an undo ideally we'd reset the
-        // selection to whatever it was before the undo. This is the standard
-        // convention for text editors. Not implementing for now because wiring all the
-        // pieces up through the task undo system is annoying.
+        // selection to whatever it was before the undo. This is the standard convention
+        // for text editors. Not implementing for now because wiring all the pieces up
+        // through the task undo system is annoying.
         {
             const oldTitle = assertExists(taskTitlePluginKey.getState(view.state));
 

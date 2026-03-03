@@ -24,8 +24,8 @@ export const createNotionImport = defineRpc({
 
 /**
  * Starts the actual import process. Should only be called after validation
- * completes (status is "Validated"). The client can customize teamspace
- * import options before calling this.
+ * completes (status is "Validated"). The client can customize teamspace import
+ * options before calling this.
  */
 export const startNotionImport = defineRpc({
     name: "startNotionImport",
@@ -64,9 +64,9 @@ export const getAllNotionImportsForSpace = defineRpc({
 /**
  * Called by the client after the file upload to S3/local storage completes.
  *
- * This RPC triggers the validation job that extracts metadata from the
- * uploaded Notion export. Using an RPC instead of S3 event notifications
- * (Lambda) simplifies the flow:
+ * This RPC triggers the validation job that extracts metadata from the uploaded
+ * Notion export. Using an RPC instead of S3 event notifications (Lambda)
+ * simplifies the flow:
  *
  * - Single code path for both development and production
  * - Easier to debug and trace (RPC is in the main request flow)
@@ -84,8 +84,8 @@ export const finishedNotionImportUpload = defineRpc({
 });
 
 /**
- * Cancels a Notion import that hasn't started processing yet.
- * Deletes the import record and the uploaded zip file.
+ * Cancels a Notion import that hasn't started processing yet. Deletes the import
+ * record and the uploaded zip file.
  */
 export const cancelNotionImport = defineRpc({
     name: "cancelNotionImport",

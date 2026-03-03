@@ -2,9 +2,9 @@ import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
 // This is a different variation of the `<ThumbsUp weight="fill">` icon from
-// Phosphor. We want our filled thumbs up icon to look just like the Facebook
-// like button. The Phosphor icon's sleeve isn't filled even in the fill weight
-// so we created our own variant.
+// Phosphor. We want our filled thumbs up icon to look just like the Facebook like
+// button. The Phosphor icon's sleeve isn't filled even in the fill weight so we
+// created our own variant.
 export function ThumbsUpFill2Icon({
     color,
     size,
@@ -28,8 +28,8 @@ export function ThumbsUpFill2Icon({
             viewBox="0 0 256 256"
             fill={color ?? contextColor}
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: size ?? contextSize,
                 height: size ?? contextSize,

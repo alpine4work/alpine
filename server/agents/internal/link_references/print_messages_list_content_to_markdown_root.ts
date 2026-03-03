@@ -32,8 +32,8 @@ export async function printMessagesListContentToMarkdownRoot({
         });
     }
 
-    // There shouldn't be a conversation timezone context for the messages returned
-    // by a read link tool call.
+    // There shouldn't be a conversation timezone context for the messages returned by
+    // a read link tool call.
     const messagesContent = printAgentMessagesIntoMarkdownTree(pageMessages, {
         time: conversationState.startTime,
         timeZone: conversationState.timeZone,

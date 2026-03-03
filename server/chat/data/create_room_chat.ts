@@ -96,8 +96,8 @@ export async function createRoomChat(
         if (createChatTransactionEntry.newItem.definition.hasAddedFeedCandidateEntry) {
             await addFeedCandidateEntry(context, spaceId, entry);
         }
-        // If we're creating a private channel then only add an entry to the
-        // creator account's personal feed.
+        // If we're creating a private channel then only add an entry to the creator
+        // account's personal feed.
         else {
             await addFeedAccountCandidateEntry(
                 context,

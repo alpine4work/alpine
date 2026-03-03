@@ -27,9 +27,9 @@ export type StepByJsonId = {
 };
 
 /**
- * `Step`s have a `jsonID` property used when serializing to/from JSON. This
- * type is a union of all known step class with their `jsonID` to allow for
- * exhaustive switching.
+ * `Step`s have a `jsonID` property used when serializing to/from JSON. This type
+ * is a union of all known step class with their `jsonID` to allow for exhaustive
+ * switching.
  */
 export type ExhaustiveStep = {
     [Key in keyof StepByJsonId]: StepByJsonId[Key] & {jsonID: Key};

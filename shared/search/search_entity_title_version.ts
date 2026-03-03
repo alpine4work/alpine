@@ -61,10 +61,10 @@ export function compareSearchEntityTitleVersion(
 
         const minVersionsLength = Math.min(version1.versions.length, version2.versions.length);
 
-        // Pick the title with the highest version number. Stop at the first version
-        // that's not equal to the other title's version. This is a generic conflict
-        // resolution mechanism designed to work without us knowing how to interpret the
-        // underlying versions.
+        // Pick the title with the highest version number. Stop at the first version that's
+        // not equal to the other title's version. This is a generic conflict resolution
+        // mechanism designed to work without us knowing how to interpret the underlying
+        // versions.
         for (let i = 0; i < minVersionsLength; i++) {
             const subVersion1 = version1.versions[i]!;
             const subVersion2 = version2.versions[i]!;
@@ -112,16 +112,15 @@ export type TaskTitleSnapshotDeleteSet = {
 };
 
 /**
- * Compare two Yjs CRDT snapshots from `TaskTitle`. At a low level the
- * way a Yjs CRDT works is each client has its own version number that
- * increments on every addition. This is represented by a snapshots which
- * contains a state vector where the keys are `clientId`s and the values are
- * `version`s. Yjs CRDTs also have a delete set which separately tracks
- * deletions.
+ * Compare two Yjs CRDT snapshots from `TaskTitle`. At a low level the way a Yjs
+ * CRDT works is each client has its own version number that increments on every
+ * addition. This is represented by a snapshots which contains a state vector where
+ * the keys are `clientId`s and the values are `version`s. Yjs CRDTs also have a
+ * delete set which separately tracks deletions.
  *
  * Resolving conflicts in a Yjs CRDT is a complicated affair and can't be
- * simplified to CRDT a is newer than CRDT b yet that's exactly what we want to
- * do here since we only have the snapshot and not the full CRDT.
+ * simplified to CRDT a is newer than CRDT b yet that's exactly what we want to do
+ * here since we only have the snapshot and not the full CRDT.
  *
  * If we have `snapshot1` with a state vector that looks like this:
  *
@@ -143,8 +142,8 @@ export type TaskTitleSnapshotDeleteSet = {
  * }
  * ```
  *
- * We clearly know that `snapshot2` is newer than `snapshot1` since the
- * only changed key is 123.
+ * We clearly know that `snapshot2` is newer than `snapshot1` since the only
+ * changed key is 123.
  *
  * However, what if `snapshot2`'s state vector is:
  *
@@ -165,13 +164,13 @@ export type TaskTitleSnapshotDeleteSet = {
  * }
  * ```
  *
- * In both these cases, key 789 is changed in addition to key 123. We know key
- * 123 is newer in `snapshot2` but key 789 is older in `snapshot2`. This
- * is where Yjs steps in, saves the day, and is able to properly merge two
- * `TaskTitle`s in this state by taking some data from `snapshot1` and some
- * data from `snapshot2`. In this case, we're not merging some data from the
- * first task title and some data from the second, we want to make an educated
- * guess and pick ONE task title we think is newer than the other.
+ * In both these cases, key 789 is changed in addition to key 123. We know key 123
+ * is newer in `snapshot2` but key 789 is older in `snapshot2`. This is where Yjs
+ * steps in, saves the day, and is able to properly merge two `TaskTitle`s in this
+ * state by taking some data from `snapshot1` and some data from `snapshot2`. In
+ * this case, we're not merging some data from the first task title and some data
+ * from the second, we want to make an educated guess and pick ONE task title we
+ * think is newer than the other.
  *
  * In practice, we don't expect conflicts like this to be an issue for search
  * entity task titles. Since a search entity's state vector should always be
@@ -236,9 +235,9 @@ function compareTaskTitleStateVectorForSearchEntityTitleVersion(
     mismatches.sort(
         (mismatch1, mismatch2) =>
             // Sort mismatches from our realm's client last. If we have a mismatch from our
-            // realm's client then this is the one we should use. In theory this should
-            // have the best UX in offline mode since if the user is typing while offline
-            // on stale data we always let their update win here.
+            // realm's client then this is the one we should use. In theory this should have
+            // the best UX in offline mode since if the user is typing while offline on stale
+            // data we always let their update win here.
             (mismatch1.clientId === realmTaskTitleClientId.get() ? 1 : 0) -
                 (mismatch2.clientId === realmTaskTitleClientId.get() ? 1 : 0) ||
             // Sort mismatches with a larger `maxVersion` last.
@@ -335,9 +334,9 @@ function compareTaskTitleDeleteSetForSearchEntityTitleVersion(
     mismatches.sort(
         (mismatch1, mismatch2) =>
             // Sort mismatches from our realm's client last. If we have a mismatch from our
-            // realm's client then this is the one we should use. In theory this should
-            // have the best UX in offline mode since if the user is typing while offline
-            // on stale data we always let their update win here.
+            // realm's client then this is the one we should use. In theory this should have
+            // the best UX in offline mode since if the user is typing while offline on stale
+            // data we always let their update win here.
             (mismatch1.clientId === realmTaskTitleClientId.get() ? 1 : 0) -
                 (mismatch2.clientId === realmTaskTitleClientId.get() ? 1 : 0) ||
             // Sort mismatches with a larger max delete count last.

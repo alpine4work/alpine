@@ -42,9 +42,9 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-         * Reports straight quotes that should be curly quotes, using Unicode escapes.
-         * Also reports HTML entities that should be Unicode escapes.
-         * Used for regular strings and template literals.
+         * Reports straight quotes that should be curly quotes, using Unicode escapes. Also
+         * reports HTML entities that should be Unicode escapes. Used for regular strings
+         * and template literals.
          */
         function reportStringStraightQuotes(nodeStart, text) {
             const matches = text.matchAll(/["']/g);
@@ -81,8 +81,8 @@ module.exports = {
         }
 
         /**
-         * Reports HTML entities that should be Unicode escapes.
-         * Used for regular strings and template literals.
+         * Reports HTML entities that should be Unicode escapes. Used for regular strings
+         * and template literals.
          */
         function reportStringHtmlEntities(nodeStart, text) {
             const entityMatches = text.matchAll(/&#x(201C|201D|2018|2019);/gi);
@@ -106,8 +106,8 @@ module.exports = {
         }
 
         /**
-         * Reports straight quotes that should be curly quotes, using HTML entities.
-         * Used for JSX text and JSX attribute strings.
+         * Reports straight quotes that should be curly quotes, using HTML entities. Used
+         * for JSX text and JSX attribute strings.
          */
         function reportJsxStraightQuotes(nodeStart, text) {
             const quoteMatches = text.matchAll(/["']/g);
@@ -131,8 +131,8 @@ module.exports = {
         }
 
         /**
-         * Reports Unicode escapes that should be HTML entities.
-         * Used for JSX text and JSX attribute strings.
+         * Reports Unicode escapes that should be HTML entities. Used for JSX text and JSX
+         * attribute strings.
          */
         function reportJsxUnicodeEscapes(nodeStart, text) {
             const escapeMatches = text.matchAll(/\\u(201C|201D|2018|2019)/g);
@@ -161,8 +161,8 @@ module.exports = {
                 const nodeStart = node.range[0] + 1;
                 const text = node.raw.slice(1, -1);
 
-                // JSX attribute strings should use HTML entities instead of Unicode escapes,
-                // just like JSX text.
+                // JSX attribute strings should use HTML entities instead of Unicode escapes, just
+                // like JSX text.
                 if (node.parent.type === "JSXAttribute") {
                     reportJsxStraightQuotes(nodeStart, text);
                     reportJsxUnicodeEscapes(nodeStart, text);

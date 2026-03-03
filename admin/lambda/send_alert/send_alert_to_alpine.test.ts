@@ -263,8 +263,8 @@ describe("sendAlertToAlpine", () => {
                 await sendHoneycombAlertToAlpine(payload);
 
                 expect(mockFetchCalls).toHaveLength(1);
-                // Should aggregate: ConnectionError=8, TimeoutError=2
-                // Should show user mentions: Josh Johnson, Rachel Date
+                // Should aggregate: ConnectionError=8, TimeoutError=2 Should show user mentions:
+                // Josh Johnson, Rachel Date
                 expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
             });
 

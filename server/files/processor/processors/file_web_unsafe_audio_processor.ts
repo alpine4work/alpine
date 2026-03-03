@@ -98,15 +98,16 @@ export function processFileWebUnsafeAudio(
                 // data it needs with HTTP `Range` requests.
                 "-i",
                 inputUrl,
-                // Limit the number of threads for FFmpeg to reduce resource contention
-                // in `FileProcessorService`.
+                // Limit the number of threads for FFmpeg to reduce resource contention in
+                // `FileProcessorService`.
                 "-threads",
                 String(ffmpegThreadCount),
                 // Convert the audio file to WebM using the Opus audio codec. This is what [MDN
-                // recommends for a good everyday video codec][1] We use this same
-                // recommendation for audio for consistency.
+                // recommends for a good everyday video codec][1] We use this same recommendation
+                // for audio for consistency.
                 //
-                // [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
+                // [1]:
+                //     https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
                 "-f",
                 "webm",
                 "-acodec",
@@ -124,10 +125,10 @@ export function processFileWebUnsafeAudio(
 
         let stderr = "";
 
-        // This function checks to see if the input's duration and width/height have
-        // been written to stderr and if it has then we can resolve
-        // `previewContentPromise`. This will push an update to the user waiting on their
-        // file to upload so they can see a preview of the file in the product.
+        // This function checks to see if the input's duration and width/height have been
+        // written to stderr and if it has then we can resolve `previewContentPromise`.
+        // This will push an update to the user waiting on their file to upload so they can
+        // see a preview of the file in the product.
         const attemptResolvePreviewDuration = () => {
             if (previewDurationPromiseResolver.isSettled()) return;
 
@@ -182,9 +183,9 @@ export function processFileWebUnsafeAudio(
             },
         );
 
-        // If the audio duration wasn't present in the audio's metadata then we wait
-        // until FFmpeg finishes and parse the duration from `time` printed at the end
-        // of FFmpeg's stderr.
+        // If the audio duration wasn't present in the audio's metadata then we wait until
+        // FFmpeg finishes and parse the duration from `time` printed at the end of
+        // FFmpeg's stderr.
         if (!previewDurationPromiseResolver.isSettled()) {
             const match = stderr.trimEnd().match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);
             if (!match) {

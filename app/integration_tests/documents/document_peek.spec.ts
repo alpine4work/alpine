@@ -603,8 +603,8 @@ test("remembers peek state across page reloads", async ({context: browserContext
 
     await page.reload();
 
-    // Firefox appears to not remember `sessionStorage` across page reloads. This
-    // is fine.
+    // Firefox appears to not remember `sessionStorage` across page reloads. This is
+    // fine.
     if (project.name === "firefox") {
         await expect(page.getByText("Test document content 1")).toBeVisible();
         await expect(page.getByText("Test document content 2")).toBeHidden();

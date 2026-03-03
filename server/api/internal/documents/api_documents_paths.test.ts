@@ -188,7 +188,8 @@ describe("POST /documents", () => {
         const task = await TestTask.create(session, {collections: [collection]});
         await task.createComment(session, "This is a test comment");
 
-        // Create API key with Task scope - this simulates a bot being mentioned in task comments
+        // Create API key with Task scope - this simulates a bot being mentioned in task
+        // comments
         const apiKey = await bot.createApiKey({type: "Task", taskId: task.id});
 
         const response = await server.POST("/documents", {

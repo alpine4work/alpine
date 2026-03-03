@@ -20,9 +20,8 @@ const ogImageUrl = "https://alpine.inc/images/og.jpg";
 const maxDescriptionLength = 300;
 
 /**
- * Get an OG description from content by extracting a snippet and
- * printing it as single-line text. Returns null if the content has no
- * text.
+ * Get an OG description from content by extracting a snippet and printing it as
+ * single-line text. Returns null if the content has no text.
  */
 function getContentOgDescription(doc: Node, references: ContentReferences): string | null {
     const snippet = getContentSnippet(
@@ -71,10 +70,10 @@ function getContentOgDescription(doc: Node, references: ContentReferences): stri
 }
 
 /**
- * Get a description for a document suitable for OG (Open Graph)
- * metadata. Extracts the first few lines of body content (skipping the
- * title) and prints it as a single-line text snippet. Returns null if
- * there's no text content after the title.
+ * Get a description for a document suitable for OG (Open Graph) metadata. Extracts
+ * the first few lines of body content (skipping the title) and prints it as a
+ * single-line text snippet. Returns null if there's no text content after the
+ * title.
  */
 export function getDocumentOgDescription(content: DocumentContentWithReferences): string | null {
     const doc = content.doc;
@@ -93,9 +92,8 @@ export function getDocumentOgDescription(content: DocumentContentWithReferences)
 /**
  * Create head meta descriptors for a document.
  *
- * If the document is publicly shared (has urlGrant), generates OG
- * metadata including title and description extracted from the document
- * content.
+ * If the document is publicly shared (has urlGrant), generates OG metadata
+ * including title and description extracted from the document content.
  */
 export function createHeadMetaForDocument(
     document: DocumentModel | null,
@@ -103,9 +101,9 @@ export function createHeadMetaForDocument(
     const title = document?.getTitle() ?? documentFallbackTitle;
     const descriptors: Array<HeadMetaDescriptor> = [{title}];
 
-    // If the document is publicly shared (has urlGrant), generate OG
-    // metadata. The access policy is stored as a ProseMirror attribute
-    // on the root doc node of the document content.
+    // If the document is publicly shared (has urlGrant), generate OG metadata. The
+    // access policy is stored as a ProseMirror attribute on the root doc node of the
+    // document content.
     if (document?.content.doc.attrs.accessPolicy.urlGrant) {
         descriptors.push({property: "og:title", content: `${title} | Alpine`});
         descriptors.push({property: "og:image", content: ogImageUrl});
@@ -123,9 +121,8 @@ export function createHeadMetaForDocument(
 /**
  * Create head meta descriptors for a channel.
  *
- * If the channel is publicly shared (has urlGrant), generates OG
- * metadata including title and description extracted from the channel
- * description.
+ * If the channel is publicly shared (has urlGrant), generates OG metadata
+ * including title and description extracted from the channel description.
  */
 export function createHeadMetaForChannel(channel: ChannelModel | null): Array<HeadMetaDescriptor> {
     const title = channel?.name ?? "";
@@ -151,8 +148,8 @@ export function createHeadMetaForChannel(channel: ChannelModel | null): Array<He
 /**
  * Create head meta descriptors for a chat room.
  *
- * If the room is publicly shared (has urlGrant), generates OG
- * metadata including the room name as the title.
+ * If the room is publicly shared (has urlGrant), generates OG metadata including
+ * the room name as the title.
  */
 export function createHeadMetaForChatRoom(
     room: {name: string; accessPolicy: AccessPolicy} | null,
@@ -171,9 +168,8 @@ export function createHeadMetaForChatRoom(
 /**
  * Create head meta descriptors for a task.
  *
- * If the task is publicly shared (has urlGrant), generates OG
- * metadata including title and description extracted from task
- * notes.
+ * If the task is publicly shared (has urlGrant), generates OG metadata including
+ * title and description extracted from task notes.
  */
 export function createHeadMetaForTask(task: {
     title: string;
@@ -201,8 +197,8 @@ export function createHeadMetaForTask(task: {
 /**
  * Create head meta descriptors for a task collection.
  *
- * If the collection is publicly shared (has urlGrant), generates OG
- * metadata including title and a description.
+ * If the collection is publicly shared (has urlGrant), generates OG metadata
+ * including title and a description.
  */
 export function createHeadMetaForTaskCollection(
     collection: {name: string; accessPolicy: AccessPolicy} | null,
@@ -210,8 +206,7 @@ export function createHeadMetaForTaskCollection(
     const title = collection?.name || newTaskCollectionNamePlaceholder;
     const descriptors: Array<HeadMetaDescriptor> = [{title}];
 
-    // If the collection is publicly shared (has urlGrant), generate OG
-    // metadata.
+    // If the collection is publicly shared (has urlGrant), generate OG metadata.
     if (collection?.accessPolicy.urlGrant) {
         descriptors.push({property: "og:title", content: `${title} | Alpine`});
         descriptors.push({property: "og:image", content: ogImageUrl});

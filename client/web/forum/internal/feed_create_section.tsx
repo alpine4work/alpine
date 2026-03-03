@@ -74,11 +74,11 @@ export function FeedCreateSection({
         initialAppRenderId ? `${initialAppRenderId}-FeedCreateSection` : generateId(),
     );
 
-    // Even though we've already loaded the affinity search from the server, we
-    // call `useLazyLoadRpc()` so that if you navigate away from the browser
-    // then navigate back the affinity list is re-fetched. Also any time you
-    // favorite/unfavorite something we revalidate the RPC cache for
-    // `searchByAffinity()` which will cause this component to re-render.
+    // Even though we've already loaded the affinity search from the server, we call
+    // `useLazyLoadRpc()` so that if you navigate away from the browser then navigate
+    // back the affinity list is re-fetched. Also any time you favorite/unfavorite
+    // something we revalidate the RPC cache for `searchByAffinity()` which will cause
+    // this component to re-render.
     const {output: affinitySearchOutput} = useLazyLoadRpc(
         searchByAffinity,
         routeLayout === "narrow" ? {spaceId: space.id} : null,
@@ -95,9 +95,9 @@ export function FeedCreateSection({
             // you" feed.
             convertRemLengthToPx("16", spacingScale));
 
-    // Show as many search affinity results as we can while also showing the
-    // beginning of the for you feed above the fold so the user knows the for you
-    // feed exists if they start scrolling.
+    // Show as many search affinity results as we can while also showing the beginning
+    // of the for you feed above the fold so the user knows the for you feed exists if
+    // they start scrolling.
     const visibleSearchAffinityResultCount = Math.max(
         3,
         Math.floor(availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale]),
@@ -128,15 +128,14 @@ export function FeedCreateSection({
                     alignItems="center"
                     justifyContent="space-between"
                     style={{
-                        // This is pretty brittle. We've carefully selected margin values that align
-                        // our create buttons with surrounding UI elements.
+                        // This is pretty brittle. We've carefully selected margin values that align our
+                        // create buttons with surrounding UI elements.
                         //
                         // - Desktop (`routeLayout === "wide"`): We want to align the left edge of the
                         //   document icon with the section header text ("Create" and "For you").
                         //
-                        // - Mobile (`routeLayout === "narrow"`): We want to align the text of our
-                        //   first button ("Document") with the section header text ("Create" and
-                        //   "Suggested").
+                        // - Mobile (`routeLayout === "narrow"`): We want to align the text of our first
+                        //   button ("Document") with the section header text ("Create" and "Suggested").
                         margin:
                             routeLayout !== "narrow"
                                 ? `0 -${addRemLengths(
@@ -155,11 +154,11 @@ export function FeedCreateSection({
                             const documentId = generateId();
 
                             navigate(`/s/${space.id}/documents/${documentId}?create&focus`, {
-                                // Don't open the new document in a peek. Instead open the new document full
-                                // screen (unless shift is held). This is the only create button with this
-                                // behavior. Ideally the create buttons get you off the home page and into
-                                // precisely where you want to be in the product. We don't do this for tasks,
-                                // posts, and messages since their designs all look better in a peek.
+                                // Don't open the new document in a peek. Instead open the new document full screen
+                                // (unless shift is held). This is the only create button with this behavior.
+                                // Ideally the create buttons get you off the home page and into precisely where
+                                // you want to be in the product. We don't do this for tasks, posts, and messages
+                                // since their designs all look better in a peek.
                                 stopPropagation: !event.shiftKey,
                             });
                         }}
@@ -331,8 +330,8 @@ function FeedCreateSectionButton({
                         fontSize={feedCreateSectionButtonFontSize[routeLayout]}
                         style={{
                             whiteSpace: "nowrap",
-                            // `semi-bold` is too bold so manually set weight to something between `normal`
-                            // and `semi-bold`. As of 2025-05-23, this is the same weight
+                            // `semi-bold` is too bold so manually set weight to something between `normal` and
+                            // `semi-bold`. As of 2025-05-23, this is the same weight
                             // `<Button variant="neutral">` uses.
                             fontWeight: 425,
                         }}
@@ -380,10 +379,10 @@ function FeedCreateSectionMobileSearchAffinityView({
             });
 
             void navigate(path, {
-                // When clicking on a path from the home sidebar, fully navigate the app to
-                // that thing. Don't open it in a peek. The home page is your entrypoint into
-                // the rest of the product. You won't be doing much work on the home page so we
-                // don't need to open a peek that keeps you in context.
+                // When clicking on a path from the home sidebar, fully navigate the app to that
+                // thing. Don't open it in a peek. The home page is your entrypoint into the rest
+                // of the product. You won't be doing much work on the home page so we don't need
+                // to open a peek that keeps you in context.
                 stopPropagation: true,
             }).then(() => {
                 // If user spam clicks an item, only mark affinity interaction once.
@@ -391,18 +390,17 @@ function FeedCreateSectionMobileSearchAffinityView({
                 hasMarkedAffinityInteractionRef.current = true;
 
                 // Whenever the user selects a suggested (or favorite) result, we record a high
-                // intent affinity interaction. This is because the user opening a result from
-                // the home view sidebar is super high signal that this is an entity they care
-                // about. In this way the suggested list is a self reinforcing system. The more
-                // a user selects an entity, the higher the entity will appear in the user's
-                // next search.
+                // intent affinity interaction. This is because the user opening a result from the
+                // home view sidebar is super high signal that this is an entity they care about.
+                // In this way the suggested list is a self reinforcing system. The more a user
+                // selects an entity, the higher the entity will appear in the user's next search.
                 markSearchAffinityEntityInteraction(context, {
                     spaceId: space.id,
                     entityId: result.id,
                     interaction: {type: "HighIntentUpdate"},
                 }).catch(error => {
-                    // Silently fail. This doesn't affect anything the user sees so we don't need
-                    // to report the error to the user.
+                    // Silently fail. This doesn't affect anything the user sees so we don't need to
+                    // report the error to the user.
                     reporter.logErrorWithoutDisplaying(
                         "Couldn\u2019t mark search result select affinity interaction",
                         error,

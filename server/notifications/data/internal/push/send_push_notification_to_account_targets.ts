@@ -20,22 +20,23 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
 
 export function shouldSendApnsPushNotification() {
-    // NOTE(rmtobin, 2025-08-21): iOS push notifications are disabled for now
-    // as we don't have anything to push to and our APNs certificate is expired.
+    // NOTE(rmtobin, 2025-08-21): iOS push notifications are disabled for now as we
+    // don't have anything to push to and our APNs certificate is expired.
     return false;
 }
 
 /**
- * Send push notifications to registered account devices. Only sends a
- * notification if the new inbox entry is not archived or deleted.
- * Sends loud notifications immediately, otherwise queues a subtle notification
- * to be batched and sent later to avoid overwhelming the user.
+ * Send push notifications to registered account devices. Only sends a notification
+ * if the new inbox entry is not archived or deleted. Sends loud notifications
+ * immediately, otherwise queues a subtle notification to be batched and sent later
+ * to avoid overwhelming the user.
  *
  * Web push and Apple push notifications are idempotent and respect the
  * `deduplicationTag` so the user will only see one notification on their device.
  *
- * Unfortunately, Slack notifications are not idempotent and will send multiple notifications
- * if this function is called multiple times. (TODO(rmtobin, 2026-02-25): Make slack notifications idempotent.)
+ * Unfortunately, Slack notifications are not idempotent and will send multiple
+ * notifications if this function is called multiple times. (TODO(rmtobin,
+ * 2026-02-25): Make slack notifications idempotent.)
  */
 export async function sendPushNotificationToAccountTargets(
     context: Context<ServerActionContextModules & PushContextModules>,
@@ -60,8 +61,8 @@ export async function sendPushNotificationToAccountTargets(
     },
 ) {
     const isActiveEntry = newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived;
-    // If we archived an entry (or updated an archived entry) that shouldn't
-    // generate a push notification as we do not currently support sending silent background
+    // If we archived an entry (or updated an archived entry) that shouldn't generate a
+    // push notification as we do not currently support sending silent background
     // notifications.
     if (!isActiveEntry) {
         return;
@@ -84,18 +85,17 @@ export async function sendPushNotificationToAccountTargets(
                         spaceId: DynamoKeyAttributeSchema.id.getMaxValue<SpaceId>(),
                     },
                     limit: "All",
-                    // Use strong read consistency. We don't want to update the app notification
-                    // badge with a stale count.
+                    // Use strong read consistency. We don't want to update the app notification badge
+                    // with a stale count.
                     consistency: "Strong",
                 }),
                 async item => {
-                    // Confirm the account is still a member of this space. If an account is
-                    // removed from a space we don't clean up their inbox item in case they're
-                    // re-added.
+                    // Confirm the account is still a member of this space. If an account is removed
+                    // from a space we don't clean up their inbox item in case they're re-added.
                     //
-                    // We run the version of this function that doesn't authorize since a system
-                    // actor will only have access to one space. Not all the spaces the account
-                    // has access to.
+                    // We run the version of this function that doesn't authorize since a system actor
+                    // will only have access to one space. Not all the spaces the account has access
+                    // to.
                     if (
                         !(await isAccountMemberOfSpaceWithoutAuthorization(
                             context,
@@ -114,30 +114,30 @@ export async function sendPushNotificationToAccountTargets(
         };
 
         const [alertContent, loudNotificationCount] = await runAllPromises([
-            // We optimistically build alert content even if we don't need it (e.g. since
-            // there are no registered devices).
+            // We optimistically build alert content even if we don't need it (e.g. since there
+            // are no registered devices).
             //
-            // We expect accounts will want to set up push notifications on some device and
-            // we want to send them notifications quickly. So it's worth speeding up
-            // notification sending even if sometimes it's a little wasteful to load alert
-            // content when we don't need it.
+            // We expect accounts will want to set up push notifications on some device and we
+            // want to send them notifications quickly. So it's worth speeding up notification
+            // sending even if sometimes it's a little wasteful to load alert content when we
+            // don't need it.
             assertExists(getAlertContent)(newInboxEntryItem),
 
             // We optimistically get the account's total loud notification count even if we
             // don't need it (e.g. since there are no registered devices).
             //
-            // We expect accounts will want to set up push notifications on some device and
-            // we want to send them notifications quickly. So it's worth speeding up
-            // notification sending even if sometimes it's a little wasteful to load the
-            // notification count when we don't need it.
+            // We expect accounts will want to set up push notifications on some device and we
+            // want to send them notifications quickly. So it's worth speeding up notification
+            // sending even if sometimes it's a little wasteful to load the notification count
+            // when we don't need it.
             loudNotificationCountDifference !== 0 ? getLoudNotificationCount() : null,
         ]);
 
         // Interrupt the user if the loud notification count increased.
         const isLoud = loudNotificationCountDifference > 0;
 
-        // If the notification is not loud, queue a subtle notification to be batched and sent
-        // later to avoid overwhelming the user.
+        // If the notification is not loud, queue a subtle notification to be batched and
+        // sent later to avoid overwhelming the user.
         if (!isLoud) {
             await queuePendingSubtleNotification(context, {
                 accountId,
@@ -164,12 +164,13 @@ export async function sendPushNotificationToAccountTargets(
         const webPushNotificationContent = {
             title,
             body: alertContent.body,
-            // `silent` refers to whether this notification will make a noise on delivery.
-            // This is different from native 'silent' push notifications where the notification
-            // is used for updates and not displayed - `silent` web push notifications are always displayed.
+            // `silent` refers to whether this notification will make a noise on delivery. This
+            // is different from native 'silent' push notifications where the notification is
+            // used for updates and not displayed - `silent` web push notifications are always
+            // displayed.
             silent: false,
-            // The tag is used to identify a specific notification. Sending the same notification
-            // with the same tag will replace the previous notification.
+            // The tag is used to identify a specific notification. Sending the same
+            // notification with the same tag will replace the previous notification.
             tag: deduplicationTag,
             data: {
                 url: `${context.constants.edgeServiceUrl}${entryPath}`,
@@ -205,8 +206,8 @@ export async function sendPushNotificationToAccountTargets(
                         },
                     });
                 case "AppleDevice":
-                    // We don't currently support sending push notifications to Apple devices,
-                    // though we did at one point and may again in the future.
+                    // We don't currently support sending push notifications to Apple devices, though
+                    // we did at one point and may again in the future.
                     if (shouldSendApnsPushNotification()) {
                         await sendApnsPushNotification(context, {
                             accountId,

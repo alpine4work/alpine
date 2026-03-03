@@ -7,10 +7,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId, AvatarId} from "~/shared/id/types/id_types.js";
 
 /**
- * You should not call this function! It does not authorize that you are
- * allowed to update the bot account's avatar. We only call this via the
- * JobQueueService – when an admin updates a bot's avatar, we copy the avatar
- * into the `Account#Avatar` item for each bot account.
+ * You should not call this function! It does not authorize that you are allowed to
+ * update the bot account's avatar. We only call this via the JobQueueService
+ * – when an admin updates a bot's avatar, we copy the avatar into the
+ * `Account#Avatar` item for each bot account.
  */
 export async function dangerouslyUpdateBotAccountAvatarWithoutAuthorization(
     context: Context<Omit<ServerActionContextModules, "actor">>,

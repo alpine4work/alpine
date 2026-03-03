@@ -66,8 +66,8 @@ function normalizeNode(node: Node): Node {
 
     let attrs = node.attrs;
 
-    // The API will use the normalized format for `columnWidths`. Make sure we
-    // expect normalized attributes.
+    // The API will use the normalized format for `columnWidths`. Make sure we expect
+    // normalized attributes.
     if (node.type.name === "table") {
         const tableMap = ContentTableMap.get(node);
         attrs = {...attrs, columnWidths: tableMap.columnWidths};
@@ -100,8 +100,8 @@ function testIntoApiContent(node: Node, content: ApiContentResponse) {
 }
 
 function testIntoApiContentOnly(node: Node, content: ApiContentResponse) {
-    // Only test the intoApiContent conversion (not round-trip)
-    // This is for cases where the schema doesn't support certain marks
+    // Only test the intoApiContent conversion (not round-trip) This is for cases where
+    // the schema doesn't support certain marks
     expect(
         intoApiContent(node, {
             getAccountMentionTitleIfExists: () => undefined,
@@ -190,8 +190,9 @@ test("converts quote block into API content", () => {
 });
 
 test("converts empty quote block from API content", () => {
-    // When API content has an empty Quote, we should create a quoteBlock with an empty paragraph
-    // This can happen when importing markdown like "> \n> \n" (empty blockquote)
+    // When API content has an empty Quote, we should create a quoteBlock with an empty
+    // paragraph This can happen when importing markdown like "> \n> \n" (empty
+    // blockquote)
     const apiContent = {
         elements: [
             {
@@ -1971,8 +1972,8 @@ test("converts code block with marks into API content", () => {
 });
 
 test("code mark is not allowed in code blocks", () => {
-    // The code mark is explicitly not supported within code blocks
-    // This test verifies that attempting to use it throws an error
+    // The code mark is explicitly not supported within code blocks This test verifies
+    // that attempting to use it throws an error
     const node = doc(
         codeBlock(
             "javascript",
@@ -2481,9 +2482,8 @@ test("converts table with fewer columnWidths than actual columns", () => {
     );
 });
 
-// ProseMirror handles our validation that a table cell has children, but we
-// need to make sure we don't throw an error when converting to and from API
-// content.
+// ProseMirror handles our validation that a table cell has children, but we need
+// to make sure we don't throw an error when converting to and from API content.
 test("converts table with cell containing only empty paragraph into API content", () => {
     testIntoApiContent(
         doc(

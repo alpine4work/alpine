@@ -64,8 +64,8 @@ export function actuallyGetOrCreateChatForAccounts(
             const isInitialAttempt = !hasAlreadyAttempted;
             hasAlreadyAttempted = true;
 
-            // Make sure `otherAccountIds` is unique and doesn't include our
-            // authenticated account.
+            // Make sure `otherAccountIds` is unique and doesn't include our authenticated
+            // account.
             otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
                 accountId => accountId !== actorAccountId,
             );
@@ -119,11 +119,11 @@ export function actuallyGetOrCreateChatForAccounts(
                             ),
                         ],
                         {
-                            // If two processes try to create a chat at the same time for the same
-                            // accounts, we want to treat this transaction as idempotent.
+                            // If two processes try to create a chat at the same time for the same accounts, we
+                            // want to treat this transaction as idempotent.
                             //
-                            // We need to hash the request token because DynamoDB imposes a maximum
-                            // length on tokens.
+                            // We need to hash the request token because DynamoDB imposes a maximum length on
+                            // tokens.
                             clientRequestToken: withClientRequestToken
                                 ? `${spaceId}:${murmurhash
                                       .v3(allSortedAccountIds.join("-"))
@@ -149,9 +149,9 @@ export function actuallyGetOrCreateChatForAccounts(
                         chatItem: {attributesItem, accountItems},
                     };
                 } catch (error) {
-                    // If we have a race condition where some other process created this chat
-                    // before us then retry our action. Retrying should load the chat created by
-                    // the other process.
+                    // If we have a race condition where some other process created this chat before us
+                    // then retry our action. Retrying should load the chat created by the other
+                    // process.
                     if (
                         isDynamoConditionCheckError(error) ||
                         isDynamoIdempotentParameterMismatchError(error)
@@ -181,11 +181,11 @@ export function actuallyGetOrCreateChatForAccounts(
                     // Is the actor a bot account? We won't allow a chat with only bots.
                     isBotSpaceAccount(context, spaceId, actorAccountId),
 
-                    // Make sure all accounts we are sending a message to are a part of the
-                    // provided space.
+                    // Make sure all accounts we are sending a message to are a part of the provided
+                    // space.
                     //
-                    // We first try to load the account with eventual consistency and if that fails
-                    // we try strong consistency.
+                    // We first try to load the account with eventual consistency and if that fails we
+                    // try strong consistency.
                     runAllPromises(
                         Array.from(otherAccountIds, accountId =>
                             getAccountIfExists(context, spaceId, accountId, {
@@ -211,18 +211,17 @@ export function actuallyGetOrCreateChatForAccounts(
 
                 return createChatForAccounts(
                     optimisticChatId,
-                    // Don't use a `clientRequestToken`. Because we use a deterministic `ChatId`
-                    // we'll fail with a condition check error if we try to create a chat with the
-                    // same `ChatId` twice in a race condition. The condition check error then gets
-                    // retried and we'll find the new chat with an optimistic `ChatId` and
-                    // return it.
+                    // Don't use a `clientRequestToken`. Because we use a deterministic `ChatId` we'll
+                    // fail with a condition check error if we try to create a chat with the same
+                    // `ChatId` twice in a race condition. The condition check error then gets retried
+                    // and we'll find the new chat with an optimistic `ChatId` and return it.
                     false,
                 );
             }
 
-            // If the optimistic `ChatId` exists then we need to double check it matches
-            // our expected space and accounts. If it does then hooray! We can send a chat
-            // message here.
+            // If the optimistic `ChatId` exists then we need to double check it matches our
+            // expected space and accounts. If it does then hooray! We can send a chat message
+            // here.
             if (
                 optimisticChatItem.attributesItem.spaceId === spaceId &&
                 isDeepEqual(
@@ -260,9 +259,9 @@ export function actuallyGetOrCreateChatForAccounts(
 
             return createChatForAccounts(
                 generateId(),
-                // Always use `clientRequestToken`. In race conditions we want to create only
-                // one chat for the accounts. The `clientRequestToken` makes sure if there are
-                // two processes trying to create a chat for the same accounts only one process
+                // Always use `clientRequestToken`. In race conditions we want to create only one
+                // chat for the accounts. The `clientRequestToken` makes sure if there are two
+                // processes trying to create a chat for the same accounts only one process
                 // successfully creates the chat, the other will retry and find the new chat
                 // eventually with `getSharedChats()`.
                 true,

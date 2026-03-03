@@ -11,20 +11,24 @@ export interface AwsHttpLambdaOptions extends Omit<
     "deploymentType" | "honeycombApiKey"
 > {
     /**
-     * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
-     * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.
-     * Your Lambda code should use the AWS Secrets Manager client to retrieve secret values.
+     * AWS Secrets Manager secret containing application secrets (API keys, database
+     * credentials, etc.) The secret ARN will be passed to the Lambda via SECRETS_ARN
+     * environment variable. Your Lambda code should use the AWS Secrets Manager client
+     * to retrieve secret values.
      *
-     * See `server/aws/server_secrets_schema.ts` for the expected schema of the secret. If your
-     * service secret has different names for the secrets, you can use `.originalPropertyKey()` to
-     * rename your secret properties (see server/aws/file_processor_service_secrets_schema.ts).
+     * See `server/aws/server_secrets_schema.ts` for the expected schema of the secret.
+     * If your service secret has different names for the secrets, you can use
+     * `.originalPropertyKey()` to rename your secret properties (see
+     * server/aws/file_processor_service_secrets_schema.ts).
      */
     readonly secret: ISecret;
 
     /**
-     * Number of concurrent Lambda instances to keep "warm" to reduce cold start latency.
+     * Number of concurrent Lambda instances to keep "warm" to reduce cold start
+     * latency.
      *
      * Recommended values:
+     *
      * - Production HTTP APIs: 5-10 (depends on traffic patterns)
      * - Background jobs: 0-2 (cold starts are usually acceptable)
      * - High-traffic APIs: 10+ (measure and adjust based on metrics)
@@ -35,13 +39,12 @@ export interface AwsHttpLambdaOptions extends Omit<
 }
 
 /**
- * A specialized Lambda construct for HTTP-facing Lambda functions. Always builds container-based
- * Lambdas.
+ * A specialized Lambda construct for HTTP-facing Lambda functions. Always builds
+ * container-based Lambdas.
  *
- * Required Lambda Code Pattern:
- * Your Lambda function MUST be built using `createHttpLambdaHandler()` from
- * server/lambda helpers. This ensures proper integration with the secrets management
- * and HTTP request handling.
+ * Required Lambda Code Pattern: Your Lambda function MUST be built using
+ * `createHttpLambdaHandler()` from server/lambda helpers. This ensures proper
+ * integration with the secrets management and HTTP request handling.
  */
 export class AwsHttpLambda extends AwsLambdaBase {
     private readonly _lambdaFunctionAlias: Alias;
@@ -65,8 +68,9 @@ export class AwsHttpLambda extends AwsLambdaBase {
         });
     }
 
-    // Use the Lambda alias instead of the function directly to take advantage of provisioned
-    // concurrency. This also enables us to use canary and A/B deployments in the future.
+    // Use the Lambda alias instead of the function directly to take advantage of
+    // provisioned concurrency. This also enables us to use canary and A/B deployments
+    // in the future.
     public get lambdaFunctionAlias(): Alias {
         return this._lambdaFunctionAlias;
     }

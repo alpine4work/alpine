@@ -17,20 +17,20 @@ import {Schema} from "~/shared/schema/schema.js";
  * The available roles in a space, ordered from highest to lowest permissions:
  *
  * - `Owner`: Has complete control over the space
- *   - Can manage all space settings
- *   - Can add/remove members and change their roles
- *   - Move ownership to other member.
- *   - Has all `Admin` and `Member` permissions
+ *     - Can manage all space settings
+ *     - Can add/remove members and change their roles
+ *     - Move ownership to other member.
+ *     - Has all `Admin` and `Member` permissions
  *
  * - `Admin`: Has administrative permissions but cannot modify `Owner`
- *   - Can manage all space settings other than moving ownership to other member.
- *   - Can add/remove members (except `Owner`)
- *   - Can modify member roles (except `Owner`)
- *   - Has all `Member` permissions
+ *     - Can manage all space settings other than moving ownership to other member.
+ *     - Can add/remove members (except `Owner`)
+ *     - Can modify member roles (except `Owner`)
+ *     - Has all `Member` permissions
  *
  * - `Member`: Basic access to participate in the space
- *   - Can view other members
- *   - Cannot modify space settings or member roles
+ *     - Can view other members
+ *     - Cannot modify space settings or member roles
  */
 const allSpaceRoles = ["Owner", "Admin", "Member"] as const;
 export type SpaceRole = (typeof allSpaceRoles)[number];
@@ -42,8 +42,8 @@ export class SpaceModel extends Model(
         name: Schema.string,
         version: Schema.integer,
         /**
-         * During our alpha phase, you can manually set this property in the database
-         * and it will be used for some navigation elements until we have proper
+         * During our alpha phase, you can manually set this property in the database and
+         * it will be used for some navigation elements until we have proper
          * implementations.
          */
         alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
@@ -52,8 +52,8 @@ export class SpaceModel extends Model(
             lightTheme: AvatarModelSchema.nullable().default(null),
         }),
         /**
-         * The theme color used for accent UI elements throughout the space.
-         * Defaults to blue if not set.
+         * The theme color used for accent UI elements throughout the space. Defaults to
+         * blue if not set.
          */
         themeColor: Schema.enum(themeColors).default(defaultThemeColor),
     }),
@@ -109,20 +109,21 @@ export class SpaceModel extends Model(
  * permissions for an expectedRole in a space.
  *
  * The roles follow a hierarchy:
+ *
  * - Owner > Admin > Member
  *
  * For example, an Owner can do anything, an Admin can do anything except for
  * removing the Owner, and a Member can only read.
  *
  * How this works:
- * - If we're checking for Member permissions (expectedRole === "Member"), return
- * true because everyone (Member, Admin, Owner) has Member permissions.
- * - If we're checking for Admin permissions (expectedRole === "Admin"), return
- * true if the actual role is "Admin" or "Owner" because Admins can do anything
- * except for removing the Owner.
- * - If we're checking for Owner permissions (expectedRole === "Owner"), return
- * true if the actual role is "Owner" because Owners can do anything.
  *
+ * - If we're checking for Member permissions (expectedRole === "Member"), return
+ *   true because everyone (Member, Admin, Owner) has Member permissions.
+ * - If we're checking for Admin permissions (expectedRole === "Admin"), return
+ *   true if the actual role is "Admin" or "Owner" because Admins can do anything
+ *   except for removing the Owner.
+ * - If we're checking for Owner permissions (expectedRole === "Owner"), return
+ *   true if the actual role is "Owner" because Owners can do anything.
  */
 export function hasSpaceRole(actualRole: SpaceRole, expectedRole: SpaceRole): boolean {
     if (expectedRole === "Member") return true;

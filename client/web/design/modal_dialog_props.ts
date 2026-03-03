@@ -5,9 +5,8 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
  * Props for a `<ModalDialog>` component.
  */
 // In a separate file from `modal_dialog.tsx` to prevent cyclic imports between
-// `modal_dialog.tsx` and `reporter.tsx`. Cyclic imports degrade the HMR
-// developer experience since more files need to be re-evaluated on every
-// change.
+// `modal_dialog.tsx` and `reporter.tsx`. Cyclic imports degrade the HMR developer
+// experience since more files need to be re-evaluated on every change.
 export type ModalDialogProps = {
     readonly title: string;
     readonly description:

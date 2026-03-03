@@ -41,8 +41,8 @@ export async function writeContentToClipboard(
 
     const {dom, text} = serializeForClipboard(view, slice);
 
-    // If there is no `navigator.clipboard` (e.g. in Safari) then write text only
-    // with our fallback.
+    // If there is no `navigator.clipboard` (e.g. in Safari) then write text only with
+    // our fallback.
     if (!navigator.clipboard) {
         writeTextToClipboardFallback(text);
     } else {

@@ -14,12 +14,12 @@ const sharedContentEditorTrackSelectionWithinPluginKey =
     );
 
 /**
- * Plugin that allows us to keep track of whether the user's selection stays
- * within a certain range. This is useful for building context-aware behavior
- * that's based on the user not leaving a certain editing location.
+ * Plugin that allows us to keep track of whether the user's selection stays within
+ * a certain range. This is useful for building context-aware behavior that's based
+ * on the user not leaving a certain editing location.
  *
- * If you're using `addSharedContentEditorKeymapCommands()` you'll also need
- * this plugin.
+ * If you're using `addSharedContentEditorKeymapCommands()` you'll also need this
+ * plugin.
  */
 export function sharedContentEditorTrackSelectionWithinPlugin() {
     return new Plugin<SharedContentEditorTrackSelectionWithinPluginState>({
@@ -52,14 +52,14 @@ export function sharedContentEditorTrackSelectionWithinPlugin() {
                         tracker = {start: newStart, end: newEnd};
                     }
 
-                    // If we collapse into an impossible state (e.g. content is deleted) the tracker
-                    // is removed.
+                    // If we collapse into an impossible state (e.g. content is deleted) the tracker is
+                    // removed.
                     if (tracker.start >= tracker.end) {
                         return undefined;
                     }
 
-                    // If the tracker no longer contains our selection then return `undefined`
-                    // deleting the tracker from our state.
+                    // If the tracker no longer contains our selection then return `undefined` deleting
+                    // the tracker from our state.
                     if (
                         !isRangeContained(
                             tracker.start,
@@ -80,8 +80,8 @@ export function sharedContentEditorTrackSelectionWithinPlugin() {
 }
 
 /**
- * Start tracking a range in our editor state. Provide a key to identify the
- * range later.
+ * Start tracking a range in our editor state. Provide a key to identify the range
+ * later.
  *
  * `tracker.start` is inclusive, `tracker.end` is exclusive.
  */
@@ -94,9 +94,9 @@ export function trackSelectionWithinSharedContentEditor(
 }
 
 /**
- * Test if we're still tracking a specific key. If true then the selection
- * hasn't left the range we provided in our
- * `trackSelectionWithinSharedContentEditor()` call.
+ * Test if we're still tracking a specific key. If true then the selection hasn't
+ * left the range we provided in our `trackSelectionWithinSharedContentEditor()`
+ * call.
  */
 export function isTrackingSelectionWithinSharedContentEditor(
     state: EditorState,

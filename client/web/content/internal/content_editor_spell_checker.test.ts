@@ -58,8 +58,8 @@ function createSpellChecker(
     });
 }
 
-// Loop until we see lints set. If they're never set, the given test will
-// time out and fail.
+// Loop until we see lints set. If they're never set, the given test will time out
+// and fail.
 async function waitForSpellCheckerLints(
     spellChecker: ContentEditorSpellChecker,
     options?: {

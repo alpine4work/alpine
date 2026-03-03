@@ -21,8 +21,7 @@ export function links(): Array<LinkDescriptor> {
     ];
 }
 
-// Never revalidate! Navigation and data loading is handled entirely on
-// the client.
+// Never revalidate! Navigation and data loading is handled entirely on the client.
 export function shouldRevalidate() {
     return false;
 }

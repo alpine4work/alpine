@@ -1,8 +1,8 @@
 import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
-// TODO(calebmer, #phosphor-v2): The updated `<Buildings>` icon is in Phosphor
-// v2. Upgrading to v2 looks difficult so for now, inlining the SVG.
+// TODO(calebmer, #phosphor-v2): The updated `<Buildings>` icon is in Phosphor v2.
+// Upgrading to v2 looks difficult so for now, inlining the SVG.
 export function BuildingsIcon({
     color,
     size,
@@ -31,8 +31,8 @@ export function BuildingsIcon({
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 256 256"
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: size ?? contextSize,
                 height: size ?? contextSize,

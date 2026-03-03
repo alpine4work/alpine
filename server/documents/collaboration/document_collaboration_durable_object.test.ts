@@ -1425,8 +1425,8 @@ test("when comment threads are added back to the document they will be loaded", 
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1461,8 +1461,8 @@ test("when comment threads are added back to the document they will be loaded", 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1580,8 +1580,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1659,8 +1659,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1800,8 +1800,8 @@ test("can create comments in comment threads", async () => {
     await waitForPersistence(connection1, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1835,8 +1835,8 @@ test("can create comments in comment threads", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -2541,12 +2541,11 @@ test("if comment thread update message hasn\u2019t been processed we will wait t
     });
 
     // NOTE(calebmer): This is a little janky but what we want to test is that
-    // `backfillMessagePromise` waits for `updateMessagePromise` before processing.
-    // If there's no async gap here then we immediately unpause
-    // `updateMessagePromise` and can't observe whether `backfillMessagePromise`
-    // waited. I can't find a good place to put a test checkpoint in the code to
-    // test this behavior so a fine option is putting a timeout here and checking
-    // that we got no new messages.
+    // `backfillMessagePromise` waits for `updateMessagePromise` before processing. If
+    // there's no async gap here then we immediately unpause `updateMessagePromise` and
+    // can't observe whether `backfillMessagePromise` waited. I can't find a good place
+    // to put a test checkpoint in the code to test this behavior so a fine option is
+    // putting a timeout here and checking that we got no new messages.
     await wait(1000);
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -3753,8 +3752,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     await waitForPersistence(connection1, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3788,8 +3787,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3847,8 +3846,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     await waitForPersistence(connection1, 3);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3897,8 +3896,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3970,13 +3969,12 @@ test("will cleanup comment thread marks if from a different document", async () 
     await waitForPersistence(connection3, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) =>
-            // We don't compare `newVersion` since we do specifically want to test the
-            // ordering of `UpdateContentWithoutPersistence` events here. The
-            // `RemoveAllMarksStep` event should always come first despite being at a
-            // later version.
+            // We don't compare `newVersion` since we do specifically want to test the ordering
+            // of `UpdateContentWithoutPersistence` events here. The `RemoveAllMarksStep` event
+            // should always come first despite being at a later version.
             defaultCompareStrings(a.type, b.type),
         ),
     ).toEqual([
@@ -4027,13 +4025,12 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection4.takeEvents().sort((a, b) =>
-            // We don't compare `newVersion` since we do specifically want to test the
-            // ordering of `UpdateContentWithoutPersistence` events here. The
-            // `RemoveAllMarksStep` event should always come first despite being at a
-            // later version.
+            // We don't compare `newVersion` since we do specifically want to test the ordering
+            // of `UpdateContentWithoutPersistence` events here. The `RemoveAllMarksStep` event
+            // should always come first despite being at a later version.
             defaultCompareStrings(a.type, b.type),
         ),
     ).toEqual([
@@ -4136,8 +4133,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     await waitForPersistence(connection1, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4171,8 +4168,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4217,8 +4214,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     await waitForPersistence(connection1, 3);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4239,8 +4236,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4286,8 +4283,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4335,8 +4332,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4418,8 +4415,8 @@ test("can resolve a comment thread", async () => {
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4453,8 +4450,8 @@ test("can resolve a comment thread", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4524,8 +4521,8 @@ test("can unresolve a comment thread", async () => {
     await waitForPersistence(connection1, 5);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4567,8 +4564,8 @@ test("can unresolve a comment thread", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5243,8 +5240,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5265,8 +5262,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5287,8 +5284,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5320,8 +5317,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5342,8 +5339,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5364,8 +5361,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5406,8 +5403,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5433,8 +5430,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5460,8 +5457,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5521,8 +5518,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5537,8 +5534,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5553,8 +5550,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([]);
 
@@ -5565,8 +5562,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5587,8 +5584,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5609,8 +5606,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5637,8 +5634,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5674,8 +5671,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5711,8 +5708,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5902,8 +5899,8 @@ test("can\u2019t update access policy unintentionally", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5975,8 +5972,8 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {

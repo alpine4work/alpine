@@ -9,16 +9,16 @@ import {UnknownError} from "~/shared/error/error.js";
 const githubOwner = "cyberworlds";
 const githubRepo = "cyberworlds";
 
-// Matches Chrome/V8 stack frame lines like:
-//   at foo (file:///path/to/server-build-bd8r9phg.js:1:2238535)
-//   at https://resources.alpine.inc/assets/root-efby6jfw.js:42:1234
+// Matches Chrome/V8 stack frame lines like: at foo
+// (file:///path/to/server-build-bd8r9phg.js:1:2238535) at
+// https://resources.alpine.inc/assets/root-efby6jfw.js:42:1234
 //
 // TODO: Support Safari and Firefox stack trace formats.
 const stackFramePattern =
     /(?<prefix>.*?)(?<url>[^\s(]+\.js):(?<line>\d+):(?<column>\d+)(?<suffix>.*)/;
 
-// Rough heuristic: a stack trace has at least two lines that look like
-// stack frames or an "Error:" / "at " prefix.
+// Rough heuristic: a stack trace has at least two lines that look like stack
+// frames or an "Error:" / "at " prefix.
 function looksLikeStackTrace(text: string): boolean {
     const lines = text.split("\n");
     let frameCount = 0;
@@ -152,8 +152,8 @@ async function loadSourcemapConsumers(
     const consumers = new Map<string, SourceMapConsumer>();
 
     try {
-        // Support both flat layout (all .map files in root) and
-        // nested layout (client/ and server/ subdirs).
+        // Support both flat layout (all .map files in root) and nested layout (client/ and
+        // server/ subdirs).
         for (const subdir of [".", "client", "server"]) {
             const dirPath = joinPath(sourcemapsDir, subdir);
             if (!(await fs.pathExists(dirPath))) continue;

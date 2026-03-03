@@ -35,8 +35,8 @@ export function AuthenticationSignUpProfileView({
 
     const nameInputRef = useRef<HTMLInputElement>(null);
 
-    // Immediately focus the name input when the component mounts. Only on
-    // desktop when focusing the input won't open a giant keyboard.
+    // Immediately focus the name input when the component mounts. Only on desktop when
+    // focusing the input won't open a giant keyboard.
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;

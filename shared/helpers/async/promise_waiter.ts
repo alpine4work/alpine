@@ -10,17 +10,16 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * added to this helper. If you never call `wait()` then the promises are never
  * handled.
  *
- * This helper can be useful if you have a bunch of tasks that spawn
- * asynchronous work and you need to wait for that work to complete before you
- * can return from a function.
+ * This helper can be useful if you have a bunch of tasks that spawn asynchronous
+ * work and you need to wait for that work to complete before you can return from a
+ * function.
  */
 export class PromiseWaiter {
     private _promises = new Set<PromiseLike<unknown>>();
     private _waitPromise: Promise<void> | null = null;
 
     /**
-     * When `wait()` is called it won't resolve until the provided promise
-     * resolves.
+     * When `wait()` is called it won't resolve until the provided promise resolves.
      */
     public readonly waitUntil = (
         action: PromiseLike<unknown> | (() => PromiseLike<unknown>),
@@ -48,8 +47,7 @@ export class PromiseWaiter {
     public wait(): Promise<void> {
         // Must early return when there are no promises since otherwise
         // `this._waitForTestTasksPromise` won't get cleared since the `finally` which
-        // clears `this._waitForTestTasksPromise` will run before the promise is
-        // assigned.
+        // clears `this._waitForTestTasksPromise` will run before the promise is assigned.
         if (!(this._promises.size > 0)) return Promise.resolve();
 
         if (this._waitPromise === null) {

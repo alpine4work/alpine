@@ -8,11 +8,11 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {AccountId, BrowserId} from "~/shared/id/types/id_types.js";
 
 /**
- * Gets the `browserId` of a web push subscription for the provided `accountId` and `endpoint` in an
- * eventually consistent manner.
+ * Gets the `browserId` of a web push subscription for the provided `accountId` and
+ * `endpoint` in an eventually consistent manner.
  *
- * Performs no authorization, you should use `getWebPushSubscription()` or ensure you check
- * authorization before calling this function.
+ * Performs no authorization, you should use `getWebPushSubscription()` or ensure
+ * you check authorization before calling this function.
  */
 export async function getWebPushSubscriptionItemByEndpointIfExistsWithoutAuthorization(
     context: ServerActionContext,
@@ -35,9 +35,9 @@ export async function getWebPushSubscriptionItemByEndpointIfExistsWithoutAuthori
         }),
     );
 
-    // We should only have one subscription item per endpoint, but if we're querying with eventual
-    // consistency, there's a chance we'll get multiple items.
-    // We'll return the newest subscription item by `lastUpdatedTime`.
+    // We should only have one subscription item per endpoint, but if we're querying
+    // with eventual consistency, there's a chance we'll get multiple items. We'll
+    // return the newest subscription item by `lastUpdatedTime`.
     const subscriptionItemsByEndpoint = subscriptionItems.filter(
         item => item.subscription?.endpoint === endpoint,
     );

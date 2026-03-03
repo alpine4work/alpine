@@ -221,15 +221,14 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 /**
  * Special `SearchEntityId` used by the OpenSearch keyword index.
  *
- * The only change we make is `Account:` entity IDs need to append the
- * `SpaceId`. Since IDs in OpenSearch need to be globally unique (two spaces
- * may live on the same shard). An `AccountId` may be a member of multiple
- * spaces and we need to index a separate `AccountId` search entity for each
- * space we're in. That means we need an OpenSearch ID for accounts that
- * includes the `SpaceId` so its unique for each account/space pair. We add the
- * `SpaceId` to the end with a `~`. The convention in `SearchEntityId` normally
- * is to separate parts with a dash so we use a `~` to show the `SpaceId` isn't
- * a part of the base `SearchEntityId`.
+ * The only change we make is `Account:` entity IDs need to append the `SpaceId`.
+ * Since IDs in OpenSearch need to be globally unique (two spaces may live on the
+ * same shard). An `AccountId` may be a member of multiple spaces and we need to
+ * index a separate `AccountId` search entity for each space we're in. That means
+ * we need an OpenSearch ID for accounts that includes the `SpaceId` so its unique
+ * for each account/space pair. We add the `SpaceId` to the end with a `~`. The
+ * convention in `SearchEntityId` normally is to separate parts with a dash so we
+ * use a `~` to show the `SpaceId` isn't a part of the base `SearchEntityId`.
  */
 export type SearchEntityIdForKeywordIndex =
     | Exclude<SearchDynamicEntityId, `Account:${AccountId}`>
@@ -264,44 +263,45 @@ function fromSearchEntityIdForKeywordIndex(
  * Our "search entity index" is actually two OpenSearch indexes.
  * `SearchEntityKeywordIndex` and `SearchEntitySemanticIndex`.
  *
- * - `SearchEntityKeywordIndex` indexes the entity for keyword search. The
- *   entire document body and title is put into a text reverse index so we can
- *   quickly find the documents containing a word.
+ * - `SearchEntityKeywordIndex` indexes the entity for keyword search. The entire
+ *   document body and title is put into a text reverse index so we can quickly
+ *   find the documents containing a word.
  *
  * - `SearchEntitySemanticIndex` indexes the entity for semantic search. The
- *   document body is split into chunks and sent to our language model
- *   ([Cohere][1] in production) for embedding. The returned embedding vectors
- *   are stored in an HNSW graph.
+ *   document body is split into chunks and sent to our language model ([Cohere][1]
+ *   in production) for embedding. The returned embedding vectors are stored in an
+ *   HNSW graph.
  *
- * Why do we keep these two indexes separate? A search entity is represented by
- * a single doc. The reason: isolation. Isolation makes sure the performance of
- * one doesn't affect the other. We want keyword search to be really fast, we
- * don't want embedding data slowing keyword search/indexing down. We're ok
- * with semantic search being a little slower.
+ * Why do we keep these two indexes separate? A search entity is represented by a
+ * single doc. The reason: isolation. Isolation makes sure the performance of one
+ * doesn't affect the other. We want keyword search to be really fast, we don't
+ * want embedding data slowing keyword search/indexing down. We're ok with semantic
+ * search being a little slower.
  *
- * Even if the data for both keyword search and semantic search were in the
- * same index, we still need to issue two separate queries and merge the
- * results out of OpenSearch. Since OpenSearch provides no means to merge the
- * query results. Even if it did, because keyword search is faster we probably
- * want to execute the queries separately anyway so we can return a response to
- * the user faster. Isolation then feels useful in case semantic search is slow
- * or failing then keyword search will be unaffected.
+ * Even if the data for both keyword search and semantic search were in the same
+ * index, we still need to issue two separate queries and merge the results out of
+ * OpenSearch. Since OpenSearch provides no means to merge the query results. Even
+ * if it did, because keyword search is faster we probably want to execute the
+ * queries separately anyway so we can return a response to the user faster.
+ * Isolation then feels useful in case semantic search is slow or failing then
+ * keyword search will be unaffected.
  *
  * Separating the two indexes also allows us to use [index sorting][2] for the
- * keyword index. (The semantic index uses a `nested` field which doesn't work
- * with index sorting.) Index sorting is an [important optimization][3] for
- * queries that filter to a `SpaceId` since we can skip scanning entire Lucene
- * internal segments that don't match the `SpaceId`.
+ * keyword index. (The semantic index uses a `nested` field which doesn't work with
+ * index sorting.) Index sorting is an [important optimization][3] for queries that
+ * filter to a `SpaceId` since we can skip scanning entire Lucene internal segments
+ * that don't match the `SpaceId`.
  *
  * [1]: https://cohere.com
- * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
+ * [2]:
+ *     https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
  * [3]: https://www.elastic.co/blog/index-sorting-elasticsearch-6-0
  */
-// IMPORTANT: Don't export this. All access to the index should be exposed
-// through functions in this file. Like how we organize DynamoDB tables. By
-// putting all the logic around this index in one file it allows developers to
-// carefully control how data is written to this index. Instead of updates
-// sprawling out around the codebase.
+// IMPORTANT: Don't export this. All access to the index should be exposed through
+// functions in this file. Like how we organize DynamoDB tables. By putting all the
+// logic around this index in one file it allows developers to carefully control
+// how data is written to this index. Instead of updates sprawling out around the
+// codebase.
 const SearchEntityKeywordIndex = new OpensearchIndex<
     SpaceId,
     SearchEntityIdForKeywordIndex,
@@ -314,50 +314,48 @@ const SearchEntityKeywordIndex = new OpensearchIndex<
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(searchEntityKeywordIndexRefreshIntervalMs / 1000)}s`,
 
-    // Basically every query to this index will filter to a specific `SpaceId`. We
-    // may have specialized queries (e.g. account name auto-complete) that filter
-    // to a specific entity `type` as well.
+    // Basically every query to this index will filter to a specific `SpaceId`. We may
+    // have specialized queries (e.g. account name auto-complete) that filter to a
+    // specific entity `type` as well.
     sort: [{field: "spaceId"}, {field: "type"}],
 
-    // Disabling the source field is dangerous! It saves disk space but disables
-    // a lot of useful features. From the [ElasticSearch docs][1]:
+    // Disabling the source field is dangerous! It saves disk space but disables a lot
+    // of useful features. From the [ElasticSearch docs][1]:
     //
     // 1. The `update`, `update_by_query`, and `reindex` APIs.
     // 2. On the fly highlighting.
-    // 3. The ability to reindex from one ElasticSearch index to another, either
-    //    to change mappings or analysis, or to upgrade an index to a new major
-    //    version.
-    // 4. The ability to debug queries or aggregations by viewing the original
-    //    document used at index time.
+    // 3. The ability to reindex from one ElasticSearch index to another, either to
+    //    change mappings or analysis, or to upgrade an index to a new major version.
+    // 4. The ability to debug queries or aggregations by viewing the original document
+    //    used at index time.
     // 5. Potentially in the future, the ability to repair index corruption
     //    automatically.
     //
-    // For 3 and 5 we can reindex by scanning our source tables for search
-    // entities. This is probably safer than reindexing based on what's in
-    // OpenSearch.
+    // For 3 and 5 we can reindex by scanning our source tables for search entities.
+    // This is probably safer than reindexing based on what's in OpenSearch.
     //
-    // For 1 all we need is some stored fields (like `version`) to perform updates
-    // in application code.
+    // For 1 all we need is some stored fields (like `version`) to perform updates in
+    // application code.
     //
     // For 4 we don't have a great alternative. We'll need to find other means of
     // debugging.
     //
-    // For 2 we believe highlighting should still work if the field we're
-    // highlighting is a stored field. Highlighting is the main feature we must
-    // keep.
+    // For 2 we believe highlighting should still work if the field we're highlighting
+    // is a stored field. Highlighting is the main feature we must keep.
     //
     // Given how big the search index will be, we believe the space savings of not
     // storing the `_source` field will be important for us.
     //
-    // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
+    // [1]:
+    //     https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
     disableSourceField: true,
 });
 
-// IMPORTANT: Don't export this. All access to the index should be exposed
-// through functions in this file. Like how we organize DynamoDB tables. By
-// putting all the logic around this index in one file it allows developers to
-// carefully control how data is written to this index. Instead of updates
-// sprawling out around the codebase.
+// IMPORTANT: Don't export this. All access to the index should be exposed through
+// functions in this file. Like how we organize DynamoDB tables. By putting all the
+// logic around this index in one file it allows developers to carefully control
+// how data is written to this index. Instead of updates sprawling out around the
+// codebase.
 const SearchEntityEmbeddingChunkIndex = new OpensearchIndex<
     SpaceId,
     string,
@@ -370,15 +368,15 @@ const SearchEntityEmbeddingChunkIndex = new OpensearchIndex<
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(searchEntityEmbeddingChunkIndexRefreshIntervalMs / 1000)}s`,
 
-    // Basically every query to this index will filter to a specific `SpaceId`. We
-    // may have specialized queries (e.g. account name auto-complete) that filter
-    // to a specific entity `type` as well.
+    // Basically every query to this index will filter to a specific `SpaceId`. We may
+    // have specialized queries (e.g. account name auto-complete) that filter to a
+    // specific entity `type` as well.
     sort: [{field: "spaceId"}, {field: "entity.type"}],
 
     // We disable the source field here for the same reasoning as
-    // `SearchEntityKeywordIndex`. It's particularly important we disable the
-    // source field here since we duplicate the `accessPolicy` in every nested
-    // document. It would be inefficient to store the full source.
+    // `SearchEntityKeywordIndex`. It's particularly important we disable the source
+    // field here since we duplicate the `accessPolicy` in every nested document. It
+    // would be inefficient to store the full source.
     disableSourceField: true,
 });
 
@@ -506,20 +504,20 @@ function mapNaturalLanguageFilterToOpensearchValue(
 /**
  * The minimum number of tokens a chunk needs for us to embed it.
  *
- * It's wasteful to embed small messages like "Nice!" or "Ok!". Embeddings of
- * small content can also pollute search results as they may be a closer topic
- * match to a search query but do not include detail the user wants to see.
- * [Cohere's v3 embedding models][1] (which we use in production) defend
- * against this by considering the content's quality, but it's still good for
- * us to throw out chunks without important meaning.
+ * It's wasteful to embed small messages like "Nice!" or "Ok!". Embeddings of small
+ * content can also pollute search results as they may be a closer topic match to a
+ * search query but do not include detail the user wants to see. [Cohere's v3
+ * embedding models][1] (which we use in production) defend against this by
+ * considering the content's quality, but it's still good for us to throw out
+ * chunks without important meaning.
  *
  * Small chunks can still be found with keyword search.
  *
- * How we pick this value: We want embedding chunks to have more than two
- * sentences worth of content. Sentences are usually between 15-20 words
- * ([source][2]) and a word is typically 1-3 tokens ([source][3]). This means
- * two sentences most of the time fall in the range of 15-60 tokens. 35 is a
- * nice round number near the middle of this range.
+ * How we pick this value: We want embedding chunks to have more than two sentences
+ * worth of content. Sentences are usually between 15-20 words ([source][2]) and a
+ * word is typically 1-3 tokens ([source][3]). This means two sentences most of the
+ * time fall in the range of 15-60 tokens. 35 is a nice round number near the
+ * middle of this range.
  *
  * [1]: https://txt.cohere.com/introducing-embed-v3/
  * [2]: https://languagetool.org/insights/post/sentence-length
@@ -528,14 +526,14 @@ function mapNaturalLanguageFilterToOpensearchValue(
 const minEmbeddingChunkTokenCount = 35;
 
 /**
- * Always index these search entity types even if their embedding chunk token
- * count is below `minEmbeddingChunkTokenCount`.
+ * Always index these search entity types even if their embedding chunk token count
+ * is below `minEmbeddingChunkTokenCount`.
  */
 function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]): boolean {
     switch (type) {
-        // Always index channels and task collections since they're created rarely and
-        // will usually be meaningful even if their search entity doesn't immediately
-        // have much content.
+        // Always index channels and task collections since they're created rarely and will
+        // usually be meaningful even if their search entity doesn't immediately have much
+        // content.
         case "Chat":
         case "Channel":
         case "TaskCollection":
@@ -560,17 +558,16 @@ export const processIndexSearchEntityDependentsJobTestCounter =
     new TestCounter<SearchEntityDependencyId>();
 
 /**
- * Indexes any entity in our system, making its content available for
- * searching. This function is idempotent, running it multiple times will
- * produce the same result.
+ * Indexes any entity in our system, making its content available for searching.
+ * This function is idempotent, running it multiple times will produce the same
+ * result.
  *
  * All searchable objects in our system can be converted to a `SearchEntity`
  * object. Which includes the object's text content, dependencies, and access
- * policy (for evaluating permissions). We also split the object's text
- * content into chunks of reasonable size for our LLM to embed to a vector
- * representation. In production we use [Cohere][1] for embeddings. In
- * development we use a small model that's not very good but can run on a
- * personal computer.
+ * policy (for evaluating permissions). We also split the object's text content
+ * into chunks of reasonable size for our LLM to embed to a vector representation.
+ * In production we use [Cohere][1] for embeddings. In development we use a small
+ * model that's not very good but can run on a personal computer.
  *
  * Our indexing steps are as follows:
  *
@@ -594,13 +591,12 @@ export const processIndexSearchEntityDependentsJobTestCounter =
  * - When reading from DynamoDB, we make sure to use strong read consistency to
  *   guarantee we read the latest committed data.
  *
- * - For a system like tasks, we read from `TaskRealtimeService` which
- *   maintains up-to-date task object representations. That means we need to
- *   wait for actions to be applied in `TaskRealtimeService` before we can queue
- *   an indexing job. If we try to queue an indexing job after actions
- *   are committed to `TaskActionTable` and before they're applied in
- *   `TaskRealtimeService` we may miss some updates while indexing since we read
- *   from `TaskRealtimeService`.
+ * - For a system like tasks, we read from `TaskRealtimeService` which maintains
+ *   up-to-date task object representations. That means we need to wait for actions
+ *   to be applied in `TaskRealtimeService` before we can queue an indexing job. If
+ *   we try to queue an indexing job after actions are committed to
+ *   `TaskActionTable` and before they're applied in `TaskRealtimeService` we may
+ *   miss some updates while indexing since we read from `TaskRealtimeService`.
  *
  * [1]: https://cohere.com
  */
@@ -612,15 +608,15 @@ export async function processIndexSearchEntityJob(
 ) {
     const entityId = printSearchDynamicEntityId(job.update);
 
-    // A time after the update we're trying to process with this indexing job. We
-    // use this to check if the indexed entity has already been read after this
-    // time, if it has then we don't need to read it again!
+    // A time after the update we're trying to process with this indexing job. We use
+    // this to check if the indexed entity has already been read after this time, if it
+    // has then we don't need to read it again!
     //
-    // So the closer the time can get to the update, the better, since it allows us
-    // to noop in more cases. That's why we use `job.parentJobStartTime` when
-    // available. If we're a child job (probably because we're scheduled by
-    // dependent updates) as long as the entity was read after the parent job then
-    // we don't need to read it again.
+    // So the closer the time can get to the update, the better, since it allows us to
+    // noop in more cases. That's why we use `job.parentJobStartTime` when available.
+    // If we're a child job (probably because we're scheduled by dependent updates) as
+    // long as the entity was read after the parent job then we don't need to read it
+    // again.
     const readAfterTime = job.parentJobStartTime ?? jobStartTime;
 
     let hasAlreadyAttempted = false;
@@ -632,15 +628,15 @@ export async function processIndexSearchEntityJob(
         hasAlreadyAttempted = true;
 
         if (!isInitialAttempt) {
-            // On second attempt, use an empty cache when we re-run the action. We're
-            // usually retrying because there was a version conflict when we tried to write
-            // the OpenSearch doc with another process concurrently writing the doc at the
-            // same time.
+            // On second attempt, use an empty cache when we re-run the action. We're usually
+            // retrying because there was a version conflict when we tried to write the
+            // OpenSearch doc with another process concurrently writing the doc at the same
+            // time.
             //
-            // When we retry, we don't want to use cached values because they may be
-            // outdated! Instead, we want to read everything fresh with strong consistency.
-            // Given we use `StrongWithinCache` consistency in `getSearchEntity()` we don't
-            // want to reuse data from a previous attempt.
+            // When we retry, we don't want to use cached values because they may be outdated!
+            // Instead, we want to read everything fresh with strong consistency. Given we use
+            // `StrongWithinCache` consistency in `getSearchEntity()` we don't want to reuse
+            // data from a previous attempt.
             //
             // So create a new cache on repeat attempts of this job. (`DynamoContextModule`'s
             // `retryTransaction()` loop does something similar.)
@@ -679,19 +675,19 @@ export async function processIndexSearchEntityJob(
               }
             : null;
 
-        // Is the doc currently in the search index sufficient for this indexing job?
-        // If true we can end the job without needing to save `newDoc` to the index.
+        // Is the doc currently in the search index sufficient for this indexing job? If
+        // true we can end the job without needing to save `newDoc` to the index.
         //
-        // It is sufficient if the data in the index was read AFTER the job was sent to
-        // our queue. That means `oldDoc` includes the update our job wants to index.
+        // It is sufficient if the data in the index was read AFTER the job was sent to our
+        // queue. That means `oldDoc` includes the update our job wants to index.
         //
         // Useful optimization when there are multiple updates to the same entity being
         // processed in parallel. Or when jobs updating the same entity are delayed.
         //
-        // We only need to check the keyword doc. If the keyword doc is sufficient then
-        // the job which indexed it should have also indexed an embedding doc. If it
-        // did not index an embedding doc, either an embedding doc doesn't exist or
-        // there was an error and the job will be retried.
+        // We only need to check the keyword doc. If the keyword doc is sufficient then the
+        // job which indexed it should have also indexed an embedding doc. If it did not
+        // index an embedding doc, either an embedding doc doesn't exist or there was an
+        // error and the job will be retried.
         const isOldDocSufficient =
             !!oldDocForKeywordIndex &&
             isDateDefinitelyLessThanWithUncertaintyWindow(
@@ -717,9 +713,9 @@ export async function processIndexSearchEntityJob(
             titleIfPost: string | null;
         } | null,
     ) {
-        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
-        // content. That's because it's the main model we use in production for
-        // embeddings. In development we embed with a smaller model we can run locally
+        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our content.
+        // That's because it's the main model we use in production for embeddings. In
+        // development we embed with a smaller model we can run locally
         // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
         // debugging chunk generation easier.
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
@@ -738,8 +734,7 @@ export async function processIndexSearchEntityJob(
         // - Always be bigger than `createdTime`
         // - Always be bigger than the last `lastUpdatedTime`
         // - Use `jobStartTime` since that more accurately represents when the update
-        //   happened rather than the current time (since the job may have been
-        //   delayed)
+        //   happened rather than the current time (since the job may have been delayed)
         const newLastUpdatedTimeCandidates: Array<number> = [];
 
         if (entity.createdTime) newLastUpdatedTimeCandidates.push(entity.createdTime.getTime());
@@ -751,8 +746,8 @@ export async function processIndexSearchEntityJob(
         // traits. Which happens when creating entities, re-indexing an entity after a
         // dependency changed, and indexes triggered by a migration.
         //
-        // If `updatedTraits` is `None` that means the underlying entity didn't
-        // actually update and we're indexing for some other reason.
+        // If `updatedTraits` is `None` that means the underlying entity didn't actually
+        // update and we're indexing for some other reason.
         if (
             job.update.updatedTraits.type !== "None" ||
             // If there are no other candidate times, use `jobStartTime` as a fallback.
@@ -801,9 +796,9 @@ export async function processIndexSearchEntityJob(
             dependencyIds: Array.from(dependencyIds),
             title: entity.title,
             titleVersion: entity.titleVersion,
-            // Remove `<table>` HTML from body. We don't want the search "table" to match
-            // all content with a table. Though that might make sense to a user a search
-            // for "tbody" wouldn't make sense if it matched all content with tables.
+            // Remove `<table>` HTML from body. We don't want the search "table" to match all
+            // content with a table. Though that might make sense to a user a search for
+            // "tbody" wouldn't make sense if it matched all content with tables.
             body:
                 entity.body?.replaceAll(/(?<!\\)<\/?(?:table|thead|tbody|tr|td|th)>/g, "") ?? null,
             tags: entity.tags,
@@ -818,27 +813,27 @@ export async function processIndexSearchEntityJob(
         };
 
         await runAllPromises([
-            // If the entity has some embedding chunks, then we need to index those chunks.
-            // If the entity had some embedding chunks but no longer has those chunks we
-            // also need to run our embedding chunk indexing job since we need to delete
-            // any existing embedding chunks.
+            // If the entity has some embedding chunks, then we need to index those chunks. If
+            // the entity had some embedding chunks but no longer has those chunks we also need
+            // to run our embedding chunk indexing job since we need to delete any existing
+            // embedding chunks.
             newDocForKeywordIndex.hasEmbeddingChunks || oldDocForKeywordIndex?.hasEmbeddingChunks
                 ? scheduleUpdateEmbeddingChunks()
                 : null,
 
-            // If `getSearchEntity()` declared any additional write actions then execute
-            // those now.
+            // If `getSearchEntity()` declared any additional write actions then execute those
+            // now.
             //
             // This is used, for example, by `getDocumentSearchEntity()`. Since we want to
-            // update the document's content preview in DynamoDB at the same time we update
-            // it in our OpenSearch index.
+            // update the document's content preview in DynamoDB at the same time we update it
+            // in our OpenSearch index.
             //
             // We must execute the actions before `indexDocIfVersion()` to make sure these
             // actions execute reliably. Imagine executing the actions after
-            // `indexDocIfVersion()` and `indexDocIfVersion()` passes but the additional
-            // write action fails. When SQS re-runs the `IndexSearchEntity` job it'll early
-            // return and NOT re-run our additional write actions since the
-            // `lastReadStartTime` of the current doc in the keywords index is sufficient.
+            // `indexDocIfVersion()` and `indexDocIfVersion()` passes but the additional write
+            // action fails. When SQS re-runs the `IndexSearchEntity` job it'll early return
+            // and NOT re-run our additional write actions since the `lastReadStartTime` of the
+            // current doc in the keywords index is sufficient.
             additionalWriteActions.length > 0
                 ? runAllPromises(additionalWriteActions.map(action => action(context)))
                 : null,
@@ -859,14 +854,13 @@ export async function processIndexSearchEntityJob(
         const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
         if (dependencyIds.length === 0) return;
 
-        // Wait for the index to refresh before querying dependents. We want to capture
-        // ALL dependents created before the job started. There may be some dependents
-        // another job saved that won't appear in a query until after the index
-        // refreshes.
+        // Wait for the index to refresh before querying dependents. We want to capture ALL
+        // dependents created before the job started. There may be some dependents another
+        // job saved that won't appear in a query until after the index refreshes.
         //
-        // We may capture some dependents that were recently updated and have the
-        // latest dependency data. That's ok since entity indexing is idempotent. We
-        // may even be able to skip re-reading them when we check `lastReadStartTime`.
+        // We may capture some dependents that were recently updated and have the latest
+        // dependency data. That's ok since entity indexing is idempotent. We may even be
+        // able to skip re-reading them when we check `lastReadStartTime`.
         if (!import.meta.jest) {
             await context.jobs.sendAndWait(
                 {
@@ -882,8 +876,8 @@ export async function processIndexSearchEntityJob(
                 },
             );
         } else {
-            // In Jest tests, indexes need to be refreshed manually. Don't refresh manually
-            // in production.
+            // In Jest tests, indexes need to be refreshed manually. Don't refresh manually in
+            // production.
             await context.opensearch.refresh(SearchEntityKeywordIndex);
 
             await context.jobs.sendAndWait({
@@ -908,9 +902,8 @@ export async function processIndexSearchEntityJob(
 }
 
 /**
- * A continuation of `processIndexSearchEntityJob()`. Processes the dependents
- * of a search entity after a delay while we wait for the search index to
- * refresh.
+ * A continuation of `processIndexSearchEntityJob()`. Processes the dependents of a
+ * search entity after a delay while we wait for the search index to refresh.
  *
  * Only `processIndexSearchEntityJob()` should schedule this job. See where
  * `processIndexSearchEntityJob()` sends a `IndexSearchEntityDependents` job.
@@ -963,19 +956,17 @@ export async function processIndexSearchEntityDependentsJob(
 
         await runAllPromises(
             hits.map(async hit => {
-                // Confirm the job was added to the queue before exiting. It's ok to take the
-                // batch delay performance hit when processing jobs.
+                // Confirm the job was added to the queue before exiting. It's ok to take the batch
+                // delay performance hit when processing jobs.
                 await context.jobs.sendAndWait({
                     type: "IndexSearchEntity",
                     spaceId: job.spaceId,
                     update: {
                         ...parseSearchDynamicEntityId(fromSearchEntityIdForKeywordIndex(hit.id)),
-                        // Dependencies didn't update so we can skip reindexing transitive
-                        // dependencies.
+                        // Dependencies didn't update so we can skip reindexing transitive dependencies.
                         //
-                        // This should also prevent infinite job cycles since this
-                        // `IndexSearchEntity` job won't schedule a
-                        // `IndexSearchEntityDependentsJob`.
+                        // This should also prevent infinite job cycles since this `IndexSearchEntity` job
+                        // won't schedule a `IndexSearchEntityDependentsJob`.
                         updatedTraits: {type: "None"},
                     },
                     parentJobStartTime: job.parentJobStartTime,
@@ -987,41 +978,40 @@ export async function processIndexSearchEntityDependentsJob(
             hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
         ) as ReadonlyArray<JsonScalarValue> | null;
 
-        // If we did not reach the pagination limit then don't query again for the
-        // next page.
+        // If we did not reach the pagination limit then don't query again for the next
+        // page.
         if (hits.length < searchSize) afterCursor = null;
     } while (afterCursor !== null);
 }
 
 /**
  * Index a search entity in our vector search index. The entity is split into
- * chunks, those chunks are sent to an LLM to generate vector embeddings, and
- * then those embeddings go into OpenSearch.
+ * chunks, those chunks are sent to an LLM to generate vector embeddings, and then
+ * those embeddings go into OpenSearch.
  *
- * We only need to index the parts of the entity that changed. If we have a
- * long document, for example, we delete chunks that have been removed and
- * insert new chunks. If some part of the document was updated that usually
- * translates into deleting an old chunk for the section and inserting a new
- * chunk for the section.
+ * We only need to index the parts of the entity that changed. If we have a long
+ * document, for example, we delete chunks that have been removed and insert new
+ * chunks. If some part of the document was updated that usually translates into
+ * deleting an old chunk for the section and inserting a new chunk for the section.
  *
  * Indexing search entities in our vector search index happens on a much slower
- * cadence than indexing search entities in our keyword search index. We
- * throttle this job so it only runs once every 5min (as of 2025-04-11) and we
- * must wait at least 3min (as of 2025-04-11) between job runs for the
- * OpenSearch index to refresh since we need to use the OpenSearch `/_search`
- * endpoint to get the old chunks we diff against.
+ * cadence than indexing search entities in our keyword search index. We throttle
+ * this job so it only runs once every 5min (as of 2025-04-11) and we must wait at
+ * least 3min (as of 2025-04-11) between job runs for the OpenSearch index to
+ * refresh since we need to use the OpenSearch `/_search` endpoint to get the old
+ * chunks we diff against.
  *
- * We also have a locking mechanism for this job. Only one process may run this
- * job for a given entity at a time. Otherwise we'd have wild, undefined,
- * behavior if two processes were trying to issue a bunch of OpenSearch
- * deletes/inserts at the same time.
+ * We also have a locking mechanism for this job. Only one process may run this job
+ * for a given entity at a time. Otherwise we'd have wild, undefined, behavior if
+ * two processes were trying to issue a bunch of OpenSearch deletes/inserts at the
+ * same time.
  */
 export async function processIndexSearchEntityEmbeddingChunksJob(
     context: Context<
         ServerSystemActionContextModules & {
             /**
-             * A language model is optional in unit tests. But must be provided in
-             * production and local developer environments.
+             * A language model is optional in unit tests. But must be provided in production
+             * and local developer environments.
              */
             languageModel?: LanguageModelContextModule;
         }
@@ -1029,9 +1019,9 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
     job: IndexSearchEntityEmbeddingChunksJobDescription,
 ) {
     await withIndexSearchEntityEmbeddingChunksJobLock(context, job, async () => {
-        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
-        // content. That's because it's the main model we use in production for
-        // embeddings. In development we embed with a smaller model we can run locally
+        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our content.
+        // That's because it's the main model we use in production for embeddings. In
+        // development we embed with a smaller model we can run locally
         // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
         // debugging chunk generation easier.
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
@@ -1057,10 +1047,10 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                 // Paginate through all chunks for the entity.
                 //
                 // In order for this to work, search needs to read data written by the previous
-                // `IndexSearchEntityEmbeddingChunks` job. This requires waiting for OpenSearch
-                // to refresh the index. `withIndexSearchEntityEmbeddingChunksJobLock()`
-                // manages this for us! Our locking function makes sure there's only one
-                // process updating the embedding chunks index for an entity at any given time.
+                // `IndexSearchEntityEmbeddingChunks` job. This requires waiting for OpenSearch to
+                // refresh the index. `withIndexSearchEntityEmbeddingChunksJobLock()` manages this
+                // for us! Our locking function makes sure there's only one process updating the
+                // embedding chunks index for an entity at any given time.
                 do {
                     const {hits} = await context.opensearch.searchWithoutSource(
                         SearchEntityEmbeddingChunkIndex,
@@ -1080,10 +1070,11 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                                         },
 
                                         // NOTE(calebmer): Adding this `spaceId` filter even though we've already set
-                                        // `job.spaceId` as the routing value in case we need to add an explicit filter
-                                        // to trigger [OpenSearch sorted index optimizations][1].
+                                        // `job.spaceId` as the routing value in case we need to add an explicit filter to
+                                        // trigger [OpenSearch sorted index optimizations][1].
                                         //
-                                        // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
+                                        // [1]:
+                                        //     https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
                                         {term: {spaceId: new OpensearchQueryValue(job.spaceId)}},
                                     ],
                                 },
@@ -1102,8 +1093,8 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                         hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
                     ) as ReadonlyArray<JsonScalarValue> | null;
 
-                    // If we did not reach the pagination limit then don't query again for the
-                    // next page.
+                    // If we did not reach the pagination limit then don't query again for the next
+                    // page.
                     if (hits.length < size) afterCursor = null;
                 } while (afterCursor !== null);
 
@@ -1120,8 +1111,8 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
         const newChunksByTextHash = new Map<number, Array<SearchEntityEmbeddingChunk>>();
 
         for (const chunk of entity.embeddingChunks) {
-            // We don't want to embed small messages like "Ok!" so filter out chunks
-            // without much content.
+            // We don't want to embed small messages like "Ok!" so filter out chunks without
+            // much content.
             //
             // When seeing if this chunk is too small for embedding, we ignore the preamble
             // added for context. We only want to measure the content's tokens.
@@ -1156,8 +1147,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                     addNewChunks.push({textHash, chunk: newChunk});
                 }
             } else {
-                // If there are more `newChunks` than `oldChunks`, add any additional
-                // `newChunks`.
+                // If there are more `newChunks` than `oldChunks`, add any additional `newChunks`.
                 for (let i = oldChunks.length; i < newChunks.length; i++) {
                     const newChunk = newChunks[i]!;
                     addNewChunks.push({textHash, chunk: newChunk});
@@ -1180,8 +1170,8 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
         }
 
         await runAllPromises([
-            // Delete all the old chunks while we're generating embeddings for the
-            // new chunks...
+            // Delete all the old chunks while we're generating embeddings for the new
+            // chunks...
             (async () => {
                 if (deleteOldChunkIds.length === 0) return;
 
@@ -1200,9 +1190,9 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
             (async () => {
                 if (addNewChunks.length === 0) return;
 
-                // Must provide a language model in the system context everywhere except Jest
-                // unit tests. Since the language model can be big, we allow unit tests to
-                // exclude the language model from their runfiles.
+                // Must provide a language model in the system context everywhere except Jest unit
+                // tests. Since the language model can be big, we allow unit tests to exclude the
+                // language model from their runfiles.
                 if (!context.languageModel && !import.meta.jest) {
                     throw new InternalError("Missing language model in context");
                 }
@@ -1271,9 +1261,9 @@ function assertSearchQueryTextLength(queryText: string) {
 }
 
 /**
- * Search for entities in a space by keyword. Returns entities that almost
- * exactly match the query text (some typos are tolerated). Entities with the
- * query text in their title or that match an exact phrase rank higher.
+ * Search for entities in a space by keyword. Returns entities that almost exactly
+ * match the query text (some typos are tolerated). Entities with the query text in
+ * their title or that match an exact phrase rank higher.
  *
  * This function only really works with queries containing complete words. It
  * doesn't support prefix matching of the last word which you'd need to build
@@ -1303,13 +1293,12 @@ export async function searchByKeywords(
     assertSearchQueryTextLength(queryText);
 
     // You must have internal access to try different `debugOptions`. Setting
-    // `debugOptions` not only lets you change search ranking but also enables
-    // search result explanations. Search result explanations may include how
-    // frequent a term is across all indexed OpenSearch documents! This is
-    // sensitive information and can be used to breach private data. For example
-    // "Apple acquires Netflix" might be a 3gram that appears once across all
-    // documents telling you this phrase was included in some search entity you
-    // can't access.
+    // `debugOptions` not only lets you change search ranking but also enables search
+    // result explanations. Search result explanations may include how frequent a term
+    // is across all indexed OpenSearch documents! This is sensitive information and
+    // can be used to breach private data. For example "Apple acquires Netflix" might
+    // be a 3gram that appears once across all documents telling you this phrase was
+    // included in some search entity you can't access.
     if (debugOptions) {
         await authorizeInternalAccess(context);
     }
@@ -1344,29 +1333,28 @@ export async function searchByKeywords(
         const clauses = queryTexts.map((queryText): QueryClause => {
             const queryTextValue = new OpensearchQueryValue(queryText);
 
-            // We only fuzzy match short queries. For longer queries we run into the
-            // OpenSearch max clause limit error.
+            // We only fuzzy match short queries. For longer queries we run into the OpenSearch
+            // max clause limit error.
             //
-            // We only fuzzy match when searching the individual word index. This is
-            // because fuzziness works by expanding a query to include valid terms within
-            // edit distance. This risks running into the max clause count OpenSearch limit
-            // when used excessively. So only allow exact matches when searching the 2gram
-            // and 3gram fields. This also has the effect of a 2gram match + 1gram match
-            // beating a rare typo (which would have a high score due to low document
-            // frequency).
+            // We only fuzzy match when searching the individual word index. This is because
+            // fuzziness works by expanding a query to include valid terms within edit
+            // distance. This risks running into the max clause count OpenSearch limit when
+            // used excessively. So only allow exact matches when searching the 2gram and 3gram
+            // fields. This also has the effect of a 2gram match + 1gram match beating a rare
+            // typo (which would have a high score due to low document frequency).
             //
-            // Fuzzy matching on 2gram or 3gram fields can lead to some odd results
-            // where, because we're fuzzy matching two words, we end up matching a two word
-            // pair which means something completely different.
+            // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
+            // because we're fuzzy matching two words, we end up matching a two word pair which
+            // means something completely different.
             //
-            // With `prefix_length: 1` we require the first character to be correct for a
-            // fuzzy query to match. This reduces the amount of fuzzy searching we need to
-            // do and also discards some ridiculous fuzzy matches. For example, we see "my
-            // documents" get matched to the 2gram "30 documents". For a 1gram "my" doesn't
-            // match "30" since `fuzziness: "AUTO"` requires an exact match for two
-            // character strings. However the 2gram "my documents" can have two edits which
-            // makes "30 documents" a valid match. Also "be documents" or "of documents". A
-            // prefix length of 1 prevents these from being valid matches.
+            // With `prefix_length: 1` we require the first character to be correct for a fuzzy
+            // query to match. This reduces the amount of fuzzy searching we need to do and
+            // also discards some ridiculous fuzzy matches. For example, we see "my documents"
+            // get matched to the 2gram "30 documents". For a 1gram "my" doesn't match "30"
+            // since `fuzziness: "AUTO"` requires an exact match for two character strings.
+            // However the 2gram "my documents" can have two edits which makes "30 documents" a
+            // valid match. Also "be documents" or "of documents". A prefix length of 1
+            // prevents these from being valid matches.
             const withFuzziness = queryText.length < 100;
 
             return {
@@ -1377,14 +1365,14 @@ export async function searchByKeywords(
                     //
                     // The more fields matched, the better!
                     //
-                    // - If you match a shingle it will also implicitly match the main field.
-                    //   Which effectively provides a 2x boost to the phrase match.
+                    // - If you match a shingle it will also implicitly match the main field. Which
+                    //   effectively provides a 2x boost to the phrase match.
                     // - Matches in title fields are boosted above matches in body fields.
                     should: [
                         {
                             bool: {
-                                // Ignore title matches for posts since posts duplicate body content
-                                // in their title.
+                                // Ignore title matches for posts since posts duplicate body content in their
+                                // title.
                                 filter: {
                                     bool: {
                                         must_not: [
@@ -1405,8 +1393,8 @@ export async function searchByKeywords(
                                         multi_match: {
                                             query: queryTextValue,
                                             // Sum the score from matches. This means a 3gram match will have a much higher
-                                            // score than a 1gram match. Since a 3gram match's score is the 3gram match
-                                            // score plus a 2gram match score plus three 1gram match scores.
+                                            // score than a 1gram match. Since a 3gram match's score is the 3gram match score
+                                            // plus a 2gram match score plus three 1gram match scores.
                                             type: "most_fields",
                                             fields: ["title._2gram", "title._3gram"],
                                             fuzziness: 0,
@@ -1430,16 +1418,16 @@ export async function searchByKeywords(
                             multi_match: {
                                 query: queryTextValue,
                                 // Sum the score from matches. This means a 3gram match will have a much higher
-                                // score than a 1gram match. Since a 3gram match's score is the 3gram match
-                                // score plus a 2gram match score plus three 1gram match scores.
+                                // score than a 1gram match. Since a 3gram match's score is the 3gram match score
+                                // plus a 2gram match score plus three 1gram match scores.
                                 type: "most_fields",
                                 fields: ["body._2gram", "body._3gram"],
                                 fuzziness: 0,
                                 boost,
                             },
                         },
-                        // Match against tags (e.g., collection names for tasks). Tags are
-                        // searchable but not highlighted in results.
+                        // Match against tags (e.g., collection names for tasks). Tags are searchable but
+                        // not highlighted in results.
                         {
                             match: {
                                 tags: {
@@ -1454,8 +1442,8 @@ export async function searchByKeywords(
                             multi_match: {
                                 query: queryTextValue,
                                 // Sum the score from matches. This means a 3gram match will have a much higher
-                                // score than a 1gram match. Since a 3gram match's score is the 3gram match
-                                // score plus a 2gram match score plus three 1gram match scores.
+                                // score than a 1gram match. Since a 3gram match's score is the 3gram match score
+                                // plus a 2gram match score plus three 1gram match scores.
                                 type: "most_fields",
                                 fields: ["tags._2gram", "tags._3gram"],
                                 fuzziness: 0,
@@ -1471,8 +1459,8 @@ export async function searchByKeywords(
 
         return clauses.length === 1
             ? clauses[0]!
-            : // Use a disjunction max when we have multiple `queryText`s. Since the `match`
-              // uses an "OR" operator not "AND". We want to use the best score across all
+            : // Use a disjunction max when we have multiple `queryText`s. Since the `match` uses
+              // an "OR" operator not "AND". We want to use the best score across all
               // `queryText`s instead of adding the scores together.
               {dis_max: {queries: clauses}};
     };
@@ -1496,8 +1484,8 @@ export async function searchByKeywords(
         ]),
     );
 
-    // If we parsed some filters using natural language, then add them to our
-    // query. The filters are "OR"d together so we use a disjunction max query.
+    // If we parsed some filters using natural language, then add them to our query.
+    // The filters are "OR"d together so we use a disjunction max query.
     if (controlQueryTexts.length > 0 || parsedFilterByName.size > 0) {
         const createTermQueryClause = (
             flattenedKey: OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>,
@@ -1584,11 +1572,11 @@ export async function searchByKeywords(
                 }
 
                 if (filter.date) {
-                    // Due dates are CalendarDates (date-only, no time component). Both indexing
-                    // and querying convert CalendarDate to midnight UTC via toDate("UTC"), so
-                    // "January 20" always becomes "2026-01-20T00:00:00.000Z" regardless of who
-                    // set it or who's searching. The user's timezone is handled upstream in the
-                    // natural language parser when computing what "today" or "yesterday" means.
+                    // Due dates are CalendarDates (date-only, no time component). Both indexing and
+                    // querying convert CalendarDate to midnight UTC via toDate("UTC"), so "January 20"
+                    // always becomes "2026-01-20T00:00:00.000Z" regardless of who set it or who's
+                    // searching. The user's timezone is handled upstream in the natural language
+                    // parser when computing what "today" or "yesterday" means.
                     const dateFilterConditionals = {
                         gte: filter.date.range.inclusiveLowerBound
                             ? new OpensearchQueryValue(
@@ -1682,9 +1670,9 @@ export async function searchByKeywords(
             bool: {
                 must: mustQueryClauses,
 
-                // Use filter context to only match content the user is allowed to see. The
-                // content must be in our space and must grant access to the account. Either
-                // directly or through a default grant.
+                // Use filter context to only match content the user is allowed to see. The content
+                // must be in our space and must grant access to the account. Either directly or
+                // through a default grant.
                 filter: [
                     {term: {spaceId: new OpensearchQueryValue(spaceId)}},
                     accessPolicyQueryClause,
@@ -1693,25 +1681,25 @@ export async function searchByKeywords(
         },
         highlight: {
             type: "unified",
-            // Split the text at sentences for highlighting. That way the highlighted
-            // previews are complete thoughts for the user to read.
+            // Split the text at sentences for highlighting. That way the highlighted previews
+            // are complete thoughts for the user to read.
             boundary_scanner: "sentence",
             boundary_scanner_locale: "en-US",
-            // Return only the one best fragment. Given we use a sentence boundary this
-            // should be a nice readable snippet.
+            // Return only the one best fragment. Given we use a sentence boundary this should
+            // be a nice readable snippet.
             number_of_fragments: 1,
             order: "score",
-            // We want to show two sentences of content for search results. Given fragments
-            // are created at sentence boundaries that means we need enough characters to
-            // cover at least two sentences. We discovered that p95 sentence length is 260
-            // by analyzing ~500,000 sentences in the [GoodWiki dataset][1].
+            // We want to show two sentences of content for search results. Given fragments are
+            // created at sentence boundaries that means we need enough characters to cover at
+            // least two sentences. We discovered that p95 sentence length is 260 by analyzing
+            // ~500,000 sentences in the [GoodWiki dataset][1].
             //
             // [1]: https://huggingface.co/datasets/euirim/goodwiki
             fragment_size: 260 * 2,
             no_match_size: 260 * 2,
             fields: {
-                // We only highlight `body`. The entire `title` is generally returned as part
-                // of the search entity.
+                // We only highlight `body`. The entire `title` is generally returned as part of
+                // the search entity.
                 body: {},
             },
         },
@@ -1722,18 +1710,18 @@ export async function searchByKeywords(
             const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
 
             // The highlighted body text we get from OpenSearch is markdown formatted with
-            // `<em>` tags inserted where we need to highlight. To get this in a format we
-            // can render:
+            // `<em>` tags inserted where we need to highlight. To get this in a format we can
+            // render:
             //
             // 1. Parse the Markdown back to a ProseMirror node
             // 2. Print the ProseMirror node to a single line of text
             let rawBodyTextSnippet = hit.highlight?.body?.[0];
 
-            // NOTE(calebmer): I've found sometimes OpenSearch returns text that starts
-            // like this: ". Cultural references. The overall plot is a reference...". Note
-            // the ". " at the beginning of the string. This seems to me like confused
-            // sentence boundary scanning. Since having terminal punctuation at the
-            // beginning of our body text snippet is almost never useful, remove it.
+            // NOTE(calebmer): I've found sometimes OpenSearch returns text that starts like
+            // this: ". Cultural references. The overall plot is a reference...". Note the ". "
+            // at the beginning of the string. This seems to me like confused sentence boundary
+            // scanning. Since having terminal punctuation at the beginning of our body text
+            // snippet is almost never useful, remove it.
             rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\p{Sentence_Terminal}\s*/u, "");
 
             const bodySnippet = rawBodyTextSnippet
@@ -1745,9 +1733,8 @@ export async function searchByKeywords(
             let bodyTextSnippet = bodySnippet
                 ? printContentSingleLineTextSnippetPreservingMarks(bodySnippet, {
                       shouldPreserveMark: mark => mark.type.name === "highlight",
-                      // We serialize mentions to search as their underlying text content. So we'll
-                      // never have any mentions when parsing the body text snippet from our search
-                      // index.
+                      // We serialize mentions to search as their underlying text content. So we'll never
+                      // have any mentions when parsing the body text snippet from our search index.
                       getAccountIfExists: () => null,
                       getSearchEntityIfExists: () => null,
                       getFileIfExists: () => null,
@@ -1770,10 +1757,10 @@ export async function searchByKeywords(
                 }
             }
 
-            // If this hit is for a task collection then we'll include, as the search
-            // result body, a summary of how many tasks are in the collection and when the
-            // collection was last updated. This is helpful for a user comparing multiple
-            // task collections with the same name.
+            // If this hit is for a task collection then we'll include, as the search result
+            // body, a summary of how many tasks are in the collection and when the collection
+            // was last updated. This is helpful for a user comparing multiple task collections
+            // with the same name.
             //
             // We don't have this logic in `searchBySemantics()` since task collections
             // shouldn't appear in affinity search.
@@ -1850,26 +1837,26 @@ export async function searchByKeywords(
 
 /**
  * Manually creates a `match_bool_prefix` query equivalent. `match_bool_prefix`
- * performs a `match` on everything but the last word. For the last word
- * OpenSearch runs a prefix query. However, the problem is OpenSearch's prefix
- * query returns a constant score (the `boost` value) instead of a score based
- * on IDF we'd get using the `match` query.
+ * performs a `match` on everything but the last word. For the last word OpenSearch
+ * runs a prefix query. However, the problem is OpenSearch's prefix query returns a
+ * constant score (the `boost` value) instead of a score based on IDF we'd get
+ * using the `match` query.
  *
  * An example from tests:
  *
  * - We search for the word "Help"
- * - `match_bool_prefix` runs a prefix query for the only word "Help" which
- *   returns a doc with a score of ~1.8
+ * - `match_bool_prefix` runs a prefix query for the only word "Help" which returns
+ *   a doc with a score of ~1.8
  * - `match` returns a doc with a score of ~8
  *
- * The test failed since "Help"'s score of 1.8 (for a title match) was lower
- * than some other body match using an IDF score so our title match ranked
- * lower than the body match!
+ * The test failed since "Help"'s score of 1.8 (for a title match) was lower than
+ * some other body match using an IDF score so our title match ranked lower than
+ * the body match!
  *
- * So instead of using `match_bool_prefix` we manually create an equivalent
- * query. Except the last word takes the higher score of `match` or `prefix`
- * (instead of always taking the `prefix` score). So if `match` returns a score
- * of 8 and `prefix` returns a score of 1.8 we'll use the score 8.
+ * So instead of using `match_bool_prefix` we manually create an equivalent query.
+ * Except the last word takes the higher score of `match` or `prefix` (instead of
+ * always taking the `prefix` score). So if `match` returns a score of 8 and
+ * `prefix` returns a score of 1.8 we'll use the score 8.
  *
  * IMPORTANT: These query clauses must go inside a `should` query with
  * `minimum_should_match: 1`.
@@ -1969,9 +1956,8 @@ function enrichOpensearchSearchHitExplanation(
     isLowConfidence: boolean,
     explanation: OpensearchSearchHitExplanation,
 ): OpensearchSearchHitExplanation {
-    // If we have a `ConstantScore` in our explanation the means we parsed a
-    // natural language filter from the query text and the natural language filter
-    // matched!
+    // If we have a `ConstantScore` in our explanation the means we parsed a natural
+    // language filter from the query text and the natural language filter matched!
     //
     // We only use constant score queries for natural language filters currently.
     if (
@@ -2016,35 +2002,33 @@ function enrichOpensearchSearchHitExplanation(
 }
 
 /**
- * Search for entities in a space by their semantic meaning. This uses a
- * language model to embed the query and compare it against embeddings of other
- * content throughout the space. So you can search by meaning, not just words.
+ * Search for entities in a space by their semantic meaning. This uses a language
+ * model to embed the query and compare it against embeddings of other content
+ * throughout the space. So you can search by meaning, not just words.
  *
  * An example is you're looking for a document titled "Marketing Q3 QBR" (QBR
- * standing for "Quarterly Business Review"). You know there's some review doc
- * but you don't know what it's called. So you search "marketing team monthly
- * business review". Language models are capable of figuring out "monthly
- * business review" and "QBR" mean similar things so you find the right
- * matching document.
+ * standing for "Quarterly Business Review"). You know there's some review doc but
+ * you don't know what it's called. So you search "marketing team monthly business
+ * review". Language models are capable of figuring out "monthly business review"
+ * and "QBR" mean similar things so you find the right matching document.
  */
-// TODO(calebmer, #security): I suspect that this function is quite susceptible
-// to timing attacks. For example, let's say you work at company X and search
-// "company Y acquires company X". If private documents or chat messages exist
-// talking about an acquisition your search may take a long time because we
-// find these entities, skip over them since they don't match the filters, then
-// try the next nearest entity. So from a search taking a long time you can
-// infer OpenSearch is doing work to check and throw out chunks.
+// TODO(calebmer, #security): I suspect that this function is quite susceptible to
+// timing attacks. For example, let's say you work at company X and search "company
+// Y acquires company X". If private documents or chat messages exist talking about
+// an acquisition your search may take a long time because we find these entities,
+// skip over them since they don't match the filters, then try the next nearest
+// entity. So from a search taking a long time you can infer OpenSearch is doing
+// work to check and throw out chunks.
 //
-// This can be worse since OpenSearch doesn't appear to partition KNN indexes.
-// So when doing a KNN search you're also considering embeddings in other
-// spaces! So you may be able to devise a prompt to figure out private
-// information in another company's space!
+// This can be worse since OpenSearch doesn't appear to partition KNN indexes. So
+// when doing a KNN search you're also considering embeddings in other spaces! So
+// you may be able to devise a prompt to figure out private information in another
+// company's space!
 //
-// To fix this we could have this function always wait at least 300ms or
-// whatever p90 performance is. We show keyword search results to the user
-// first so it's ok if semantic search results are a bit slower. Once we have
-// some experience with this function in production, evaluate the timing
-// attack risk.
+// To fix this we could have this function always wait at least 300ms or whatever
+// p90 performance is. We show keyword search results to the user first so it's ok
+// if semantic search results are a bit slower. Once we have some experience with
+// this function in production, evaluate the timing attack risk.
 export async function searchBySemantics(
     context: Context<
         ServerAccountActionContextModules & {
@@ -2070,8 +2054,8 @@ export async function searchBySemantics(
     if (!context.languageModel && !import.meta.jest) {
         throw new InternalError("Missing language model in context");
     } else if (!context.languageModel) {
-        // If we don't have a language model in the test context, then
-        // don't perform the semantic search.
+        // If we don't have a language model in the test context, then don't perform the
+        // semantic search.
         return [];
     }
 
@@ -2102,9 +2086,9 @@ export async function searchBySemantics(
         accountNameIndex,
     });
 
-    // If we have high confidence natural language filters then don't perform
-    // semantic search. Since semantic search will invent meaning that disagrees
-    // with the meaning we've determined for the user by parsing their query.
+    // If we have high confidence natural language filters then don't perform semantic
+    // search. Since semantic search will invent meaning that disagrees with the
+    // meaning we've determined for the user by parsing their query.
     if (filters.length > 0 && !isLowConfidence) return [];
 
     const [queryEmbeddingVector] = await context.languageModel.model.embed(
@@ -2139,20 +2123,19 @@ export async function searchBySemantics(
                                 : Array.from(queryEmbeddingVector),
                         ),
 
-                        // A higher `k` value improves recall. Picking an arbitrary value for now.
-                        // Really, we should test what provides the best recall. See:
+                        // A higher `k` value improves recall. Picking an arbitrary value for now. Really,
+                        // we should test what provides the best recall. See:
                         // https://www.pinecone.io/learn/k-nearest-neighbor/#How-to-find-k
                         k: Math.max(limit, 30),
 
-                        // We filter chunks here (instead of with a boolean filter) to perform
-                        // efficient KNN-filtering which is a hybrid of pre-filtering and
-                        // post-filtering.
+                        // We filter chunks here (instead of with a boolean filter) to perform efficient
+                        // KNN-filtering which is a hybrid of pre-filtering and post-filtering.
                         // https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
                         filter: {
                             bool: {
-                                // Use filter context to only match content the user is allowed to see. The
-                                // content must be in our space and must grant access to the account. Either
-                                // directly or through a default grant.
+                                // Use filter context to only match content the user is allowed to see. The content
+                                // must be in our space and must grant access to the account. Either directly or
+                                // through a default grant.
                                 filter: [
                                     {
                                         term: {
@@ -2182,10 +2165,10 @@ export async function searchBySemantics(
         hits.map(async (hit): Promise<SearchEntityResultModel | null> => {
             const entityId = assertExists(hit.fields["entity.id"]?.[0]);
 
-            // If we've already seen this entity, return null. We only return one result
-            // per entity and only the result with the highest score. The first entity we
-            // see should have the highest score given the hit list is sorted by score (we
-            // double check this with an `assert()`).
+            // If we've already seen this entity, return null. We only return one result per
+            // entity and only the result with the highest score. The first entity we see
+            // should have the highest score given the hit list is sorted by score (we double
+            // check this with an `assert()`).
             const highestScore = highestScoreByEntityId.get(entityId);
             if (highestScore !== undefined) {
                 assert(highestScore >= hit.score);
@@ -2195,15 +2178,15 @@ export async function searchBySemantics(
 
             const score = hit.score * options.semanticScoreScaleFromOpensearch;
 
-            // TODO(calebmer): Instead of filtering out hits that don't meet the minimum
-            // score here, I wish I could have OpenSearch stop if it can't find hits better
-            // than this score. But I can't seem to find the OpenSearch parameter that will
-            // let me do this?
+            // TODO(calebmer): Instead of filtering out hits that don't meet the minimum score
+            // here, I wish I could have OpenSearch stop if it can't find hits better than this
+            // score. But I can't seem to find the OpenSearch parameter that will let me do
+            // this?
             if (score < options.minSemanticScore) return null;
 
             // The highlighted body text we get from OpenSearch is markdown formatted with
-            // `<em>` tags inserted where we need to highlight. To get this in a format we
-            // can render:
+            // `<em>` tags inserted where we need to highlight. To get this in a format we can
+            // render:
             //
             // 1. Parse the Markdown back to a ProseMirror node
             // 2. Print the ProseMirror node to a single line of text
@@ -2219,13 +2202,13 @@ export async function searchBySemantics(
             // If the chunk text starts with the document header then remove that.
             rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
 
-            // Emulate OpenSearch highlighting. So if our semantic search chunk text
-            // matches the query words at all the user sees highlighted text as expected.
+            // Emulate OpenSearch highlighting. So if our semantic search chunk text matches
+            // the query words at all the user sees highlighted text as expected.
             //
-            // As of 2023-12-18 our in-process highlighter doesn't have full compatibility
-            // with OpenSearch's highlighter. For example, we don't support highlighting
-            // tokens that would have been split up by the `word_delimiter_graph` filter
-            // and we don't support highlighting typos from a fuzzy match.
+            // As of 2023-12-18 our in-process highlighter doesn't have full compatibility with
+            // OpenSearch's highlighter. For example, we don't support highlighting tokens that
+            // would have been split up by the `word_delimiter_graph` filter and we don't
+            // support highlighting typos from a fuzzy match.
             if (rawBodyTextSnippet) {
                 let offsetIndex = 0;
                 const highlightTagStart = "<em>";
@@ -2261,9 +2244,8 @@ export async function searchBySemantics(
             const bodyTextSnippet = bodySnippet
                 ? printContentSingleLineTextSnippetPreservingMarks(bodySnippet, {
                       shouldPreserveMark: mark => mark.type.name === "highlight",
-                      // We serialize mentions to search as their underlying text content. So we'll
-                      // never have any mentions when parsing the body text snippet from our search
-                      // index.
+                      // We serialize mentions to search as their underlying text content. So we'll never
+                      // have any mentions when parsing the body text snippet from our search index.
                       getAccountIfExists: () => null,
                       getSearchEntityIfExists: () => null,
                       getFileIfExists: () => null,
@@ -2345,11 +2327,11 @@ async function prepareSearchEntityMediaForResult(
 
             // Show two accounts that aren't our actor's account. We randomly show two
             // different accounts (`media.accountIds` should be shuffled by
-            // `getSearchEntity()`) for every chat to try and help make different chats
-            // appear differently.
+            // `getSearchEntity()`) for every chat to try and help make different chats appear
+            // differently.
             //
-            // If there are only two accounts then we'll show our actor account but we'll
-            // show it last.
+            // If there are only two accounts then we'll show our actor account but we'll show
+            // it last.
             const previewAccountIds = Array.from(media.previewAccountIds)
                 .sort((accountId1, accountId2) => {
                     const sortAccountId1Last = sortAccountIdLast(accountId1);
@@ -2363,8 +2345,8 @@ async function prepareSearchEntityMediaForResult(
                 })
                 .slice(
                     0,
-                    // Make sure we slice after the filter. We want to accounts excluding the
-                    // actor account.
+                    // Make sure we slice after the filter. We want to accounts excluding the actor
+                    // account.
                     searchChatEntityResultTitlePreviewAccountCount,
                 );
 
@@ -2390,9 +2372,9 @@ async function prepareSearchEntityMediaForResult(
 }
 
 /**
- * The title of chat search entities is pretty ugly. It's the concatenation of
- * the full names of all accounts in the chat. When presenting a search result for
- * a chat use a nicer name which is a concatenation of short names excluding the
+ * The title of chat search entities is pretty ugly. It's the concatenation of the
+ * full names of all accounts in the chat. When presenting a search result for a
+ * chat use a nicer name which is a concatenation of short names excluding the
  * actor. We use the short names of the accounts in the chat's `AccountPile` media.
  */
 function prepareSearchEntityTitleForResult(
@@ -2406,9 +2388,8 @@ function prepareSearchEntityTitleForResult(
     if (
         media?.type !== "AccountPile" ||
         !entityId.startsWith("Chat:") ||
-        // HACK: Room chats have a null `accountCount` whereas direct chats have an
-        // integer `accountCount`. So check `accountCount === null` to tell if this is
-        // a room chat.
+        // HACK: Room chats have a null `accountCount` whereas direct chats have an integer
+        // `accountCount`. So check `accountCount === null` to tell if this is a room chat.
         media.accountCount === null
     ) {
         return title;
@@ -2446,8 +2427,8 @@ const SearchEntityCache = new ContextCache<
     `${SpaceId}:${SearchDynamicEntityId}`,
     SearchEntityIndexDoc | null
 >({
-    // We load the data from OpenSearch completely independently of the actor. So
-    // it's safe to share the cache when the actor changes.
+    // We load the data from OpenSearch completely independently of the actor. So it's
+    // safe to share the cache when the actor changes.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -2457,8 +2438,8 @@ const SearchEntityBatcher = new ContextBatcher<
     SearchEntityIndexDoc | null
 >(
     {
-        // Loading search entities doesn't depend on the actor so it's ok to
-        // dangerously share the search entity batch across actors.
+        // Loading search entities doesn't depend on the actor so it's ok to dangerously
+        // share the search entity batch across actors.
         whenActorChanges: "DangerouslyShare",
     },
     async (context, inputs) => {
@@ -2498,8 +2479,8 @@ export async function getSearchEntityWithStrongConsistency(
     const {type} = parseSearchMentionEntityId(entityId);
 
     const entity = await fallbackGetSearchEntityBaseIfPossible(
-        // It's expected that `fallbackGetSearchEntityBaseIfPossible()` loads
-        // everything at strong consistency. Add that assertion here.
+        // It's expected that `fallbackGetSearchEntityBaseIfPossible()` loads everything at
+        // strong consistency. Add that assertion here.
         context.dynamo.expectStrongReadConsistency(),
         spaceId,
         entityId,
@@ -2533,9 +2514,9 @@ export async function getSearchEntityWithStrongConsistency(
 }
 
 /**
- * If we can't find a search entity in OpenSearch then we run this fallback
- * which tries to load the search entity from its original source. Which is
- * DynamoDB for most things but we load tasks from `TaskRealtimeService`.
+ * If we can't find a search entity in OpenSearch then we run this fallback which
+ * tries to load the search entity from its original source. Which is DynamoDB for
+ * most things but we load tasks from `TaskRealtimeService`.
  */
 async function fallbackGetSearchEntityBaseIfPossible(
     context: ServerActionContext,
@@ -2619,9 +2600,9 @@ async function fallbackGetSearchEntityBaseIfPossible(
                     };
                 }
                 case "Direct": {
-                    // If a chat has one or two accounts, we don't index the chat. Instead you
-                    // should access a 1:1 chat with another account by searching for their account
-                    // entity (indexed by `getAccountSearchEntity()`).
+                    // If a chat has one or two accounts, we don't index the chat. Instead you should
+                    // access a 1:1 chat with another account by searching for their account entity
+                    // (indexed by `getAccountSearchEntity()`).
                     //
                     // This matches the behavior of `getChatSearchEntity()`.
                     if (chat.definition.accountIds.size <= 2) return null;
@@ -2776,8 +2757,8 @@ async function fallbackGetSearchContentReferences(
         ),
         runAllPromises(
             mapIterable(referencedSearchEntityIds, entityId => {
-                // If we've already seen this `entityId` then instead of loading it again
-                // (which would cause an infinite loop), break the cycle.
+                // If we've already seen this `entityId` then instead of loading it again (which
+                // would cause an infinite loop), break the cycle.
                 if (seen.has(entityId)) {
                     return {
                         isPrivate: false,
@@ -2816,10 +2797,9 @@ async function fallbackGetSearchContentReferences(
 }
 
 /**
- * Get the titles and media of the provided search entity if the search
- * entity exists and the account has access to the search entity. The media
- * will be returned as `SearchEntityMediaModel` to be `SearchEntityModel`
- * ready.
+ * Get the titles and media of the provided search entity if the search entity
+ * exists and the account has access to the search entity. The media will be
+ * returned as `SearchEntityMediaModel` to be `SearchEntityModel` ready.
  */
 async function getSearchEntityBaseIfPossible(
     context: ServerActionContext,
@@ -2831,12 +2811,12 @@ async function getSearchEntityBaseIfPossible(
         return context.batch.execute(SearchEntityBatcher, {spaceId, entityId});
     });
 
-    // Make sure the doc we get is from the right space. Providing a `routing`
-    // value to OpenSearch only makes sure our request goes to the right node. If
-    // space A and space B are saved on the same OpenSearch node and an attacker
-    // requests document in space B from their space A then OpenSearch will
-    // return the doc even though the `routing` value doesn't exactly match since
-    // `routing` puts the request on the node that shares space A and space B.
+    // Make sure the doc we get is from the right space. Providing a `routing` value to
+    // OpenSearch only makes sure our request goes to the right node. If space A and
+    // space B are saved on the same OpenSearch node and an attacker requests document
+    // in space B from their space A then OpenSearch will return the doc even though
+    // the `routing` value doesn't exactly match since `routing` puts the request on
+    // the node that shares space A and space B.
     //
     // So for security make sure we check the routing value is exactly equal to our
     // `SpaceId`!
@@ -2846,9 +2826,8 @@ async function getSearchEntityBaseIfPossible(
 
     if (!doc) {
         if (!isSearchMentionEntityId(entityId)) {
-            // Fallback for an account that hasn't been indexed in OpenSearch yet. Needed
-            // for rendering accounts in the suggested sidebar which haven't been
-            // indexed yet.
+            // Fallback for an account that hasn't been indexed in OpenSearch yet. Needed for
+            // rendering accounts in the suggested sidebar which haven't been indexed yet.
             if (entityId.startsWith("Account:")) {
                 const accountId = entityId.slice(8);
                 assert(isId<AccountId>(accountId));
@@ -2870,26 +2849,26 @@ async function getSearchEntityBaseIfPossible(
             return null;
         }
 
-        // If we couldn't a specific search entity that might be because the search
-        // entity hasn't been indexed in OpenSearch yet. Document indexing, for
-        // example, is throttled since updates to a document happen many times per
-        // minute (even once per keystroke). That means right after a document is
-        // created it won't show up in the OpenSearch index until the throttled
-        // indexing job runs (10s throttle + indexing time).
+        // If we couldn't a specific search entity that might be because the search entity
+        // hasn't been indexed in OpenSearch yet. Document indexing, for example, is
+        // throttled since updates to a document happen many times per minute (even once
+        // per keystroke). That means right after a document is created it won't show up in
+        // the OpenSearch index until the throttled indexing job runs (10s throttle +
+        // indexing time).
         //
-        // Instead of not showing the document to the user in a mention or in the
-        // author's search affinity list (which would be a very bad UX since how else
-        // will the user find documents they just created but accidentally navigated
-        // away from?) we read the document from DynamoDB (where the document will
-        // definitely exist) if the document is not found in the OpenSearch index.
+        // Instead of not showing the document to the user in a mention or in the author's
+        // search affinity list (which would be a very bad UX since how else will the user
+        // find documents they just created but accidentally navigated away from?) we read
+        // the document from DynamoDB (where the document will definitely exist) if the
+        // document is not found in the OpenSearch index.
         //
-        // If the entity WAS found in the OpenSearch index but its access policy
-        // doesn't allow us to read it then we don't check DynamoDB since we expect the
-        // same result.
+        // If the entity WAS found in the OpenSearch index but its access policy doesn't
+        // allow us to read it then we don't check DynamoDB since we expect the same
+        // result.
         return fallbackGetSearchEntityBaseIfPossible(
-            // Expect strong read consistency since if we can't find the entity in
-            // OpenSearch that implies it was just created so we're running the risk of
-            // eventual consistency lag anyway.
+            // Expect strong read consistency since if we can't find the entity in OpenSearch
+            // that implies it was just created so we're running the risk of eventual
+            // consistency lag anyway.
             context.dynamo.expectStrongReadConsistency(),
             spaceId,
             entityId,
@@ -2922,9 +2901,9 @@ async function getSearchEntityBaseIfPossible(
     }
 
     switch (context.actor.type) {
-        // Optimization: For session actors don't run `evaluateAccessPolicy()`.
-        // We can simply check whether the account is in `accountGrantAccountIds`
-        // (or the entity is shared with the space).
+        // Optimization: For session actors don't run `evaluateAccessPolicy()`. We can
+        // simply check whether the account is in `accountGrantAccountIds` (or the entity
+        // is shared with the space).
         case "Session":
         case "ImpersonatedAccount": {
             if (accessPolicy.urlGrant?.level === "View") {
@@ -2950,13 +2929,13 @@ async function getSearchEntityBaseIfPossible(
             break;
         }
 
-        // For bot actors, run `evaluateAccessPolicy()`. In order to view a search
-        // entity all accounts in the bot's scope must have view access to the entity.
+        // For bot actors, run `evaluateAccessPolicy()`. In order to view a search entity
+        // all accounts in the bot's scope must have view access to the entity.
         case "Bot": {
             const isAccessAuthorized = await evaluateAccessPolicy(
-                // Reading from OpenSearch is inherently eventually consistent. OpenSearch data
-                // can be stale by up to two minutes. Don't bother requiring DynamoDB reads to
-                // be strongly consistent here.
+                // Reading from OpenSearch is inherently eventually consistent. OpenSearch data can
+                // be stale by up to two minutes. Don't bother requiring DynamoDB reads to be
+                // strongly consistent here.
                 context.dynamo.unexpectStrongReadConsistency(),
                 spaceId,
                 accessPolicy,
@@ -2970,8 +2949,8 @@ async function getSearchEntityBaseIfPossible(
             break;
         }
         case "Anonymous": {
-            // Optimization: For anonymous actors don't run `evaluateAccessPolicy()`.
-            // We can simply check whether urlGrant is set.
+            // Optimization: For anonymous actors don't run `evaluateAccessPolicy()`. We can
+            // simply check whether urlGrant is set.
             const isAccessAuthorized = accessPolicy.urlGrant?.level === "View";
 
             if (!isAccessAuthorized) {
@@ -3013,9 +2992,8 @@ async function getSearchEntityBaseIfPossible(
 
 /**
  * Get `SearchEntityModel`s for the provided `SearchEntityId`. Accounts are
- * represented by `AccountModel` instead of `SearchEntityModel` so the client
- * uses `AccountRegistry` to normalize accounts instead of
- * `SearchEntityRegistry`.
+ * represented by `AccountModel` instead of `SearchEntityModel` so the client uses
+ * `AccountRegistry` to normalize accounts instead of `SearchEntityRegistry`.
  */
 export async function getSearchEntityIfPossible(
     context: ServerActionContext,
@@ -3049,8 +3027,8 @@ export async function getSearchEntityIfPossible(
 
 /**
  * Get `SearchAffinityEntityModel`s for the provided `SearchAffinityEntityId`s.
- * Accounts are represented by `AccountModel` instead of `SearchEntityModel` so
- * the client uses `AccountRegistry` to normalize accounts instead of
+ * Accounts are represented by `AccountModel` instead of `SearchEntityModel` so the
+ * client uses `AccountRegistry` to normalize accounts instead of
  * `SearchEntityRegistry`.
  *
  * You load search entities in a batch since unlike DynamoDB, we don't
@@ -3089,8 +3067,8 @@ export async function getSearchAffinityEntityIfPossible(
 /**
  * Get `SearchEntityModel`s for the provided `SearchMentionEntityId`s.
  *
- * Accounts are excluded from `SearchMentionEntityId`s (accounts are mentioned
- * by separate means) so we don't return `AccountModel` from this function.
+ * Accounts are excluded from `SearchMentionEntityId`s (accounts are mentioned by
+ * separate means) so we don't return `AccountModel` from this function.
  *
  * You load search entities in a batch since unlike DynamoDB, we don't
  * automatically batch reads to OpenSearch.
@@ -3116,20 +3094,19 @@ export async function getSearchMentionEntityIfPossible(
 }
 
 /**
- * Get a list of search entities that are most meaningful to the actor. When
- * the actor interacts with objects in our system, we boost their affinity
- * score for that object. Affinity scores decay over time so we end up
- * considering objects the actor interacts with a lot recently as the most
- * meaningful.
+ * Get a list of search entities that are most meaningful to the actor. When the
+ * actor interacts with objects in our system, we boost their affinity score for
+ * that object. Affinity scores decay over time so we end up considering objects
+ * the actor interacts with a lot recently as the most meaningful.
  *
- * Unlike other search functions this one doesn't provide a `queryText`
- * filter. The actor has the same set of affinitive entities regardless of what
- * they're currently searching for.
+ * Unlike other search functions this one doesn't provide a `queryText` filter. The
+ * actor has the same set of affinitive entities regardless of what they're
+ * currently searching for.
  *
  * Will return unique `SearchAffinityEntityResult`s. No two
- * `SearchAffinityEntityResult`s will have the same ID. Even across `results`
- * and `favoriteResults`. If an ID exists in `favoriteResults` then it won't
- * exist in `results` and vice versa.
+ * `SearchAffinityEntityResult`s will have the same ID. Even across `results` and
+ * `favoriteResults`. If an ID exists in `favoriteResults` then it won't exist in
+ * `results` and vice versa.
  */
 export async function searchByAffinity(
     context: ServerSessionActionContext,
@@ -3142,36 +3119,36 @@ export async function searchByAffinity(
     const [, , spaceAccount] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
 
-        // Bots don't collect affinity points so searching by affinity doesn't make
-        // sense for a bot.
+        // Bots don't collect affinity points so searching by affinity doesn't make sense
+        // for a bot.
         authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
 
-        // Should be reading data cached by `authorizeSpaceAccess()` so shouldn't add
-        // any additional network requests.
+        // Should be reading data cached by `authorizeSpaceAccess()` so shouldn't add any
+        // additional network requests.
         getSpaceAccount(context, spaceId, context.actor.getAccountId()).then(spaceAccount => {
             if (spaceAccount.state.type === "Active") return spaceAccount;
 
-            // We may have an `InvitePending` cached space account in our space accounts
-            // cache. So try again with strong consistency.
+            // We may have an `InvitePending` cached space account in our space accounts cache.
+            // So try again with strong consistency.
             return getSpaceAccount(context, spaceId, context.actor.getAccountId(), {
                 consistency: "Strong",
             });
         }),
     ]);
 
-    // Should be safe since `authorizeSpaceAccess()` should throw if our account is
-    // in a non-`Active` state. And we also retry loading with strong consistency
-    // if we find a non-active space account.
+    // Should be safe since `authorizeSpaceAccess()` should throw if our account is in
+    // a non-`Active` state. And we also retry loading with strong consistency if we
+    // find a non-active space account.
     assert(spaceAccount.state.type === "Active");
 
-    // The number of affinity results to load. We don't let the client configure
-    // this number since we cache this in the client's RPC cache which is keyed on
-    // the entire input to the RPC.
+    // The number of affinity results to load. We don't let the client configure this
+    // number since we cache this in the client's RPC cache which is keyed on the
+    // entire input to the RPC.
     const limit = 30;
 
-    // Get double the max number of favorites we need in case some aren't visible
-    // due to not being accessible anymore (e.g. they were deleted or their access
-    // policy changed).
+    // Get double the max number of favorites we need in case some aren't visible due
+    // to not being accessible anymore (e.g. they were deleted or their access policy
+    // changed).
     const favoritesLimit = searchShortcutFavoriteEntityMaxCount * 2;
 
     const [entities, favoriteEntities, additionalEntitiesForNewSpaceAccount, settings] =
@@ -3179,15 +3156,15 @@ export async function searchByAffinity(
             internalGetSearchAffinityEntities(context, {spaceId, limit}),
             internalGetSearchFavoriteEntities(context, {
                 spaceId,
-                // Get one more than `favoritesLimit` for determining if
-                // `hasMoreFavoriteResults` should be true.
+                // Get one more than `favoritesLimit` for determining if `hasMoreFavoriteResults`
+                // should be true.
                 limit: favoritesLimit + 1,
             }),
 
-            // For the first minute after an account has been activated, we'll load some
-            // search entities with strong consistency. Since right after the user joins a
-            // space we don't want to show a suggested side bar that's missing some or all
-            // of our welcome package entities due to eventual consistency lag.
+            // For the first minute after an account has been activated, we'll load some search
+            // entities with strong consistency. Since right after the user joins a space we
+            // don't want to show a suggested side bar that's missing some or all of our
+            // welcome package entities due to eventual consistency lag.
             Date.now() - spaceAccount.state.activatedTime.getTime() < 60 * 1000
                 ? internalGetUnorderedSearchAffinityEntitiesWithStrongReadConsistency(context, {
                       spaceId,
@@ -3219,11 +3196,11 @@ export async function searchByAffinity(
             }
         }
 
-        // NOTE(calebmer, 2026-01-09): Log that helps us verify this fix is actually
-        // doing something in production. I'm pretty sure this is fixing a real bug in
-        // production but I haven't actually observed the bug or observed that this
-        // fixes the bug. The log here will help us verify that there's indeed a bug
-        // and that this fix is working.
+        // NOTE(calebmer, 2026-01-09): Log that helps us verify this fix is actually doing
+        // something in production. I'm pretty sure this is fixing a real bug in production
+        // but I haven't actually observed the bug or observed that this fixes the bug. The
+        // log here will help us verify that there's indeed a bug and that this fix is
+        // working.
         if (newEntityCount > 0) {
             context.tracer.log(
                 "Probable eventual consistency lag when loading search entities by affinity",
@@ -3241,10 +3218,9 @@ export async function searchByAffinity(
             dynamicEntityIds.add(entity.entityId);
         }
 
-        // Due to eventual consistency lag, we may see a favorited entity when querying
-        // our affinity index (sorted by points) and not when querying our favorites
-        // index. Add any favorites we find from our affinity index to the
-        // `favoriteEntities` array.
+        // Due to eventual consistency lag, we may see a favorited entity when querying our
+        // affinity index (sorted by points) and not when querying our favorites index. Add
+        // any favorites we find from our affinity index to the `favoriteEntities` array.
         if (entity.favoriteOrderKey && !favoriteEntityIds.has(entity.entityId)) {
             favoriteEntityIds.add(entity.entityId);
 
@@ -3257,8 +3233,8 @@ export async function searchByAffinity(
         }
     }
 
-    // If we added a new entity to this array, sort it again so we make sure to
-    // have entities in the right order.
+    // If we added a new entity to this array, sort it again so we make sure to have
+    // entities in the right order.
     if (shouldSortFavoriteEntities)
         favoriteEntities.sort((a, b) => defaultCompareStrings(a.orderKey, b.orderKey));
 
@@ -3340,8 +3316,8 @@ export async function searchByAffinity(
     const resultIds = new Set<SearchAffinityEntityId>();
 
     for (const entity of entities) {
-        // If this entity was a favorite then set the correct affinity points value
-        // instead of 0.
+        // If this entity was a favorite then set the correct affinity points value instead
+        // of 0.
         const favoriteResult = favoriteResultById.get(entity.entityId);
         if (favoriteResult) {
             favoriteResult.score = entity.points;
@@ -3387,8 +3363,8 @@ export async function searchByAffinity(
 }
 
 /**
- * Search for entities we'll turn into mentions. Mention search only matches
- * the title of entities and only returns a subset of "mentionable" entities.
+ * Search for entities we'll turn into mentions. Mention search only matches the
+ * title of entities and only returns a subset of "mentionable" entities.
  */
 export async function searchMentionByKeywords(
     context: ServerSessionActionContext,
@@ -3428,9 +3404,9 @@ export async function searchMentionByKeywords(
                                     field: "title",
                                     query: queryText,
                                     // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
-                                    // because we're fuzzy matching two words, we end up matching a two word
-                                    // pair which means something completely different. e.g. "my documents" matches
-                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    // because we're fuzzy matching two words, we end up matching a two word pair which
+                                    // means something completely different. e.g. "my documents" matches "30 documents"
+                                    // or "of documents". So we only fuzzy match on the 1gram field.
                                     fuzziness: "AUTO",
                                     // Reduce the number of fuzzy expansions.
                                     prefix_length: 1,
@@ -3450,9 +3426,9 @@ export async function searchMentionByKeywords(
                     },
                 ],
 
-                // Use filter context to only match content the user is allowed to see. The
-                // content must be in our space and must grant access to the account. Either
-                // directly or through a default grant.
+                // Use filter context to only match content the user is allowed to see. The content
+                // must be in our space and must grant access to the account. Either directly or
+                // through a default grant.
                 //
                 // Query clauses in a filter context may be cached.
                 // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
@@ -3508,12 +3484,10 @@ export async function searchMentionByKeywords(
                 score:
                     hit.score -
                     // Demote direct chat hits to the bottom of the list. Very rarely do you want a
-                    // direct chat mention. But you probably somewhat often want room chat
-                    // mentions.
+                    // direct chat mention. But you probably somewhat often want room chat mentions.
                     //
                     // Our hacky way of detecting direct chats is checking whether `accountCount` is
                     // non-null. Room chats have a null `accountCount`.
-                    //
                     (hit.id.startsWith("Chat:") &&
                     media?.type === "AccountPile" &&
                     media.accountCount !== null
@@ -3563,8 +3537,8 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
 }
 
 /**
- * Search all the channels in our space by name. This search is capable of
- * fuzzy matching when there's a typo and prefix matching the last word.
+ * Search all the channels in our space by name. This search is capable of fuzzy
+ * matching when there's a typo and prefix matching the last word.
  *
  * On the client we boost channels an account has an affinity for.
  */
@@ -3605,9 +3579,9 @@ export async function searchChannelsByKeywords(
                                     field: "title",
                                     query: queryText,
                                     // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
-                                    // because we're fuzzy matching two words, we end up matching a two word
-                                    // pair which means something completely different. e.g. "my documents" matches
-                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    // because we're fuzzy matching two words, we end up matching a two word pair which
+                                    // means something completely different. e.g. "my documents" matches "30 documents"
+                                    // or "of documents". So we only fuzzy match on the 1gram field.
                                     fuzziness: "AUTO",
                                     // Reduce the number of fuzzy expansions.
                                     prefix_length: 1,
@@ -3627,9 +3601,9 @@ export async function searchChannelsByKeywords(
                     },
                 ],
 
-                // Use filter context to only match content the user is allowed to see. The
-                // content must be in our space and must grant access to the account. Either
-                // directly or through a default grant.
+                // Use filter context to only match content the user is allowed to see. The content
+                // must be in our space and must grant access to the account. Either directly or
+                // through a default grant.
                 //
                 // Query clauses in a filter context may be cached.
                 // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
@@ -3670,8 +3644,8 @@ export async function searchChannelsByKeywords(
 
             const channelId = hit.id.slice(8) as ChannelId;
 
-            // Data in the search index may be stale and the account may have lost access
-            // to the channel. Don't return the channel if the user lost access.
+            // Data in the search index may be stale and the account may have lost access to
+            // the channel. Don't return the channel if the user lost access.
             const channelResult = await getChannelIfPossible(context, channelId);
             if (!channelResult) return null;
             if (!channelResult.ok) return null;
@@ -3728,9 +3702,9 @@ export async function searchRoomChatsByKeywords(
                                     field: "title",
                                     query: queryText,
                                     // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
-                                    // because we're fuzzy matching two words, we end up matching a two word
-                                    // pair which means something completely different. e.g. "my documents" matches
-                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    // because we're fuzzy matching two words, we end up matching a two word pair which
+                                    // means something completely different. e.g. "my documents" matches "30 documents"
+                                    // or "of documents". So we only fuzzy match on the 1gram field.
                                     fuzziness: "AUTO",
                                     // Reduce the number of fuzzy expansions.
                                     prefix_length: 1,
@@ -3750,9 +3724,9 @@ export async function searchRoomChatsByKeywords(
                     },
                 ],
 
-                // Use filter context to only match content the user is allowed to see. The
-                // content must be in our space and must grant access to the account. Either
-                // directly or through a default grant.
+                // Use filter context to only match content the user is allowed to see. The content
+                // must be in our space and must grant access to the account. Either directly or
+                // through a default grant.
                 //
                 // Query clauses in a filter context may be cached.
                 // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
@@ -3842,8 +3816,8 @@ export async function searchRoomChatsByKeywords(
 /**
  * Get a list of channels relevant to the session account. First we look at
  * channels the account has interacted with. If the user hasn't personally
- * interacted with enough channels to fill `limit` then we'll return a list of
- * the most popular channels across the entire space.
+ * interacted with enough channels to fill `limit` then we'll return a list of the
+ * most popular channels across the entire space.
  *
  * If it's a personal recommendation we return `origin: "Account"`. If it's a
  * space-wide recommendation we return `origin: "Space"`. Only personal
@@ -3862,8 +3836,8 @@ export async function searchChannelsByAffinity(
     await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
 
-        // Bots don't collect affinity points so searching by affinity doesn't make
-        // sense for a bot.
+        // Bots don't collect affinity points so searching by affinity doesn't make sense
+        // for a bot.
         authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
     ]);
 
@@ -3892,9 +3866,9 @@ export async function searchChannelsByAffinity(
     const channelIdsFromSpaceAffinities =
         await internalDangerouslyGetSpaceChannelSearchAffinityEntities(context, {
             spaceId,
-            // Load 10 extra channels since some space-level channels might be private. We
-            // load a full `limit` worth of items since there may be duplicates with
-            // channel IDs from account affinities.
+            // Load 10 extra channels since some space-level channels might be private. We load
+            // a full `limit` worth of items since there may be duplicates with channel IDs
+            // from account affinities.
             limit: limit + 10,
         });
 
@@ -3922,8 +3896,8 @@ export async function searchChannelsByAffinity(
 }
 
 /**
- * Search all the task collections in our space by name. This search is capable
- * of fuzzy matching when there's a typo and prefix matching the last word.
+ * Search all the task collections in our space by name. This search is capable of
+ * fuzzy matching when there's a typo and prefix matching the last word.
  *
  * On the client we boost collections an account has an affinity for.
  */
@@ -3959,9 +3933,9 @@ export async function searchTaskCollectionsByKeywords(
                                     field: "title",
                                     query: queryText,
                                     // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
-                                    // because we're fuzzy matching two words, we end up matching a two word
-                                    // pair which means something completely different. e.g. "my documents" matches
-                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    // because we're fuzzy matching two words, we end up matching a two word pair which
+                                    // means something completely different. e.g. "my documents" matches "30 documents"
+                                    // or "of documents". So we only fuzzy match on the 1gram field.
                                     fuzziness: "AUTO",
                                     // Reduce the number of fuzzy expansions.
                                     prefix_length: 1,
@@ -3981,9 +3955,9 @@ export async function searchTaskCollectionsByKeywords(
                     },
                 ],
 
-                // Use filter context to only match content the user is allowed to see. The
-                // content must be in our space and must grant access to the account. Either
-                // directly or through a default grant.
+                // Use filter context to only match content the user is allowed to see. The content
+                // must be in our space and must grant access to the account. Either directly or
+                // through a default grant.
                 //
                 // Query clauses in a filter context may be cached.
                 // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
@@ -4035,10 +4009,10 @@ export async function searchTaskCollectionsByKeywords(
 }
 
 /**
- * Get a list of task collections relevant to the session account. First we
- * look at collections the account has interacted with. If the user hasn't
- * personally interacted with enough collections to fill `limit` then we'll
- * return a list of the most popular collections across the entire space.
+ * Get a list of task collections relevant to the session account. First we look at
+ * collections the account has interacted with. If the user hasn't personally
+ * interacted with enough collections to fill `limit` then we'll return a list of
+ * the most popular collections across the entire space.
  *
  * If it's a personal recommendation we return `origin: "Account"`. If it's a
  * space-wide recommendation we return `origin: "Space"`. Only personal
@@ -4057,8 +4031,8 @@ export async function searchTaskCollectionsByAffinity(
     await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
 
-        // Bots don't collect affinity points so searching by affinity doesn't make
-        // sense for a bot.
+        // Bots don't collect affinity points so searching by affinity doesn't make sense
+        // for a bot.
         authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
     ]);
 
@@ -4082,9 +4056,9 @@ export async function searchTaskCollectionsByAffinity(
     const collectionIdsFromSpaceAffinities =
         await internalDangerouslyGetSpaceTaskCollectionSearchAffinityEntities(context, {
             spaceId,
-            // Load 10 extra collections since some space-level collections might be
-            // private. We load a full `limit` worth of items since there may be duplicates
-            // with collection IDs from account affinities.
+            // Load 10 extra collections since some space-level collections might be private.
+            // We load a full `limit` worth of items since there may be duplicates with
+            // collection IDs from account affinities.
             limit: limit + 10,
         });
 
@@ -4115,8 +4089,7 @@ export async function searchTaskCollectionsByAffinity(
 }
 
 /**
- * Get all of the session actor's favorite search entities ordered by
- * `OrderKey`.
+ * Get all of the session actor's favorite search entities ordered by `OrderKey`.
  */
 export async function getAllSearchFavoriteEntities(
     context: ServerSessionActionContext,

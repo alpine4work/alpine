@@ -32,8 +32,8 @@ afterEach(() => {
 });
 
 /**
- * A test RPC context module that lets you return whatever result you like for
- * an RPC execution in tests to see how code which calls the RPC behaves.
+ * A test RPC context module that lets you return whatever result you like for an
+ * RPC execution in tests to see how code which calls the RPC behaves.
  */
 export class TestRpcContextModule extends RpcContextModuleBase {
     public override execute<Input, Output>(

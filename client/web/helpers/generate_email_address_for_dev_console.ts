@@ -12,8 +12,8 @@ export function generateEmailAddressForDevConsole(
         "." +
         currentTime.getDate().toString().padStart(2, "0") +
         "." +
-        // Seconds through the day. We use this format instead of `hh.mm.ss` so the
-        // date clearly reads as a date. Seconds are added on purely to disambiguate.
+        // Seconds through the day. We use this format instead of `hh.mm.ss` so the date
+        // clearly reads as a date. Seconds are added on purely to disambiguate.
         (
             currentTime.getHours() * 60 * 60 +
             currentTime.getMinutes() * 60 +

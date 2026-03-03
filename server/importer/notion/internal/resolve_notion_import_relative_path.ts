@@ -1,10 +1,10 @@
 /**
- * Resolves a relative path against a base directory for Notion imports.
- * Handles `../` parent directory references and subdirectory paths.
+ * Resolves a relative path against a base directory for Notion imports. Handles
+ * `../` parent directory references and subdirectory paths.
  *
- * @param baseDir - The directory to resolve from (e.g., "path/to/dir")
- * @param relativePath - The relative path (e.g., "../other/file.md")
- * @returns The resolved absolute path, or null if the path goes above root
+ * @param baseDir - The directory to resolve from (e.g., "path/to/dir") @param
+ * relativePath - The relative path (e.g., "../other/file.md") @returns The
+ * resolved absolute path, or null if the path goes above root
  */
 export function resolveNotionImportRelativePath(
     baseDir: string,

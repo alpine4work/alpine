@@ -684,14 +684,13 @@ export function TaskPersonalView({
         activeGridViewResult.loadedState === "FullyLoaded";
 
     if (isActiveGridViewEmpty) {
-        // We won't show the `ActiveHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `ActiveHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(activeGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -875,14 +874,13 @@ export function TaskPersonalView({
         );
 
     if (isOverdueGridViewEmpty) {
-        // We won't show the `OverdueHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `OverdueHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(overdueGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -916,8 +914,8 @@ export function TaskPersonalView({
         ],
     );
 
-    // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
-    // to shift indexes correctly)
+    // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
     runningItemCount += 1;
 
     const dueTodayGridViewResult = useTaskGridViewVirtualizedListBase({
@@ -1069,14 +1067,13 @@ export function TaskPersonalView({
         );
 
     if (isDueTodayGridViewEmpty) {
-        // We won't show the `DueTodayHeader` item we added previously if this grid
-        // view is empty.
+        // We won't show the `DueTodayHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(dueTodayGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -1110,8 +1107,8 @@ export function TaskPersonalView({
         ],
     );
 
-    // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
-    // to shift indexes correctly)
+    // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
     runningItemCount += 1;
 
     const dueSoonGridViewResult = useTaskGridViewVirtualizedListBase({
@@ -1133,8 +1130,8 @@ export function TaskPersonalView({
                     dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
             );
 
-            // By default, set due date to one week from today (7 days from now). This
-            // should be the same as the upper bound of the due soon date range.
+            // By default, set due date to one week from today (7 days from now). This should
+            // be the same as the upper bound of the due soon date range.
             const currentDate =
                 dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate.subtract({
                     days: 1,
@@ -1270,14 +1267,13 @@ export function TaskPersonalView({
         );
 
     if (isDueSoonGridViewEmpty) {
-        // We won't show the `DueSoonHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `DueSoonHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(dueSoonGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -1311,16 +1307,16 @@ export function TaskPersonalView({
         ],
     );
 
-    // TODO(ifitzsimmons, closed-tasks-section): The Closed Tasks section should be the last
-    // section in the personal task view. However, this component is built on the assumption
-    // that the remaining section is always last. To avoid bloat in this change, we'll
-    // merge as is and follow up with a refactor to make the "Closed" section the last
-    // section in the grid when the closed query is not null.
+    // TODO(ifitzsimmons, closed-tasks-section): The Closed Tasks section should be the
+    // last section in the personal task view. However, this component is built on the
+    // assumption that the remaining section is always last. To avoid bloat in this
+    // change, we'll merge as is and follow up with a refactor to make the "Closed"
+    // section the last section in the grid when the closed query is not null.
     //
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/203932h5chns4zj4taetzh7zcg
 
-    // `ClosedHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
-    // to shift indexes correctly)
+    // `ClosedHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
     runningItemCount += 1;
 
     const closedGridViewResult = useTaskGridViewVirtualizedListBase({
@@ -1334,9 +1330,9 @@ export function TaskPersonalView({
             runningItemCount,
             events.getClosedItemCount,
         ),
-        // NOTE(ifitzsimmons, 2026-02-22): The closed section only ever shows up
-        // when filters are applied, which means that users can never actually edit
-        // grid view items in the closed section.
+        // NOTE(ifitzsimmons, 2026-02-22): The closed section only ever shows up when
+        // filters are applied, which means that users can never actually edit grid view
+        // items in the closed section.
         getMoveTaskToQueryActions: (taskId, position) => {
             if (!closedQuery) return null;
 
@@ -1464,14 +1460,13 @@ export function TaskPersonalView({
         );
 
     if (isClosedGridViewEmpty) {
-        // We won't show the `ClosedHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `ClosedHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(closedGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -1505,16 +1500,17 @@ export function TaskPersonalView({
         ],
     );
 
-    // At this point, we don't really know if the remaining grid view header
-    // should be visible or not. It is visible when either
+    // At this point, we don't really know if the remaining grid view header should be
+    // visible or not. It is visible when either
+    //
     // 1. There are no applied filters and at least one other section is not empty
-    //    - The absence of filters means that we always show the remaining tasks
-    //      section because it always renders a ghost task row ("Add a task" row)
+    //     - The absence of filters means that we always show the remaining tasks
+    //       section because it always renders a ghost task row ("Add a task" row)
     // 2. There are filters applied and the remaining section is not empty.
-    //    - When filters are applied, users can't add tasks to the grid, so the
-    //      the remaining section will not include a ghost task row.
-    //    - however, at this point, we don't know if the remaining section is empty
-    //      or not.
+    //     - When filters are applied, users can't add tasks to the grid, so the the
+    //       remaining section will not include a ghost task row.
+    //     - however, at this point, we don't know if the remaining section is empty or
+    //       not.
     const isMaybeRemainingGridViewHeaderVisible =
         !isActiveGridViewEmpty ||
         !isOverdueGridViewEmpty ||
@@ -1524,10 +1520,10 @@ export function TaskPersonalView({
 
     // `RemainingHeader`
     //
-    // This is conditional since if `RemainingHeader` isn't visible because none of
-    // the other grid views are visible we don't want to shift the remaining grid
-    // view items incorrectly. It's ok if we incorrectly shift other grid views
-    // when they have an item count of 0 so the shift won't matter.
+    // This is conditional since if `RemainingHeader` isn't visible because none of the
+    // other grid views are visible we don't want to shift the remaining grid view
+    // items incorrectly. It's ok if we incorrectly shift other grid views when they
+    // have an item count of 0 so the shift won't matter.
     if (isMaybeRemainingGridViewHeaderVisible) {
         runningItemCount += 1;
     }
@@ -1665,19 +1661,22 @@ export function TaskPersonalView({
             isRemainingGridViewHeaderVisible ? runningItemCount - 1 : null,
         );
 
-    // When a user applies a filter such that there non-empty sections, we can get
-    // into the following state:
+    // When a user applies a filter such that there non-empty sections, we can get into
+    // the following state:
+    //
     // 1. There are tasks within the filter criteria in the Active and Overdue sections
-    // 2. Because there are non-empty sections, `isRemainingGridViewHeaderVisible` is true
-    //    and we increment the `runningItemCount` by 1 to render the `RemainingHeader`
-    // 3. There aren't any tasks within the filter criteria in the Remaining section, so
-    //    we don't render it. Meaning that we also don't render the `RemainingHeader` item.
+    // 2. Because there are non-empty sections, `isRemainingGridViewHeaderVisible` is
+    //    true and we increment the `runningItemCount` by 1 to render the
+    //    `RemainingHeader`
+    // 3. There aren't any tasks within the filter criteria in the Remaining section,
+    //    so we don't render it. Meaning that we also don't render the
+    //    `RemainingHeader` item.
     //
     // This check ensures that the `runningItemCount` is correct.
     if (!shouldRenderRemainingSection) {
         if (isRemainingGridViewHeaderVisible) {
-            // We won't show the `RemainingHeader` item we added previously if we don't
-            // render the remaining grid view
+            // We won't show the `RemainingHeader` item we added previously if we don't render
+            // the remaining grid view
             runningItemCount -= 1;
         }
     } else {
@@ -1728,12 +1727,11 @@ export function TaskPersonalView({
             !shouldRenderRemainingSection ? itemCount - 1 : null,
         );
 
-    // Extract the `renderItem` property so we can call it in `useCallback()`
-    // without depending on the whole `activeGridViewResult` object. If we
-    // called `activeGridViewResult.renderItem()` then
-    // `activeGridViewResult` would be assigned to `this` in `renderItem`
-    // and React would need to add a dependency on `activeGridViewResult`
-    // to the `useCallback()`.
+    // Extract the `renderItem` property so we can call it in `useCallback()` without
+    // depending on the whole `activeGridViewResult` object. If we called
+    // `activeGridViewResult.renderItem()` then `activeGridViewResult` would be
+    // assigned to `this` in `renderItem` and React would need to add a dependency on
+    // `activeGridViewResult` to the `useCallback()`.
     const renderActiveGridViewItem = activeGridViewResult.renderItem;
     const renderOverdueGridViewItem = overdueGridViewResult.renderItem;
     const renderDueTodayGridViewItem = dueTodayGridViewResult.renderItem;
@@ -1743,9 +1741,9 @@ export function TaskPersonalView({
 
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
-            // We don't need to modify the `key` for our items because the queries should
-            // be exclusive. If a task shows up in one section it should not show up in
-            // any other section.
+            // We don't need to modify the `key` for our items because the queries should be
+            // exclusive. If a task shows up in one section it should not show up in any other
+            // section.
 
             let hasFirstHeader = false;
 
@@ -1812,13 +1810,12 @@ export function TaskPersonalView({
                                 shouldRenderWithRelativePositioning={
                                     shouldRenderWithRelativePositioning
                                 }
-                                // When all other sections are empty and the remaining
-                                // section doesn't have its own header, we show the column
-                                // header directly in the navigation bar instead. This avoids
-                                // having a blank space where the section header would be.
+                                // When all other sections are empty and the remaining section doesn't have its own
+                                // header, we show the column header directly in the navigation bar instead. This
+                                // avoids having a blank space where the section header would be.
                                 //
-                                // We should only show this UX if the remaining section is
-                                // the first (only) rendered section.
+                                // We should only show this UX if the remaining section is the first (only)
+                                // rendered section.
                                 withoutRemainingGridViewHeader={
                                     !isRemainingGridViewHeaderVisible &&
                                     shouldRenderRemainingSection
@@ -2048,10 +2045,10 @@ export function TaskPersonalView({
                 index -= remainingGridViewResult.itemCount;
             }
 
-            // If we're not rendering the remaining section (because of filters) then we
-            // render a decorative ghost task to get our repeating grid view lines at the
-            // end of personal task view. Otherwise the remaining section is responsible
-            // for rendering our decorative ghost task background.
+            // If we're not rendering the remaining section (because of filters) then we render
+            // a decorative ghost task to get our repeating grid view lines at the end of
+            // personal task view. Otherwise the remaining section is responsible for rendering
+            // our decorative ghost task background.
             if (!shouldRenderRemainingSection && index === 0) {
                 // We only render this when there's a section that's not the remaining section
                 // visible. If all sections are hidden then we render the remaining section.
@@ -2378,8 +2375,8 @@ function useTaskGridViewVirtualizedListViewRef(
 
     const getPreviousItemCount = useEvent(() => previousItemCount);
 
-    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
-    // items which precede our children grid view.
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of items
+    // which precede our children grid view.
     useImperativeHandle(
         gridViewRef,
         () => ({
@@ -2498,9 +2495,9 @@ const TaskPersonalViewDesktopNavigationBar = memo(function TaskPersonalViewDeskt
 }) {
     const spacingScale = useSpacingScale();
 
-    // We want to baseline align our `fontSize="400"` collection name with our
-    // centered `fontSize="75"` customization bar (filters and sort). Calculate
-    // the offset for center aligned `fontSize="400"` using font metrics.
+    // We want to baseline align our `fontSize="400"` collection name with our centered
+    // `fontSize="75"` customization bar (filters and sort). Calculate the offset for
+    // center aligned `fontSize="400"` using font metrics.
     const nameBaselineAlignmentMarginTop = useMemo(() => {
         const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
 
@@ -2771,10 +2768,10 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
             } else if (nonStateItemCountDifference < 0) {
                 const heightRem =
                     parseRemLength(taskPersonalViewHeaderHeight[routeLayout]) +
-                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This
-                    // is true for the bottom ghost task and decorative ghost rows. The grid view
-                    // shouldn't have a column header so it's safe to assume all non-state items
-                    // have a height of `taskRowViewMinHeight`.
+                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This is
+                    // true for the bottom ghost task and decorative ghost rows. The grid view
+                    // shouldn't have a column header so it's safe to assume all non-state items have a
+                    // height of `taskRowViewMinHeight`.
                     parseRemLength(taskRowViewMinHeight) * -nonStateItemCountDifference +
                     parseRemLength(taskGridViewPaddingBottomWithNext);
 
@@ -2783,8 +2780,8 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
                     {
                         type: "Delete",
                         startTime: Date.now(),
-                        // Take a little longer for header create/delete animations so everything
-                        // doesn't move too fast.
+                        // Take a little longer for header create/delete animations so everything doesn't
+                        // move too fast.
                         duration: taskAnimationDurationMs * 2,
                         kind: "Unknown",
                         height: `${heightRem}rem`,
@@ -2795,10 +2792,10 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
 
                 const heightRem =
                     parseRemLength(taskPersonalViewHeaderHeight[routeLayout]) +
-                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This
-                    // is true for the bottom ghost task and decorative ghost rows. The grid view
-                    // shouldn't have a column header so it's safe to assume all non-state items
-                    // have a height of `taskRowViewMinHeight`.
+                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This is
+                    // true for the bottom ghost task and decorative ghost rows. The grid view
+                    // shouldn't have a column header so it's safe to assume all non-state items have a
+                    // height of `taskRowViewMinHeight`.
                     parseRemLength(taskRowViewMinHeight) * nonStateItemCountDifference +
                     parseRemLength(taskGridViewPaddingBottomWithNext);
 
@@ -2807,8 +2804,8 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
                     {
                         type: "Create",
                         startTime: Date.now(),
-                        // Take a little longer for header create/delete animations so everything
-                        // doesn't move too fast.
+                        // Take a little longer for header create/delete animations so everything doesn't
+                        // move too fast.
                         duration: taskAnimationDurationMs * 2,
                         kind: "Unknown",
                         height: `${heightRem}rem`,

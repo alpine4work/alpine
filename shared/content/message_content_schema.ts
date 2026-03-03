@@ -49,8 +49,8 @@ export const MessageContentProsemirrorSchema = new ProsemirrorSchema(
     messageContentProsemirrorSchemaSpec,
 );
 
-// Property `isMessageContentSchema()` looks for to tell if a ProseMirror
-// schema is the `MessageContent` schema.
+// Property `isMessageContentSchema()` looks for to tell if a ProseMirror schema is
+// the `MessageContent` schema.
 (MessageContentProsemirrorSchema as any)._isMessageContent = true;
 
 const messageContentSchemas = createSchemaForProsemirrorSchema(MessageContentProsemirrorSchema);

@@ -55,8 +55,8 @@ export function PostMobileEditor({
         "`<PostMobileEditorView>`\u2019s `post` prop must be non-null on initial render",
     );
 
-    // If `postFromProps` becomes null (the parent component lost the data somehow)
-    // we want to keep the initial post we saw in state.
+    // If `postFromProps` becomes null (the parent component lost the data somehow) we
+    // want to keep the initial post we saw in state.
     if (postFromProps !== null && post !== postFromProps) {
         post = postFromProps;
         setPost(postFromProps);
@@ -78,10 +78,10 @@ export function PostMobileEditor({
     }, []);
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        //   render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be scrolling
+        //   not the document.
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
@@ -165,8 +165,8 @@ export function PostMobileEditor({
                             aria-label="Post"
                             state={state}
                             onChange={onChange}
-                            // On mobile, don't allow interactions when unfocused. We're already in an
-                            // editing modality.
+                            // On mobile, don't allow interactions when unfocused. We're already in an editing
+                            // modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas, press @ to insert…"
                             fileAttachmentTarget={useMemo(
@@ -181,8 +181,8 @@ export function PostMobileEditor({
                                 sprinkles({paddingX: screenPaddingX}),
                             )}
                             onModEnterKeyDown={() => {
-                                // Programmatically press the button instead of calling `createPost()`
-                                // directly to correctly handle loading and error states.
+                                // Programmatically press the button instead of calling `createPost()` directly to
+                                // correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();
                             }}
                         />

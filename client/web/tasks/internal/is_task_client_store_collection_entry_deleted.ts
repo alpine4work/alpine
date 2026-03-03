@@ -3,9 +3,9 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**
  * Should we consider the provided collection entry to be a deleted collection?
- * It's not as simple as checking `isDeleted()` on `TaskModel`. For
- * unauthorized collections we need to check the error code (since deleted
- * collections are unauthorized).
+ * It's not as simple as checking `isDeleted()` on `TaskModel`. For unauthorized
+ * collections we need to check the error code (since deleted collections are
+ * unauthorized).
  */
 export function isTaskClientStoreCollectionEntryDeleted(
     collectionEntry: TaskClientStoreCollectionEntry,

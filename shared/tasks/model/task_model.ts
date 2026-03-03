@@ -54,8 +54,8 @@ import {
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 
-// TypeScript errors here when new TaskTaskActions are added. If you add a
-// new task action type you should make sure to update `getDuplicateActions()`.
+// TypeScript errors here when new TaskTaskActions are added. If you add a new task
+// action type you should make sure to update `getDuplicateActions()`.
 assertEqualTypes<
     keyof typeof TaskTaskActionUnion,
     | "Create"
@@ -94,9 +94,9 @@ const TaskModelDataSchema = Schema.object({
         position: TaskPositionRegister.schema,
     }),
 
-    // See the documentation on `TaskUpdateChildrenCountsAction` for what these
-    // fields are. They are CRDTs that allow us to figure out the task's
-    // `childTaskCount` and `childClosedTaskCount`.
+    // See the documentation on `TaskUpdateChildrenCountsAction` for what these fields
+    // are. They are CRDTs that allow us to figure out the task's `childTaskCount` and
+    // `childClosedTaskCount`.
     addedChildTaskCount: Schema.integer,
     removedChildTaskCount: Schema.integer,
     addedClosedChildTaskCount: Schema.integer,
@@ -122,20 +122,20 @@ const TaskModelDataSchema = Schema.object({
 const taskInactiveAssigneeStatus: TaskAssigneeStatus = {type: "Inactive"};
 
 /**
- * A task model object is the representation of a task shared between the
- * client and server. Servers construct this object in `TaskRealtimeService`
- * from a `TaskIndexDoc` removing any sensitive data.
+ * A task model object is the representation of a task shared between the client
+ * and server. Servers construct this object in `TaskRealtimeService` from a
+ * `TaskIndexDoc` removing any sensitive data.
  *
  * This class has many convenience methods that allow you to see the current
- * "logical" value of some property even if the underlying register is
- * something different. For example `assigneeStatus` is always inactive when
- * there is no assignee but the `assigneeStatus` register may have a different
- * value if updates were applied out of order. You still have access to the
- * task's raw underlying data in the `rawData` property.
+ * "logical" value of some property even if the underlying register is something
+ * different. For example `assigneeStatus` is always inactive when there is no
+ * assignee but the `assigneeStatus` register may have a different value if updates
+ * were applied out of order. You still have access to the task's raw underlying
+ * data in the `rawData` property.
  */
-// Doesn't use the `Model` class since `rawData` contains many "raw" properties
-// we want to provide clean accessors for. Like `getAssigneeStatus()` returning
-// null when the task is closed.
+// Doesn't use the `Model` class since `rawData` contains many "raw" properties we
+// want to provide clean accessors for. Like `getAssigneeStatus()` returning null
+// when the task is closed.
 export class TaskModel {
     public static readonly schema = TaskModelDataSchema.transform<TaskModel>({
         serialize: task => task.rawData,
@@ -151,8 +151,8 @@ export class TaskModel {
 
         // In Jest eagerly call `getParent()` which caches some data so
         // `expect().toEqual()` never shows uncached data as the reason why two objects
-        // don't match. Seeing the cached data can also help determine the difference
-        // in a diff.
+        // don't match. Seeing the cached data can also help determine the difference in a
+        // diff.
         if (import.meta.jest) {
             this.getParent();
         }
@@ -201,10 +201,10 @@ export class TaskModel {
     }
 
     /**
-     * Apply an action to this task. Tasks are [CRDTs][1] which means their actions
-     * are commutative and idempotent. In practical language: you can apply
-     * actions many times and in any order. Our task backend takes advantage of
-     * this and doesn't bother enforcing a canonical task order.
+     * Apply an action to this task. Tasks are [CRDTs][1] which means their actions are
+     * commutative and idempotent. In practical language: you can apply actions many
+     * times and in any order. Our task backend takes advantage of this and doesn't
+     * bother enforcing a canonical task order.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
@@ -223,8 +223,7 @@ export class TaskModel {
             getActionReferencedSortableAccount,
         );
 
-        // Optimization: Maintain referential integrity if the task's data didn't
-        // change.
+        // Optimization: Maintain referential integrity if the task's data didn't change.
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
@@ -232,17 +231,16 @@ export class TaskModel {
 
     /**
      * Apply an `UpdateAccountName` action to this task. Tasks are [CRDTs][1] which
-     * means their actions are commutative and idempotent. In practical language:
-     * you can apply actions many times and in any order. Our task backend takes
-     * advantage of this and doesn't bother enforcing a canonical task order.
+     * means their actions are commutative and idempotent. In practical language: you
+     * can apply actions many times and in any order. Our task backend takes advantage
+     * of this and doesn't bother enforcing a canonical task order.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
     public applyUpdateAccountNameAction(action: TaskUpdateAccountNameAction) {
         const rawData = applyTaskUpdateAccountNameToTaskModelData(this.rawData, action);
 
-        // Optimization: Maintain referential integrity if the task's data didn't
-        // change.
+        // Optimization: Maintain referential integrity if the task's data didn't change.
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
@@ -251,16 +249,16 @@ export class TaskModel {
     /**
      * Get the actions required to duplicate this task.
      *
-     * This function doesn't duplicate the task's access policy. The new task will
-     * have a default access policy where just the creator has access. Duplicated
-     * tasks are private to the duplicator until the duplicator shares them.
+     * This function doesn't duplicate the task's access policy. The new task will have
+     * a default access policy where just the creator has access. Duplicated tasks are
+     * private to the duplicator until the duplicator shares them.
      *
-     * @param creatorId - The actor who is performing the action.
-     * @param actionTime - The time the action was performed.
-     * @param creatorTimeZone - The time zone of the actor.
-     * @param parentTaskId - The ID of the parent task, defaulted to the cloned task's parent.
-     * @param titleSuffix - A suffix to append to the cloned task's title.
-     * @param variableValues - Values for template variable substitution in the title.
+     * @param creatorId - The actor who is performing the action. @param actionTime -
+     * The time the action was performed. @param creatorTimeZone - The time zone of the
+     * actor. @param parentTaskId - The ID of the parent task, defaulted to the cloned
+     * task's parent. @param titleSuffix - A suffix to append to the cloned task's
+     * title. @param variableValues - Values for template variable substitution in the
+     * title.
      */
     public getDuplicateActions({
         creatorId,
@@ -409,8 +407,7 @@ export class TaskModel {
             });
         }
 
-        // Assignee Position
-        // Only the assignee can update the task position
+        // Assignee Position Only the assignee can update the task position
         const assigneePosition = this.getAssigneePosition();
         if (assignee && assigneePosition && creatorId === assignee.assignee.accountId) {
             actions.push({
@@ -501,16 +498,15 @@ export class TaskModel {
     public merge(otherTask: TaskModel): TaskModel {
         const rawData = mergeTaskModelData(this.rawData, otherTask.rawData);
 
-        // Optimization: Maintain referential integrity if the task's data didn't
-        // change.
+        // Optimization: Maintain referential integrity if the task's data didn't change.
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
     }
 
     /**
-     * Make sure the hybrid logical clock's time is beyond any time observed by
-     * this task.
+     * Make sure the hybrid logical clock's time is beyond any time observed by this
+     * task.
      */
     public tick(clock: {tick(time: HybridLogicalTime): void}) {
         return tickTaskModelData(this.rawData, clock);
@@ -536,8 +532,8 @@ export class TaskModel {
         );
     }
 
-    // We lazily initialize the parent object so it has the same reference as long
-    // as the `TaskModel` is unchanged.
+    // We lazily initialize the parent object so it has the same reference as long as
+    // the `TaskModel` is unchanged.
     private _parent:
         | {
               readonly taskId: TaskId;

@@ -33,16 +33,15 @@ export type TaskNotesCollaborationEvent = WebSocketProtocolEventType<
 export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
     procedures: {
         /**
-         * Request a backfill to catch us up from the version our client loaded from
-         * the server to the latest, live, task notes version.
+         * Request a backfill to catch us up from the version our client loaded from the
+         * server to the latest, live, task notes version.
          *
-         * Even if the client just loaded notes in the milliseconds between the
-         * server returning the notes and the client connecting to the collaboration
-         * service there may have been an update.
+         * Even if the client just loaded notes in the milliseconds between the server
+         * returning the notes and the client connecting to the collaboration service there
+         * may have been an update.
          *
-         * If the client is way behind, a step backfill may be unavailable and the
-         * client will need to fully reset its content. Losing any local steps in the
-         * process.
+         * If the client is way behind, a step backfill may be unavailable and the client
+         * will need to fully reset its content. Losing any local steps in the process.
          */
         backfillNotes: {
             input: {
@@ -163,14 +162,14 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
          * Don't tell the user that their changes have saved until you see a
          * `PersistedContent` message.
          *
-         * You have no ordering guarantees around this message! Usually you will get
-         * these messages in ascending version order and usually this message will
-         * occur before the `PersistedContent` message for the same version. However,
-         * usually is the operative word! We can not send this message until we load
-         * `ContentReferences` and loading `ContentReferences` does not block other
-         * updates. So client implementations need to handle receiving this message
-         * out-of-order. A recommend implementation is if you get a future message, put
-         * it in a queue until you get earlier messages needed to process it.
+         * You have no ordering guarantees around this message! Usually you will get these
+         * messages in ascending version order and usually this message will occur before
+         * the `PersistedContent` message for the same version. However, usually is the
+         * operative word! We can not send this message until we load `ContentReferences`
+         * and loading `ContentReferences` does not block other updates. So client
+         * implementations need to handle receiving this message out-of-order. A recommend
+         * implementation is if you get a future message, put it in a queue until you get
+         * earlier messages needed to process it.
          */
         UpdateNotesContentWithoutPersistence: Schema.object({
             type: Schema.value("UpdateNotesContentWithoutPersistence"),
@@ -186,8 +185,8 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
         }),
 
         /**
-         * Tells the client that we've successfully persisted all changes at this
-         * version and if the client disconnects the changes will still be there.
+         * Tells the client that we've successfully persisted all changes at this version
+         * and if the client disconnects the changes will still be there.
          *
          * You may get a `PersistedContent` event before a
          * `UpdateNotesContentWithoutPersistence` with the steps for this version. That's

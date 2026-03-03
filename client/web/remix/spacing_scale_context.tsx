@@ -15,12 +15,12 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 /**
- * Renders an inline script that detects spacing scale mismatches between SSR
- * and the client. Should be placed in the `<head>` on all pages.
+ * Renders an inline script that detects spacing scale mismatches between SSR and
+ * the client. Should be placed in the `<head>` on all pages.
  *
  * The script needs to be a synchronously executing script that blocks browser
- * rendering so that we can detect a mismatch and show a white overlay before
- * any layout is painted.
+ * rendering so that we can detect a mismatch and show a white overlay before any
+ * layout is painted.
  *
  * If the spacing scales don't match, we add `data-spacing-mismatch` to `<html>`
  * which triggers a white overlay. The overlay is removed by
@@ -56,13 +56,13 @@ export function useSpacingScale(): SpacingScale {
 
 /**
  * What is the `SpacingScale` we use for the initial render based on our
- * `ClientInfo`? The `SpacingScale` is ultimately determined by the window size
- * but during a server render we only have the device's screen size in our
- * `ClientInfo` cookie.
+ * `ClientInfo`? The `SpacingScale` is ultimately determined by the window size but
+ * during a server render we only have the device's screen size in our `ClientInfo`
+ * cookie.
  *
  * If `initialWindowSpacingScale` is available in `ClientInfo`, we use that
- * directly since it's more accurate than computing from screen size. Otherwise,
- * we fall back to computing from screen size.
+ * directly since it's more accurate than computing from screen size. Otherwise, we
+ * fall back to computing from screen size.
  */
 export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): SpacingScale {
     // If we have the window spacing scale from a previous load, use that.
@@ -76,9 +76,8 @@ export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): Spacing
 }
 
 /**
- * Get the current `SpacingScale` for the app without listening for changes.
- * Prefer using `useSpacingScale()` so if the scale changes your component will
- * re-render.
+ * Get the current `SpacingScale` for the app without listening for changes. Prefer
+ * using `useSpacingScale()` so if the scale changes your component will re-render.
  */
 export function getSpacingScaleWithoutListening(): SpacingScale {
     if (NativeMobileBridge) return "large";
@@ -88,8 +87,8 @@ export function getSpacingScaleWithoutListening(): SpacingScale {
 }
 
 /**
- * Get the current number of pixels in 1rem. Prefer `useRemPx()` so if the
- * screen size changes your component will re-render.
+ * Get the current number of pixels in 1rem. Prefer `useRemPx()` so if the screen
+ * size changes your component will re-render.
  */
 export function getRemPxWithoutListening(): number {
     return remPxBySpacingScale[getSpacingScaleWithoutListening()];
@@ -102,19 +101,18 @@ let sharedMediaQueryListener: {
 } | null = null;
 
 /**
- * Subscribe to changes that might update `SpacingScale`. To know for sure
- * whether `SpacingScale` changed you must call
- * `getSpacingScaleWithoutListening()`. Generally you should prefer using
- * `useSpacingScale()` since it adds one window size listener for the entire
- * React component tree. But this function can be useful if you can't use React
- * for some reason.
+ * Subscribe to changes that might update `SpacingScale`. To know for sure whether
+ * `SpacingScale` changed you must call `getSpacingScaleWithoutListening()`.
+ * Generally you should prefer using `useSpacingScale()` since it adds one window
+ * size listener for the entire React component tree. But this function can be
+ * useful if you can't use React for some reason.
  */
 export function subscribeToSpacingScaleChange(listener: () => void): () => void {
     const unsubscribeFromPlatformChange = subscribeToPlatformChange(listener);
 
-    // We use one shared event listener for changes to our media query so we can
-    // have one React `flushSync()` transaction for all DOM updates that need to
-    // happen in response to the spacing scale changing.
+    // We use one shared event listener for changes to our media query so we can have
+    // one React `flushSync()` transaction for all DOM updates that need to happen in
+    // response to the spacing scale changing.
     if (sharedMediaQueryListener === null) {
         const listeners = new Set<() => void>();
 
@@ -188,8 +186,8 @@ export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
         // Remove the `data-spacing-mismatch` class from the `<html>` element (if it
         // exists) after we've initialized the right spacing scale in state.
         if (document.documentElement.hasAttribute("data-spacing-mismatch")) {
-            // Remove the spacing scale mismatch overlay and update the spacing
-            // scale for React at the same time to avoid any tearing.
+            // Remove the spacing scale mismatch overlay and update the spacing scale for React
+            // at the same time to avoid any tearing.
             document.documentElement.removeAttribute("data-spacing-mismatch");
         }
     }, [hasSetSpacingScale]);

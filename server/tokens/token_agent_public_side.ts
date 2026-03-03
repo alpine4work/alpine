@@ -13,19 +13,19 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
- * The token agent class is responsible for RSA key cryptography between
- * services in our system. This class does tasks related to public keys.
+ * The token agent class is responsible for RSA key cryptography between services
+ * in our system. This class does tasks related to public keys.
  * `TokenAgentPrivateSide` does tasks related to private keys.
  *
- * A service has only its own private key and has the public keys for every
- * other service.
+ * A service has only its own private key and has the public keys for every other
+ * service.
  */
-// TODO(calebmer, #security): We should eventually implement key rotation. No
-// human should ever have access to our system's private keys.
+// TODO(calebmer, #security): We should eventually implement key rotation. No human
+// should ever have access to our system's private keys.
 //
-// TODO(calebmer): When I first wrote this class it only did JWT token signing.
-// Now it also has encryption/decryption methods which means it's a more
-// general purpose RSA cryptography class. Should it be renamed?
+// TODO(calebmer): When I first wrote this class it only did JWT token signing. Now
+// it also has encryption/decryption methods which means it's a more general
+// purpose RSA cryptography class. Should it be renamed?
 export class TokenAgentPublicSide {
     private readonly _serviceName: TokenServiceName;
 
@@ -229,12 +229,12 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and
-     * returns the payload associated with the token when we don't know the token
-     * issuer. Throws an error if the signed token is invalid.
+     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and returns
+     * the payload associated with the token when we don't know the token issuer.
+     * Throws an error if the signed token is invalid.
      *
-     * `verifyTokenFromIssuer()` is slightly more efficient when you know the
-     * issuer up-front.
+     * `verifyTokenFromIssuer()` is slightly more efficient when you know the issuer
+     * up-front.
      */
     public async verifyToken(token: string): Promise<{
         serviceName: TokenServiceName;
@@ -254,9 +254,9 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and
-     * returns the payload associated with the token. Throws an error if the signed
-     * token is invalid.
+     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and returns
+     * the payload associated with the token. Throws an error if the signed token is
+     * invalid.
      */
     public async verifyTokenFromService(
         serviceName: TokenServiceName,
@@ -324,8 +324,8 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a URL produced by any instance of `TokenAgentPrivateSide` when we
-     * don't know the token issuer. Throws an error if the signed URL is invalid.
+     * Verifies a URL produced by any instance of `TokenAgentPrivateSide` when we don't
+     * know the token issuer. Throws an error if the signed URL is invalid.
      */
     public async verifyUrl(url: URL): Promise<{
         serviceName: TokenServiceName;
@@ -337,8 +337,8 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a URL produced by any instance of `TokenAgentPrivateSide`. Throws
-     * an error if the signed URL is invalid.
+     * Verifies a URL produced by any instance of `TokenAgentPrivateSide`. Throws an
+     * error if the signed URL is invalid.
      */
     public async verifyUrlFromService(serviceName: TokenServiceName, url: URL): Promise<void> {
         const token = this._getUrlToken(url);
@@ -355,8 +355,8 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Encrypt some sensitive data for the provided audience. Generates a compact
-     * JWE string. See [this explainer][1] for more information on JWE.
+     * Encrypt some sensitive data for the provided audience. Generates a compact JWE
+     * string. See [this explainer][1] for more information on JWE.
      *
      * [1]: https://www.scottbrady91.com/jose/json-web-encryption
      */
@@ -364,8 +364,7 @@ export class TokenAgentPublicSide {
         const audiencePublicKey = this._getServicePublicKeyForRsaOaep(audience);
 
         const encrypter = new CompactEncrypt(new TextEncoder().encode(payload))
-            // Algorithm taken from:
-            // https://www.scottbrady91.com/jose/json-web-encryption
+            // Algorithm taken from: https://www.scottbrady91.com/jose/json-web-encryption
             .setProtectedHeader({alg: "RSA-OAEP", enc: "A256CBC-HS512"});
 
         return encrypter.encrypt(audiencePublicKey);

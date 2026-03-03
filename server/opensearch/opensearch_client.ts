@@ -61,10 +61,10 @@ export type OpensearchClientDocWithId<DocId, Doc> = {
 } & Doc;
 
 /**
- * The version of the document used for [optimistic concurrency
- * control][1].
+ * The version of the document used for [optimistic concurrency control][1].
  *
- * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+ * [1]:
+ *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
  */
 export type OpensearchClientDocVersion = {
     readonly sequenceNumber: number;
@@ -93,17 +93,18 @@ export type OpensearchClientBulkOptions = {
 };
 
 /**
- * The interface implemented by an `OpensearchClient` which allows us to have
- * other interfaces.
+ * The interface implemented by an `OpensearchClient` which allows us to have other
+ * interfaces.
  */
 export interface OpensearchClientInterface {
     /**
      * Gets a document by the provided ID using the [get document API][1].
      *
-     * We do not automatically batch calls to this function. To load multiple
-     * documents with one API call see `multiGetDocsIfExist()`.
+     * We do not automatically batch calls to this function. To load multiple documents
+     * with one API call see `multiGetDocsIfExist()`.
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     getDocIfExists<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -117,10 +118,11 @@ export interface OpensearchClientInterface {
     > | null>;
 
     /**
-     * Gets a document by the provided ID using the [get document API][1] but
-     * without `_source` and with `stored_fields`.
+     * Gets a document by the provided ID using the [get document API][1] but without
+     * `_source` and with `stored_fields`.
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     getDocWithoutSourceIfExists<
         Index extends OpensearchIndex<any, any, any, any, any>,
@@ -146,8 +148,8 @@ export interface OpensearchClientInterface {
     } | null>;
 
     /**
-     * Gets multiple documents in one network request using the [multi-get
-     * documents API][1].
+     * Gets multiple documents in one network request using the [multi-get documents
+     * API][1].
      *
      * Documents are returned in the order `DocId`s were provided in.
      *
@@ -163,8 +165,8 @@ export interface OpensearchClientInterface {
     }>;
 
     /**
-     * Gets multiple documents in one network request using the [multi-get
-     * documents API][1].
+     * Gets multiple documents in one network request using the [multi-get documents
+     * API][1].
      *
      * This method is slightly more efficient than `multiGetDocsIfExist()` since
      * `multiGetDocsIfExist()` calls this method and turns the map into an array.
@@ -179,12 +181,14 @@ export interface OpensearchClientInterface {
     /**
      * Indexes a single document using the [index document API][1].
      *
-     * You must provide the document's version. This call will fail if the version
-     * does not match what's in OpenSearch. This implements [optimistic concurrency
+     * You must provide the document's version. This call will fail if the version does
+     * not match what's in OpenSearch. This implements [optimistic concurrency
      * control][2].
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/index-document/
-     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/index-document/
+     * [2]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     indexDocIfVersion<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -198,15 +202,16 @@ export interface OpensearchClientInterface {
     ): Promise<void>;
 
     /**
-     * Lets you add, update, or delete multiple documents in a single request using
-     * the [bulk API][1].
+     * Lets you add, update, or delete multiple documents in a single request using the
+     * [bulk API][1].
      *
      * We have a special `IndexIfVersion` that will only index the document if it's
-     * version matches what's in the source. This implements [optimistic
-     * concurrency control][2].
+     * version matches what's in the source. This implements [optimistic concurrency
+     * control][2].
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
-     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     * [2]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     bulk<const Commands extends ReadonlyArray<OpensearchBulkCommandBase<any>>>(
         tracer: TracerBase,
@@ -215,8 +220,7 @@ export interface OpensearchClientInterface {
     ): Promise<void>;
 
     /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1].
+     * Lets you execute a search against an OpenSearch index with the [search API][1].
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
@@ -255,8 +259,8 @@ export interface OpensearchClientInterface {
                 /**
                  * The list of query names that the result matched.
                  *
-                 * When we query opensearch with filters, we create one query per filter. OpenSearch
-                 * results can match multiple queries.
+                 * When we query opensearch with filters, we create one query per filter.
+                 * OpenSearch results can match multiple queries.
                  */
                 readonly matchedQueries?: ReadonlyArray<string>;
             }
@@ -264,12 +268,11 @@ export interface OpensearchClientInterface {
     }>;
 
     /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1] without returning the OpenSearch docs, just there IDs.
+     * Lets you execute a search against an OpenSearch index with the [search API][1]
+     * without returning the OpenSearch docs, just there IDs.
      *
-     * This can be much more efficient than a regular `search()` since looking up
-     * docs in OpenSearch can be an expensive step once query results are
-     * determined.
+     * This can be much more efficient than a regular `search()` since looking up docs
+     * in OpenSearch can be an expensive step once query results are determined.
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
@@ -315,8 +318,8 @@ export interface OpensearchClientInterface {
             /**
              * The list of query names that the result matched.
              *
-             * When we query opensearch with filters, we create one query per filter. OpenSearch
-             * results can match multiple queries.
+             * When we query opensearch with filters, we create one query per filter.
+             * OpenSearch results can match multiple queries.
              */
             readonly matchedQueries?: ReadonlyArray<string>;
         }>;
@@ -325,7 +328,8 @@ export interface OpensearchClientInterface {
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
      *
-     * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
+     * [1]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
      */
     refresh<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -335,7 +339,8 @@ export interface OpensearchClientInterface {
     /**
      * Analyze some text using the [analysis API][1].
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
      */
     analyze<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -354,19 +359,18 @@ export interface OpensearchClientInterface {
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
-//                                 IMPORTANT                                 //
+// IMPORTANT //
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 //
-// > TL;DR: Everywhere in this file where you serialize or parse JSON, you
-// > should include a `// NOTE(#opensearch-important-json-disclaimer):`
-// > comment.
+// > TL;DR: Everywhere in this file where you serialize or parse JSON, you should
+// > include a `// NOTE(#opensearch-important-json-disclaimer):` comment.
 // >
 // > For the reason why and what to put in that comment keep reading...
 //
-// OpenSearch returns `long` and `unsigned_long` values as JSON numbers.
-// However, JavaScript's `JSON.parse()` coerces all JSON numbers to JavaScript
-// numbers which are 64-bit floats. A 64-bit float can not safely hold a 64-bit
-// unsigned or signed integer.
+// OpenSearch returns `long` and `unsigned_long` values as JSON numbers. However,
+// JavaScript's `JSON.parse()` coerces all JSON numbers to JavaScript numbers which
+// are 64-bit floats. A 64-bit float can not safely hold a 64-bit unsigned or
+// signed integer.
 //
 // For example, ElasticSearch may return the response:
 //
@@ -403,18 +407,18 @@ export interface OpensearchClientInterface {
 // Since `110849034631512066` can't be represented as a 64-bit float.
 //
 // We store OpenSearch `long`s as strings in the document `_source`. If we're
-// requesting `_source` OpenSearch will give us back the stringified value. So
-// this is only a problem when OpenSearch sends the value it's parsed from
-// `_source` internally. For example the `sort` field in the example above.
+// requesting `_source` OpenSearch will give us back the stringified value. So this
+// is only a problem when OpenSearch sends the value it's parsed from `_source`
+// internally. For example the `sort` field in the example above.
 //
-// We've installed the library `json-bigint` to get correct JSON parsing for
-// big integers. However, since it's implemented in JavaScript it's slightly
-// less efficient than native streaming implementations.
+// We've installed the library `json-bigint` to get correct JSON parsing for big
+// integers. However, since it's implemented in JavaScript it's slightly less
+// efficient than native streaming implementations.
 //
-// Everywhere in this file where you serialize or parse JSON, you should
-// include a `// NOTE(#opensearch-important-json-disclaimer):` comment
-// explaining why your chose JSON stringify/parse methodology is safe. Or why
-// you need to use `json-bigint`.
+// Everywhere in this file where you serialize or parse JSON, you should include a
+// `// NOTE(#opensearch-important-json-disclaimer):` comment explaining why your
+// chose JSON stringify/parse methodology is safe. Or why you need to use
+// `json-bigint`.
 
 export type OpensearchMultiGetDocCommandOutputType<
     Command extends OpensearchMultiGetDocCommandBase<any, any>,
@@ -729,9 +733,9 @@ type OpensearchSearchHit = {
      * A list of queries that the document matched. We can "name" queries by using the
      * `_name` parameter. We can assign unique `_name`s to each filter.
      *
-     * > If you want to identify which of these clauses actually caused the matching results,
-     * name each query with the _name parameter... `matched_queries` is an array that lists
-     * the queries that matched these results
+     * > If you want to identify which of these clauses actually caused the matching
+     * > results, name each query with the \_name parameter... `matched_queries` is an
+     * > array that lists the queries that matched these results
      *
      * https://docs.opensearch.org/latest/query-dsl/compound/bool/
      */
@@ -770,9 +774,9 @@ export class OpensearchClient implements OpensearchClientInterface {
     >();
 
     /**
-     * Creates the OpenSearch index if it doesn't exist. This function is
-     * idempotent. You may call it multiple times and it will produce the same
-     * response. Only attempts to create the index once per process.
+     * Creates the OpenSearch index if it doesn't exist. This function is idempotent.
+     * You may call it multiple times and it will produce the same response. Only
+     * attempts to create the index once per process.
      *
      * Throws an error in production. Use `deployIndex()` in production.
      */
@@ -792,21 +796,22 @@ export class OpensearchClient implements OpensearchClientInterface {
             await tracer.withSpan("Waiting for OpenSearch to start", async () => {
                 assert(this._url.hostname === "localhost");
 
-                // We don't wait for OpenSearch to start before executing code in our dev
-                // server and tests. That's because OpenSearch takes ~7s to start. That means
-                // we need to wait for it here before we can use it.
+                // We don't wait for OpenSearch to start before executing code in our dev server
+                // and tests. That's because OpenSearch takes ~7s to start. That means we need to
+                // wait for it here before we can use it.
                 const port = parseInt(this._url.port, 10);
                 assert(Number.isInteger(port));
                 await waitForHttpServer(port);
 
                 // We need to wait for OpenSearch primary shards to be allocated before we can
-                // check the status of indexes or create new indexes. Otherwise OpenSearch
-                // returns weird partial health errors in integration tests.
+                // check the status of indexes or create new indexes. Otherwise OpenSearch returns
+                // weird partial health errors in integration tests.
                 //
-                // This [endpoint is not available in OpenSearch serverless][1] so we don't run
-                // it in production.
+                // This [endpoint is not available in OpenSearch serverless][1] so we don't run it
+                // in production.
                 //
-                // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
+                // [1]:
+                //     https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
                 await fetchWithTracer(
                     tracer,
                     new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", this._url),
@@ -817,14 +822,13 @@ export class OpensearchClient implements OpensearchClientInterface {
                         method: "GET",
                     },
                     async response => {
-                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                        // float-64 size in cluster health. Ok to use native JSON parser instead of
-                        // `json-bigint`.
+                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                        // size in cluster health. Ok to use native JSON parser instead of `json-bigint`.
                         const body = await response.json();
                         if (!response.ok) {
                             throw new InternalError(
-                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                // so it's ok to stringify with native JSON parser.
+                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser so
+                                // it's ok to stringify with native JSON parser.
                                 `OpenSearch health check failed: ${JSON.stringify(body)}`,
                             );
                         }
@@ -870,10 +874,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             // After creating the index, wait for the index to have green status before
             // allowing any new requests.
             //
-            // [ElasticSearch integration tests wait for newly-created indexes to be
-            // `green` before proceeding][1]. We're following their example.
+            // [ElasticSearch integration tests wait for newly-created indexes to be `green`
+            // before proceeding][1]. We're following their example.
             //
-            // [1]: https://discuss.elastic.co/t/no-shard-available-action-exception-in-integration-tests/262941/3
+            // [1]:
+            //     https://discuss.elastic.co/t/no-shard-available-action-exception-in-integration-tests/262941/3
             await fetchWithTracer(
                 tracer,
                 new URL(
@@ -887,14 +892,13 @@ export class OpensearchClient implements OpensearchClientInterface {
                     method: "GET",
                 },
                 async response => {
-                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                    // float-64 size in cluster health. Ok to use native JSON parser instead of
-                    // `json-bigint`.
+                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                    // size in cluster health. Ok to use native JSON parser instead of `json-bigint`.
                     const body = await response.json();
                     if (!response.ok) {
                         throw new InternalError(
-                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                            // so it's ok to stringify with native JSON parser.
+                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser so
+                            // it's ok to stringify with native JSON parser.
                             `OpenSearch health check failed: ${JSON.stringify(body)}`,
                         );
                     }
@@ -930,13 +934,13 @@ export class OpensearchClient implements OpensearchClientInterface {
     /**
      * Deploys the OpenSearch index configuration and mapping. This function is
      * idempotent. You can call it multiple times and it should produce the same
-     * response. We call it whenever the process restarts in development to make
-     * sure the latest index updates are properly incorporated.
+     * response. We call it whenever the process restarts in development to make sure
+     * the latest index updates are properly incorporated.
      *
      * We also call this function as part of our production deployment process. If
-     * nothing in the index has changed this will be a noop (since this is
-     * idempotent). Only dynamic index settings can be updated. Static index
-     * settings must stay the same after the index has been created.
+     * nothing in the index has changed this will be a noop (since this is idempotent).
+     * Only dynamic index settings can be updated. Static index settings must stay the
+     * same after the index has been created.
      */
     private async _deployIndex<
         Routing extends string,
@@ -962,9 +966,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                         signal,
                     },
                     async response => {
-                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                        // float-64 size in settings. Ok to use native JSON parser instead of
-                        // `json-bigint`.
+                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                        // size in settings. Ok to use native JSON parser instead of `json-bigint`.
                         const getBody:
                             | {error: {type: string}}
                             | {
@@ -974,8 +977,8 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                         if (getBody.error && getBody.error?.type !== "index_not_found_exception") {
                             throw new InternalError(
-                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                // so it's ok to stringify with native JSON parser.
+                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser so
+                                // it's ok to stringify with native JSON parser.
                                 `Getting OpenSearch index failed: ${JSON.stringify(getBody)}`,
                             );
                         }
@@ -987,9 +990,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // If the index does not already exists then create a new one.
                 if (getBody.error) {
                     try {
-                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                        // float-64 size in settings. Ok to use native JSON stringifier instead of
-                        // `json-bigint`.
+                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                        // size in settings. Ok to use native JSON stringifier instead of `json-bigint`.
                         const requestBody = JSON.stringify(index.config);
 
                         const requestHeaders: {[key: string]: string} = {
@@ -1009,15 +1011,14 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 signal,
                             },
                             async response => {
-                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                // float-64 size in settings. Ok to use native JSON parser instead of
-                                // `json-bigint`.
+                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                                // size in settings. Ok to use native JSON parser instead of `json-bigint`.
                                 const body = await response.json();
 
                                 if (!response.ok) {
                                     throw new InternalError(
-                                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                        // so it's ok to stringify with native JSON parser.
+                                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser so
+                                        // it's ok to stringify with native JSON parser.
                                         `Creating OpenSearch index failed: ${JSON.stringify(body)}`,
                                         {cause: body.error},
                                     );
@@ -1025,9 +1026,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                             },
                         );
                     } catch (error) {
-                        // We may have a concurrent process also trying to create the index. If we try
-                        // to create the index and it fails, try reading the index again to see if it
-                        // exists now.
+                        // We may have a concurrent process also trying to create the index. If we try to
+                        // create the index and it fails, try reading the index again to see if it exists
+                        // now.
                         if (
                             error instanceof Error &&
                             isObject(error.cause) &&
@@ -1039,13 +1040,13 @@ export class OpensearchClient implements OpensearchClientInterface {
                         throw error;
                     }
                 }
-                // If the index does exist then check that the static configuration hasn't
-                // changed and update the index's dynamic configuration.
+                // If the index does exist then check that the static configuration hasn't changed
+                // and update the index's dynamic configuration.
                 else {
                     const previousIndexConfig = assertExists(getBody[index.name]);
 
-                    // If there are no custom filters/analyzers in our settings then set the
-                    // empty object.
+                    // If there are no custom filters/analyzers in our settings then set the empty
+                    // object.
                     if (!previousIndexConfig.settings.analysis) {
                         (previousIndexConfig.settings as any).analysis = {
                             filter: {},
@@ -1054,8 +1055,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }
 
                     // We observe that when reading index settings, analysis properties are nested
-                    // under `index`. But the documentation says we should create analyzers at the
-                    // root level. Confusing!
+                    // under `index`. But the documentation says we should create analyzers at the root
+                    // level. Confusing!
                     if ((previousIndexConfig.settings.index as any).analysis) {
                         (previousIndexConfig.settings as any).analysis = (
                             previousIndexConfig.settings.index as any
@@ -1063,8 +1064,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                         delete (previousIndexConfig.settings.index as any).analysis;
                     }
 
-                    // `number_of_shards` and `routing_partition_size` are returned as strings.
-                    // Treat them as integers.
+                    // `number_of_shards` and `routing_partition_size` are returned as strings. Treat
+                    // them as integers.
                     (previousIndexConfig.settings as any).index.number_of_shards = JSON.parse(
                         (previousIndexConfig.settings as any).index.number_of_shards,
                     );
@@ -1077,8 +1078,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                         );
                     }
 
-                    // These properties are converted into a `string`. Convert them back to
-                    // booleans.
+                    // These properties are converted into a `string`. Convert them back to booleans.
                     if (previousIndexConfig.settings.analysis?.filter) {
                         for (const filter of Object.values(
                             previousIndexConfig.settings.analysis.filter,
@@ -1110,9 +1110,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }
 
                     // Unfortunately, when we read settings ElasticSearch doesn't return
-                    // `number_of_routing_shards`. We need to get it from a separate endpoint to
-                    // make sure it hasn't changed.
-                    // https://github.com/elastic/elasticsearch/issues/33036
+                    // `number_of_routing_shards`. We need to get it from a separate endpoint to make
+                    // sure it hasn't changed. https://github.com/elastic/elasticsearch/issues/33036
                     {
                         const numberOfRoutingShards = await fetchWithTracer(
                             tracer,
@@ -1136,9 +1135,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 }
 
                                 const numberOfRoutingShards: number = assertExists(
-                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                    // float-64 size in settings. Ok to use native JSON parser instead of
-                                    // `json-bigint`.
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                                    // size in settings. Ok to use native JSON parser instead of `json-bigint`.
                                     (await response.json()).metadata.indices[index.name]
                                         .routing_num_shards,
                                 );
@@ -1164,9 +1162,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                         )
                     ) {
                         throw new InternalError(
-                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                            // float-64 size in settings. Ok to use native JSON stringifier instead of
-                            // `json-bigint`.
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                            // size in settings. Ok to use native JSON stringifier instead of `json-bigint`.
                             `OpenSearch index static settings changed: ${JSON.stringify(
                                 {old: previousIndexStaticConfig, new: indexStaticConfig},
                                 null,
@@ -1177,9 +1174,8 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                     await runAllPromiseThunks(
                         async () => {
-                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                            // float-64 size in settings. Ok to use native JSON stringifier instead of
-                            // `json-bigint`.
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                            // size in settings. Ok to use native JSON stringifier instead of `json-bigint`.
                             const requestBody = JSON.stringify(
                                 omitOpensearchStaticIndexConfig(index.config).settings,
                             );
@@ -1201,15 +1197,14 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     signal,
                                 },
                                 async response => {
-                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                    // float-64 size in settings. Ok to use native JSON parser instead of
-                                    // `json-bigint`.
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                                    // size in settings. Ok to use native JSON parser instead of `json-bigint`.
                                     const body = await response.json();
 
                                     if (!response.ok) {
                                         throw new InternalError(
-                                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                            // so it's ok to stringify with native JSON parser.
+                                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser so
+                                            // it's ok to stringify with native JSON parser.
                                             `Updating OpenSearch index failed: ${JSON.stringify(
                                                 body,
                                             )}`,
@@ -1219,9 +1214,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                             );
                         },
                         async () => {
-                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                            // float-64 size in settings. Ok to use native JSON stringifier instead of
-                            // `json-bigint`.
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                            // size in settings. Ok to use native JSON stringifier instead of `json-bigint`.
                             const requestBody = JSON.stringify(index.config.mappings);
 
                             const requestHeaders: {[key: string]: string} = {
@@ -1241,15 +1235,14 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     signal,
                                 },
                                 async response => {
-                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                    // float-64 size in settings. Ok to use native JSON parser instead of
-                                    // `json-bigint`.
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond float-64
+                                    // size in settings. Ok to use native JSON parser instead of `json-bigint`.
                                     const body = await response.json();
 
                                     if (!response.ok) {
                                         throw new InternalError(
-                                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                            // so it's ok to stringify with native JSON parser.
+                                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser so
+                                            // it's ok to stringify with native JSON parser.
                                             `Updating OpenSearch index failed: ${JSON.stringify(
                                                 body,
                                             )}`,
@@ -1267,10 +1260,11 @@ export class OpensearchClient implements OpensearchClientInterface {
     /**
      * Gets a document by the provided ID using the [get document API][1].
      *
-     * We do not automatically batch calls to this function. To load multiple
-     * documents with one API call see `multiGetDocsIfExist()`.
+     * We do not automatically batch calls to this function. To load multiple documents
+     * with one API call see `multiGetDocsIfExist()`.
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     public async getDocIfExists<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -1311,9 +1305,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 });
 
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-                // to strings to maintain precision. Ok to use native JSON parser since `long`s
-                // will be strings and we know how to handle those strings.
+                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s to
+                // strings to maintain precision. Ok to use native JSON parser since `long`s will
+                // be strings and we know how to handle those strings.
                 const body:
                     | {error: OpensearchError}
                     | ({
@@ -1360,10 +1354,11 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
-     * Gets a document by the provided ID using the [get document API][1] but
-     * without `_source` and with `stored_fields`.
+     * Gets a document by the provided ID using the [get document API][1] but without
+     * `_source` and with `stored_fields`.
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     public async getDocWithoutSourceIfExists<
         Index extends OpensearchIndex<any, any, any, any, any>,
@@ -1424,9 +1419,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 });
 
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-                // to strings to maintain precision. Ok to use native JSON parser since `long`s
-                // will be strings and we know how to handle those strings.
+                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s to
+                // strings to maintain precision. Ok to use native JSON parser since `long`s will
+                // be strings and we know how to handle those strings.
                 const body:
                     | {error: OpensearchError}
                     | ({
@@ -1476,8 +1471,8 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
-     * Gets multiple documents in one network request using the [multi-get
-     * documents API][1].
+     * Gets multiple documents in one network request using the [multi-get documents
+     * API][1].
      *
      * Documents are returned in the order `DocId`s were provided in.
      *
@@ -1501,8 +1496,8 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
-     * Gets multiple documents in one network request using the [multi-get
-     * documents API][1].
+     * Gets multiple documents in one network request using the [multi-get documents
+     * API][1].
      *
      * This method is slightly more efficient than `multiGetDocsIfExist()` since
      * `multiGetDocsIfExist()` calls this method and turns the map into an array.
@@ -1606,9 +1601,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 });
 
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-                // to strings to maintain precision. Ok to use native JSON parser since `long`s
-                // will be strings and we know how to handle those strings.
+                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s to
+                // strings to maintain precision. Ok to use native JSON parser since `long`s will
+                // be strings and we know how to handle those strings.
                 const body:
                     | {error: OpensearchError}
                     | {
@@ -1670,9 +1665,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                     opensearch: {
                         mget: {
                             foundCount,
-                            // TODO(calebmer): I don't think it's guaranteed that `body.docs` will be in
-                            // the same order as the `ids` we passed in. Ideally we would make sure these
-                            // arrays are in the same order as the input `ids`.
+                            // TODO(calebmer): I don't think it's guaranteed that `body.docs` will be in the
+                            // same order as the `ids` we passed in. Ideally we would make sure these arrays
+                            // are in the same order as the input `ids`.
                             seqNos: spanSeqNos.join(", "),
                             primaryTerms: spanPrimaryTerms.join(", "),
                         },
@@ -1703,12 +1698,14 @@ export class OpensearchClient implements OpensearchClientInterface {
     /**
      * Indexes a single document using the [index document API][1].
      *
-     * You must provide the document's version. This call will fail if the version
-     * does not match what's in OpenSearch. This implements [optimistic concurrency
+     * You must provide the document's version. This call will fail if the version does
+     * not match what's in OpenSearch. This implements [optimistic concurrency
      * control][2].
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/index-document/
-     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/index-document/
+     * [2]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     public async indexDocIfVersion<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -1736,9 +1733,9 @@ export class OpensearchClient implements OpensearchClientInterface {
         }
 
         // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-        // to strings to maintain precision. Ok to use native JSON stringifier since
-        // `long`s will be strings and we know how to handle those strings.
+        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s to
+        // strings to maintain precision. Ok to use native JSON stringifier since `long`s
+        // will be strings and we know how to handle those strings.
         const requestBody = JSON.stringify(index.type.serialize(doc));
 
         const requestHeaders: {[key: string]: string} = {
@@ -1776,8 +1773,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     },
                 });
 
-                // NOTE(#opensearch-important-json-disclaimer): This response only contains
-                // errors and the error numbers fit in 64-bit floats.
+                // NOTE(#opensearch-important-json-disclaimer): This response only contains errors
+                // and the error numbers fit in 64-bit floats.
                 const body:
                     | {_seq_no: number; _primary_term: number; error?: undefined}
                     | {error: OpensearchError} = await response.json();
@@ -1810,15 +1807,16 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
-     * Lets you add, update, or delete multiple documents in a single request using
-     * the [bulk API][1].
+     * Lets you add, update, or delete multiple documents in a single request using the
+     * [bulk API][1].
      *
      * We have a special `IndexIfVersion` that will only index the document if it's
-     * version matches what's in the source. This implements [optimistic
-     * concurrency control][2].
+     * version matches what's in the source. This implements [optimistic concurrency
+     * control][2].
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
-     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     * [2]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     public async bulk<const Commands extends ReadonlyArray<OpensearchBulkCommandBase<any>>>(
         tracer: TracerBase,
@@ -1879,9 +1877,9 @@ export class OpensearchClient implements OpensearchClientInterface {
         }
 
         // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-        // to strings to maintain precision. Ok to use native JSON stringifier since
-        // `long`s will be strings and we know how to handle those strings.
+        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s to
+        // strings to maintain precision. Ok to use native JSON stringifier since `long`s
+        // will be strings and we know how to handle those strings.
         const requestBody = bulkBody.map(object => `${JSON.stringify(object)}\n`).join("");
 
         const requestHeaders: {[key: string]: string} = {
@@ -1923,8 +1921,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     },
                 });
 
-                // NOTE(#opensearch-important-json-disclaimer): This response only contains
-                // errors and the error numbers fit in 64-bit floats.
+                // NOTE(#opensearch-important-json-disclaimer): This response only contains errors
+                // and the error numbers fit in 64-bit floats.
                 const body:
                     | {error: OpensearchError}
                     | {
@@ -1976,10 +1974,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                         error => error.type === "version_conflict_engine_exception",
                     );
 
-                    // If the only errors were version conflicts, allow the caller to retry the
-                    // error. This implements [optimistic concurrency control][1].
+                    // If the only errors were version conflicts, allow the caller to retry the error.
+                    // This implements [optimistic concurrency control][1].
                     //
-                    // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+                    // [1]:
+                    //     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
                     if (errors.length === 0 && versionConflictErrors.length > 0) {
                         return new FailedPreconditionError(
                             `OpenSearch bulk version conflicts in ${versionConflictErrors.length} operation(s) out of ${body.items.length} operation(s)`,
@@ -2010,9 +2009,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 span.addData({
                     opensearch: {
                         bulk: {
-                            // TODO(calebmer): I don't think it's guaranteed that `body.items` will be in
-                            // the same order as the `commands` we passed in. Ideally we would make sure
-                            // these arrays are in the same order as the input `commands`.
+                            // TODO(calebmer): I don't think it's guaranteed that `body.items` will be in the
+                            // same order as the `commands` we passed in. Ideally we would make sure these
+                            // arrays are in the same order as the input `commands`.
                             seqNos: spanSeqNos.join(", "),
                             primaryTerms: spanPrimaryTerms.join(", "),
                         },
@@ -2063,27 +2062,30 @@ export class OpensearchClient implements OpensearchClientInterface {
         url.searchParams.set("routing", routing);
         url.searchParams.set("size", String(size));
 
-        // Important optimization. This means if we've satisfied the search's `size`
-        // limit then we can immediately end the query and return instead of scanning
-        // the entire index. [Works well with index sorting][1].
+        // Important optimization. This means if we've satisfied the search's `size` limit
+        // then we can immediately end the query and return instead of scanning the entire
+        // index. [Works well with index sorting][1].
         //
         // This also enables optimizations for queries with common terms like "the" and
         // "and". Since a query with "the" might match millions of documents. See [this
         // deprecation message][2]. Also see [this blog post from 2013][3] which is
         // outdated since `cutoff_frequency` has been deprecated.
         //
-        // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
-        // [2]: https://github.com/opensearch-project/OpenSearch/blob/60b2265d9390f27f80803f16eb4d1c5cdc0f4947/server/src/main/java/org/opensearch/index/query/MatchQueryBuilder.java#L61-L62
-        // [3]: https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
+        // [1]:
+        //     https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
+        // [2]:
+        //     https://github.com/opensearch-project/OpenSearch/blob/60b2265d9390f27f80803f16eb4d1c5cdc0f4947/server/src/main/java/org/opensearch/index/query/MatchQueryBuilder.java#L61-L62
+        // [3]:
+        //     https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
         url.searchParams.set("track_total_hits", "false");
 
         // Don't return partial results in case of error or timeout.
         url.searchParams.set("allow_partial_search_results", "false");
 
-        // If a `TaskRealtimeService` search request takes a long time then it may
-        // leave the action history visibility window. Bounding the time a search may
-        // take means we leave the rest of the visibility window (9.5min when the
-        // visibility window is 10min) for indexing actions.
+        // If a `TaskRealtimeService` search request takes a long time then it may leave
+        // the action history visibility window. Bounding the time a search may take means
+        // we leave the rest of the visibility window (9.5min when the visibility window is
+        // 10min) for indexing actions.
         url.searchParams.set("timeout", "30s");
         url.searchParams.set("cancel_after_time_interval", "30s");
 
@@ -2095,9 +2097,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url.searchParams.set("explain", "true");
         }
 
-        // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
-        // bigints we want to stringify as JSON integer literals so we need to use
-        // `json-bigint`.
+        // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain bigints
+        // we want to stringify as JSON integer literals so we need to use `json-bigint`.
         const requestBody = JsonBigInt.stringify({
             query,
             sort,
@@ -2138,13 +2139,13 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // deserialized with our index object type. `_source`s correctly serialize big
                 // integers for JavaScript (they're stringified).
                 //
-                // However, `sort` values are a problem here! OpenSearch returns sort values in
-                // its internal format. So a `long` will be a JSON number and that JSON number
-                // may be too big to represent in a JavaScript 64-bit float so we'll get an
-                // imprecise value.
+                // However, `sort` values are a problem here! OpenSearch returns sort values in its
+                // internal format. So a `long` will be a JSON number and that JSON number may be
+                // too big to represent in a JavaScript 64-bit float so we'll get an imprecise
+                // value.
                 //
-                // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
-                // `sort` values unless you parse with `json-bigint`.
+                // If we ignore `sort` values we'll be fine. Keep in mind that you can't use `sort`
+                // values unless you parse with `json-bigint`.
                 const body:
                     | {
                           hits: {hits: Array<OpensearchSearchHit>};
@@ -2171,12 +2172,11 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1].
+     * Lets you execute a search against an OpenSearch index with the [search API][1].
      *
      * Returned documents do not include the document version (`sequenceNumber` and
-     * `primaryTerm`). This is not returned by default from the OpenSearch search
-     * API. It may be expensive to fetch the version because search is operating on
+     * `primaryTerm`). This is not returned by default from the OpenSearch search API.
+     * It may be expensive to fetch the version because search is operating on
      * potentially stale data until the next refresh.
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
@@ -2293,12 +2293,11 @@ export class OpensearchClient implements OpensearchClientInterface {
     }
 
     /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1] without returning the OpenSearch docs, just there IDs.
+     * Lets you execute a search against an OpenSearch index with the [search API][1]
+     * without returning the OpenSearch docs, just there IDs.
      *
-     * This can be much more efficient than a regular `search()` since looking up
-     * docs in OpenSearch can be an expensive step once query results are
-     * determined.
+     * This can be much more efficient than a regular `search()` since looking up docs
+     * in OpenSearch can be an expensive step once query results are determined.
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
@@ -2441,7 +2440,8 @@ export class OpensearchClient implements OpensearchClientInterface {
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
      *
-     * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
+     * [1]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
      */
     public async refresh<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -2485,7 +2485,8 @@ export class OpensearchClient implements OpensearchClientInterface {
     /**
      * Analyze some text using the [analysis API][1].
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
      */
     public async analyze<Index extends OpensearchIndex<any, any, any, any, any>>(
         tracer: TracerBase,
@@ -2533,9 +2534,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 body: requestBody,
             },
             async response => {
-                // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
-                // should safely fit into JavaScript float-64 numbers so we don't need to use
-                // bigint parsing.
+                // NOTE(#opensearch-important-json-disclaimer): All numbers in this response should
+                // safely fit into JavaScript float-64 numbers so we don't need to use bigint
+                // parsing.
                 const body:
                     | {error: OpensearchError}
                     | {
@@ -2568,8 +2569,8 @@ export class OpensearchClient implements OpensearchClientInterface {
 }
 
 /**
- * If we have a test with OpenSearch disabled, we use this client which
- * throws whenever you try to access anything from OpenSearch.
+ * If we have a test with OpenSearch disabled, we use this client which throws
+ * whenever you try to access anything from OpenSearch.
  */
 export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     constructor() {
@@ -2626,10 +2627,10 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
 
 function formatOpensearchError(error: OpensearchError): string {
     // TODO(calebmer, #security): It actually may be dangerous for us to include
-    // `error.reason` in the error message. If OpenSearch includes customer data
-    // in `error.reason` then we shouldn't include it in error messages since error
-    // messages are visible to anyone with access to our logs. This would be a
-    // security leak of since any engineer could see customer data!
+    // `error.reason` in the error message. If OpenSearch includes customer data in
+    // `error.reason` then we shouldn't include it in error messages since error
+    // messages are visible to anyone with access to our logs. This would be a security
+    // leak of since any engineer could see customer data!
     let string = `${error.type}: ${error.reason}`;
 
     if (error.caused_by) string += `. Caused by ${formatOpensearchError(error.caused_by)}`;

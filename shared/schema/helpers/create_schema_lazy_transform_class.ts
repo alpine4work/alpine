@@ -10,13 +10,13 @@ export interface SchemaLazyTransformBase<SerializedValue, DeserializedValue> {
 }
 
 /**
- * Creates a class that lazily serializes/deserializes data from a schema. We
- * don't actually deserialize when reading the data from another process until
- * `get()` is called. If `get()` is never called and the data is serialized
- * back we can reuse the data we were initialized with as-is.
+ * Creates a class that lazily serializes/deserializes data from a schema. We don't
+ * actually deserialize when reading the data from another process until `get()` is
+ * called. If `get()` is never called and the data is serialized back we can reuse
+ * the data we were initialized with as-is.
  *
- * Useful if serialization/deserialization is potentially expensive and you
- * don't always need the deserialized data.
+ * Useful if serialization/deserialization is potentially expensive and you don't
+ * always need the deserialized data.
  */
 export function createSchemaLazyTransformClass<SerializedValue, DeserializedValue>(
     schema: Schema<SerializedValue>,
@@ -63,14 +63,14 @@ export function createSchemaLazyTransformClass<SerializedValue, DeserializedValu
             this._deserializedValue = deserializedValue;
 
             // In Jest eagerly call `get()` and `serialize()` which caches the
-            // serialized/deserialized data so `expect().toEqual()` never shows uncached
-            // data as the reason why two objects don't match. Seeing the cached data can
-            // also help determine the difference in a diff.
+            // serialized/deserialized data so `expect().toEqual()` never shows uncached data
+            // as the reason why two objects don't match. Seeing the cached data can also help
+            // determine the difference in a diff.
             //
             // We also normalize `_serializedValue` by recomputing it from the deserialized
             // value. This ensures consistent comparison in tests regardless of how the
-            // instance was created (from deserialized value vs from serialized value that
-            // went through JSON round-trip).
+            // instance was created (from deserialized value vs from serialized value that went
+            // through JSON round-trip).
             if (import.meta.jest) {
                 this.get();
                 this._serializedValue = uninitializedSymbol;

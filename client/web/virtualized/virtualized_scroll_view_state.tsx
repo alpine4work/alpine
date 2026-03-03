@@ -16,34 +16,32 @@ import {
 } from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-// HACK(calebmer): Hackishly get the constructor for a
-// `functional-red-black-tree` iterator so we can construct it since there's
-// not an official API. This happens to be a tiny bit more efficient than
-// calling `tree.find()` with the node returned from `search()` given we
-// already know the node stack.
+// HACK(calebmer): Hackishly get the constructor for a `functional-red-black-tree`
+// iterator so we can construct it since there's not an official API. This happens
+// to be a tiny bit more efficient than calling `tree.find()` with the node
+// returned from `search()` given we already know the node stack.
 const unsafe_TreeIterator: {
     new <K, V>(tree: Tree<K, V>, stack: Array<TreeNode<K, V>>): TreeIterator<K, V>;
 } = createTree().begin.constructor as any;
 
 /**
- * The height of the virtualization window. Will be larger than the view height
- * so we can render more content that's available when scrolled.
+ * The height of the virtualization window. Will be larger than the view height so
+ * we can render more content that's available when scrolled.
  */
 export function getVirtualizationWindowHeight(viewHeight: number): number {
-    // In Jest tests, our virtualization window height is a simple constant. This
-    // makes it easier to write tests since you can correctly predict which items
-    // should be visible with mental math.
+    // In Jest tests, our virtualization window height is a simple constant. This makes
+    // it easier to write tests since you can correctly predict which items should be
+    // visible with mental math.
     if (import.meta.jest && shouldMockVirtualizationWindowHeightForTest) {
         return viewHeight * 2;
     }
 
     // Currently implemented with a heuristic that smaller screens should have,
-    // proportionally, a larger virtualized window. 1080px tall views get half a
-    // view's worth of content on the top and bottom whereas a smaller 855px screen
-    // will get a full view's worth of content on the top and bottom.
+    // proportionally, a larger virtualized window. 1080px tall views get half a view's
+    // worth of content on the top and bottom whereas a smaller 855px screen will get a
+    // full view's worth of content on the top and bottom.
     //
-    // We don't allow more than a full view's worth of content on the top
-    // and bottom.
+    // We don't allow more than a full view's worth of content on the top and bottom.
     return Math.min(
         viewHeight * 3,
         viewHeight + viewHeight * clamp(0.5, -4 * Math.log(viewHeight / 1080) + 0.5, 2) * 2,
@@ -79,8 +77,8 @@ export type VirtualizedScrollViewStateRenderItemProps = {
      * Get the position of an arbitrary item.
      *
      * For now you can only get the position of an item before the item we're
-     * rendering. That's because while we render the offsets and heights of items
-     * below us may change.
+     * rendering. That's because while we render the offsets and heights of items below
+     * us may change.
      */
     getPositionByIndex: (index: number) => {
         offset: number;
@@ -90,16 +88,16 @@ export type VirtualizedScrollViewStateRenderItemProps = {
     /**
      * The height of the view.
      *
-     * In our initial relative positioning render this value will be an
-     * overestimation of the view height.
+     * In our initial relative positioning render this value will be an overestimation
+     * of the view height.
      */
     viewHeight: number;
 
     /**
      * The content height at the beginning of the render. While we render we may
-     * discover items in our virtualized scroll view have changed and so update
-     * them. This may change the content height! If this happens we will
-     * re-render with the correct content height.
+     * discover items in our virtualized scroll view have changed and so update them.
+     * This may change the content height! If this happens we will re-render with the
+     * correct content height.
      */
     originalContentHeight: number;
 };
@@ -111,16 +109,16 @@ export type VirtualizedScrollViewStateRenderItemProps = {
  */
 export class VirtualizedScrollViewState {
     /**
-     * The height of the virtualized scroll view. Not the height of the content
-     * within the view. Just the height of what the user can see. Used for
-     * computing our rendered range.
+     * The height of the virtualized scroll view. Not the height of the content within
+     * the view. Just the height of what the user can see. Used for computing our
+     * rendered range.
      */
     private readonly _viewHeight: number;
 
     /**
      * The height of a buffered item. Every item we haven't measured has the same
-     * buffered height regardless of the item's type so we don't need to inspect
-     * future items.
+     * buffered height regardless of the item's type so we don't need to inspect future
+     * items.
      */
     private readonly _bufferedItemHeight: number;
 
@@ -134,12 +132,12 @@ export class VirtualizedScrollViewState {
      * `OrderKey`. That means we can insert anywhere in the list in O(log(n)) time.
      * Importantly it also means we can cache computations with subtrees.
      *
-     * To compute the total content height we recursively traverse the tree and sum
-     * up the height. We cache the height of each subtree in
-     * `contentHeightSubtreeCache`. If the height of an item changes, because of
-     * the binary tree's structural sharing, we keep the cached heights for our
-     * subtrees and only need to sum the heights for the new copied parents (which
-     * should take O(log(n)) time, the height of the tree).
+     * To compute the total content height we recursively traverse the tree and sum up
+     * the height. We cache the height of each subtree in `contentHeightSubtreeCache`.
+     * If the height of an item changes, because of the binary tree's structural
+     * sharing, we keep the cached heights for our subtrees and only need to sum the
+     * heights for the new copied parents (which should take O(log(n)) time, the height
+     * of the tree).
      *
      * We do the same subtree caching for item counts (used to figure out what the
      * index of an item is) with `itemCountSubtreeCache`.
@@ -147,21 +145,21 @@ export class VirtualizedScrollViewState {
     private readonly _entryByOrderKey: Tree<OrderKey, VirtualizedScrollViewStateEntry>;
 
     /**
-     * A map of item keys to the corresponding order key in `entryByOrderKey`. You
-     * can use this to look up the index or offset of an item in the virtualized
-     * scroll view.
+     * A map of item keys to the corresponding order key in `entryByOrderKey`. You can
+     * use this to look up the index or offset of an item in the virtualized scroll
+     * view.
      */
     private readonly _orderKeyByItemKey: Tree<Key, OrderKey>;
 
     /**
-     * The range of items rendered by our virtualized scroll view. Null if no items
-     * are currently rendered.
+     * The range of items rendered by our virtualized scroll view. Null if no items are
+     * currently rendered.
      *
-     * This is updated by the `updateRenderedRange()` function which tells our
-     * state object the new scroll offset. We may update the rendered range in
-     * `render()` if we discover the rendered range is out-of-bounds, for instance,
-     * but only bounds correction happens in `render()`. `render()` does not know
-     * about the element's scroll offset.
+     * This is updated by the `updateRenderedRange()` function which tells our state
+     * object the new scroll offset. We may update the rendered range in `render()` if
+     * we discover the rendered range is out-of-bounds, for instance, but only bounds
+     * correction happens in `render()`. `render()` does not know about the element's
+     * scroll offset.
      */
     private readonly _renderedRange: VirtualizedScrollViewStateRenderedRange | null;
 
@@ -261,12 +259,12 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Initialize our scroll view state by rendering some items starting from
-     * the top of the scroll view.
+     * Initialize our scroll view state by rendering some items starting from the top
+     * of the scroll view.
      *
-     * Since on initial render we don't know the actual height of our view we use
-     * the screen height. This is an overestimation that guarantees we won't have
-     * empty space in the view on initial render.
+     * Since on initial render we don't know the actual height of our view we use the
+     * screen height. This is an overestimation that guarantees we won't have empty
+     * space in the view on initial render.
      */
     public static initializeFromTop({
         initialViewHeight,
@@ -344,12 +342,12 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Initialize our scroll view state by rendering some items starting from
-     * the bottom of the scroll view.
+     * Initialize our scroll view state by rendering some items starting from the
+     * bottom of the scroll view.
      *
-     * Since on initial render we don't know the actual height of our view we use
-     * the screen height. This is an overestimation that guarantees we won't have
-     * empty space in the view on initial render.
+     * Since on initial render we don't know the actual height of our view we use the
+     * screen height. This is an overestimation that guarantees we won't have empty
+     * space in the view on initial render.
      */
     public static initializeFromBottom({
         initialViewHeight,
@@ -374,8 +372,8 @@ export class VirtualizedScrollViewState {
             if (renderedHeight >= maxRenderedHeight) break;
         }
 
-        // We "rendered" items starting at the last one and moving back. Reverse the
-        // list for the actual rendered order.
+        // We "rendered" items starting at the last one and moving back. Reverse the list
+        // for the actual rendered order.
         renderedItems.reverse();
 
         let entryByOrderKey: Tree<OrderKey, VirtualizedScrollViewStateEntry> = createTree();
@@ -444,8 +442,7 @@ export class VirtualizedScrollViewState {
      * `updateRenderedRange()` after.
      */
     public setViewHeight(viewHeight: number): VirtualizedScrollViewState {
-        // Optimization: Don't bother updating if the view height
-        // doesn't change.
+        // Optimization: Don't bother updating if the view height doesn't change.
         if (viewHeight === this._viewHeight) return this;
 
         return new VirtualizedScrollViewState({
@@ -462,12 +459,11 @@ export class VirtualizedScrollViewState {
     /**
      * Set the height of a single buffered item.
      *
-     * This may shift the rendered range so you should call
-     * `updateRenderedRange()` after.
+     * This may shift the rendered range so you should call `updateRenderedRange()`
+     * after.
      */
     public setBufferedItemHeight(bufferedItemHeight: number): VirtualizedScrollViewState {
-        // Optimization: Don't bother updating if the buffered item height
-        // doesn't change.
+        // Optimization: Don't bother updating if the buffered item height doesn't change.
         if (bufferedItemHeight === this._bufferedItemHeight) return this;
 
         return new VirtualizedScrollViewState({
@@ -477,8 +473,8 @@ export class VirtualizedScrollViewState {
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
             itemCountSubtreeCache: this._itemCountSubtreeCache,
-            // We need to clear the content height cache when the buffered item height
-            // changes since it affects the height of buffer entries.
+            // We need to clear the content height cache when the buffered item height changes
+            // since it affects the height of buffer entries.
             contentHeightSubtreeCache: new WeakMap(),
         });
     }
@@ -486,8 +482,8 @@ export class VirtualizedScrollViewState {
     /**
      * Set the height of a single item.
      *
-     * This may shift the rendered range so you should call
-     * `updateRenderedRange()` after.
+     * This may shift the rendered range so you should call `updateRenderedRange()`
+     * after.
      */
     public setItemHeight(itemKey: Key, itemHeight: number): VirtualizedScrollViewState {
         const orderKey = this._orderKeyByItemKey.get(itemKey);
@@ -525,15 +521,15 @@ export class VirtualizedScrollViewState {
     /**
      * Get the number of items in the provided subtree.
      *
-     * WARNING: If you want to get the count of all items before the entry you
-     * are looking at, do not use `_getSubtreeItemCount(iterator.node.left)` and
-     * instead use `_getPreviousItemCount(iterator)`. The former does not count
-     * items in parent nodes.
+     * WARNING: If you want to get the count of all items before the entry you are
+     * looking at, do not use `_getSubtreeItemCount(iterator.node.left)` and instead
+     * use `_getPreviousItemCount(iterator)`. The former does not count items in parent
+     * nodes.
      *
      * This function is cached and takes advantage of the structural sharing in our
-     * binary tree. When the tree is updated, some subtrees are left untouched so
-     * we maintain the cached value for those subtrees. Running this function on a
-     * new tree is O(n) but running this function on an updated tree is O(log(n)).
+     * binary tree. When the tree is updated, some subtrees are left untouched so we
+     * maintain the cached value for those subtrees. Running this function on a new
+     * tree is O(n) but running this function on an updated tree is O(log(n)).
      */
     private _getSubtreeItemCount(
         node: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null,
@@ -559,8 +555,7 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Get the item count of all entries before the node the iterator is
-     * looking at.
+     * Get the item count of all entries before the node the iterator is looking at.
      */
     private _getPreviousItemCount(
         iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry>,
@@ -591,15 +586,15 @@ export class VirtualizedScrollViewState {
     /**
      * Get the height, in pixels, of the provided subtree.
      *
-     * WARNING: If you want to get the count of all height before the entry you
-     * are looking at, do not use `_getSubtreeContentHeight(iterator.node.left)`
-     * and instead use `_getPreviousContentHeight(iterator)`. The former does not
-     * count height in parent nodes.
+     * WARNING: If you want to get the count of all height before the entry you are
+     * looking at, do not use `_getSubtreeContentHeight(iterator.node.left)` and
+     * instead use `_getPreviousContentHeight(iterator)`. The former does not count
+     * height in parent nodes.
      *
      * This function is cached and takes advantage of the structural sharing in our
-     * binary tree. When the tree is updated, some subtrees are left untouched so
-     * we maintain the cached value for those subtrees. Running this function on a
-     * new tree is O(n) but running this function on an updated tree is O(log(n)).
+     * binary tree. When the tree is updated, some subtrees are left untouched so we
+     * maintain the cached value for those subtrees. Running this function on a new
+     * tree is O(n) but running this function on an updated tree is O(log(n)).
      */
     private _getSubtreeContentHeight(
         node: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null,
@@ -630,8 +625,8 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Get the content height of all entries before the node the iterator is
-     * looking at.
+     * Get the content height of all entries before the node the iterator is looking
+     * at.
      */
     private _getPreviousContentHeight(
         iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry>,
@@ -690,22 +685,21 @@ export class VirtualizedScrollViewState {
      *
      * 1. Virtualization window: This is the range of our view we want to fill with
      *    content. It includes the window of content the user is looking at and a
-     *    little buffer in either direction so if the user scrolls quickly they
-     *    don't see empty space.
+     *    little buffer in either direction so if the user scrolls quickly they don't
+     *    see empty space.
      *
-     * 2. Rendered range: This is the range of the view we have filled with
-     *    rendered content. We should always have more content rendered than the
-     *    virtualization window to guarantee we are always covering the
-     *    virtualization window.
+     * 2. Rendered range: This is the range of the view we have filled with rendered
+     *    content. We should always have more content rendered than the virtualization
+     *    window to guarantee we are always covering the virtualization window.
      *
-     * As the user scrolls the virtualization window moves. As items change height
-     * or items are added/removed the rendered range shifts around. We want to make
-     * sure the rendered range always covers the virtualization window, so whenever
+     * As the user scrolls the virtualization window moves. As items change height or
+     * items are added/removed the rendered range shifts around. We want to make sure
+     * the rendered range always covers the virtualization window, so whenever
      * something happens that could cause the rendered range to not cover the
      * virtualization window you should call this function to rectify that.
      *
-     * If our rendered range already completely covers the virtualization window
-     * then this function returns the state object as-is.
+     * If our rendered range already completely covers the virtualization window then
+     * this function returns the state object as-is.
      */
     public updateRenderedRange(options: {
         scrollOffset: number;
@@ -715,8 +709,8 @@ export class VirtualizedScrollViewState {
         return VirtualizedScrollViewState._updateRenderedRange(this, options);
     }
 
-    // Implemented with a static function so we can reassign to the `state`
-    // variable. We can't reassign to `this` in an instance method.
+    // Implemented with a static function so we can reassign to the `state` variable.
+    // We can't reassign to `this` in an instance method.
     private static _updateRenderedRange(
         state: VirtualizedScrollViewState,
         {
@@ -731,10 +725,9 @@ export class VirtualizedScrollViewState {
     ): VirtualizedScrollViewState {
         const originalState = state;
 
-        // Validation to make sure that every index has a unique key. In future
-        // renders items may move around so two indexes may have the same key at
-        // different points in time but at a given point in time each index should
-        // have its own key.
+        // Validation to make sure that every index has a unique key. In future renders
+        // items may move around so two indexes may have the same key at different points
+        // in time but at a given point in time each index should have its own key.
         {
             const originalGetItem = getItem;
             const indexByKey = new Map<Key, number>();
@@ -778,9 +771,9 @@ export class VirtualizedScrollViewState {
 
         const virtualizationWindowHeight = getVirtualizationWindowHeight(state._viewHeight);
 
-        // The virtualized window is the range we expect to be filled with content. It
-        // is the scroll window plus half a view in either direction so that a user
-        // scrolling quickly will see more content.
+        // The virtualized window is the range we expect to be filled with content. It is
+        // the scroll window plus half a view in either direction so that a user scrolling
+        // quickly will see more content.
         const virtualizedWindowStartOffset =
             scrollStartOffset - (virtualizationWindowHeight - state._viewHeight) / 2;
         const virtualizedWindowEndOffset =
@@ -796,8 +789,8 @@ export class VirtualizedScrollViewState {
             maxScrollEndOffset,
         );
 
-        // Expands an existing rendered range that intersects with our virtualized
-        // window to cover our virtualized window.
+        // Expands an existing rendered range that intersects with our virtualized window
+        // to cover our virtualized window.
         const expandRenderedRange = (
             oldRenderedRangeStartOrderKey: OrderKey,
             oldRenderedRangeStartIndex: number,
@@ -813,21 +806,21 @@ export class VirtualizedScrollViewState {
             let newRenderedRangeEndIndex = oldRenderedRangeEndIndex;
             let newRenderedRangeEndOffset = oldRenderedRangeEndOffset;
 
-            // Finds the last possible item in our list that covers the top of the
-            // virtualized window through an iterative algorithm.
+            // Finds the last possible item in our list that covers the top of the virtualized
+            // window through an iterative algorithm.
             //
             // 1. If our current start item is below the virtualized window top then we
-            //    iteratively search previous items for the first item above the
-            //    virtualized window top.
+            //    iteratively search previous items for the first item above the virtualized
+            //    window top.
             //
             // 2. If our current start item is above the virtualized window top then we
             //    iteratively search the next items for the last possible item above the
-            //    virtualized window top. This is optional. We do this to minimize the
-            //    number of items we need to render. Our current start item would also
-            //    cover the virtualized window.
+            //    virtualized window top. This is optional. We do this to minimize the number
+            //    of items we need to render. Our current start item would also cover the
+            //    virtualized window.
             //
-            // Case 1 is the first branch of the `if` and case 2 is the second branch of
-            // the `if`.
+            // Case 1 is the first branch of the `if` and case 2 is the second branch of the
+            // `if`.
             if (newRenderedRangeStartOffset > virtualizedWindowStartOffset) {
                 const iterator = state._entryByOrderKey.find(oldRenderedRangeStartOrderKey);
                 assert(iterator.node, "Could not find rendered range start order key");
@@ -843,15 +836,15 @@ export class VirtualizedScrollViewState {
                     newRenderedRangeStartIndex -= 1;
                     const item = getItem(newRenderedRangeStartIndex);
 
-                    // If the previous item in the list is the same one we're expecting then great!
-                    // No updates to the list necessary.
+                    // If the previous item in the list is the same one we're expecting then great! No
+                    // updates to the list necessary.
                     if (node.value.type === "Item" && node.value.key === item.key) {
                         newRenderedRangeStartOffset -= node.value.height;
                         newRenderedRangeStartOrderKey = node.key;
                     }
-                    // If the previous item in the list is a different one then we want to replace
-                    // that item with our new one. If the new item existed somewhere else in the
-                    // list it will be replaced with a buffer.
+                    // If the previous item in the list is a different one then we want to replace that
+                    // item with our new one. If the new item existed somewhere else in the list it
+                    // will be replaced with a buffer.
                     else if (node.value.type === "Item") {
                         const itemHeight =
                             originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
@@ -961,8 +954,7 @@ export class VirtualizedScrollViewState {
                         "All entries in our rendered range should be items",
                     );
 
-                    // Stop moving forwards if it would cause us to not cover our
-                    // virtualized window.
+                    // Stop moving forwards if it would cause us to not cover our virtualized window.
                     if (
                         newRenderedRangeStartOffset + node.value.height >
                         virtualizedWindowStartOffset
@@ -980,17 +972,17 @@ export class VirtualizedScrollViewState {
             // virtualized window through an iterative algorithm.
             //
             // 1. If our current end item is above the virtualized window bottom then we
-            //    iteratively search the next items for the first item below the
-            //    virtualized window bottom.
+            //    iteratively search the next items for the first item below the virtualized
+            //    window bottom.
             //
             // 2. If our current end item is below the virtualized window bottom then we
             //    iteratively search previous items for the last possible item below the
             //    virtualized window bottom. This is optional. We do this to minimize the
-            //    number of items we need to render. Our current end item would also cover
-            //    the virtualized window.
+            //    number of items we need to render. Our current end item would also cover the
+            //    virtualized window.
             //
-            // Case 1 is the first branch of the `if` and case 2 is the second branch of
-            // the `if`.
+            // Case 1 is the first branch of the `if` and case 2 is the second branch of the
+            // `if`.
             if (newRenderedRangeEndOffset < virtualizedWindowEndOffset) {
                 const iterator = state._entryByOrderKey.find(oldRenderedRangeEndOrderKey);
                 assert(iterator.node, "Could not find rendered range end order key");
@@ -1029,8 +1021,8 @@ export class VirtualizedScrollViewState {
                         newRenderedRangeEndOffset += itemHeight;
                         newRenderedRangeEndOrderKey = node.key;
                     }
-                    // If the next item in the list is a buffer then we replace as many buffer items
-                    // as we can with actual rendered items.
+                    // If the next item in the list is a buffer then we replace as many buffer items as
+                    // we can with actual rendered items.
                     else {
                         let newBufferItemCount = node.value.itemCount;
 
@@ -1121,8 +1113,7 @@ export class VirtualizedScrollViewState {
                         "All entries in our rendered range should be items",
                     );
 
-                    // Stop moving back if it would cause us to not cover our
-                    // virtualized window.
+                    // Stop moving back if it would cause us to not cover our virtualized window.
                     if (newRenderedRangeEndOffset - node.value.height < virtualizedWindowEndOffset)
                         break;
 
@@ -1132,8 +1123,7 @@ export class VirtualizedScrollViewState {
                 }
             }
 
-            // Optimization: If rendered range didn't change, don't create a new
-            // state object.
+            // Optimization: If rendered range didn't change, don't create a new state object.
             if (
                 newRenderedRangeStartOrderKey === state._renderedRange?.startOrderKey &&
                 newRenderedRangeEndOrderKey === state._renderedRange.endOrderKey
@@ -1156,8 +1146,8 @@ export class VirtualizedScrollViewState {
         };
 
         // This function handles when the user is scrolled at a completely unknown
-        // position. So we can't incrementally extend the rendered range we already
-        // have, we need to create a completely new rendered range.
+        // position. So we can't incrementally extend the rendered range we already have,
+        // we need to create a completely new rendered range.
         const resetRenderedRange = (): VirtualizedScrollViewState => {
             state = new VirtualizedScrollViewState({
                 viewHeight: state._viewHeight,
@@ -1242,9 +1232,9 @@ export class VirtualizedScrollViewState {
                 );
             }
 
-            // Our start offset is inside of a buffer. Determine where exactly we are in
-            // the buffer, split the buffer in two by adding a single item, and expand the
-            // rendered range from there to fill the virtualization window.
+            // Our start offset is inside of a buffer. Determine where exactly we are in the
+            // buffer, split the buffer in two by adding a single item, and expand the rendered
+            // range from there to fill the virtualization window.
             assert(node.value.type === "Buffer");
 
             const bufferedItemIndex = Math.floor(
@@ -1325,9 +1315,9 @@ export class VirtualizedScrollViewState {
 
         if (!state._renderedRange) return resetRenderedRange();
 
-        // The rendered range is the range we are currently filling with content. We
-        // update the rendered range if we detect our rendered range does not fully
-        // cover the virtualized window.
+        // The rendered range is the range we are currently filling with content. We update
+        // the rendered range if we detect our rendered range does not fully cover the
+        // virtualized window.
         const renderedRangeIterator = state._entryByOrderKey.find(
             state._renderedRange.startOrderKey,
         );
@@ -1384,8 +1374,8 @@ export class VirtualizedScrollViewState {
             clampedVirtualizedWindowEndOffset,
         );
 
-        // Our rendered range covers everything we want to render. Don't bother
-        // updating it.
+        // Our rendered range covers everything we want to render. Don't bother updating
+        // it.
         if (isRenderedRangeCoveringVirtualizedWindow) return state;
 
         if (!isRenderedRangeIntersectingVirtualizedWindow) {
@@ -1403,10 +1393,10 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * React render function. Renders the items specified in our rendered range. If
-     * the item props changed (`itemCount` or the item at the index) then the state
-     * may do simple updates to accommodate these changes for the React render but
-     * you need to call `updateRenderedRange()` to get correct content rendered.
+     * React render function. Renders the items specified in our rendered range. If the
+     * item props changed (`itemCount` or the item at the index) then the state may do
+     * simple updates to accommodate these changes for the React render but you need to
+     * call `updateRenderedRange()` to get correct content rendered.
      */
     public render(options: {
         itemCount: number;
@@ -1428,8 +1418,8 @@ export class VirtualizedScrollViewState {
         return VirtualizedScrollViewState._render(this, options);
     }
 
-    // Implemented with a static function so we can reassign to the `state`
-    // variable. We can't reassign to `this` in an instance method.
+    // Implemented with a static function so we can reassign to the `state` variable.
+    // We can't reassign to `this` in an instance method.
     private static _render(
         state: VirtualizedScrollViewState,
         {
@@ -1456,10 +1446,9 @@ export class VirtualizedScrollViewState {
     } {
         const originalState = state;
 
-        // Validation to make sure that every index has a unique key. In future
-        // renders items may move around so two indexes may have the same key at
-        // different points in time but at a given point in time each index should
-        // have its own key.
+        // Validation to make sure that every index has a unique key. In future renders
+        // items may move around so two indexes may have the same key at different points
+        // in time but at a given point in time each index should have its own key.
         {
             const originalGetItem = getItem;
             const indexByKey = new Map<Key, number>();
@@ -1481,18 +1470,18 @@ export class VirtualizedScrollViewState {
 
         const itemCountDifference = itemCount - state.getItemCount();
 
-        // If there is a different number of items then what is in our state and what
-        // we were passed as props, reconcile that difference by adding or removing
-        // items to the end.
+        // If there is a different number of items then what is in our state and what we
+        // were passed as props, reconcile that difference by adding or removing items to
+        // the end.
         //
         // - If there are more items, add buffer to the end.
-        // - If there are fewer items, delete items from the end. This may also update
-        //   our rendered range. If all items in the rendered range our delete it is
-        //   set to null.
+        // - If there are fewer items, delete items from the end. This may also update our
+        //   rendered range. If all items in the rendered range our delete it is set to
+        //   null.
         //
-        // NOTE(calebmer): We may want to consider letting the developer configure
-        // whether we add/remove items from the beginning or end of the virtualized
-        // list? Does it make meaningful difference?
+        // NOTE(calebmer): We may want to consider letting the developer configure whether
+        // we add/remove items from the beginning or end of the virtualized list? Does it
+        // make meaningful difference?
         if (itemCountDifference > 0) {
             const isRenderedRangeAtEnd =
                 !!state._renderedRange &&
@@ -1512,16 +1501,16 @@ export class VirtualizedScrollViewState {
                 getItem,
             );
 
-            // If we are adding items to the list and our rendered range is at the end of
-            // our currently visible items then we want to expand our rendered range down.
-            // This way we don't unmount any items that are still visible. This may
-            // temporarily cause our rendered items to exceed the height of our
-            // virtualization window. That's ok, we'd rather over-render in `render()` then
-            // under-render since an under-render causes a quick unmount/remount as
-            // `updateRenderedRange()` determines the item should actually be visible.
+            // If we are adding items to the list and our rendered range is at the end of our
+            // currently visible items then we want to expand our rendered range down. This way
+            // we don't unmount any items that are still visible. This may temporarily cause
+            // our rendered items to exceed the height of our virtualization window. That's ok,
+            // we'd rather over-render in `render()` then under-render since an under-render
+            // causes a quick unmount/remount as `updateRenderedRange()` determines the item
+            // should actually be visible.
             //
-            // We allow our rendered range to expand by `viewHeight`. This way any item
-            // that was previously onscreen may continue to be onscreen.
+            // We allow our rendered range to expand by `viewHeight`. This way any item that
+            // was previously onscreen may continue to be onscreen.
             if (isRenderedRangeAtEnd) {
                 assert(state._renderedRange);
 
@@ -1571,8 +1560,8 @@ export class VirtualizedScrollViewState {
                         expandHeight -= itemHeight;
                         newRenderedRangeEndOrderKey = node.key;
                     }
-                    // If the next item in the list is a buffer then we replace as many buffer items
-                    // as we can with actual rendered items.
+                    // If the next item in the list is a buffer then we replace as many buffer items as
+                    // we can with actual rendered items.
                     else {
                         let newBufferItemCount = node.value.itemCount;
 
@@ -1726,9 +1715,9 @@ export class VirtualizedScrollViewState {
 
         const renderAdditionalItemIndexes = new Set<number>();
 
-        // Must be called in item order. Indexes before our rendered range should be
-        // called before our rendered range loop. Indexes after our rendered range
-        // should be called after our rendered range loop.
+        // Must be called in item order. Indexes before our rendered range should be called
+        // before our rendered range loop. Indexes after our rendered range should be
+        // called after our rendered range loop.
         const renderAdditionalItemIndex = (index: number) => {
             const item = getItem(index);
             const {iterator, nodeIndex} = state._getNodeAtIndex(index);
@@ -1764,8 +1753,8 @@ export class VirtualizedScrollViewState {
                 offset = nodeOffset;
                 height = itemHeight;
             }
-            // If the index is in a buffer, we need to split the buffer in half to add an
-            // entry for the additional item we're rendering.
+            // If the index is in a buffer, we need to split the buffer in half to add an entry
+            // for the additional item we're rendering.
             else {
                 const newBufferedItemCountBefore = nodeIndex;
                 const newBufferedItemCountAfter = node.value.itemCount - nodeIndex - 1;
@@ -1856,8 +1845,8 @@ export class VirtualizedScrollViewState {
             for (const index of Array.from(new Set(alwaysRenderAdditionalItemIndexes)).sort(
                 (index1, index2) => index1 - index2,
             )) {
-                // We only render items here before our rendered range (since it changes the
-                // offset of items in our rendered range).
+                // We only render items here before our rendered range (since it changes the offset
+                // of items in our rendered range).
                 if (index >= startIndex) {
                     renderAdditionalItemIndexes.add(index);
                     continue;
@@ -1868,8 +1857,8 @@ export class VirtualizedScrollViewState {
             }
         }
 
-        // If we rendered some items before the rendered range, we should update
-        // `iterator` to make sure it references the latest tree.
+        // If we rendered some items before the rendered range, we should update `iterator`
+        // to make sure it references the latest tree.
         if (hasRenderedAdditionalItemIndexesBeforeRenderedRange) {
             iterator = state._entryByOrderKey.find(state._renderedRange.startOrderKey);
             assert(iterator.node, "Could not find rendered range start order key");
@@ -1941,14 +1930,14 @@ export class VirtualizedScrollViewState {
                 // If the index was in our rendered range, we don't need to render it again.
                 if (startIndex <= index && index < endIndex) continue;
 
-                // NOTE(calebmer): Rendering items above the rendered range would
-                // change the offsets of the children we already rendered. It also means we
-                // can't rely on one `bufferedHeightBeforeChildren` to push down relatively
-                // positioned children and would need multiple spacer elements.
+                // NOTE(calebmer): Rendering items above the rendered range would change the
+                // offsets of the children we already rendered. It also means we can't rely on one
+                // `bufferedHeightBeforeChildren` to push down relatively positioned children and
+                // would need multiple spacer elements.
                 //
-                // We're not solving these problems for now since coincidentally we only need
-                // this feature for additional items after the rendered range. But there's no
-                // reason we couldn't support this in theory.
+                // We're not solving these problems for now since coincidentally we only need this
+                // feature for additional items after the rendered range. But there's no reason we
+                // couldn't support this in theory.
                 if (index < startIndex) {
                     throw new UnimplementedError(
                         "Rendering additional items before the rendered range is currently unsupported",
@@ -1992,8 +1981,8 @@ export class VirtualizedScrollViewState {
             // `itemKey -> orderKey` association.
             if (
                 iterator1.value?.type === "Item" &&
-                // If this is an item entry and the previous entry has the same key, we will
-                // update the `orderKeyByItemKey` tree in the below branch.
+                // If this is an item entry and the previous entry has the same key, we will update
+                // the `orderKeyByItemKey` tree in the below branch.
                 (entry.type !== "Item" || entry.key !== iterator1.value.key)
             ) {
                 orderKeyByItemKey = orderKeyByItemKey.remove(iterator1.value.key);
@@ -2022,9 +2011,9 @@ export class VirtualizedScrollViewState {
                         // place it there instead.
                         //
                         // This should not recurse forever if `getItem()` returns unique key values for
-                        // each index. We have a validation in `render()` and `updatedRenderedRange()`
-                        // that checks that every index has a unique key which means we should not need
-                        // to check for cycles here.
+                        // each index. We have a validation in `render()` and `updatedRenderedRange()` that
+                        // checks that every index has a unique key which means we should not need to check
+                        // for cycles here.
                         if (
                             state._renderedRange &&
                             state._renderedRange.startOrderKey <= iterator2.node.value &&
@@ -2095,13 +2084,12 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Gets the node at the provided index. The returned iterator is guaranteed to
-     * have a non-null `node` property otherwise we will throw an out of range
-     * error.
+     * Gets the node at the provided index. The returned iterator is guaranteed to have
+     * a non-null `node` property otherwise we will throw an out of range error.
      *
-     * If the node covers multiple indexes then we will provide a `nodeIndex` which
-     * is the index within the node. If node only covers one index the `nodeIndex`
-     * will always be zero.
+     * If the node covers multiple indexes then we will provide a `nodeIndex` which is
+     * the index within the node. If node only covers one index the `nodeIndex` will
+     * always be zero.
      */
     private _getNodeAtIndex(index: number): {
         iterator: TreeIterator<OrderKey, VirtualizedScrollViewStateEntry>;
@@ -2124,8 +2112,8 @@ export class VirtualizedScrollViewState {
 
             // If the index is in our node then hooray! Return this node and the index.
             //
-            // Otherwise the index is either in the left subtree or right subtree of this
-            // node. Find the appropriate subtree and recurse.
+            // Otherwise the index is either in the left subtree or right subtree of this node.
+            // Find the appropriate subtree and recurse.
             if (leftItemCount <= index && index < leftItemCount + valueItemCount) {
                 return {node, nodeIndex: index - leftItemCount};
             } else if (index < leftItemCount) {
@@ -2149,8 +2137,8 @@ export class VirtualizedScrollViewState {
 
     /**
      * Returns the key at the provided index if we've rendered that index before.
-     * Otherwise the index is un-rendered buffered space and we return null. Throws
-     * if the index is out of bounds.
+     * Otherwise the index is un-rendered buffered space and we return null. Throws if
+     * the index is out of bounds.
      */
     public getKeyByIndexIfExists(index: number): Key | null {
         const {iterator} = this._getNodeAtIndex(index);
@@ -2159,12 +2147,12 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Get the index of an item with the provided key. Returns null if an item
-     * with the provided key does not exist.
+     * Get the index of an item with the provided key. Returns null if an item with the
+     * provided key does not exist.
      *
-     * The index may be out-of-date if we've scrolled away. The item may be in a
-     * new position but our scroll view state won't know until the item or the old
-     * index is re-rendered.
+     * The index may be out-of-date if we've scrolled away. The item may be in a new
+     * position but our scroll view state won't know until the item or the old index is
+     * re-rendered.
      */
     public getIndexByKeyIfExists(key: Key): number | null {
         const iterator1 = this._orderKeyByItemKey.find(key);
@@ -2175,8 +2163,8 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Get the position of an item at the provided index. If the index is out of
-     * bounds then we throw an error.
+     * Get the position of an item at the provided index. If the index is out of bounds
+     * then we throw an error.
      */
     public getPositionByIndex(index: number): {
         offset: number;
@@ -2200,8 +2188,8 @@ export class VirtualizedScrollViewState {
     }
 
     /**
-     * Get the position of an item with the provided key. Returns null if an item
-     * with the provided key does not exist.
+     * Get the position of an item with the provided key. Returns null if an item with
+     * the provided key does not exist.
      */
     public getPositionByKeyIfExists(key: Key): {
         offset: number;

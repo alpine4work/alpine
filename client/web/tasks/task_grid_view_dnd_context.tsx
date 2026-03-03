@@ -74,10 +74,10 @@ class MouseSensorWithFlushSyncEnd extends MouseSensor {
         super({
             ...props,
             onEnd: () => {
-                // Run the `onEnd` handler synchronously. This means React will batch
-                // any `useSyncExternalStore()` updates with any state updates at the end of
-                // the drag. So we won't have weird flashes where an external store has updated
-                // but not our drag state.
+                // Run the `onEnd` handler synchronously. This means React will batch any
+                // `useSyncExternalStore()` updates with any state updates at the end of the drag.
+                // So we won't have weird flashes where an external store has updated but not our
+                // drag state.
                 flushSync(() => {
                     props.onEnd();
                 });
@@ -92,20 +92,21 @@ const AbstractPointerSensor: typeof AbstractPointerSensorType = Object.getProtot
     TouchSensor.prototype,
 ).constructor;
 
-// Fork of [`TouchSensor`][1] with a custom activator function we call after a
-// long press.
+// Fork of [`TouchSensor`][1] with a custom activator function we call after a long
+// press.
 //
-// [1]: https://github.com/clauderic/dnd-kit/blob/694dcc2f62e5269541fc941fa6c9af46ccd682ad/packages/core/src/sensors/touch/TouchSensor.ts#L20
+// [1]:
+//     https://github.com/clauderic/dnd-kit/blob/694dcc2f62e5269541fc941fa6c9af46ccd682ad/packages/core/src/sensors/touch/TouchSensor.ts#L20
 class TouchSensorWithManualActivationAndFlushSyncEnd extends AbstractPointerSensor {
     constructor(props: PointerSensorProps) {
         super(
             {
                 ...props,
                 onEnd: () => {
-                    // Run the `onEnd` handler synchronously. This means React will batch
-                    // any `useSyncExternalStore()` updates with any state updates at the end of
-                    // the drag. So we won't have weird flashes where an external store has updated
-                    // but not our drag state.
+                    // Run the `onEnd` handler synchronously. This means React will batch any
+                    // `useSyncExternalStore()` updates with any state updates at the end of the drag.
+                    // So we won't have weird flashes where an external store has updated but not our
+                    // drag state.
                     flushSync(() => {
                         props.onEnd();
                     });
@@ -128,9 +129,9 @@ class TouchSensorWithManualActivationAndFlushSyncEnd extends AbstractPointerSens
     ];
 
     static setup() {
-        // Adding a non-capture and non-passive `touchmove` listener in order
-        // to force `event.preventDefault()` calls to work in dynamically added
-        // touchmove event handlers. This is required for iOS Safari.
+        // Adding a non-capture and non-passive `touchmove` listener in order to force
+        // `event.preventDefault()` calls to work in dynamically added touchmove event
+        // handlers. This is required for iOS Safari.
         window.addEventListener(this._events.move.name, noop, {
             capture: false,
             passive: false,
@@ -140,8 +141,8 @@ class TouchSensorWithManualActivationAndFlushSyncEnd extends AbstractPointerSens
             window.removeEventListener(this._events.move.name, noop);
         };
 
-        // We create a new handler because the teardown function of another sensor
-        // could remove our event listener if we use a referentially equal listener.
+        // We create a new handler because the teardown function of another sensor could
+        // remove our event listener if we use a referentially equal listener.
         function noop() {}
     }
 }
@@ -162,8 +163,8 @@ export function TaskGridViewDndContext({
         useMemo(
             () => ({
                 activationConstraint: {
-                    // The mouse must move to activate dragging. This is required for cards which
-                    // when clicked expand the task and when dragged can be reordered.
+                    // The mouse must move to activate dragging. This is required for cards which when
+                    // clicked expand the task and when dragged can be reordered.
                     distance: 1,
                 },
             }),
@@ -173,8 +174,8 @@ export function TaskGridViewDndContext({
 
     const touchSensor = useSensor(TouchSensorWithManualActivationAndFlushSyncEnd);
 
-    // No keyboard sensor. To move task rows and cards with the keyboard we should
-    // have other keyboard shortcuts.
+    // No keyboard sensor. To move task rows and cards with the keyboard we should have
+    // other keyboard shortcuts.
     const sensors = useSensors(mouseSensor, touchSensor);
 
     const lastDragOverIdRef = useRef<string | number | null>(null);
@@ -201,16 +202,16 @@ export function TaskGridViewDndContext({
                 } else if (lastDragOverIdRef.current !== over.id) {
                     lastDragOverIdRef.current = over.id;
 
-                    // Whenever we're dragging over something new, play the selection changed
-                    // haptic feedback.
+                    // Whenever we're dragging over something new, play the selection changed haptic
+                    // feedback.
                     NativeMobileBridge?.haptic.playSelectionChanged();
                 }
             }
         },
     });
 
-    // If we already have a parent `<TaskGridViewDndContext>` then don't render
-    // another one. This allows us to "hoist" up drag-and-drop functionality.
+    // If we already have a parent `<TaskGridViewDndContext>` then don't render another
+    // one. This allows us to "hoist" up drag-and-drop functionality.
     if (useContext(TaskGridViewHasDndContext)) return <>{children}</>;
 
     const onActuallyDragEnd = (
@@ -224,31 +225,30 @@ export function TaskGridViewDndContext({
         const actions = [
             ...overData.getDropActions(activeData.taskId),
 
-            // The order here is important! `overData.getDropActions()` will place our
-            // task in its new position. `activeData.getDropOnRowActions()` will remove our
-            // task from its old position. We have to add the task to its new position
-            // before we can remove it since removing the task from its old position may
-            // cause us to lose access causing an authorization failure when we try to add
-            // the task to its new position.
+            // The order here is important! `overData.getDropActions()` will place our task in
+            // its new position. `activeData.getDropOnRowActions()` will remove our task from
+            // its old position. We have to add the task to its new position before we can
+            // remove it since removing the task from its old position may cause us to lose
+            // access causing an authorization failure when we try to add the task to its new
+            // position.
             //
-            // But we also want `overData.getDropActions()` actions to win in case of
-            // conflict (e.g. if we both remove the task from a collection and add it back
-            // in one transaction). So we call `activeData.getDropOnRowActions()` first
-            // (to get earlier timestamps) but apply it second.
+            // But we also want `overData.getDropActions()` actions to win in case of conflict
+            // (e.g. if we both remove the task from a collection and add it back in one
+            // transaction). So we call `activeData.getDropOnRowActions()` first (to get
+            // earlier timestamps) but apply it second.
             //
             // The final result of an action transaction is determined by timestamps but
             // authorization is evaluated serially as individual actions are committed.
             ...dropOnRowActions,
         ];
 
-        // Some drag operations may introduce a circular dependency. For example
-        // dragging a task inside itself. We want to ignore these drops entirely!
-        // So look at the tasks in our store after `actions` are applied and if we
-        // find out that the action would introduce a circular dependency we don't
-        // commit the actions.
+        // Some drag operations may introduce a circular dependency. For example dragging a
+        // task inside itself. We want to ignore these drops entirely! So look at the tasks
+        // in our store after `actions` are applied and if we find out that the action
+        // would introduce a circular dependency we don't commit the actions.
         //
-        // We may not have all the parent tasks loaded. In that case it's up to the
-        // server to reject a drag that would create a circular dependency.
+        // We may not have all the parent tasks loaded. In that case it's up to the server
+        // to reject a drag that would create a circular dependency.
         let wouldCreateCircularDependency = false;
         {
             const newTaskById = new Map<TaskId, TaskModel>();
@@ -309,9 +309,9 @@ export function TaskGridViewDndContext({
                 onDragEnd={onDragEnd}
                 onDragStart={onDragStart}
                 onDragMove={onDragMove}
-                // NOTE(calebmer): We patch `@dnd-kit/core` to add this property. If the node
-                // we're dragging unmounts, we still want `active.data.current` to return the
-                // last data object we saw.
+                // NOTE(calebmer): We patch `@dnd-kit/core` to add this property. If the node we're
+                // dragging unmounts, we still want `active.data.current` to return the last data
+                // object we saw.
                 unstableShouldPreserveDataAfterDraggableUnmounts={true}
             >
                 {children}
@@ -360,8 +360,8 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
             nearestNonIntersectingCollision = {id, data: {droppableContainer, value: distance}};
         } else if (distance === 0) {
             // There may be more than a single rectangle intersecting with the pointer
-            // coordinates. In order to sort the colliding rectangles, we measure the
-            // distance between the pointer and the corners of the intersecting rectangle.
+            // coordinates. In order to sort the colliding rectangles, we measure the distance
+            // between the pointer and the corners of the intersecting rectangle.
             //
             // This logic is adapted from `@dnd-kit/core`:
             // https://github.com/clauderic/dnd-kit/blob/5c58f0fe5d19b5aaa5cf93572f3435f4a0a6e54f/packages/core/src/utilities/algorithms/pointerWithin.ts#L36-L52

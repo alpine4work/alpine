@@ -27,8 +27,7 @@ export const SpaceAccountAvatarOverrideItemContextCache = new DynamoContextCache
     `${SpaceId}:${AccountId}`,
     SpaceAccountAvatarOverrideItem | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -44,15 +43,15 @@ export async function getAccountIfExistsWithoutAuthorization(
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountModel | null> {
-    // If we have cached account data and we're loading with eventual consistency
-    // then we can use the cached data.
+    // If we have cached account data and we're loading with eventual consistency then
+    // we can use the cached data.
     if (consistency === "Eventual") {
         // We can't use `getDataIfExistsWithoutLoading()` because it calls
         // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
         // `authorizeSpaceAccess()` looks at the cache result of this function.
         //
-        // It's safe to skip authorization for this function, though, because we
-        // authorize space access above.
+        // It's safe to skip authorization for this function, though, because we authorize
+        // space access above.
         const accountsCacheData =
             await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
                 context,
@@ -75,13 +74,12 @@ export async function getAccountIfExistsWithoutAuthorization(
     if (!spaceAccountItem) return null;
 
     if (spaceAccountItem.state.type !== "Active") {
-        // NOTE(ifitzsimmons, #account-override-avatar-consistency):
-        // "We know there's a potential eventual consistency race condition here where
-        // Space#Account has a non-Active state but we don't find a
-        // Space#AccountAvatarOverride item due to eventual consistency lag. We're not
-        // fixing this since we expect it to be quite rare in practice and the impact to be
-        // a pretty minor glitch (removed account appears as if they didn't have an avatar
-        // set).
+        // NOTE(ifitzsimmons, #account-override-avatar-consistency): "We know there's a
+        // potential eventual consistency race condition here where Space#Account has a
+        // non-Active state but we don't find a Space#AccountAvatarOverride item due to
+        // eventual consistency lag. We're not fixing this since we expect it to be quite
+        // rare in practice and the impact to be a pretty minor glitch (removed account
+        // appears as if they didn't have an avatar set).
         const spaceAccountAvatarOverride = await SpaceAccountAvatarOverrideItemContextCache.get(
             context,
             consistency,
@@ -107,8 +105,8 @@ export async function getAccountIfExistsWithoutAuthorization(
             null,
         );
     } else {
-        // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
-        // our account table.
+        // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in our
+        // account table.
         if (!account) {
             throw new DataLossError("Space account item exists but account item doesn\u2019t");
         }
@@ -136,15 +134,15 @@ export async function getAccountWithoutAvatarIfExistsWithoutAuthorization(
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<Omit<AccountModelData, "avatar"> | null> {
-    // If we have cached account data and we're loading with eventual consistency
-    // then we can use the cached data.
+    // If we have cached account data and we're loading with eventual consistency then
+    // we can use the cached data.
     if (consistency === "Eventual") {
         // We can't use `getDataIfExistsWithoutLoading()` because it calls
         // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
         // `authorizeSpaceAccess()` looks at the cache result of this function.
         //
-        // It's safe to skip authorization for this function, though, because we
-        // authorize space access above.
+        // It's safe to skip authorization for this function, though, because we authorize
+        // space access above.
         const accountsCacheData =
             await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
                 context,
@@ -171,8 +169,8 @@ export async function getAccountWithoutAvatarIfExistsWithoutAuthorization(
     if (spaceAccountItem.state.type !== "Active") {
         return createAccountModelDataWithoutAvatarFromItem(spaceAccountItem, null);
     } else {
-        // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
-        // our account table.
+        // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in our
+        // account table.
         if (!account) {
             throw new DataLossError("Space account item exists but account item doesn\u2019t");
         }

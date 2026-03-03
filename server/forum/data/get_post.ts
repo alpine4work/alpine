@@ -24,9 +24,9 @@ export async function getPost(
 }
 
 /**
- * Gets the post with the provided `PostId`. If you don't have access to the
- * post we return a result with an error instead of throwing. Throws an error
- * if the post doesn't exist in the database.
+ * Gets the post with the provided `PostId`. If you don't have access to the post
+ * we return a result with an error instead of throwing. Throws an error if the
+ * post doesn't exist in the database.
  */
 export async function getPostIfPossible(
     context: ServerActionContext,
@@ -41,9 +41,9 @@ export async function getPostIfPossible(
     ]);
     if (!authorizationResult.ok) return authorizationResult;
 
-    // Ignore errors from `postResult` if authorization fails (since it's probably
-    // the same error). Otherwise, if authorization passed and building the post
-    // item failed treat that as an exception.
+    // Ignore errors from `postResult` if authorization fails (since it's probably the
+    // same error). Otherwise, if authorization passed and building the post item
+    // failed treat that as an exception.
     const post = unwrapResult(postResult);
 
     return {ok: true, value: post};

@@ -1,12 +1,12 @@
 /**
- * NOTE(calebmer, 2023-07-26): This is a TypeScript port of the [VTEnc
- * compression C library][1].
+ * NOTE(calebmer, 2023-07-26): This is a TypeScript port of the [VTEnc compression
+ * C library][1].
  *
- * The C library is written with a lot of function inlining and templates.
- * These language constructs produce new code statically. JavaScript does not
- * have similar constructs so I've manually inlined many functions which might
- * be marginally better for performance than if they were separate functions
- * like in the source library.
+ * The C library is written with a lot of function inlining and templates. These
+ * language constructs produce new code statically. JavaScript does not have
+ * similar constructs so I've manually inlined many functions which might be
+ * marginally better for performance than if they were separate functions like in
+ * the source library.
  *
  * [1]: https://github.com/vteromero/VTEnc
  *
@@ -14,23 +14,22 @@
  *
  * Copyright (c) 2019 Vicente Romero Calero
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -104,8 +103,8 @@ const bitsSizeMask = [
  * performance for sorted integer lists. We use the `bigint` type to properly
  * support 64-bit integers in JavaScript.
  *
- * It's safe to pass in an unsorted list with repeat values to this function.
- * We will make sure values are sorted and unique.
+ * It's safe to pass in an unsorted list with repeat values to this function. We
+ * will make sure values are sorted and unique.
  *
  * [1]: https://vteromero.github.io/2019/07/28/vtenc.html
  */
@@ -134,9 +133,9 @@ type EncodeBitCluster = {
  * support 64-bit integers in JavaScript.
  *
  * You must pass in a sorted and unique list of integers to this function!
- * Otherwise you'll get undefined behavior. You may use
- * `encodeVtencBigInt64Set()` which makes sure your list of integers is sorted
- * and unique before calling this function.
+ * Otherwise you'll get undefined behavior. You may use `encodeVtencBigInt64Set()`
+ * which makes sure your list of integers is sorted and unique before calling this
+ * function.
  *
  * [1]: https://vteromero.github.io/2019/07/28/vtenc.html
  */
@@ -145,8 +144,8 @@ type EncodeBitCluster = {
 export function encodeVtencBigUint64SetAssumingSortedAndUnique(
     values: ReadonlyArray<bigint>,
 ): VtencBigUint64Set {
-    // NOTE(calebmer, 2023-07-26): Ideally we'd use a resizable `ArrayBuffer` but
-    // it isn't implemented in Firefox.
+    // NOTE(calebmer, 2023-07-26): Ideally we'd use a resizable `ArrayBuffer` but it
+    // isn't implemented in Firefox.
     const maxEncodedSize = 4 + (bitWidth / 8) * (values.length + 1) + 8;
     const buffer = new ArrayBuffer(maxEncodedSize);
 
@@ -212,22 +211,26 @@ export function encodeVtencBigUint64SetAssumingSortedAndUnique(
         const {from: clusterFrom, length: clusterLength, bitPos: clusterBitPos} = stack.pop()!;
         const currentBitPos = clusterBitPos - 1;
 
-        // Is this a full subtree? If so we can skip full subtrees. There is an option
-        // to toggle this off in VTEnc. It's simple to implement and sometimes improves
-        // the compression ratio so why not.
+        // Is this a full subtree? If so we can skip full subtrees. There is an option to
+        // toggle this off in VTEnc. It's simple to implement and sometimes improves the
+        // compression ratio so why not.
         //
         // Inlined `is_full_subtree` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L104-L105
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/common.h#L14-L17
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L104-L105
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/common.h#L14-L17
         if (BigInt(clusterLength) === bitsPosMask64[clusterBitPos]) {
             continue;
         }
 
         // Inlined `encode_lower_bits` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L108
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encodebits.inc.h#L136-L148
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L108
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encodebits.inc.h#L136-L148
         if (clusterLength <= minClusterLength) {
             const batchSize = Math.min(4, Math.floor(Number(bitStreamMaxWrite) / clusterBitPos));
             const nBits = BigInt(clusterBitPos);
@@ -265,8 +268,10 @@ export function encodeVtencBigUint64SetAssumingSortedAndUnique(
 
         // Inlined `count_zeros_at_bit_pos` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L112
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/countbits.h#L11-L24
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L112
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/countbits.h#L11-L24
         let nZeros: number;
         if (clusterLength === 0) {
             nZeros = 0;
@@ -286,8 +291,10 @@ export function encodeVtencBigUint64SetAssumingSortedAndUnique(
 
         // Inlined `bits_len_u64` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L113
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/bits.h#L173-L199
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L113
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/bits.h#L173-L199
         const encodeLength = clusterLength === 0 ? 1 : 32 - Math.clz32(clusterLength);
 
         write(BigInt(nZeros), BigInt(encodeLength));
@@ -397,19 +404,23 @@ export function decodeVtencBigUint64List(set: VtencBigUint64Set): Array<bigint> 
             continue;
         }
 
-        // Is this a full subtree? If so it's omitted and we need to reconstruct it.
-        // There is an option to toggle this off in VTEnc. It's simple to implement and
-        // sometimes improves the compression ratio so why not.
+        // Is this a full subtree? If so it's omitted and we need to reconstruct it. There
+        // is an option to toggle this off in VTEnc. It's simple to implement and sometimes
+        // improves the compression ratio so why not.
         //
         // Inlined `is_full_subtree` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L137
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/common.h#L14-L17
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L137
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/common.h#L14-L17
         //
         // Also inlines `decode_full_subtree` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L138
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L92-L97
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L138
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L92-L97
         if (BigInt(clusterLength) === bitsPosMask64[clusterBitPos]) {
             for (let i = 0; i < clusterLength; i++) {
                 values[clusterFrom + i] = clusterHigherBits | BigInt(i);
@@ -419,8 +430,10 @@ export function decodeVtencBigUint64List(set: VtencBigUint64Set): Array<bigint> 
 
         // Inlined `decode_lower_bits` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L143
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L84-L90
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L143
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/decode_generic.h#L84-L90
         if (clusterLength <= minClusterLength) {
             const nBits = BigInt(clusterBitPos);
 
@@ -439,8 +452,10 @@ export function decodeVtencBigUint64List(set: VtencBigUint64Set): Array<bigint> 
 
         // Inlined `bits_len_u64` function:
         //
-        // - Call: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L113
-        // - Definition: https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/bits.h#L173-L199
+        // - Call:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/encode_generic.h#L113
+        // - Definition:
+        //   https://github.com/vteromero/VTEnc/blob/5a21e63a035dbbb98555b52661777991beb093c0/bits.h#L173-L199
         const encodeLength = clusterLength === 0 ? 1 : 32 - Math.clz32(clusterLength);
 
         const nZeros = Number(read(BigInt(encodeLength)));

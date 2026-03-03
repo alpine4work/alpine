@@ -84,8 +84,8 @@ export async function createFileMultipartUpload(
             );
         }
 
-        // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
-        // `EdgeService`.
+        // If `Content-Length` is 0 there's probably a bug somewhere and data isn't
+        // reaching `EdgeService`.
         if (requestBody.contentLength <= 0) {
             throw new InvalidArgumentError(
                 `Can\u2019t upload file with \`Content-Length\` of ${prettyBytes(
@@ -236,18 +236,18 @@ export async function putFileMultipartUploadPart(
             throw new InvalidArgumentError("`Content-Length` header must be an integer");
         }
 
-        // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
-        // `EdgeService`.
+        // If `Content-Length` is 0 there's probably a bug somewhere and data isn't
+        // reaching `EdgeService`.
         if (contentLength <= 0) {
             throw new InvalidArgumentError(
                 `Can\u2019t upload file with \`Content-Length\` of ${prettyBytes(contentLength)}`,
             );
         }
 
-        // If the client sends more bytes than what they declared in `Content-Length`
-        // then Cloudflare will truncate the data to `Content-Length` bytes. This
-        // behavior from Cloudflare is important to make sure attackers can't upload
-        // files bigger than 1 GB.
+        // If the client sends more bytes than what they declared in `Content-Length` then
+        // Cloudflare will truncate the data to `Content-Length` bytes. This behavior from
+        // Cloudflare is important to make sure attackers can't upload files bigger than 1
+        // GB.
         if (contentLength > maxFileMultipartUploadPartContentLength) {
             throw new InvalidArgumentError(
                 `\`Content-Length\` of ${prettyBytes(
@@ -276,8 +276,8 @@ export async function putFileMultipartUploadPart(
         if (!file.initialData.isUploading)
             throw new FailedPreconditionError("File has finished uploading");
 
-        // Make sure the user isn't allowed to upload more parts than what's necessary
-        // to fulfill the `Content-Length` they originally declared when starting the
+        // Make sure the user isn't allowed to upload more parts than what's necessary to
+        // fulfill the `Content-Length` they originally declared when starting the
         // multipart file upload.
         //
         // This is important to make sure attackers can't use Alpine to store more data
@@ -339,8 +339,8 @@ export async function putFileMultipartUploadPart(
     } catch (error) {
         span.addException(error);
 
-        // If the request had a body and it hasn't been used yet, consume the body
-        // before returning our error so the request client doesn't get `EPIPE` errors.
+        // If the request had a body and it hasn't been used yet, consume the body before
+        // returning our error so the request client doesn't get `EPIPE` errors.
         if (!request.bodyUsed && request.body) await request.body.pipeTo(new WritableStream());
 
         const statusCode = isSystemError(error) ? 500 : 400;
@@ -454,10 +454,10 @@ export async function completeFileMultipartUpload(
             const {signedUrlSearch, file} = await finishUploadingAndStartProcessingFile(context, {
                 spaceId,
                 fileId,
-                // Validate that the uploaded file size matches what was declared. We make sure
-                // the user has enough storage in their space to upload the file in
-                // `startUploadingFile()` at the start of the multipart upload. If an attacker
-                // ends up uploading a larger file then they can get around our storage limits!
+                // Validate that the uploaded file size matches what was declared. We make sure the
+                // user has enough storage in their space to upload the file in
+                // `startUploadingFile()` at the start of the multipart upload. If an attacker ends
+                // up uploading a larger file then they can get around our storage limits!
                 validateContentLength: object.size,
             });
 

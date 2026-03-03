@@ -69,8 +69,8 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
 }) {
-    // Shared ordered list item number cache for reaction party parts. Reset the
-    // cache whenever the content changes.
+    // Shared ordered list item number cache for reaction party parts. Reset the cache
+    // whenever the content changes.
     const orderedListItemNumberByNode = useStateWithDependenciesWithoutDispatch(
         () => new Map<Node, number>(),
         [content.doc],
@@ -176,8 +176,8 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
             startTime: originalJumpAnimation.startTime,
         };
 
-        // If after offsetting, the jump animation doesn't make sense then we don't
-        // have a jump animation for this part.
+        // If after offsetting, the jump animation doesn't make sense then we don't have a
+        // jump animation for this part.
         if (jumpAnimation.from !== null && jumpAnimation.from > content.doc.content.size)
             return null;
         if (jumpAnimation.to !== null && jumpAnimation.to < 0) return null;
@@ -217,9 +217,9 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
                     onPressSeeReactions={onPressSeeReactions}
-                    // This works well in `<MessageView>` where `data-room` and `data-index` are
-                    // passed in as props. Currently this component is only used in `<MessageView>`
-                    // so we don't care about finding an alternative sufficient entropy source.
+                    // This works well in `<MessageView>` where `data-room` and `data-index` are passed
+                    // in as props. Currently this component is only used in `<MessageView>` so we
+                    // don't care about finding an alternative sufficient entropy source.
                     randomSeed={`ContentView:${dataRoom}-${dataIndex}-${partIndex}`}
                     withMarginBottom={partIndex < partCount - 1}
                 />
@@ -273,8 +273,7 @@ export function ContentViewReactionParty({
                 paddingRight={postContentViewFooterReactionButtonAreaWidth}
             >
                 <ReactionParty
-                    // The reaction party runs into the previous text if it's not offset
-                    // a little.
+                    // The reaction party runs into the previous text if it's not offset a little.
                     offsetTopIfManyReactions="1.5"
                     reactions={reactions}
                     randomSeed={randomSeed}

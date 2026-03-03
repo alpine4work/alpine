@@ -3,8 +3,8 @@ export type Interval = {
 };
 
 /**
- * A convenience wrapper around `setInterval()` and `clearInterval()` that lets
- * you avoid dealing with intermediate timeout ids.
+ * A convenience wrapper around `setInterval()` and `clearInterval()` that lets you
+ * avoid dealing with intermediate timeout ids.
  */
 export function createInterval(callback: () => void, ms: number): Interval {
     const intervalId = setInterval(callback, ms);

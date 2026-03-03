@@ -6,8 +6,8 @@ import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
- * An implementation of `EdgeServiceContextModuleBase` for tests that records
- * edge service calls so tests can inspect them.
+ * An implementation of `EdgeServiceContextModuleBase` for tests that records edge
+ * service calls so tests can inspect them.
  */
 export class TestLocalEdgeServiceContextModule
     extends ContextModuleBase

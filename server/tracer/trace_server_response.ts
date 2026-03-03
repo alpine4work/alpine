@@ -27,8 +27,8 @@ export function createTraceServerResponseHandleSpanName(
  * Create a span for the server request handler using the WhatWG HTTP API. Used
  * with `createStandardizedServer()`.
  *
- * If there are trace propagation headers, then we setup our span as a child of
- * the propagation context.
+ * If there are trace propagation headers, then we setup our span as a child of the
+ * propagation context.
  *
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
@@ -115,8 +115,8 @@ export async function traceServerResponse(
 }
 
 /**
- * Starts a span as a child of the span added in the HTTP propagation header of
- * the request.
+ * Starts a span as a child of the span added in the HTTP propagation header of the
+ * request.
  */
 export function startTracerSpanFromPropagationContextHeader(
     tracer: TracerRoot,
@@ -165,8 +165,8 @@ export function startTracerSpanFromPropagationContextHeader(
 }
 
 export function getRequestIpAddress(request: Request): string | null {
-    // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
-    // our request to get the IP address.
+    // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on our
+    // request to get the IP address.
     // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
     return request.headers.get("x-real-ip") ?? request.headers.get("cf-connecting-ip");
 }

@@ -45,8 +45,8 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
         assert(dom instanceof HTMLElement);
 
-        // Make sure the browser doesn't think it's allowed to select or edit inside a
-        // file float.
+        // Make sure the browser doesn't think it's allowed to select or edit inside a file
+        // float.
         dom.contentEditable = "false";
 
         let isDestroyed = false;
@@ -165,9 +165,9 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 node = newNode;
 
                 if (updateFromState()) {
-                    // Run update after a microtask since when deleting nodes ProseMirror deletes
-                    // the parent node first then the children. We don't want to dispatch an update
-                    // until ProseMirror gets the chance to destroy any removed child nodes.
+                    // Run update after a microtask since when deleting nodes ProseMirror deletes the
+                    // parent node first then the children. We don't want to dispatch an update until
+                    // ProseMirror gets the chance to destroy any removed child nodes.
                     scheduleMicrotask(() => {
                         for (const childNode of dom.childNodes) {
                             if (childNode instanceof Element) {
@@ -190,15 +190,14 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
 
-                // When destroying a `fileFloat`, we may be converting to a `fileRow`! In this
-                // case the `file` node may not be destroyed, just moved into the `fileRow`.
-                // However, the file's layout will change in the new parent so we need to
-                // dispatch an update so the file node can re-render. Since ProseMirror only
-                // calls `update()` on the `file` node view if the `file` itself changes (which
-                // it doesn't only the parent changes in this case).
+                // When destroying a `fileFloat`, we may be converting to a `fileRow`! In this case
+                // the `file` node may not be destroyed, just moved into the `fileRow`. However,
+                // the file's layout will change in the new parent so we need to dispatch an update
+                // so the file node can re-render. Since ProseMirror only calls `update()` on the
+                // `file` node view if the `file` itself changes (which it doesn't only the parent
+                // changes in this case).
                 //
-                // Wait a microtask, if any child nodes are still in the DOM, tell them
-                // to update!
+                // Wait a microtask, if any child nodes are still in the DOM, tell them to update!
                 {
                     const oldChildNodes = Array.from(dom.childNodes);
 
@@ -212,8 +211,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 }
             },
             ignoreMutation: record => {
-                // Ignore changes to `style` and `class` attribute when file row layout
-                // changes.
+                // Ignore changes to `style` and `class` attribute when file row layout changes.
                 return record.type === "attributes" && record.target === dom;
             },
         };

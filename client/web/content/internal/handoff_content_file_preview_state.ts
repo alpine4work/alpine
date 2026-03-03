@@ -15,8 +15,8 @@ let handoffContentFilePreviewStatesByFileId: Map<
 > | null = null;
 
 /**
- * Handoff some previously loaded data to `<ContentFileViewerModal>` so
- * it doesn't have to fetch data from the server when it mounts.
+ * Handoff some previously loaded data to `<ContentFileViewerModal>` so it doesn't
+ * have to fetch data from the server when it mounts.
  */
 export function handoffContentFilePreviewState(state: {
     ownedByElement: Element;

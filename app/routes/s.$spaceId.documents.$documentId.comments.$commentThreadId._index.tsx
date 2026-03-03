@@ -66,8 +66,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const platform = getInitialAppRenderPlatform(clientInfo);
     const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
@@ -110,8 +110,8 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
 
     return [
         {
-            // Account name in title won't update when account changes without reload
-            // because we're using `initialData`.
+            // Account name in title won't update when account changes without reload because
+            // we're using `initialData`.
             title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
                 commentThread.firstCommentAuthor.initialData,
             )}`,
@@ -144,9 +144,9 @@ export default function DocumentCommentThreadRoute() {
         initialDocument,
     });
 
-    // Spending time with a document comment thread contributes affinity points
-    // back to the document. Since the comment thread is discussing the document,
-    // the document is likely an artifact you care about.
+    // Spending time with a document comment thread contributes affinity points back to
+    // the document. Since the comment thread is discussing the document, the document
+    // is likely an artifact you care about.
     useSearchAffinityViewEntityInteraction(`Document:${initialDocument.id}`);
 
     const navigationBar = useNavigationBar({
@@ -177,8 +177,8 @@ export default function DocumentCommentThreadRoute() {
                 rootNavigate(
                     `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
                         platform === "mobile"
-                            ? // On mobile, only scroll to where the comment lives in the document. Don't open
-                              // up the comment overlay.
+                            ? // On mobile, only scroll to where the comment lives in the document. Don't open up
+                              // the comment overlay.
                               `scroll=comments-${commentThreadId}`
                             : `comments=${commentThreadId}`
                     }`,

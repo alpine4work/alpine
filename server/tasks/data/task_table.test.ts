@@ -4390,8 +4390,8 @@ describe("old style", () => {
         await expect(commit1Promise).rejects.toThrow(FailedPreconditionError);
     });
 
-    // Our authorization code is implemented with the reasoning: if you had access
-    // in a small window of time (<1 min) before the commit we allow the action.
+    // Our authorization code is implemented with the reasoning: if you had access in a
+    // small window of time (<1 min) before the commit we allow the action.
     test("can update task when collection you have access to is removed in a race condition", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -4484,8 +4484,8 @@ describe("old style", () => {
         await expect(commitPromise).resolves.not.toThrow(PermissionDeniedError);
     });
 
-    // Our authorization code is implemented with the reasoning: if you had access
-    // in a small window of time (<1 min) before the commit we allow the action.
+    // Our authorization code is implemented with the reasoning: if you had access in a
+    // small window of time (<1 min) before the commit we allow the action.
     test("can update task when collection you have access to removes your access in a race condition", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -17039,8 +17039,8 @@ test("correctly updates collection task counts when deleting task and all childr
         task3.updateStatus(session, "Closed"),
     ]);
 
-    // Make sure these run after our other `addCollection()`s so their times are
-    // the ones reflected in the collection objects.
+    // Make sure these run after our other `addCollection()`s so their times are the
+    // ones reflected in the collection objects.
     await task1.addCollection(session, collection2, {time: time4});
     await task4.addCollection(session, collection4, {time: time6});
 

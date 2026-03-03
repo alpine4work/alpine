@@ -6,11 +6,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
 
 assert(process.getuid && process.setuid && process.getgid && process.setgid);
 
-// In production we run a small proxy server on port 80 that turns requests
-// in the form of `http://hostname:80/{port}/*` to `http://hostname:{port}/*`.
-// We need this because annoyingly Cloudflare Workers only allows making
-// requests to default ports in production (our development Cloudflare
-// environment, Miniflare, respects ports).
+// In production we run a small proxy server on port 80 that turns requests in the
+// form of `http://hostname:80/{port}/*` to `http://hostname:{port}/*`. We need
+// this because annoyingly Cloudflare Workers only allows making requests to
+// default ports in production (our development Cloudflare environment, Miniflare,
+// respects ports).
 //
 // Would love for Cloudflare to allow any port. Then we can remove this.
 //
@@ -18,8 +18,8 @@ assert(process.getuid && process.setuid && process.getgid && process.setgid);
 // `dev_proxy_server.ts` which does run in development. As we find/fix bugs in
 // `dev_proxy_server.ts` those changes should also probably be ported here.
 //
-// TODO(calebmer): We should run this code in development to make it easier to
-// find bugs.
+// TODO(calebmer): We should run this code in development to make it easier to find
+// bugs.
 
 const {
     values: {port: portsArray},
@@ -149,8 +149,8 @@ server.on("upgrade", (req1, socket1, head1) => {
 });
 
 // We need to be the root process to listen on port 80. Once our server is
-// listening on port 80 we immediately downgrade the process to the `www-data`
-// user which exists on Linux.
+// listening on port 80 we immediately downgrade the process to the `www-data` user
+// which exists on Linux.
 assert(process.getuid() === 0);
 
 try {
@@ -162,8 +162,8 @@ try {
     process.setgid("www-data");
     process.setuid("www-data");
 
-    // We are paranoid. Check to make sure our process can't escalate back to the
-    // root user after setting the user to `www-data`.
+    // We are paranoid. Check to make sure our process can't escalate back to the root
+    // user after setting the user to `www-data`.
     {
         let failed = false;
         try {

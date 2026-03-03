@@ -6,9 +6,9 @@ import {TimeZone, isTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
- * Updates the session actor's time zone.
- * Time zone is set at the account level and is not tied to a specific space.
- * Only session actors are allowed to update their own time zone.
+ * Updates the session actor's time zone. Time zone is set at the account level and
+ * is not tied to a specific space. Only session actors are allowed to update their
+ * own time zone.
  */
 export async function updateOurAccountObservedTimeZone(
     context: ServerSessionActionContext,

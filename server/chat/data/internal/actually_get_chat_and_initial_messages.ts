@@ -26,8 +26,8 @@ export async function actuallyGetChatAndInitialMessages(
     },
 ): Promise<{
     chat: ChatModel;
-    // Null means "not sure" or "not applicable". If the client needs the
-    // subscription state it'll need to load the state locally.
+    // Null means "not sure" or "not applicable". If the client needs the subscription
+    // state it'll need to load the state locally.
     initialIsSubscribed: boolean | null;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
@@ -51,8 +51,8 @@ export async function actuallyGetChatAndInitialMessagesIfPossible(
 ): Promise<Result<
     {
         chat: ChatModel;
-        // Null means "not sure" or "not applicable". If the client needs the
-        // subscription state it'll need to load the state locally.
+        // Null means "not sure" or "not applicable". If the client needs the subscription
+        // state it'll need to load the state locally.
         initialIsSubscribed: boolean | null;
         initialMessages: ReadonlyArray<ChatMessageModel>;
         initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;

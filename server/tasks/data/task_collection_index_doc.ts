@@ -28,17 +28,18 @@ import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
     LabelStringRegister,
-    // TODO(calebmer): Switch this to an un-indexed `keyword` type. This will
-    // improve indexing performance. We set collection names up like this before we
-    // implemented the general purpose search entity index. Which we now use to
-    // serve requests so the extra indexing work we do here is completely unused.
+    // TODO(calebmer): Switch this to an un-indexed `keyword` type. This will improve
+    // indexing performance. We set collection names up like this before we implemented
+    // the general purpose search entity index. Which we now use to serve requests so
+    // the extra indexing work we do here is completely unused.
     new OpensearchIndexSearchAsYouTypeType({
         // NOTE(calebmer): This analyzer is the same as
-        // `opensearchIndexEnglishWithWordDelimiterGraphAnalyzer` except stop words
-        // aren't removed. This analyzer was written before we [learned about
+        // `opensearchIndexEnglishWithWordDelimiterGraphAnalyzer` except stop words aren't
+        // removed. This analyzer was written before we [learned about
         // `cutoff_frequency`][1] which is a better approach at handling common terms.
         //
-        // [1]: https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
+        // [1]:
+        //     https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
         analyzer: new OpensearchIndexAnalysisCustomAnalyzer("english_with_word_delimiter_graph", {
             tokenizer: "standard",
             filter: [
@@ -87,9 +88,9 @@ export type TaskCollectionIndexDoc = MergeObjectIntersection<
     {
         readonly id: TaskCollectionId;
     } & OpensearchIndexTypeType<typeof TaskCollectionIndexDocType> & {
-            // This type is used throughout `TaskRealtimeService` to represent a
-            // collection. It should not include bookkeeping properties from OpenSearch
-            // that won't be updated in-memory.
+            // This type is used throughout `TaskRealtimeService` to represent a collection. It
+            // should not include bookkeeping properties from OpenSearch that won't be updated
+            // in-memory.
             readonly version?: undefined;
         }
 >;
@@ -138,23 +139,23 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             ),
 
             // NOTE(calebmer, 2025-01-14): When I first designed the `AccessPolicy` type I
-            // thought public sharing via URL would be expressed as a union on the grant
-            // type. So the type of `defaultGrant` would be
+            // thought public sharing via URL would be expressed as a union on the grant type.
+            // So the type of `defaultGrant` would be
             // `{type: "Space"; level: AccessLevel} | {type: "Internet"; level: AccessLevel}`
-            // or something like this. The problem with this design is we want to be able
-            // to express an `AccessPolicy` where the public internet has `View` access
-            // and internal space accounts have `Edit` access. Using a union makes it
-            // more challenging to express this. So we scrapped the union and now
-            // `defaultGrant` only refers to space access.
+            // or something like this. The problem with this design is we want to be able to
+            // express an `AccessPolicy` where the public internet has `View` access and
+            // internal space accounts have `Edit` access. Using a union makes it more
+            // challenging to express this. So we scrapped the union and now `defaultGrant`
+            // only refers to space access.
             //
             // However, since we've written this `accessPolicyDefaultGrantType` type to
-            // OpenSearch, we can't change this to the ideal field (which would be a
-            // boolean named something like `hasDefaultGrantInAccessPolicy`) without a
-            // migration. So for now we're leaving the idea of a default grant type in
-            // OpenSearch and basically treating it as a boolean.
+            // OpenSearch, we can't change this to the ideal field (which would be a boolean
+            // named something like `hasDefaultGrantInAccessPolicy`) without a migration. So
+            // for now we're leaving the idea of a default grant type in OpenSearch and
+            // basically treating it as a boolean.
             //
-            // One more thing: If someone is running a migration in the future to change
-            // this they should consider reusing `SearchEntityIndexAccessPolicyType` here.
+            // One more thing: If someone is running a migration in the future to change this
+            // they should consider reusing `SearchEntityIndexAccessPolicyType` here.
             accessPolicyDefaultGrantType: new OpensearchIndexKeywordType({isFilterable: true})
                 .validate((type): type is "Space" => type === "Space")
                 .nullable(),

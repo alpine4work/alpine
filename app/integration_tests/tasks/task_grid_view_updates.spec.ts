@@ -462,8 +462,8 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Test1"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Test2"})).toBeHidden();
 
-    // Hover over the cell to mount the input. For performance we don't initially
-    // mount the input.
+    // Hover over the cell to mount the input. For performance we don't initially mount
+    // the input.
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowAssigneeCell").hover();
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByLabel("Assignee").click();
@@ -556,8 +556,8 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Low"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Medium"})).toBeHidden();
 
-    // Hover over the cell to mount the input. For performance we don't initially
-    // mount the input.
+    // Hover over the cell to mount the input. For performance we don't initially mount
+    // the input.
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowPriorityCell").hover();
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByLabel("Priority").click();
@@ -650,8 +650,8 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Low"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Medium"})).toBeHidden();
 
-    // Hover over the cell to mount the input. For performance we don't initially
-    // mount the input.
+    // Hover over the cell to mount the input. For performance we don't initially mount
+    // the input.
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowDueDateCell").hover();
 
     await page

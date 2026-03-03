@@ -6,9 +6,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SlackWorkspace} from "~/shared/integrations/slack/slack_space_integration_schema.js";
 
 /**
- * Connects a Slack workspace to a space by creating a new integration item in the database. If a
- * workspace is already connected to the space or the actor does not have admin access,
- * this function will throw an error.
+ * Connects a Slack workspace to a space by creating a new integration item in the
+ * database. If a workspace is already connected to the space or the actor does not
+ * have admin access, this function will throw an error.
  */
 export async function createSlackWorkspaceIntegration(
     context: ServerSessionActionContext,

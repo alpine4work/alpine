@@ -1,5 +1,5 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws4fetch`
-// for executing any AWS commands.
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws4fetch` for
+// executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
@@ -7,8 +7,8 @@ import {DynamoClientDebugItemType} from "~/server/dynamo/core/internal/dynamo_cl
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
- * An entry within a DynamoDB write transaction. Entries within a transaction
- * will all succeed or fail together.
+ * An entry within a DynamoDB write transaction. Entries within a transaction will
+ * all succeed or fail together.
  *
  * Should be treated as an opaque object outside of `DynamoClient`.
  */
@@ -43,8 +43,8 @@ export class DynamoTransactionEntry {
     /**
      * Should not call this outside of `DynamoClient`! Use functions like
      * `DynamoClient.transactionCreateItem()` instead. We require you to pass in a
-     * `DynamoClient` to make sure you at least have access to a `DynamoClient`
-     * which is in an internal directory.
+     * `DynamoClient` to make sure you at least have access to a `DynamoClient` which
+     * is in an internal directory.
      */
     public static _newFromClient(
         client: typeof DynamoClient,
@@ -74,10 +74,10 @@ export class DynamoTransactionEntry {
     }
 
     /**
-     * Should not call this outside of `DynamoClient`! A transaction entry should
-     * be treated as an opaque object outside of this file. We require you to pass
-     * in a `DynamoClient` to make sure you at least have access to a
-     * `DynamoClient` which is in an internal directory.
+     * Should not call this outside of `DynamoClient`! A transaction entry should be
+     * treated as an opaque object outside of this file. We require you to pass in a
+     * `DynamoClient` to make sure you at least have access to a `DynamoClient` which
+     * is in an internal directory.
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public _getTransactItemForClient(client: typeof DynamoClient): types.TransactWriteItem {
@@ -85,10 +85,10 @@ export class DynamoTransactionEntry {
     }
 
     /**
-     * Should not call this outside of `DynamoClient`! A transaction entry should
-     * be treated as an opaque object outside of this file. We require you to pass
-     * in a `DynamoClient` to make sure you at least have access to a
-     * `DynamoClient` which is in an internal directory.
+     * Should not call this outside of `DynamoClient`! A transaction entry should be
+     * treated as an opaque object outside of this file. We require you to pass in a
+     * `DynamoClient` to make sure you at least have access to a `DynamoClient` which
+     * is in an internal directory.
      */
     public _onBeforeExecuteTransaction(
         client: typeof DynamoClient,
@@ -98,10 +98,10 @@ export class DynamoTransactionEntry {
     }
 
     /**
-     * Should not call this outside of `DynamoClient`! A transaction entry should
-     * be treated as an opaque object outside of this file. We require you to pass
-     * in a `DynamoClient` to make sure you at least have access to a
-     * `DynamoClient` which is in an internal directory.
+     * Should not call this outside of `DynamoClient`! A transaction entry should be
+     * treated as an opaque object outside of this file. We require you to pass in a
+     * `DynamoClient` to make sure you at least have access to a `DynamoClient` which
+     * is in an internal directory.
      */
     public _onAfterTransactionExecutedSuccessfully(
         client: typeof DynamoClient,

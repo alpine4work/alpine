@@ -27,15 +27,15 @@ declare global {
     var __remixLoadExtraRouteIds: Array<string> | undefined;
 }
 
-// We've patched Remix so that when it serializes and deserializes errors it
-// looks for this global and uses it.
+// We've patched Remix so that when it serializes and deserializes errors it looks
+// for this global and uses it.
 globalThis.__remixErrorSchema = ErrorSchema;
 
 async function main() {
     registerAlwaysClearSelectionOnMouseDown();
 
-    // Used by `s.$spaceId.inbox.tsx` to load routes rendered in the peek before
-    // React hydration starts (which will need the route module code).
+    // Used by `s.$spaceId.inbox.tsx` to load routes rendered in the peek before React
+    // hydration starts (which will need the route module code).
     if (window.__remixLoadExtraRouteIds) {
         await runAllPromises(
             window.__remixLoadExtraRouteIds.map(routeId =>
@@ -72,15 +72,15 @@ async function main() {
             },
         );
 
-        // Install our scrollbar auditor after React has finished hydrating. (Ideally
-        // we'd install after `isInitialAppRender` goes to false.)
+        // Install our scrollbar auditor after React has finished hydrating. (Ideally we'd
+        // install after `isInitialAppRender` goes to false.)
         if (process.env.NODE_ENV !== "production") {
             installScrollbarAuditorInDev();
         }
     });
 
-    // Tell native mobile what our theme color is after server rendering. Update
-    // the theme color whenever the color scheme changes.
+    // Tell native mobile what our theme color is after server rendering. Update the
+    // theme color whenever the color scheme changes.
     updateNativeMobileThemeColors();
     subscribeToColorSchemeChange(updateNativeMobileThemeColors);
 

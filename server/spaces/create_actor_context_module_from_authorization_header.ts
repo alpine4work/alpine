@@ -109,9 +109,9 @@ export async function createDynamoActorSessionContextModule(
         );
     }
 
-    // Optimization: When loading our session from the database, also attempt to
-    // load whether the account associated with the session is a member of the
-    // space we're in.
+    // Optimization: When loading our session from the database, also attempt to load
+    // whether the account associated with the session is a member of the space we're
+    // in.
     const spaceIdPromiseItem = spaceId
         ? () =>
               isAccountMemberOfSpaceWithoutAuthorization(

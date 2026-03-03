@@ -52,12 +52,12 @@ export type DocumentCollaborationEvent = WebSocketProtocolEventType<
 export const DocumentCollaborationProtocol = defineWebSocketProtocol({
     procedures: {
         /**
-         * Request a backfill to catch us up from the version our client loaded from
-         * the server to the latest, live, document version.
+         * Request a backfill to catch us up from the version our client loaded from the
+         * server to the latest, live, document version.
          *
-         * Even if the client just loaded a document in the milliseconds between the
-         * server returning the document and the client connecting to the collaboration
-         * service there may have been an update.
+         * Even if the client just loaded a document in the milliseconds between the server
+         * returning the document and the client connecting to the collaboration service
+         * there may have been an update.
          */
         backfill: {
             input: {
@@ -103,13 +103,13 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                     .nullable()
                     .default(null),
                 /**
-                 * Atomically update our presence state in the same action as we update
-                 * our content.
+                 * Atomically update our presence state in the same action as we update our
+                 * content.
                  *
                  * The state must have a `version` that matches the `version` in this update.
-                 * However, an important detail is that the state is for the document at
-                 * `version` plus the `steps` in this update! The selection, for instance, is
-                 * for the document after steps are applied.
+                 * However, an important detail is that the state is for the document at `version`
+                 * plus the `steps` in this update! The selection, for instance, is for the
+                 * document after steps are applied.
                  *
                  * The presence state in `UpdateOurPresenceState` is for exactly the referenced
                  * document version.
@@ -225,8 +225,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         /**
          * Get a comment thread and its associated initial comments.
          *
-         * This is a part of our collaboration WebSocket protocol because we may have
-         * an optimistic comment thread created in the durable object that hasn't been
+         * This is a part of our collaboration WebSocket protocol because we may have an
+         * optimistic comment thread created in the durable object that hasn't been
          * persisted yet.
          */
         getCommentThreadAndInitialCommentsIfExists: {
@@ -245,8 +245,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         /**
          * Get some comments in a comment thread.
          *
-         * This is a part of our collaboration WebSocket protocol because we may have
-         * an optimistic comment thread created in the durable object that hasn't been
+         * This is a part of our collaboration WebSocket protocol because we may have an
+         * optimistic comment thread created in the durable object that hasn't been
          * persisted yet.
          */
         getCommentsFromStart: {
@@ -266,8 +266,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         /**
          * Get some comments in a comment thread.
          *
-         * This is a part of our collaboration WebSocket protocol because we may have
-         * an optimistic comment thread created in the durable object that hasn't been
+         * This is a part of our collaboration WebSocket protocol because we may have an
+         * optimistic comment thread created in the durable object that hasn't been
          * persisted yet.
          */
         getCommentsFromEnd: {
@@ -297,8 +297,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         },
 
         /**
-         * Marks a document comment thread as unresolved. Adds the comment mark back to
-         * the document everywhere it was previously. If the comment thread is already
+         * Marks a document comment thread as unresolved. Adds the comment mark back to the
+         * document everywhere it was previously. If the comment thread is already
          * unresolved then this does nothing.
          */
         unresolveCommentThread: {
@@ -316,14 +316,14 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
          * Don't tell the user that their changes have saved until you see a
          * `PersistedContent` message.
          *
-         * You have no ordering guarantees around this message! Usually you will get
-         * these messages in ascending version order and usually this message will
-         * occur before the `PersistedContent` message for the same version. However,
-         * usually is the operative word! We can not send this message until we load
-         * `ContentReferences` and loading `ContentReferences` does not block other
-         * updates. So client implementations need to handle receiving this message
-         * out-of-order. A recommend implementation is if you get a future message, put
-         * it in a queue until you get earlier messages needed to process it.
+         * You have no ordering guarantees around this message! Usually you will get these
+         * messages in ascending version order and usually this message will occur before
+         * the `PersistedContent` message for the same version. However, usually is the
+         * operative word! We can not send this message until we load `ContentReferences`
+         * and loading `ContentReferences` does not block other updates. So client
+         * implementations need to handle receiving this message out-of-order. A recommend
+         * implementation is if you get a future message, put it in a queue until you get
+         * earlier messages needed to process it.
          */
         UpdateContentWithoutPersistence: Schema.object({
             type: Schema.value("UpdateContentWithoutPersistence"),
@@ -344,25 +344,25 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             }).nullable(),
 
             /**
-             * Comment threads that were resolved at the same time as these steps were
-             * applied. Remember that when you receive this event we may not have persisted
-             * the resolve state yet! You'll get the newly persisted
-             * `DocumentCommentThreadModel` object with `PersistedContent`.
+             * Comment threads that were resolved at the same time as these steps were applied.
+             * Remember that when you receive this event we may not have persisted the resolve
+             * state yet! You'll get the newly persisted `DocumentCommentThreadModel` object
+             * with `PersistedContent`.
              */
             resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
 
             /**
              * Comment threads that were unresolved at the same time as these steps were
-             * applied. Remember that when you receive this event we may not have persisted
-             * the resolve state yet! You'll get the newly persisted
-             * `DocumentCommentThreadModel` object with `PersistedContent`.
+             * applied. Remember that when you receive this event we may not have persisted the
+             * resolve state yet! You'll get the newly persisted `DocumentCommentThreadModel`
+             * object with `PersistedContent`.
              */
             unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
         }),
 
         /**
-         * Tells the client that we've successfully persisted all changes at this
-         * version and if the client disconnects the changes will still be there.
+         * Tells the client that we've successfully persisted all changes at this version
+         * and if the client disconnects the changes will still be there.
          *
          * You may get a `PersistedContent` event before a
          * `UpdateContentWithoutPersistence` with the steps for this version. That's
@@ -382,22 +382,21 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         }),
 
         // TODO(calebmer): This is a leftover artifact from before I introduced the
-        // `ClosingWithError` message to our WebSocket server protocol. I think we
-        // could refactor this to remove this event and call `closeWithError()`
-        // instead.
+        // `ClosingWithError` message to our WebSocket server protocol. I think we could
+        // refactor this to remove this event and call `closeWithError()` instead.
         Error: Schema.object({
             type: Schema.value("Error"),
             error: ErrorSchema,
         }),
 
-        // NOTE(calebmer): Code-style note. We want top-level procedure/event names to
-        // use the correct nomenclature for posts. We call "messages" "comments" in a
-        // document context. We are ok nesting an event with "message" nomenclature in
-        // an event with the name `Comments` but we can't nest procedures hence why we
-        // need to write them out from scratch.
+        // NOTE(calebmer): Code-style note. We want top-level procedure/event names to use
+        // the correct nomenclature for posts. We call "messages" "comments" in a document
+        // context. We are ok nesting an event with "message" nomenclature in an event with
+        // the name `Comments` but we can't nest procedures hence why we need to write them
+        // out from scratch.
         //
-        // Was it correct to "comment" as the name in code for document comments?
-        // Probably not. All the boilerplate is pretty unnecessary.
+        // Was it correct to "comment" as the name in code for document comments? Probably
+        // not. All the boilerplate is pretty unnecessary.
         Comments: Schema.object({
             type: Schema.value("Comments"),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),

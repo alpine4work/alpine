@@ -9,8 +9,8 @@ const ourImportPath = ourImportMetaUrl.slice(7);
 const rootPath = resolvePath(ourImportPath, "../../..");
 
 /**
- * Creates a `debug` function using the [debug][1] npm package. We like to use
- * the file name as the debug namespace. You should always call this with:
+ * Creates a `debug` function using the [debug][1] npm package. We like to use the
+ * file name as the debug namespace. You should always call this with:
  *
  * ```
  * const debug = createDebug(import.meta.url);
@@ -27,8 +27,8 @@ export function createDebug(importMetaUrl: string) {
 
     const debug = actuallyCreateDebug(namespace);
 
-    // Select the `debug` color based on the base file name so if the file moves
-    // the color stays the same.
+    // Select the `debug` color based on the base file name so if the file moves the
+    // color stays the same.
     debug.color = actuallyCreateDebug.selectColor(basename(importPath)) as any;
 
     return debug;

@@ -228,9 +228,9 @@ type DocumentContentEditorSidebarMobileState =
 type DocumentContentEditorSidebarTransition = {
     readonly commentThreadId: DocumentCommentThreadId;
     readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarData | null>;
-    // Promise that resolves when the transition finishes. This may happen before
-    // the data promise resolves! Or if another transition starts cancelling our
-    // previous transition.
+    // Promise that resolves when the transition finishes. This may happen before the
+    // data promise resolves! Or if another transition starts cancelling our previous
+    // transition.
     readonly pendingPromiseResolver: PromiseResolver<void>;
 };
 
@@ -486,8 +486,7 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
@@ -496,8 +495,8 @@ export function DocumentContentEditor({
                     mobileFakeCommentInputElement.style.transform = "translateY(0)";
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             // Since we have the style updates above, make sure we synchronously flush this
@@ -584,8 +583,7 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
@@ -594,8 +592,8 @@ export function DocumentContentEditor({
                     mobileFakeCommentInputElement.style.transform = `translateY(${sidebarHeight}px)`;
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             // When we switch to `isOpen: false` the width of the document editor container
@@ -620,8 +618,8 @@ export function DocumentContentEditor({
 
     // When the sidebar opens on mobile:
     //
-    // 1. Add safe area to the bottom of the document of the same height as the
-    //    sidebar (sidebar is positioned as a bottom sheet on mobile)
+    // 1. Add safe area to the bottom of the document of the same height as the sidebar
+    //    (sidebar is positioned as a bottom sheet on mobile)
     // 2. Make sure the content editor is blurred
     useLayoutEffectWithoutServerSideWarning(() => {
         const editorContainerElement = assertExists(editorContainerRef.current);
@@ -668,12 +666,12 @@ export function DocumentContentEditor({
             getSpacingScaleWithoutListening(),
         );
 
-        // If the user has scrolled far enough down a comment thread (e.g. all the way
-        // to the bottom) then once the expand animation finishes there'll be a bunch
-        // of empty space that'll disappear once we take away the comment thread's
-        // mobile background slop. Since it looks janky to animate in this empty space
-        // then take it away, instead do a scroll to prevent the background slop from
-        // showing at the beginning of our expand animation.
+        // If the user has scrolled far enough down a comment thread (e.g. all the way to
+        // the bottom) then once the expand animation finishes there'll be a bunch of empty
+        // space that'll disappear once we take away the comment thread's mobile background
+        // slop. Since it looks janky to animate in this empty space then take it away,
+        // instead do a scroll to prevent the background slop from showing at the beginning
+        // of our expand animation.
         const commentThreadListView = commentThreadListViewRef.current;
         if (commentThreadListView) {
             const scrollTop = commentThreadListView.getScrollOffset();
@@ -702,14 +700,13 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 sidebarElement.style.transform = `translateY(${-offset}px)`;
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             setSidebarState(sidebarState => {
@@ -766,14 +763,13 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 sidebarElement.style.transform = "translateY(0)";
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             setSidebarState(sidebarState => {
@@ -836,9 +832,9 @@ export function DocumentContentEditor({
         useSpacingScale(),
     );
 
-    // We compute the *editor* container size from the container size so that when
-    // the sidebar opens/closes we don't need to re-render side decorations when the
-    // resize observer changes.
+    // We compute the _editor_ container size from the container size so that when the
+    // sidebar opens/closes we don't need to re-render side decorations when the resize
+    // observer changes.
     const editorContainerWidth =
         containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
             ? containerSize.width - documentContentEditorSidebarWidthPx
@@ -849,8 +845,8 @@ export function DocumentContentEditor({
     \* ========================================================================== */
 
     const openCommentThread = useEvent((commentThreadId: DocumentCommentThreadId) => {
-        // If this comment thread is already open or in the process of opening then
-        // don't open it again.
+        // If this comment thread is already open or in the process of opening then don't
+        // open it again.
         if (
             sidebarState.transition?.commentThreadId === commentThreadId ||
             (sidebarState.isOpen &&
@@ -990,12 +986,12 @@ export function DocumentContentEditor({
                 });
             };
 
-            // If the user is in a fullscreen comment thread, warn if they try to exit
-            // without sending a comment they've typed in.
+            // If the user is in a fullscreen comment thread, warn if they try to exit without
+            // sending a comment they've typed in.
             //
-            // We do this mostly since the fake comment input rendered when the comment
-            // thread is open but not fullscreen will always be empty. So when returning to
-            // that state we want to actually empty out the underlying comment input.
+            // We do this mostly since the fake comment input rendered when the comment thread
+            // is open but not fullscreen will always be empty. So when returning to that state
+            // we want to actually empty out the underlying comment input.
             if (
                 sidebarState.isOpen &&
                 sidebarState.mobileState.isFullScreen &&
@@ -1047,12 +1043,12 @@ export function DocumentContentEditor({
                 });
             };
 
-            // If the user is in a fullscreen comment thread, warn if they try to exit
-            // without sending a comment they've typed in.
+            // If the user is in a fullscreen comment thread, warn if they try to exit without
+            // sending a comment they've typed in.
             //
-            // We do this mostly since the fake comment input rendered when the comment
-            // thread is open but not fullscreen will always be empty. So when returning to
-            // that state we want to actually empty out the underlying comment input.
+            // We do this mostly since the fake comment input rendered when the comment thread
+            // is open but not fullscreen will always be empty. So when returning to that state
+            // we want to actually empty out the underlying comment input.
             if (
                 sidebarState.isOpen &&
                 sidebarState.mobileState.isFullScreen &&
@@ -1068,9 +1064,9 @@ export function DocumentContentEditor({
             run();
         },
         onCopyLink: async () => {
-            // When the user goes to copy the link for a document, make sure the document
-            // has been created before copying. Otherwise the other user won't see realtime
-            // updates to the document.
+            // When the user goes to copy the link for a document, make sure the document has
+            // been created before copying. Otherwise the other user won't see realtime updates
+            // to the document.
             await ensureCreateDocument();
 
             const url = new URL(`/s/${spaceId}/documents/${documentId}`, window.location.href);
@@ -1093,8 +1089,8 @@ export function DocumentContentEditor({
     >(emptyMap);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // Our editor won't be able to determine positions of comment marks until after
-        // the initial render because it uses `<ContentView>` which doesn't support
+        // Our editor won't be able to determine positions of comment marks until after the
+        // initial render because it uses `<ContentView>` which doesn't support
         // `coordsAtPos()`.
         if (isInitialAppRender) return;
 
@@ -1105,9 +1101,8 @@ export function DocumentContentEditor({
         const editorContainerElement = assertExists(editorContainerRef.current);
         const editor = assertExists(editorRef.current);
 
-        // We still collect decorations on mobile even though we don't render them
-        // because we need them for the next/previous buttons on an opened comment
-        // thread.
+        // We still collect decorations on mobile even though we don't render them because
+        // we need them for the next/previous buttons on an opened comment thread.
         const store = computeStore(get =>
             collectDecorationByMarkTop(
                 {
@@ -1231,8 +1226,8 @@ export function DocumentContentEditor({
                     candidateScrollTop2 - editorContainerElement.scrollTop,
                 );
 
-                // Pick the scroll offset that moves our window the least. That way there are
-                // no big disorienting jumps.
+                // Pick the scroll offset that moves our window the least. That way there are no
+                // big disorienting jumps.
                 if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
                     editorContainerElement.scrollTo({top: candidateScrollTop2, behavior});
                 } else {
@@ -1270,14 +1265,14 @@ export function DocumentContentEditor({
                 sidebarState.isOpen &&
                 // NOTE(calebmer): I've found running the sidebar open animation and the scroll
                 // animation at the same time on mobile WebKit makes the sidebar open animation
-                // look janky. However sequencing one after the other looks smooth. *shrug*
+                // look janky. However sequencing one after the other looks smooth. _shrug_
                 (!isMobileWebKit || sidebarState.animationState !== "Opening") &&
                 sidebarState.animationState !== "Closing"
                     ? sidebarState.commentThreadId
                     : null;
 
-            // When the sidebar comment thread changes, scroll to the comment in
-            // the document. Or when the component initially mounts.
+            // When the sidebar comment thread changes, scroll to the comment in the document.
+            // Or when the component initially mounts.
             if (!commentThreadId) return;
 
             const navigationBar = assertExists(navigationBarRef.current);
@@ -1329,9 +1324,9 @@ export function DocumentContentEditor({
                 }
             }
 
-            // If any of the comment's mark elements are visible we don't need to scroll to
-            // it! If the user wants to see exactly the part of the doc in the preview they
-            // can click on the preview.
+            // If any of the comment's mark elements are visible we don't need to scroll to it!
+            // If the user wants to see exactly the part of the doc in the preview they can
+            // click on the preview.
             if (isSomeCommentMarkVisible) return;
 
             assert(firstCommentMarkRect);
@@ -1343,9 +1338,9 @@ export function DocumentContentEditor({
                     // 2. We're opening the sidebar in our desktop layout
                     //
                     // In case 1 we should open immediately to the comment (e.g. if the user is
-                    // navigating here from somewhere). In case 2 we need to scroll because of a
-                    // layout shift when we made the document content narrower so it would be weird
-                    // to animate.
+                    // navigating here from somewhere). In case 2 we need to scroll because of a layout
+                    // shift when we made the document content narrower so it would be weird to
+                    // animate.
                     isInitialRender || (!lastSidebarState.isOpen && routeLayout !== "narrow")
                         ? "instant"
                         : "smooth",
@@ -1412,10 +1407,10 @@ export function DocumentContentEditor({
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        //   render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be scrolling
+        //   not the document.
         isDisabled: isInitialAppRender || sidebarState.isOpen,
         getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
@@ -1455,10 +1450,9 @@ export function DocumentContentEditor({
         document.addEventListener("focusin", handleFocusChange);
         document.addEventListener("focusout", handleFocusChange);
 
-        // We've observed that iOS Safari doesn't emit `focusin`/`focusout` events when
-        // a focused element is removed from the DOM. So we listen for
-        // `selectionchange` events as well as a fallback which should fire before the
-        // edit menu opens.
+        // We've observed that iOS Safari doesn't emit `focusin`/`focusout` events when a
+        // focused element is removed from the DOM. So we listen for `selectionchange`
+        // events as well as a fallback which should fire before the edit menu opens.
         document.addEventListener("selectionchange", handleFocusChange);
 
         const unsubscribe = NativeMobileBridge.editMenu.subscribeToAddCommentAction(() => {
@@ -1480,8 +1474,8 @@ export function DocumentContentEditor({
         };
     }, [isInert, isInitialAppRender]);
 
-    // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom
-    // sheet on mobile.
+    // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom sheet
+    // on mobile.
     const hasDisabledNativeMobileTabBarRef = useRef(false);
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!NativeMobileBridge) return;
@@ -1550,8 +1544,8 @@ export function DocumentContentEditor({
         ref: navigationBarRef,
         title,
         getTitleBoundaryElement: useCallback(() => {
-            // Assume the title `<h1>` element is always the first element in the
-            // ProseMirror DOM.
+            // Assume the title `<h1>` element is always the first element in the ProseMirror
+            // DOM.
             const editor = assertExists(editorRef.current);
             return editor.getEditorElement().firstElementChild! as HTMLHeadingElement;
         }, []),
@@ -1668,9 +1662,8 @@ export function DocumentContentEditor({
                                           {sourceDocumentId: documentId},
                                       );
 
-                                      // Navigate to the new document. Always open in a peek on desktop. To make it
-                                      // clear when you're duplicating from a peek that the new document is a
-                                      // duplicate.
+                                      // Navigate to the new document. Always open in a peek on desktop. To make it clear
+                                      // when you're duplicating from a peek that the new document is a duplicate.
                                       if (peekStackContext && platform !== "mobile") {
                                           await peekStackContext.push(
                                               `/s/${spaceId}/documents/${newDocumentId}`,
@@ -1816,8 +1809,8 @@ export function DocumentContentEditor({
                         <GlobalKeyDownEvent
                             onGlobalKeyDown={event => {
                                 // Perform undo/redo on the document even if the document isn't focused. If the
-                                // document is focused and cmd-z is pressed then the document will handle the
-                                // event itself and call `event.preventDefault()` + `event.stopPropagation()`.
+                                // document is focused and cmd-z is pressed then the document will handle the event
+                                // itself and call `event.preventDefault()` + `event.stopPropagation()`.
                                 switch (event.key) {
                                     case "z": {
                                         if (isAppleDevice ? event.metaKey : event.ctrlKey) {
@@ -1881,8 +1874,8 @@ export function DocumentContentEditor({
                                     ) {
                                         // `<ContentEditorCommentInput>` will wait on this promise before closing after
                                         // creating a comment thread when it exists. If the sidebar is not already open
-                                        // then we rely on our document's global loading indicator to tell us when
-                                        // comments have successfully saved.
+                                        // then we rely on our document's global loading indicator to tell us when comments
+                                        // have successfully saved.
                                         createCommentThread.openCommentThreadPromiseRef.current =
                                             openCommentThread(createCommentThread.commentThreadId);
                                     }
@@ -1898,24 +1891,23 @@ export function DocumentContentEditor({
                                         : "Share your ideas…"
                                 }
                                 accessLevel={accessLevel}
-                                // When you're typing in the first paragraph of a document (2 child nodes,
-                                // title + paragraph) you probably want to insert some formatting (like a
-                                // table). This helps the user discover features of Alpine documents. Since we
-                                // prompt them with "press @ to insert" as a placeholder.
+                                // When you're typing in the first paragraph of a document (2 child nodes, title +
+                                // paragraph) you probably want to insert some formatting (like a table). This
+                                // helps the user discover features of Alpine documents. Since we prompt them with
+                                // "press @ to insert" as a placeholder.
                                 //
                                 // As you're typing a long document probably the next thing you want to do is
                                 // mention another document, task, or something else.
                                 //
-                                // Mentioning a person is probably the last thing you want to do while working
-                                // on a document since mentions won't send a notification when typing in a
-                                // document.
+                                // Mentioning a person is probably the last thing you want to do while working on a
+                                // document since mentions won't send a notification when typing in a document.
                                 mentionFloaterSectionOrder={
                                     content.doc.childCount <= 2
                                         ? "InsertSuggestedPeople"
                                         : "SuggestedInsertPeople"
                                 }
-                                // While the sidebar is open, don't render our document toolbar. It would be
-                                // weird for it to pop up when writing a comment.
+                                // While the sidebar is open, don't render our document toolbar. It would be weird
+                                // for it to pop up when writing a comment.
                                 withoutMobileKeyboardToolbar={sidebarState.isOpen}
                                 className={classNames(
                                     documentContentStyles.contentClassName,
@@ -1957,22 +1949,22 @@ export function DocumentContentEditor({
 
                                     handleEventForSpellCheckIgnoredLint(eventTransaction);
                                 }}
-                                // Since the document content editor fills the entire screen height, it makes
-                                // sense that if the user `mousedown`s in the bottom margin we should create a
-                                // new paragraph and move selection there if the last item is not already a
-                                // paragraph (e.g. a divider or table or something).
+                                // Since the document content editor fills the entire screen height, it makes sense
+                                // that if the user `mousedown`s in the bottom margin we should create a new
+                                // paragraph and move selection there if the last item is not already a paragraph
+                                // (e.g. a divider or table or something).
                                 withMouseDownAtEndCreatesParagraph={true}
                             />
                         </GlobalKeyDownEvent>
                         {
-                            // IMPORTANT: It's important that this element is below `<ContentEditor>` so
-                            // that `<ContentEditor>` is first in the tab order! This matters when
-                            // auto-focusing a document peek when we open it up.
+                            // IMPORTANT: It's important that this element is below `<ContentEditor>` so that
+                            // `<ContentEditor>` is first in the tab order! This matters when auto-focusing a
+                            // document peek when we open it up.
                             navigationBar
                         }
                         {useMemo(
-                            // Memoize side decorations since it can be an expensive component
-                            // to re-render. Especially during animations.
+                            // Memoize side decorations since it can be an expensive component to re-render.
+                            // Especially during animations.
                             () =>
                                 platform !== "mobile" && (
                                     <DocumentContentEditorSideDecorations
@@ -1997,9 +1989,9 @@ export function DocumentContentEditor({
                 <>
                     {routeLayout === "narrow" && (
                         <Box
-                            // While the mobile comment thread overlay is open render a cover to prevent
-                            // the user from interacting with the underlying document. Tapping the cover
-                            // will close the comment thread.
+                            // While the mobile comment thread overlay is open render a cover to prevent the
+                            // user from interacting with the underlying document. Tapping the cover will close
+                            // the comment thread.
                             position="absolute"
                             zIndex="10"
                             inset="0"
@@ -2019,12 +2011,11 @@ export function DocumentContentEditor({
                                     ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
                                       addRemLengths(documentContentEditorSidebarWidth, "4")
                                     : "100%",
-                            // In the mobile layout (mobile devices and peeks) we show the comment thread
-                            // in a bottom sheet. When the comment input is focused on mobile devices we
-                            // then animate the sidebar to take the full screen space since the virtual
-                            // keyboard will open and the user still needs to see comments. In peeks on
-                            // desktop we don't expand to fullscreen because the user can type on their
-                            // physical keyboard.
+                            // In the mobile layout (mobile devices and peeks) we show the comment thread in a
+                            // bottom sheet. When the comment input is focused on mobile devices we then
+                            // animate the sidebar to take the full screen space since the virtual keyboard
+                            // will open and the user still needs to see comments. In peeks on desktop we don't
+                            // expand to fullscreen because the user can type on their physical keyboard.
                             height:
                                 routeLayout !== "narrow"
                                     ? undefined
@@ -2057,8 +2048,8 @@ export function DocumentContentEditor({
                                 }
                                 overflow="hidden"
                                 style={{
-                                    // Let the browser know we'll be basically immediately animating in the sidebar
-                                    // so it can prepare a compositing layer.
+                                    // Let the browser know we'll be basically immediately animating in the sidebar so
+                                    // it can prepare a compositing layer.
                                     willChange: "transform",
                                 }}
                             >
@@ -2097,9 +2088,8 @@ export function DocumentContentEditor({
                     {platform === "mobile" &&
                         (!sidebarState.mobileState.isFullScreen ||
                             sidebarState.mobileState.animationState !== null) && (
-                            // On mobile while the comment thread is not fullscreen, we render a fake
-                            // comment input that when touched expands the comment thread to take the full
-                            // screen.
+                            // On mobile while the comment thread is not fullscreen, we render a fake comment
+                            // input that when touched expands the comment thread to take the full screen.
                             <>
                                 <Box
                                     ref={mobileFakeCommentInputRef}
@@ -2238,8 +2228,8 @@ export function DocumentContentEditor({
                                     </Box>
                                 </Box>
                                 {isNativeMobile && !isInert && (
-                                    // In our native mobile app, include an invisible bottom bar which only serves
-                                    // to make sure the vertical scroll indicator insets are correct.
+                                    // In our native mobile app, include an invisible bottom bar which only serves to
+                                    // make sure the vertical scroll indicator insets are correct.
                                     <Box
                                         id={`nmbb-${editorContainerId}`}
                                         position="absolute"
@@ -2250,24 +2240,26 @@ export function DocumentContentEditor({
                                         style={{
                                             paddingBottom:
                                                 "var(--window-safe-area-inset-bottom, 0px)",
-                                            // Our native mobile wrapper looks for compositing layers created from an
-                                            // element with an ID that starts with `nmbb-` and ties their position to
-                                            // the tab bar and software keyboard. So we get smooth animations while the
-                                            // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                                            // layer we need to set `will-change: transform`. It's not specified that
-                                            // `will-change: transform` MUST create a compositing layer, instead some
-                                            // browser engines implement this hint themselves as an optimization.
+                                            // Our native mobile wrapper looks for compositing layers created from an element
+                                            // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                                            // software keyboard. So we get smooth animations while the keyboard opens or the
+                                            // tab bar shifts offscreen. To create a compositing layer we need to set
+                                            // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                                            // create a compositing layer, instead some browser engines implement this hint
+                                            // themselves as an optimization.
                                             //
-                                            // It so happens that WebKit is one of those browsers. Here's the code in
-                                            // WebKit that does this: [part 1][1], [part 2][2].
+                                            // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                                            // that does this: [part 1][1], [part 2][2].
                                             //
-                                            // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                                            // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                                            // [1]:
+                                            //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                                            // [2]:
+                                            //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                                             willChange: "transform",
                                         }}
-                                        // Suppress React hydration warnings in our native mobile app. The native
-                                        // mobile app sets the `transform` property on this element. Sometimes before
-                                        // React finishes hydrating. This is expected, React can ignore the difference.
+                                        // Suppress React hydration warnings in our native mobile app. The native mobile
+                                        // app sets the `transform` property on this element. Sometimes before React
+                                        // finishes hydrating. This is expected, React can ignore the difference.
                                         suppressHydrationWarning={true}
                                     >
                                         <Box
@@ -2296,15 +2288,15 @@ export function DocumentContentEditor({
                 />
             )}
             {useMemo(
-                // We style hovered and active comments with a `<style>` element containing
-                // CSS with a dynamic selector that changes when our state changes. We do this
-                // for two reasons:
+                // We style hovered and active comments with a `<style>` element containing CSS
+                // with a dynamic selector that changes when our state changes. We do this for two
+                // reasons:
                 //
-                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
-                //    even if they are different elements in the DOM
+                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover even
+                //    if they are different elements in the DOM
                 // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
-                //    ProseMirror's mutation observer and since the observer doesn't know why
-                //    the change happened it destroys and recreates the mark elements
+                //    ProseMirror's mutation observer and since the observer doesn't know why the
+                //    change happened it destroys and recreates the mark elements
                 () =>
                     activeCommentThreadId && (
                         <style
@@ -2346,9 +2338,8 @@ export function DocumentContentEditor({
                             sourceDocumentId: documentId,
                         });
 
-                        // Navigate to the new document. Always open in a peek on desktop. To make it
-                        // clear when you're duplicating from a peek that the new document is a
-                        // duplicate.
+                        // Navigate to the new document. Always open in a peek on desktop. To make it clear
+                        // when you're duplicating from a peek that the new document is a duplicate.
                         if (peekStackContext && platform !== "mobile") {
                             await peekStackContext.push(`/s/${spaceId}/documents/${newDocumentId}`);
                         } else {
@@ -2391,14 +2382,14 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
         for (let depth = $offset.depth; depth >= 1; depth--) {
             const node = $offset.node(depth);
 
-            // If this comment is within a table then only render the comment decoration if
-            // the table isn't larger than the block width. If the table is larger than the
-            // block width we hide the decoration since it would otherwise render on top of
-            // the table's content!
+            // If this comment is within a table then only render the comment decoration if the
+            // table isn't larger than the block width. If the table is larger than the block
+            // width we hide the decoration since it would otherwise render on top of the
+            // table's content!
             //
-            // We need to make sure we're also listening to the table's optimistic layout
-            // used while resizing the table. Which is why we have to find the
-            // `HTMLTableElement` associated with the table our comment is in.
+            // We need to make sure we're also listening to the table's optimistic layout used
+            // while resizing the table. Which is why we have to find the `HTMLTableElement`
+            // associated with the table our comment is in.
             if (node.type.name === "table") {
                 const tablePos = $offset.start(depth);
 
@@ -2434,9 +2425,8 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
                     },
                 );
 
-                // If the table's total column width exceeds the block width (by more than 1px
-                // to account for subpixel rounding issues) then don't render this comment
-                // decoration.
+                // If the table's total column width exceeds the block width (by more than 1px to
+                // account for subpixel rounding issues) then don't render this comment decoration.
                 if (totalColumnWidthPx > state.blockWidth + 1) {
                     return state;
                 }
@@ -2445,9 +2435,9 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
 
         let coords: {top: number; bottom: number; left: number; right: number} | undefined;
 
-        // If this is a non-text node like `file` then get the DOM element for the node
-        // and use the dimensions of that element instead of the result of
-        // `coordsAtPos()` which will have a height of 0.
+        // If this is a non-text node like `file` then get the DOM element for the node and
+        // use the dimensions of that element instead of the result of `coordsAtPos()`
+        // which will have a height of 0.
         if (!node.type.inlineContent && !node.type.isText) {
             const nodeDom = state.editor.nodeDom(offset);
             if (nodeDom instanceof Element) {
@@ -2592,11 +2582,11 @@ function DocumentContentEditorSidebar({
         };
     }, [commentThreadId, decorations, totalDecoratedCommentThreads]);
 
-    // If we had previous/next comment threads and then the comment was removed
-    // from the document (e.g. comment thread was resolved) then we want to keep
-    // the last previous/next comment threads we've seen. This way a user can go
-    // through comments in a document, resolving them one by one without losing
-    // their place after resolving.
+    // If we had previous/next comment threads and then the comment was removed from
+    // the document (e.g. comment thread was resolved) then we want to keep the last
+    // previous/next comment threads we've seen. This way a user can go through
+    // comments in a document, resolving them one by one without losing their place
+    // after resolving.
     const [originalAdjacentCommentThreads, setAdjacentCommentThreads] = useState(
         currentAdjacentCommentThreads,
     );
@@ -2758,8 +2748,7 @@ function DocumentContentEditorSidebar({
                 {header}
                 {useMemo(
                     () =>
-                        // TODO(calebmer): Ideally this would render shimmers instead of a loading
-                        // spinner.
+                        // TODO(calebmer): Ideally this would render shimmers instead of a loading spinner.
                         initialDataResult.isPending || !initialDataResult.value ? (
                             <Box
                                 flexGrow="1"
@@ -2821,8 +2810,8 @@ function DocumentContentEditorSidebar({
                                 isNativeMobileTabBarHidden={
                                     isNativeMobile && routeLayout === "narrow"
                                 }
-                                // When on mobile, add some background slop so we can easily animate our
-                                // comment thread list view to the full screen size.
+                                // When on mobile, add some background slop so we can easily animate our comment
+                                // thread list view to the full screen size.
                                 backgroundSlopBottomIfPinnedCommentInput={
                                     platform === "mobile" &&
                                     (!mobileState.isFullScreen ||
@@ -2830,9 +2819,9 @@ function DocumentContentEditorSidebar({
                                         ? spacing[documentContentEditorMobileSidebarInsetTop]
                                         : undefined
                                 }
-                                // If we're focusing the pinned comment input because the user swiped to reply
-                                // to a comment then we first need to make sure our sidebar is full screen,
-                                // then we can focus the input after that animation finishes.
+                                // If we're focusing the pinned comment input because the user swiped to reply to a
+                                // comment then we first need to make sure our sidebar is full screen, then we can
+                                // focus the input after that animation finishes.
                                 onBeforePinnedCommentInputFocusFromReplyOrEditingChange={() => {
                                     if (platform !== "mobile") return;
                                     if (mobileState.isFullScreen) return;

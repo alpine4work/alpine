@@ -35,8 +35,8 @@ export async function printApiContentToAgentMarkdownTreeWithFrontmatter({
         type: "yaml",
         value: stringifyYaml(
             mapObjectValues(frontmatter, value => {
-                // Use our Markdown mention syntax for links so the LLM can figure out it can
-                // read this content with a `read_link` tool call.
+                // Use our Markdown mention syntax for links so the LLM can figure out it can read
+                // this content with a `read_link` tool call.
                 if (isObject(value))
                     return `[${escapeMarkdownLinkLabel(
                         printAgentPlainTextLabel(value),

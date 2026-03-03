@@ -15,8 +15,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  * Sends a direct message to a Slack user as the Alpine app.
  *
  * You must always provide at least a plain `text` value, even if you're sending a
- * Block Kit message. This is used as a fallback for Slack clients that don't render Block Kit
- * (e.g. push notifications, older desktop clients).
+ * Block Kit message. This is used as a fallback for Slack clients that don't
+ * render Block Kit (e.g. push notifications, older desktop clients).
  */
 export async function sendDirectMessageAsAlpineApp(
     context: ServerActionContext & {slack: SlackContextModuleBase},

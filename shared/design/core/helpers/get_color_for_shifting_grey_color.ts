@@ -28,8 +28,8 @@ export type GreyShade =
     | "100";
 
 /**
- * Get a color that when applied to `currentShade` on top of `backgroundShade`
- * will result into the closest possible color to `targetShade`.
+ * Get a color that when applied to `currentShade` on top of `backgroundShade` will
+ * result into the closest possible color to `targetShade`.
  */
 export function getColorForShiftingGreyColor(
     targetAlpha: number,
@@ -133,8 +133,7 @@ function actuallyGetColorForShiftingGreyColor(
                 alpha,
             };
 
-            // Double check that `color` mixed with `backgroundColor` creates
-            // `targetColor`.
+            // Double check that `color` mixed with `backgroundColor` creates `targetColor`.
             assert(isDeepEqual(mixRawColors(color, backgroundColor), targetColor));
 
             return color;
@@ -151,9 +150,8 @@ function actuallyGetColorForShiftingGreyColor(
 }
 
 /**
- * Get an opacity that when applied to `currentShade` on top of
- * `backgroundShade` will result into the closest possible color to
- * `targetShade`.
+ * Get an opacity that when applied to `currentShade` on top of `backgroundShade`
+ * will result into the closest possible color to `targetShade`.
  */
 export function approximateOpacityForShiftingGreyColor(
     currentShade: GreyShade,
@@ -190,16 +188,16 @@ function actuallyApproximateOpacityForShiftingGreyColor(
     const alphaIncrement = 0.005;
     const candidates: Array<{alpha: number; distance: number}> = [];
 
-    // We use an iterative algorithm to find the `alpha` value with the
-    // smallest distance from our `targetColor`. There's probably some
-    // efficient equation we could write but since this code runs at build
-    // time, we're ok with an expensive iterative approach.
+    // We use an iterative algorithm to find the `alpha` value with the smallest
+    // distance from our `targetColor`. There's probably some efficient equation we
+    // could write but since this code runs at build time, we're ok with an expensive
+    // iterative approach.
     for (let alpha = currentColor.alpha; alpha > 0; alpha -= alphaIncrement) {
         const candidateColor = mixRawColors({...currentColor, alpha}, backgroundColor);
 
-        // Distance between points in 4D RGBA space. Though RGBA space is not uniform
-        // to the human eye. So this distance metric isn't perfect but it's good enough
-        // for our purposes.
+        // Distance between points in 4D RGBA space. Though RGBA space is not uniform to
+        // the human eye. So this distance metric isn't perfect but it's good enough for
+        // our purposes.
         const distance = Math.sqrt(
             (candidateColor.r - targetColor.r) ** 2 +
                 (candidateColor.g - targetColor.g) ** 2 +

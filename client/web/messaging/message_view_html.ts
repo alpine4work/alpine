@@ -79,8 +79,8 @@ import {Store} from "~/shared/store/store.js";
 // - Message reaction party
 // - Message "(updated)" text after edit
 //
-// We want to add these eventually but for our current use case (chat file
-// entity preview) we don't need them.
+// We want to add these eventually but for our current use case (chat file entity
+// preview) we don't need them.
 
 export function renderMessageView(
     get: <Value>(store: Store<Value>) => Value,
@@ -281,8 +281,8 @@ export function renderMessageView(
                 appendBigEmojiMessageChildren(bigEmojiHtml, messageTextForBigEmoji);
                 didRenderMessageContent = true;
             } else {
-                // This merges the message stream content into the message. So we render the
-                // whole thing at once.
+                // This merges the message stream content into the message. So we render the whole
+                // thing at once.
                 const contentWithReferences = cutMessageContentPayloadWithReferences({
                     payload: message.payload,
                     stream: message.stream,
@@ -557,8 +557,8 @@ function renderMessageViewParent(
             `border-top-color: ${colorSchemeVars["grey-5-translucent"]}`,
             "border-style: solid",
 
-            // Remember this code is copied here and in `message_view.ts`. If you
-            // update one you probably need to update the other as well.
+            // Remember this code is copied here and in `message_view.ts`. If you update one
+            // you probably need to update the other as well.
             `top: calc(${messageViewParentAvatarOffsetYRem + parentMessageAccountAvatarSizeRem / 2}rem - 1px)`,
             `bottom: calc(-${spacing[messageViewParentMarginBottom]} - ${messageViewAvatarOffsetYPx[spacingScale] - 2}px)`,
             `left: calc(-${accountAvatarSizeRem / 2 + parentMessageOffsetRem}rem - 1px)`,

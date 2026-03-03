@@ -34,9 +34,9 @@ function TaskQueryAddFilterMenuButton(
         offsetAlong?: Spacing;
         onStateChange?: (state: OverlayTriggerButtonState) => void;
         /**
-         * Filter types to exclude from the menu. Use this when certain filter
-         * types don't make sense for the context (e.g., Assignee filter in My
-         * Tasks since it's always filtered to the current user).
+         * Filter types to exclude from the menu. Use this when certain filter types don't
+         * make sense for the context (e.g., Assignee filter in My Tasks since it's always
+         * filtered to the current user).
          */
         excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
         children: ReactElement;
@@ -165,8 +165,7 @@ function getFilterMenuSections({
                     });
                 },
             },
-            // Accounts without space access aren't allowed to filter by creator or
-            // assigner.
+            // Accounts without space access aren't allowed to filter by creator or assigner.
             ...(currentAccount
                 ? cast<Array<FilterMenuAction>>([
                       {
@@ -198,7 +197,8 @@ function getFilterMenuSections({
                   ])
                 : []),
         ],
-        // Third menu section (due date, created date, assigned date, closed date, active date)
+        // Third menu section (due date, created date, assigned date, closed date, active
+        // date)
         [
             {
                 filterType: "DueDate",
@@ -259,10 +259,10 @@ function getFilterMenuSections({
                 },
             },
             {
-                // NOTE(calebmer): I feel like "Active date" is better copy here than
-                // "Activated date" since it's more inline with "Active" task branding. I don't
-                // know if people will think of themselves as "activating" a task or more like
-                // "setting a task as active".
+                // NOTE(calebmer): I feel like "Active date" is better copy here than "Activated
+                // date" since it's more inline with "Active" task branding. I don't know if people
+                // will think of themselves as "activating" a task or more like "setting a task as
+                // active".
                 filterType: "ActivatedDate",
                 label: "Active date",
                 onPress: () => {

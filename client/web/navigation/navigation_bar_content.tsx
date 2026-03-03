@@ -135,26 +135,25 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
 
     const {isTextInputFocused, reconcileFocusedTextInput} = useIsTextInputFocused({
         // Don't show done button on web mobile, only native mobile. Web mobile (e.g.
-        // Safari) renders an accessory view with the input that comes with a done
-        // button.
+        // Safari) renders an accessory view with the input that comes with a done button.
         isDisabled: !isMobile || !isNativeMobile || withoutFocusedTextInputDoneButton,
 
         ignore: useCallback((element: Element) => {
             // Don't show "Done" button if the focused text input has a popup
-            // (`role="combobox"` [implicitly has `aria-haspopup="listbox"`][1]). These
-            // inputs come with an overlay and so dismissing the input means clicking
-            // outside of the overlay. Since the interaction for dismissing the keyboard
-            // for the input is obvious we don't show a "Done" button. Also because often
-            // autocomplete inputs have a blocking cover (they set `isBlocking={true}` on
-            // their `<Overlay>`) you wouldn't be able to interact with the "Done" button
-            // anyway.
+            // (`role="combobox"` [implicitly has `aria-haspopup="listbox"`][1]). These inputs
+            // come with an overlay and so dismissing the input means clicking outside of the
+            // overlay. Since the interaction for dismissing the keyboard for the input is
+            // obvious we don't show a "Done" button. Also because often autocomplete inputs
+            // have a blocking cover (they set `isBlocking={true}` on their `<Overlay>`) you
+            // wouldn't be able to interact with the "Done" button anyway.
             //
-            // We added this for the assignee task filter on mobile (and the collection
-            // task filter). It has a search input in a blocking overlay. We don't want to
-            // show the "Done" button while the search input is focused. We also want this
-            // to apply to inputs like `<TaskAssigneeInput>` in a detail view.
+            // We added this for the assignee task filter on mobile (and the collection task
+            // filter). It has a search input in a blocking overlay. We don't want to show the
+            // "Done" button while the search input is focused. We also want this to apply to
+            // inputs like `<TaskAssigneeInput>` in a detail view.
             //
-            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            // [1]:
+            //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
             const ariaHasPopup =
                 element.ariaHasPopup ?? (element.role === "combobox" ? "listbox" : null);
             return ariaHasPopup !== null;
@@ -276,10 +275,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                   </Box>
                               ) : (
                                   !withoutMobileBackButton &&
-                                  // Don't show the back button if the actor doesn't have space access. If the
-                                  // actor doesn't have space access they're probably looking at a shared URL in
-                                  // their web browser. So they're not in an application context. A back button
-                                  // doesn't make sense in a non-application context.
+                                  // Don't show the back button if the actor doesn't have space access. If the actor
+                                  // doesn't have space access they're probably looking at a shared URL in their web
+                                  // browser. So they're not in an application context. A back button doesn't make
+                                  // sense in a non-application context.
                                   //
                                   // TODO(calebmer): Maybe put an Alpine logo here instead? When `currentAccount`
                                   // does not exist. Or put the space logo.
@@ -468,8 +467,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     )}
                                 {isTextInputFocused ? (
                                     // If a text input is focused then we hide menu actions and replace it with a
-                                    // "Done" button. This helps the user see how to end their editing session.
-                                    // Opening menu actions would cause the text input to unfocus anyway.
+                                    // "Done" button. This helps the user see how to end their editing session. Opening
+                                    // menu actions would cause the text input to unfocus anyway.
                                     <Box
                                         display="flex"
                                         justifyContent="flex-end"
@@ -477,8 +476,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     >
                                         <Button
                                             fontSize="100"
-                                            // Don't remove focus from the current text input element
-                                            // on press start. Remove focus on press finish.
+                                            // Don't remove focus from the current text input element on press start. Remove
+                                            // focus on press finish.
                                             isFocusable={false}
                                             onPress={() => {
                                                 if (document.activeElement instanceof HTMLElement) {
@@ -496,8 +495,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         (shareButton &&
                                             (routeLayout !== "wide" ||
                                                 withWideRouteLayoutShareMenuItem))) && (
-                                        // We re-create `<MenuButton>` in this file since when clicking on the share
-                                        // option we want to dynamically switch the menu for the `<ShareOverlay>`.
+                                        // We re-create `<MenuButton>` in this file since when clicking on the share option
+                                        // we want to dynamically switch the menu for the `<ShareOverlay>`.
                                         <NavigationBarContentMoreButton
                                             menuActions={menuActions}
                                             menuOffset={menuOffset}
@@ -546,9 +545,9 @@ export function NavigationBarContentMoreButton({
 
     const lastShowShareOverlayRef = useRef(showShareDesktopOverlay);
 
-    // When `<OverlayTriggerButton>` opens an overlay, it moves focus into the
-    // first focusable element of the overlay. Recreate this behavior when
-    // switching from `showShareOverlay` false to true.
+    // When `<OverlayTriggerButton>` opens an overlay, it moves focus into the first
+    // focusable element of the overlay. Recreate this behavior when switching from
+    // `showShareOverlay` false to true.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (lastShowShareOverlayRef.current === showShareDesktopOverlay) return;
         lastShowShareOverlayRef.current = showShareDesktopOverlay;
@@ -638,9 +637,9 @@ export function NavigationBarContentMoreButton({
                 onOverlayEscapeGlobalKeyDown={event => {
                     if (!showShareDesktopOverlay) return;
 
-                    // If the focused element is a combobox input, `<MenuButton>`, or menu item
-                    // that's open and the user hits escape then we want the escape keydown to close
-                    // the focused element's overlay.
+                    // If the focused element is a combobox input, `<MenuButton>`, or menu item that's
+                    // open and the user hits escape then we want the escape keydown to close the
+                    // focused element's overlay.
                     if (
                         event.target instanceof HTMLElement &&
                         (event.target.getAttribute("aria-expanded") === "true" ||
@@ -661,9 +660,9 @@ export function NavigationBarContentMoreButton({
 
                     const overlay = assertExists(overlayRef.current);
 
-                    // If the share overlay's account grant input combobox is open and the user
-                    // clicks outside of the overlay, instead of closing the entire overlay just
-                    // close the combobox. A second click will close the overlay too.
+                    // If the share overlay's account grant input combobox is open and the user clicks
+                    // outside of the overlay, instead of closing the entire overlay just close the
+                    // combobox. A second click will close the overlay too.
                     if (overlay.isAccountGrantInputComboBoxOpen()) {
                         overlay.closeAccountGrantInputComboBox();
                         return {preventDefault: true};
@@ -674,8 +673,8 @@ export function NavigationBarContentMoreButton({
                     size={platform === "mobile" ? "base" : "md"}
                     description="More"
                     withoutTooltip={true}
-                    // Don't focus the button on press since pressing will open the overlay and
-                    // should focus the overlay.
+                    // Don't focus the button on press since pressing will open the overlay and should
+                    // focus the overlay.
                     //
                     // TODO(calebmer): Find a way to automate this instead of setting this prop
                     // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
@@ -684,10 +683,9 @@ export function NavigationBarContentMoreButton({
                     <DotsThreeVertical
                     // Vertical dots create better visual balance on mobile because:
                     //
-                    // 1. On mobile we have a back button on the left and we want this button to
-                    //    look aligned with that
-                    // 2. The title might be truncated with ellipsis which looks like horizontal
-                    //    dots
+                    // 1. On mobile we have a back button on the left and we want this button to look
+                    //    aligned with that
+                    // 2. The title might be truncated with ellipsis which looks like horizontal dots
                     />
                 </IconButton>
             </OverlayTriggerButton>
@@ -751,9 +749,9 @@ function addShareMenuItem({
 }): MenuActions {
     const shareMenuItem = createShareMenuItem({platform, shareButton, onShare});
 
-    // Merge with the "Copy link" section on mobile. But on desktop where the
-    // switch is a part of the menu item, the share menu item needs a divider
-    // to make it feel separate.
+    // Merge with the "Copy link" section on mobile. But on desktop where the switch is
+    // a part of the menu item, the share menu item needs a divider to make it feel
+    // separate.
     const firstSection = actions[0];
     if (platform !== "desktop" && firstSection) {
         // Check if the first section is a readonly array (MenuAction[])

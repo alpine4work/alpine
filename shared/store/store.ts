@@ -10,8 +10,8 @@ import {
     setReducedStore,
 } from "~/shared/store/internal/store.js";
 
-// Our `internal/store.ts` module doesn't import dependencies that would create
-// a cycle. Instead we import those dependencies here and tell our
+// Our `internal/store.ts` module doesn't import dependencies that would create a
+// cycle. Instead we import those dependencies here and tell our
 // `internal/store.ts` module about them.
 setFlattenedMappedStore(FlattenedMappedStore);
 setMappedStore(MappedStore);

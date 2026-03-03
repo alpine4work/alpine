@@ -47,8 +47,8 @@ export async function subscribeToChannel(
 }
 
 /**
- * Unsubscribes the session actor from the channel. They'll no longer see new
- * posts appear in their inbox.
+ * Unsubscribes the session actor from the channel. They'll no longer see new posts
+ * appear in their inbox.
  */
 export async function unsubscribeFromChannel(
     context: ServerSessionActionContext,

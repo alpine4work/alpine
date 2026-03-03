@@ -17,8 +17,8 @@ import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 const {context, services} = createTestServices();
 
 // NOTE(calebmer): `ApiMessageRoomPath` is the only path I can think of, at the
-// moment, which has a union of all messaging room types in the product. Using
-// it to make sure we exhaustively test all messaging room types in this file.
+// moment, which has a union of all messaging room types in the product. Using it
+// to make sure we exhaustively test all messaging room types in this file.
 type MessagingRoomType = ApiMessageRoomPath extends `/${infer Type}/${string}` ? Type : never;
 
 const testCases: Record<

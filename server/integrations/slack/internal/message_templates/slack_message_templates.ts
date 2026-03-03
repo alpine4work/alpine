@@ -20,10 +20,10 @@ type SlackMessageContents = {
     blocks: Array<KnownBlock | Block>;
 };
 
-// Mapped type with a uniform return type for each key. Assigning `slackMessageTemplates`
-// to this type lets TypeScript treat `handlers[templateName]` as a single function type
-// (not a union) when called from a generic context, so `templateArgs` type-checks without
-// a cast.
+// Mapped type with a uniform return type for each key. Assigning
+// `slackMessageTemplates` to this type lets TypeScript treat
+// `handlers[templateName]` as a single function type (not a union) when called
+// from a generic context, so `templateArgs` type-checks without a cast.
 type SlackMessageTemplateHandlers = {
     [K in SlackMessageTemplates]: (args: SlackMessageTemplateArgs<K>) => SlackMessageContents;
 };

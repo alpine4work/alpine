@@ -36,8 +36,8 @@ export async function spellCheckLint(text: string, options?: LintOptions): Promi
     const lints = await linter.lint(text, options);
 
     // Harper doesn't support custom lint rules out of the box, so we have to manually
-    // filter our lints after running the linter. Someday we should consider contributing
-    // this feature back to Harper.
+    // filter our lints after running the linter. Someday we should consider
+    // contributing this feature back to Harper.
     return lints.filter(lint =>
         spellCheckRuleFilter({
             text: lint.get_problem_text(),

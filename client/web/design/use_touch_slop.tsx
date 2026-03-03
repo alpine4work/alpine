@@ -39,16 +39,17 @@ type MaybeWithPlatform<T> = T | {mobile: T; desktop: T};
 
 /**
  * Touch slop gives the user more space to hit a button. This is especially
- * important on mobile where [we want at least 44px by 44px][1] of hit region
- * per touchable target.
+ * important on mobile where [we want at least 44px by 44px][1] of hit region per
+ * touchable target.
  *
  * Buttons of size `5` and below do not get any touch slop. These buttons we
- * consider too small for mobile. These button size should only be used when
- * the user has fine pointer control.
+ * consider too small for mobile. These button size should only be used when the
+ * user has fine pointer control.
  *
  * We only add touch slop when rendering for mobile.
  *
- * [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+ * [1]:
+ *     https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
  */
 export function useTouchSlop(
     spacing: MaybeWithPlatform<"4" | "5" | "6" | "7" | "8" | "9" | "10" | "full">,

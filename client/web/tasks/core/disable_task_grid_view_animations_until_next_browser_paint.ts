@@ -9,9 +9,9 @@ export function isDisablingTaskGridViewAnimationsForTaskId(taskId: TaskId) {
 }
 
 /**
- * Disable animations on the provided `TaskId` until the next browser paint.
- * This only works if you have (or will have) an immediate React render queued
- * up before the next paint.
+ * Disable animations on the provided `TaskId` until the next browser paint. This
+ * only works if you have (or will have) an immediate React render queued up before
+ * the next paint.
  */
 export function disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId: TaskId) {
     disableTaskGridViewAnimationsForTaskIds.set(

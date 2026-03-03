@@ -113,15 +113,14 @@ export async function createServiceTokenAgent<
 }
 
 /**
- * Our key args may either be a file path or an environment variable name. We
- * first test the environment variable name then try to load as a file path.
+ * Our key args may either be a file path or an environment variable name. We first
+ * test the environment variable name then try to load as a file path.
  *
  * We allow an environment variable name since an RSA key argument might be too
  * long for the command line. Tools like AWS also make it easiest to pass in
- * secrets through environment variables as opposed to command line arguments
- * or files. As of 2023-08-07 the AWS CDK logic for setting production CLI
- * arguments can be found in
- * `admin/aws/internal/add_all_container_aws_resources.ts`.
+ * secrets through environment variables as opposed to command line arguments or
+ * files. As of 2023-08-07 the AWS CDK logic for setting production CLI arguments
+ * can be found in `admin/aws/internal/add_all_container_aws_resources.ts`.
  */
 export async function getServiceTokenAgentKeyFromOption(arg: string): Promise<string> {
     if (arg.startsWith("/")) {

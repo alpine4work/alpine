@@ -10,15 +10,14 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 
 /**
- * Returns encrypted task service routing information for `EdgeService`. This
- * way when `EdgeService` receives a WebSocket connection request for
- * `TaskRealtimeService` it can send the traffic to the appropriate server for
- * the provided `SpaceId`.
+ * Returns encrypted task service routing information for `EdgeService`. This way
+ * when `EdgeService` receives a WebSocket connection request for
+ * `TaskRealtimeService` it can send the traffic to the appropriate server for the
+ * provided `SpaceId`.
  *
- * Uses HTTP caching to avoid frequent requests to this endpoint. Since the
- * result should be cacheable in a shared HTTP cache (like the Cloudflare edge
- * cache) we encrypt the result. Only the `EdgeService` private key can
- * decrypt it.
+ * Uses HTTP caching to avoid frequent requests to this endpoint. Since the result
+ * should be cacheable in a shared HTTP cache (like the Cloudflare edge cache) we
+ * encrypt the result. Only the `EdgeService` private key can decrypt it.
  */
 export async function loader({request, context, span}: LoaderArgs) {
     try {
@@ -29,11 +28,11 @@ export async function loader({request, context, span}: LoaderArgs) {
         const routesEtag = generateEtag(routesString);
 
         const cacheControlHeader = [
-            // Allow caching this resource in Cloudflare's shared cache. Though this data
-            // is sensitive to our system! Making it available in a shared cache means we
-            // can't use the `Authorization` header to block actors outside our system from
-            // reading it. So instead we encrypt the response such that only the
-            // `EdgeService` can read it.
+            // Allow caching this resource in Cloudflare's shared cache. Though this data is
+            // sensitive to our system! Making it available in a shared cache means we can't
+            // use the `Authorization` header to block actors outside our system from reading
+            // it. So instead we encrypt the response such that only the `EdgeService` can read
+            // it.
             "public",
             // We want the resource to be available for some time and revalidate in the
             // background when it's stale instead of blocking a request.

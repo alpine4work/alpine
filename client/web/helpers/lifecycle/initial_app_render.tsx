@@ -20,9 +20,9 @@ export function getIsInitialAppRender(): boolean {
 
 /**
  * This will return true during the initial app render until React finishes
- * rendering the second render where `isInitialAppRender` is set to false.
- * Useful for code which needs to tell if it's running immediately after an
- * initial app render.
+ * rendering the second render where `isInitialAppRender` is set to false. Useful
+ * for code which needs to tell if it's running immediately after an initial app
+ * render.
  */
 export function getWasInitialAppRender(): boolean {
     assert(typeof window !== "undefined");
@@ -34,11 +34,11 @@ export function getWasInitialAppRender(): boolean {
  * Is this the initial render of our application?
  *
  * True on the server side render and true on our initial client side hydration
- * render. Then we re-render the application with false. Any client side
- * navigation will keep this value at false.
+ * render. Then we re-render the application with false. Any client side navigation
+ * will keep this value at false.
  *
- * Useful if you need a different DOM structure in the server side render, but
- * when the application mounts you want client side React to take over.
+ * Useful if you need a different DOM structure in the server side render, but when
+ * the application mounts you want client side React to take over.
  */
 export function useIsInitialAppRender(): boolean {
     const initialAppRender = useContext(AppInitialRenderContext);
@@ -58,16 +58,16 @@ export function useIsInitialAppRender(): boolean {
  * Get a unique `Id` for the initial app render during the initial app render.
  *
  * This `Id` is useful if you need to render something random in your React
- * component. Since with `StableRandom` you can use this to consistently render
- * the same thing on the server and on the client.
+ * component. Since with `StableRandom` you can use this to consistently render the
+ * same thing on the server and on the client.
  *
  * If non-null it's the initial app render. If null it's not the initial app
  * render.
  *
  * For example, this is used by `<TaskGridViewVirtualizedList>` to generate the
- * initial ghost task IDs so that they're the same on the client and the
- * server. Since ghost task IDs are included in a `data-testid` property in the
- * DOM they need to be the same.
+ * initial ghost task IDs so that they're the same on the client and the server.
+ * Since ghost task IDs are included in a `data-testid` property in the DOM they
+ * need to be the same.
  */
 export function useInitialAppRenderId(): Id | null {
     const initialAppRender = useContext(AppInitialRenderContext);
@@ -84,9 +84,9 @@ export function useInitialAppRenderId(): Id | null {
 }
 
 /**
- * If this is the initial app render then returns the initial app render time.
- * This is useful if you need a time that's shared across the client and
- * server so you don't have hydration issues.
+ * If this is the initial app render then returns the initial app render time. This
+ * is useful if you need a time that's shared across the client and server so you
+ * don't have hydration issues.
  *
  * If non-null it's the initial app render. If null it's not the initial app
  * render.
@@ -110,8 +110,8 @@ export function useAppInitialRenderContextProvider(
     initialAppRenderId: Id | undefined,
     children: ReactNode,
 ): ReactElement {
-    // There should only be one `<AppInitialRenderContextProvider>` at the root of
-    // our application. Don't nest these!
+    // There should only be one `<AppInitialRenderContextProvider>` at the root of our
+    // application. Don't nest these!
     const parentIsInitialAppRender = useContext(AppInitialRenderContext);
     assert(parentIsInitialAppRender === null);
 
@@ -134,9 +134,9 @@ export function useAppInitialRenderContextProvider(
         }
     }, [initialAppRender]);
 
-    // Useful for integration tests or other scripting to know when our JavaScript
-    // has finished running, React has finished running, and the initial render is
-    // over (so components like `<ContentEditor>` are ready).
+    // Useful for integration tests or other scripting to know when our JavaScript has
+    // finished running, React has finished running, and the initial render is over (so
+    // components like `<ContentEditor>` are ready).
     useDevConsoleTool("ready", () => initialAppRender === false);
 
     return (

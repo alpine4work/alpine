@@ -4,8 +4,8 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InternalError} from "~/shared/error/error.js";
 
 /**
- * This is an index route that automatically redirects from /s/:spaceId/settings
- * to /s/:spaceId/settings/general when a user manually visits /s/:spaceId/settings
+ * This is an index route that automatically redirects from /s/:spaceId/settings to
+ * /s/:spaceId/settings/general when a user manually visits /s/:spaceId/settings
  */
 export async function loader({params}: LoaderArgs) {
     if (process.env.NODE_ENV !== "production") {

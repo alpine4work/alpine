@@ -15,8 +15,8 @@ export function shouldMergeMessages<RoomKey extends string>(
     if (message2.isOptimistic && message2.optimisticRequestErrorState.hasError) return false;
 
     // Never merge clerical messages. We may change the account name in a clerical
-    // message. We don't want the modified account name to be lost when merging
-    // with the previous message or considered to apply to later messages.
+    // message. We don't want the modified account name to be lost when merging with
+    // the previous message or considered to apply to later messages.
     if (message1.payload.type === "Content" && message1.payload.clerical) return false;
     if (message2.payload.type === "Content" && message2.payload.clerical) return false;
 

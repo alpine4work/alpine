@@ -101,8 +101,8 @@ test("can use randomize button in cover modal", async ({
     await expect(coverOptions).toHaveCount(expectedCount);
     const randomizeButton = page.getByRole("button", {name: "Randomize"});
 
-    // Get the initial drawn blobs
-    // We use nth() instead of all() since all() is not ordered
+    // Get the initial drawn blobs We use nth() instead of all() since all() is not
+    // ordered
     let drawnBlobs = Array.from({length: expectedCount}, (_, i) =>
         coverOptions.nth(i).getByTestId("BlobsArtCanvas"),
     );
@@ -124,7 +124,8 @@ test("can use randomize button in cover modal", async ({
         expect(firstDrawnBlobsData[i]).not.toEqual(secondDrawnBlobsData[i]);
     }
 
-    // Select a cover, randomize again, and validate we don't change the one we selected
+    // Select a cover, randomize again, and validate we don't change the one we
+    // selected
     const selectedBlob = 3;
     await page.getByTestId("DocumentContentCoverBlobsArtOption").nth(selectedBlob).click();
     await randomizeButton.click();

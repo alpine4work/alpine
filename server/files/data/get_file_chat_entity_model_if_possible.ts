@@ -11,9 +11,9 @@ export async function getFileChatEntityModelIfPossible(
 ): Promise<Result<FileChatEntityModel, ErrorBase>> {
     const result = await context.chatInjection.getChatAndInitialMessagesIfPossible({
         chatId,
-        // Determined experimentally to be the maximum number of messages we display in
-        // the chat preview when the preview is at third width (so a tall height) and
-        // all messages are at min height.
+        // Determined experimentally to be the maximum number of messages we display in the
+        // chat preview when the preview is at third width (so a tall height) and all
+        // messages are at min height.
         //
         // See the screenshot in:
         // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/5va8b8wm3f4zb003vyrqy1sty4

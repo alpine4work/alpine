@@ -12,34 +12,30 @@ import {
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
- * Reference to a search entity or some subset of attributes on a search
- * entity. Used for recording the dependencies of a search indexing job. So
- * when the entity updates we can re-run our search indexing job with the new
- * data.
+ * Reference to a search entity or some subset of attributes on a search entity.
+ * Used for recording the dependencies of a search indexing job. So when the entity
+ * updates we can re-run our search indexing job with the new data.
  *
- * We allow you to specify a dependency on some "trait" of the search entity.
- * A trait is a subset of attributes on the object. For example the
- * `Authorization` trait on `Task` includes all attributes relevant to
- * authorization (assignee, parent task, and collections) and excludes all
- * attributes irrelevant to authorization (title, notes, priority, etc.).
- * Depending on just the authorization trait is an optimization that lets us
- * avoid re-indexing whenever unrelated attributes change.
+ * We allow you to specify a dependency on some "trait" of the search entity. A
+ * trait is a subset of attributes on the object. For example the `Authorization`
+ * trait on `Task` includes all attributes relevant to authorization (assignee,
+ * parent task, and collections) and excludes all attributes irrelevant to
+ * authorization (title, notes, priority, etc.). Depending on just the
+ * authorization trait is an optimization that lets us avoid re-indexing whenever
+ * unrelated attributes change.
  *
  * You can't take a dependency on every search entity. For example
  * `ChatMessage:${ChatId}:${number}` is a `SearchEntityId` but not a
- * `SearchEntityDependencyId`. That means we statically know that when a
- * chat message changes it has no dependents so we can skip querying for
- * dependents.
+ * `SearchEntityDependencyId`. That means we statically know that when a chat
+ * message changes it has no dependents so we can skip querying for dependents.
  *
  * `SearchStaticEntityId`s can't have dependencies. The information for a
- * `SearchStaticEntityId` should always be known without looking at the
- * database. Likewise, there will never be a dependency on a
- * `SearchStaticEntityId`. Dependencies are only relevant for
- * `SearchDynamicEntity`s.
+ * `SearchStaticEntityId` should always be known without looking at the database.
+ * Likewise, there will never be a dependency on a `SearchStaticEntityId`.
+ * Dependencies are only relevant for `SearchDynamicEntity`s.
  *
- * In theory every `SearchDynamicEntityId` could be a
- * `SearchEntityDependencyId`. We statically limit `SearchEntityDependencyId`
- * as an optimization.
+ * In theory every `SearchDynamicEntityId` could be a `SearchEntityDependencyId`.
+ * We statically limit `SearchEntityDependencyId` as an optimization.
  */
 export type SearchEntityDependencyId =
     | `Account:${AccountId}`
@@ -79,8 +75,7 @@ const searchEntityIdTypesThatAreAlsoEntityDependencyIds: {
 };
 
 /**
- * Is the provided `SearchEntityDependencyId` also a valid
- * `SearchDynamicEntityId`?
+ * Is the provided `SearchEntityDependencyId` also a valid `SearchDynamicEntityId`?
  *
  * For example, `Chat:${ChatId}` is both a `SearchEntityDependencyId` and
  * `SearchEntityId`. We'd return true for `Chat:${ChatId}`. However
@@ -94,8 +89,7 @@ export function isSearchEntityDependencyIdAlsoEntityId(
 }
 
 /**
- * Is the provided `SearchDynamicEntityId` also a valid
- * `SearchEntityDependencyId`?
+ * Is the provided `SearchDynamicEntityId` also a valid `SearchEntityDependencyId`?
  *
  * For example, `Chat:${ChatId}` is both a `SearchEntityDependencyId` and
  * `SearchEntityId`. We'd return true for `Chat:${ChatId}`. However

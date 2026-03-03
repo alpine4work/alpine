@@ -34,10 +34,10 @@ export function createDisplayTaskCollectionsStore({
             if (!collectionEntry.collection) return;
             if (collectionEntry.collection.isDeleted()) return;
 
-            // Make sure we don't show task collections the user isn't allowed to see. If
-            // the user changes the collection's access policy it may take a minute or so
-            // before the server sends an update marking the collection as unauthorized. We
-            // want to hide the collection immediately, though.
+            // Make sure we don't show task collections the user isn't allowed to see. If the
+            // user changes the collection's access policy it may take a minute or so before
+            // the server sends an update marking the collection as unauthorized. We want to
+            // hide the collection immediately, though.
             const accessPolicy = collectionEntry.collection.getAccessPolicy();
             const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
                 accessPolicy,

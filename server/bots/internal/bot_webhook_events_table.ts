@@ -29,8 +29,8 @@ export const BotWebhookEventsTable = DynamoTableSchema.new({
                         event: Schema.unknown<ApiBotWebhookEvent>(),
 
                         /**
-                         * Information about what attempt we're on for this event. We'll retry events
-                         * a couple times if they fail.
+                         * Information about what attempt we're on for this event. We'll retry events a
+                         * couple times if they fail.
                          */
                         attempt: Schema.object({
                             number: Schema.integer.min(1).max(botWebhookMaxRetryCount),

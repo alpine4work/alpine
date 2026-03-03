@@ -110,8 +110,9 @@ export function getInboxEntryPath(
 }
 
 /**
- * Gets the path for an inbox entry and base64 encodes it to hide the fact that it's a URL.
- * Intended for use in search params, such as the `selected` search param (e.g. https://alpine.inc/s/1234/inbox?selected=<encoded entry path>).
+ * Gets the path for an inbox entry and base64 encodes it to hide the fact that
+ * it's a URL. Intended for use in search params, such as the `selected` search
+ * param (e.g. https://alpine.inc/s/1234/inbox?selected=<encoded entry path>).
  */
 export function getEncodedInboxEntryPath(
     model: InboxEntryModelInterface,

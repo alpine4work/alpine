@@ -73,8 +73,9 @@ export class WebPushContextModule extends WebPushContextModuleBase {
                                 error,
                                 "Web push subscription endpoint was rate limited",
                             );
-                            // These errors indicate that the subscription is no longer valid and never will be valid again.
-                            // 410 indicates expiry, 404 indicates it doesn't exist anymore, and 403 indicates the auth is no longer valid.
+                            // These errors indicate that the subscription is no longer valid and never will be
+                            // valid again. 410 indicates expiry, 404 indicates it doesn't exist anymore, and
+                            // 403 indicates the auth is no longer valid.
                         } else if (
                             error.statusCode === 410 ||
                             error.statusCode === 404 ||
@@ -85,8 +86,8 @@ export class WebPushContextModule extends WebPushContextModuleBase {
                                 "Web push subscription is no longer valid",
                             );
 
-                            // 500-599 indicates that the push service is having an internal error.
-                            // The subscription could still be valid, and we can retry.
+                            // 500-599 indicates that the push service is having an internal error. The
+                            // subscription could still be valid, and we can retry.
                         } else if (error.statusCode >= 500 && error.statusCode <= 599) {
                             throw UnavailableError.from(
                                 error,

@@ -45,9 +45,8 @@ export async function renderApiBrowser({
     route: string;
 }) {
     // Convert path params from the `find-my-way` format (`/hello/:name`) to the
-    // OpenAPI format (`/hello/{name}`). Right now we only support path params
-    // that are an entire path segment. Paths like `/report.:format` aren't
-    // currently accepted.
+    // OpenAPI format (`/hello/{name}`). Right now we only support path params that are
+    // an entire path segment. Paths like `/report.:format` aren't currently accepted.
     const openApiPath = findMyWayPath
         .split("/")
         .map(pathSegment => {
@@ -70,16 +69,16 @@ export async function renderApiBrowser({
         body = body.slice(0, 10) + "\n" + body.slice(10);
     }
 
-    // We always want the root object to be rendered on multiple lines. Which is
-    // why we test if the first character is `{` or `[` and insert a newline
-    // immediately after if we are opening an object or array.
+    // We always want the root object to be rendered on multiple lines. Which is why we
+    // test if the first character is `{` or `[` and insert a newline immediately after
+    // if we are opening an object or array.
     if (/^[{[]/.test(body)) {
         body = body[0]! + "\n" + body.slice(1);
     }
 
-    // Use Prettier to print the JSON. This way small objects are printed on a
-    // single line instead of always printing on multiple lines like
-    // `JSON.stringify()` will do.
+    // Use Prettier to print the JSON. This way small objects are printed on a single
+    // line instead of always printing on multiple lines like `JSON.stringify()` will
+    // do.
     const prettyBody = await prettier.format(body, {
         parser: "json",
         printWidth: 80,

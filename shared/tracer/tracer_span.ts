@@ -24,8 +24,8 @@ export type TracerSpanPropagationContext = {
 /**
  * A distributed tracing span.
  *
- * Very close to [OpenTelemetry][1] spans but simpler and with a
- * few customizations.
+ * Very close to [OpenTelemetry][1] spans but simpler and with a few
+ * customizations.
  *
  * [1]: https://opentelemetry.io
  */
@@ -61,15 +61,15 @@ export class TracerSpan extends TracerBase {
     private readonly _startTime: number;
 
     /**
-     * Has the span finished? Once the span is finished it will be sent so you
-     * can't add more data.
+     * Has the span finished? Once the span is finished it will be sent so you can't
+     * add more data.
      */
     private _isFinished = false;
 
     /**
-     * We collect span data in a linked list that we merge into a single document
-     * only when we send to our telemetry service. That way we don't need to do an
-     * object clone for every span. Arguably a premature optimization.
+     * We collect span data in a linked list that we merge into a single document only
+     * when we send to our telemetry service. That way we don't need to do an object
+     * clone for every span. Arguably a premature optimization.
      */
     private _eventData: NonEmptyLinkedList<TracerEventFullData>;
 
@@ -79,23 +79,23 @@ export class TracerSpan extends TracerBase {
     private _propagatedEventData: LinkedList<TracerEventData>;
 
     /**
-     * Flat data that was propagated to our span over the network. It may come from
-     * a different programming language runtime so the data is in our network event
+     * Flat data that was propagated to our span over the network. It may come from a
+     * different programming language runtime so the data is in our network event
      * format instead of our nested object format.
      */
     private _propagatedEventFlatData: TracerEventFlatData | null;
 
     /**
-     * Was an exception added to this span? If an exception was added to the span
-     * then additional exceptions added with `addException()` are logged.
+     * Was an exception added to this span? If an exception was added to the span then
+     * additional exceptions added with `addException()` are logged.
      */
     private _hasException = false;
 
     /**
-     * Was this span referenced by some other span? For example a child span, a
-     * log, or a link. If we generated a propagation context for this span we also
-     * treat it as referenced since we can't know for sure whether the propagation
-     * context is used by a different process.
+     * Was this span referenced by some other span? For example a child span, a log, or
+     * a link. If we generated a propagation context for this span we also treat it as
+     * referenced since we can't know for sure whether the propagation context is used
+     * by a different process.
      *
      * Used to only send spans if they're referenced by some other send.
      */
@@ -195,36 +195,36 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Provide access to this property so you can build custom spans with
-     * `_start()`. You must know what you're doing to directly call this
-     * function! Prefer the methods which don't start with an underscore.
+     * Provide access to this property so you can build custom spans with `_start()`.
+     * You must know what you're doing to directly call this function! Prefer the
+     * methods which don't start with an underscore.
      *
-     * In the future consider auditing use cases of this function and providing
-     * proper public APIs.
+     * In the future consider auditing use cases of this function and providing proper
+     * public APIs.
      */
     public _getSpanId() {
         return this._spanId;
     }
 
     /**
-     * Provide access to this property so you can build custom spans with
-     * `_start()`. You must know what you're doing to directly call this
-     * function! Prefer the methods which don't start with an underscore.
+     * Provide access to this property so you can build custom spans with `_start()`.
+     * You must know what you're doing to directly call this function! Prefer the
+     * methods which don't start with an underscore.
      *
-     * In the future consider auditing use cases of this function and providing
-     * proper public APIs.
+     * In the future consider auditing use cases of this function and providing proper
+     * public APIs.
      */
     public _getPropagatedEventData() {
         return this._propagatedEventData;
     }
 
     /**
-     * Provide access to this property so you can build custom spans with
-     * `_start()`. You must know what you're doing to directly call this
-     * function! Prefer the methods which don't start with an underscore.
+     * Provide access to this property so you can build custom spans with `_start()`.
+     * You must know what you're doing to directly call this function! Prefer the
+     * methods which don't start with an underscore.
      *
-     * In the future consider auditing use cases of this function and providing
-     * proper public APIs.
+     * In the future consider auditing use cases of this function and providing proper
+     * public APIs.
      */
     public _getPropagatedEventFlatData() {
         return this._propagatedEventFlatData;
@@ -296,8 +296,8 @@ export class TracerSpan extends TracerBase {
     /**
      * Append some text to the end of this span's name.
      *
-     * We want the creator of the span to control the span's name but allow later
-     * code to add extra information to the name.
+     * We want the creator of the span to control the span's name but allow later code
+     * to add extra information to the name.
      */
     public appendName(name: string) {
         assert(!this._isFinished);
@@ -307,13 +307,13 @@ export class TracerSpan extends TracerBase {
     /**
      * Completely change this span's name.
      *
-     * Ideally, we want the creator of the span to control the span's name.
-     * However, there are some cases where it's reasonable to let the consumer of
-     * a span change the name. This method is "reckless" because you are throwing
-     * away the creator's span name.
+     * Ideally, we want the creator of the span to control the span's name. However,
+     * there are some cases where it's reasonable to let the consumer of a span change
+     * the name. This method is "reckless" because you are throwing away the creator's
+     * span name.
      *
-     * Prefer using `appendName()` which keeps the name the span creator intended
-     * while allowing span consumers to modify it.
+     * Prefer using `appendName()` which keeps the name the span creator intended while
+     * allowing span consumers to modify it.
      */
     public recklesslyOverrideName(name: string) {
         assert(!this._isFinished);
@@ -360,12 +360,12 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Add some data to this span and all child spans created after this function
-     * call. We also send this data over the network so that spans in distributed
-     * services also add our propagated data.
+     * Add some data to this span and all child spans created after this function call.
+     * We also send this data over the network so that spans in distributed services
+     * also add our propagated data.
      *
-     * We will not added this propagated data to spans created before this
-     * function call.
+     * We will not added this propagated data to spans created before this function
+     * call.
      */
     public addPropagatedData(data: TracerEventData) {
         assert(!this._isFinished);
@@ -381,15 +381,15 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Add some data to all child spans created after this function call. We also
-     * send this data over the network so that spans in distributed services also
-     * add our propagated data.
+     * Add some data to all child spans created after this function call. We also send
+     * this data over the network so that spans in distributed services also add our
+     * propagated data.
      *
-     * We will not added this propagated data to spans created before this
-     * function call.
+     * We will not added this propagated data to spans created before this function
+     * call.
      *
-     * Unlike `addPropagatedData()`, we do not add the propagated data to this span
-     * as well.
+     * Unlike `addPropagatedData()`, we do not add the propagated data to this span as
+     * well.
      */
     public addPropagatedDataForChildrenOnly(data: TracerEventData) {
         assert(!this._isFinished);
@@ -410,9 +410,8 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * When we make a network request from this span, we include propagation
-     * context so that the server on the other end can attach its spans to the
-     * trace.
+     * When we make a network request from this span, we include propagation context so
+     * that the server on the other end can attach its spans to the trace.
      */
     public getPropagationContext(): TracerSpanPropagationContext {
         this._isReferenced = true;
@@ -428,16 +427,16 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Adds propagated flat data underneath all other data in the span. So any
-     * existing propagated data will override this flat data. Which is why this
-     * is "default" flat data.
+     * Adds propagated flat data underneath all other data in the span. So any existing
+     * propagated data will override this flat data. Which is why this is "default"
+     * flat data.
      *
-     * Public but with an underscore since this shouldn't be a commonly used
-     * method. It's only useful in niche situations like when you want to start
-     * a span with two propagated span sources.
+     * Public but with an underscore since this shouldn't be a commonly used method.
+     * It's only useful in niche situations like when you want to start a span with two
+     * propagated span sources.
      *
-     * Maybe a better method would take `TracerSpanPropagationContext` and create
-     * a `link()` + update propagation context?
+     * Maybe a better method would take `TracerSpanPropagationContext` and create a
+     * `link()` + update propagation context?
      */
     public _addDefaultPropagatedFlatData(data: TracerEventFlatData) {
         this._propagatedEventFlatData = {
@@ -479,11 +478,11 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Usually it's enough to express span relationships as parent/child
-     * relationships. However, sometimes you have causal relationships between
-     * spans that don't have a clean parent/child relationship. For example batch
-     * processing from many spans. You may use the link function to express a
-     * causal relationship between these spans.
+     * Usually it's enough to express span relationships as parent/child relationships.
+     * However, sometimes you have causal relationships between spans that don't have a
+     * clean parent/child relationship. For example batch processing from many spans.
+     * You may use the link function to express a causal relationship between these
+     * spans.
      */
     public link(name: string, span: {traceId: TraceId; spanId: TraceSpanId} | TracerSpan) {
         this._isReferenced = true;
@@ -557,8 +556,8 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Log an exception in the span. Useful if you've already called
-     * `addException()` and need to report another exception with the span.
+     * Log an exception in the span. Useful if you've already called `addException()`
+     * and need to report another exception with the span.
      */
     public logException(name: string, error: unknown) {
         this.log(name, {
@@ -575,12 +574,12 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Get the value of `context.spaceId` in our span's event data if it exists.
-     * If it does not exist we return null.
+     * Get the value of `context.spaceId` in our span's event data if it exists. If it
+     * does not exist we return null.
      *
-     * Avoid using this for anything critical which needs access to the `SpaceId`!
-     * Your code may run in unexpected scenarios (e.g. a system context) or there
-     * may be a logging bug where `SpaceId` doesn't exist.
+     * Avoid using this for anything critical which needs access to the `SpaceId`! Your
+     * code may run in unexpected scenarios (e.g. a system context) or there may be a
+     * logging bug where `SpaceId` doesn't exist.
      *
      * You may use this for performance hints if useful.
      */

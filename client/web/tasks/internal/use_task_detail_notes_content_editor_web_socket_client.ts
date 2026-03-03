@@ -97,14 +97,14 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
         addGlobalLoadingIndicator,
     });
 
-    // Has this task been created on the backend? False if `taskSubscription` is
-    // null (which means we have a ghost task) and false if we only have an
-    // optimistic `TaskModel` object in `taskSubscription` (which means we're
-    // waiting on the create action to commit).
+    // Has this task been created on the backend? False if `taskSubscription` is null
+    // (which means we have a ghost task) and false if we only have an optimistic
+    // `TaskModel` object in `taskSubscription` (which means we're waiting on the
+    // create action to commit).
     //
-    // We wait for this to be true before establishing a WebSocket connection.
-    // Since if we try to start a WebSocket connection will this is false we may
-    // get task not found errors since the backend doesn't know about the task yet.
+    // We wait for this to be true before establishing a WebSocket connection. Since if
+    // we try to start a WebSocket connection will this is false we may get task not
+    // found errors since the backend doesn't know about the task yet.
     const wasTaskCreated =
         useStore(
             useMemo(
@@ -119,15 +119,14 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                 [taskSubscription?.taskEntryStore],
             ),
         ) &&
-        // This variable will already always be false if `taskSubscription` is null.
-        // But include this check here so TypeScript can correctly refine
-        // `taskSubscription` to non-null if you check `if (wasTaskCreated)`.
+        // This variable will already always be false if `taskSubscription` is null. But
+        // include this check here so TypeScript can correctly refine `taskSubscription` to
+        // non-null if you check `if (wasTaskCreated)`.
         !!taskSubscription;
 
-    // When creating a task, we start in the `NotExists` state. Then once some
-    // changes have been made to the task we actually create the task. That
-    // way users don't end up with a bunch of empty tasks they accidentally
-    // created.
+    // When creating a task, we start in the `NotExists` state. Then once some changes
+    // have been made to the task we actually create the task. That way users don't end
+    // up with a bunch of empty tasks they accidentally created.
     const [clientState, setClientState] =
         useState<TaskDetailNotesContentEditorWebSocketClientState>(() => {
             if (!wasTaskCreated) {
@@ -215,8 +214,8 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
     useEffect(() => {
         if (clientState.type === "NotExists") return;
 
-        // Accounts without space access aren't allowed to connect to our realtime
-        // service. We'd constantly get authorization errors.
+        // Accounts without space access aren't allowed to connect to our realtime service.
+        // We'd constantly get authorization errors.
         if (!currentAccount) return;
 
         clientState.client.connect();
@@ -230,12 +229,12 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
 
         const update = () => {
             // Once there are some pending steps, we need to create the document. After we
-            // create the document we connect via WebSocket and send the pending sendable
-            // steps over that connection.
+            // create the document we connect via WebSocket and send the pending sendable steps
+            // over that connection.
             if (!clientState.state.getSnapshot().pendingSendableSteps) return;
 
-            // Will noop if the task is already created. If the task has not been created
-            // then we'll submit a create action.
+            // Will noop if the task is already created. If the task has not been created then
+            // we'll submit a create action.
             commitActionTransactionAndCreateIfNeeded(() => [], {
                 // Can't undo this implicit action transaction that creates the task! The user
                 // didn't explicitly take this action.
@@ -244,15 +243,15 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
             });
         };
 
-        // Run `update()` immediately in case state changed while this effect was
-        // not mounted.
+        // Run `update()` immediately in case state changed while this effect was not
+        // mounted.
         update();
 
         return clientState.state.subscribe(update);
     }, [affinityManager, clientState, commitActionTransactionAndCreateIfNeeded]);
 
-    // Run any pending procedures when we shift from a `NotExists` client state to
-    // an `Exists` client state.
+    // Run any pending procedures when we shift from a `NotExists` client state to an
+    // `Exists` client state.
     useEffect(() => {
         if (clientState.type === "NotExists") return;
 

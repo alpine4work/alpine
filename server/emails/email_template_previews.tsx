@@ -357,8 +357,8 @@ const emailTemplatePreviews: {
 };
 
 /**
- * At least one preview test case for every email template. Organized into a
- * map so that template previews are accessible via URL.
+ * At least one preview test case for every email template. Organized into a map so
+ * that template previews are accessible via URL.
  */
 export const emailTemplatePreviewBySlug = new Map(
     Object.entries(emailTemplatePreviews).flatMap(([name, previews]) =>

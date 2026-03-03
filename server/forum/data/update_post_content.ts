@@ -179,8 +179,8 @@ export function updatePostContent(
 
         const updatedTraits: Array<"Title"> = [];
 
-        // If the start of the post changed, then we need to update anyone who
-        // mentioned the post.
+        // If the start of the post changed, then we need to update anyone who mentioned
+        // the post.
         if (
             !getPostSearchEntityTitleContentSnippet(oldPostItem.content).eq(
                 getPostSearchEntityTitleContentSnippet(newPostItem.content),

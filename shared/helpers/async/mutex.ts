@@ -10,9 +10,8 @@ export class Mutex {
     private _lockPromise: Promise<void> | null = null;
 
     /**
-     * Locks the mutex for the entirety of the provided action. If the mutex is
-     * already locked you must wait for the mutex to unlock before the function
-     * runs.
+     * Locks the mutex for the entirety of the provided action. If the mutex is already
+     * locked you must wait for the mutex to unlock before the function runs.
      */
     public async withLock<Value>(action: () => Promise<Value>): Promise<Value> {
         const unlock = await this.lock();
@@ -25,8 +24,8 @@ export class Mutex {
     }
 
     /**
-     * Locks the mutex. If the mutex is currently locked you must wait for the
-     * mutex to unlock.
+     * Locks the mutex. If the mutex is currently locked you must wait for the mutex to
+     * unlock.
      *
      * The `withLock()` function is a more convenient function for most cases.
      */

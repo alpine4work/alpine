@@ -12,22 +12,21 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 /**
  * Create a function we can pass into `TaskModel.apply()` for getting a
- * `TaskSortableAccount` for every referenced `AccountId` in the provided
- * actions.
+ * `TaskSortableAccount` for every referenced `AccountId` in the provided actions.
  *
- * On the client, we expect every `AccountId` referenced by a `TaskAction` to
- * be in our `AccountRegistry` at the moment this function is called. There
- * are two cases where this typically happens:
+ * On the client, we expect every `AccountId` referenced by a `TaskAction` to be in
+ * our `AccountRegistry` at the moment this function is called. There are two cases
+ * where this typically happens:
  *
  * 1. We are applying actions from the server, in which case the server sends
  *    `referencedAccounts` for all actions.
  *
- * 2. We are applying optimistic actions (that then get saved on the server),
- *    in which case UI code needs to render the selected `AccountModel` which
- *    implies it should be in the store.
+ * 2. We are applying optimistic actions (that then get saved on the server), in
+ *    which case UI code needs to render the selected `AccountModel` which implies
+ *    it should be in the store.
  *
- *    UI code does need to be careful about creating and holding onto an
- *    `AccountModel` reference but most of the time it should happen naturally.
+ *     UI code does need to be careful about creating and holding onto an
+ *     `AccountModel` reference but most of the time it should happen naturally.
  */
 export function createGetTaskActionReferencedSortableAccount(
     accountRegistry: AccountRegistry,
@@ -47,13 +46,13 @@ export function createGetTaskActionReferencedSortableAccount(
     //
     // 1. Validates that all accounts referenced by our actions are in the store
     //    whether we use them or not
-    // 2. Creates a map that holds a reference to any account stores we care about
-    //    so they won't be garbage collected
+    // 2. Creates a map that holds a reference to any account stores we care about so
+    //    they won't be garbage collected
     //
-    // 2 is why we can't pass an `AccountRegistry` directly into
-    // `TaskModel.apply()`. We need to make sure that at task creation time we
-    // capture a reference to referenced accounts so then at a later action
-    // applied time the referenced accounts aren't garbage collected.
+    // 2 is why we can't pass an `AccountRegistry` directly into `TaskModel.apply()`.
+    // We need to make sure that at task creation time we capture a reference to
+    // referenced accounts so then at a later action applied time the referenced
+    // accounts aren't garbage collected.
     const actionReferencedAccountStoreById = new Map(
         mapIterable(actionReferencedAccountIds, accountId => {
             const accountStore = accountRegistry.weakGetAccountStoreByIdIfExists(accountId);
@@ -71,9 +70,8 @@ export function createGetTaskActionReferencedSortableAccount(
     return accountId => {
         // If the user doesn't have access to an account (e.g. only actors with space
         // access can know a task's creator) we replace the account with
-        // `unknownAccountId`. `unknownAccountId` won't be present in referenced
-        // accounts so return a value based on our the unknown account's constant
-        // data here.
+        // `unknownAccountId`. `unknownAccountId` won't be present in referenced accounts
+        // so return a value based on our the unknown account's constant data here.
         //
         // See `prepareTaskForClient()`, `prepareTaskActionForClient()`,
         // `collectReferencedAccountIdsFromTaskModelData()`, and

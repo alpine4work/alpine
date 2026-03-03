@@ -7,9 +7,9 @@ import {useRouteErrorTitle} from "~/client/web/spaces/route_metadata.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 
 export function PeekErrorBoundary() {
-    // It appears that Remix does not `useMemo()` its error object. So stabilize
-    // the object reference here. Our error rendering components use referential
-    // identity to determine whether we need to log the error.
+    // It appears that Remix does not `useMemo()` its error object. So stabilize the
+    // object reference here. Our error rendering components use referential identity
+    // to determine whether we need to log the error.
     const error = useStableValue(ErrorSchema, useRouteError());
 
     const routeLayout = useRouteLayout();

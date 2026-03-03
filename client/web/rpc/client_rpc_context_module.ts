@@ -20,17 +20,17 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Executes an RPC in the web browser. Uses cookies stored in the browser to
- * authenticate the user. If many RPC calls are made in the same synchronous
- * call stack we will batch them together into one network request to avoid
- * HTTP roundtrip latency.
+ * authenticate the user. If many RPC calls are made in the same synchronous call
+ * stack we will batch them together into one network request to avoid HTTP
+ * roundtrip latency.
  */
 export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: TracerContextModule}> {
     constructor() {
         super();
 
-        // We can only use this implementation of `RpcContextModuleBase` in a web
-        // browser because the web browser has globally available cookies which
-        // authenticate our user.
+        // We can only use this implementation of `RpcContextModuleBase` in a web browser
+        // because the web browser has globally available cookies which authenticate our
+        // user.
         //
         // In other environments we need to authenticate our user in some way.
         assert(typeof document !== "undefined");
@@ -57,8 +57,8 @@ export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: Tracer
             try {
                 return definition.outputSchema.deserialize(output);
             } catch (error) {
-                // Reclassify deserialization errors as internal errors if we can't deserialize
-                // the data coming from our RPC HTTP endpoint.
+                // Reclassify deserialization errors as internal errors if we can't deserialize the
+                // data coming from our RPC HTTP endpoint.
                 if (error instanceof SchemaDeserializationError) {
                     throw new InternalError(error.message, {cause: error});
                 }
@@ -102,8 +102,8 @@ function scheduleRpcCall(call: RpcCall): void {
 async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
     assert(callBatch.length > 0);
 
-    // If this function throws any error, we want to reject all calls in our
-    // batch with that error.
+    // If this function throws any error, we want to reject all calls in our batch with
+    // that error.
     try {
         const [firstCall, ...otherCalls] = callBatch;
         assert(firstCall);
@@ -123,9 +123,8 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
-                    // As an optimization, include the space ID from our URL in RPC calls which
-                    // we'll use to authorize whether the current account has access to the
-                    // requested space.
+                    // As an optimization, include the space ID from our URL in RPC calls which we'll
+                    // use to authorize whether the current account has access to the requested space.
                     //
                     // This does not provide any security guarantees! This is purely a performance
                     // optimization to authorize the session and space access at once.
@@ -152,8 +151,8 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                           ),
             },
             async (response, span) => {
-                // The first call is the parent of our HTTP execution. Link the other calls to
-                // the HTTP execution span so we can see the causal relationship.
+                // The first call is the parent of our HTTP execution. Link the other calls to the
+                // HTTP execution span so we can see the causal relationship.
                 for (const otherCall of otherCalls) {
                     otherCall.span.link(`Batch execution: ${span.getName()}`, span);
                 }
@@ -163,8 +162,8 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                         .json()
                         .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
                         .catch(error => {
-                            // If we fail to parse the response body as JSON, classify as `Internal`
-                            // status code.
+                            // If we fail to parse the response body as JSON, classify as `Internal` status
+                            // code.
                             //
                             // Maybe an error is also thrown here for some network errors? If so we should
                             // classify network errors as the `Unavailable` status code.
@@ -183,8 +182,8 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                             RpcHttpBatchCallErrorOutputSchema.deserialize(output),
                         )
                         .catch(error => {
-                            // If we fail to parse the response body as JSON, classify as `Internal`
-                            // status code.
+                            // If we fail to parse the response body as JSON, classify as `Internal` status
+                            // code.
                             //
                             // Maybe an error is also thrown here for some network errors? If so we should
                             // classify network errors as the `Unavailable` status code.

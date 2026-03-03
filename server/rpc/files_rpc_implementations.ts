@@ -64,8 +64,8 @@ export default implementRpcs(definitions, {
             );
 
             // It's ok to generate a signed URL here since
-            // `finishUploadingAndStartProcessingFile()` authorizes that the actor has
-            // access to the file.
+            // `finishUploadingAndStartProcessingFile()` authorizes that the actor has access
+            // to the file.
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 input.spaceId,
                 input.fileId,
@@ -83,8 +83,8 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const file = await getFileAsUploader(context, input.spaceId, input.fileId);
 
-            // It's ok to generate a signed URL here since `getFileFromAttachment()`
-            // authorizes that the actor has access to the file.
+            // It's ok to generate a signed URL here since `getFileFromAttachment()` authorizes
+            // that the actor has access to the file.
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 input.spaceId,
                 input.fileId,
@@ -107,8 +107,8 @@ export default implementRpcs(definitions, {
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
-            // It's ok to generate a signed URL here since `getFileFromAttachment()`
-            // authorizes that the actor has access to the file.
+            // It's ok to generate a signed URL here since `getFileFromAttachment()` authorizes
+            // that the actor has access to the file.
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 input.spaceId,
                 input.fileId,
@@ -150,8 +150,8 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             await getFileAsUploader(context, input.spaceId, input.fileId);
 
-            // It's ok to generate a signed URL here since `getFileFromAttachment()`
-            // authorizes that the actor has access to the file.
+            // It's ok to generate a signed URL here since `getFileFromAttachment()` authorizes
+            // that the actor has access to the file.
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 input.spaceId,
                 input.fileId,
@@ -171,8 +171,8 @@ export default implementRpcs(definitions, {
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
-            // It's ok to generate a signed URL here since `getFileFromAttachment()`
-            // authorizes that the actor has access to the file.
+            // It's ok to generate a signed URL here since `getFileFromAttachment()` authorizes
+            // that the actor has access to the file.
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 input.spaceId,
                 input.fileId,
@@ -237,9 +237,9 @@ export default implementRpcs(definitions, {
                 input.fileEntityId,
             );
 
-            // We return `null` when recursively loading file entities and the depth
-            // exceeds some limit. Given we're loading the root file entity we'll always be
-            // at depth 0 and so should always return the file entity.
+            // We return `null` when recursively loading file entities and the depth exceeds
+            // some limit. Given we're loading the root file entity we'll always be at depth 0
+            // and so should always return the file entity.
             assert(result);
 
             return {fileEntityResult: result};

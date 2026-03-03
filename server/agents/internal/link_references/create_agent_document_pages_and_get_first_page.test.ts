@@ -220,8 +220,8 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     test("splits document with many small elements across pages", async () => {
         // Create a document with many small elements that should split into pages
         const elements = [];
-        // Each element is ~200 chars = ~50 tokens
-        // With 1000 token limit, we should get ~20 elements per page
+        // Each element is ~200 chars = ~50 tokens With 1000 token limit, we should get ~20
+        // elements per page
         for (let i = 0; i < 25; i++) {
             elements.push(createParagraphElement(`Paragraph ${i}: ${"x".repeat(180)}`));
         }

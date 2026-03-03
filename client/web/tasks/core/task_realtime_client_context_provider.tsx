@@ -44,14 +44,13 @@ const taskRealtimeClientBySpaceIdForClient =
         : null;
 
 /**
- * Gets the `TaskRealtimeClient` for the provided `SpaceId` if it exists.
- * Useful for operating on the `TaskRealtimeClient` outside of React. Only runs
- * in a client's web browser.
+ * Gets the `TaskRealtimeClient` for the provided `SpaceId` if it exists. Useful
+ * for operating on the `TaskRealtimeClient` outside of React. Only runs in a
+ * client's web browser.
  *
  * We have a constraint that a client's web browser may only have one
- * `TaskRealtimeClient` per-space at a time. `TaskRealtimeClient` is owned by
- * the `<TaskRealtimeClientContextProvider>` component which enforces this
- * constraint.
+ * `TaskRealtimeClient` per-space at a time. `TaskRealtimeClient` is owned by the
+ * `<TaskRealtimeClientContextProvider>` component which enforces this constraint.
  */
 export function getTaskRealtimeClientIfExistsForClient(
     spaceId: SpaceId,
@@ -95,8 +94,8 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
             });
         }
 
-        // We need to apply update events after updating the query loaded state
-        // otherwise the query will ignore all backfilled tasks as out of range.
+        // We need to apply update events after updating the query loaded state otherwise
+        // the query will ignore all backfilled tasks as out of range.
         client.store.applyUpdateEvent(taskStoreLoaderData.updateEvent);
 
         (loaderData as any)[taskStoreLoaderDataSymbol] = {
@@ -105,8 +104,8 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
             collectionSubscriptions,
         };
 
-        // After 5s, release our reference to all the queries we loaded. If the UI
-        // cares about a query it must call `retain()` on the query to keep it around.
+        // After 5s, release our reference to all the queries we loaded. If the UI cares
+        // about a query it must call `retain()` on the query to keep it around.
         setTimeout(() => {
             batchStoreUpdates(() => {
                 for (const query of queries) {
@@ -126,22 +125,21 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
 }
 
 /**
- * Function that should be called by `clientLoader` for any route that returns
- * data in the `loadTaskQueryData` shared key.
+ * Function that should be called by `clientLoader` for any route that returns data
+ * in the `loadTaskQueryData` shared key.
  *
  * On initial render `<TaskRealtimeClientContextProvider>` loads data from
- * `loadTaskQueryData` into our `TaskRealtimeClient`. However on subsequent
- * client navigations, we need to imperatively update `TaskRealtimeClient`
- * before the render so data is available.
+ * `loadTaskQueryData` into our `TaskRealtimeClient`. However on subsequent client
+ * navigations, we need to imperatively update `TaskRealtimeClient` before the
+ * render so data is available.
  *
- * We use the `clientLoader` feature we've added to Remix to imperatively
- * update `TaskRealtimeClient` before a render.
- * `<TaskRealtimeClientContextProvider>` lives on `/s/:spaceId` but we can't
- * use the `/s/:spaceId` route's `clientLoader` since `/s/:spaceId` doesn't
- * revalidate unless the `SpaceId` changes. So it's the route which loaded
- * `loadTaskQueryData`'s responsibility to imperatively update
- * `TaskRealtimeClient` in their `clientLoader`. You can perform this update
- * with this function.
+ * We use the `clientLoader` feature we've added to Remix to imperatively update
+ * `TaskRealtimeClient` before a render. `<TaskRealtimeClientContextProvider>`
+ * lives on `/s/:spaceId` but we can't use the `/s/:spaceId` route's `clientLoader`
+ * since `/s/:spaceId` doesn't revalidate unless the `SpaceId` changes. So it's the
+ * route which loaded `loadTaskQueryData`'s responsibility to imperatively update
+ * `TaskRealtimeClient` in their `clientLoader`. You can perform this update with
+ * this function.
  */
 export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSerializedValue) {
     const client = getTaskRealtimeClientIfExistsForClient(spaceId);
@@ -194,8 +192,8 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
 const TaskClientStoreContext = createContext<TaskClientStore | null>(null);
 
 /**
- * The task realtime client lives at the space route (`/s/:spaceId`) so the
- * client is available to any UI that needs it in the space.
+ * The task realtime client lives at the space route (`/s/:spaceId`) so the client
+ * is available to any UI that needs it in the space.
  */
 export function TaskRealtimeClientContextProvider({
     spaceId,
@@ -225,20 +223,20 @@ export function TaskRealtimeClientContextProvider({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
 
-    // We need to hold a strong reference to `Store<AccountModelData>` for the
-    // current account so `accountRegistry.weakGetAccountStoreByIdIfExists()` will
-    // always be able to return the data for the current account.
+    // We need to hold a strong reference to `Store<AccountModelData>` for the current
+    // account so `accountRegistry.weakGetAccountStoreByIdIfExists()` will always be
+    // able to return the data for the current account.
     //
-    // The task system depends on current account data existing in
-    // `AccountRegistry`. Any `AccountId` in a `TaskAction` we pass to
-    // `TaskClientStore` must have account data in `AccountRegistry` or else an
-    // error will be thrown. And we put `currentAccount.id` in `TaskAction`s a lot,
-    // e.g. when creating tasks we set the `creatorId` to `currentAccount.id`.
+    // The task system depends on current account data existing in `AccountRegistry`.
+    // Any `AccountId` in a `TaskAction` we pass to `TaskClientStore` must have account
+    // data in `AccountRegistry` or else an error will be thrown. And we put
+    // `currentAccount.id` in `TaskAction`s a lot, e.g. when creating tasks we set the
+    // `creatorId` to `currentAccount.id`.
     //
     // Some other code may coincidentally have added `currentAccount` to
     // `AccountRegistry` but we want to guarantee `currentAccount` is in
-    // `AccountRegistry` and also prevent garbage collection of `currentAccount`
-    // from `AccountRegistry`.
+    // `AccountRegistry` and also prevent garbage collection of `currentAccount` from
+    // `AccountRegistry`.
     useStateWithDependenciesWithoutDispatch(
         ([accountRegistry, currentAccount]) => {
             if (!currentAccount) return;
@@ -250,10 +248,10 @@ export function TaskRealtimeClientContextProvider({
     const [client] = useState((): TaskRealtimeClient => {
         const initializeClient = () => {
             const client = new TaskRealtimeClient(() => contextRef.current, {
-                // The account registry has a similar lifetime to our `TaskRealtimeClient`. On
-                // the client it's a shared global reference that never changes. So we won't
-                // have to reinitialize `TaskRealtimeClient` when the account store changes
-                // since the account store doesn't change.
+                // The account registry has a similar lifetime to our `TaskRealtimeClient`. On the
+                // client it's a shared global reference that never changes. So we won't have to
+                // reinitialize `TaskRealtimeClient` when the account store changes since the
+                // account store doesn't change.
                 accountRegistry,
                 spaceId,
                 currentAccountId,
@@ -263,15 +261,14 @@ export function TaskRealtimeClientContextProvider({
 
             // Initialize `TaskClientStore` with initial loader data. After initialization,
             // `app_client_routes.ts` will update client loaders so they call
-            // `clientLoaderTaskStoreLoaderData()` to make sure their data gets into the
-            // store before React renders.
+            // `clientLoaderTaskStoreLoaderData()` to make sure their data gets into the store
+            // before React renders.
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
                 loadTaskDataIntoClient(client, loaderData);
 
-                // If this is the inbox route (`s.$spaceId.inbox`) then check `peekData` for
-                // any task loader data we need to load into our store. Since before
-                // initialization in `app_client_routes.ts` won't have loaded task data into
-                // the store.
+                // If this is the inbox route (`s.$spaceId.inbox`) then check `peekData` for any
+                // task loader data we need to load into our store. Since before initialization in
+                // `app_client_routes.ts` won't have loaded task data into the store.
                 if (isPlainObject(loaderData) && isObject(loaderData.peekData)) {
                     for (const peekLoaderData of Object.values<any>(
                         (loaderData as any).peekData.hydrationData.loaderData,
@@ -315,24 +312,24 @@ export function TaskRealtimeClientContextProvider({
     const webSocketState = useStore(client.webSocketState);
     useWebSocketErrorDialog(client, webSocketState);
 
-    // Connect the client when our store has some queries and disconnect the client
-    // if the store has no remaining queries.
+    // Connect the client when our store has some queries and disconnect the client if
+    // the store has no remaining queries.
     useEffect(() => {
         const clientEntry = assertExists(taskRealtimeClientBySpaceIdForClient?.get(spaceId));
 
         assert(clientEntry.client === client);
 
-        // Only one `<TaskStoreContextProvider>` should be mounted at a time per-space
-        // on the client. Error if another client exists and is mounted. Ok if another
-        // client exists but is not mounted.
+        // Only one `<TaskStoreContextProvider>` should be mounted at a time per-space on
+        // the client. Error if another client exists and is mounted. Ok if another client
+        // exists but is not mounted.
         assert(
             !clientEntry.isMounted,
             "Another <TaskRealtimeClientContextProvider> is mounted for this space",
         );
         clientEntry.isMounted = true;
 
-        // Accounts without space access aren't allowed to connect to our realtime
-        // service. We'd constantly get authorization errors.
+        // Accounts without space access aren't allowed to connect to our realtime service.
+        // We'd constantly get authorization errors.
         if (!currentAccount) {
             const unsubscribe = subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                 () => contextRef.current,

@@ -34,31 +34,31 @@ import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
- * The number of invites to a space that can be sent per hour for email addresses outside
- * of the space's organization.
+ * The number of invites to a space that can be sent per hour for email addresses
+ * outside of the space's organization.
  */
 const nonDomainInviteRateLimit = 50;
 const nonDomainInviteWindowLength = 60 * 60 * 1000; // 60 minutes
 
 /**
- * Invite a list of email addresses to a space.
- * This validates the email addresses, checks if they are are already members, and validates
- * the email has not previously rejected an invite from this space as spam.
+ * Invite a list of email addresses to a space. This validates the email addresses,
+ * checks if they are are already members, and validates the email has not
+ * previously rejected an invite from this space as spam.
  *
- * Given a spaceId and a list of email addresses, return status information of those email
- * addresses within a space. This includes whether the email addresses are invalid,
- * already members, rejected an invite as spam, or ready to invite.
+ * Given a spaceId and a list of email addresses, return status information of
+ * those email addresses within a space. This includes whether the email addresses
+ * are invalid, already members, rejected an invite as spam, or ready to invite.
  *
- * We must call getSpaceAccountStatesByAccountIds to get the space account states for
- * the email addresses, so we return the resulting accountIDs from this as well to
- * avoid refetching data.
+ * We must call getSpaceAccountStatesByAccountIds to get the space account states
+ * for the email addresses, so we return the resulting accountIDs from this as well
+ * to avoid refetching data.
  *
- * Security considerations:
- *   This function allows determining whether an email address has signed up for Alpine
- *   and obtaining their AccountId. This is considered an acceptable information leak since:
- *     a) On the sign-in page, we already reveal whether an account exists
- *     b) An AccountId alone provides no access without additional authentication
- *   Additionally, there's no way to directly call this function from the client.
+ * Security considerations: This function allows determining whether an email
+ * address has signed up for Alpine and obtaining their AccountId. This is
+ * considered an acceptable information leak since: a) On the sign-in page, we
+ * already reveal whether an account exists b) An AccountId alone provides no
+ * access without additional authentication Additionally, there's no way to
+ * directly call this function from the client.
  */
 export async function inviteEmailAddressesToSpace(
     context: ServerSessionActionContextWithEmail,
@@ -87,11 +87,11 @@ export async function inviteEmailAddressesToSpace(
 
         await validateEmailAddressInvitesAreNotRateLimited(context, spaceId, emailAddresses);
 
-        // NOTE(imjoshin): We don't do any transaction or validation here because
-        // it would be too difficult to rollback at this point in time. If we do want
-        // to invest into that, we would likely call into SES to validate email statuses
-        // and report any that may have failed here. Given that's all async, it's likely
-        // not worth the time to implement that.
+        // NOTE(imjoshin): We don't do any transaction or validation here because it would
+        // be too difficult to rollback at this point in time. If we do want to invest into
+        // that, we would likely call into SES to validate email statuses and report any
+        // that may have failed here. Given that's all async, it's likely not worth the
+        // time to implement that.
         await runAllPromises(
             emailAddresses.map(async emailAddress => {
                 const result = await validateInviteEmailAddressToSpace(context, {
@@ -118,8 +118,7 @@ export async function inviteEmailAddressesToSpace(
 
                     accounts.push(account);
                 } catch (error) {
-                    // Error is reported in internalInviteAccountToSpace, no need to report
-                    // again here.
+                    // Error is reported in internalInviteAccountToSpace, no need to report again here.
                     unexpectedFailureEmailAddresses.set(emailAddress, error);
                     return;
                 }
@@ -154,8 +153,8 @@ export async function inviteEmailAddressesToSpace(
  * Invites a user to join a space by their email address. Only space administrators
  * can invite users. The invited user will be invited as a "Member" role.
  *
- * The function ensures proper authorization and maintains the space membership state
- * in the database.
+ * The function ensures proper authorization and maintains the space membership
+ * state in the database.
  */
 async function inviteEmailAddressToSpaceWithoutRetryTransaction(
     context: ServerSessionActionContextWithEmail,
@@ -204,8 +203,8 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             ...(!existingAccountId
                 ? createAccountWithEmailAddressTransactionEntries({
                       id: accountId,
-                      // Use email as name for new account so they can be mentioned
-                      // in the space before they join.
+                      // Use email as name for new account so they can be mentioned in the space before
+                      // they join.
                       name: emailAddress,
                       emailAddress,
                       currentTime,
@@ -220,8 +219,8 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
 
         if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
-            // Use strong consistency for the `/invite/accept` route to make sure we
-            // correctly read any data from sign in.
+            // Use strong consistency for the `/invite/accept` route to make sure we correctly
+            // read any data from sign in.
 
             // eslint-disable-next-line no-console
             console.log(
@@ -442,7 +441,8 @@ async function validateEmailAddressInvitesAreNotRateLimited(
         },
     };
 
-    // This will throw an exception if the `updateLockVersion` has changed since we last read the item.
+    // This will throw an exception if the `updateLockVersion` has changed since we
+    // last read the item.
     await SpacesTable.directlyUpdateItem(context, newItem);
 }
 

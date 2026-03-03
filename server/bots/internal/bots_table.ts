@@ -37,10 +37,9 @@ export const BotsTable = DynamoTableSchema.new({
                         /**
                          * When the bot is mentioned, send an event to this webhook.
                          *
-                         * Bot webhooks should be null when the bot is "uni-directional". A
-                         * good example of a uni-directional bot is our "Alerts" bot, whose
-                         * sole function is to send alerts into Alpine - it should never listen
-                         * to Alpine events.
+                         * Bot webhooks should be null when the bot is "uni-directional". A good example of
+                         * a uni-directional bot is our "Alerts" bot, whose sole function is to send alerts
+                         * into Alpine - it should never listen to Alpine events.
                          */
                         webhookUrl: Schema.string.nullable(),
                     }),
@@ -77,9 +76,9 @@ export const BotsTable = DynamoTableSchema.new({
                         description: SimpleContentSchema,
 
                         /**
-                         * Schema for the bot's space-specific and account-specific settings. We
-                         * render inputs on the bot settings page for each of these settings. The
-                         * bot has access to its settings through the API.
+                         * Schema for the bot's space-specific and account-specific settings. We render
+                         * inputs on the bot settings page for each of these settings. The bot has access
+                         * to its settings through the API.
                          */
                         schema: BotSettingsSchemaSchema.default({properties: emptyMap}),
                     }),
@@ -108,18 +107,18 @@ export const BotsTable = DynamoTableSchema.new({
                          * There are two types of API keys:
                          *
                          * - Scoped: API keys that are scoped to some resource in an individual space.
-                         *   Individual developers at companies typically use these API keys. The API
-                         *   key can't access anything outside of the space.
+                         *   Individual developers at companies typically use these API keys. The API key
+                         *   can't access anything outside of the space.
                          *
-                         * - Unscoped: API keys that aren't associated with any resource. To use
-                         *   unscoped API keys you need an access token that provides a scope.
-                         *   Integration authors use unscoped API keys and they get an access tokens
-                         *   when called from a bot webhook.
+                         * - Unscoped: API keys that aren't associated with any resource. To use unscoped
+                         *   API keys you need an access token that provides a scope. Integration authors
+                         *   use unscoped API keys and they get an access tokens when called from a bot
+                         *   webhook.
                          *
-                         *   I'm also imagining we have an API endpoint called `/request-access-token`
-                         *   or something that returns an access token for an unscoped API key. This
-                         *   forces integrators to take basic security measures to make sure they're
-                         *   only requesting data from one space at a time.
+                         *     I'm also imagining we have an API endpoint called `/request-access-token` or
+                         *     something that returns an access token for an unscoped API key. This forces
+                         *     integrators to take basic security measures to make sure they're only
+                         *     requesting data from one space at a time.
                          */
                         spaceId: Schema.id<SpaceId>().nullable(),
 
@@ -177,8 +176,8 @@ export const BotsTable = DynamoTableSchema.new({
                     },
                     attributes: Schema.object({
                         /**
-                         * The dynamic account settings values for the bot that match the structure
-                         * from `schema`.
+                         * The dynamic account settings values for the bot that match the structure from
+                         * `schema`.
                          */
                         values: Schema.map(IdentifierStringSchema, Schema.unknown()),
                     }),

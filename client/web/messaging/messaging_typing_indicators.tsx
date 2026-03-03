@@ -36,8 +36,8 @@ export function MessagingTypingIndicators({
 }) {
     const spacingScale = useSpacingScale();
 
-    // Only select one typing state per account and sort typing states by their
-    // start time so they appear in the order users started typing.
+    // Only select one typing state per account and sort typing states by their start
+    // time so they appear in the order users started typing.
     const typingStates = useMemo(() => {
         const typingStateByAccountId = new Map<AccountId, MessagingTypingState>();
 
@@ -107,8 +107,8 @@ function MessagingTypingIndicator({account}: {account: AccountModel}) {
         const animation3 = animate(createSequence(dot3Element), {repeat: Infinity});
 
         // We want the second dot's animation to start in the center. That will be 25%
-        // through the animation. We start the whole animation one cycle through so we
-        // can stagger our other animation start times.
+        // through the animation. We start the whole animation one cycle through so we can
+        // stagger our other animation start times.
         animation2.time = duration * 1.25;
 
         animation1.time = animation2.time - staggerDuration;

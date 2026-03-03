@@ -1,9 +1,9 @@
 /**
- * Get the content type for some avatar content. Avatars are either PNG or
- * AVIF. If we processed the avatar then it's AVIF. However, for convenience
- * when creating a space for a company we take a small PNG of the company's
- * logo verbatim from Logo.dev and use it without processing (until we can
- * process the full sized logo later).
+ * Get the content type for some avatar content. Avatars are either PNG or AVIF. If
+ * we processed the avatar then it's AVIF. However, for convenience when creating a
+ * space for a company we take a small PNG of the company's logo verbatim from
+ * Logo.dev and use it without processing (until we can process the full sized logo
+ * later).
  */
 export function getAvatarContentType(content: Uint8Array): string {
     // PNGs always start with the following 8 bytes. Source:
@@ -21,8 +21,8 @@ export function getAvatarContentType(content: Uint8Array): string {
         return "image/png";
     }
 
-    // SVGs are XML and contain an <svg> tag near the start.
-    // Look for "<svg" (case insensitive) in the first 64 bytes.
+    // SVGs are XML and contain an <svg> tag near the start. Look for "<svg" (case
+    // insensitive) in the first 64 bytes.
     for (let i = 0; i <= Math.min(64, content.length - 4); i++) {
         if (
             content[i] === 0x3c && // `<`

@@ -58,11 +58,11 @@ export const apiTasksPaths: Pick<
                 },
             ] = await runAllPromises([
                 // TODO(calebmer): An optimization that would be pretty nice here is if we move
-                // notes loading into `TaskRealtimeService`. Currently we have to load the data
-                // for bot authorization twice. Once here in `ApiService` and again in
+                // notes loading into `TaskRealtimeService`. Currently we have to load the data for
+                // bot authorization twice. Once here in `ApiService` and again in
                 // `TaskRealtimeService`. If we pushed task notes loading into
-                // `TaskRealtimeService` then we could leverage `ContextCache` to only load the
-                // bot authorization data once.
+                // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
+                // authorization data once.
                 context.tasks.getTaskWithoutDependencies(
                     context.actor.getSpaceId(),
                     pathParameters.id,
@@ -277,21 +277,21 @@ export const apiTasksPaths: Pick<
                 filesReactions: emptyReactionSet,
             };
 
-            // If this broadcast fails (or it's never sent, say if the process dies) then
-            // users connected to this messaging room won't see this message appear in
-            // realtime. The realtime connection will be "stuck". Any future messages will
-            // be placed in a queue (since the connection is waiting on a previous message)
-            // and will never be flushed to the client.
+            // If this broadcast fails (or it's never sent, say if the process dies) then users
+            // connected to this messaging room won't see this message appear in realtime. The
+            // realtime connection will be "stuck". Any future messages will be placed in a
+            // queue (since the connection is waiting on a previous message) and will never be
+            // flushed to the client.
             //
-            // To get out of this state, the user can reload the page. Or navigate to
-            // another page then navigate back. We hope this won't be too big of an issue
-            // since the user should still receive a realtime inbox update telling them
-            // they have a new message.
+            // To get out of this state, the user can reload the page. Or navigate to another
+            // page then navigate back. We hope this won't be too big of an issue since the
+            // user should still receive a realtime inbox update telling them they have a new
+            // message.
             //
-            // NOTE(calebmer): The best fix for this is probably to send the broadcast
-            // event in a DynamoDB Streams listener that reacts to the update. We plan to
-            // move `NotificationEvent`, `IndexSearchEntity`, and other processing that
-            // needs to reliably run after an updates to DynamoDB Stream.
+            // NOTE(calebmer): The best fix for this is probably to send the broadcast event in
+            // a DynamoDB Streams listener that reacts to the update. We plan to move
+            // `NotificationEvent`, `IndexSearchEntity`, and other processing that needs to
+            // reliably run after an updates to DynamoDB Stream.
             context.process.waitUntil(
                 context.edge.broadcastToDurableObject(
                     `/api/durable-objects/task-notes/${pathParameters.id}/broadcast-new-message`,
@@ -463,9 +463,9 @@ export const apiTasksPaths: Pick<
             const statuses = new Set(
                 queryParameters.status && queryParameters.status.length > 0
                     ? queryParameters.status
-                    : // NOTE(iftizsimmons, 2025-11-05): We'll only showing open tasks by default since that
-                      // is the default behavior in the UI. One day, when users can set default filters for
-                      // a task collection, we should use that filter instead.
+                    : // NOTE(iftizsimmons, 2025-11-05): We'll only showing open tasks by default since
+                      // that is the default behavior in the UI. One day, when users can set default
+                      // filters for a task collection, we should use that filter instead.
                       ["Open"],
             );
 

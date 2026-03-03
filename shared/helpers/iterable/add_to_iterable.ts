@@ -1,6 +1,6 @@
 /**
- * Adds individual values at the end of an iterable. Similar to `Array.push()`
- * or `Set.add()`.
+ * Adds individual values at the end of an iterable. Similar to `Array.push()` or
+ * `Set.add()`.
  */
 export function addToIterable<Value>(
     iterable: Iterable<Value>,

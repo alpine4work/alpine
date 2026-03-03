@@ -8,8 +8,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
 /**
- * Load the chat's accounts for a bot scoped to the chat. Used
- * when evaluating whether a bot has permissions to certain resources.
+ * Load the chat's accounts for a bot scoped to the chat. Used when evaluating
+ * whether a bot has permissions to certain resources.
  */
 export async function getChatAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,

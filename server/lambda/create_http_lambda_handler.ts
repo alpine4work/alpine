@@ -33,8 +33,8 @@ const honeycombApiKey =
 
 const kinesisTracerStreamName =
     process.env.NODE_ENV !== "production"
-        ? // TODO(ifitzsimmons, #local-kinesis): We don't have a local Kinesis stream at the moment,
-          // but when we do, this will always be required
+        ? // TODO(ifitzsimmons, #local-kinesis): We don't have a local Kinesis stream at the
+          // moment, but when we do, this will always be required
           (process.env.KINESIS_TRACER_STREAM_NAME ?? "")
         : assertExists(
               process.env.KINESIS_TRACER_STREAM_NAME,
@@ -75,8 +75,9 @@ export function createHttpLambdaHandler({
         options: LambdaActionContextOptions;
     }> | null = null;
 
-    // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Convert to Lambda Response
-    // Streaming so that we can run cleanup processes after sending responses to clients.
+    // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Convert to Lambda
+    // Response Streaming so that we can run cleanup processes after sending responses
+    // to clients.
     // https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html
     return async (event: APIGatewayProxyEvent, lambdaContext: LambdaContext) => {
         const promiseWaiter = new PromiseWaiter();
@@ -265,8 +266,8 @@ function finishSpanAndFlushHoneycombEvents(
     promiseWaiter: PromiseWaiter,
 ) {
     finishSpan?.();
-    // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Fire and forget request
-    // that flushes the batch of honeycomb events.
+    // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Fire and forget
+    // request that flushes the batch of honeycomb events.
     promiseWaiter.waitUntil(async () => {
         await honeycombTracerClient?.flushScheduledEventBatch();
     });

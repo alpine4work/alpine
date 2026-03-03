@@ -33,8 +33,8 @@ export type DurableObjectTransactionInterface = DurableObjectStorageInterfaceBas
 };
 
 /**
- * Small helper for interacting with `DurableObjectStorage` that provides
- * better type safety.
+ * Small helper for interacting with `DurableObjectStorage` that provides better
+ * type safety.
  *
  * This helper also always enables `allowConcurrency: true`. We think very
  * carefully across concurrency throughout our distributed system so we trust

@@ -9,9 +9,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Transitions a Notion import from "Validated" to "ProcessQueued" and queues
- * the import job. Called after the client finishes uploading the zip
- * file to S3.
+ * Transitions a Notion import from "Validated" to "ProcessQueued" and queues the
+ * import job. Called after the client finishes uploading the zip file to S3.
  */
 export async function startNotionImport(
     context: ServerSessionActionContext,

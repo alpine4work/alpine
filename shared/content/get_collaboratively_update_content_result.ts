@@ -31,9 +31,9 @@ declare module "prosemirror-transform" {
  * empty! This happens if while rebasing, the ranges edited by the update steps
  * were completely removed.
  *
- * You need to provide a `getSteps` function which, when called, returns the
- * array of steps in that range. You can assume the range passed into this
- * function is a valid range of steps.
+ * You need to provide a `getSteps` function which, when called, returns the array
+ * of steps in that range. You can assume the range passed into this function is a
+ * valid range of steps.
  */
 export function getCollaborativelyUpdateContentResult(
     context: Context<{tracer: TracerContextModule}>,
@@ -65,8 +65,8 @@ export function getCollaborativelyUpdateContentResult(
         clientId: ContentEditorClientId;
     }>;
     clientContent: Node;
-    // Mapping from client positions to positions in the final content. Will
-    // not map anything if there were no conflicting steps.
+    // Mapping from client positions to positions in the final content. Will not map
+    // anything if there were no conflicting steps.
     mapping: Mapping;
 }> {
     return context.tracer.withSpan(
@@ -102,16 +102,15 @@ export function getCollaborativelyUpdateContentResult(
 
             const mapping = new Mapping();
 
-            // If the client's version is the same as our server version then we can
-            // directly apply the client's steps to the content.
+            // If the client's version is the same as our server version then we can directly
+            // apply the client's steps to the content.
             if (clientVersion === currentVersion) {
                 invertedSteps = [];
 
                 for (const step of clientSteps) {
                     // ProseMirror will happily apply an `AttrStep` to any node even if the node
-                    // doesn't support the attribute in question. So add extra validation on the
-                    // server to make sure we're applying `AttrStep` to a node which supports this
-                    // attribute.
+                    // doesn't support the attribute in question. So add extra validation on the server
+                    // to make sure we're applying `AttrStep` to a node which supports this attribute.
                     if (step instanceof AttrStep) {
                         const node = content.nodeAt(step.pos);
                         if (node) {
@@ -165,11 +164,11 @@ export function getCollaborativelyUpdateContentResult(
                 const invertedClientSteps: Array<Step> = [];
 
                 // Make sure all steps from the client were valid against the content at
-                // `clientVersion`. So revert back to to that version and try applying our
-                // client steps.
+                // `clientVersion`. So revert back to to that version and try applying our client
+                // steps.
                 //
-                // We will drop any steps we can't rebase. But we still want to validate that
-                // the original steps were ok.
+                // We will drop any steps we can't rebase. But we still want to validate that the
+                // original steps were ok.
                 {
                     clientContent = content;
 
@@ -197,9 +196,8 @@ export function getCollaborativelyUpdateContentResult(
 
                     for (const step of clientSteps) {
                         // ProseMirror will happily apply an `AttrStep` to any node even if the node
-                        // doesn't support the attribute in question. So add extra validation on the
-                        // server to make sure we're applying `AttrStep` to a node which supports this
-                        // attribute.
+                        // doesn't support the attribute in question. So add extra validation on the server
+                        // to make sure we're applying `AttrStep` to a node which supports this attribute.
                         if (step instanceof AttrStep) {
                             const node = clientContent.nodeAt(step.pos);
                             if (node) {
@@ -238,9 +236,8 @@ export function getCollaborativelyUpdateContentResult(
                     }
                 }
 
-                // See the guide for information on how to rebase a chain of steps against
-                // another chain of steps:
-                // https://prosemirror.net/docs/guide/#transform.rebasing
+                // See the guide for information on how to rebase a chain of steps against another
+                // chain of steps: https://prosemirror.net/docs/guide/#transform.rebasing
                 //
                 // Also see the client-side rebasing implementation:
                 // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
@@ -258,24 +255,23 @@ export function getCollaborativelyUpdateContentResult(
                     const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
                     mapFrom--;
 
-                    // Silently ignore steps we can't rebase. That's what the client
-                    // implementation does:
+                    // Silently ignore steps we can't rebase. That's what the client implementation
+                    // does:
                     // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
                     if (!rebasedStep) continue;
 
                     // ProseMirror will happily apply an `AttrStep` to any node even if the node
-                    // doesn't support the attribute in question. So add extra validation on the
-                    // server to make sure we're applying `AttrStep` to a node which supports this
-                    // attribute.
+                    // doesn't support the attribute in question. So add extra validation on the server
+                    // to make sure we're applying `AttrStep` to a node which supports this attribute.
                     //
                     // NOTE(calebmer): We consider this an `InternalError` (instead of
-                    // `FailedPreconditionError`) and add `AFTER REBASING` to the error message
-                    // since if `AttrStep` is updating an attribute on a node that doesn't support
-                    // the attribute then we should error above when we apply `clientSteps` to
+                    // `FailedPreconditionError`) and add `AFTER REBASING` to the error message since
+                    // if `AttrStep` is updating an attribute on a node that doesn't support the
+                    // attribute then we should error above when we apply `clientSteps` to
                     // `clientContent` not here. However, maybe a bug in ProseMirror may lead our
                     // rebased `AttrStep` targeting a different node than what it was targeting
-                    // initially. If this happens we want to catch the issue early (instead of
-                    // writing corrupted data to the database).
+                    // initially. If this happens we want to catch the issue early (instead of writing
+                    // corrupted data to the database).
                     if (rebasedStep instanceof AttrStep) {
                         const node = content.nodeAt(rebasedStep.pos);
                         if (node) {
@@ -293,8 +289,8 @@ export function getCollaborativelyUpdateContentResult(
 
                     const rebasedStepResult = rebasedStep.apply(content);
 
-                    // Silently ignore steps we can't rebase. That's what the client
-                    // implementation does:
+                    // Silently ignore steps we can't rebase. That's what the client implementation
+                    // does:
                     // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
                     if (!rebasedStepResult.doc) continue;
 
@@ -311,8 +307,8 @@ export function getCollaborativelyUpdateContentResult(
 
             // Validate that our steps left the content in a good state.
             //
-            // We collect all ranges touched by a step and we validate the content of
-            // the nodes in those ranges.
+            // We collect all ranges touched by a step and we validate the content of the nodes
+            // in those ranges.
             {
                 const rangesToValidate: Array<{start: number; end: number}> = [];
                 const mapping = new Mapping(steps.map(step => step.getMap()));
@@ -357,8 +353,7 @@ export function getCollaborativelyUpdateContentResult(
                             break;
                         }
                         case "docAttr": {
-                            // We don't perform any content structure validations when `doc` attributes
-                            // change.
+                            // We don't perform any content structure validations when `doc` attributes change.
                             break;
                         }
                         case "addMark":
@@ -402,7 +397,8 @@ export function getCollaborativelyUpdateContentResult(
                             }
                         }
 
-                        // If we have already validated this node in a different range, don't validate again.
+                        // If we have already validated this node in a different range, don't validate
+                        // again.
                         if (validatedNodes.has(node)) return false;
                         validatedNodes.add(node);
 
@@ -412,8 +408,8 @@ export function getCollaborativelyUpdateContentResult(
                             );
                         }
 
-                        // For code blocks, new lines should be created by adding new `codeBlockLine`s.
-                        // Not by adding a `\n` character! Reject any updates that try to add a new line
+                        // For code blocks, new lines should be created by adding new `codeBlockLine`s. Not
+                        // by adding a `\n` character! Reject any updates that try to add a new line
                         // character to a code block line.
                         if (
                             node.isText &&
@@ -426,11 +422,10 @@ export function getCollaborativelyUpdateContentResult(
                             );
                         }
 
-                        // Don't allow adding marks to non-leaf ProseMirror nodes. ProseMirror
-                        // technically allows this. For a node's children to have marks the node itself
-                        // must also support those marks. Since ProseMirror doesn't give us a way to
-                        // disallow marks on non-leaf nodes in the ProseMirror schema we instead block
-                        // them here.
+                        // Don't allow adding marks to non-leaf ProseMirror nodes. ProseMirror technically
+                        // allows this. For a node's children to have marks the node itself must also
+                        // support those marks. Since ProseMirror doesn't give us a way to disallow marks
+                        // on non-leaf nodes in the ProseMirror schema we instead block them here.
                         //
                         // Some examples of what we want to avoid:
                         //

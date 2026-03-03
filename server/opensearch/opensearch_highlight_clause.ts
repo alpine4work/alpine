@@ -11,8 +11,7 @@ export type OpensearchHighlightClause<FlattenedKeys extends string> =
     };
 
 /**
- * Options for the highlighter which can either be set at a global or
- * field level.
+ * Options for the highlighter which can either be set at a global or field level.
  *
  * https://opensearch.org/docs/latest/search-plugins/searching-data/highlight/#highlighting-options
  */

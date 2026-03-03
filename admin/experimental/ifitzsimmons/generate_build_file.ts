@@ -46,8 +46,8 @@ function findMatchingClosingBracket(content: string, startPos: number): number {
         } else if (char === "]") {
             depth--;
             if (depth === 0) {
-                // Found the closing bracket, now check if it's followed by a comma
-                // Skip whitespace to find the comma
+                // Found the closing bracket, now check if it's followed by a comma Skip whitespace
+                // to find the comma
                 let j = i + 1;
                 while (j < content.length && /\s/.test(content[j]!)) {
                     j++;
@@ -55,8 +55,8 @@ function findMatchingClosingBracket(content: string, startPos: number): number {
                 if (j < content.length && content[j] === ",") {
                     return i;
                 }
-                // If no comma, this might not be the right closing bracket
-                // Continue looking for another one (though this is rare)
+                // If no comma, this might not be the right closing bracket Continue looking for
+                // another one (though this is rare)
             }
         }
     }
@@ -64,8 +64,8 @@ function findMatchingClosingBracket(content: string, startPos: number): number {
 }
 
 /**
- * Builds a comprehensive mapping of all TypeScript files to their exact Bazel targets
- * using bazel query to get accurate information directly from Bazel
+ * Builds a comprehensive mapping of all TypeScript files to their exact Bazel
+ * targets using bazel query to get accurate information directly from Bazel
  */
 function buildFileToTargetCache(): Map<string, string> {
     if (fileToTargetCache) {
@@ -103,7 +103,8 @@ function buildFileToTargetCache(): Map<string, string> {
 
                 // Map each source file to this target
                 for (const sourceFile of sourceFiles) {
-                    // Convert from bazel label format (//package:file.ts) to relative path (package/file.ts)
+                    // Convert from bazel label format (//package:file.ts) to relative path
+                    // (package/file.ts)
                     const relativePath = sourceFile.replace(/^\/\//, "").replace(":", "/");
                     fileToTargetCache.set(relativePath, target);
                 }
@@ -129,9 +130,9 @@ function buildFileToTargetCache(): Map<string, string> {
  * Gets the exact Bazel target for a file using the comprehensive cache
  */
 /**
- * Simplifies a Bazel target by omitting the target name if it matches the directory name
- * E.g., "//shared/design:design" becomes "//shared/design"
- * But "//shared/design:design_core" remains "//shared/design:design_core"
+ * Simplifies a Bazel target by omitting the target name if it matches the
+ * directory name E.g., "//shared/design:design" becomes "//shared/design" But
+ * "//shared/design:design_core" remains "//shared/design:design_core"
  */
 function simplifyBazelTarget(target: string): string {
     const colonIndex = target.lastIndexOf(":");
@@ -406,8 +407,8 @@ function parseTsProjectContent(
         }
     }
 
-    // Extract visibility section as raw text (don't try to parse complex patterns)
-    // Use proper parenthesis matching for complex expressions like list comprehensions
+    // Extract visibility section as raw text (don't try to parse complex patterns) Use
+    // proper parenthesis matching for complex expressions like list comprehensions
     const visibilityMatch = tsProjectContent.match(/visibility\s*=\s*\[/);
     let visibilityRaw: string | undefined;
     if (visibilityMatch) {
@@ -433,8 +434,8 @@ function parseTsProjectContent(
 }
 
 /**
- * Parses a BUILD file and extracts the ts_project configuration
- * If there are multiple ts_project rules, finds the one matching the directory name
+ * Parses a BUILD file and extracts the ts_project configuration If there are
+ * multiple ts_project rules, finds the one matching the directory name
  */
 function parseBuildFile(buildFilePath: string, preferredName?: string): BuildFileConfig | null {
     if (!fs.existsSync(buildFilePath)) {
@@ -562,8 +563,8 @@ function scanDirectoryForDeps(dirPath: string): {deps: Set<string>; testDeps: Se
                     const targetPackage = importInfo.bazelTarget.split(":")[0];
 
                     if (targetPackage && targetPackage !== dirBazelPath) {
-                        // Skip dependencies to direct child packages to avoid circular dependencies,
-                        // but allow them if we're not creating a cycle in the same dependency type
+                        // Skip dependencies to direct child packages to avoid circular dependencies, but
+                        // allow them if we're not creating a cycle in the same dependency type
                         const isChildPackage =
                             targetPackage.startsWith(dirBazelPath + "/") &&
                             !targetPackage.substring(dirBazelPath.length + 1).includes("/");
@@ -579,10 +580,11 @@ function scanDirectoryForDeps(dirPath: string): {deps: Set<string>; testDeps: Se
                                 targetSet.add(importInfo.bazelTarget);
                             }
                         } else {
-                            // For child packages, only add the dependency if it won't create a circular dependency
-                            // TODO: This is a simplified check - ideally we'd check the actual BUILD file of the child
-                            // to see if it depends back on us, but for now we'll allow child dependencies
-                            // Note: This may create circular dependencies, but we allow it for valid use cases
+                            // For child packages, only add the dependency if it won't create a circular
+                            // dependency TODO: This is a simplified check - ideally we'd check the actual
+                            // BUILD file of the child to see if it depends back on us, but for now we'll allow
+                            // child dependencies Note: This may create circular dependencies, but we allow it
+                            // for valid use cases
                             const isTestHelper = importInfo.bazelTarget.includes("test_helpers");
                             if (isTestHelper) {
                                 testDeps.add(importInfo.bazelTarget);
@@ -675,7 +677,8 @@ function updateBuildFile(dirPath: string) {
         return;
     }
 
-    // Scan the BUILD file's directory for dependencies, not the original changed file's directory
+    // Scan the BUILD file's directory for dependencies, not the original changed
+    // file's directory
     const {deps, testDeps} = scanDirectoryForDeps(buildFileDir);
 
     // Replace only the specific ts_project rule using proper parenthesis matching
@@ -708,8 +711,9 @@ function updateBuildFile(dirPath: string) {
         return;
     }
 
-    // Preserve certain essential dependencies that were in the original config
-    // This handles cases like @types/* which are needed for TypeScript compilation but not detected by import scanning
+    // Preserve certain essential dependencies that were in the original config This
+    // handles cases like @types/\* which are needed for TypeScript compilation but not
+    // detected by import scanning
     const preservedDeps = new Set(deps);
     for (const existingDep of existingConfig.deps) {
         if (existingDep.includes("@types/") || existingDep.includes("node_modules/@types")) {
@@ -815,9 +819,9 @@ function getChangedFiles(): Array<string> {
 }
 
 /**
- * Gets unique BUILD file directories for changed TypeScript files
- * This prevents processing the same BUILD file multiple times when multiple files
- * in the same package are changed
+ * Gets unique BUILD file directories for changed TypeScript files This prevents
+ * processing the same BUILD file multiple times when multiple files in the same
+ * package are changed
  */
 function getChangedDirectories(): Array<string> {
     const changedFiles = getChangedFiles();

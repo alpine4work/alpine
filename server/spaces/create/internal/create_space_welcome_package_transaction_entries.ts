@@ -68,8 +68,8 @@ export async function createSpaceWelcomePackageTransactionEntries(
             break;
     }
 
-    // Don't instantiate ChatGPT in test environments where we haven't created
-    // a `BotId`.
+    // Don't instantiate ChatGPT in test environments where we haven't created a
+    // `BotId`.
     if (botId !== null) {
         chatGptBotAccountId = generateId<AccountId>();
 

@@ -76,8 +76,8 @@ export function ContentEditorMobileCommentInputBottomBar({
     const onClose = () => {
         // Courtesy blur call. Useful on mobile Safari since if the focused element is
         // removed from the DOM there won't be a `focusout` event. So
-        // `useIsTextInputFocused()` won't update and the "Done" button will continue
-        // to show in the navigation bar.
+        // `useIsTextInputFocused()` won't update and the "Done" button will continue to
+        // show in the navigation bar.
         assertExists(inputRef.current).blur();
 
         onCloseProp();
@@ -164,8 +164,8 @@ export function ContentEditorMobileCommentInputBottomBar({
                 backgroundColor="grey-100-const"
                 opacity={isInitialRender ? "0" : {light: "10", dark: "40"}}
                 // Render a cover over the document so the user knows they can't interact and
-                // should focus on their comment. If they tap on the cover the comment input
-                // will be dismissed.
+                // should focus on their comment. If they tap on the cover the comment input will
+                // be dismissed.
                 style={{transition: "opacity 240ms ease-out"}}
             />
             {createPortal(
@@ -179,9 +179,8 @@ export function ContentEditorMobileCommentInputBottomBar({
                         top: `var(--space-outlet-height, 100svh)`,
                         transform: "translateY(-100%)",
                     }}
-                    // Bottom bar message input expects to be rendered in a flex context. Or else
-                    // some layout bits (like the bottom bar safe area cover) won't work
-                    // quite right.
+                    // Bottom bar message input expects to be rendered in a flex context. Or else some
+                    // layout bits (like the bottom bar safe area cover) won't work quite right.
                     display="flex"
                     flexDirection="column"
                     ref={useConfirmSaveAfterLosingFocus({
@@ -197,13 +196,13 @@ export function ContentEditorMobileCommentInputBottomBar({
                         sendButtonVerb="Save"
                         isBottomBar={true}
                         // We're replacing `<ContentEditorMobileKeyboardToolbar>`. This makes it so
-                        // `useScrollToAvoidBottomBarsAndMobileKeyboard()` doesn't ignore the initial
-                        // mount of this bottom bar.
+                        // `useScrollToAvoidBottomBarsAndMobileKeyboard()` doesn't ignore the initial mount
+                        // of this bottom bar.
                         isReplacingOtherBottomBar={true}
-                        // The refocus hack calls `blur()` ~0.3s after focusing. Calling blur causes us
-                        // to close the comment input. Ideally we could get rid of the hack and find
-                        // a different way to achieve the same effect. See the comment above the hack
-                        // for more info.
+                        // The refocus hack calls `blur()` ~0.3s after focusing. Calling blur causes us to
+                        // close the comment input. Ideally we could get rid of the hack and find a
+                        // different way to achieve the same effect. See the comment above the hack for
+                        // more info.
                         isNativeMobileRefocusHackDisabled={true}
                         state={commentState}
                         onChange={setCommentState}
@@ -219,14 +218,14 @@ export function ContentEditorMobileCommentInputBottomBar({
                 portalElement,
             )}
             {shouldShowConfirmCloseDialog && (
-                // Because in our native mobile app `onClose` is never called, the cancel
-                // button has the same effect as closing the modal.
+                // Because in our native mobile app `onClose` is never called, the cancel button
+                // has the same effect as closing the modal.
                 <ModalDialog
                     title="Discard comment?"
                     description="Continuing will discard your comment. Use the send button to save your comment."
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmCloseDialog(false);
                     }}

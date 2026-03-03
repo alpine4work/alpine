@@ -78,12 +78,12 @@ export type DurableObjectEnv = {
 /**
  * Create a Durable Object class for our system. Features:
  *
- * - Setting up `Context` objects. We have a `EdgeProcessContext` for the
- *   lifetime of the Durable Object and `EdgeActionContext`s for each individual
- *   request to the Durable Object.
+ * - Setting up `Context` objects. We have a `EdgeProcessContext` for the lifetime
+ *   of the Durable Object and `EdgeActionContext`s for each individual request to
+ *   the Durable Object.
  *
- * - Session authorization. Standardized protocol for sending user
- *   authorization credentials to the Durable Object.
+ * - Session authorization. Standardized protocol for sending user authorization
+ *   credentials to the Durable Object.
  */
 export function createDurableObject<
     Route,
@@ -192,8 +192,8 @@ export function createDurableObject<
             if (!tokenAgentSecret)
                 throw new InternalError("Missing `TOKEN_AGENT_SECRET` env variable");
 
-            // Cookie jar for sharing cookies across requests made from this Durable
-            // Object instance.
+            // Cookie jar for sharing cookies across requests made from this Durable Object
+            // instance.
             this._cookieJar = new CookieJar();
 
             const tokenAgentPromise = runAllPromises([
@@ -280,10 +280,10 @@ export function createDurableObject<
                             "Expected Durable Object ID name to be included in header",
                         );
 
-                    // Clients may make requests conditional on the Durable Object being
-                    // initialized. Ideally this logic would happen at the Cloudflare level instead
-                    // of our application code but it's still useful here as it prevents network
-                    // requests made while initializing.
+                    // Clients may make requests conditional on the Durable Object being initialized.
+                    // Ideally this logic would happen at the Cloudflare level instead of our
+                    // application code but it's still useful here as it prevents network requests made
+                    // while initializing.
                     if (
                         request.headers.get("cyberworlds-durable-object-if-initialized") ===
                             "true" &&
@@ -335,8 +335,7 @@ export function createDurableObject<
                         Response
                     >(
                         {
-                            // Replace the tracer context module with one that uses our span for
-                            // this request.
+                            // Replace the tracer context module with one that uses our span for this request.
                             tracer: new TracerContextModule(span),
                             cache: CacheContextModule.new(),
                             batch: BatchContextModule.new(),
@@ -381,12 +380,11 @@ export function createDurableObject<
                 } catch (error) {
                     span.addException(error);
 
-                    // If there was an error and the client was trying to connect to a WebSocket
-                    // then temporarily connect so we can send an error message over the WebSocket
-                    // protocol then immediately close.
+                    // If there was an error and the client was trying to connect to a WebSocket then
+                    // temporarily connect so we can send an error message over the WebSocket protocol
+                    // then immediately close.
                     //
-                    // e.g. If there was an authorization error during durable object
-                    // initialization.
+                    // e.g. If there was an authorization error during durable object initialization.
                     if (request.headers.get("upgrade") !== "websocket") {
                         return createSimpleErrorResponse(error);
                     } else {
@@ -419,9 +417,9 @@ export function createDurableObject<
         }
 
         /**
-         * Creates a durable object environment for use in Jest tests. Whenever you
-         * call `connectForTest()` on the returned object with the same `idName` you
-         * will get the same underlying durable object instance.
+         * Creates a durable object environment for use in Jest tests. Whenever you call
+         * `connectForTest()` on the returned object with the same `idName` you will get
+         * the same underlying durable object instance.
          */
         public static test(processContext: WorkerProcessContext): {
             fetchForTest: (
@@ -497,8 +495,7 @@ export function createDurableObject<
 }
 
 /**
- * Verify the token and return an actor context module corresponding to
- * the token.
+ * Verify the token and return an actor context module corresponding to the token.
  */
 async function createDurableObjectActorContextModule(
     tokenAgent: TokenAgent,
@@ -508,12 +505,11 @@ async function createDurableObjectActorContextModule(
 
     switch (payload.type) {
         case "Session": {
-            // The tokens provided to Durable Objects are short lived. So we don't check if
-            // the session was revoked. If the session was valid when the token was signed
-            // we trust it's still valid now.
+            // The tokens provided to Durable Objects are short lived. So we don't check if the
+            // session was revoked. If the session was valid when the token was signed we trust
+            // it's still valid now.
             //
-            // If we make an RPC call then `AppService` will check it the session was
-            // revoked.
+            // If we make an RPC call then `AppService` will check it the session was revoked.
             return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
                 serviceName,
                 payload.sessionId,

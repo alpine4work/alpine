@@ -16,8 +16,8 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 /**
- * A lightweight action context that's compatible with the minimal action
- * context of `TaskRealtimeService` and `FileProcessorService`.
+ * A lightweight action context that's compatible with the minimal action context
+ * of `TaskRealtimeService` and `FileProcessorService`.
  */
 export type ServerMinimalActionContext = Context<ServerMinimalActionContextModules>;
 

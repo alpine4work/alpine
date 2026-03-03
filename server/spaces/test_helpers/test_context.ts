@@ -117,8 +117,8 @@ export type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase
     /**
      * An action for a bot in some specified scope.
      *
-     * This function assumes you've already validated that `botAccountId` is
-     * actually an `AccountId` for a bot account.
+     * This function assumes you've already validated that `botAccountId` is actually
+     * an `AccountId` for a bot account.
      */
     botAction(
         spaceId: SpaceId,

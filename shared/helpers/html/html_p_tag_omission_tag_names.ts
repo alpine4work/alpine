@@ -1,8 +1,7 @@
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 /**
- * HTML tags that trigger [`<p>` tag omission logic][1]. Web browsers will
- * parse:
+ * HTML tags that trigger [`<p>` tag omission logic][1]. Web browsers will parse:
  *
  * ```html
  * <p>Hello, <div style="display: inline; font-weight: bold">world</div>!</p>
@@ -11,11 +10,13 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
  * ...as:
  *
  * ```html
- * <p>Hello, </p><div style="display: inline; font-weight: bold">world</div>!
+ * <p>Hello,</p>
+ * <div style="display: inline; font-weight: bold">world</div>
+ * !
  * ```
  *
- * To fix this, you should never put an element like `<div>` inside a `<p>`
- * tag. Instead use `<span>`.
+ * To fix this, you should never put an element like `<div>` inside a `<p>` tag.
+ * Instead use `<span>`.
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/p
  */

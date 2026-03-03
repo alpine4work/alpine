@@ -20,8 +20,8 @@ export type DocumentContentEditorSideDecoration = {
 
 // We render side decorations with a React component instead of ProseMirror
 // decorations or custom node views both because we want interactive React
-// components instead of plain DOM elements and we get more control
-// over positioning.
+// components instead of plain DOM elements and we get more control over
+// positioning.
 export function DocumentContentEditorSideDecorations({
     editorContainerWidth,
     contentReferences,
@@ -57,8 +57,7 @@ export function DocumentContentEditorSideDecorations({
             {decorations.map(decoration => {
                 const key = Array.from(decoration.commentThreadIds).join("-");
 
-                // Comment thread could appear on multiple paragraphs. Add a suffix to
-                // uniquify it.
+                // Comment thread could appear on multiple paragraphs. Add a suffix to uniquify it.
                 const keySuffix = getOrSetDefaultMapValue(suffixByKey, key, () => ({suffix: 0}))
                     .suffix++;
 

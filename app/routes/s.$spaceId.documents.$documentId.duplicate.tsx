@@ -12,9 +12,9 @@ import {addFallbackToDocumentTitle} from "~/shared/documents/document_model.js";
 import {duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 
 /**
- * Route for duplicating a document with template variable replacement.
- * No loader - schema and title are encoded in the URL search params.
- * Opens as a peek when navigated to.
+ * Route for duplicating a document with template variable replacement. No loader -
+ * schema and title are encoded in the URL search params. Opens as a peek when
+ * navigated to.
  */
 export default function DocumentDuplicateRoute() {
     const context = useAppContext();

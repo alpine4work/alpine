@@ -60,9 +60,9 @@ let depth = 0;
  *
  * Unlike `renderContentFilePreview()` this only renders file entities. The
  * implementation of each file entity renderer needs to be injected through
- * dependency injection (we use React context for this) since the package
- * we're in (`//client/web/content`) can't depend on all other UI code across our
- * codebase (e.g. `//client/web/tasks` and `//client/web/documents`).
+ * dependency injection (we use React context for this) since the package we're in
+ * (`//client/web/content`) can't depend on all other UI code across our codebase
+ * (e.g. `//client/web/tasks` and `//client/web/documents`).
  */
 export function renderContentFileEntityPreview(
     get: <Value>(store: Store<Value>) => Value,
@@ -126,8 +126,8 @@ export function renderContentFileEntityPreview(
 
     if (depth >= fileEntityMaxRecursionDepth && !fileEntityResult) {
         // If we've hit the max depth where the backend stops loading file entities to
-        // prevent infinite recursion then instead of rendering an error message,
-        // render nothing.
+        // prevent infinite recursion then instead of rendering an error message, render
+        // nothing.
     } else if (!fileEntityRenderers || !fileEntityResult?.ok) {
         const fileEntityIdObject = parseFileEntityId(fileEntityId);
         const entityNoun = getFileEntityNoun(fileEntityIdObject.type);
@@ -271,9 +271,9 @@ export function addContentFileEntityPreviewBehavior(
             dataTransfer.clearData();
             dataTransfer.setData("text/html", serializedNode.outerHTML);
 
-            // We check for this content type in the `dragenter` event to know if we need
-            // to show file drop targets. If this is set then it's assumed `text/html` will
-            // be parsed to `fileRow` or `file` nodes.
+            // We check for this content type in the `dragenter` event to know if we need to
+            // show file drop targets. If this is set then it's assumed `text/html` will be
+            // parsed to `fileRow` or `file` nodes.
             dataTransfer.setData("application/x.alpine.file", "");
 
             if (onDrag) {
@@ -285,8 +285,8 @@ export function addContentFileEntityPreviewBehavior(
                 };
 
                 // Attach `dragend` handler here since even if this content file's behavior is
-                // cleaned up (say `reference` changes) we don't want to remove our `dragend`
-                // event listener.
+                // cleaned up (say `reference` changes) we don't want to remove our `dragend` event
+                // listener.
                 element.addEventListener("dragend", handleDragEnd);
 
                 onDrag(dragPromiseResolver.promise);

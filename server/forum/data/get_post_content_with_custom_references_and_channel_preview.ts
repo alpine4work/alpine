@@ -75,9 +75,9 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
     if (!channelResult) return {ok: false, error: createPostNotFoundError(postId)};
     if (!channelResult.ok) return channelResult;
 
-    // If `channelResult` is not ok, ignore errors from `buildContent()`. Only
-    // errors from `channelResult` matter. `buildContent()` was executed
-    // optimistically in parallel.
+    // If `channelResult` is not ok, ignore errors from `buildContent()`. Only errors
+    // from `channelResult` matter. `buildContent()` was executed optimistically in
+    // parallel.
     const content = unwrapResult(contentResult);
 
     return {

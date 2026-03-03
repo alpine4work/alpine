@@ -23,8 +23,7 @@ export interface CreateNotionImportTeamspaceRootDocumentOptions {
     workspaceName: string;
     teamspaceName: string;
     isPublic: boolean;
-    // This is the document ID of the teamspace itself
-    // This will be replaced by sites.
+    // This is the document ID of the teamspace itself This will be replaced by sites.
     // TODO(#sites-notion-import)
     teamspaceRootDocumentId: DocumentId;
     teamspaceDocuments: {
@@ -40,11 +39,12 @@ export interface CreateNotionImportTeamspaceRootDocumentOptions {
 
 /**
  * Create a teamspace root document that contains:
+ *
  * - A note about the import with mention of the account who started it
  * - Links to all first-layer documents in the teamspace
  *
- * @see README.md "Teamspace Root Documents" section for the structure and
- *     purpose of these synthetic documents.
+ * @see README.md "Teamspace Root Documents" section for the structure and purpose
+ * of these synthetic documents.
  */
 export async function createNotionImportTeamspaceRootDocument(
     context: ServerSystemActionContext,
@@ -148,9 +148,9 @@ export async function createNotionImportTeamspaceRootDocument(
         urlGrant: null,
     };
 
-    // Build the document content with title.
-    // If there's no teamspace name or it matches the workspace name (implicit teamspace),
-    // just use the workspace name to avoid duplication like "Export | Export".
+    // Build the document content with title. If there's no teamspace name or it
+    // matches the workspace name (implicit teamspace), just use the workspace name to
+    // avoid duplication like "Export | Export".
     const titleText =
         teamspaceName && teamspaceName !== workspaceName
             ? `${workspaceName} | ${teamspaceName}`

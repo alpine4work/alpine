@@ -15,13 +15,13 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 /**
  * A specialized `ContextCache` for DynamoDB data that respects DynamoDB read
  * consistency. If you read from the cache with `Eventual` consistency we can
- * return any previously loaded data in the cache. If you read from the cache
- * with `Strong` consistency we always reload the data. However, if you read
- * from the cache with the special `StrongWithinCache` consistency then we'll
- * only reload the data if it was previously loaded with `Eventual`
- * consistency. That way you're guaranteed to have a strongly consistent read
- * since cache creation time (which usually corresponds with action start time
- * in the case of a context like `ServerActionContext`).
+ * return any previously loaded data in the cache. If you read from the cache with
+ * `Strong` consistency we always reload the data. However, if you read from the
+ * cache with the special `StrongWithinCache` consistency then we'll only reload
+ * the data if it was previously loaded with `Eventual` consistency. That way
+ * you're guaranteed to have a strongly consistent read since cache creation time
+ * (which usually corresponds with action start time in the case of a context like
+ * `ServerActionContext`).
  */
 export class DynamoContextCache<Key extends string | number, Value> {
     private readonly _cache: ContextCache<
@@ -40,20 +40,19 @@ export class DynamoContextCache<Key extends string | number, Value> {
      * Get the value at `key` from our cache with the provided `consistency`.
      *
      * - If `Eventual` then we always return the value if it was previously loaded
-     *   regardless of the value's `consistency`. If there's no value present then
-     *   we call `getDefault()` with eventual consistency.
+     *   regardless of the value's `consistency`. If there's no value present then we
+     *   call `getDefault()` with eventual consistency.
      *
      * - If `Strong` then we always call `getDefault()` with strong consistency
-     *   ignoring what's currently in the cache. We add the loaded value to the
-     *   cache.
+     *   ignoring what's currently in the cache. We add the loaded value to the cache.
      *
      * - If `StrongWithinCache` then if there's no value in the cache we call
-     *   `getDefault()` with strong consistency. However, if there is a value in
-     *   the cache then we'll use it but only if the value was loaded with `Strong`
-     *   consistency (so a previous call used `Strong` or `StrongWithinCache` but
-     *   not `Eventual`). If the value in the cache was loaded with eventual
-     *   consistency then we call `getDefault()` with strong consistency and
-     *   replace the value in the cache.
+     *   `getDefault()` with strong consistency. However, if there is a value in the
+     *   cache then we'll use it but only if the value was loaded with `Strong`
+     *   consistency (so a previous call used `Strong` or `StrongWithinCache` but not
+     *   `Eventual`). If the value in the cache was loaded with eventual consistency
+     *   then we call `getDefault()` with strong consistency and replace the value in
+     *   the cache.
      */
     public async get(
         context: Context<{
@@ -79,16 +78,16 @@ export class DynamoContextCache<Key extends string | number, Value> {
 
         switch (consistency) {
             case "Eventual": {
-                // Make sure to report an error if we expect to use strong consistency but
-                // instead get an eventually consistent read.
+                // Make sure to report an error if we expect to use strong consistency but instead
+                // get an eventually consistent read.
                 if (
                     !allowsEventualReadConsistency &&
                     getDynamoExpectsStrongReadConsistency(context)
                 ) {
                     const error = new InternalError(
                         `Expected DynamoDB strong consistency when reading${
-                            // Don't key in error message in production! Since the key may contain
-                            // sensitive user data.
+                            // Don't key in error message in production! Since the key may contain sensitive
+                            // user data.
                             process.env.NODE_ENV !== "production" ? ` key ${quote(key)} ` : " "
                         }from context cache`,
                     );
@@ -97,8 +96,8 @@ export class DynamoContextCache<Key extends string | number, Value> {
                         throw error;
                     } else {
                         // In production, log an error but let the method return like normal. In case a
-                        // developer accidentally forgot to make a read strong consistency it's
-                        // probably fine to log a warning without breaking the product.
+                        // developer accidentally forgot to make a read strong consistency it's probably
+                        // fine to log a warning without breaking the product.
                         context.tracer.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
@@ -145,8 +144,8 @@ export class DynamoContextCache<Key extends string | number, Value> {
     }
 
     /**
-     * Get a value from the cache if such an entry exists. No matter what
-     * consistency the value was read with. Returns null otherwise.
+     * Get a value from the cache if such an entry exists. No matter what consistency
+     * the value was read with. Returns null otherwise.
      */
     public getIfExists(
         context: Context<{cache: CacheContextModule}>,
@@ -179,11 +178,11 @@ export class DynamoContextCache<Key extends string | number, Value> {
     }
 
     /**
-     * Add the provided `value` to the cache with the provided `key` and
-     * `consistency`. If `consistency` is `Eventual` then the value will only be
-     * reused if there's a `get()` call with `Eventual` consistency. If
-     * `consistency` is `Strong` then the value will be reused for `get()` calls
-     * that are `Eventual` consistency or `StrongWithinCache` consistency.
+     * Add the provided `value` to the cache with the provided `key` and `consistency`.
+     * If `consistency` is `Eventual` then the value will only be reused if there's a
+     * `get()` call with `Eventual` consistency. If `consistency` is `Strong` then the
+     * value will be reused for `get()` calls that are `Eventual` consistency or
+     * `StrongWithinCache` consistency.
      */
     public set(
         context: Context<{cache: CacheContextModule}>,
@@ -192,25 +191,25 @@ export class DynamoContextCache<Key extends string | number, Value> {
         value: MaybePromise<Value>,
     ): void {
         const entryPromise = Promise.resolve(value).then(value => ({
-            // If the value was read with `StrongWithinCache` by our DynamoDB client
-            // outside of this cache then really that means the value was read with
-            // `Strong` consistency. Regardless if this was from a cache or not, by putting
-            // the value in this cache it can only be read back out with
-            // `StrongWithinCache` consistency so it's fine to upgrade to `Strong` here.
+            // If the value was read with `StrongWithinCache` by our DynamoDB client outside of
+            // this cache then really that means the value was read with `Strong` consistency.
+            // Regardless if this was from a cache or not, by putting the value in this cache
+            // it can only be read back out with `StrongWithinCache` consistency so it's fine
+            // to upgrade to `Strong` here.
             consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
             value,
         }));
 
-        // Ignore unhandled errors. Errors in `value` should be handled by this
-        // function's caller.
+        // Ignore unhandled errors. Errors in `value` should be handled by this function's
+        // caller.
         entryPromise.catch(() => {});
 
         this._cache.set(context, key, entryPromise);
     }
 
     /**
-     * Unconditionally remove a value from the cache. The next time we try to read
-     * the key from the cache it'll be repopulated.
+     * Unconditionally remove a value from the cache. The next time we try to read the
+     * key from the cache it'll be repopulated.
      */
     public delete(context: Context<{cache: CacheContextModule}>, key: Key): void {
         this._cache.delete(context, key);

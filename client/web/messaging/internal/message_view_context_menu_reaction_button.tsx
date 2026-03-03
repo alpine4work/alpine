@@ -64,15 +64,15 @@ export function MessageViewContextMenuReactionButton<
     const platform = usePlatform();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
-    // The way context menu is built this component doesn't re-render when
-    // `reactions` changes. Since we create the component once when the context
-    // menu is created and it's rendered at the root of app. Not as a child of
-    // `<MessageView>`. So we don't see new `reactions`.
+    // The way context menu is built this component doesn't re-render when `reactions`
+    // changes. Since we create the component once when the context menu is created and
+    // it's rendered at the root of app. Not as a child of `<MessageView>`. So we don't
+    // see new `reactions`.
     //
-    // But we still want to update the reaction in the right-click menu. So we
-    // have our own `ReactionSet` state object here we'll update when the user
-    // picks a reaction. This won't see changes made in realtime but that's an
-    // acceptable tradeoff for us in the context menu.
+    // But we still want to update the reaction in the right-click menu. So we have our
+    // own `ReactionSet` state object here we'll update when the user picks a reaction.
+    // This won't see changes made in realtime but that's an acceptable tradeoff for us
+    // in the context menu.
     const [reactions, , setReactionsOptimistically] =
         useStateWithOptimisticUpdates(initialReactions);
 
@@ -103,11 +103,10 @@ export function MessageViewContextMenuReactionButton<
 
                         return promise;
                     },
-                    // IMPORTANT: It's important that `inboxContext` comes from props. This
-                    // component is mounted at the root of our app in `<ContextMenuProvider>` which
-                    // won't have access to the inbox context of the menu which spawned the context
-                    // menu! So we need to get `inboxContext` for the `<MessageView>` and pass it
-                    // into here.
+                    // IMPORTANT: It's important that `inboxContext` comes from props. This component
+                    // is mounted at the root of our app in `<ContextMenuProvider>` which won't have
+                    // access to the inbox context of the menu which spawned the context menu! So we
+                    // need to get `inboxContext` for the `<MessageView>` and pass it into here.
                     inboxContext,
                 });
             }}

@@ -267,8 +267,8 @@ for (const {character, type, attrs} of markdownPrefixTests) {
 // NOTE(calebmer): Reproduces an error I saw in development with a Wikipedia
 // dataset I downloaded to my computer.
 //
-// Dataset: https://huggingface.co/datasets/euirim/goodwiki
-// Source Wikipedia article: https://en.wikipedia.org/wiki/Matrix_(mathematics)
+// Dataset: https://huggingface.co/datasets/euirim/goodwiki Source Wikipedia
+// article: https://en.wikipedia.org/wiki/Matrix_(mathematics)
 test("parses math-like content with highlights", () => {
     expect(
         parseSearchContent(
@@ -1195,11 +1195,13 @@ c2
     });
 });
 
-// Test that 4+ spaces followed by list markers in blockquotes are preprocessed
-// to escape the first space, preventing CommonMark from interpreting them as code blocks.
+// Test that 4+ spaces followed by list markers in blockquotes are preprocessed to
+// escape the first space, preventing CommonMark from interpreting them as code
+// blocks.
 test("preprocesses blockquotes with 4+ spaces before list markers", () => {
-    // 5 spaces before `-` is preprocessed to escape first space, resulting in paragraph
-    // with text "    - text" (4 spaces preserved as text, not as code block indentation)
+    // 5 spaces before `-` is preprocessed to escape first space, resulting in
+    // paragraph with text " - text" (4 spaces preserved as text, not as code block
+    // indentation)
     expect(
         parseSearchContent(
             `>     - this looks like a list item but has 4+ spaces before it`,
@@ -1279,7 +1281,8 @@ test("preprocesses blockquotes with 4+ spaces before list markers", () => {
 // Test that code blocks inside blockquotes (not followed by list markers) are
 // gracefully converted to paragraphs as a fallback.
 test("gracefully handles code blocks inside blockquotes without list markers", () => {
-    // 5 spaces before text (no list marker) creates a code block, which is converted to paragraph
+    // 5 spaces before text (no list marker) creates a code block, which is converted
+    // to paragraph
     expect(parseSearchContent(`>     line1`).toJSON()).toEqual({
         type: "doc",
         content: [
@@ -1296,9 +1299,9 @@ test("gracefully handles code blocks inside blockquotes without list markers", (
     });
 });
 
-// Test list items inside blockquotes at different indentation levels parse correctly.
-// The preprocessing escapes 4+ spaces before list markers, converting them to paragraphs
-// with the spaces preserved as literal text.
+// Test list items inside blockquotes at different indentation levels parse
+// correctly. The preprocessing escapes 4+ spaces before list markers, converting
+// them to paragraphs with the spaces preserved as literal text.
 test("parses list items inside blockquotes at different indentation levels", () => {
     // indent 0: no preprocessing needed, parses as list item
     expect(parseSearchContent(`> - unordered indent 0`).toJSON()).toEqual({
@@ -1322,7 +1325,7 @@ test("parses list items inside blockquotes at different indentation levels", () 
         ],
     });
 
-    // indent 1: 4 spaces before `-`, preprocessed to paragraph with "    - text"
+    // indent 1: 4 spaces before `-`, preprocessed to paragraph with " - text"
     expect(parseSearchContent(`>     - unordered indent 1`).toJSON()).toEqual({
         type: "doc",
         content: [
@@ -1338,7 +1341,7 @@ test("parses list items inside blockquotes at different indentation levels", () 
         ],
     });
 
-    // indent 2: 8 spaces before `-`, preprocessed to paragraph with "        - text"
+    // indent 2: 8 spaces before `-`, preprocessed to paragraph with " - text"
     expect(parseSearchContent(`>         - unordered indent 2`).toJSON()).toEqual({
         type: "doc",
         content: [

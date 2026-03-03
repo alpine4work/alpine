@@ -33,9 +33,8 @@ export function ChannelViewSubscribeButton({
                 }
                 onPress={async () => {
                     if (isSubscribed) {
-                        // Optimistically update our `isSubscribed` state so the UI changes at the
-                        // same time as `isPressed` becomes false. If the RPC fails then we revert
-                        // the change.
+                        // Optimistically update our `isSubscribed` state so the UI changes at the same
+                        // time as `isPressed` becomes false. If the RPC fails then we revert the change.
                         setIsSubscribed(false);
 
                         try {
@@ -46,8 +45,7 @@ export function ChannelViewSubscribeButton({
                         }
                     } else {
                         // Optimistically update our `isSubscribed` state so the UI changes at the same
-                        // time as `isPressed` becomes false. If the RPC fails then we revert the
-                        // change.
+                        // time as `isPressed` becomes false. If the RPC fails then we revert the change.
                         setIsSubscribed(true);
 
                         try {

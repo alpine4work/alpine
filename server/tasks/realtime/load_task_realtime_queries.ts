@@ -55,14 +55,13 @@ import {
  * In addition to loading queries you may load individual `TaskId`s and
  * `TaskCollectionId`s.
  *
- * Different from `server.loadQuery()` because we run authorization checks so
- * the data is safe to return to an end user.
+ * Different from `server.loadQuery()` because we run authorization checks so the
+ * data is safe to return to an end user.
  *
  * Loading a query loads data from OpenSearch, catches it up with our realtime
- * action history, and puts it in our store. Data stays in the store for at
- * least 1min before it's evicted if there are no subscribers. If a client
- * connects with a WebSocket then it keeps the query and its referenced data
- * from being evicted.
+ * action history, and puts it in our store. Data stays in the store for at least
+ * 1min before it's evicted if there are no subscribers. If a client connects with
+ * a WebSocket then it keeps the query and its referenced data from being evicted.
  *
  * We should return one `loadedState` for every `query`.
  */
@@ -183,8 +182,8 @@ export async function loadTaskRealtimeQueries(
                     backfillUnauthorizedCollectionIds.set(collection.id, result.error.code);
 
                     // Logically, this should remove a backfilled authorized collection. However we
-                    // don't have a way to address authorized collections by `TaskCollectionId`
-                    // during the event building phase. So we remove conflicting tasks in the event
+                    // don't have a way to address authorized collections by `TaskCollectionId` during
+                    // the event building phase. So we remove conflicting tasks in the event
                     // finalization phase.
                 } else {
                     backfillAuthorizedCollectionSet.add(collection);
@@ -251,8 +250,8 @@ export async function loadTaskRealtimeQueries(
         for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
             const task = tasks[taskIndex]!;
 
-            // If another query references this task we don't have to authorize it because
-            // it's a loaded task. Yay!
+            // If another query references this task we don't have to authorize it because it's
+            // a loaded task. Yay!
             if (loadTaskPromiseById.has(task.id)) {
                 loadTaskPromiseById.set(task.id, Promise.resolve());
             }
@@ -293,8 +292,8 @@ export async function loadTaskRealtimeQueries(
         return {loadedState, gridViewExpansionState};
     };
 
-    // Escalation is safe since we authorize that our session has access to
-    // the query before using the escalated context.
+    // Escalation is safe since we authorize that our session has access to the query
+    // before using the escalated context.
     //
     // We escalate at this level to share an action cache across all query loads.
     const {queryOutputs, extraQueries} = await dangerouslyEscalateToSystemContext(
@@ -322,8 +321,8 @@ export async function loadTaskRealtimeQueries(
                             backfillUnauthorizedTaskIds.delete(task.id);
                         })();
 
-                        // If someone else references this task we don't have to authorize it because
-                        // it's directly loaded.
+                        // If someone else references this task we don't have to authorize it because it's
+                        // directly loaded.
                         if (loadTaskPromiseById.has(taskId)) {
                             loadTaskPromiseById.set(taskId, promise);
                         }
@@ -353,8 +352,8 @@ export async function loadTaskRealtimeQueries(
                             backfillUnauthorizedCollectionIds.delete(collection.id);
                         })();
 
-                        // If someone else references this collection we don't have to authorize it
-                        // because it's directly loaded.
+                        // If someone else references this collection we don't have to authorize it because
+                        // it's directly loaded.
                         if (loadCollectionPromiseById.has(collectionId)) {
                             loadCollectionPromiseById.set(collectionId, promise);
                         }
@@ -411,8 +410,8 @@ export async function loadTaskRealtimeQueries(
         mapIterable(referencedAccountIds, accountId =>
             prepareContext.isSpaceAccessAuthorized
                 ? getAccount(referenceContext, spaceId, accountId, {consistency})
-                : // Granting link access to a task collection means the user is implicitly
-                  // granting access to the names of all referenced accounts.
+                : // Granting link access to a task collection means the user is implicitly granting
+                  // access to the names of all referenced accounts.
                   dangerouslyGetAccountStubIfExistsWithoutAuthorization(
                       referenceContext,
                       spaceId,
@@ -430,31 +429,28 @@ export async function loadTaskRealtimeQueries(
             backfillTasks,
             // TODO(calebmer, #task-correctness): There's a correctness bug here. We don't
             // return unauthorized collections in `backfillCollections`. This is because we
-            // filter out any unauthorized collection references in
-            // `prepareTaskForClient()`. But if the client received the collection in a
-            // previous request, went offline, the collection becomes authorized, then the
-            // client reconnects the client will permanently think the collection is
-            // authorized since `TaskRealtimeService` won't send an update telling the
-            // client the collection is now unauthorized. If we always sent the
-            // unauthorized backfill message that would fix our correctness bug but
-            // introduce a security bug!
+            // filter out any unauthorized collection references in `prepareTaskForClient()`.
+            // But if the client received the collection in a previous request, went offline,
+            // the collection becomes authorized, then the client reconnects the client will
+            // permanently think the collection is authorized since `TaskRealtimeService` won't
+            // send an update telling the client the collection is now unauthorized. If we
+            // always sent the unauthorized backfill message that would fix our correctness bug
+            // but introduce a security bug!
             //
             // The security bug is an attacker could determine, by loading a query with one
-            // task at a time, the unauthorized `TaskCollectionId`s referenced by a task.
-            // This information could be used maliciously be an attacker (e.g. an attacker
-            // might be able to intuit a manager is collecting evidence for firing someone
-            // in a private collection based on seeing the `TaskCollectionId` on certain
-            // tasks). Right now we're trading a correctness bug for a security bug. In the
-            // future, we should find a way to fix the correctness bug without opening a
-            // security hole.
+            // task at a time, the unauthorized `TaskCollectionId`s referenced by a task. This
+            // information could be used maliciously be an attacker (e.g. an attacker might be
+            // able to intuit a manager is collecting evidence for firing someone in a private
+            // collection based on seeing the `TaskCollectionId` on certain tasks). Right now
+            // we're trading a correctness bug for a security bug. In the future, we should
+            // find a way to fix the correctness bug without opening a security hole.
             //
-            // My current idea to fix this is when the client starts a realtime connection
-            // for it to send a procedure in the background with all visible
-            // `TaskCollectionId`s and then the server will respond with which are
-            // authorized/unauthorized. This fixes the correctness issue without
-            // introducing a security flaw. The client already knows the
-            // `TaskCollectionId`s so we're not sharing any new information with the
-            // client.
+            // My current idea to fix this is when the client starts a realtime connection for
+            // it to send a procedure in the background with all visible `TaskCollectionId`s
+            // and then the server will respond with which are authorized/unauthorized. This
+            // fixes the correctness issue without introducing a security flaw. The client
+            // already knows the `TaskCollectionId`s so we're not sharing any new information
+            // with the client.
             backfillCollections: Array.from(backfillAuthorizedCollectionSet, collection => ({
                 type: "Authorized",
                 collection: prepareTaskCollectionForClient(collection),

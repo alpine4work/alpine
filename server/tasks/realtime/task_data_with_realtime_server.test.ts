@@ -122,8 +122,8 @@ test("can duplicate a task with notes attached", async () => {
 });
 
 test("can duplicate a task with nested children and some notes attached", async () => {
-    // This is a more exhaustive test case that covers the full range of possible
-    // task duplication scenarios, including notes and nested children.
+    // This is a more exhaustive test case that covers the full range of possible task
+    // duplication scenarios, including notes and nested children.
 
     const notes = "This is a note attached to the task";
     const space = await TestSpace.create(context);
@@ -240,7 +240,8 @@ test("can duplicate a task with variable substitution in title", async () => {
         await getTaskIndexDocIfExistsForTest(context, space.id, clonedTaskId),
     );
 
-    // Variable should be replaced in the title, and no "(copy)" suffix since title changed
+    // Variable should be replaced in the title, and no "(copy)" suffix since title
+    // changed
     expect(getTaskTitleText(clonedTask.title.raw)).toEqual("Hello World");
 });
 
@@ -401,7 +402,8 @@ test("variable substitution works when duplicating a child task", async () => {
         await getTaskIndexDocIfExistsForTest(context, space.id, clonedChildId),
     );
 
-    // The duplicated child should have variables replaced since it's the root of duplication
+    // The duplicated child should have variables replaced since it's the root of
+    // duplication
     expect(getTaskTitleText(clonedChild.title.raw)).toEqual("Child Duplicated");
 
     const clonedChildNotes = await getTaskNotesContent(session.action(), clonedChildId);
@@ -484,7 +486,7 @@ test(
 
         const parentTask = await TestTask.create(session, {title: "parent task"});
 
-        // Create 10 child tasks, each with 10 children (10 + 10 * 10 = 110 tasks)
+        // Create 10 child tasks, each with 10 children (10 + 10 \* 10 = 110 tasks)
         const childTasks = [];
         for (let i = 0; i < 10; i++) {
             const childTask = await TestTask.create(session, {title: `child task ${i}`});
@@ -583,7 +585,8 @@ test("can duplicate a task with files in notes", async () => {
     const clonedNotesContent = await getTaskNotesContent(session.action(), clonedTaskId);
     expect(clonedNotesContent).not.toBeNull();
 
-    // Verify the file is attached to the new task (can be accessed through the new task)
+    // Verify the file is attached to the new task (can be accessed through the new
+    // task)
     const fileFromNewTask = await file.from(
         session,
         FileTaskAuthorizer.bind({type: "TaskNotes", taskId: clonedTaskId}),

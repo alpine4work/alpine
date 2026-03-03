@@ -114,13 +114,13 @@ let appService: {
 } | null = null;
 
 /**
- * Get the app server if it exists and creates the app server if it doesn't
- * already exist. You are expected to pass in the same `constants` object every
- * time this function is called.
+ * Get the app server if it exists and creates the app server if it doesn't already
+ * exist. You are expected to pass in the same `constants` object every time this
+ * function is called.
  *
- * Our app server is designed this way to work well with Vite hot reloading. If
- * a Vite hot reload happens `AppService` will need to be created again. But it
- * only needs to be created once until the next hot reload.
+ * Our app server is designed this way to work well with Vite hot reloading. If a
+ * Vite hot reload happens `AppService` will need to be created again. But it only
+ * needs to be created once until the next hot reload.
  */
 export function getAppService(constants: AppServiceConstants): Promise<AppService> {
     if (appService !== null) {
@@ -141,8 +141,9 @@ async function createAppService({
     shutdownManager,
     options,
 }: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
-    // Make sure we use the correct `TracerRoot` class for the current environment.
-    // The constant we get from the wrapper code may be for a completely different class hierarchy.
+    // Make sure we use the correct `TracerRoot` class for the current environment. The
+    // constant we get from the wrapper code may be for a completely different class
+    // hierarchy.
     const tracer = originalTracer.cloneWithNewClass(TracerRoot);
 
     const cookieNameSuffix = assertExists(
@@ -227,9 +228,9 @@ async function createAppService({
               })()
             : null,
 
-        // Make sure to load all code block languages are loaded before `AppService`
-        // starts serving HTTP requests. That way if we server render a `<ContentView>`
-        // with a code block it'll have syntax highlighting.
+        // Make sure to load all code block languages are loaded before `AppService` starts
+        // serving HTTP requests. That way if we server render a `<ContentView>` with a
+        // code block it'll have syntax highlighting.
         runAllPromises(contentCodeBlockLanguages.map(language => language.getParser())),
     ]);
 
@@ -316,8 +317,8 @@ async function createAppService({
                 options.slackClientSecret,
                 "`slackClientSecret` option is required in production",
             ),
-            // We do not currently set a `slackAuthRedirectOrigin` option in production,
-            // so this will default to the edge service URL.
+            // We do not currently set a `slackAuthRedirectOrigin` option in production, so
+            // this will default to the edge service URL.
             authRedirectOrigin: options.slackAuthRedirectOrigin ?? edgeServiceUrl,
         });
     } else {
@@ -341,8 +342,8 @@ async function createAppService({
         }),
     );
 
-    // In tests, don't send push notifications. Otherwise in development and
-    // production set up a connection pool to APNs so we can send notifications.
+    // In tests, don't send push notifications. Otherwise in development and production
+    // set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
     if (isTestNodeEnvOrAdminScenariosScript) {
         apnsContextModule = new TestApnsContextModule();
@@ -397,12 +398,11 @@ async function createAppService({
                   });
     }
 
-    // Sometimes we want to upgrade a session actor to a system actor. This gives
-    // the action escalated the system permission level which is dangerous! The
-    // system permission level has broad access to a space. We should tightly
-    // control what code is allowed to call this function, only allowed context
-    // modules get access and those context modules are expected to treat this as a
-    // private variable.
+    // Sometimes we want to upgrade a session actor to a system actor. This gives the
+    // action escalated the system permission level which is dangerous! The system
+    // permission level has broad access to a space. We should tightly control what
+    // code is allowed to call this function, only allowed context modules get access
+    // and those context modules are expected to treat this as a private variable.
     //
     // It's important we use new caches + batchers here. We don't want to load some
     // data at a higher permission level then let the session context see it. So we
@@ -481,17 +481,15 @@ async function createAppService({
     // In development, Vite handles Remix requests.
     //
     // Note that in development Vite creates a completely separate Node.js runtime
-    // environment on the server! This will break a number of JavaScript features
-    // you may expect to work:
+    // environment on the server! This will break a number of JavaScript features you
+    // may expect to work:
     //
-    // 1. Module scoped caches won't be shared across `app_service_worker.ts` and
-    //    Vite.
+    // 1. Module scoped caches won't be shared across `app_service_worker.ts` and Vite.
     // 2. The context object created in `app_service_worker.ts` and passed to Vite
     //    won't work with `instanceof` checks.
     //
-    // In production (and integration tests) we have one Node.js runtime for Remix
-    // code and our custom `app_service_worker.ts` server so the above features
-    // will work.
+    // In production (and integration tests) we have one Node.js runtime for Remix code
+    // and our custom `app_service_worker.ts` server so the above features will work.
     const handleRequest = createRequestHandler(
         {...build, routes: createAppServerRoutes(build.routes)},
         process.env.NODE_ENV,
@@ -587,15 +585,14 @@ async function createAppService({
                             ),
                         },
                         context => {
-                            // Only include `route`, `platform`, and other information about the client
-                            // state if this is a Remix data request or document request. The definition of
-                            // data requests and document requests can be found here:
+                            // Only include `route`, `platform`, and other information about the client state
+                            // if this is a Remix data request or document request. The definition of data
+                            // requests and document requests can be found here:
                             //
                             // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L136-L256
                             //
                             // - Data requests are requests with the `_data` search param
-                            // - Document requests are requests for a route with a `default` component
-                            //   exported
+                            // - Document requests are requests for a route with a `default` component exported
                             if (
                                 url.searchParams.has("_data") ||
                                 (matches && matches[matches.length - 1]?.route.module.default)
@@ -620,8 +617,8 @@ async function createAppService({
                                     span.addPropagatedData(pathnamePropagatedData);
                             }
 
-                            // The first time our server process runs in development, seed DynamoDB with
-                            // some initial data. The seed function should be idempotent.
+                            // The first time our server process runs in development, seed DynamoDB with some
+                            // initial data. The seed function should be idempotent.
                             if (
                                 process.env.NODE_ENV !== "production" &&
                                 options.shouldSeedDynamo &&
@@ -660,8 +657,8 @@ async function createAppService({
 
                     loaderContextModule.addResponseHeaders(response.headers);
 
-                    // Include the route in an HTTP header so our edge service can use the route in
-                    // its HTTP span name.
+                    // Include the route in an HTTP header so our edge service can use the route in its
+                    // HTTP span name.
                     response.headers.set("cyberworlds-route", route);
 
                     return response;
@@ -681,8 +678,8 @@ function createActorContextModule(
 ) {
     // We authenticate lazily. If a route doesn't need authentication this function
     // never gets called. You can also parallelize other network requests with
-    // authentication deeper in a route. Once we authenticate it is cached for
-    // the route.
+    // authentication deeper in a route. Once we authenticate it is cached for the
+    // route.
     return new UnknownActorContextModule<{
         process: ProcessContextModule;
         tracer: TracerContextModule;

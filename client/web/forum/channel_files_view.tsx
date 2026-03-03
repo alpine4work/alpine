@@ -172,11 +172,11 @@ export function ChannelFilesView({
         },
     );
 
-    // Whenever our list data changes, try loading more comments. In case our
-    // rendered range stayed the same but we see some some unloaded comments.
+    // Whenever our list data changes, try loading more comments. In case our rendered
+    // range stayed the same but we see some some unloaded comments.
     //
-    // This effect should also fire when `tryLoadingMorePostComments()` completes
-    // in case it didn't fully load the list.
+    // This effect should also fire when `tryLoadingMorePostComments()` completes in
+    // case it didn't fully load the list.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         channelAndMetadataQuery;

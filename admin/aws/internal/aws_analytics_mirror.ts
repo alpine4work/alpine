@@ -35,8 +35,8 @@ import {AwsLambda} from "~/admin/aws/internal/constructs/aws_lambda.js";
  * - Trigger Lambda: Triggers DynamoDB exports daily at 4 AM UTC
  * - Transform Lambda: Transforms DynamoDB exports into Glue tables
  *
- * The nice thing about this architecture is that we can also run exports
- * on-demand by simply triggering the trigger Lambda.
+ * The nice thing about this architecture is that we can also run exports on-demand
+ * by simply triggering the trigger Lambda.
  */
 export class AwsAnalyticsMirror extends Construct {
     constructor(
@@ -63,9 +63,9 @@ export class AwsAnalyticsMirror extends Construct {
 
         // ==========================================================================
         // Analytics Mirror Export Infrastructure
-        // ==========================================================================
-        // These Lambdas export DynamoDB tables (Accounts, Spaces) to S3 and transform
-        // the exports into dimension tables that can be joined with tracer events in Athena.
+        // ========================================================================== These
+        // Lambdas export DynamoDB tables (Accounts, Spaces) to S3 and transform the
+        // exports into dimension tables that can be joined with tracer events in Athena.
 
         // Lambda to trigger DynamoDB exports daily
         const triggerAnalyticsMirrorExportLambda = new AwsLambda(
@@ -87,8 +87,8 @@ export class AwsAnalyticsMirror extends Construct {
                 environment: {
                     EXPORT_BUCKET: exportBucket.bucketName,
                     EXPORT_BUCKET_PREFIX: exportBucketPrefix,
-                    // Table ARNs are constructed from the table names. In a real deployment,
-                    // you would get these from dynamo.export() or pass them explicitly.
+                    // Table ARNs are constructed from the table names. In a real deployment, you would
+                    // get these from dynamo.export() or pass them explicitly.
                     ACCOUNTS_TABLE_ARN: `arn:aws:dynamodb:${region}:${accountId}:table/Accounts`,
                     SPACES_TABLE_ARN: `arn:aws:dynamodb:${region}:${accountId}:table/Spaces`,
                 },
@@ -149,8 +149,8 @@ export class AwsAnalyticsMirror extends Construct {
         // Grant S3 read/write permissions for the transform Lambda
         exportBucket.grantReadWrite(transformAnalyticsMirrorExportLambda.executionRole);
 
-        // Trigger the transform Lambda when DynamoDB export manifests are written
-        // The manifest file is written last when an export completes
+        // Trigger the transform Lambda when DynamoDB export manifests are written The
+        // manifest file is written last when an export completes
         transformAnalyticsMirrorExportLambda.lambdaFunction.addEventSource(
             new S3EventSourceV2(exportBucket, {
                 events: [EventType.OBJECT_CREATED],
@@ -170,9 +170,9 @@ function createGlueDatabase(
     {accountId, s3Location}: {accountId: string; s3Location: string},
 ) {
     const databaseName = "app";
-    // Create Glue database and tables for dimension data (accounts, spaces).
-    // These dimension tables are populated by daily DynamoDB exports and can be joined
-    // with tracer events in Athena queries.
+    // Create Glue database and tables for dimension data (accounts, spaces). These
+    // dimension tables are populated by daily DynamoDB exports and can be joined with
+    // tracer events in Athena queries.
     const appDimensionGlueDatabase = new CfnDatabase(parentConstruct, "AppDimensionGlueDatabase", {
         catalogId: Stack.of(parentConstruct).account,
         databaseInput: {

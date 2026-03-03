@@ -44,13 +44,13 @@ export function TaskQueryFilterOperatorEditor({
                             className={sprinkles({
                                 height: "full",
                                 minWidth: "4",
-                                // Add more padding on mobile to make it easier for users to touch small
-                                // operation buttons.
+                                // Add more padding on mobile to make it easier for users to touch small operation
+                                // buttons.
                                 paddingX: platform === "mobile" ? "2" : "1",
                                 display: "flex",
                                 alignItems: "center",
-                                // The hit radius for this button extends within the entire filter editor but
-                                // the background color style has some inset.
+                                // The hit radius for this button extends within the entire filter editor but the
+                                // background color style has some inset.
                                 backgroundColor: isPressed
                                     ? "grey-10"
                                     : isHovered || isVisible

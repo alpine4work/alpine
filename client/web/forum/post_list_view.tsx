@@ -158,8 +158,8 @@ export {PostListViewForwardRef as PostListView};
 
 export type PostListViewRef = {
     /**
-     * Jump to the provided post comment. If the post or post comment do
-     * not exist an error will be thrown.
+     * Jump to the provided post comment. If the post or post comment do not exist an
+     * error will be thrown.
      */
     jumpToPostCommentRange(options: JumpToMessageRangeOptions<PostId>): void;
 
@@ -173,11 +173,11 @@ export type PostListViewRef = {
  * Renders a virtualized list of posts which can expand their comments inline.
  *
  * This component handles all rendering for a post unit. Including rendering an
- * individual post on a post route. Since even when rendering an individual
- * post you still need to virtualize the list of comments. This means there is
- * some confusing overloading because features like `header` and `aside`
- * which are important in the context of a channel are not important in the
- * context of rendering a single post.
+ * individual post on a post route. Since even when rendering an individual post
+ * you still need to virtualize the list of comments. This means there is some
+ * confusing overloading because features like `header` and `aside` which are
+ * important in the context of a channel are not important in the context of
+ * rendering a single post.
  */
 function PostListView(
     {
@@ -203,8 +203,8 @@ function PostListView(
         onUnarchivePost,
     }: {
         /**
-         * If this post list is rendering a channel, you may provide this prop and we
-         * will render an area at the top of the list describing the channel.
+         * If this post list is rendering a channel, you may provide this prop and we will
+         * render an area at the top of the list describing the channel.
          */
         header?: Memo<PostListHeader>;
 
@@ -220,8 +220,8 @@ function PostListView(
 
         /**
          * Arbitrarily update the comments for a post. When we render a post's comments
-         * we'll connect to realtime for that post. As realtime updates come in, we'll
-         * call this function with any updates to the post's comments.
+         * we'll connect to realtime for that post. As realtime updates come in, we'll call
+         * this function with any updates to the post's comments.
          */
         onUpdatePostComments: Memo<
             (
@@ -248,10 +248,10 @@ function PostListView(
         >;
 
         /**
-         * If the post list has more posts then this function should load those posts.
-         * This function is required if you initialize the component with many posts
-         * and set `hasMorePosts` to true. Not providing it will throw an error when
-         * the user reaches the end of the list.
+         * If the post list has more posts then this function should load those posts. This
+         * function is required if you initialize the component with many posts and set
+         * `hasMorePosts` to true. Not providing it will throw an error when the user
+         * reaches the end of the list.
          */
         onLoadMorePosts?: (options: {
             limit: number;
@@ -260,8 +260,8 @@ function PostListView(
 
         /**
          * If true, our parent component is telling us it has connected to
-         * `ChannelRealtimeService` and will be updating `posts` when realtime events
-         * come in. It means we don't need to handle realtime events for posts in
+         * `ChannelRealtimeService` and will be updating `posts` when realtime events come
+         * in. It means we don't need to handle realtime events for posts in
          * `<PostCommentInput>` and we don't need to backfill the post model.
          */
         shouldBeConnectedToChannelRealtime: boolean;
@@ -274,8 +274,8 @@ function PostListView(
          * - After successfully updating post content we call this in case our realtime
          *   WebSocket connection is slow.
          *
-         * - To update our post data with events we've received from
-         *   `PostRealtimeService` (which we connect to in `<PostCommentInput>`) when
+         * - To update our post data with events we've received from `PostRealtimeService`
+         *   (which we connect to in `<PostCommentInput>`) when
          *   `shouldBeConnectedToChannelRealtime` is false. If
          *   `shouldBeConnectedToChannelRealtime` is true then we should be getting
          *   realtime updates from `ChannelRealtimeService`.
@@ -285,13 +285,12 @@ function PostListView(
         >;
 
         /**
-         * Make an arbitrary update to a post optimistically. Must provide a promise
-         * that resolves to a realtime event transaction. If the promise resolves then
-         * the event transaction update is applied. If the promise rejects then we
-         * revert the optimistic update.
+         * Make an arbitrary update to a post optimistically. Must provide a promise that
+         * resolves to a realtime event transaction. If the promise resolves then the event
+         * transaction update is applied. If the promise rejects then we revert the
+         * optimistic update.
          *
-         * Similar to `onPostRealtimeEventTransaction` but allows for an optimistic
-         * update.
+         * Similar to `onPostRealtimeEventTransaction` but allows for an optimistic update.
          */
         onOptimisticPostRealtimeEventTransaction: Memo<
             (
@@ -302,23 +301,21 @@ function PostListView(
         >;
 
         /**
-         * An element we render to the side of the post list but still within the
-         * scroll view. The aside is sticky so it will always be visible as you
-         * scroll.
+         * An element we render to the side of the post list but still within the scroll
+         * view. The aside is sticky so it will always be visible as you scroll.
          *
          * If the aside's height is larger than the window then we you scroll down the
          * aside will scroll down. Once you reach the bottom of the aside it will stop
-         * scrolling and stick to the bottom. Then when you scroll back up the aside
-         * will scroll up until you reach the aside's top, then it will stick again.
+         * scrolling and stick to the bottom. Then when you scroll back up the aside will
+         * scroll up until you reach the aside's top, then it will stick again.
          *
-         * This deep integration with the positioning of posts and the scroll view is
-         * why it needs to be a prop on this element.
+         * This deep integration with the positioning of posts and the scroll view is why
+         * it needs to be a prop on this element.
          *
          * On mobile the aside will not be rendered.
          */
-        // TODO(calebmer): Could we get rid of the `aside` prop and use
-        // `sideBarRightSize` instead? I think if we add scroll event functions then
-        // it's doable.
+        // TODO(calebmer): Could we get rid of the `aside` prop and use `sideBarRightSize`
+        // instead? I think if we add scroll event functions then it's doable.
         aside?: ReactNode;
 
         /**
@@ -342,9 +339,9 @@ function PostListView(
         extraChildren?: ReactNode;
 
         /**
-         * If you want to include a navigation bar in this list view you may pass in
-         * the result of `useNavigationBar()` here and the virtualized scroll view will
-         * be properly configured.
+         * If you want to include a navigation bar in this list view you may pass in the
+         * result of `useNavigationBar()` here and the virtualized scroll view will be
+         * properly configured.
          */
         navigationBar?: NavigationBarResult;
 
@@ -367,8 +364,8 @@ function PostListView(
         /**
          * Is this post archived?
          *
-         * We should the inbox archival button if this property is provided (even if
-         * always returns false).
+         * We should the inbox archival button if this property is provided (even if always
+         * returns false).
          */
         isPostArchived?: Memo<(postId: PostId) => boolean>;
 
@@ -432,15 +429,15 @@ function PostListView(
         posts.isSinglePost() &&
         posts.getPostContentItemIfExists(0)?.postCommentsState === "AlwaysOpen";
 
-    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-    // post in a new route. Because:
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+    // in a new route. Because:
     //
     // - It's a challenging UI problem to have a sticky comment input while also
     //   avoiding the keyboard and tab bar.
-    // - Because there's less space in peeks/mobile, it may be harder to mentally
-    //   stay aware of the fact that you're looking at a comment section in the
-    //   middle of a feed of posts. Opening in a new route with a post-specific
-    //   header lets the user stay focused.
+    // - Because there's less space in peeks/mobile, it may be harder to mentally stay
+    //   aware of the fact that you're looking at a comment section in the middle of a
+    //   feed of posts. Opening in a new route with a post-specific header lets the
+    //   user stay focused.
     if (routeLayout === "narrow" && !isPostView) {
         assert(
             !posts.hasOpenPostComments(),
@@ -548,8 +545,8 @@ function PostListView(
                     const postCommentRangeStartIndex = item.postContentItemIndex + 1;
                     const postCommentRangeEndIndex = item.postCommentInputItemIndex - 1;
 
-                    // We are rendering the post but we are not rendering any of the posts
-                    // comments. Don't load anything new.
+                    // We are rendering the post but we are not rendering any of the posts comments.
+                    // Don't load anything new.
                     if (
                         !areRangesOverlapping(
                             postCommentRangeStartIndex,
@@ -621,8 +618,8 @@ function PostListView(
                     }
                 }
 
-                // If we are not loading any comments and the unloaded posts item is rendered,
-                // try loading that...
+                // If we are not loading any comments and the unloaded posts item is rendered, try
+                // loading that...
                 const renderedRangeEndItem = posts.getItem(renderedRange.endIndex);
                 if (renderedRangeEndItem.type === "MoreUnloadedPosts") {
                     return {
@@ -635,8 +632,8 @@ function PostListView(
 
                             const spacingScale = getSpacingScaleWithoutListening();
 
-                            // The limit of items we will load is two views worth of posts. This gives
-                            // the user some space to scroll and read before we need to load more posts.
+                            // The limit of items we will load is two views worth of posts. This gives the user
+                            // some space to scroll and read before we need to load more posts.
                             const limit = Math.max(
                                 20,
                                 Math.ceil(
@@ -657,11 +654,11 @@ function PostListView(
         },
     );
 
-    // Whenever our list data changes, try loading more comments. In case our
-    // rendered range stayed the same but we see some some unloaded comments.
+    // Whenever our list data changes, try loading more comments. In case our rendered
+    // range stayed the same but we see some some unloaded comments.
     //
-    // This effect should also fire when `tryLoadingMorePostComments()` completes
-    // in case it didn't fully load the list.
+    // This effect should also fire when `tryLoadingMorePostComments()` completes in
+    // case it didn't fully load the list.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         posts;
@@ -679,8 +676,8 @@ function PostListView(
             try {
                 const limit = getInitialLoadMessageCount(getClientInfo());
 
-                // If we already have some loaded messages then we are trying to finish the
-                // initial loaded message list by starting at our last loaded message.
+                // If we already have some loaded messages then we are trying to finish the initial
+                // loaded message list by starting at our last loaded message.
                 const lastLoadedMessage =
                     item.postComments.getLastLoadedMessageBeforeIfExists(limit);
 
@@ -713,16 +710,16 @@ function PostListView(
     );
 
     // Post realtime is managed by the `<PostCommentInput>` component since the
-    // `<PostCommentInput>` component is always mounted when the post's comments
-    // are open. Since we need realtime actions in every part of the post we have
-    // `<PostCommentInput>` stash the method to send them in this ref so they can
-    // be called elsewhere.
+    // `<PostCommentInput>` component is always mounted when the post's comments are
+    // open. Since we need realtime actions in every part of the post we have
+    // `<PostCommentInput>` stash the method to send them in this ref so they can be
+    // called elsewhere.
     const proceduresByPostIdRef = useRef(new Map<PostId, PostRealtimeProcedures>());
 
     // Manages the current post being edited.
     //
-    // At the post list level for the same reasons message editing is at the post
-    // list level.
+    // At the post list level for the same reasons message editing is at the post list
+    // level.
     const {postEditing, modals: postEditingModals} = usePostEditing({
         onUpdatePostContent: async ({postId, contentVersion, steps}) => {
             const event = await updatePostContent(context, {
@@ -739,8 +736,8 @@ function PostListView(
     //
     // This is at the post list level because:
     //
-    // 1. If a message is scrolled out of the virtualization window we still want
-    //    it to be editable so it shouldn't lose state.
+    // 1. If a message is scrolled out of the virtualization window we still want it to
+    //    be editable so it shouldn't lose state.
     //
     // 2. We want only one message to be editable at a time.
     const {messageEditing, modals: messageEditingModals} = useMessageEditing<PostId>({
@@ -800,9 +797,8 @@ function PostListView(
             assertExists(posts.getPostByIdIfExists(postId)).postContentItemIndex,
     });
 
-    // If we're jumping to a post while a post's content is closed then
-    // open the content so we can see what the jump animation is trying to
-    // highlight!
+    // If we're jumping to a post while a post's content is closed then open the
+    // content so we can see what the jump animation is trying to highlight!
     if (
         jumpToPostRangeState &&
         isShowingAllContentByPostId.get(jumpToPostRangeState.options.postId) !== true
@@ -833,14 +829,14 @@ function PostListView(
         [jumpToMessageRange, platform, postEditingDispatch],
     );
 
-    // Make sure the bottom of the scroll view stays visible when the keyboard
-    // opens and closes.
+    // Make sure the bottom of the scroll view stays visible when the keyboard opens
+    // and closes.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         getAnchorPosition: useEvent(oldVisibleRect => {
-            // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the
-            // message the user was replying to or editing. However, in practice this felt
-            // janky to me. Scrolling wasn't predictable when swiping to reply to a
-            // message! I think consistency is likely the better user experience here.
+            // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the message
+            // the user was replying to or editing. However, in practice this felt janky to me.
+            // Scrolling wasn't predictable when swiping to reply to a message! I think
+            // consistency is likely the better user experience here.
             //
             // To look at the old message anchoring code, git blame this comment to see the
             // commit where I remove it.
@@ -890,9 +886,9 @@ function PostListView(
     });
 
     // We need to subscribe to synchronous scroll flushes for the same reason
-    // `navigation_bar.tsx` does. We use a similar `position: sticky` pattern
-    // that flips depending on the scroll direction. So if the scroll direction is
-    // changing synchronously it's good to know so we can handle that.
+    // `navigation_bar.tsx` does. We use a similar `position: sticky` pattern that
+    // flips depending on the scroll direction. So if the scroll direction is changing
+    // synchronously it's good to know so we can handle that.
     useEffect(() => {
         return flushNavigationBarScrollEventEmitter.subscribe(element => {
             const view = assertExists(viewRef.current);
@@ -901,16 +897,16 @@ function PostListView(
         });
     }, [handleScroll]);
 
-    // NOTE(calebmer): This is a bit of a paranoid protection. Whenever the number
-    // of items in our view changes (especially when the number of items decreases)
-    // make sure `asideBufferedHeight` is clamped to the correct range. We've
-    // observed a bug where when collapsing the last post in a post list view, the
-    // post list view is still scrollable and that's because the aside buffered
-    // height has not been reset! This fixes that bug and makes sense in theory.
+    // NOTE(calebmer): This is a bit of a paranoid protection. Whenever the number of
+    // items in our view changes (especially when the number of items decreases) make
+    // sure `asideBufferedHeight` is clamped to the correct range. We've observed a bug
+    // where when collapsing the last post in a post list view, the post list view is
+    // still scrollable and that's because the aside buffered height has not been
+    // reset! This fixes that bug and makes sense in theory.
     //
-    // It's a little hacky doing this in an effect that listens to `itemCount`
-    // changes. It would be a little cleaner if we had a resize callback for
-    // content height or height changes.
+    // It's a little hacky doing this in an effect that listens to `itemCount` changes.
+    // It would be a little cleaner if we had a resize callback for content height or
+    // height changes.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (viewSize?.height === undefined) return;
         if (asideSize?.height === undefined) return;
@@ -1186,9 +1182,8 @@ function PostListView(
                                 >
                                     {((withSafeAreaInsetTop && index === 0) ||
                                         (hasHeader && index === 1)) &&
-                                        // This is the first post in a `<PostListView>` with a `header` so we
-                                        // need to draw a border between the first `<PostListView>` and the
-                                        // `header`.
+                                        // This is the first post in a `<PostListView>` with a `header` so we need to draw
+                                        // a border between the first `<PostListView>` and the `header`.
                                         topBorder}
                                     {!isPostView && item.postCommentsState === "Closed" ? (
                                         bottomBorder
@@ -1217,18 +1212,18 @@ function PostListView(
                                         postComments={item.postComments}
                                         postCommentsState={item.postCommentsState}
                                         postEditing={postEditing}
-                                        // If we are rendering in the context of a channel, don't render the channel
-                                        // in posts.
+                                        // If we are rendering in the context of a channel, don't render the channel in
+                                        // posts.
                                         shouldShowChannel={
                                             shouldNotShowChannelId !== item.post.channel.id
                                         }
                                         isPostView={isPostView}
-                                        // You shouldn't be able to react to a post if you don't have `Comment` access
-                                        // on the post.
+                                        // You shouldn't be able to react to a post if you don't have `Comment` access on
+                                        // the post.
                                         //
-                                        // Use the `accessPolicy` from `header` if applicable. Because we update
-                                        // the `channel` in `header` in realtime. Whereas the `channel` preview
-                                        // in the `PostModel` might not update in realtime.
+                                        // Use the `accessPolicy` from `header` if applicable. Because we update the
+                                        // `channel` in `header` in realtime. Whereas the `channel` preview in the
+                                        // `PostModel` might not update in realtime.
                                         isReadOnly={
                                             !hasCommentAccessLevelByChannel.getOrSetDefault(
                                                 header?.type === "Channel" &&
@@ -1406,12 +1401,12 @@ function PostListView(
                                         onUpdatePostCommentsOptimistically
                                     }
                                     roomDisplayedCreatedTime={item.post.createdTime}
-                                    // You shouldn't be able to edit, delete, or reply to comments if you don't
-                                    // have `Comment` access on the post.
+                                    // You shouldn't be able to edit, delete, or reply to comments if you don't have
+                                    // `Comment` access on the post.
                                     //
-                                    // Use the `accessPolicy` from `header` if applicable. Because we update
-                                    // the `channel` in `header` in realtime. Whereas the `channel` preview
-                                    // in the `PostModel` might not update in realtime.
+                                    // Use the `accessPolicy` from `header` if applicable. Because we update the
+                                    // `channel` in `header` in realtime. Whereas the `channel` preview in the
+                                    // `PostModel` might not update in realtime.
                                     isReadOnly={
                                         !hasCommentAccessLevelByChannel.getOrSetDefault(
                                             header?.type === "Channel" &&
@@ -1456,8 +1451,8 @@ function PostListView(
                                     )}
                                     {messageNode}
                                     {isPostView &&
-                                        // -2 instead of -1 since when `isPostView` is true we don't
-                                        // actually render the final comment input item in `posts`.
+                                        // -2 instead of -1 since when `isPostView` is true we don't actually render the
+                                        // final comment input item in `posts`.
                                         index === posts.getItemCount() - 2 && (
                                             <div style={{height: messagingViewMarginBottom}} />
                                         )}
@@ -1525,8 +1520,8 @@ function PostListView(
                                         typingStateByConnectionId={item.typingStateByConnectionId}
                                         shouldAddMarginBottom={
                                             isPostView &&
-                                            // -2 instead of -1 since when `isPostView` is true we don't
-                                            // actually render the final comment input item in `posts`.
+                                            // -2 instead of -1 since when `isPostView` is true we don't actually render the
+                                            // final comment input item in `posts`.
                                             index === posts.getItemCount() - 2
                                         }
                                     />
@@ -1538,28 +1533,28 @@ function PostListView(
                     };
                 }
 
-                // The post comment input item sticks to the bottom of the screen while a post
-                // is visible. Whenever any item in the post is rendered we also additionally
-                // render the post comment input (`renderAdditionalItemIndexes`) so that
-                // virtualization doesn't remove it.
+                // The post comment input item sticks to the bottom of the screen while a post is
+                // visible. Whenever any item in the post is rendered we also additionally render
+                // the post comment input (`renderAdditionalItemIndexes`) so that virtualization
+                // doesn't remove it.
                 //
-                // We create a `<div>` that spans the bottom of the post content to the end of
-                // the entire post. This is the range in which our post comment input will be
-                // sticky. We create a second `<div>` of the same range but rendering the full
-                // post width border. The post comment input is shaped so that when we reach the
-                // bottom of the page the full width border will slide underneath it. Creating
-                // the effect of while scrolling the comment input is a layer on top of the post
-                // and when at the bottom of the post the comment input is inline.
+                // We create a `<div>` that spans the bottom of the post content to the end of the
+                // entire post. This is the range in which our post comment input will be sticky.
+                // We create a second `<div>` of the same range but rendering the full post width
+                // border. The post comment input is shaped so that when we reach the bottom of the
+                // page the full width border will slide underneath it. Creating the effect of
+                // while scrolling the comment input is a layer on top of the post and when at the
+                // bottom of the post the comment input is inline.
                 //
                 // IMPORTANT: This code is very similar to how we render `<DocumentCommentInput>`
                 // in `<DocumentCommentThreadListView>`! If you are updating this code you also
-                // probably want to update `<DocumentCommentThreadListView>`. We don't know what
-                // a good abstraction here is so following the advice "no abstraction is better
-                // than the wrong abstraction".
+                // probably want to update `<DocumentCommentThreadListView>`. We don't know what a
+                // good abstraction here is so following the advice "no abstraction is better than
+                // the wrong abstraction".
                 case "PostCommentInput": {
-                    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-                    // post in a new route. Supplemental sanity check to the assert at the beginning
-                    // of this component.
+                    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+                    // in a new route. Supplemental sanity check to the assert at the beginning of this
+                    // component.
                     assert(routeLayout !== "narrow");
 
                     const inputParent = inputParentByPostId.get(item.post.id) ?? null;
@@ -1696,10 +1691,10 @@ function PostListView(
                     };
                 }
 
-                // NOTE(calebmer, 2023-02-10): We render 3 shimmers before the spinner to
-                // create some space to scroll and more directly imply to the user that there
-                // is more content to be loaded. Sometimes we may only load 1 post and so the
-                // three shimmers is a little false but this feels like an acceptable tradeoff.
+                // NOTE(calebmer, 2023-02-10): We render 3 shimmers before the spinner to create
+                // some space to scroll and more directly imply to the user that there is more
+                // content to be loaded. Sometimes we may only load 1 post and so the three
+                // shimmers is a little false but this feels like an acceptable tradeoff.
                 case "MoreUnloadedPosts": {
                     return {
                         key: "MoreUnloadedPosts",
@@ -1774,9 +1769,8 @@ function PostListView(
                                 >
                                     {hasHeader &&
                                         index === 1 &&
-                                        // This is the first post in a `<PostListView>` with a `header` so we
-                                        // need to draw a border between the first `<PostListView>` and the
-                                        // `header`.
+                                        // This is the first post in a `<PostListView>` with a `header` so we need to draw
+                                        // a border between the first `<PostListView>` and the `header`.
                                         topBorder}
                                     {bottomBorder}
                                     <FeedEntryView entry={item.entry} />
@@ -1855,14 +1849,13 @@ function PostListView(
                 const {post, postCommentsState, postComments} = postResult;
 
                 // NOTE(calebmer): This code is copied from the code to open comments in
-                // `<PostContentView>`. Similarly we check if the initial comments are loaded
-                // and if they're not we'll go load them then wait for a bit before opening
-                // comments.
+                // `<PostContentView>`. Similarly we check if the initial comments are loaded and
+                // if they're not we'll go load them then wait for a bit before opening comments.
                 if (postCommentsState === "Closed") {
                     if (routeLayout === "narrow") {
                         // If we're replying via message pointer toolbar in a narrow route with closed
-                        // comments then we're in a channel peek which only shows the post content.
-                        // Never post comments. So we should only ever see `PostRange` here.
+                        // comments then we're in a channel peek which only shows the post content. Never
+                        // post comments. So we should only ever see `PostRange` here.
                         assert(parent.type === "PostRange");
 
                         await navigate(
@@ -1903,8 +1896,8 @@ function PostListView(
                     if (!shouldOpenCommentsImmediately) {
                         const postCommentsPromise = loadInitialPostComments({post, postComments});
 
-                        // Open post comments once we get our data back. But if the data is taking a
-                        // long time to load, open post comments after a delay.
+                        // Open post comments once we get our data back. But if the data is taking a long
+                        // time to load, open post comments after a delay.
                         await Promise.race([
                             postCommentsPromise,
                             wait(delayLoadingIndicatorLimitMs),
@@ -1959,8 +1952,8 @@ function PostListView(
                                     postEditing.dispatch({
                                         type: "SaveEditedContent",
                                         savePromiseResolver,
-                                        // We want to cancel editing ourselves after the close
-                                        // animation completes from calling `onCloseWithAnimation`.
+                                        // We want to cancel editing ourselves after the close animation completes from
+                                        // calling `onCloseWithAnimation`.
                                         dontCancelEditing: true,
                                     });
 
@@ -1988,8 +1981,8 @@ function PostListView(
                 })}
             >
                 {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
-                    // Only render a safe area cover if we don't have a navigation bar. Otherwise
-                    // the navigation bar acts as our safe area cover.
+                    // Only render a safe area cover if we don't have a navigation bar. Otherwise the
+                    // navigation bar acts as our safe area cover.
                     <div
                         className={sprinkles({
                             position: "absolute",
@@ -2025,16 +2018,16 @@ function PostListView(
                         )}
                         onRenderedRangeChange={tryLoadingMoreData}
                         onScroll={handleScroll}
-                        // Make sure content height is an integer. This guarantees we properly position
-                        // our aside given scroll offset is always an integer. We see some rendering
-                        // bugs in Chrome if content height isn't rounded. For example:
+                        // Make sure content height is an integer. This guarantees we properly position our
+                        // aside given scroll offset is always an integer. We see some rendering bugs in
+                        // Chrome if content height isn't rounded. For example:
                         //
                         // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/xdcahs0wp7zwv27gbj4tt11dq8
                         withRoundedContentHeight={true}
-                        // If the aside is larger than our virtualized list's content then we need to
-                        // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
-                        // some measurements. Otherwise the navigation bar among other things start to
-                        // break down.
+                        // If the aside is larger than our virtualized list's content then we need to make
+                        // sure the `<VirtualizedScrollView>`s DOM includes the aside's height in some
+                        // measurements. Otherwise the navigation bar among other things start to break
+                        // down.
                         extraChildrenContentHeight={asideSize?.height ?? 0}
                         extraChildren={
                             <>
@@ -2115,24 +2108,23 @@ function PostListView(
                             </>
                         }
                         extraChildrenOutsideContentElement={({contentHeight}) =>
-                            // Our items all have a bottom border. This is good when there's less content
-                            // than room to scroll since it creates a clear shape for the last item in the
-                            // list.
+                            // Our items all have a bottom border. This is good when there's less content than
+                            // room to scroll since it creates a clear shape for the last item in the list.
                             //
                             // However, if there are enough items to scroll then when the user has fully
-                            // scrolled we want the last item to *not* have a border bottom since the
-                            // bottom of the screen creates that boundary. We don't need to render an extra
-                            // line in the margins.
+                            // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                            // the screen creates that boundary. We don't need to render an extra line in the
+                            // margins.
                             //
-                            // This div covers the bottom border of the last item but only when there's
-                            // enough content to scroll. Otherwise the bottom border needs to be visible to
-                            // visually contain the last item. To debug this it's helpful to switch the
+                            // This div covers the bottom border of the last item but only when there's enough
+                            // content to scroll. Otherwise the bottom border needs to be visible to visually
+                            // contain the last item. To debug this it's helpful to switch the
                             // `backgroundColor` to `red-30` or something similar.
                             //
-                            // NOTE(calebmer): Don't cover the bottom border if we're in a post view. Since
-                            // the only item may be a `<PostContentView>` with a sticky
-                            // `<PostCommentInput>`. We want to make sure the `grey-5` border renders above
-                            // the `<PostCommentInput>` when we're scrolled to the bottom.
+                            // NOTE(calebmer): Don't cover the bottom border if we're in a post view. Since the
+                            // only item may be a `<PostContentView>` with a sticky `<PostCommentInput>`. We
+                            // want to make sure the `grey-5` border renders above the `<PostCommentInput>`
+                            // when we're scrolled to the bottom.
                             !isPostView && (
                                 <div
                                     className={sprinkles({

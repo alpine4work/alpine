@@ -18,10 +18,10 @@ const subSegmentCount = 3;
 const countLogInterval = process.env.NODE_ENV !== "production" ? 100 : 1000;
 
 /**
- * Scan our database for all content that can be indexed in the search system
- * and submit jobs to index that content. This will make all content available
- * for search. May also be useful if you make a change to search indexing and
- * need to re-index all content from the source.
+ * Scan our database for all content that can be indexed in the search system and
+ * submit jobs to index that content. This will make all content available for
+ * search. May also be useful if you make a change to search indexing and need to
+ * re-index all content from the source.
  */
 export function runIndexEverySearchEntityMigration(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
@@ -32,8 +32,7 @@ export function runIndexEverySearchEntityMigration(
 
 /**
  * Just index post and channel search entities. Same as
- * `runIndexEverySearchEntityMigration()` but with only those search entity
- * types.
+ * `runIndexEverySearchEntityMigration()` but with only those search entity types.
  */
 export function runIndexPostAndChannelSearchEntitiesMigration(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
@@ -48,8 +47,7 @@ export function runIndexPostAndChannelSearchEntitiesMigration(
 
 /**
  * Just index chat and chat message search entities. Same as
- * `runIndexEverySearchEntityMigration()` but with only those search entity
- * types.
+ * `runIndexEverySearchEntityMigration()` but with only those search entity types.
  */
 export function runIndexChatAndChatMessageSearchEntitiesMigration(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
@@ -64,8 +62,7 @@ export function runIndexChatAndChatMessageSearchEntitiesMigration(
 
 /**
  * Just index task and task collection search entities. Same as
- * `runIndexEverySearchEntityMigration()` but with only those search entity
- * types.
+ * `runIndexEverySearchEntityMigration()` but with only those search entity types.
  */
 export function runIndexTaskAndTaskCollectionSearchEntitiesMigration(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
@@ -135,8 +132,8 @@ function createDynamoScanMigrationModule<Item>(
     ) => MaybePromise<void>,
 ): MigrationModule {
     return async (context, options) => {
-        // We use a linked span instead of a child span since it's not practical to
-        // read a span with thousands of children.
+        // We use a linked span instead of a child span since it's not practical to read a
+        // span with thousands of children.
         await context.tracer.withSpanAsLinked(
             `Index all ${description} for search`,
             async (context, span) => {

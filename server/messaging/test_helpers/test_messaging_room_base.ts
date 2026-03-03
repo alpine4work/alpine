@@ -65,8 +65,8 @@ export abstract class TestMessagingRoomBase {
     protected abstract _getRoomKey(): string;
 
     /**
-     * All messaging rooms must also have valid bot scopes. Since you should be
-     * able to send/receive messages as a bot scoped to that room.
+     * All messaging rooms must also have valid bot scopes. Since you should be able to
+     * send/receive messages as a bot scoped to that room.
      */
     public abstract getBotScope(): BotTokenPayloadScope;
 
@@ -82,15 +82,15 @@ export abstract class TestMessagingRoomBase {
         },
     ): Promise<{index: number; createdTime: Date}>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _getMessage(
         context: TestActionContext,
         messageIndex: number,
     ): Promise<MessageModel>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _updateMessageContent(
         context: TestSessionActionContext,
         options: {
@@ -103,15 +103,15 @@ export abstract class TestMessagingRoomBase {
         contentUpdate: MessageContentPayloadContentUpdate;
     }>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _deleteMessage(
         context: TestSessionActionContext,
         options: {messageIndex: number},
     ): Promise<{deletedTime: Date}>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _putMessageStreamPart(
         context: TestBotActionContext,
         options: {
@@ -122,15 +122,15 @@ export abstract class TestMessagingRoomBase {
         },
     ): Promise<void>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _completeMessageStream(
         context: TestBotActionContext,
         options: {messageIndex: number},
     ): Promise<void>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _setMessageReaction(
         context: ServerSessionActionContextWithPush,
         options: {
@@ -141,8 +141,8 @@ export abstract class TestMessagingRoomBase {
         },
     ): Promise<void>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _deleteMessageReaction(
         context: ServerSessionActionContext,
         options: {
@@ -158,8 +158,8 @@ export abstract class TestMessagingRoomBase {
     }
 
     // Static method so you can't call `post.createMessage()`, you must call
-    // `post.createComment()`. However, for code working generically on any room
-    // that code can call `TestMessagingRoomBase.createMessage(room)`.
+    // `post.createComment()`. However, for code working generically on any room that
+    // code can call `TestMessagingRoomBase.createMessage(room)`.
     public static createMessage<Room extends TestMessagingRoomBase>(
         room: Room,
         session: TestSession | TestBotAccount | TestAccountActionContext,
@@ -278,8 +278,8 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         this.createdTime = createdTime;
     }
 
-    // Public so we can call this function from `TestMessagingRoomBase`. Shouldn't
-    // be called outside of this file.
+    // Public so we can call this function from `TestMessagingRoomBase`. Shouldn't be
+    // called outside of this file.
     public static _new<Room extends TestMessagingRoomBase>(
         context: TestContext,
         space: TestSpace,
@@ -297,8 +297,8 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
     public async updateContent(session: TestSession, content: string | Node) {
         const message = await this.room._getMessage(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `_updateMessageContent()` instead of `_getMessage()`.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `_updateMessageContent()` instead of `_getMessage()`.
             this.space.systemAction(),
             this.index,
         );
@@ -358,8 +358,8 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         pos?: number | "Files",
     ) {
         const message = await this.room._getMessage(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `_setMessageReaction()` instead of `_getMessage()`.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `_setMessageReaction()` instead of `_getMessage()`.
             this.space.systemAction(),
             this.index,
         );
@@ -389,8 +389,8 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
     public async deleteReaction(session: TestSession, pos?: number | "Files") {
         const message = await this.room._getMessage(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `_setMessageReaction()` instead of `_getMessage()`.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `_setMessageReaction()` instead of `_getMessage()`.
             this.space.systemAction(),
             this.index,
         );

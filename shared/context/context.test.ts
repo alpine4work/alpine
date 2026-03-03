@@ -117,14 +117,14 @@ test("context module that references each other must have dependency modules of 
     const context2 = Context.new({test1: new BadTestContextModule()});
     const context3 = Context.new({test1: new TestContextModule()});
 
-    // TODO(calebmer): Would ideally create some kind of TypeScript error.
-    // Struggling to find a good way to do that.
+    // TODO(calebmer): Would ideally create some kind of TypeScript error. Struggling
+    // to find a good way to do that.
     context1.clone({
         test2: new DependentTestContextModule(),
     });
 
-    // Would ideally create some kind of TypeScript error. Struggling to find a
-    // good way to do that.
+    // Would ideally create some kind of TypeScript error. Struggling to find a good
+    // way to do that.
     context2.clone({
         test2: new DependentTestContextModule(),
     });
@@ -133,8 +133,8 @@ test("context module that references each other must have dependency modules of 
         test2: new DependentTestContextModule(),
     });
 
-    // Would ideally create some kind of TypeScript error. Struggling to find a
-    // good way to do that.
+    // Would ideally create some kind of TypeScript error. Struggling to find a good
+    // way to do that.
     context1.clone({
         test1: new BadTestContextModule(),
         test2: new DependentTestContextModule(),
@@ -145,8 +145,8 @@ test("context module that references each other must have dependency modules of 
         test2: new DependentTestContextModule(),
     });
 
-    // Would ideally create some kind of TypeScript error. Struggling to find a
-    // good way to do that.
+    // Would ideally create some kind of TypeScript error. Struggling to find a good
+    // way to do that.
     await context1.with(
         {
             test2: new DependentTestContextModule(),
@@ -154,8 +154,8 @@ test("context module that references each other must have dependency modules of 
         async () => {},
     );
 
-    // Would ideally create some kind of TypeScript error. Struggling to find a
-    // good way to do that.
+    // Would ideally create some kind of TypeScript error. Struggling to find a good
+    // way to do that.
     await context2.with(
         {
             test2: new DependentTestContextModule(),
@@ -170,8 +170,8 @@ test("context module that references each other must have dependency modules of 
         async () => {},
     );
 
-    // Would ideally create some kind of TypeScript error. Struggling to find a
-    // good way to do that.
+    // Would ideally create some kind of TypeScript error. Struggling to find a good
+    // way to do that.
     await context1.with(
         {
             test1: new BadTestContextModule(),

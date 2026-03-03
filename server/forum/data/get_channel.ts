@@ -37,8 +37,8 @@ export async function getChannelIfPossible(
 
     const cachedGetPromise = getPromise.then(channel => (channel ? channel.model : null));
 
-    // Make sure errors thrown by this promise aren't treated as uncaught
-    // exceptions. We catch them below when we await `getPromise`.
+    // Make sure errors thrown by this promise aren't treated as uncaught exceptions.
+    // We catch them below when we await `getPromise`.
     cachedGetPromise.catch(() => {});
 
     // If we're loading the channel, we can use the channel item in our

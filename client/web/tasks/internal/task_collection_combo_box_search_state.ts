@@ -61,21 +61,21 @@ export function useTaskCollectionComboBoxSearchState({
     const items: ReadonlyArray<TaskCollectionComboBoxItem> | null = useStore(
         useMemo(() => {
             return computeStore(get => {
-                // If we have no item data available then return null which should render a
-                // loading spinner.
+                // If we have no item data available then return null which should render a loading
+                // spinner.
                 if (!searchByAffinityCollectionResults && !searchCollectionsOutput) {
                     return null;
                 }
 
                 const items: Array<TaskCollectionComboBoxItem> = [];
 
-                // Show search results if we have them, otherwise show collections the account
-                // has some affinity for.
+                // Show search results if we have them, otherwise show collections the account has
+                // some affinity for.
                 if (searchCollectionsOutput) {
                     const searchByAffinityCollectionIndexById = new Map(
                         filterMapArray(searchByAffinityCollectionResults ?? [], (result, index) =>
-                            // Only use results from the account's affinity when re-ranking collection
-                            // results. Don't re-rank with results from the space's affinity.
+                            // Only use results from the account's affinity when re-ranking collection results.
+                            // Don't re-rank with results from the space's affinity.
                             result.origin === "Account" ? [result.collection.id, index] : undefined,
                         ),
                     );
@@ -85,10 +85,10 @@ export function useTaskCollectionComboBoxSearchState({
                             continue;
                         }
 
-                        // If the same collection exists in our store and is kept up-to-date in
-                        // realtime then let's merge our realtime data with the searched data from the
-                        // server. We don't put our searched data in the store because it's not kept
-                        // up-to-date in realtime.
+                        // If the same collection exists in our store and is kept up-to-date in realtime
+                        // then let's merge our realtime data with the searched data from the server. We
+                        // don't put our searched data in the store because it's not kept up-to-date in
+                        // realtime.
                         const collectionEntryStore = store.getCollectionEntryStore(
                             collectionResult.collection.id,
                         );
@@ -107,9 +107,9 @@ export function useTaskCollectionComboBoxSearchState({
                         });
                     }
 
-                    // Re-sort items using affinity scores if we have them. Any searched
-                    // collections with equal score will be re-ranked by affinity if it's in the
-                    // account's top 30 affinitive collections.
+                    // Re-sort items using affinity scores if we have them. Any searched collections
+                    // with equal score will be re-ranked by affinity if it's in the account's top 30
+                    // affinitive collections.
                     items.sort((item1, item2) => {
                         if (item1.type !== "Collection" && item2.type !== "Collection") return 0;
                         if (item1.type !== "Collection") return 1;
@@ -144,10 +144,10 @@ export function useTaskCollectionComboBoxSearchState({
                             continue;
                         }
 
-                        // If the same collection exists in our store and is kept up-to-date in
-                        // realtime then let's merge our realtime data with the searched data from the
-                        // server. We don't put our searched data in the store because it's not kept
-                        // up-to-date in realtime.
+                        // If the same collection exists in our store and is kept up-to-date in realtime
+                        // then let's merge our realtime data with the searched data from the server. We
+                        // don't put our searched data in the store because it's not kept up-to-date in
+                        // realtime.
                         const collectionEntryStore = store.getCollectionEntryStore(
                             collectionResult.collection.id,
                         );

@@ -37,8 +37,8 @@ export default function CreateRoute() {
             withoutDisappearingTitle={true}
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
-            // This is a route for a root tab in our mobile app so don't show the back
-            // button. It wouldn't work.
+            // This is a route for a root tab in our mobile app so don't show the back button.
+            // It wouldn't work.
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
@@ -120,8 +120,8 @@ function CreateRouteButton({
         onPress: () => {
             setIsPending(true);
 
-            // Wrap in an async function so if `onPress` throws synchronously we get a
-            // rejected promise that we handle below.
+            // Wrap in an async function so if `onPress` throws synchronously we get a rejected
+            // promise that we handle below.
             const promise = (async () => await onPress())();
 
             promise.then(
@@ -150,8 +150,8 @@ function CreateRouteButton({
             gap="3"
             aria-label={label}
             style={{
-                // Optically center by including a little less padding top. The icon color
-                // splash makes the icon leads to more whitespace near the top of the icon.
+                // Optically center by including a little less padding top. The icon color splash
+                // makes the icon leads to more whitespace near the top of the icon.
                 paddingTop: addRemLengths("3", "0.5"),
                 paddingBottom: spacing["4"],
                 boxShadow:
@@ -171,8 +171,8 @@ function CreateRouteButton({
                 borderRadius="1"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
                 style={{
-                    // Cover the previous button's border bottom. If the top border is rendered by
-                    // our element then we don't need to go into the above sibling element's space.
+                    // Cover the previous button's border bottom. If the top border is rendered by our
+                    // element then we don't need to go into the above sibling element's space.
                     top: withBorderTop ? 0 : -1,
                     bottom: 0,
                     left: `-${borderRadius["1"]}`,

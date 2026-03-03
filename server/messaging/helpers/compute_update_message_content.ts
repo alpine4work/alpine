@@ -83,17 +83,16 @@ function computeUpdateMessageContentReactions({
     newContent: MessageContent;
     mapping: Mapping;
 }) {
-    // Currently we don't support updating stream message content. If we did
-    // support update stream message content then there's some extra complexity
-    // here we need to handle. Specifically, we treat stream messages with empty
-    // paragraph content as if the content doesn't exist. So if you update a
-    // message with empty paragraph content to a message without empty paragraph
-    // content (and vice versa) we need to apply additional position mapping to
-    // message reactions!
+    // Currently we don't support updating stream message content. If we did support
+    // update stream message content then there's some extra complexity here we need to
+    // handle. Specifically, we treat stream messages with empty paragraph content as
+    // if the content doesn't exist. So if you update a message with empty paragraph
+    // content to a message without empty paragraph content (and vice versa) we need to
+    // apply additional position mapping to message reactions!
     //
-    // This assert is here so if we ever add support for updating stream messages
-    // this assert will start throwing which forces future developers to read this
-    // comment and handle the new edge case.
+    // This assert is here so if we ever add support for updating stream messages this
+    // assert will start throwing which forces future developers to read this comment
+    // and handle the new edge case.
     assert(oldPayload.clerical?.type !== "Stream");
 
     const newReactionsByPos = new Map<number, ReactionSet>();
@@ -118,8 +117,8 @@ function computeUpdateMessageContentReactions({
 
             for (const [accountId, reaction] of reactions.get()) {
                 // If we're replacing a reaction that already existed for the `AccountId` then
-                // delete the old one so it's added to the end of the `Map`s order instead of
-                // using the old order.
+                // delete the old one so it's added to the end of the `Map`s order instead of using
+                // the old order.
                 if (mergedReactions.has(accountId)) {
                     mergedReactions.delete(accountId);
                 }

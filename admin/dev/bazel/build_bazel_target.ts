@@ -44,9 +44,9 @@ const lastBuildByTarget = new Map<
 /**
  * Builds a single Bazel target.
  *
- * If this function is executed multiple times in the same stack then we will batch the
- * targets and build them together. If we are already running a Bazel build then we'll
- * batch targets together and build them immediately after.
+ * If this function is executed multiple times in the same stack then we will batch
+ * the targets and build them together. If we are already running a Bazel build
+ * then we'll batch targets together and build them immediately after.
  */
 export function buildBazelTarget(
     target: string,
@@ -108,9 +108,8 @@ function scheduleBuildBazelTargets() {
                             buildByTarget.forEach(({promiseResolver}, target) =>
                                 promiseResolver.resolve({
                                     buildId,
-                                    // We inspect Bazel's target message output to tell us whether a target
-                                    // succeeded to build or failed. See Bazel's source code for the possible
-                                    // messages:
+                                    // We inspect Bazel's target message output to tell us whether a target succeeded
+                                    // to build or failed. See Bazel's source code for the possible messages:
                                     //
                                     // https://github.com/bazelbuild/bazel/blob/5c75d0acec21459bbb13520817e3806e1507e907/src/main/java/com/google/devtools/build/lib/buildtool/BuildResultPrinter.java#L279-L320
                                     hasFailed: !(
@@ -124,8 +123,8 @@ function scheduleBuildBazelTargets() {
                             ),
                     )
                     .finally(() => {
-                        // If `buildBazelTarget()` was called while we were executing, then execute
-                        // Bazel again. We keep executing Bazel until we have no more targets to build.
+                        // If `buildBazelTarget()` was called while we were executing, then execute Bazel
+                        // again. We keep executing Bazel until we have no more targets to build.
                         if (nextBuildByTarget.size > 0) {
                             buildLoop();
                         } else {
@@ -198,8 +197,8 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
 const bazelBuildEvents = new EventEmitter<BazelBuildEvent>();
 
 /**
- * Subscribe to Bazel build events. Useful if you want to log when a Bazel
- * build starts or ends.
+ * Subscribe to Bazel build events. Useful if you want to log when a Bazel build
+ * starts or ends.
  */
 export function subscribeToBazelBuildEvents(listener: (event: BazelBuildEvent) => void) {
     return bazelBuildEvents.subscribe(listener);

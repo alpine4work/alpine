@@ -30,54 +30,50 @@ export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
 /**
  * The title of a task which is a Yjs doc containing a PromiseMirror doc.
  *
- * We use ProseMirror for task titles. Task titles are short single line
- * strings with no formatting options. So why bother with the complexity of
- * ProseMirror?
+ * We use ProseMirror for task titles. Task titles are short single line strings
+ * with no formatting options. So why bother with the complexity of ProseMirror?
  *
  * - Gives us the flexibility to one day add decorations, like mentions or
  *   tokenization
- * - Supports collaborative features like presence cursor and collaborative
- *   editing (collaborative editing within a task title will be rare, but nice
- *   to have everything support collaborative editing in theory)
- * - Better programmatic control of the text editor, for example translating
- *   cursor placement to pixel coords and back (for arrow up/down keyboard
- *   shortcuts)
+ * - Supports collaborative features like presence cursor and collaborative editing
+ *   (collaborative editing within a task title will be rare, but nice to have
+ *   everything support collaborative editing in theory)
+ * - Better programmatic control of the text editor, for example translating cursor
+ *   placement to pixel coords and back (for arrow up/down keyboard shortcuts)
  *
- * Overall, using a programmatic text editor allows us to super-power this
- * input for long into the future.
+ * Overall, using a programmatic text editor allows us to super-power this input
+ * for long into the future.
  *
- * We use the CRDT library Yjs to support collaborative editing of task
- * titles. Our task system depends on actions being commutative and idempotent
- * so that clients can make optimistic updates and so that our backend
- * distributed systems does not need to maintain any ordering guarantees. No
- * matter what order actions are applied in our clients should always converge
- * to the same state.
+ * We use the CRDT library Yjs to support collaborative editing of task titles. Our
+ * task system depends on actions being commutative and idempotent so that clients
+ * can make optimistic updates and so that our backend distributed systems does not
+ * need to maintain any ordering guarantees. No matter what order actions are
+ * applied in our clients should always converge to the same state.
  *
  * ## Limitations
  *
  * The Yjs library represents collaborative documents as mutable objects. This
  * doesn't fit well with our task client state system which uses immutable data
  * (e.g. `TaskModel` and `TaskClientStore`)! Also [Yjs's ProseMirror support
- * (`y-prosemirror`) is poorly implemented and has some meaningful
- * limitations][1]. For these reasons we've built a custom immutable mode for Yjs
- * and custom Yjs to ProseMirror integration.
+ * (`y-prosemirror`) is poorly implemented and has some meaningful limitations][1].
+ * For these reasons we've built a custom immutable mode for Yjs and custom Yjs to
+ * ProseMirror integration.
  *
  * Our immutable mode clones Yjs docs whenever we need to make an update. While
- * inefficient this should be fine for the scale of Yjs doc we're working with
- * (a single line of text). If this ever becomes a performance issue we should
- * reimplement Yjs using immutable data structures designed for efficient
- * updates.
+ * inefficient this should be fine for the scale of Yjs doc we're working with (a
+ * single line of text). If this ever becomes a performance issue we should
+ * reimplement Yjs using immutable data structures designed for efficient updates.
  *
- * Our custom ProseMirror integration is built on translating ProseMirror steps
- * to Yjs updates (e.g. `ReplaceStep` becomes a `replace()` method on
+ * Our custom ProseMirror integration is built on translating ProseMirror steps to
+ * Yjs updates (e.g. `ReplaceStep` becomes a `replace()` method on
  * `TaskTitleModel`) and making sure we can undo actions without a stateful
  * `Y.UndoManager`.
  *
- * Another limitation is like any CRDT, Yjs leaves gravestones for deleted
- * content. Yjs has a GC optimization for deleted content so this isn't too
- * bad.
+ * Another limitation is like any CRDT, Yjs leaves gravestones for deleted content.
+ * Yjs has a GC optimization for deleted content so this isn't too bad.
  *
- * [1]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
+ * [1]:
+ *     https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
  */
 export type TaskTitle = Uint8Array & TaskTitleUpdate & {readonly _TaskTitle: never};
 
@@ -92,8 +88,8 @@ export const emptyTaskTitleProsemirrorNode = TaskTitleProsemirrorSchema.node("do
 /**
  * We use the `RealmId` (really the first 32 bits of the `RealmId`) as the
  * `clientID` for Yjs. For this to work we must be careful to not create two
- * conflicting `TaskTitleUpdate`s within the same JavaScript realm. Otherwise
- * if we commit two conflicting updates the task title will be corrupted!
+ * conflicting `TaskTitleUpdate`s within the same JavaScript realm. Otherwise if we
+ * commit two conflicting updates the task title will be corrupted!
  */
 export const realmTaskTitleClientId = new Lazy((): number => {
     const realmIdBytes = decodeId(getRealmId());
@@ -109,13 +105,13 @@ export const realmTaskTitleClientId = new Lazy((): number => {
 const gcFilter = () => true;
 
 /**
- * Create a Yjs doc where the `clientID` is based on the `RealmId`
- * (specifically the first 32 bytes). We expect the code within a JavaScript
- * realm to NOT create conflicting updates.
+ * Create a Yjs doc where the `clientID` is based on the `RealmId` (specifically
+ * the first 32 bytes). We expect the code within a JavaScript realm to NOT create
+ * conflicting updates.
  *
- * We create a Yjs document without using the initializer for more control and
- * for performance. (For instance, while profiling task grid view scrolling we
- * found Yjs's implementation of `guid` generation to be slow.)
+ * We create a Yjs document without using the initializer for more control and for
+ * performance. (For instance, while profiling task grid view scrolling we found
+ * Yjs's implementation of `guid` generation to be slow.)
  */
 function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
     const doc = Object.create(Y.Doc.prototype);
@@ -128,11 +124,12 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
     // Always use a client ID based on our realm ID. There should never be any
     // concurrent updates within a single JavaScript realm.
     //
-    // Define the property as read-only. When detecting potential corruption [Yjs
-    // may try to change the `clientID`][1]. Instead of silently changing the
-    // `clientID` we'd prefer to loudly throw an error.
+    // Define the property as read-only. When detecting potential corruption [Yjs may
+    // try to change the `clientID`][1]. Instead of silently changing the `clientID`
+    // we'd prefer to loudly throw an error.
     //
-    // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/utils/Transaction.js#L342
+    // [1]:
+    //     https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/utils/Transaction.js#L342
     Object.defineProperty(doc, "clientID", {
         configurable: true,
         enumerable: true,
@@ -159,20 +156,18 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
 }
 
 /**
- * Clones a Yjs doc, deeply. Yjs docs are mutable but our entire task client
- * state is built on immutable data (`TaskModel`). So to use Yjs we deeply
- * clone docs whenever we want to make an update. This is inefficient but
- * shouldn't be an issue for the scale of Yjs documents we work with (single
- * line of text).
+ * Clones a Yjs doc, deeply. Yjs docs are mutable but our entire task client state
+ * is built on immutable data (`TaskModel`). So to use Yjs we deeply clone docs
+ * whenever we want to make an update. This is inefficient but shouldn't be an
+ * issue for the scale of Yjs documents we work with (single line of text).
  *
  * Correctly implementing Yjs doc cloning requires detailed knowledge of Yjs
- * internals. We wrote this while carefully cross referencing Yjs source code.
- * As a safety mechanism to make sure everything is properly cloned, we call
+ * internals. We wrote this while carefully cross referencing Yjs source code. As a
+ * safety mechanism to make sure everything is properly cloned, we call
  * `deepFreeze()` in development on immutable Yjs docs.
  *
- * If cloning becomes a performance issue then we should consider writing
- * an implementation of Yjs with efficient immutable data structures from
- * scratch.
+ * If cloning becomes a performance issue then we should consider writing an
+ * implementation of Yjs with efficient immutable data structures from scratch.
  */
 function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
     const clonedDoc = createDoc(options);
@@ -218,8 +213,8 @@ function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
         }
     }
 
-    // 2. Make sure struct references within cloned structs point to other
-    // cloned structs
+    // 2. Make sure struct references within cloned structs point to other cloned
+    //    structs
     for (const clonedStructs of clonedDoc.store.clients.values()) {
         for (const clonedStruct of clonedStructs) {
             if (!(clonedStruct instanceof Y.Item)) continue;
@@ -327,8 +322,8 @@ function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
 /**
  * An empty `TaskTitle`.
  *
- * An empty `TaskTitle` contains no client IDs which means it can be freely
- * merged with any title without fear of conflicting updates.
+ * An empty `TaskTitle` contains no client IDs which means it can be freely merged
+ * with any title without fear of conflicting updates.
  */
 export const emptyTaskTitle = new Lazy(() => {
     const doc = createDoc();
@@ -407,10 +402,9 @@ export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};
 export const TaskTitleUpdateSchema = Schema.bytes as any as Schema<TaskTitleUpdate>;
 
 export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpdate): TaskTitle {
-    // We don't use `Y.mergeUpdatesV2()` because the result won't be in an
-    // optimized form. Specifically, adjacent items won't be merged. See the test
-    // "applying task title update to task title produces optimized form" for an
-    // example.
+    // We don't use `Y.mergeUpdatesV2()` because the result won't be in an optimized
+    // form. Specifically, adjacent items won't be merged. See the test "applying task
+    // title update to task title produces optimized form" for an example.
     const doc = createDoc();
     Y.applyUpdateV2(doc, assertExists(title));
     Y.applyUpdateV2(doc, assertExists(titleUpdate));
@@ -421,10 +415,9 @@ export function mergeTaskTitleUpdates(
     titleUpdate1: TaskTitleUpdate,
     titleUpdate2: TaskTitleUpdate,
 ): TaskTitleUpdate {
-    // We don't use `Y.mergeUpdatesV2()` because the result won't be in an
-    // optimized form. Specifically, adjacent items won't be merged. See the test
-    // "applying task title update to task title produces optimized form" for an
-    // example.
+    // We don't use `Y.mergeUpdatesV2()` because the result won't be in an optimized
+    // form. Specifically, adjacent items won't be merged. See the test "applying task
+    // title update to task title produces optimized form" for an example.
     const doc = createDoc();
     Y.applyUpdateV2(doc, assertExists(titleUpdate1));
     Y.applyUpdateV2(doc, assertExists(titleUpdate2));
@@ -432,15 +425,14 @@ export function mergeTaskTitleUpdates(
 }
 
 /**
- * A Yjs snapshot of a `TaskTitle` at some state. Yjs snapshots can be used to
- * tell if two `TaskTitle`s are identical without needing the full `TaskTitle`.
+ * A Yjs snapshot of a `TaskTitle` at some state. Yjs snapshots can be used to tell
+ * if two `TaskTitle`s are identical without needing the full `TaskTitle`.
  * Snapshots only contain version information from a `TaskTitle` at a specific
  * point in time.
  *
- * Yjs snapshots can be used to restore Yjs docs to a specific point in time
- * but only if the Yjs doc has GC disabled (`gc: false`). When GC is disabled a
- * Yjs doc contains its entire editing history. When GC is enabled this isn't
- * the case.
+ * Yjs snapshots can be used to restore Yjs docs to a specific point in time but
+ * only if the Yjs doc has GC disabled (`gc: false`). When GC is disabled a Yjs doc
+ * contains its entire editing history. When GC is enabled this isn't the case.
  *
  * [Yjs snapshots aren't currently documented][1].
  *
@@ -469,8 +461,8 @@ export const emptyTaskTitleUpdateModel = new Lazy(
 export const taskFallbackTitle = "Untitled";
 
 /**
- * Return the title string and if the title is empty then return a fallback
- * name like "Untitled".
+ * Return the title string and if the title is empty then return a fallback name
+ * like "Untitled".
  */
 export function addFallbackToTaskTitle(title: string): string {
     return title.trim().length > 0 ? title : taskFallbackTitle;
@@ -481,19 +473,18 @@ export function addFallbackToTaskTitle(title: string): string {
  * convenience functions (e.g. `getText()`) and tracks additional information
  * useful for client applications.
  *
- * Importantly, the title model tracks essential undo metadata. Specifically
- * the `Y.Doc` which backs the title model has a `redone` property on all
- * `Y.Item` structs it contains. The `redone` property on deleted items is
- * essential for undo since it points to the new item that recreated the
- * deleted old item.
+ * Importantly, the title model tracks essential undo metadata. Specifically the
+ * `Y.Doc` which backs the title model has a `redone` property on all `Y.Item`
+ * structs it contains. The `redone` property on deleted items is essential for
+ * undo since it points to the new item that recreated the deleted old item.
  *
  * ### Avoid conflicting updates
  *
- * You must be a little careful to avoid conflicting updates. All updates
- * created in this JavaScript realm have the same Yjs `clientID`. If you
- * generate two conflicting updates within the JavaScript realm an error will
- * be thrown when you try to apply the update. Here's an example of how you
- * might cause conflicting updates:
+ * You must be a little careful to avoid conflicting updates. All updates created
+ * in this JavaScript realm have the same Yjs `clientID`. If you generate two
+ * conflicting updates within the JavaScript realm an error will be thrown when you
+ * try to apply the update. Here's an example of how you might cause conflicting
+ * updates:
  *
  * ```ts
  * const title1 = emptyTaskTitleModel.get();
@@ -503,13 +494,12 @@ export function addFallbackToTaskTitle(title: string): string {
  * const title3 = title2.apply(updateB);
  * ```
  *
- * This will throw an error because under the hood `updateA` and `updateB`
- * generate a conflicting ID for `"a"` and `"b"`. IDs are a tuple of
- * `(clientId, clock)`. `clientId` is the first 32 bits of our JavaScript
- * `RealmId`. `clock` is +1 from the highest `clock` value for the same
- * `clientId` in the title. The reason the above example creates a corrupted
- * title is `updateA` uses the ID `(realmId, 0)` for `"a"` and `updateB` also
- * uses the ID `(realmId, 0)` for `"b"`.
+ * This will throw an error because under the hood `updateA` and `updateB` generate
+ * a conflicting ID for `"a"` and `"b"`. IDs are a tuple of `(clientId, clock)`.
+ * `clientId` is the first 32 bits of our JavaScript `RealmId`. `clock` is +1 from
+ * the highest `clock` value for the same `clientId` in the title. The reason the
+ * above example creates a corrupted title is `updateA` uses the ID `(realmId, 0)`
+ * for `"a"` and `updateB` also uses the ID `(realmId, 0)` for `"b"`.
  *
  * The following is ok:
  *
@@ -521,9 +511,9 @@ export function addFallbackToTaskTitle(title: string): string {
  * const title3 = updateB.newTitle;
  * ```
  *
- * This is fine since the ID for `"a"` will be `(realmId, 0)` and the ID for
- * `"b"` will be `(realmId, 1)` since we generate the `"b"` update on top of
- * the `"a"` update.
+ * This is fine since the ID for `"a"` will be `(realmId, 0)` and the ID for `"b"`
+ * will be `(realmId, 1)` since we generate the `"b"` update on top of the `"a"`
+ * update.
  */
 export class TaskTitleModel {
     public static schema = Schema.bytes.transform<TaskTitleModel>({
@@ -539,22 +529,22 @@ export class TaskTitleModel {
 
     constructor(doc: Y.Doc | TaskTitle) {
         if (doc instanceof Y.Doc) {
-            // In development and test environments, make sure `doc` isn't mutated by
-            // deeply freezing the value. Since deep freezing is a potentially expensive
-            // operation we don't do it in production.
+            // In development and test environments, make sure `doc` isn't mutated by deeply
+            // freezing the value. Since deep freezing is a potentially expensive operation we
+            // don't do it in production.
             //
-            // We only freeze `doc.store` since sometimes Yjs creates transactions in code
-            // read paths.
+            // We only freeze `doc.store` since sometimes Yjs creates transactions in code read
+            // paths.
             if (process.env.NODE_ENV !== "production") {
                 // Make sure we initialize the type so it's available later.
                 doc.getXmlFragment("doc");
 
                 deepFreeze(
                     doc.store,
-                    // Don't freeze `Uint8Array`. It'll throw with an error message of: "Cannot
-                    // freeze array buffer views with elements". We accept this limitation.
-                    // Hopefully freezing the rest of the object is sufficient for making sure there
-                    // are no more mutations on the doc.
+                    // Don't freeze `Uint8Array`. It'll throw with an error message of: "Cannot freeze
+                    // array buffer views with elements". We accept this limitation. Hopefully freezing
+                    // the rest of the object is sufficient for making sure there are no more mutations
+                    // on the doc.
                     value => !(value instanceof Uint8Array),
                 );
             }
@@ -588,22 +578,22 @@ export class TaskTitleModel {
             const doc = createDoc();
             Y.applyUpdateV2(doc, assertExists(this._raw));
 
-            // In development and test environments, make sure `doc` isn't mutated by
-            // deeply freezing the value. Since deep freezing is a potentially expensive
-            // operation we don't do it in production.
+            // In development and test environments, make sure `doc` isn't mutated by deeply
+            // freezing the value. Since deep freezing is a potentially expensive operation we
+            // don't do it in production.
             //
-            // We only freeze `doc.store` since sometimes Yjs creates transactions in code
-            // read paths.
+            // We only freeze `doc.store` since sometimes Yjs creates transactions in code read
+            // paths.
             if (process.env.NODE_ENV !== "production") {
                 // Make sure we initialize the type so it's available later.
                 doc.getXmlFragment("doc");
 
                 deepFreeze(
                     doc.store,
-                    // Don't freeze `Uint8Array`. It'll throw with an error message of: "Cannot
-                    // freeze array buffer views with elements". We accept this limitation.
-                    // Hopefully freezing the rest of the object is sufficient for making sure there
-                    // are no more mutations on the doc.
+                    // Don't freeze `Uint8Array`. It'll throw with an error message of: "Cannot freeze
+                    // array buffer views with elements". We accept this limitation. Hopefully freezing
+                    // the rest of the object is sufficient for making sure there are no more mutations
+                    // on the doc.
                     value => !(value instanceof Uint8Array),
                 );
             }
@@ -720,8 +710,8 @@ export class TaskTitleModel {
 
     /**
      * Create a task title update using the same properties as ProseMirror's
-     * `ReplaceStep` using multiple steps. You can use this to translate
-     * ProseMirror updates into Yjs updates.
+     * `ReplaceStep` using multiple steps. You can use this to translate ProseMirror
+     * updates into Yjs updates.
      *
      * You have to be a little careful to avoid corrupting your task title. See the
      * comment on `TaskTitleModel` for more information.
@@ -735,9 +725,9 @@ export class TaskTitleModel {
 
     /**
      * Create a task title update using the same properties as ProseMirror's
-     * `ReplaceStep` using multiple steps. You can use this to translate
-     * ProseMirror updates into Yjs updates. This also returns extra metadata
-     * useful for tracking UI state based on the steps applied.
+     * `ReplaceStep` using multiple steps. You can use this to translate ProseMirror
+     * updates into Yjs updates. This also returns extra metadata useful for tracking
+     * UI state based on the steps applied.
      *
      * You have to be a little careful to avoid corrupting your task title. See the
      * comment on `TaskTitleModel` for more information.
@@ -808,8 +798,8 @@ export class TaskTitleModel {
                     taskTitleMaxLength - finalLengthAfterDeletion,
                 );
 
-                // isEmptyFromTruncation should only be true if ALL steps result in an empty
-                // text _strictly_ due to truncation. As soon as we see a step that has any allowed
+                // isEmptyFromTruncation should only be true if ALL steps result in an empty text
+                // _strictly_ due to truncation. As soon as we see a step that has any allowed
                 // insert length, we know the final result can't be empty due to truncation alone.
                 if (maxAllowedInsertLength > 0) {
                     isEmptyFromTruncation = false;
@@ -1033,8 +1023,8 @@ function cloneDeleteSet(deleteSet: Y.DeleteSet): Y.DeleteSet {
  * Model representing a task title update. Wraps a binary `TaskTitleUpdate` and
  * provides some extra helpers and information for client applications.
  *
- * If you only use `title.replace().newTitle` to get a new title after an
- * update then you'll never be at risk of producing a corrupted title.
+ * If you only use `title.replace().newTitle` to get a new title after an update
+ * then you'll never be at risk of producing a corrupted title.
  */
 export class TaskTitleUpdateModel {
     public readonly raw: TaskTitleUpdate;
@@ -1048,9 +1038,9 @@ export class TaskTitleUpdateModel {
         oldTitle: TaskTitleModel,
         newTitle: TaskTitleModel,
     ) {
-        // In development and test environments, make sure `undoStackItem` isn't
-        // mutated by deeply freezing the value. Since deep freezing is a potentially
-        // expensive operation we don't do it in production.
+        // In development and test environments, make sure `undoStackItem` isn't mutated by
+        // deeply freezing the value. Since deep freezing is a potentially expensive
+        // operation we don't do it in production.
         if (process.env.NODE_ENV !== "production") {
             deepFreeze(undoStackItem);
         }
@@ -1083,9 +1073,9 @@ export class TaskTitleUpdateModel {
     }
 
     /**
-     * Invert this update. Used to undo the update. You must pass in the current
-     * title since Yjs needs to reference the latest IDs in the Yjs doc to produce
-     * an update that will correctly override previous data.
+     * Invert this update. Used to undo the update. You must pass in the current title
+     * since Yjs needs to reference the latest IDs in the Yjs doc to produce an update
+     * that will correctly override previous data.
      */
     public invert(
         currentTitle: TaskTitleModel,
@@ -1112,10 +1102,10 @@ export class TaskTitleUpdateModel {
 
             // make sure that deleted structs are not gc'd
             //
-            // NOTE(calebmer): I'm not sure if this is necessary. I couldn't write a unit
-            // test that failed when this code was removed. This is necessary in
-            // `replace()` but maybe something else is setting `keep = true` on these items
-            // making this unnecessary.
+            // NOTE(calebmer): I'm not sure if this is necessary. I couldn't write a unit test
+            // that failed when this code was removed. This is necessary in `replace()` but
+            // maybe something else is setting `keep = true` on these items making this
+            // unnecessary.
             Y.iterateDeletedStructs(transaction, transaction.deleteSet, struct => {
                 if (!(struct instanceof Y.Item)) return;
 

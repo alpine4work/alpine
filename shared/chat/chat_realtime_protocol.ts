@@ -49,8 +49,8 @@ export const ChatRealtimeProtocol = defineWebSocketProtocol({
         ...createMessagingRealtimeEventSchemas(ChatMessageModel.schema()),
 
         /**
-         * Was `ChatModel` updated? For instance when converting a direct chat to a
-         * room chat or updating a room chat's name.
+         * Was `ChatModel` updated? For instance when converting a direct chat to a room
+         * chat or updating a room chat's name.
          */
         UpdateChat: Schema.object({
             type: Schema.value("UpdateChat"),

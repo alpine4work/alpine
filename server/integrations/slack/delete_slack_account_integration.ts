@@ -7,11 +7,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Disconnects a Slack account from an existing Slack workspace connection by deleting the
- * integration item in the database. The workspace remains linked to the space.
+ * Disconnects a Slack account from an existing Slack workspace connection by
+ * deleting the integration item in the database. The workspace remains linked to
+ * the space.
  *
- * System actors can disconnect Slack accounts for any account whereas session actors
- * may only disconnect Slack accounts for their own account.
+ * System actors can disconnect Slack accounts for any account whereas session
+ * actors may only disconnect Slack accounts for their own account.
  */
 export async function deleteSlackAccountIntegration(
     context: ServerActionContext,

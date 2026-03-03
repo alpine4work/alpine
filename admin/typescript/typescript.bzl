@@ -277,6 +277,8 @@ def ts_lint_and_format_test(
             "**/*.jsx",
             "**/*.ts",
             "**/*.tsx",
+            "**/*.cts",
+            "**/*.mts",
             "**/*.mjs",
             "**/*.cjs",
             "**/*.json",
@@ -293,8 +295,7 @@ def ts_lint_and_format_test(
         args = ["--check", native.package_name()],
         copy_data_to_bin = False,
         data = _dedupe_labels(srcs + [
-            "//:prettier.config.cjs",
-            "//:.prettierignore",
+            "//:prettier_config_files",
         ]),
         size = "small",
         tags = ["prettier", "dev-check"] + tags,
@@ -311,6 +312,7 @@ def ts_lint_and_format_test(
         for src in srcs
         if src.endswith(".js") or src.endswith(".jsx") or
            src.endswith(".ts") or src.endswith(".tsx") or
+           src.endswith(".cts") or src.endswith(".mts") or
            src.endswith(".mjs") or src.endswith(".cjs")
     ]
 

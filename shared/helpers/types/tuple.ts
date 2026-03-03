@@ -1,8 +1,7 @@
 /**
  * Create a TypeScript tuple with a dynamic length.
  */
-// Implementation derived from:
-// https://stackoverflow.com/a/52490977/1568890
+// Implementation derived from: https://stackoverflow.com/a/52490977/1568890
 export type Tuple<T, N extends number> = N extends N
     ? number extends N
         ? Array<T>
@@ -16,8 +15,7 @@ type TupleOf<T, N extends number, R extends Array<unknown>> = R["length"] extend
 /**
  * Create a readonly TypeScript tuple with a dynamic length.
  */
-// Implementation derived from:
-// https://stackoverflow.com/a/52490977/1568890
+// Implementation derived from: https://stackoverflow.com/a/52490977/1568890
 export type ReadonlyTuple<T, N extends number> = N extends N
     ? number extends N
         ? ReadonlyArray<T>

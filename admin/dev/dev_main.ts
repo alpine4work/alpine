@@ -55,8 +55,8 @@ import {Id} from "~/shared/id/id.js";
 
 assert(process.env.NODE_ENV === "development");
 
-// Make our dev server easy to find in process managers. We include
-// "cyberworlds" and "node" so you can grep by those strings.
+// Make our dev server easy to find in process managers. We include "cyberworlds"
+// and "node" so you can grep by those strings.
 process.title = "dev (cyberworlds, node)";
 
 const env = parseDotenv();
@@ -68,8 +68,8 @@ const parsePort = (portString: string | undefined) => {
     return port;
 };
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
+// Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
+// picks them up.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
@@ -112,8 +112,9 @@ const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 
-// TODO(ifitzsimmons, #local-kinesis): Once we build a local Kinesis environment, we'll
-// need to pass in the actual stream name. Until then, we'll use a fixed stream name.
+// TODO(ifitzsimmons, #local-kinesis): Once we build a local Kinesis environment,
+// we'll need to pass in the actual stream name. Until then, we'll use a fixed
+// stream name.
 const kinesisTracerStreamName = "tracer-events";
 
 const opensearchLocalConfigPath = joinPath(devEnvPaths.config, "opensearch");
@@ -179,8 +180,8 @@ const externalHost = (() => {
     for (const [name, nets] of Object.entries(networkInterfaces())) {
         if (!nets) continue;
         for (const networkInterface of nets) {
-            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-            // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses 'IPv4' is in Node <=
+            // 17, from 18 it's a number 4 or 6
             const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
             if (networkInterface.family === familyV4Value && !networkInterface.internal) {
                 if (name === "en0") {
@@ -203,19 +204,19 @@ const slackClientSecret = env.SLACK_CLIENT_SECRET;
 const slackAuthRedirectOrigin = env.SLACK_AUTH_REDIRECT_ORIGIN;
 
 /**
- * An artifact which our dev process manager keeps up-to-date. There are two
- * kinds of artifacts:
+ * An artifact which our dev process manager keeps up-to-date. There are two kinds
+ * of artifacts:
  *
  * - File artifacts: These are files that we keep up-to-date but don't execute.
  *   Usually these are resources which'll be loaded on the client.
  *
- * - Executable artifacts: A server which we'll run after building the
- *   artifact. If the artifact rebuilds we'll restart the server.
+ * - Executable artifacts: A server which we'll run after building the artifact. If
+ *   the artifact rebuilds we'll restart the server.
  */
 export type Artifact = {
     /**
-     * The Bazel target associated with this artifact. We'll rebuild this
-     * target whenever any of its dependencies change.
+     * The Bazel target associated with this artifact. We'll rebuild this target
+     * whenever any of its dependencies change.
      */
     readonly bazelTarget: string;
 } & (
@@ -240,8 +241,8 @@ export type Artifact = {
           readonly executablePath: string;
 
           /**
-           * Messages written to `stdout` and `stderr` by our executable will be printed
-           * on the dev process manager's `stdout`/`stderr` under the provided prefix.
+           * Messages written to `stdout` and `stderr` by our executable will be printed on
+           * the dev process manager's `stdout`/`stderr` under the provided prefix.
            *
            * For consistency, please keep the prefix three characters long.
            */
@@ -262,16 +263,15 @@ export type Artifact = {
            * `ChildProcess` object in this property. Maintains any state for the running
            * server we might need.
            *
-           * When we restart the server we find the old `ChildProcess` in here and
-           * kill it.
+           * When we restart the server we find the old `ChildProcess` in here and kill it.
            */
           readonly server: MutexValue<ArtifactServer | null>;
 
           /**
            * By default, any file update in our `bazelTarget`'s package will cause us to
            * rebuild the artifact. However, if you provide this option then we'll only
-           * rebuild this artifact if the file that updates in our `bazelTarget`'s
-           * package is one of the listed files changes.
+           * rebuild this artifact if the file that updates in our `bazelTarget`'s package is
+           * one of the listed files changes.
            *
            * Any file updated in a dependency will still rebuild the artifact. This only
            * affects file updates in our `bazelTarget`'s package.
@@ -288,11 +288,12 @@ export type Artifact = {
             }
           | {
                 /**
-                 * If your executable exposes an HTTP server you use this property to define
-                 * its ports. `publicPort` is a stable port we run a proxy on that delays
-                 * requests until the executable (running on `privatePort`) is ready to go.
+                 * If your executable exposes an HTTP server you use this property to define its
+                 * ports. `publicPort` is a stable port we run a proxy on that delays requests
+                 * until the executable (running on `privatePort`) is ready to go.
                  *
-                 * `JobQueueService` is an example of an executable artifact without an HTTP server.
+                 * `JobQueueService` is an example of an executable artifact without an HTTP
+                 * server.
                  */
                 readonly ports: {
                     readonly publicPort: number;
@@ -321,7 +322,8 @@ async function createArtifacts() {
     const resourceServiceUrl = `http://${externalHost ?? "localhost"}:${resourcesDevPort}`;
     const externalEdgeServiceUrl = `http://${externalHost ?? "localhost"}:${edgeDevPort}`;
 
-    // String with comma-delimited origins that resource service will allow CORS requests from.
+    // String with comma-delimited origins that resource service will allow CORS
+    // requests from.
     const corsTrustedOrigins = `${edgeServiceUrl}, ${externalEdgeServiceUrl}`;
 
     const [
@@ -344,8 +346,7 @@ async function createArtifacts() {
 
     const artifacts: ReadonlyArray<Artifact> = [
         // App assets are built with a file artifact then `//app:app_wrapper` runs a
-        // lightweight `AppService` which serves Remix routes through a Vite dev
-        // server.
+        // lightweight `AppService` which serves Remix routes through a Vite dev server.
         {
             bazelTarget: "//app",
         },
@@ -379,7 +380,8 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
@@ -423,12 +425,11 @@ async function createArtifacts() {
             ports: {
                 publicPort: edgeDevPort,
                 privatePort: edgePrivatePort,
-                // Check the `/api/time` path while waiting for the HTTP server to start. We
-                // pick this path since it's handled immediately in `EdgeService` and not
-                // forwarded to `AppService`. Forwarding requests to `AppService` will stall
-                // forever because of a circular dependency. `--appServiceUrl` won't respond to
-                // requests until `mainPromise` resolves which requires `EdgeService` to
-                // be ready.
+                // Check the `/api/time` path while waiting for the HTTP server to start. We pick
+                // this path since it's handled immediately in `EdgeService` and not forwarded to
+                // `AppService`. Forwarding requests to `AppService` will stall forever because of
+                // a circular dependency. `--appServiceUrl` won't respond to requests until
+                // `mainPromise` resolves which requires `EdgeService` to be ready.
                 waitForHttpServerPath: "/api/time",
             },
             args: [
@@ -459,7 +460,8 @@ async function createArtifacts() {
             ports: {
                 publicPort: resourcesDevPort,
                 privatePort: resourcesPrivatePort,
-                // Using dedicated healthcheck path for standardization and because some services (like EdgeService) forward requests on "/" to other services
+                // Using dedicated healthcheck path for standardization and because some services
+                // (like EdgeService) forward requests on "/" to other services
                 waitForHttpServerPath: "/healthcheck",
             },
             args: [
@@ -490,8 +492,8 @@ async function createArtifacts() {
             ports: {
                 publicPort: taskRealtimeDevPort,
                 privatePort: taskRealtimePrivatePort,
-                // In production we have an HTTP server for each CPU on the machine. In
-                // development we only have one HTTP server.
+                // In production we have an HTTP server for each CPU on the machine. In development
+                // we only have one HTTP server.
                 privatePortArg: "portBase",
             },
             args: [
@@ -510,7 +512,8 @@ async function createArtifacts() {
                 `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
@@ -538,7 +541,8 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
@@ -585,7 +589,8 @@ async function createArtifacts() {
                 `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
@@ -623,7 +628,8 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
@@ -667,8 +673,8 @@ async function createArtifacts() {
     return artifacts;
 }
 
-// `null` entries are paths that are definitely not packages. Entries that
-// don't exist in the map we don't know whether they are a package or not.
+// `null` entries are paths that are definitely not packages. Entries that don't
+// exist in the map we don't know whether they are a package or not.
 const bazelPackageByPath = new Map<string, BazelPackage | null>();
 
 const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<string>>();
@@ -713,8 +719,8 @@ const fastSetupPromise = runAllPromises([
         });
     }),
     bazelDevServerPromise,
-    // Cleanup `FileProcessorService`'s temporary directory whenever our dev
-    // process manager restarts to make sure we start from a clean slate.
+    // Cleanup `FileProcessorService`'s temporary directory whenever our dev process
+    // manager restarts to make sure we start from a clean slate.
     //
     // Ignore error if the directory doesn't exist.
     fs.rm(fileProcessorServiceTemporaryDirectoryPath, {recursive: true}).catch(error => {
@@ -723,14 +729,13 @@ const fastSetupPromise = runAllPromises([
     }),
 ]);
 
-// Don't wait for these promises to resolve before printing that our
-// developer environment is ready since it may take a while for these
-// promises to resolve.
+// Don't wait for these promises to resolve before printing that our developer
+// environment is ready since it may take a while for these promises to resolve.
 //
-// Consider showing a loading spinner or progress indicator. The developer
-// can start using their dev environment even while these services haven't
-// started yet! So maybe a spinner is actually a bad idea since the developer
-// may think they must wait.
+// Consider showing a loading spinner or progress indicator. The developer can
+// start using their dev environment even while these services haven't started yet!
+// So maybe a spinner is actually a bad idea since the developer may think they
+// must wait.
 const slowSetupPromise = runAllPromises([
     startOpensearchLocal({
         configPath: opensearchLocalConfigPath,
@@ -846,8 +851,8 @@ async function rebuildArtifact(artifact: Artifact) {
                     }
                 });
 
-                // We don't wait for the old process to die. Immediately start sending traffic
-                // to the new process.
+                // We don't wait for the old process to die. Immediately start sending traffic to
+                // the new process.
                 artifactServer.subprocess.kill("SIGINT");
             }
 
@@ -855,9 +860,9 @@ async function rebuildArtifact(artifact: Artifact) {
         };
 
         const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget, {
-            // Stop the artifact server at the start of our Bazel build. That way services
-            // like `app_wrapper.sh` which watch for file changes (via Vite) won't see file
-            // changes from this build.
+            // Stop the artifact server at the start of our Bazel build. That way services like
+            // `app_wrapper.sh` which watch for file changes (via Vite) won't see file changes
+            // from this build.
             //
             // Our HTTP servers implement graceful shutdown routines. So they'll stay alive
             // until all HTTP connections finish.
@@ -870,12 +875,12 @@ async function rebuildArtifact(artifact: Artifact) {
         // In case `onBuildStart` didn't run, make sure our artifact server is stopped.
         await stopArtifactServer({buildId});
 
-        // If we didn't stop our old artifact server, we shouldn't start an new
-        // artifact server.
+        // If we didn't stop our old artifact server, we shouldn't start an new artifact
+        // server.
         if (preventStartArtifactServer) return;
 
-        // If the artifact server failed to build we kill the old artifact server and
-        // wait for a successful build.
+        // If the artifact server failed to build we kill the old artifact server and wait
+        // for a successful build.
         if (hasBuildFailed) {
             artifactServerRef.current = {
                 buildId,
@@ -926,14 +931,14 @@ async function rebuildArtifact(artifact: Artifact) {
                       artifact.ports.privatePort,
                       artifact.ports.waitForHttpServerPath,
                   ).catch(() => {
-                      // Don't log an error. If a server never starts, the user will see a 504
-                      // gateway timeout when they try to access the artifact's URL.
+                      // Don't log an error. If a server never starts, the user will see a 504 gateway
+                      // timeout when they try to access the artifact's URL.
                   }),
               )
             : PromiseImmediate.resolve();
 
-        // Make sure to assign this before our `await` below which may throw if the
-        // process exists.
+        // Make sure to assign this before our `await` below which may throw if the process
+        // exists.
         artifactServerRef.current = {
             buildId,
             hasBuildFailed,
@@ -946,11 +951,11 @@ async function rebuildArtifact(artifact: Artifact) {
                 Promise.race([
                     httpServerStartPromise,
 
-                    // If the process exits immediately after starting then immediately free the
-                    // mutex instead of continuing to wait for the HTTP server to start.
+                    // If the process exits immediately after starting then immediately free the mutex
+                    // instead of continuing to wait for the HTTP server to start.
                     waitForProcessExit(subprocess).catch(() => {
-                        // Don't log an error. If the process exits, the developer will see when they
-                        // try to access the artifact's  URL.
+                        // Don't log an error. If the process exits, the developer will see when they try
+                        // to access the artifact's URL.
                     }),
                 ]),
             ),
@@ -1000,8 +1005,8 @@ function getBazelPackageByRelativeDirectoryPath(path: string): BazelPackage {
     const parentPath = dirname(path);
 
     // We've reached the root directory and there is no package. Stop recursing. In
-    // practice we should never hit this since there is a `BUILD` file at the root
-    // of our repository.
+    // practice we should never hit this since there is a `BUILD` file at the root of
+    // our repository.
     assert(path !== parentPath);
 
     return getBazelPackageByRelativeDirectoryPath(parentPath);
@@ -1016,8 +1021,7 @@ function getBazelPackageByRelativeDirectoryPathWithoutTraversing(
         // Only directories are allowed in `bazelPackageByPath`.
         assert(fs.statSync(absolutePath).isDirectory());
 
-        // We use synchronous file system functions to avoid race conditions with
-        // chokidar.
+        // We use synchronous file system functions to avoid race conditions with chokidar.
         const isBazelPackage =
             fs.pathExistsSync(joinPath(absolutePath, "BUILD.bazel")) ||
             fs.pathExistsSync(joinPath(absolutePath, "BUILD"));
@@ -1049,8 +1053,8 @@ function getBazelPackageByBazelTarget(bazelTarget: string): BazelPackage {
  * provided target. Pauses file update events while processing to avoid race
  * conditions.
  *
- * If we've already populated `dependentArtifactByBazelTarget` for this target
- * then we remove any old dependencies which are no longer needed.
+ * If we've already populated `dependentArtifactByBazelTarget` for this target then
+ * we remove any old dependencies which are no longer needed.
  */
 function updateArtifactDependencyBazelPackagePaths(artifact: Artifact) {
     return pauseFileUpdates(async () => {
@@ -1140,8 +1144,8 @@ let scheduledProcessFileUpdatePaths: Set<string> | null = null;
 /**
  * Whenever a file updates, rebuild any packages that depend on the file.
  *
- * We only keep track of package dependencies, not individual file
- * dependencies, so that if a file is added we don't need to re-query Bazel.
+ * We only keep track of package dependencies, not individual file dependencies, so
+ * that if a file is added we don't need to re-query Bazel.
  */
 function processFileUpdate(path: string) {
     if (fileUpdateQueue) {
@@ -1184,9 +1188,9 @@ function actuallyProcessFileUpdates(paths: Set<string>) {
             return filterMapIterable(
                 pathBazelPackage.dependentArtifactByBazelTarget,
                 ([bazelTarget, artifact]) => {
-                    // If our artifact has configured `serverRestartPaths` then if a file is updated
-                    // in the artifact's package only a change to a path in `serverRestartPaths`
-                    // will cause a rebuild.
+                    // If our artifact has configured `serverRestartPaths` then if a file is updated in
+                    // the artifact's package only a change to a path in `serverRestartPaths` will
+                    // cause a rebuild.
                     if (artifact.serverRestartPaths) {
                         const artifactBazelPackage = getBazelPackageByBazelTarget(bazelTarget);
 

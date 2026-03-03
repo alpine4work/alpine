@@ -4,24 +4,22 @@ import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
- * Procedure to help us find the index of a task in a grid view based on the
- * grid view's state so we can scroll to it.
+ * Procedure to help us find the index of a task in a grid view based on the grid
+ * view's state so we can scroll to it.
  *
- * We're looking for the provided `TaskId` in the grid view's state. A `TaskId`
- * may appear multiple times in a grid view. We will return the first index the
- * task appears (if it appears at all) unless `scopeRootTaskId` is provided. In
- * that case if we find the `TaskId` as a child of `scopeRootTaskId` then we'll
- * return that index, ignoring the others.
+ * We're looking for the provided `TaskId` in the grid view's state. A `TaskId` may
+ * appear multiple times in a grid view. We will return the first index the task
+ * appears (if it appears at all) unless `scopeRootTaskId` is provided. In that
+ * case if we find the `TaskId` as a child of `scopeRootTaskId` then we'll return
+ * that index, ignoring the others.
  *
  * You need to provide `iterateRootExpandedTaskIds()` from
- * `useTaskGridViewExpansionState()`. We use this method to discover expanded
- * tasks efficiently instead of inefficiently iterating over every item in
- * state.
+ * `useTaskGridViewExpansionState()`. We use this method to discover expanded tasks
+ * efficiently instead of inefficiently iterating over every item in state.
  *
  * If there are no expanded tasks this function is O(1). Otherwise it's
- * O(expandedTaskCount). We check if the task is a member of our root query in
- * O(1) time then we need to iterate over expanded tasks to find our other
- * indexes.
+ * O(expandedTaskCount). We check if the task is a member of our root query in O(1)
+ * time then we need to iterate over expanded tasks to find our other indexes.
  */
 export function findTaskIndexInGridViewVirtualizedListIfExists({
     state,
@@ -40,8 +38,8 @@ export function findTaskIndexInGridViewVirtualizedListIfExists({
     const itemCount = state.getItemCount();
     const indexes: Array<number> = [];
 
-    // 1. Check whether the target task is in our root query. If it is, great!
-    //    Return that index.
+    // 1. Check whether the target task is in our root query. If it is, great! Return
+    //    that index.
     const rootTargetTask = rootQuery
         .getLoadedTaskEntryStoreIfExists(targetTaskId)
         ?.getSnapshot().task;
@@ -63,9 +61,8 @@ export function findTaskIndexInGridViewVirtualizedListIfExists({
         }
     }
 
-    // 2. Loop through all our root-level expanded tasks. Then recursively loop
-    //    through the child tasks of those expanded tasks looking for our target
-    //    task.
+    // 2. Loop through all our root-level expanded tasks. Then recursively loop through
+    //    the child tasks of those expanded tasks looking for our target task.
     for (const rootExpandedTaskId of iterateRootExpandedTaskIds()) {
         // If our target task is in the root query then we already found it in our code
         // branch above.
@@ -106,8 +103,8 @@ export function findTaskIndexInGridViewVirtualizedListIfExists({
 
                 indexes.push(targetIndex);
 
-                // If we find the task, we know it can't appear twice in an expanded task tree
-                // so we can break out of our loop early.
+                // If we find the task, we know it can't appear twice in an expanded task tree so
+                // we can break out of our loop early.
                 break;
             }
 
@@ -115,8 +112,8 @@ export function findTaskIndexInGridViewVirtualizedListIfExists({
         }
     }
 
-    // Sort the indexes we found and pick the first one. If `scopeTaskKey` was
-    // provided then we try to return the index within that scope.
+    // Sort the indexes we found and pick the first one. If `scopeTaskKey` was provided
+    // then we try to return the index within that scope.
     indexes.sort();
     return indexes[0] ?? null;
 }

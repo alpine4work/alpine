@@ -25,9 +25,8 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
     TaskRealtimeTaskReferencesSubscriptionCallbacks & {
         /**
          * An unexpected internal server error has occurred which has caused the
-         * subscription to disconnect. The subscription will receive no more events
-         * after this. Subscribers should present an error to users or attempt to
-         * reconnect.
+         * subscription to disconnect. The subscription will receive no more events after
+         * this. Subscribers should present an error to users or attempt to reconnect.
          */
         onFatalError(context: TaskRealtimeProcessContext, error: InternalError): void;
 
@@ -54,8 +53,8 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
         ): void;
 
         /**
-         * When we have unsubscribed from a task, this function is called so the
-         * subscriber can cleanup any references to the task.
+         * When we have unsubscribed from a task, this function is called so the subscriber
+         * can cleanup any references to the task.
          */
         onTaskUnsubscribe(
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
@@ -119,16 +118,15 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
 
     /**
      * Unsubscribe from the task. Will call the callbacks `onTaskUnsubscribe`,
-     * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks
-     * and collections that appeared in our query.
+     * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks and
+     * collections that appeared in our query.
      */
     public unsubscribe(context: Context<{process: ProcessContextModule}>) {
         assert(this._isSubscribed);
         this._isSubscribed = false;
         this.taskEntry.removeTaskSubscriptionDependent(this);
 
-        // We construct an event builder just so we can wait out `waitUntil()`
-        // promises.
+        // We construct an event builder just so we can wait out `waitUntil()` promises.
         const eventBuilder = new TaskRealtimeUnsubscribeUpdateEventBuilder(
             this.taskEntry.store.spaceId,
         );

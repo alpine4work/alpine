@@ -33,13 +33,13 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
 
 /**
  * Dispatch an event to any listeners attached to this element with
- * `addParentScrollWhenPointerDownAndOverListener()`. This event is dispatched
- * if the user's pointer is down and then a scroll occurs. This happens on
- * mobile when the user touches down then drags. We want to cancel any touch
- * behavior at this point and instead let the user scroll.
+ * `addParentScrollWhenPointerDownAndOverListener()`. This event is dispatched if
+ * the user's pointer is down and then a scroll occurs. This happens on mobile when
+ * the user touches down then drags. We want to cancel any touch behavior at this
+ * point and instead let the user scroll.
  *
- * For the element to receive these events it must have one of the class names
- * in `parentScrollWhenPointerDownAndOverClassNames`.
+ * For the element to receive these events it must have one of the class names in
+ * `parentScrollWhenPointerDownAndOverClassNames`.
  */
 export function dispatchParentScrollWhenPointerDownAndOverEvent(element: Element) {
     parentScrollWhenPointerDownAndOverEventEmitterByElement?.get(element)?.emit();

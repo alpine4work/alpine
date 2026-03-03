@@ -123,12 +123,12 @@ const fileProcessorDevPort = assertPort(env.FILE_PROCESSOR_DEV_PORT);
 const taskRealtimeServiceLocalPort = assertPort(env.TASK_REALTIME_DEV_PORT);
 
 /**
- * Create a context for our development environment. This depends on the
- * dev command running and our local services (e.g. DynamoDB, OpenSearch, etc.)
- * being available.
+ * Create a context for our development environment. This depends on the dev
+ * command running and our local services (e.g. DynamoDB, OpenSearch, etc.) being
+ * available.
  *
- * The context type is `TestContext` which has just about everything you'd want
- * and lets you use our test helpers like `TestDocument` with the context.
+ * The context type is `TestContext` which has just about everything you'd want and
+ * lets you use our test helpers like `TestDocument` with the context.
  */
 export async function withDevelopmentEnvironment<Value>(
     action: (
@@ -233,7 +233,8 @@ export async function withDevelopmentEnvironment<Value>(
             new JobSender({
                 region: "us-east-1",
                 queueUrl: `http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 fileProcessorQueueUrl: `http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 fileProcessorLightQueueUrl: `http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 fileProcessorHeavyQueueUrl: `http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
@@ -402,8 +403,8 @@ export async function withDevelopmentEnvironment<Value>(
     const valueResult = await captureResultPromise(() => action(context, {tokenAgent}));
 
     try {
-        // Wait for all `waitUntil()` promises to resolve before destroying the context
-        // and returning (even if there was an error).
+        // Wait for all `waitUntil()` promises to resolve before destroying the context and
+        // returning (even if there was an error).
         await promiseWaiter.wait();
     } catch (error) {
         // If `promiseWaiter` threw AND `action()` threw then create an aggregate error

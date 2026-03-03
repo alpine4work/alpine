@@ -17,8 +17,8 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-// Use the Node.js implementation of `fs` that doesn't include the `rules_js`
-// `fs` patch.
+// Use the Node.js implementation of `fs` that doesn't include the `rules_js` `fs`
+// patch.
 const unpatchedFs: typeof patchedFs = (patchedFs as any)._unpatched ?? patchedFs;
 
 const javaBasePathPromise = new Lazy(async () => {
@@ -40,8 +40,8 @@ export type OpensearchLocal = {
 };
 
 /**
- * Start running a [local OpenSearch][1] process with the database persisted to
- * the provided path and listening on the provided port.
+ * Start running a [local OpenSearch][1] process with the database persisted to the
+ * provided path and listening on the provided port.
  *
  * [1]: https://opensearch.org/
  */
@@ -63,9 +63,9 @@ export async function startOpensearchLocal({
         .slice(0, 32);
 
     // It's ok if the path of our OpenSearch runfiles directory changes. This could
-    // happen if the `cyberworlds` directory itself moves on the developer's
-    // machine. Add a hash of the OpenSearch runfiles directory to `homePath` so
-    // `cyberworlds` repositories running from different paths don't conflict.
+    // happen if the `cyberworlds` directory itself moves on the developer's machine.
+    // Add a hash of the OpenSearch runfiles directory to `homePath` so `cyberworlds`
+    // repositories running from different paths don't conflict.
     homePath = joinPath(homePath, opensearchLocalHomeHash);
 
     const [javaBasePath, transportPort] = await runAllPromises([
@@ -78,23 +78,23 @@ export async function startOpensearchLocal({
 
     const hash = murmurhash.v3(dataPath).toString(16).padStart(8, "0");
 
-    // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but
-    // you can bind to IPv6 localhost. See:
+    // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but you
+    // can bind to IPv6 localhost. See:
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
     const host = process.platform === "darwin" ? "[::1]" : "localhost";
 
-    // Symlink all files in the actual OpenSearch home directory to a new,
-    // writable home directory.
+    // Symlink all files in the actual OpenSearch home directory to a new, writable
+    // home directory.
     //
-    // We need to set OpenSearch's home directory to a path in a writable
-    // directory. Since OpenSearch writes some files (e.g. a [temporary keystore
-    // file][1]) to its home directory on startup. We should not be writing to
-    // Bazel's runfiles directory. Only Bazel should write there. When running
-    // tests on our CI Linux server the OS will successfully block all attempts
-    // at writing to Bazel's runfiles directory. Which prevents OpenSearch tests
-    // from starting.
+    // We need to set OpenSearch's home directory to a path in a writable directory.
+    // Since OpenSearch writes some files (e.g. a [temporary keystore file][1]) to its
+    // home directory on startup. We should not be writing to Bazel's runfiles
+    // directory. Only Bazel should write there. When running tests on our CI Linux
+    // server the OS will successfully block all attempts at writing to Bazel's
+    // runfiles directory. Which prevents OpenSearch tests from starting.
     //
-    // [1]: https://github.com/opensearch-project/OpenSearch/blob/59302a3d5ea255be7f2bb72187b8df1f0aa33572/server/src/main/java/org/opensearch/bootstrap/Bootstrap.java#L275-L277
+    // [1]:
+    //     https://github.com/opensearch-project/OpenSearch/blob/59302a3d5ea255be7f2bb72187b8df1f0aa33572/server/src/main/java/org/opensearch/bootstrap/Bootstrap.java#L275-L277
     await symlinkHome(opensearchLocalHomePath, homePath);
 
     async function symlinkHome(actualHomePath: string, newHomePath: string) {
@@ -119,8 +119,8 @@ export async function startOpensearchLocal({
                     try {
                         await fs.symlink(actualHomeChildPath, newHomeChildPath, "file");
                     } catch (error) {
-                        // If the symlink file already exists and is linked to the right place, then we
-                        // can ignore this error. Everything's all right.
+                        // If the symlink file already exists and is linked to the right place, then we can
+                        // ignore this error. Everything's all right.
                         if (isObject(error) && error.code === "EEXIST") {
                             const currentHomeChildPath =
                                 await unpatchedFs.readlink(newHomeChildPath);
@@ -154,8 +154,9 @@ Expected path: ${actualHomeChildPath}
     );
 
     // If we're in `${bazelOutputBase}/execroot/cyberworlds/external/opensearch_local`
-    // we want to change our resolved path to `${bazelOutputBase}/external/opensearch_local`
-    // which is where the `.jar` files OpenSearch needs to read actually live.
+    // we want to change our resolved path to
+    // `${bazelOutputBase}/external/opensearch_local` which is where the `.jar` files
+    // OpenSearch needs to read actually live.
     const resolvedHomePathParts = resolvedHomePath.split("/");
     if (resolvedHomePathParts[resolvedHomePathParts.length - 4] === "execroot") {
         resolvedHomePathParts.splice(resolvedHomePathParts.length - 4, 2);
@@ -165,14 +166,15 @@ Expected path: ${actualHomeChildPath}
     /* eslint-disable cyberworlds/string-quotes */
 
     // Includes the permissions OpenSearch needs to bootstrap. Once OpenSearch has
-    // bootstrapped it'll extend this security policy with its own
-    // `security.policy` file ([source][1]) and `plugin-security.policy` files
-    // ([example][2]).
+    // bootstrapped it'll extend this security policy with its own `security.policy`
+    // file ([source][1]) and `plugin-security.policy` files ([example][2]).
     //
     // The `java.io.FilePermission` line is the critical line we need to add.
     //
-    // [1]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/server/src/main/resources/org/opensearch/bootstrap/security.policy
-    // [2]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/modules/reindex/src/main/plugin-metadata/plugin-security.policy
+    // [1]:
+    //     https://github.com/opensearch-project/OpenSearch/blob/2.11.0/server/src/main/resources/org/opensearch/bootstrap/security.policy
+    // [2]:
+    //     https://github.com/opensearch-project/OpenSearch/blob/2.11.0/modules/reindex/src/main/plugin-metadata/plugin-security.policy
     await fs.writeFile(
         securityPolicyPath,
         `\
@@ -202,9 +204,9 @@ grant {
             `-Etransport.port=${transportPort}`,
             `-Epath.data=${dataPath}`,
             `-Epath.logs=${logsPath}`,
-            // When running in tests, we'll be starting many OpenSearch nodes. Limit the
-            // CPU processors OpenSearch can use. To reserve these processors on the Bazel
-            // side (optional) you can set `tags = ["cpu:2"]`. See:
+            // When running in tests, we'll be starting many OpenSearch nodes. Limit the CPU
+            // processors OpenSearch can use. To reserve these processors on the Bazel side
+            // (optional) you can set `tags = ["cpu:2"]`. See:
             // https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-threadpool.html
             ...(process.env.NODE_ENV === "test" ? ["-Enode.processors=2"] : []),
         ],
@@ -231,11 +233,11 @@ grant {
                     // help us debug issues with the JNA load which caused problems in the past.
                     "-Djna.nosys=true -Djna.debug_load=true -Djna.debug_load.jna=true",
                     // NOTE(calebmer, 2024-07-30): We need to include a custom [Java security
-                    // policy][1] to allow OpenSearch to read the original
-                    // `external/opensearch_local` directory when it follows symlinks created by
-                    // `symlinkHome()`.
+                    // policy][1] to allow OpenSearch to read the original `external/opensearch_local`
+                    // directory when it follows symlinks created by `symlinkHome()`.
                     //
-                    // [1]: https://docs.oracle.com/javase/8/docs/technotes/guides/security/PolicyFiles.html
+                    // [1]:
+                    //     https://docs.oracle.com/javase/8/docs/technotes/guides/security/PolicyFiles.html
                     `-Djava.security.manager -Djava.security.policy=${securityPolicyPath}`,
                 ].join(" "),
 
@@ -283,8 +285,8 @@ grant {
         if (errorPromiseResolver.isSettled()) return;
 
         const stderrMessage =
-            // stdout/stderr is not included in production since it may have sensitive
-            // data. This is the same error message used by `runProcess()`.
+            // stdout/stderr is not included in production since it may have sensitive data.
+            // This is the same error message used by `runProcess()`.
             process.env.NODE_ENV === "production"
                 ? ""
                 : ` (stdout and stderr included for debugging)\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`;
@@ -326,8 +328,8 @@ grant {
         subprocess.off("exit", handleExit);
         subprocess.off("error", handleError);
 
-        // Once the OpenSearch server starts, we don't care about stdout/stderr
-        // anymore. All logs should go to the logs path.
+        // Once the OpenSearch server starts, we don't care about stdout/stderr anymore.
+        // All logs should go to the logs path.
         subprocess.stdout.off("data", handleStdoutData);
         subprocess.stderr.off("data", handleStderrData);
         stdout = "";

@@ -42,18 +42,18 @@ export function contentEditorSpellCheckerPlugin() {
                     contentEditorSpellCheckerPluginKey,
                 );
                 if (newLints !== undefined) {
-                    // If the user is actively typing and the selection is inside one of the new
-                    // lints then hide that lint until the selection leaves the lint. Since the
-                    // user is actively typing in this range so of course there will be errors.
+                    // If the user is actively typing and the selection is inside one of the new lints
+                    // then hide that lint until the selection leaves the lint. Since the user is
+                    // actively typing in this range so of course there will be errors.
                     //
                     // Some cases to consider. `|` represents the cursor for an empty selection and
                     // `[]` represent the start/end of a non-empty selection:
                     //
                     // - `hello worl|` we want to hide the lint on `worl` since the user is typing
                     // - `hello [worl]` we don't want to hide the lint on `worl`
-                    // - If we've already spellchecked `hello wor` so there's a red squiggly on
-                    //   `wor` and the user then adds an `l` putting us on `hello worl|` we want to
-                    //   keep the red squiggly until the user has a correct word
+                    // - If we've already spellchecked `hello wor` so there's a red squiggly on `wor`
+                    //   and the user then adds an `l` putting us on `hello worl|` we want to keep the
+                    //   red squiggly until the user has a correct word
                     const hideLint = newState.selection.empty
                         ? newLints.find(newLint => {
                               // Ignore empty lint...
@@ -83,8 +83,8 @@ export function contentEditorSpellCheckerPlugin() {
                                           // If old lint intersects with new lint.
                                           //
                                           // The lints must share a single character and not just be touching (why we
-                                          // subtract 1 from `to`). For example if `oldLint` is `[foo]bar` and `newLint`
-                                          // is `foo[bar]` we don't consider those to be intersecting.
+                                          // subtract 1 from `to`). For example if `oldLint` is `[foo]bar` and `newLint` is
+                                          // `foo[bar]` we don't consider those to be intersecting.
                                           areRangesOverlapping(
                                               newLint.from,
                                               newLint.to - 1,
@@ -121,8 +121,8 @@ export function contentEditorSpellCheckerPlugin() {
                                 const from = transaction.mapping.map(lint.from, 1);
                                 const to = transaction.mapping.map(lint.to, -1);
 
-                                // If the lint range is now empty, it's because the content was deleted during
-                                // the lint.
+                                // If the lint range is now empty, it's because the content was deleted during the
+                                // lint.
                                 if (from === to) return;
 
                                 return {
@@ -138,19 +138,19 @@ export function contentEditorSpellCheckerPlugin() {
                     };
                 }
 
-                // If the selection leaves the hidden lint range then clear the hidden lint so
-                // it shows up. We hide the lint under the selection while the user is typing
-                // since of course there will be temporary errors.
+                // If the selection leaves the hidden lint range then clear the hidden lint so it
+                // shows up. We hide the lint under the selection while the user is typing since of
+                // course there will be temporary errors.
                 //
-                // If the doc has changed after we hid the lint then don't clear the lint
-                // until we get new lints! This fixes cases like `Hello|.` when you type space
-                // (`Hello |.`) so you have a lint that there's a space before the period then
-                // when you type `w` (`Hello w|.`) the lint becomes visible because selection
-                // has moved to the right of `w` and isn't covering the lint anymore. So we
-                // keep the lint hidden after the document changes until a new lint runs, the
-                // new spell check will either still have the lint (in which case it'll appear
-                // for the user) or the lint was fixed in the new spell check run (in which
-                // case the lint will never have been visible to the user).
+                // If the doc has changed after we hid the lint then don't clear the lint until we
+                // get new lints! This fixes cases like `Hello|.` when you type space (`Hello |.`)
+                // so you have a lint that there's a space before the period then when you type `w`
+                // (`Hello w|.`) the lint becomes visible because selection has moved to the right
+                // of `w` and isn't covering the lint anymore. So we keep the lint hidden after the
+                // document changes until a new lint runs, the new spell check will either still
+                // have the lint (in which case it'll appear for the user) or the lint was fixed in
+                // the new spell check run (in which case the lint will never have been visible to
+                // the user).
                 if (pluginState.hideLintUntilSelectionLeaves?.hasDocChanged === false) {
                     const lint = pluginState.lints.find(
                         lint => lint.key === pluginState.hideLintUntilSelectionLeaves!.key,
@@ -239,8 +239,8 @@ export function contentEditorSpellCheckerPlugin() {
                                                 assert(textblockElement instanceof HTMLElement);
 
                                                 // In development environments, make sure our textblock element has
-                                                // `position: relative` otherwise our `position: absolute` spellcheck lints
-                                                // won't be positioned properly.
+                                                // `position: relative` otherwise our `position: absolute` spellcheck lints won't
+                                                // be positioned properly.
                                                 if (process.env.NODE_ENV === "development") {
                                                     assert(
                                                         getComputedStyle(textblockElement)
@@ -260,8 +260,7 @@ export function contentEditorSpellCheckerPlugin() {
                                                 range.setStart(fromDom.node, fromDom.offset);
                                                 range.setEnd(toDom.node, toDom.offset);
 
-                                                // TODO(#spell-check)
-                                                // Positions when a mention has text BEFORE it are not right
+                                                // TODO(#spell-check) Positions when a mention has text BEFORE it are not right
                                                 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/a2rt03qqb7ncn7ca7d456aqfb0
                                                 const rangeRects = range.getClientRects();
 
@@ -293,10 +292,10 @@ export function contentEditorSpellCheckerPlugin() {
                                                         rangeRect.left - textblockRect.left
                                                     }px`;
 
-                                                    // Perfectly align the squiggle inside the selection box. First we position
-                                                    // based on the text box (which is different from how Chrome renders
-                                                    // selections) then adjust so the bottom of our squiggle is up against the
-                                                    // bottom of the selection highlight in Chrome.
+                                                    // Perfectly align the squiggle inside the selection box. First we position based
+                                                    // on the text box (which is different from how Chrome renders selections) then
+                                                    // adjust so the bottom of our squiggle is up against the bottom of the selection
+                                                    // highlight in Chrome.
                                                     const top =
                                                         rangeRect.bottom - textblockRect.top;
                                                     rectElement.style.top = `calc(${top}px + ${contentStyles.inlineBackgroundPadding.bottom} - ${contentStyles.spellCheckSquiggleHeightRem}rem)`;
@@ -314,8 +313,8 @@ export function contentEditorSpellCheckerPlugin() {
                                                 return element;
                                             },
                                         ),
-                                    // Ensure the widget is placed "before" the cursor position
-                                    // so typing works at the end of content after a mention.
+                                    // Ensure the widget is placed "before" the cursor position so typing works at the
+                                    // end of content after a mention.
                                     {side: -1},
                                 ),
                             );

@@ -72,25 +72,25 @@ export class LoaderContextModule extends ContextModuleBase {
     public readonly cookieNameSuffix: string;
 
     /**
-     * Manipulate the HTTP session cookie. Important to remember that the client
-     * may authenticate with an `Authorization` header instead of a session cookie!
-     * In this case the session cookie will be null.
+     * Manipulate the HTTP session cookie. Important to remember that the client may
+     * authenticate with an `Authorization` header instead of a session cookie! In this
+     * case the session cookie will be null.
      */
     public readonly sessionCookie: SessionCookie;
 
     /**
-     * Defines the Agent Service URL which is where we host our AI agents. This
-     * isn't currently available in integration tests.
+     * Defines the Agent Service URL which is where we host our AI agents. This isn't
+     * currently available in integration tests.
      */
     public readonly agentServiceUrl: string | null;
 
     /**
-     * The VAPID public key for the app service. We use this to subscribe to web push notifications.
+     * The VAPID public key for the app service. We use this to subscribe to web push
+     * notifications.
      */
     public readonly webPushVapidPublicKey: string;
 
-    // Context modules can't directly mutate `this` so we need an
-    // intermediate object.
+    // Context modules can't directly mutate `this` so we need an intermediate object.
     private readonly _state: {
         parsedCookieHeader: {[key: string]: string | undefined} | null;
         browserId: BrowserId | null;
@@ -161,8 +161,8 @@ export class LoaderContextModule extends ContextModuleBase {
     }
 
     /**
-     * We store a persistent identifier for the user's web browser in a cookie.
-     * This way we can associate state and analytics with that browser.
+     * We store a persistent identifier for the user's web browser in a cookie. This
+     * way we can associate state and analytics with that browser.
      *
      * This function gets that identifier and generates a new one if the identifier
      * doesn't already exist.
@@ -182,10 +182,9 @@ export class LoaderContextModule extends ContextModuleBase {
                 const date = datePart ? parseISO(datePart) : null;
                 if (browserIdPart && isId<BrowserId>(browserIdPart) && date && isValidDate(date)) {
                     browserId = browserIdPart;
-                    // Reset the `BrowserId` cookie every 10 days. Chrome doesn't let cookies live
-                    // for longer than 400 days in the future. As long as the user is actively
-                    // using our service we want to make sure their `BrowserId` cookie is
-                    // maintained.
+                    // Reset the `BrowserId` cookie every 10 days. Chrome doesn't let cookies live for
+                    // longer than 400 days in the future. As long as the user is actively using our
+                    // service we want to make sure their `BrowserId` cookie is maintained.
                     shouldSetBrowserIdCookie = differenceInDays(new Date(), date) >= 10;
                 } else {
                     browserId = generateId();
@@ -202,8 +201,8 @@ export class LoaderContextModule extends ContextModuleBase {
                             `browser${this.cookieNameSuffix}`,
                             `${browserId}@${new Date().toISOString()}`,
                             {
-                                // The session cookie domain is not set in development because we may be
-                                // accessing from a proxied domain or an IP address on a mobile device.
+                                // The session cookie domain is not set in development because we may be accessing
+                                // from a proxied domain or an IP address on a mobile device.
                                 domain:
                                     process.env.NODE_ENV === "production"
                                         ? "alpine.inc"
@@ -227,10 +226,10 @@ export class LoaderContextModule extends ContextModuleBase {
     }
 
     /**
-     * Information about the client available on the server. For example client
-     * screen size and client locale. On our first request we will guess client
-     * info from the user agent. When the client loads it will write its actual
-     * information to a cookie.
+     * Information about the client available on the server. For example client screen
+     * size and client locale. On our first request we will guess client info from the
+     * user agent. When the client loads it will write its actual information to a
+     * cookie.
      */
     public getClientInfo(): ClientInfo {
         if (!this._state.clientInfo) {
@@ -249,8 +248,7 @@ export class LoaderContextModule extends ContextModuleBase {
                     rawClientInfo.isAppleDevice ??= isAppleDeviceUserAgent(userAgentHeader);
 
                     // NOTE(calebmer, 2023-10-22): Client info cookies before this date won't have
-                    // `renderingEngine`. Add it with a default value based on the `User-Agent`
-                    // header.
+                    // `renderingEngine`. Add it with a default value based on the `User-Agent` header.
                     rawClientInfo.renderingEngine ??=
                         getRenderingEngineFromUserAgent(userAgentHeader);
 
@@ -261,29 +259,29 @@ export class LoaderContextModule extends ContextModuleBase {
             }
 
             if (!clientInfo) {
-                // Device detection with user-agent parsing is generally bad and should be
-                // avoided. However, in the case where we don't yet have a client info cookie
-                // we use the user agent as a hint to determine what our default when
-                // server-side rendering should be. We have logic on the client to heal the
-                // cookie if we guess wrong. The user will see a quick flash of content but
-                // that's all.
+                // Device detection with user-agent parsing is generally bad and should be avoided.
+                // However, in the case where we don't yet have a client info cookie we use the
+                // user agent as a hint to determine what our default when server-side rendering
+                // should be. We have logic on the client to heal the cookie if we guess wrong. The
+                // user will see a quick flash of content but that's all.
                 //
-                // [MDN recommends testing for the string "Mobi" to tell if we are on a
-                // mobile device][1].
+                // [MDN recommends testing for the string "Mobi" to tell if we are on a mobile
+                // device][1].
                 //
                 // This should also pass if the string `CyberworldsNativeMobileIos` or
-                // `CyberworldsNativeMobileAndroid` is included. Which represents a request
-                // from our native iOS app. (Both strings contain "Mobi".)
+                // `CyberworldsNativeMobileAndroid` is included. Which represents a request from
+                // our native iOS app. (Both strings contain "Mobi".)
                 //
-                // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+                // [1]:
+                //     https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
                 if (/Mobi/i.test(userAgentHeader)) {
                     clientInfo = defaultMobileClientInfo;
                 } else {
                     clientInfo = defaultClientInfo;
                 }
 
-                // Update the default `clientInfo` with `isAppleDevice` based on the
-                // `User-Agent` header.
+                // Update the default `clientInfo` with `isAppleDevice` based on the `User-Agent`
+                // header.
                 clientInfo = {
                     ...clientInfo,
                     renderingEngine: getRenderingEngineFromUserAgent(userAgentHeader),
@@ -291,8 +289,8 @@ export class LoaderContextModule extends ContextModuleBase {
                 };
             }
 
-            // We can safely look for `CyberworldsNativeMobile` in the user agent since
-            // it's a unique string that should only be used by our native app shells.
+            // We can safely look for `CyberworldsNativeMobile` in the user agent since it's a
+            // unique string that should only be used by our native app shells.
             if (/CyberworldsNativeMobile/.test(userAgentHeader) && !clientInfo.isNativeMobile) {
                 clientInfo = {
                     ...clientInfo,
@@ -307,8 +305,8 @@ export class LoaderContextModule extends ContextModuleBase {
     }
 
     /**
-     * Get the initial time we use when server rendering our app. We'll update the
-     * time on the client as time passes.
+     * Get the initial time we use when server rendering our app. We'll update the time
+     * on the client as time passes.
      */
     public getInitialTime() {
         return (this._state.initialTime ??= new Date());

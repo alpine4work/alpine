@@ -1,8 +1,8 @@
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * Keys in the event object's `context` object we want to move into
- * `context.peek` with an "above" prefix.
+ * Keys in the event object's `context` object we want to move into `context.peek`
+ * with an "above" prefix.
  */
 export type TracerEventDataContextPeekMoveIntoAboveKey = StripAbovePrefix<
     keyof NonNullable<NonNullable<TracerEventData["context"]>["peek"]>

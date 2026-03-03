@@ -23,8 +23,8 @@ import {
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-// This file is used both by `EdgeService` and in tests. So we don't want to
-// depend on anything `EdgeService` specific here.
+// This file is used both by `EdgeService` and in tests. So we don't want to depend
+// on anything `EdgeService` specific here.
 export async function uploadFile(
     createContext: (payload: SessionTokenPayload) => Context<{rpc: RpcContextModuleBase}>,
     executionContext: {},
@@ -47,10 +47,10 @@ export async function uploadFile(
         });
         const context = createContext(sessionCookieToken);
 
-        // If the client sends more bytes than what they declared in `Content-Length`
-        // then Cloudflare will truncate the data to `Content-Length` bytes. This
-        // behavior from Cloudflare is important to make sure attackers can't upload
-        // files bigger than 1 GB.
+        // If the client sends more bytes than what they declared in `Content-Length` then
+        // Cloudflare will truncate the data to `Content-Length` bytes. This behavior from
+        // Cloudflare is important to make sure attackers can't upload files bigger than 1
+        // GB.
         if (contentLength > maxFileContentLength) {
             throw new InvalidArgumentError(
                 `\`Content-Length\` of ${prettyBytes(

@@ -23,8 +23,8 @@ import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
  * The identifier of an entity in our search system. Search entities are a
- * consistent format we convert all content in our system to for presentation
- * in search.
+ * consistent format we convert all content in our system to for presentation in
+ * search.
  */
 export type SearchEntityId = {
     [Key in keyof SearchEntityIdAxes]: SearchEntityIdAxes[Key][keyof SearchEntityIdAxes[Key]];
@@ -83,10 +83,10 @@ type SearchEntityByAffinityOrNotAffinityAxis = {
 }[keyof SearchEntityIdAxes];
 
 /**
- * Search entities that are indexed in OpenSearch. Not all entities are indexed
- * in OpenSearch. Some entities are statically known and have no variations
- * from space to space. For example the "My tasks" view. We always know the
- * title of this entity is "My tasks".
+ * Search entities that are indexed in OpenSearch. Not all entities are indexed in
+ * OpenSearch. Some entities are statically known and have no variations from space
+ * to space. For example the "My tasks" view. We always know the title of this
+ * entity is "My tasks".
  */
 export type SearchDynamicEntityId = SearchEntityByDynamicOrStaticAxis["Dynamic"];
 
@@ -101,9 +101,8 @@ export const SearchDynamicEntityIdSchema = SearchEntityIdSchema.transform<Search
 });
 
 /**
- * Search entities that are not indexed in OpenSearch. These entities are
- * static and never change. We can search across these entities entirely on the
- * client.
+ * Search entities that are not indexed in OpenSearch. These entities are static
+ * and never change. We can search across these entities entirely on the client.
  */
 export type SearchStaticEntityId = SearchEntityByDynamicOrStaticAxis["Static"];
 
@@ -257,19 +256,19 @@ export function isSearchStaticEntityId(id: SearchEntityId): id is SearchStaticEn
 }
 
 /**
- * Search entities that we record affinity points for. Not every search
- * entity has affinity points. Notably comments and chat messages don't get
- * affinity points. Entities with a long lifespan that the user will likely
- * want to find again get affinity points.
+ * Search entities that we record affinity points for. Not every search entity has
+ * affinity points. Notably comments and chat messages don't get affinity points.
+ * Entities with a long lifespan that the user will likely want to find again get
+ * affinity points.
  *
- * Search affinity entities are also the only entities which can be favorited.
- * The search affinity list is entirely comprised of search affinity entities.
+ * Search affinity entities are also the only entities which can be favorited. The
+ * search affinity list is entirely comprised of search affinity entities.
  *
- * Posts are not given affinity points. Posts are designed to be short lived
- * and probably don't have a lifespan beyond a couple days. Even if a post
- * receives heated conversation. Posts live and die by the inbox. If a post
- * receives new comments, you'll be reminded of it. Otherwise it's ok for posts
- * to fade into obscurity.
+ * Posts are not given affinity points. Posts are designed to be short lived and
+ * probably don't have a lifespan beyond a couple days. Even if a post receives
+ * heated conversation. Posts live and die by the inbox. If a post receives new
+ * comments, you'll be reminded of it. Otherwise it's ok for posts to fade into
+ * obscurity.
  */
 export type SearchAffinityEntityId = SearchEntityByAffinityOrNotAffinityAxis["Affinity"];
 
@@ -318,8 +317,8 @@ assertEqualTypes<
 >();
 
 /**
- * Search entities which can be @ mentioned. Basically entities with a title
- * since that's all that's rendered in the mention.
+ * Search entities which can be @ mentioned. Basically entities with a title since
+ * that's all that's rendered in the mention.
  */
 export type SearchMentionEntityId =
     | `Document:${DocumentId}`

@@ -88,8 +88,8 @@ export function renderContentFileDocumentEntityPreview(
         withoutContainerPaddingY: true,
         transformScaleBaseFontSize: "75",
         scaledContainerStyles: [
-            // Document title top margin is computed using safe area inset. So zero out
-            // safe area inset which shouldn't apply here.
+            // Document title top margin is computed using safe area inset. So zero out safe
+            // area inset which shouldn't apply here.
             "--safe-area-inset-top-base: 0px",
             "--safe-area-inset-top: 0px",
         ],

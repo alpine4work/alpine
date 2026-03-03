@@ -124,8 +124,8 @@ export default implementRpcs(definitions, {
     },
 
     convertDirectChatToRoomChat: {
-        // Must be called from `ChatRealtimeService` which is also responsible for
-        // sending the realtime udpate.
+        // Must be called from `ChatRealtimeService` which is also responsible for sending
+        // the realtime udpate.
         visibility: ["ChatRealtimeService"],
         execute: async (context, input) => {
             const chat = await convertDirectChatToRoomChat(context.actor.authorizeSession(), input);
@@ -134,8 +134,8 @@ export default implementRpcs(definitions, {
     },
 
     updateRoomChatName: {
-        // Must be called from `ChatRealtimeService` which is also responsible for
-        // sending the realtime udpate.
+        // Must be called from `ChatRealtimeService` which is also responsible for sending
+        // the realtime udpate.
         visibility: ["ChatRealtimeService"],
         execute: async (context, input) => {
             const chat = await updateRoomChatName(context.actor.authorizeSession(), input);
@@ -144,8 +144,8 @@ export default implementRpcs(definitions, {
     },
 
     updateRoomChatAccessPolicy: {
-        // Must be called from `ChatRealtimeService` which is also responsible for
-        // sending the realtime udpate.
+        // Must be called from `ChatRealtimeService` which is also responsible for sending
+        // the realtime udpate.
         visibility: ["ChatRealtimeService"],
         execute: async (context, input) => {
             const chat = await updateRoomChatAccessPolicy(context.actor.authorizeSession(), input);

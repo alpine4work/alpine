@@ -38,22 +38,20 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 type LoadAgentMessagesListLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
 
 /**
- * Loads content for a list of message/comments. When paginating through a list of messages,
- * we don't provide links to already-visited pages. This means that the agent can't go backward
- * to a previous page via a `[Previous Page]()` link.
+ * Loads content for a list of message/comments. When paginating through a list of
+ * messages, we don't provide links to already-visited pages. This means that the
+ * agent can't go backward to a previous page via a `[Previous Page]()` link.
  *
- * The *only* time we'll show links to next **and** previous pages is when we're loading
- * the first "chunk" of messages. So if the agent is trying to load the page for a message
- * at index 100, we'll give it links so that it can paginate in either direction from there.
+ * The _only_ time we'll show links to next **and** previous pages is when we're
+ * loading the first "chunk" of messages. So if the agent is trying to load the
+ * page for a message at index 100, we'll give it links so that it can paginate in
+ * either direction from there.
  *
  * ```markdown
- * [Previous chunk](/chat/ian-first-post-sentence?chunk=-1)
- * <-- Zeroth chunk -->
+ * [Previous chunk](/chat/ian-first-post-sentence?chunk=-1) <-- Zeroth chunk -->
  *
- * <human name="Ian">message 1</human>
- * <bot name="GPT">message 2</bot>
- * <human name="Josh">message 3</human>
- * <human name="Rachel">message 4</human>
+ * <human name="Ian">message 1</human> <bot name="GPT">message 2</bot>
+ * <human name="Josh">message 3</human> <human name="Rachel">message 4</human>
  *
  * <-- Zeroth chunk -->
  *
@@ -126,15 +124,14 @@ async function loadPageMessages(options: {
     }
 }
 
-// For a given page of messages, we add a preamble to provide more context
-// about the snippet of the conversation on the page. For example, if the
-// page is a list of document comments, the preamble would include
+// For a given page of messages, we add a preamble to provide more context about
+// the snippet of the conversation on the page. For example, if the page is a list
+// of document comments, the preamble would include
 //
 // ```markdown
 // Comments on [My Document](/documents/123):
 //
 // ...page content (messages)
-//
 // ```
 async function getPagePreambleElements(options: {
     tracer: TracerBase;
@@ -433,8 +430,8 @@ async function getPreambleForDocumentComments({
             value: "a document.",
         });
     } else {
-        // When showing the conversation for the first time, show the snippet of text that the
-        // comment was created on and the link to the document.
+        // When showing the conversation for the first time, show the snippet of text that
+        // the comment was created on and the link to the document.
         const [existingDocumentLink, commentThreadData] = await runAllPromises([
             findAgentLinkForApiPathIfExists(transaction, `/documents/${link.documentId}`),
             isFirstPage

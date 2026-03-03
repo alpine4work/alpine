@@ -76,8 +76,8 @@ export function renderContentMentionToText(
                 return `${missingSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
             }
 
-            // Posts start with "in ${channelName}: " and expect client rendering code to
-            // add the post author name to the start of the title.
+            // Posts start with "in ${channelName}: " and expect client rendering code to add
+            // the post author name to the start of the title.
             if (entity.getAccountMediaShortName !== null && mention.entityId.startsWith("Post:")) {
                 entityTitle = `${entity.getAccountMediaShortName()} ${entityTitle}`;
             }

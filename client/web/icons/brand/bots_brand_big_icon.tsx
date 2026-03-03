@@ -41,8 +41,8 @@ function BotsBrandBigIcon({
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 32 32"
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{width: spacing[size], height: spacing[size]}}
         >
             <path

@@ -14,9 +14,9 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 export type RecursiveReadonlyArray<Value> = ReadonlyArray<Value | RecursiveReadonlyArray<Value>>;
 
 /**
- * Options for customizing ProseMirror HTML serialization. Similar set of
- * options to the [ProseMirror editor options][1] so your content rendered to
- * HTML can match content in a ProseMirror editor.
+ * Options for customizing ProseMirror HTML serialization. Similar set of options
+ * to the [ProseMirror editor options][1] so your content rendered to HTML can
+ * match content in a ProseMirror editor.
  *
  * [1]: https://prosemirror.net/docs/ref/#view.EditorProps
  */
@@ -78,8 +78,8 @@ export type ProsemirrorHtmlSerializationDecoration =
     | ProsemirrorHtmlSerializationInlineDecoration;
 
 /**
- * Creates a widget decoration, which is a DOM node that's shown in the
- * document at the given position.
+ * Creates a widget decoration, which is a DOM node that's shown in the document at
+ * the given position.
  *
  * Similar to the [`prosemirror-view` widget decoration][1].
  *
@@ -97,14 +97,14 @@ export type ProsemirrorHtmlSerializationWidgetDecoration = {
  *
  * Similar to the [`prosemirror-view` inline decoration][1].
  *
- * Only supports creating new nodes around the inline nodes for now. So
- * you'll note that the `nodeName` attr is not optional.
+ * Only supports creating new nodes around the inline nodes for now. So you'll note
+ * that the `nodeName` attr is not optional.
  *
  * We also haven't made sure inline decorations support all the same edge cases
  * `prosemirror-view` inline decorations do. Known limitations:
  *
- * - Inline nodes should be styled with an inline decoration. We only style
- *   text currently
+ * - Inline nodes should be styled with an inline decoration. We only style text
+ *   currently
  * - Widget decorations within an inline decoration should be styled
  *
  * [1]: https://prosemirror.net/docs/ref/#view.Decoration^inline
@@ -123,8 +123,8 @@ export type ProsemirrorHtmlSerializationInlineDecoration = {
  * Serializes a ProseMirror node to an HTML string.
  *
  * ProseMirror only ships with a way to serialize nodes to DOM nodes. When
- * server-side rendering we don't have access to the DOM and so need to be able
- * to serialize ProseMirror content to an HTML string.
+ * server-side rendering we don't have access to the DOM and so need to be able to
+ * serialize ProseMirror content to an HTML string.
  */
 export function serializeProsemirrorNodeToHtml(
     node: Node,
@@ -144,8 +144,7 @@ export function serializeProsemirrorNodeToHtml(
                 case "Widget": {
                     // Make it clear this HTML is a widget so `getContentViewPosFromDom()` can skip
                     // over the widget. This does mutate the decoration HTML but that should be fine
-                    // since the calling function is unlikely to use the HTML for some
-                    // other purpose.
+                    // since the calling function is unlikely to use the HTML for some other purpose.
                     decoration.html.setAttribute("data-widget", "");
 
                     widgetDecorationQueue.push(decoration);
@@ -183,8 +182,8 @@ export function serializeProsemirrorNodeToHtml(
  * Serializes a ProseMirror fragment to an HTML string.
  *
  * ProseMirror only ships with a way to serialize nodes to DOM nodes. When
- * server-side rendering we don't have access to the DOM and so need to be able
- * to serialize ProseMirror content to an HTML string.
+ * server-side rendering we don't have access to the DOM and so need to be able to
+ * serialize ProseMirror content to an HTML string.
  */
 export function serializeProsemirrorFragmentToHtml(
     fragment: Fragment,
@@ -211,8 +210,7 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
                 case "Widget": {
                     // Make it clear this HTML is a widget so `getContentViewPosFromDom()` can skip
                     // over the widget. This does mutate the decoration HTML but that should be fine
-                    // since the calling function is unlikely to use the HTML for some
-                    // other purpose.
+                    // since the calling function is unlikely to use the HTML for some other purpose.
                     decoration.html.setAttribute("data-widget", "");
 
                     widgetDecorationQueue.push(decoration);
@@ -302,7 +300,8 @@ function serializeProsemirrorRootNode(
  * [`DOMSerializer.serializeNode()`][1] but for an HTML string instead of DOM
  * nodes.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L84-L96
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L84-L96
  */
 function serializeProsemirrorNode(
     pos: number, // Position at the start of the node
@@ -325,10 +324,10 @@ function serializeProsemirrorNode(
         assert(html instanceof HtmlElementGenerator);
 
         if (context.withPosAttribute && pos > 0) {
-            // Mark the position of every node in the document. We use this so we can map
-            // the DOM selection back to our ProseMirror document. Only nodes get the
-            // `data-pos` attribute. So if we see `data-pos` we can be confident we have a
-            // node element not a mark element.
+            // Mark the position of every node in the document. We use this so we can map the
+            // DOM selection back to our ProseMirror document. Only nodes get the `data-pos`
+            // attribute. So if we see `data-pos` we can be confident we have a node element
+            // not a mark element.
             html.setAttribute("data-pos", pos - 1 + context.posAttributeOffset);
             if (node.isInline) html.setAttribute("data-inline", "");
         }
@@ -352,8 +351,8 @@ function serializeProsemirrorNode(
               }
         > = [];
 
-        // Initialize our `textSegments` array with widget decorations in the
-        // right positions.
+        // Initialize our `textSegments` array with widget decorations in the right
+        // positions.
         {
             let textIndex = 0;
 
@@ -394,8 +393,8 @@ function serializeProsemirrorNode(
             while (inlineDecorationQueueIndex >= 0) {
                 const inlineDecoration = context.inlineDecorationQueue[inlineDecorationQueueIndex]!;
 
-                // The inline decoration is before our text and so will be before all nodes
-                // after. Remove it from the queue and try again.
+                // The inline decoration is before our text and so will be before all nodes after.
+                // Remove it from the queue and try again.
                 if (inlineDecoration.to + 1 <= pos) {
                     context.inlineDecorationQueue.splice(inlineDecorationQueueIndex, 1);
                     inlineDecorationQueueIndex--;
@@ -414,9 +413,9 @@ function serializeProsemirrorNode(
                 ) {
                     const textSegment = textSegments[textSegmentIndex]!;
 
-                    // NOTE(calebmer): Inline decorations are applied to widgets in
-                    // `prosemirror-view` but we are not implementing this yet until we have a use
-                    // case and can more thoroughly test edge cases.
+                    // NOTE(calebmer): Inline decorations are applied to widgets in `prosemirror-view`
+                    // but we are not implementing this yet until we have a use case and can more
+                    // thoroughly test edge cases.
                     if (textSegment.type === "WidgetDecoration") continue;
 
                     if (textSegment.text.length === 0) continue;
@@ -554,7 +553,8 @@ function serializeProsemirrorNode(
  * [`DOMSerializer.serializeMark()`][1] but for an HTML string instead of DOM
  * nodes.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L110-L113
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L110-L113
  */
 function serializeProsemirrorMark(
     mark: Mark,
@@ -579,10 +579,11 @@ function serializeProsemirrorMark(
 
 /**
  * Serializes a ProseMirror fragment to HTML. Has the same implementation as
- * [`DOMSerializer.serializeFragment()`][1] but for an HTML string instead of
- * DOM nodes.
+ * [`DOMSerializer.serializeFragment()`][1] but for an HTML string instead of DOM
+ * nodes.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L44-L76
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L44-L76
  */
 function serializeProsemirrorFragment(
     pos: number, // Position of the first node in the fragment
@@ -674,10 +675,10 @@ function serializeProsemirrorFragment(
 
 /**
  * Renders a `DOMOutputSpec` to HTML. Has the same implementation as
- * [`DOMSerializer.renderSpec()`][1] but for an HTML string instead of DOM
- * nodes.
+ * [`DOMSerializer.renderSpec()`][1] but for an HTML string instead of DOM nodes.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L115-L157
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-model/blob/a0556b82869a7ecda732f7c4e26d42caed1a4e40/src/to_dom.js#L115-L157
  */
 export function renderProsemirrorDomOutputSpec(structure: DOMOutputSpec): {
     html: HtmlGenerator;

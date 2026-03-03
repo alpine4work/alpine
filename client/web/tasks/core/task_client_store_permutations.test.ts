@@ -101,8 +101,8 @@ testTaskActionPermutations({
             backfillCollections: [],
             defaultAuthorizationStateVersion: clock.now(),
             // The server must send an updated `AccountModel` whenever there's an
-            // `UpdateAccountName` action. There's a hard assert in our requirement
-            // requiring this.
+            // `UpdateAccountName` action. There's a hard assert in our requirement requiring
+            // this.
             referencedAccounts:
                 action.type === "UpdateAccountName"
                     ? [

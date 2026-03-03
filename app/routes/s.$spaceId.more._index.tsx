@@ -42,8 +42,8 @@ export default function MoreRoute() {
             title="More"
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
-            // This is a route for a root tab in our mobile app so don't show the back
-            // button. It wouldn't work.
+            // This is a route for a root tab in our mobile app so don't show the back button.
+            // It wouldn't work.
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
@@ -124,8 +124,8 @@ export default function MoreRoute() {
                         if (NativeMobileBridge) {
                             NativeMobileBridge.session.signOut();
 
-                            // `signOut()` should destroy the current web browsing context and create a
-                            // new one.
+                            // `signOut()` should destroy the current web browsing context and create a new
+                            // one.
                             await new Promise(() => {});
                         } else {
                             await rootNavigate("/sign-out");

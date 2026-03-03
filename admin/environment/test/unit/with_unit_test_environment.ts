@@ -99,8 +99,8 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-// This file should only run in a Node.js test environment. Either Jest
-// or Playwright.
+// This file should only run in a Node.js test environment. Either Jest or
+// Playwright.
 assert(process.release.name === "node");
 assert(isTestNodeEnvOrAdminScenariosScript);
 
@@ -108,8 +108,8 @@ const debug = createDebug(import.meta.url);
 
 const env = parseDotenv();
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
+// Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
+// picks them up.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
@@ -142,8 +142,8 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
     resetDynamoLocal(): Promise<void>;
 
     /**
-     * Add a `CacheContextModule` to our test context. Each time you call
-     * `withCache()` we create a new cache for the returned context object.
+     * Add a `CacheContextModule` to our test context. Each time you call `withCache()`
+     * we create a new cache for the returned context object.
      */
     withCache(): Context<
         TestContextModules & {
@@ -161,8 +161,8 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
     ): TestActualContextWithDestroy<Replace<Modules, NewModules>>;
 
     /**
-     * Set the job processing function for this context. Throws an error if the
-     * job processing function has already been set.
+     * Set the job processing function for this context. Throws an error if the job
+     * processing function has already been set.
      */
     setProcessJob(
         processJob: (
@@ -188,21 +188,21 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
  * Create a mock test context for Jest tests. It executes all DynamoDB commands
  * against DynamoDB database that is local to this test.
  *
- * The context has all the modules in `AppProcessContext` and you can easily
- * create `AppActionContext`s.
+ * The context has all the modules in `AppProcessContext` and you can easily create
+ * `AppActionContext`s.
  *
- * - By default, we don't render emails for this test context since rendering happens
- *   asynchronously and may cause tests that use waitForTestTasks to hang.
+ * - By default, we don't render emails for this test context since rendering
+ *   happens asynchronously and may cause tests that use waitForTestTasks to hang.
  *   Set `shouldRenderEmails: true` if you need to render emails in your tests..
  *
- * - By default, we don't start OpenSearch for this test context since it's
- *   slow to start. Set `shouldStartOpensearch: true` if you need to write
- *   tests against OpenSearch.
+ * - By default, we don't start OpenSearch for this test context since it's slow to
+ *   start. Set `shouldStartOpensearch: true` if you need to write tests against
+ *   OpenSearch.
  *
  * - By default, ignore jobs in the local test process. Provide `processJob` to
- *   process a job in the local text context. Provide `shouldSendJobsToSqs` to
- *   add your jobs to a local SQS server so a `JobConsumer` can process them
- *   instead of processing them locally.
+ *   process a job in the local text context. Provide `shouldSendJobsToSqs` to add
+ *   your jobs to a local SQS server so a `JobConsumer` can process them instead of
+ *   processing them locally.
  */
 export async function withUnitTestEnvironment<Value>(
     options: Parameters<typeof actuallyCreateUnitTestEnvironment>[1],
@@ -245,8 +245,8 @@ export async function withUnitTestEnvironment<Value>(
 
         const value = await action(actualContext);
 
-        // Wait for all `waitUntil()` promises to resolve before cleaning up
-        // the environment.
+        // Wait for all `waitUntil()` promises to resolve before cleaning up the
+        // environment.
         await promiseWaiter.wait();
 
         return value;
@@ -262,16 +262,15 @@ export async function withUnitTestEnvironment<Value>(
 }
 
 /**
- * Creates a unit test environment and the associated `TestActualContext`
- * object. Designed to be used in Jest tests where setup/teardown is managed by
+ * Creates a unit test environment and the associated `TestActualContext` object.
+ * Designed to be used in Jest tests where setup/teardown is managed by
  * `beforeAll()` and `afterAll()` callbacks.
  *
- * When writing a unit test, prefer using `createTestContext()` which provides
- * a more convenient interface for establishing a unit test environment in
- * Jest.
+ * When writing a unit test, prefer using `createTestContext()` which provides a
+ * more convenient interface for establishing a unit test environment in Jest.
  *
- * If you need a unit test environment outside of Jest (e.g. in an adhoc
- * script), use `withUnitTestEnvironmentContext()` which automatically manages
+ * If you need a unit test environment outside of Jest (e.g. in an adhoc script),
+ * use `withUnitTestEnvironmentContext()` which automatically manages
  * setup/teardown of the environment for you.
  */
 export function actuallyCreateUnitTestEnvironment(
@@ -600,8 +599,8 @@ export function actuallyCreateUnitTestEnvironment(
 
     let tasksInjection = options.tasksInjection;
 
-    // If OpenSearch is disabled we don't need to index task actions. Noop instead
-    // of throw.
+    // If OpenSearch is disabled we don't need to index task actions. Noop instead of
+    // throw.
     if (!shouldStartOpensearch) {
         tasksInjection = {
             indexTaskActionTransactionAssumingItsCommitted: asyncNoop,
@@ -695,9 +694,9 @@ export function actuallyCreateUnitTestEnvironment(
 
     const context = Object.assign(processContext, helpers);
 
-    // Create `TestLocalJobSender` outside of `beforeAll` so its `afterEach`
-    // hook gets registered synchronously before any tests run. Jest doesn't
-    // allow new hooks to be registered after tests have started.
+    // Create `TestLocalJobSender` outside of `beforeAll` so its `afterEach` hook gets
+    // registered synchronously before any tests run. Jest doesn't allow new hooks to
+    // be registered after tests have started.
     const localJobSender = !shouldSendJobsToSqs
         ? new TestLocalJobSender({
               processJob: async (context, job, jobStartTime, span) => {

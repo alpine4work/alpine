@@ -10,9 +10,9 @@ import {quote} from "~/shared/helpers/string/quote.js";
 export type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
 
 /**
- * Convenient function for running a process to completion. Throws if the
- * process exits with a non-zero exit code. Returns stdout as a string if the
- * process was successful.
+ * Convenient function for running a process to completion. Throws if the process
+ * exits with a non-zero exit code. Returns stdout as a string if the process was
+ * successful.
  *
  * Executes the process in a predictable, reproducible, environment. By default,
  * executes in the repository root with no `PATH`.
@@ -34,8 +34,8 @@ export async function runProcess(
         onStderrData,
     }: {
         /**
-         * What directory should the process run in? By default runs in the root
-         * directory of our code repository.
+         * What directory should the process run in? By default runs in the root directory
+         * of our code repository.
          */
         cwd?: string;
 
@@ -63,12 +63,12 @@ export async function runProcess(
         /**
          * Should we include stdout and stderr in the error message?
          *
-         * True by default in development and test environments. False in production
-         * since error messages are included in logging and the command's output
-         * might contain sensitive data we can't send to our logging providers.
+         * True by default in development and test environments. False in production since
+         * error messages are included in logging and the command's output might contain
+         * sensitive data we can't send to our logging providers.
          *
-         * If you're certain the command won't include sensitive data you may set this
-         * to true for better debugging.
+         * If you're certain the command won't include sensitive data you may set this to
+         * true for better debugging.
          */
         withOutputInErrorMessage?: boolean;
 
@@ -197,12 +197,12 @@ export async function runProcess(
 }
 
 /**
- * Is this an error thrown by `runProcess()` when the process exits with a
- * non-zero exit code? If you expect a non-zero exit code from `runProcess()`
- * you can use this to handle that error.
+ * Is this an error thrown by `runProcess()` when the process exits with a non-zero
+ * exit code? If you expect a non-zero exit code from `runProcess()` you can use
+ * this to handle that error.
  *
- * When `runProcess()` exits with a non-zero exit code the error has a plain
- * cause object with the `exitCode` property.
+ * When `runProcess()` exits with a non-zero exit code the error has a plain cause
+ * object with the `exitCode` property.
  */
 export function isProcessExitErrorWithCode(error: unknown, exitCode: number): boolean {
     if (isObject(error) && error.exitCode === exitCode) return true;

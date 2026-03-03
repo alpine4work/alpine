@@ -12,10 +12,10 @@ export type SpaceAccountNameSearchIndex = {
 };
 
 /**
- * Get a server-side in-memory search index for accounts in the provided
- * `SpaceId`. The search index is powered by Fuse.js. The search index is
- * cached in memory. So if space accounts have already been loaded for this
- * space, calling this function is instant.
+ * Get a server-side in-memory search index for accounts in the provided `SpaceId`.
+ * The search index is powered by Fuse.js. The search index is cached in memory. So
+ * if space accounts have already been loaded for this space, calling this function
+ * is instant.
  */
 export async function getSpaceAccountNameSearchIndex(
     context: ServerActionContext,

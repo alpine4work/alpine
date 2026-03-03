@@ -223,8 +223,8 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                 >
                     <Button
                         icon={<Plus />}
-                        // Icon placed at the end since otherwise we'd have the text "Add" and it
-                        // wouldn't be flush with the right border of our filters.
+                        // Icon placed at the end since otherwise we'd have the text "Add" and it wouldn't
+                        // be flush with the right border of our filters.
                         iconPlacement="end"
                         paddingX="1.5"
                         height={taskQueryViewCustomizationMobileSectionHeaderHeight}
@@ -314,9 +314,8 @@ function TaskQueryViewCustomizationMobileSectionSorts({
         onSortsChange(sortsWithId.map(({sort}) => sort));
     };
 
-    // We assign IDs to sort objects within this function. If we receive new sorts
-    // from props that don't match our state then reset our state and
-    // regenerate IDs.
+    // We assign IDs to sort objects within this function. If we receive new sorts from
+    // props that don't match our state then reset our state and regenerate IDs.
     if (
         !useMemo(
             () =>
@@ -359,8 +358,8 @@ function TaskQueryViewCustomizationMobileSectionSorts({
                 >
                     <Button
                         icon={<Plus />}
-                        // Icon placed at the end since otherwise we'd have the text "Add" and it
-                        // wouldn't be flush with the right border of our filters.
+                        // Icon placed at the end since otherwise we'd have the text "Add" and it wouldn't
+                        // be flush with the right border of our filters.
                         iconPlacement="end"
                         paddingX="1.5"
                         height={taskQueryViewCustomizationMobileSectionHeaderHeight}

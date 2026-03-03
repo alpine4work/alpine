@@ -1,6 +1,6 @@
 /**
- * Map each individual value of an async iterable and remove null values. Same
- * as a combination of `Array.filter()` and `Array.map()` but for iterables.
+ * Map each individual value of an async iterable and remove null values. Same as a
+ * combination of `Array.filter()` and `Array.map()` but for iterables.
  */
 export async function* filterMapAsyncIterableIterator<Value, NewValue>(
     iterator: AsyncIterableIterator<Value>,

@@ -65,8 +65,8 @@ function TaskCollectionViewDesktopHeader(
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
         collectionId: TaskCollectionId;
-        // If `collectionSubscription` is null, that means we are creating a
-        // new collection.
+        // If `collectionSubscription` is null, that means we are creating a new
+        // collection.
         collectionSubscription: TaskClientCollectionSubscription | null;
         shouldInitiallyFocusEditableCollectionName: boolean;
         affinityManager: TaskClientStoreSearchAffinityManager;
@@ -104,9 +104,9 @@ function TaskCollectionViewDesktopHeader(
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
 
-    // We want to baseline align our `fontSize="200"` collection name with our
-    // centered `fontSize="75"` customization bar (filters and sort). Calculate
-    // the offset for center aligned `fontSize="200"` using font metrics.
+    // We want to baseline align our `fontSize="200"` collection name with our centered
+    // `fontSize="75"` customization bar (filters and sort). Calculate the offset for
+    // center aligned `fontSize="200"` using font metrics.
     const nameBaselineAlignmentMarginTop = useMemo(() => {
         const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
 
@@ -154,8 +154,8 @@ function TaskCollectionViewDesktopHeader(
                 alignItems="center"
                 maxWidth="1/3"
                 style={{marginTop: nameBaselineAlignmentMarginTop}}
-                // Align the left edge of the desktop header name text with the left edge of
-                // the "Name" column header.
+                // Align the left edge of the desktop header name text with the left edge of the
+                // "Name" column header.
                 paddingLeft="1"
             >
                 <TaskCollectionViewDesktopHeaderName

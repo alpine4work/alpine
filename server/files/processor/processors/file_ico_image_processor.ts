@@ -30,8 +30,8 @@ export function createFileIcoImageProcessor(
             hasVideoDuration: false,
         },
         process: (context, {spaceId, fileId, signal}) => {
-            // We load the file into memory since `decodeIco()` needs the full file. This
-            // is acceptable for `image/ico` files since they're usually quite small.
+            // We load the file into memory since `decodeIco()` needs the full file. This is
+            // acceptable for `image/ico` files since they're usually quite small.
             const bestImagePromise = (async () => {
                 const object = await context.r2.GetObject(
                     {

@@ -1,12 +1,11 @@
 /**
- * We put our slow to run `DocumentsTable` tests in this file so they can be
- * run in parallel with our faster `DocumentsTable` tests.
+ * We put our slow to run `DocumentsTable` tests in this file so they can be run in
+ * parallel with our faster `DocumentsTable` tests.
  *
- * Or so that in development you only run the fast tests for fast
- * iteration speed.
+ * Or so that in development you only run the fast tests for fast iteration speed.
  *
- * NOTE(calebmer, 2023-01-09): After getting rid of LocalStack in tests, this
- * test is not as slow as it used to be. Should we rename and change timeouts?
+ * NOTE(calebmer, 2023-01-09): After getting rid of LocalStack in tests, this test
+ * is not as slow as it used to be. Should we rename and change timeouts?
  */
 
 import {Fragment, Slice} from "prosemirror-model";
@@ -38,8 +37,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -279,9 +278,9 @@ test(
                 steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
             }).then(async () => {
-                // The checkpoint may not be called within the `updateDocumentContent()`
-                // function. So to avoid waiting forever, make sure to call it here at the end
-                // of the request.
+                // The checkpoint may not be called within the `updateDocumentContent()` function.
+                // So to avoid waiting forever, make sure to call it here at the end of the
+                // request.
                 await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(
                     document.id,
                 );
@@ -368,8 +367,8 @@ test(
             );
             text += newText6;
 
-            // Make sure to expire the cache. We need to do that so we don't keep all steps
-            // in the cache and instead need to go read them from the database.
+            // Make sure to expire the cache. We need to do that so we don't keep all steps in
+            // the cache and instead need to go read them from the database.
             import.meta.jest.runAllTimers();
 
             await updateDocumentContent(session.action(), {

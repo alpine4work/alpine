@@ -18,11 +18,11 @@ import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
  * scoped to the duration of an action.
  *
  * This function is mostly strongly consistent so you can safely call it in a
- * strongly consistent environment. It returns `true` with strong consistency
- * but `false` with weak consistency. False positives are acceptable since it's
- * ok if a user's access to a space lingers a bit after they've been removed
- * from the space. But false negatives means the user gets an error when trying
- * to access a space they just got access to which we want to avoid.
+ * strongly consistent environment. It returns `true` with strong consistency but
+ * `false` with weak consistency. False positives are acceptable since it's ok if a
+ * user's access to a space lingers a bit after they've been removed from the
+ * space. But false negatives means the user gets an error when trying to access a
+ * space they just got access to which we want to avoid.
  */
 export async function isAccountMemberOfSpace(
     context: Context<{
@@ -41,18 +41,18 @@ export async function isAccountMemberOfSpace(
 }
 
 /**
- * Same as `isAccountMemberOfSpace()` except we don't authorize that the actor
- * has access to the space. If an attacker had access to this function they
- * could find out information they're not allowed to see! (e.g. Does account X
- * work for company Y assuming they had the right `Id`s.) Use only when
- * necessary. Prefer `isAccountMemberOfSpace()` wherever possible.
+ * Same as `isAccountMemberOfSpace()` except we don't authorize that the actor has
+ * access to the space. If an attacker had access to this function they could find
+ * out information they're not allowed to see! (e.g. Does account X work for
+ * company Y assuming they had the right `Id`s.) Use only when necessary. Prefer
+ * `isAccountMemberOfSpace()` wherever possible.
  *
  * This function is mostly strongly consistent so you can safely call it in a
- * strongly consistent environment. It returns `true` with strong consistency
- * but `false` with weak consistency. False positives are acceptable since it's
- * ok if a user's access to a space lingers a bit after they've been removed
- * from the space. But false negatives means the user gets an error when trying
- * to access a space they just got access to which we want to avoid.
+ * strongly consistent environment. It returns `true` with strong consistency but
+ * `false` with weak consistency. False positives are acceptable since it's ok if a
+ * user's access to a space lingers a bit after they've been removed from the
+ * space. But false negatives means the user gets an error when trying to access a
+ * space they just got access to which we want to avoid.
  */
 export async function isAccountMemberOfSpaceWithoutAuthorization(
     context: Context<{
@@ -96,9 +96,9 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     // strong consistency if this fails.
     const item1 = await getSpaceAccountItemIfExists(context, spaceId, accountId, {
         consistency: "Eventual",
-        // It's ok to call this function when expecting strong read consistency.
-        // This authorization check is mostly strongly consistent since we retry with
-        // strong consistency below if our eventually consistent read fails.
+        // It's ok to call this function when expecting strong read consistency. This
+        // authorization check is mostly strongly consistent since we retry with strong
+        // consistency below if our eventually consistent read fails.
         allowsEventualReadConsistency: true,
     });
     if (
@@ -117,9 +117,9 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     }
 
     // If the item wasn't present in any cache and wasn't present when we read with
-    // eventual consistency then try finding the item again one last time with
-    // strong consistency. Since we want to return `true` from this function with
-    // strong consistency.
+    // eventual consistency then try finding the item again one last time with strong
+    // consistency. Since we want to return `true` from this function with strong
+    // consistency.
     const item2 = await getSpaceAccountItemIfExists(context, spaceId, accountId, {
         consistency: "Strong",
     });

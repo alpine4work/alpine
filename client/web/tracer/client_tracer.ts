@@ -33,8 +33,8 @@ export function createClientTracer() {
         ),
     );
 
-    // Initialize our synchronized system clock with low priority so that it's
-    // ready when we first go to flush events.
+    // Initialize our synchronized system clock with low priority so that it's ready
+    // when we first go to flush events.
     unstable_scheduleCallback(unstable_LowPriority, () => {
         void synchronizedSystemClock.get();
     });
@@ -45,15 +45,15 @@ export function createClientTracer() {
         // Events from our client tracer are untrusted because any bad actor could get
         // ahold of our client tracer and send whatever event they want to the server.
         //
-        // We can filter out events with this untrusted flag on the server to get
-        // clean data.
+        // We can filter out events with this untrusted flag on the server to get clean
+        // data.
         untrusted: true,
-        // We use the unsynchronized system clock with our tracer even though it's
-        // subject to user clock adjustments! That way the tracer object can be
-        // available immediately.
+        // We use the unsynchronized system clock with our tracer even though it's subject
+        // to user clock adjustments! That way the tracer object can be available
+        // immediately.
         //
-        // Then when we send events to the server, we adjust times using the client
-        // offset from our synchronized system clock.
+        // Then when we send events to the server, we adjust times using the client offset
+        // from our synchronized system clock.
         clock: unsynchronizedSystemClock,
         sendEvent: event => {
             queuedEvents.push(event);
@@ -68,17 +68,16 @@ export function createClientTracer() {
         // Don't schedule a flush if we have a flush already scheduled.
         if (scheduledFlushEventsCallbackNode) return;
 
-        // Use the React scheduler to schedule an event flush at idle priority so
-        // that work responding to the user can interrupt.
+        // Use the React scheduler to schedule an event flush at idle priority so that work
+        // responding to the user can interrupt.
         scheduledFlushEventsCallbackNode = unstable_scheduleCallback(
             // An idle priority means there is no execution deadline. Any work can interrupt
             // our flush.
             unstable_IdlePriority,
             flushEvents,
             {
-                // Even if there is no ongoing work, wait a bit before flushing events. That
-                // way if many events happen in quick succession they will all be added to
-                // this flush.
+                // Even if there is no ongoing work, wait a bit before flushing events. That way if
+                // many events happen in quick succession they will all be added to this flush.
                 delay: 1000,
             },
         );
@@ -127,9 +126,8 @@ export function createClientTracer() {
                 "/api/tracer",
                 JSON.stringify(
                     events.map(event => {
-                        // Send our events to the server with the server time, not client time. We
-                        // compute the server time from our client time by applying our server
-                        // time offset.
+                        // Send our events to the server with the server time, not client time. We compute
+                        // the server time from our client time by applying our server time offset.
                         const time = event.time + clientTimeOffsetMs;
 
                         const data = event.getFlatData();
@@ -145,10 +143,10 @@ export function createClientTracer() {
     }
 
     document.addEventListener("visibilitychange", () => {
-        // Flush events immediately when the page is hidden. This handles the case
-        // where the user closes their browser which cancels asynchronous scheduled
-        // work. This also handles the case where the user navigates away from the
-        // browser tab and later closes their browser with their application manager.
+        // Flush events immediately when the page is hidden. This handles the case where
+        // the user closes their browser which cancels asynchronous scheduled work. This
+        // also handles the case where the user navigates away from the browser tab and
+        // later closes their browser with their application manager.
         //
         // MDN has guidance on how to send analytics at the end of a session here:
         // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/sendBeacon#sending_analytics_at_the_end_of_a_session

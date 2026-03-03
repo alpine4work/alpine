@@ -899,8 +899,8 @@ test("updates scroll left when resizing causes scrolling", () => {
 
 // Table width constraints
 test("maintains minimum table width of 1", () => {
-    // tried to resize 2 column table to smaller than tableWidth 1
-    // failed to do so in UI and in test as well
+    // tried to resize 2 column table to smaller than tableWidth 1 failed to do so in
+    // UI and in test as well
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(568, {
             startX: 939,

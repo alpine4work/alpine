@@ -40,20 +40,20 @@ import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
- * Error toasts should be visible long enough for the user to read but short
- * enough so that the user can try again. Or if the user is already trying
- * again we can show a queued error message.
+ * Error toasts should be visible long enough for the user to read but short enough
+ * so that the user can try again. Or if the user is already trying again we can
+ * show a queued error message.
  *
- * For accessibility it's recommended to have a [minimum time of 6
- * seconds][1].
+ * For accessibility it's recommended to have a [minimum time of 6 seconds][1].
  *
- * [1]: https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
+ * [1]:
+ *     https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
  */
 const defaultToastDurationSeconds = 6;
 
 /**
- * Toasts display brief, temporary notifications. They're meant to be noticed
- * but not disrupt a user's experience.
+ * Toasts display brief, temporary notifications. They're meant to be noticed but
+ * not disrupt a user's experience.
  */
 type Toast = InfoToast | ErrorToast;
 
@@ -67,18 +67,17 @@ type InfoToast = {
 };
 
 /**
- * A toast displaying an error message. It lets the user know an error has
- * occurred but does not interrupt the user's experience.
+ * A toast displaying an error message. It lets the user know an error has occurred
+ * but does not interrupt the user's experience.
  */
 type ErrorToast = {
     readonly type: "Error";
 
     /**
-     * The "what happened" part of an error message according to [Adobe
-     * Spectrum's][1] error content guidelines.
+     * The "what happened" part of an error message according to [Adobe Spectrum's][1]
+     * error content guidelines.
      *
-     * Should not include ending punctuation. Ending punctuation will be
-     * added for you.
+     * Should not include ending punctuation. Ending punctuation will be added for you.
      *
      * [1]: https://spectrum.adobe.com/page/writing-for-errors
      */
@@ -91,8 +90,8 @@ type ErrorToast = {
     readonly error: unknown;
 
     /**
-     * The context where the error was reported. We want to use the
-     * tracer from this context when logging the error.
+     * The context where the error was reported. We want to use the tracer from this
+     * context when logging the error.
      */
     readonly reportingContext: AppContext;
 
@@ -195,8 +194,8 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
         }
         case "DisplayError": {
             if (state.platform === "mobile") {
-                // NOTE(calebmer): The dialog doesn't show an error icon. That's because we
-                // don't have much ability to customize the native iOS dialog we render.
+                // NOTE(calebmer): The dialog doesn't show an error icon. That's because we don't
+                // have much ability to customize the native iOS dialog we render.
                 return reduceReporterState(state, {
                     type: "ShowDialog",
                     dialogProps: {
@@ -437,8 +436,8 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 
                 onAfterCloseByModalDialogIdRef.current.delete(id);
 
-                // If we have a callback for a dialog that isn't the active dialog and isn't in
-                // the queue then finally call `onAfterClose`.
+                // If we have a callback for a dialog that isn't the active dialog and isn't in the
+                // queue then finally call `onAfterClose`.
                 try {
                     onAfterClose();
                 } catch (error) {
@@ -505,10 +504,10 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
     );
 }
 
-// NOTE(calebmer): Toasts can only be rendered on desktop right now. Which is
-// why they're a part of this `Reporter` abstraction. `Reporter` is responsible
-// for providing cross-platform "report" methods which may use toasts (on
-// desktop) and other UI on mobile.
+// NOTE(calebmer): Toasts can only be rendered on desktop right now. Which is why
+// they're a part of this `Reporter` abstraction. `Reporter` is responsible for
+// providing cross-platform "report" methods which may use toasts (on desktop) and
+// other UI on mobile.
 function ToastView({
     toast,
     startTime,
@@ -571,7 +570,8 @@ function ToastView({
                         // initially render without content then the element immediately re-renders with
                         // the alert content.
                         //
-                        // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
+                        // [1]:
+                        //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
                         (toast.type === "Info" ? (
                             toast.message
                         ) : (

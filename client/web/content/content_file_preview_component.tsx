@@ -66,8 +66,8 @@ export function ContentFilePreview({
             node,
             file,
             layout: {width: size, widthFr: 1, height: size},
-            // Code previews use `blockWidth` to scale down text. Set a `blockWidth`
-            // that'll scale the code preview down to a font size of 25.
+            // Code previews use `blockWidth` to scale down text. Set a `blockWidth` that'll
+            // scale the code preview down to a font size of 25.
             blockWidth:
                 size *
                 (fontSizesBySpacingScale["75"].small.fontSize /
@@ -76,8 +76,8 @@ export function ContentFilePreview({
             platform,
             spacingScale,
             isInitialAppRender,
-            // Disable video and audio file interactivity. When pressed we should always
-            // open the post in a peek.
+            // Disable video and audio file interactivity. When pressed we should always open
+            // the post in a peek.
             withoutInteractivity: true,
         });
 
@@ -106,8 +106,8 @@ export function ContentFilePreview({
         if (previousHtmlGenerator === htmlGenerator) return;
 
         if (!previousHtmlGenerator) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (containerElement.hasChildNodes()) {
                 containerElement.firstChild!.remove();
             }

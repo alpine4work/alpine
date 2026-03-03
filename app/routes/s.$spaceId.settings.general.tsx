@@ -75,8 +75,8 @@ export default function SpaceGeneralSettingsRoute() {
     };
 
     const handleCancelNameEditing = () => {
-        // After we cancel editing, select all content in the text input. So the
-        // selection doesn't move somewhere weird.
+        // After we cancel editing, select all content in the text input. So the selection
+        // doesn't move somewhere weird.
         shouldSelectAllAfterCancelRef.current = true;
 
         setName(null);
@@ -96,9 +96,9 @@ export default function SpaceGeneralSettingsRoute() {
 
     const getHandleUploadAvatar = (colorScheme: ColorScheme) => async (file: File) => {
         const url = new URL(`/api/avatar/space/${originalSpace.id}`, window.location.href);
-        // TODO(ifitzsimmons, #add-space-avatar-support)
-        // This infers the type of space avatar from the user's current color scheme. Eventually
-        // we should add a menu that lets them set this explicitly.
+        // TODO(ifitzsimmons, #add-space-avatar-support) This infers the type of space
+        // avatar from the user's current color scheme. Eventually we should add a menu
+        // that lets them set this explicitly.
         url.searchParams.set("themeColor", colorScheme);
 
         const response = await fetchWithTracer(

@@ -31,7 +31,8 @@ const context = createTestContext({
 });
 
 /**
- * Create a system action context with a fresh importer module containing the given file.
+ * Create a system action context with a fresh importer module containing the given
+ * file.
  */
 function createSystemActionWithFile(
     space: Awaited<ReturnType<typeof TestSpace.create>>,
@@ -59,8 +60,8 @@ function readFixture(name: string): Uint8Array {
     try {
         return new Uint8Array(readFileSync(fixturePath));
     } catch (error) {
-        // Fallback to source directory for large fixtures not included in BUILD
-        // This uses BUILD_WORKSPACE_DIRECTORY which points to the original source tree
+        // Fallback to source directory for large fixtures not included in BUILD This uses
+        // BUILD_WORKSPACE_DIRECTORY which points to the original source tree
         const workspaceDir = process.env.BUILD_WORKSPACE_DIRECTORY;
         if (workspaceDir) {
             const localPath = join(workspaceDir, "server/importer/notion/test_fixtures", name);
@@ -72,8 +73,8 @@ function readFixture(name: string): Uint8Array {
 }
 
 /**
- * Find all documents in a space by scanning the documents table.
- * This is expensive but fine for tests.
+ * Find all documents in a space by scanning the documents table. This is expensive
+ * but fine for tests.
  */
 async function findDocumentsInSpace(
     spaceId: SpaceId,
@@ -192,8 +193,8 @@ async function importedFixtureSpaceItemsToString(
         return parentA.localeCompare(parentB);
     });
 
-    // Build map of document ID -> unique key for sanitization
-    // Handle duplicate titles by adding an index suffix
+    // Build map of document ID -> unique key for sanitization Handle duplicate titles
+    // by adding an index suffix
     const idToKey = new Map<DocumentId, string>();
     const titleCounts = new Map<string, number>();
     for (const doc of allDocs) {
@@ -224,10 +225,10 @@ async function importedFixtureSpaceItemsToString(
     // Replace account ID with placeholder
     contentString = contentString.replace(new RegExp(session.account.id, "g"), "<ACCOUNT_ID>");
 
-    // Normalize file URLs to just filenames for comparison.
-    // Flat exports have files at root (e.g., image.png), nested exports have files
-    // in subdirectories (e.g., Subdir/image.png). Since file uploads aren't implemented
-    // yet, we normalize to just the filename to allow comparison.
+    // Normalize file URLs to just filenames for comparison. Flat exports have files at
+    // root (e.g., image.png), nested exports have files in subdirectories (e.g.,
+    // Subdir/image.png). Since file uploads aren't implemented yet, we normalize to
+    // just the filename to allow comparison.
     contentString = contentString.replace(
         /"url":\s*"([^"]+\.(png|jpg|jpeg|gif|mp4|mov|csv|pdf))"/gi,
         (match, url) => {
@@ -242,8 +243,8 @@ async function importedFixtureSpaceItemsToString(
 }
 
 /**
- * Create the expected mention node structure for a document.
- * Mention URLs are now parsed into mention nodes by the markdown parser.
+ * Create the expected mention node structure for a document. Mention URLs are now
+ * parsed into mention nodes by the markdown parser.
  */
 function documentMentionNode(documentId: DocumentId) {
     return {
@@ -363,8 +364,8 @@ describe("processStartNotionImportJob", () => {
             });
             expect(importItem.status).toEqual({type: "Success"});
 
-            // The inline database should NOT create a separate document.
-            // Only the parent document should be created.
+            // The inline database should NOT create a separate document. Only the parent
+            // document should be created.
             expect(importItem.importedCount).toBe(1);
         });
 
@@ -439,7 +440,8 @@ describe("processStartNotionImportJob", () => {
             expect(aliceDocInfo).toBeDefined();
             expect(bobDocInfo).toBeDefined();
 
-            // Find the teamspace root document (created when importing without explicit teamspace)
+            // Find the teamspace root document (created when importing without explicit
+            // teamspace)
             const teamspaceRootDoc = await findDocumentByTitle(space.id, "Test Workspace");
             expect(teamspaceRootDoc).toBeDefined();
 
@@ -522,9 +524,9 @@ describe("processStartNotionImportJob", () => {
                 ],
             };
 
-            // Verify parent document "Project" - full content assertion
-            // Note: The inline database table appears twice - once at the top (after parent link)
-            // and once where the CSV reference was in the original markdown
+            // Verify parent document "Project" - full content assertion Note: The inline
+            // database table appears twice - once at the top (after parent link) and once
+            // where the CSV reference was in the original markdown
             const parentDocument = await getDocument(space.systemAction(), parentDocInfo!.id);
             const parentContent = parentDocument.content.doc.toJSON();
 
@@ -654,15 +656,15 @@ describe("processStartNotionImportJob", () => {
             const allDocs = await findDocumentsInSpace(space.id);
             const docTitles = allDocs.map(d => d.title).sort();
 
-            // Should have: Teamspace root, MTG Notes db doc, Home, Weekly, Standup = 5 documents
-            // The teamspace root title is "Test Workspace | Engineering"
+            // Should have: Teamspace root, MTG Notes db doc, Home, Weekly, Standup = 5
+            // documents The teamspace root title is "Test Workspace | Engineering"
             expect(docTitles).toContain("Home");
             expect(docTitles).toContain("MTG Notes");
             expect(docTitles).toContain("Weekly - July 6, 2025");
             expect(docTitles).toContain("Standup - July 7, 2025");
             expect(docTitles).toContain("Test Workspace | Engineering");
-            // importedCount only counts user documents, not the teamspace root doc
-            // Home + MTG Notes db doc + Weekly + Standup = 4
+            // importedCount only counts user documents, not the teamspace root doc Home + MTG
+            // Notes db doc + Weekly + Standup = 4
             expect(importItem.importedCount).toBe(4);
 
             // Find all the documents
@@ -978,14 +980,15 @@ describe("processStartNotionImportJob", () => {
                 content: [{type: "text", text: "Test Workspace | Engineering"}],
             });
 
-            // Find the "Documents" heading (teamspace root uses "Documents" not "Child documents")
+            // Find the "Documents" heading (teamspace root uses "Documents" not "Child
+            // documents")
             const documentsHeading = teamspaceRootContent.content.find(
                 (node: any) => node.type === "heading" && node.content?.[0]?.text === "Documents",
             );
             expect(documentsHeading).toBeDefined();
 
-            // Find list items with mentions to Tasks and Design
-            // Mentions are now parsed as mention nodes
+            // Find list items with mentions to Tasks and Design Mentions are now parsed as
+            // mention nodes
             const listItems = teamspaceRootContent.content.filter(
                 (node: any) => node.type === "unorderedListItem",
             );
@@ -1079,6 +1082,7 @@ describe("processStartNotionImportJob", () => {
          * snapshot string of all document contents.
          *
          * Handles:
+         *
          * - Deterministic ordering (by title, then by parent title for duplicates)
          * - Unique keys for documents with duplicate titles
          * - Sanitization of dynamic IDs (space, document, account)
@@ -1156,8 +1160,8 @@ describe("processStartNotionImportJob", () => {
             // This simulates what Notion exports when documents reference each other
             const parentDoc = new ExportedNotionDocument(
                 "Overview",
-                // Use a direct markdown link to the target document's .md file
-                // The path will be resolved by the test framework
+                // Use a direct markdown link to the target document's .md file The path will be
+                // resolved by the test framework
                 `See ${targetDoc.toReference()} for details.`,
                 [targetDoc],
             );
@@ -1230,8 +1234,8 @@ describe("processStartNotionImportJob", () => {
             const child1 = new ExportedNotionDocument("First Child", "Child 1 content");
             const child2 = new ExportedNotionDocument("Second Child", "Child 2 content");
 
-            // Create a parent document with ONLY child links (no other content)
-            // This simulates Notion exports where a page is just a container for sub-pages
+            // Create a parent document with ONLY child links (no other content) This simulates
+            // Notion exports where a page is just a container for sub-pages
             const parentDoc = new ExportedNotionDocument(
                 "Parent Page",
                 `${child1.toReference()}
@@ -1282,8 +1286,9 @@ ${child2.toReference()}`,
             );
             const documentContent = parentFullDocument.content.doc.toJSON();
 
-            // Document should have: title, Child documents heading, and two list items with mentions
-            // The inline child links are removed since the content was ONLY child links
+            // Document should have: title, Child documents heading, and two list items with
+            // mentions The inline child links are removed since the content was ONLY child
+            // links
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -1661,8 +1666,8 @@ ${child2.toReference()}`,
             const doubleNestedDoc = await findDocumentByTitle(space.id, "I’m a double nested page");
             expect(doubleNestedDoc).toBeDefined();
 
-            // Verify there's a list item mentioning the double nested page
-            // Mentions are now parsed as mention nodes
+            // Verify there's a list item mentioning the double nested page Mentions are now
+            // parsed as mention nodes
             const nestedListItems = nestedContent.content.filter(
                 (node: any) => node.type === "unorderedListItem",
             );
@@ -1698,8 +1703,8 @@ ${child2.toReference()}`,
             );
             expect(parentChildDocsHeading).toBeDefined();
 
-            // Verify there's a list item mentioning the nested page
-            // Mentions are now parsed as mention nodes
+            // Verify there's a list item mentioning the nested page Mentions are now parsed as
+            // mention nodes
             const parentListItems = parentContent.content.filter(
                 (node: any) => node.type === "unorderedListItem",
             );
@@ -1752,8 +1757,8 @@ ${child2.toReference()}`,
             const allDocs = await findDocumentsInSpace(space.id);
             const docTitles = allDocs.map(d => d.title).sort();
 
-            // Verify all expected documents are created
-            // Note: Home is excluded because it only contains CSV links
+            // Verify all expected documents are created Note: Home is excluded because it only
+            // contains CSV links
             expect(docTitles).toEqual([
                 "Another double nested page",
                 "Check the box to mark items as done",
@@ -1832,8 +1837,8 @@ ${child2.toReference()}`,
             const allDocs = await findDocumentsInSpace(space.id);
             const docTitles = allDocs.map(d => d.title).sort();
 
-            // Verify all expected documents are created
-            // Note: Home is excluded because it only contains CSV links
+            // Verify all expected documents are created Note: Home is excluded because it only
+            // contains CSV links
             expect(docTitles).toEqual([
                 "Another double nested page",
                 "Check the box to mark items as done",

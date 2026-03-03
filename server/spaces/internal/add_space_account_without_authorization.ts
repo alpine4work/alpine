@@ -13,20 +13,19 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**
- * Adds an account to a space without authorizing the actor has permission to
- * add accounts to the space.
+ * Adds an account to a space without authorizing the actor has permission to add
+ * accounts to the space.
  *
- * The added space account will have a "Member" role by default. But we use
- * this function in the test environment to add the accounts with "Admin" role
- * as well.
+ * The added space account will have a "Member" role by default. But we use this
+ * function in the test environment to add the accounts with "Admin" role as well.
  *
  * If role is "Owner" we check that there are no other owners in the space,
  * otherwise we throw an error.
  *
- * This is a very very dangerous function! If arbitrary users got the ability
- * to add any user to any space they could easily compromise the data privacy
- * of spaces. You must authorize the actor is allowed to add accounts when
- * calling this function from an exported function.
+ * This is a very very dangerous function! If arbitrary users got the ability to
+ * add any user to any space they could easily compromise the data privacy of
+ * spaces. You must authorize the actor is allowed to add accounts when calling
+ * this function from an exported function.
  */
 export async function addSpaceAccountWithoutAuthorization(
     context: Context<

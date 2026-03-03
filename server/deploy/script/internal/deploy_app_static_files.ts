@@ -34,15 +34,15 @@ const AppStaticBucketManifestSchema = Schema.object({
 
 /**
  * Uploads all static files from `//app:app_static` to Cloudflare R2. We serve
- * static files from `EdgeService` by reading from R2 in production. We keep
- * old static files around for 14 days after a deploy that removes them so
- * clients running old code can continue to reference the old static files.
+ * static files from `EdgeService` by reading from R2 in production. We keep old
+ * static files around for 14 days after a deploy that removes them so clients
+ * running old code can continue to reference the old static files.
  *
- * This function uploads all files from `//app:app_static`. It's important to
- * do this before a deploy so that as users start to make requests against an
- * `AppService` running new code the static assets will be available. If a
- * deploy rolls back then we'll delete the uploaded files 14 days after they
- * were uploaded.
+ * This function uploads all files from `//app:app_static`. It's important to do
+ * this before a deploy so that as users start to make requests against an
+ * `AppService` running new code the static assets will be available. If a deploy
+ * rolls back then we'll delete the uploaded files 14 days after they were
+ * uploaded.
  */
 export async function uploadAppStaticFilesBeforeDeploy(
     context: Context<DynamoContextModules & {r2: CloudflareR2ContextModule}>,
@@ -88,8 +88,8 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 if ((await fs.stat(childPath)).isDirectory()) {
                     await traverse(`${childRelativePath}/`, childPath);
                 } else {
-                    // Don't upload sourcemaps to R2. They're uploaded as GitHub
-                    // artifacts during deploy and used by `dev sourcemap`.
+                    // Don't upload sourcemaps to R2. They're uploaded as GitHub artifacts during
+                    // deploy and used by `dev sourcemap`.
                     if (childRelativePath.endsWith(".map")) return;
 
                     uploadFileByPath.set(childRelativePath, {
@@ -123,9 +123,9 @@ export async function uploadAppStaticFilesBeforeDeploy(
 
     const newManifest: AppStaticBucketManifest = {files: Array.from(newFileByPath.values())};
 
-    // We don't need to worry about multiple scripts trying to write to
-    // `manifest.json` at the same time since only one `deploy()` function may be
-    // run at a time. This is validated by our `prepareDeploy()` function.
+    // We don't need to worry about multiple scripts trying to write to `manifest.json`
+    // at the same time since only one `deploy()` function may be run at a time. This
+    // is validated by our `prepareDeploy()` function.
     await context.r2.PutObject({
         Bucket: appStaticBucketName,
         Key: "manifest.json",
@@ -143,8 +143,8 @@ export async function uploadAppStaticFilesBeforeDeploy(
             const oldFile = oldFileByPath.get(newFile.path);
             if (oldFile?.contentMd5 === newFile.contentMd5) return;
 
-            // Use the same logic to determine the `Content-Type` as the `serve-static`
-            // module we use in development. Source code here:
+            // Use the same logic to determine the `Content-Type` as the `serve-static` module
+            // we use in development. Source code here:
             // https://github.com/pillarjs/send/blob/b69cbb3dc4c09c37917d08a4c13fcd1bac97ade5/index.js#L825-L841
             let contentType = serveStatic.mime.lookup(extname(newFile.path));
 
@@ -212,11 +212,11 @@ export async function cleanupAppStaticFilesAfterDeploy(
         paths: ReadonlySet<string>;
     },
 ) {
-    // If a file has `shouldExpire: true` and was uploaded before `expirationTime`
-    // then we'll delete the file. Files that aren't actively used by the current
-    // deploy are kept for 14 days before we delete them. This way `AppService`
-    // clients using an old asset manifest have 14 days to reload before they start
-    // getting errors when you try to navigate.
+    // If a file has `shouldExpire: true` and was uploaded before `expirationTime` then
+    // we'll delete the file. Files that aren't actively used by the current deploy are
+    // kept for 14 days before we delete them. This way `AppService` clients using an
+    // old asset manifest have 14 days to reload before they start getting errors when
+    // you try to navigate.
     const expirationTime = subDays(new Date(), 14);
     const expiredPaths = new Set<string>();
 

@@ -1,19 +1,18 @@
-// There's a fork of this file: `useSearchMentionState()`. We decided to fork
-// this file instead of creating a shared abstraction under the guidance of our
-// style guide which says: "No abstraction is better than the wrong
-// abstraction".
+// There's a fork of this file: `useSearchMentionState()`. We decided to fork this
+// file instead of creating a shared abstraction under the guidance of our style
+// guide which says: "No abstraction is better than the wrong abstraction".
 //
-// IMPORTANT: If you make an update to this file, you also may want to make
-// that update in `useSearchState()`.
+// IMPORTANT: If you make an update to this file, you also may want to make that
+// update in `useSearchState()`.
 //
 // It's hard to find the reusable abstraction between `useSearchState()` and
 // `useSearchMentionState()`. While they look broadly similar they have subtly
 // different behaviors which are hard to express. For example,
 // `useSearchState()`: 1) searches `SearchStaticEntityId`s and 2) calls
 // `searchBySemantics()` and asynchronously merges those results in. Whereas
-// `useSearchMentionState()` calls `searchByAffinity()` like `useSearchState()`
-// but unlike `useSearchState()` it filters out non-mentionable entities and
-// merges favorites back into the result list.
+// `useSearchMentionState()` calls `searchByAffinity()` like `useSearchState()` but
+// unlike `useSearchState()` it filters out non-mentionable entities and merges
+// favorites back into the result list.
 
 import {Memo, useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {useSearchParams} from "react-router-dom";
@@ -113,8 +112,8 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
             let newExecutionStack: SearchStateExecutionStack;
             let newWordTypingTimeoutTime: number | null;
 
-            // If the user deletes their query, we can immediately push a new execution
-            // which should resolve synchronously.
+            // If the user deletes their query, we can immediately push a new execution which
+            // should resolve synchronously.
             if (newTrimmedQueryText.length === 0) {
                 newExecutionStack = state.executionStack.push(
                     createSearchStateExecution({
@@ -124,19 +123,19 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 );
                 newWordTypingTimeoutTime = null;
             }
-            // If the user has started typing a new word at the end of the query then send
-            // a search with the OLD text not including the start of their new word. We'll
-            // send a query with their new word once they're done typing.
+            // If the user has started typing a new word at the end of the query then send a
+            // search with the OLD text not including the start of their new word. We'll send a
+            // query with their new word once they're done typing.
             //
-            // This way we send intermediate searches to our server with completed words.
-            // It makes the product feel responsive to see results as you type. But since
-            // our search backend doesn't support prefix searches we can only search on
-            // complete words.
+            // This way we send intermediate searches to our server with completed words. It
+            // makes the product feel responsive to see results as you type. But since our
+            // search backend doesn't support prefix searches we can only search on complete
+            // words.
             else if (
                 isTypingNewLastWord &&
-                // If we already have the data we'd search with an intermediate search request
-                // then don't send a new request. This happens if you've typed a word, stopped,
-                // the search has loaded, then type a new word.
+                // If we already have the data we'd search with an intermediate search request then
+                // don't send a new request. This happens if you've typed a word, stopped, the
+                // search has loaded, then type a new word.
                 oldTrimmedQueryText !== state.executionStack.latestExecution.queryText
             ) {
                 newExecutionStack = state.executionStack.push(
@@ -147,8 +146,8 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 );
                 newWordTypingTimeoutTime = action.time.getTime() + action.wordTypingDebounceMs;
             }
-            // For other edits, wait for a debounce timeout so we know the user is done
-            // typing before sending a request to the server.
+            // For other edits, wait for a debounce timeout so we know the user is done typing
+            // before sending a request to the server.
             else {
                 newExecutionStack = state.executionStack;
                 newWordTypingTimeoutTime = action.time.getTime() + action.wordTypingDebounceMs;
@@ -185,8 +184,8 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
 }
 
 /**
- * Preload affinitive search entities when we have some idle time so that they
- * are immediately available when the search modal opens.
+ * Preload affinitive search entities when we have some idle time so that they are
+ * immediately available when the search modal opens.
  */
 export function usePreloadSearchByAffinity() {
     const {space} = useSpaceContext();
@@ -299,8 +298,8 @@ export function useSearchState({
     const queryOutput = useStore(state.executionStack);
 
     const output = useMemo((): SearchStateExecutionOutput => {
-        // If we have an empty query returning no results from our search execution
-        // stack then show search entities the account has some affinity for.
+        // If we have an empty query returning no results from our search execution stack
+        // then show search entities the account has some affinity for.
         if (
             queryOutput.queryText.length === 0 &&
             !queryOutput.isError &&
@@ -350,8 +349,8 @@ export function useSearchState({
 
             let newResults: Array<SearchEntityResultModel> | null = null;
 
-            // Search for commands matching the query text and add them to the beginning of
-            // our results list if so.
+            // Search for commands matching the query text and add them to the beginning of our
+            // results list if so.
             const staticEntityIds = new Set<SearchStaticEntityId>();
             const staticEntityMatches = searchStaticEntityIndex.get().search(queryOutput.queryText);
             for (const match of staticEntityMatches) {
@@ -361,9 +360,8 @@ export function useSearchState({
                 newResults ??= [];
 
                 // Only count close matches. Exclude search results with too high a score. This
-                // cutoff was picked so typing "Create t" doesn't match "Create chat" and
-                // "Create a" doesn't match "Create task". But "Create tsk" matches
-                // "Create task".
+                // cutoff was picked so typing "Create t" doesn't match "Create chat" and "Create
+                // a" doesn't match "Create task". But "Create tsk" matches "Create task".
                 if (match.score! < 0.2) {
                     newResults.push(
                         new SearchEntityResultModel({
@@ -381,9 +379,9 @@ export function useSearchState({
                 }
             }
 
-            // If some search results match affinitive search entities we loaded then we
-            // want to boost the search entities the user has an affinity for since it's
-            // more likely the user cares about those entities.
+            // If some search results match affinitive search entities we loaded then we want
+            // to boost the search entities the user has an affinity for since it's more likely
+            // the user cares about those entities.
             for (let i = 0; i < queryOutput.results.length; i++) {
                 const result = queryOutput.results[i]!;
 
@@ -393,8 +391,7 @@ export function useSearchState({
                     continue;
                 }
 
-                // Initialize the `newResults` array since we'll need to reorder search
-                // results.
+                // Initialize the `newResults` array since we'll need to reorder search results.
                 newResults ??= queryOutput.results.slice(0, i);
 
                 const additionalScore = slope * affinityResult.score + intercept;
@@ -405,8 +402,8 @@ export function useSearchState({
                     explanation: result.explanation
                         ? addSumOperandToOpensearchSearchHitExplanation(result.explanation, {
                               value: additionalScore,
-                              // `\u2764\uFE0F` is the red heart emoji. It needs two Unicode
-                              // code points to render correctly.
+                              // `\u2764\uFE0F` is the red heart emoji. It needs two Unicode code points to
+                              // render correctly.
                               description: `\u2764\uFE0F interpolated affinity score, computed as (m * x) + b from:`,
                               details: [
                                   {
@@ -470,10 +467,10 @@ export function useSearchState({
                         },
                         {
                             replace: true,
-                            // Don't revalidate when updating search params from here. We can't use the
-                            // stable `shouldRevalidate` route function because we want ALL rendered routes
-                            // to skip revalidation. And updating all rendered routes `shouldRevalidate`
-                            // function to ignore `search` is too much of a burden.
+                            // Don't revalidate when updating search params from here. We can't use the stable
+                            // `shouldRevalidate` route function because we want ALL rendered routes to skip
+                            // revalidation. And updating all rendered routes `shouldRevalidate` function to
+                            // ignore `search` is too much of a burden.
                             unstable_shouldRevalidate: false,
                         },
                     );
@@ -485,13 +482,13 @@ export function useSearchState({
 }
 
 /**
- * An execution is the store result from an `executeSearch()` but we only
- * actually send network requests once the `execute()` function is called.
- * That way you can store an execution in state but perform the network request
- * side effects in a `useEffect()`.
+ * An execution is the store result from an `executeSearch()` but we only actually
+ * send network requests once the `execute()` function is called. That way you can
+ * store an execution in state but perform the network request side effects in a
+ * `useEffect()`.
  *
- * The `execute()` function is idempotent. You can call it multiple times and
- * it only sends network requests once.
+ * The `execute()` function is idempotent. You can call it multiple times and it
+ * only sends network requests once.
  */
 type SearchStateExecution = Store<SearchStateExecutionOutput> & {
     readonly queryText: string;
@@ -608,9 +605,9 @@ function createSearchStateExecution({
                 debugOptions,
             });
 
-            // If the user is actively typing, we want to delay sending
-            // `searchBySemantics()` until we have the final query. That way we reduce cost
-            // by avoiding executing semantic search on meaningless intermediate queries.
+            // If the user is actively typing, we want to delay sending `searchBySemantics()`
+            // until we have the final query. That way we reduce cost by avoiding executing
+            // semantic search on meaningless intermediate queries.
             if (!isTyping) nextStore.executeSearchBySemantics();
 
             store.set(nextStore);
@@ -637,8 +634,8 @@ function createSearchStateExecution({
                 });
             });
         } else if (!isTyping) {
-            // Once the user is done typing, we need to call `executeSearchBySemantics()`
-            // if we haven't already.
+            // Once the user is done typing, we need to call `executeSearchBySemantics()` if we
+            // haven't already.
             store.getSnapshot().executeSearchBySemantics?.();
         }
     };
@@ -662,18 +659,17 @@ function createSearchStateExecution({
 }
 
 /**
- * The execution stack is a history of search executions in the current
- * search session. We maintain a history so that as a user types a new search
- * query we can show them results from a previous query before switching to
- * new results.
+ * The execution stack is a history of search executions in the current search
+ * session. We maintain a history so that as a user types a new search query we can
+ * show them results from a previous query before switching to new results.
  *
- * Examples: if a user searches "documents by caleb" and we search "documents"
- * then "documents by" then "documents by caleb" we want to show the results
- * from "documents" then "documents by" in that order while we wait for the
- * final results for "documents by caleb".
+ * Examples: if a user searches "documents by caleb" and we search "documents" then
+ * "documents by" then "documents by caleb" we want to show the results from
+ * "documents" then "documents by" in that order while we wait for the final
+ * results for "documents by caleb".
  *
- * The store returns the result of the latest execution in the stack with
- * search results. The `push()` function immutably creates a new stack.
+ * The store returns the result of the latest execution in the stack with search
+ * results. The `push()` function immutably creates a new stack.
  */
 type SearchStateExecutionStack = Store<SearchStateExecutionOutput> & {
     readonly latestExecution: SearchStateExecution;
@@ -708,8 +704,8 @@ function createSearchStateExecutionStack(
                 if (isLastExecution) {
                     return result;
                 } else {
-                    // If this is not our last execution, then we're loading a newer execution. So
-                    // make sure to return a pending result.
+                    // If this is not our last execution, then we're loading a newer execution. So make
+                    // sure to return a pending result.
                     return !result.isPending ? {...result, isPending: true} : result;
                 }
             }

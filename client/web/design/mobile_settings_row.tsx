@@ -104,8 +104,8 @@ export function MobileSettingsRow({
                 borderRadius="1"
                 backgroundColor={isPressed ? "grey-10" : undefined}
                 style={{
-                    // Cover the previous button's border bottom. If the top border is rendered by
-                    // our element then we don't need to go into the above sibling element's space.
+                    // Cover the previous button's border bottom. If the top border is rendered by our
+                    // element then we don't need to go into the above sibling element's space.
                     top: withBorderTop ? 0 : -1,
                     bottom: 0,
                     left: `-${borderRadius["1"]}`,
@@ -117,8 +117,8 @@ export function MobileSettingsRow({
                     <IconContext.Provider
                         value={{
                             size: spacing["4"],
-                            // We need `<IconContext.Provider>` to set the actual color since brand icons
-                            // (e.g. `<ChannelBrandIcon>`) need the actual color in context.
+                            // We need `<IconContext.Provider>` to set the actual color since brand icons (e.g.
+                            // `<ChannelBrandIcon>`) need the actual color in context.
                             color: isPressed
                                 ? colorSchemeVars["grey-100"]
                                 : colorSchemeVars["grey-80"],
@@ -146,8 +146,8 @@ export function MobileSettingsRow({
                     <IconContext.Provider
                         value={{
                             size: spacing["4"],
-                            // We need `<IconContext.Provider>` to set the actual color since brand icons
-                            // (e.g. `<ChannelBrandIcon>`) need the actual color in context.
+                            // We need `<IconContext.Provider>` to set the actual color since brand icons (e.g.
+                            // `<ChannelBrandIcon>`) need the actual color in context.
                             color: isPressed
                                 ? colorSchemeVars["grey-100"]
                                 : colorSchemeVars["grey-80"],

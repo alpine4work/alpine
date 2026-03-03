@@ -119,8 +119,8 @@ function TaskStatusButton(
             onPress: () => {
                 if (isDisabledButStillFocusable) return;
 
-                // Currently, accounts without space access can't edit tasks. The max
-                // permission level of `urlGrant` is `View`.
+                // Currently, accounts without space access can't edit tasks. The max permission
+                // level of `urlGrant` is `View`.
                 assert(currentAccount);
 
                 const status = task?.getStatus().type ?? initialFields?.status ?? "Open";
@@ -163,8 +163,7 @@ function TaskStatusButton(
                         });
                     };
 
-                    // Checks if there are any open subtasks
-                    // if there are then open warning dialogue
+                    // Checks if there are any open subtasks if there are then open warning dialogue
                     if (task && task.getOpenChildTaskCount() !== 0) {
                         setCloseConfirmationState({
                             taskId: task?.id ?? null,

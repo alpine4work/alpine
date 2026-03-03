@@ -9,8 +9,8 @@ import {InternalError} from "~/shared/error/error.js";
 /**
  * This is route that automatically redirects from
  * `/s/:spaceId/accounts/:accountId` to `/s/:spaceId/chat/with/:accountId`.
- * Eventually we'll want a dedicated account profile pages but for now we go to
- * the 1:1 chat.
+ * Eventually we'll want a dedicated account profile pages but for now we go to the
+ * 1:1 chat.
  */
 export async function loader({params}: LoaderArgs) {
     if (process.env.NODE_ENV !== "production") {

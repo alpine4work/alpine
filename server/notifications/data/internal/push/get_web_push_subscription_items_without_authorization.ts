@@ -5,8 +5,8 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {AccountId, BrowserId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get all web push subscription items registered for the provided `AccountId` across all registered
- * browsers.
+ * Get all web push subscription items registered for the provided `AccountId`
+ * across all registered browsers.
  */
 export function getWebPushSubscriptionItemsWithoutAuthorization(
     context: ServerActionContext,

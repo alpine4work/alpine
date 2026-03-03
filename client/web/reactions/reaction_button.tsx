@@ -70,8 +70,8 @@ export function ReactionButton({
                     withContextMenuInstructions={!!currentAccount}
                 >
                     <ContextMenuActions
-                        // The `/reactions` route doesn't work when the actor doesn't have access to
-                        // the space because we don't let the actor see accounts that left reactions.
+                        // The `/reactions` route doesn't work when the actor doesn't have access to the
+                        // space because we don't let the actor see accounts that left reactions.
                         isDisabled={!currentAccount}
                         actions={[
                             [

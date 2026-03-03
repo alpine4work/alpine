@@ -9,9 +9,8 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Create a new chat with the provided accounts and no messages but only in
- * test environments. In the app we use `sendChatMessageToAccounts()` to create
- * chats.
+ * Create a new chat with the provided accounts and no messages but only in test
+ * environments. In the app we use `sendChatMessageToAccounts()` to create chats.
  */
 export async function createChatForTest(
     context: ServerSessionActionContext,
@@ -34,8 +33,7 @@ export async function createChatForTest(
         new Set([...otherAccountIds, context.actor.getAccountId()]),
     ).sort();
 
-    // Make sure all accounts are members of the space the chat is being
-    // created in.
+    // Make sure all accounts are members of the space the chat is being created in.
     const accounts = await runAllPromises(
         accountIds.map(accountId => getAccount(context, spaceId, accountId)),
     );
@@ -44,9 +42,8 @@ export async function createChatForTest(
         throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts");
     }
 
-    // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
-    // this slightly awkward form to let tests mock different times for chat
-    // creation.
+    // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use this
+    // slightly awkward form to let tests mock different times for chat creation.
     const createdTime = new Date(Date.now());
 
     await DynamoTableSchema.executeTransaction(context, [

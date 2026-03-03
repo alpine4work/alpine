@@ -49,8 +49,8 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
     const formRef = useRef<FormRef>(null);
     const inputRef = useRef<OneTimePasswordInputRef>(null);
 
-    // Immediately focus the one time password input when the component mounts.
-    // Only on desktop when focusing the input won't open a giant keyboard.
+    // Immediately focus the one time password input when the component mounts. Only on
+    // desktop when focusing the input won't open a giant keyboard.
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -66,8 +66,8 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
 
     const isDisabled = oneTimePassword.length !== 6;
 
-    // If we switch from `isDisabled` true to `isDisabled` false then submit the
-    // form automatically.
+    // If we switch from `isDisabled` true to `isDisabled` false then submit the form
+    // automatically.
     const isDisabledRef = useRef(isDisabled);
     useEffect(() => {
         if (isDisabled === isDisabledRef.current) return;

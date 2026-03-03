@@ -52,9 +52,9 @@ export function MessageStreamViewThinkingSummary({
         for (const part of section.nonContentParts) {
             const previousPart = nonContentParts[nonContentParts.length - 1];
 
-            // If the previous part is a `Read` tool call for the same path then combine
-            // them into one part. This will happen if the agent is reading multiple pages
-            // from an entity.
+            // If the previous part is a `Read` tool call for the same path then combine them
+            // into one part. This will happen if the agent is reading multiple pages from an
+            // entity.
             if (
                 previousPart &&
                 part.type === "ToolCall" &&
@@ -77,9 +77,9 @@ export function MessageStreamViewThinkingSummary({
         onPress: onToggleIsExpanded,
     });
 
-    // If this was a content only section, then there was no thinking involved.
-    // This may happen when we send "system" messages that let the user know that
-    // they've reached or are nearing their agent usage limits.
+    // If this was a content only section, then there was no thinking involved. This
+    // may happen when we send "system" messages that let the user know that they've
+    // reached or are nearing their agent usage limits.
     if (section.contentParts.length > 0 && nonContentParts.length === 0) return null;
 
     return (
@@ -100,8 +100,8 @@ export function MessageStreamViewThinkingSummary({
             <FocusRing offset="0" insetX="-0.5">
                 <div
                     {...pressProps}
-                    // Ignore press events in mentions. Pressing a mention should open the mention
-                    // in a peek not expand the thinking summary.
+                    // Ignore press events in mentions. Pressing a mention should open the mention in a
+                    // peek not expand the thinking summary.
                     onClick={event => {
                         if (
                             !(event.target instanceof HTMLElement) ||
@@ -284,15 +284,15 @@ function MessageStreamSectionThinkingProgressSummary({
         // We increment `progress.index` until it's the last non-content part.
         if (!(progress.index < nonContentParts.length - 1)) return;
 
-        // Always display each non-content part for at least 1 second so the user has
-        // a chance to read it.
+        // Always display each non-content part for at least 1 second so the user has a
+        // chance to read it.
         const minNonContentPartVisibleDurableMs = 1000;
 
         const delayMs = progress.displayTime + minNonContentPartVisibleDurableMs - Date.now();
 
         const run = () => {
-            // Increment by one. If the next part isn't the latest we'll set
-            // another timeout that increments us again.
+            // Increment by one. If the next part isn't the latest we'll set another timeout
+            // that increments us again.
             setProgress({
                 index: progress.index + 1,
                 displayTime: Date.now(),
@@ -325,8 +325,7 @@ function MessageStreamSectionThinkingProgressSummary({
 
     return (
         <span
-            // Remount (and reset the wave animation) whenever we show a new
-            // non-content part.
+            // Remount (and reset the wave animation) whenever we show a new non-content part.
             key={progress?.index}
             className={waveAnimationClassName}
         >

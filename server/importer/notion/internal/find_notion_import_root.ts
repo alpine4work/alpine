@@ -3,22 +3,24 @@ import {unzipSync} from "fflate";
 const maxNotionImportRootRecursionDepth = 5;
 
 /**
- * Recursively searches through a zip buffer (including nested zips)
- * to find the root of a Notion export, identified by containing an
- * `index.html` file. Returns the unzipped files at that level with
- * the root directory stripped from all paths, or `null` if no
- * `index.html` is found.
+ * Recursively searches through a zip buffer (including nested zips) to find the
+ * root of a Notion export, identified by containing an `index.html` file. Returns
+ * the unzipped files at that level with the root directory stripped from all
+ * paths, or `null` if no `index.html` is found.
  *
  * For example, if the zip contains:
- *   - `Export-123/index.html`
- *   - `Export-123/Page abc.md`
+ *
+ * - `Export-123/index.html`
+ * - `Export-123/Page abc.md`
  *
  * The returned files will have paths:
- *   - `index.html`
- *   - `Page abc.md`
  *
- * @see README.md "How Notion Exports Work" section for the double-nested zip structure.
- * @see README.md "Multi-Part Exports" section for why we need recursive unzipping.
+ * - `index.html`
+ * - `Page abc.md`
+ *
+ * @see README.md "How Notion Exports Work" section for the double-nested zip
+ * structure. @see README.md "Multi-Part Exports" section for why we need recursive
+ * unzipping.
  */
 export function findNotionImportRoot(
     data: Uint8Array,
@@ -45,9 +47,9 @@ export function findNotionImportRoot(
 }
 
 /**
- * Finds the root path (directory containing index.html) in the files.
- * Returns empty string if index.html is at root, or "path/to/dir/" if nested.
- * Returns null if no index.html is found.
+ * Finds the root path (directory containing index.html) in the files. Returns
+ * empty string if index.html is at root, or "path/to/dir/" if nested. Returns null
+ * if no index.html is found.
  */
 function findIndexHtmlRootPath(files: Record<string, Uint8Array>): string | null {
     for (const name of Object.keys(files)) {

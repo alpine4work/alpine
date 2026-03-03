@@ -7,13 +7,15 @@ import {getMaxId, getMinId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Deletes the Slack integration for a space along with the associated bot and users previously
- * connected to the Slack workspace. This function will throw an error if the space does not have a
- * Slack workspace connected or the actor does not have admin access to the space.
+ * Deletes the Slack integration for a space along with the associated bot and
+ * users previously connected to the Slack workspace. This function will throw an
+ * error if the space does not have a Slack workspace connected or the actor does
+ * not have admin access to the space.
  *
- * This function only removes the integration from our database and does not uninstall the Alpine
- * Slack app from the linked workspace. Ensure you call `uninstallSlackAppFromWorkspace` if this
- * is not being called in response to a user manually uninstalling the app.
+ * This function only removes the integration from our database and does not
+ * uninstall the Alpine Slack app from the linked workspace. Ensure you call
+ * `uninstallSlackAppFromWorkspace` if this is not being called in response to a
+ * user manually uninstalling the app.
  */
 export async function deleteSlackWorkspaceIntegration(
     context: ServerAccountActionContext,
@@ -21,8 +23,8 @@ export async function deleteSlackWorkspaceIntegration(
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
-    // Delete the workspace integration item and bot credentials first so additional users can't
-    // connect to the workspace after we delete the user links.
+    // Delete the workspace integration item and bot credentials first so additional
+    // users can't connect to the workspace after we delete the user links.
     const transactionEntries = [
         IntegrationsTable.transactionDeleteItemWithKey({
             partitionType: "SlackSpaceIntegration",
@@ -40,10 +42,11 @@ export async function deleteSlackWorkspaceIntegration(
 
     await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
-    // Delete all of the linked Slack accounts. This is not a part of the transaction above because
-    // we may have more than 25 linked accounts, and DynamoDB has a transaction action limit of 25.
-    // It is possible we could end up with an orphaned Slack user record if a delete fails, but
-    // this should be rare and shouldn't affect the user.
+    // Delete all of the linked Slack accounts. This is not a part of the transaction
+    // above because we may have more than 25 linked accounts, and DynamoDB has a
+    // transaction action limit of 25. It is possible we could end up with an orphaned
+    // Slack user record if a delete fails, but this should be rare and shouldn't
+    // affect the user.
     await parallelProcessAsyncIterable(
         IntegrationsTable.query(context, {
             partitionKey: {partitionType: "SlackSpaceIntegration", spaceId},

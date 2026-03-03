@@ -66,16 +66,16 @@ export function updateInboxDocumentCommentThreadEntry(
 
             let newItem = await update(oldItem);
 
-            // Remove the `archiveNewCommentThreadsEntryAgain` flag now that we're
-            // archiving `DocumentNewCommentThreadsEntry` again.
+            // Remove the `archiveNewCommentThreadsEntryAgain` flag now that we're archiving
+            // `DocumentNewCommentThreadsEntry` again.
             if (newItem !== "Noop" && newItem.archiveNewCommentThreadsEntryAgain) {
                 newItem = omitObject(newItem, ["archiveNewCommentThreadsEntryAgain"]);
             }
 
-            // If we're creating this `DocumentCommentThreadEntry` then at the same time if
-            // the comment thread is present in `DocumentNewCommentThreadsEntry` then we
-            // want to archive it in the `DocumentNewCommentThreadsEntry`. So the user
-            // refers to `DocumentCommentThreadEntry` from now on for this comment thread.
+            // If we're creating this `DocumentCommentThreadEntry` then at the same time if the
+            // comment thread is present in `DocumentNewCommentThreadsEntry` then we want to
+            // archive it in the `DocumentNewCommentThreadsEntry`. So the user refers to
+            // `DocumentCommentThreadEntry` from now on for this comment thread.
 
             const commentThreadInNewCommentThreadsItemKey: InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey =
                 {
@@ -94,10 +94,10 @@ export function updateInboxDocumentCommentThreadEntry(
 
             // The post isn't present in any `DocumentNewCommentThreadsEntry`.
             if (!commentThreadInNewCommentThreadsItem) {
-                // Create the `DocumentCommentThreadInNewCommentThreadsEntry` item when we
-                // commit this transaction. This item existing means if a
-                // `CreateDocumentComment` event is processed later we'll automatically archive
-                // the document comment thread in the new document comment threads entry.
+                // Create the `DocumentCommentThreadInNewCommentThreadsEntry` item when we commit
+                // this transaction. This item existing means if a `CreateDocumentComment` event is
+                // processed later we'll automatically archive the document comment thread in the
+                // new document comment threads entry.
                 //
                 // If the item already exists then we need to retry.
                 addAdditionalTransactionEntry(
@@ -111,9 +111,9 @@ export function updateInboxDocumentCommentThreadEntry(
             }
 
             // If `newCommentThreadsEntry` is null that means the item was created by
-            // `updateInboxDocumentCommentThreadEntry()`. Any `CreateDocumentComment`
-            // events after `commentThreadInNewCommentThreadsItem` is created automatically
-            // archive the new comment thread.
+            // `updateInboxDocumentCommentThreadEntry()`. Any `CreateDocumentComment` events
+            // after `commentThreadInNewCommentThreadsItem` is created automatically archive
+            // the new comment thread.
             if (!commentThreadInNewCommentThreadsItem.newCommentThreadsEntry) return newItem;
 
             const newCommentThreadsItemKey: InboxDocumentNewCommentThreadsEntryItemKey = {
@@ -126,8 +126,8 @@ export function updateInboxDocumentCommentThreadEntry(
                     commentThreadInNewCommentThreadsItem.newCommentThreadsEntry.bucketGeneration,
             };
 
-            // Item might not exist if we're running this job multiple times since the
-            // inbox entry might have been deleted.
+            // Item might not exist if we're running this job multiple times since the inbox
+            // entry might have been deleted.
             const newCommentThreadsItem = await InboxTable.getItemIfExists(
                 context,
                 newCommentThreadsItemKey,
@@ -187,8 +187,8 @@ export function updateInboxDocumentCommentThreadEntry(
 
             // Make sure we always create an archived entry for the comment thread when we
             // archived the comment thread in its corresponding
-            // `DocumentNewCommentThreadsEntry`. So the user can unarchive the comment
-            // thread to put it back in their inbox.
+            // `DocumentNewCommentThreadsEntry`. So the user can unarchive the comment thread
+            // to put it back in their inbox.
             if (newItem.isArchived) {
                 newItem = {
                     ...newItem,

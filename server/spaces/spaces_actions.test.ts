@@ -148,8 +148,8 @@ test("can get all accounts for our space", async () => {
         expensivelyGetAllSpaceAccounts(context.action(sessionB1), spaceB.id),
     ).resolves.toEqual(
         [
-            // since we add owner account while creating the TestSpace, this adds up in
-            // the the result from `expensivelyGetAllSpaceAccounts`
+            // since we add owner account while creating the TestSpace, this adds up in the the
+            // result from `expensivelyGetAllSpaceAccounts`
             await getAccount(context.action(ownerSessionB), spaceB.id, ownerSessionB.account.id),
             await getAccount(context.action(sessionB1), spaceB.id, sessionB1.account.id),
             await getAccount(context.action(sessionB2), spaceB.id, sessionB2.account.id),
@@ -1867,7 +1867,7 @@ test("`updateSpaceName()` prevents non-member from updating space name", async (
 
     const spaceAfterAttempt = await getSpace(session.action(), space.id);
 
-    //make sure the initial name wasn't "New Name".
+    // make sure the initial name wasn't "New Name".
     expect(spaceAfterAttempt.name).not.toBe("New Name");
 
     expect(spaceAfterAttempt.name).toBe(initialName);
@@ -2143,10 +2143,12 @@ test("don\u2019t allow creating multiple owners in a single space (with test sce
     const space = await TestSpace.create(context);
     await space.createSession({role: "Owner"});
 
-    // try to add a new member role again to the space which is already owned by the owner
+    // try to add a new member role again to the space which is already owned by the
+    // owner
     await space.createSession({role: "Member"});
 
-    // try to add a new member role again to the space which is already owned by the owner
+    // try to add a new member role again to the space which is already owned by the
+    // owner
     await space.createSession({role: "Admin"});
 
     // try to add owner again to the space which is already owned by the owner
@@ -3132,8 +3134,8 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should fall through cache l
 
     expect(getCount()).toEqual(0);
     // Now check if the function correctly identifies the account has Admin role
-    // Despite the cache showing "Member", this should return true because
-    // the function falls through to more authoritative sources(i.e. strong consistency)
+    // Despite the cache showing "Member", this should return true because the function
+    // falls through to more authoritative sources(i.e. strong consistency)
     const functionResult = await isAccountMemberOfSpaceWithoutAuthorization(
         context.withCache(),
         space.id,
@@ -3141,8 +3143,8 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should fall through cache l
         "Admin",
     );
 
-    // this actually shows that there was a db hit during this function call.
-    // This proves the function went beyond the stale cache to find the real role
+    // this actually shows that there was a db hit during this function call. This
+    // proves the function went beyond the stale cache to find the real role
     expect(getCount()).toEqual(1);
     expect(functionResult).toBe(true);
 
@@ -3190,7 +3192,8 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should return true early wh
     );
     expect(isMemberResult).toBe(true);
 
-    // Should not have made additional database calls since cache hit with matching role
+    // Should not have made additional database calls since cache hit with matching
+    // role
     expect(getCount()).toEqual(0);
 });
 
@@ -3303,8 +3306,8 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should handle removed accou
     );
     expect(isMemberResult).toBe(false);
 
-    // this shows that there were 2 db hits during this function call
-    // hence the function did not returned stale data
+    // this shows that there were 2 db hits during this function call hence the
+    // function did not returned stale data
     expect(getCount()).toEqual(2);
 });
 ///
@@ -4666,8 +4669,8 @@ test("`moveSpaceAccountOwnerRole()` should throw if account owner tries to chang
     expect((await memberSession1.get()).initialData.space.role).toBe("Owner");
     expect((await memberSession2.get()).initialData.space.role).toBe("Member");
 
-    // Try to move ownership from memberSession1 (B) to memberSession2 (C) using original owner's session (A)
-    // This should fail because A is no longer the owner
+    // Try to move ownership from memberSession1 (B) to memberSession2 (C) using
+    // original owner's session (A) This should fail because A is no longer the owner
     await expect(
         moveSpaceAccountOwnerRole(ownerSession.action(), {
             spaceId: space.id,
@@ -4919,8 +4922,8 @@ test("`moveSpaceAccountOwnerRole()` and `addSpaceAccount()` shouldn\u2019t add t
     // Don't treat a rejection of this promise as an uncaught exception.
     //
     // NOTE(calebmer): I'm surprised this is necessary. Shouldn't
-    // `await expect(promise2)` handle the promise?? But without this catch the
-    // test is flaky *shrug*
+    // `await expect(promise2)` handle the promise?? But without this catch the test is
+    // flaky _shrug_
     promise2.catch(() => {});
 
     const {unpause: unpause1} = await pause1Promise;

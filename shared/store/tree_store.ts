@@ -7,10 +7,10 @@ import {ReducedTreeStore} from "~/shared/store/internal/reduced_tree_store.js";
 import {Store} from "~/shared/store/store.js";
 
 /**
- * Reduces a `Store<Tree<Key, Value>>` into some value efficiently. Since
- * instead of rerunning the reducer on the full tree whenever the tree changes
- * (which would mean updates are O(n)) we reduce diffs to the tree over time
- * (which means updates are O(1)).
+ * Reduces a `Store<Tree<Key, Value>>` into some value efficiently. Since instead
+ * of rerunning the reducer on the full tree whenever the tree changes (which would
+ * mean updates are O(n)) we reduce diffs to the tree over time (which means
+ * updates are O(1)).
  */
 export function reduceTreeStore<TreeKey, TreeValue, Value>(
     store: Store<Tree<TreeKey, TreeValue>>,
@@ -39,8 +39,8 @@ export function mapTreeStoreValues<Key, OldValue, NewValue>(
                     const iterator = tree.find(change.key);
                     const newValue = map(change.newValue, change.key);
 
-                    // Optimization: If the mapped value didn't change then we don't need to update
-                    // the tree.
+                    // Optimization: If the mapped value didn't change then we don't need to update the
+                    // tree.
                     if (Object.is(iterator.value!, newValue)) return tree;
 
                     return iterator.update(newValue);
@@ -57,9 +57,9 @@ export function mapTreeStoreValues<Key, OldValue, NewValue>(
 }
 
 /**
- * Flattens a `Store<Tree<Key, Store<Value>>>` to `Store<Tree<Key, Value>>`.
- * That way your root store gets all updates and you can operate on the
- * flattened tree as a whole.
+ * Flattens a `Store<Tree<Key, Store<Value>>>` to `Store<Tree<Key, Value>>`. That
+ * way your root store gets all updates and you can operate on the flattened tree
+ * as a whole.
  */
 export function flatTreeStoreValues<Key, Value>(
     store: Store<Tree<Key, Store<Value>>>,
@@ -69,8 +69,8 @@ export function flatTreeStoreValues<Key, Value>(
 
 /**
  * Both maps (`mapTreeStoreValues()`) and flattens (`flatTreeStoreValues()`) a
- * tree. This function is more efficient then calling the map and flat
- * combinators independently since we don't build an intermediate tree object.
+ * tree. This function is more efficient then calling the map and flat combinators
+ * independently since we don't build an intermediate tree object.
  */
 export function flatMapTreeStoreValues<Key, OldValue, NewValue>(
     store: Store<Tree<Key, OldValue>>,

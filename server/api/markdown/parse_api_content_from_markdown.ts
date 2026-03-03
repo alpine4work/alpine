@@ -77,28 +77,30 @@ type ApiContentMarkdownParserDefinitions = {
     readonly pastDefinitionsByIdentifier: Map<string, Array<DefinitionContent>>;
 };
 
-// TODO(calebmer, #public-api): Clearly document backwards compatibility
-// commitment for Markdown printing vs parsing. We're committing to always
-// printing the same Markdown for the same content. However, we may choose to
-// parse Markdown differently over time. We'll never change how we parse
-// Markdown we've printed but as we add new features, Markdown that used to be
-// parsed one way may be parsed in some different way.
+// TODO(calebmer, #public-api): Clearly document backwards compatibility commitment
+// for Markdown printing vs parsing. We're committing to always printing the same
+// Markdown for the same content. However, we may choose to parse Markdown
+// differently over time. We'll never change how we parse Markdown we've printed
+// but as we add new features, Markdown that used to be parsed one way may be
+// parsed in some different way.
 //
 // For example, say we add collapsible sections. We may print this to Markdown
 // using the `<details>` element ([like GitHub][1]). Currently when we parse a
-// `<details>` element we ignore it (since we ignore unknown HTML) but we'll
-// make a backwards incompatible change where we start parsing `<details>` as a
-// collapsible section giving different meaning to the Markdown the user
-// provides us.
+// `<details>` element we ignore it (since we ignore unknown HTML) but we'll make a
+// backwards incompatible change where we start parsing `<details>` as a
+// collapsible section giving different meaning to the Markdown the user provides
+// us.
 //
 // Another example, it seems likely we may support some kind of math Markdown
-// extension someday (ChatGPT and Claude seem to use [the `$$math$$`
-// syntax][2]). We're currently escaping `$` to reserve the ability to use math
-// in markdown in the future.
+// extension someday (ChatGPT and Claude seem to use [the `$$math$$` syntax][2]).
+// We're currently escaping `$` to reserve the ability to use math in markdown in
+// the future.
 //
-// [1]: https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections
+// [1]:
+//     https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-collapsed-sections
 // [2]: https://github.com/syntax-tree/mdast-util-math
-// [3]: https://genai.stackexchange.com/questions/386/how-does-chatgpt-render-math-in-markdown-output
+// [3]:
+//     https://genai.stackexchange.com/questions/386/how-does-chatgpt-render-math-in-markdown-output
 function actuallyParseApiContentFromMarkdown(
     markdown: string,
     options: ApiContentMarkdownParserOptions,
@@ -120,8 +122,8 @@ export function parseMarkdownTree(
     return fromMarkdown(markdown, "utf-8", {
         // NOTE(calebmer): We add these options via patch to `micromark-core-commonmark`,
         // `micromark`, and `mdast-util-from-markdown`. These options are technically
-        // incompatible with the CommonMark spec which is why they aren't enabled
-        // by default.
+        // incompatible with the CommonMark spec which is why they aren't enabled by
+        // default.
         allowUndefinedLinkReferenceIdentifiers: options?.allowUndefinedLinkReferenceIdentifiers,
         allowAttentionWithoutClose: options?.allowAttentionWithoutClose,
         allowCodeTextWithoutClose: options?.allowCodeTextWithoutClose,
@@ -142,9 +144,9 @@ export function parseMarkdownTree(
             gfmStrikethroughFromMarkdown(),
             gfmTableFromMarkdown(),
             gfmTaskListItemFromMarkdown(),
-            // NOTE(calebmer, 2025-08-08): We don't currently support math symbols in
-            // content but we might want to support math in the future. So make sure we
-            // escape `$` and `$$` to reserve them.
+            // NOTE(calebmer, 2025-08-08): We don't currently support math symbols in content
+            // but we might want to support math in the future. So make sure we escape `$` and
+            // `$$` to reserve them.
             mathFromMarkdown(),
             // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
             // Markdown but we want to reserve the syntax so we have the ability to use
@@ -199,8 +201,8 @@ function* parseApiContentBlockElementsFromMarkdown(
     contents: Array<BlockContent | DefinitionContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     options: ApiContentMarkdownParserOptions,
-    // Required option so caller must make a choice on whether to enable this
-    // property or not.
+    // Required option so caller must make a choice on whether to enable this property
+    // or not.
     {withTableHtml}: {withTableHtml: boolean},
 ): IterableIterator<ApiContentBlockElement> {
     const tableState = withTableHtml ? new ApiContentBlockElementsMarkdownTableState() : null;
@@ -252,12 +254,12 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "list": {
-            // Ordered lists are homogenous (they contain *only* ordered list items) so we
-            // can yield them directly. Conversely, unordered lists are non-homogenous –
-            // they can contain normal unordered list items or "checklist" items. However,
-            // we maintain separate list structures for checklists and unordered lists; so
-            // when parsing unordered lists into our API content, we need to split them based
-            // on the list items.
+            // Ordered lists are homogenous (they contain _only_ ordered list items) so we can
+            // yield them directly. Conversely, unordered lists are non-homogenous – they can
+            // contain normal unordered list items or "checklist" items. However, we maintain
+            // separate list structures for checklists and unordered lists; so when parsing
+            // unordered lists into our API content, we need to split them based on the list
+            // items.
             if (content.ordered) {
                 yield {
                     type: "OrderedList",
@@ -277,12 +279,13 @@ function* parseApiContentBlockElementFromMarkdown(
             // list, but our API treats CheckList as a separate type.
             //
             // For example:
+            //
             // - [ ] Checklist item
             // - Regular item
             // - [x] Another checklist item
             //
-            // Gets parsed as a single unordered list with mixed `checked` values,
-            // but needs to be yielded as: CheckList, UnorderedList, CheckList
+            // Gets parsed as a single unordered list with mixed `checked` values, but needs to
+            // be yielded as: CheckList, UnorderedList, CheckList
             const itemGroups: Array<{
                 type: "UnorderedList" | "CheckList";
                 items: Array<ListItem>;
@@ -338,8 +341,8 @@ function* parseApiContentBlockElementFromMarkdown(
                             content.children,
                             definitions,
                             options,
-                            // Instead of ignoring elements like `</td>` (which may feel broken) throw an
-                            // error if we see table HTML.
+                            // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
+                            // if we see table HTML.
                             {withTableHtml: false},
                         ),
                         intoApiContentQuoteBlockElementBlockElement,
@@ -403,9 +406,8 @@ function* parseApiContentBlockElementFromMarkdown(
             const handleText = (text: string) => {
                 if (text.length === 0) return;
 
-                // Perform HTML space crushing. Any consecutive whitespace in HTML is collapsed
-                // to a single space. If we're in `<pre><code>` then we must preserve
-                // whitespace.
+                // Perform HTML space crushing. Any consecutive whitespace in HTML is collapsed to
+                // a single space. If we're in `<pre><code>` then we must preserve whitespace.
                 if (codeTagState === null) {
                     text = text.replaceAll(/\s+/g, " ");
                 }
@@ -593,8 +595,8 @@ function* parseApiContentBlockElementFromMarkdown(
 
                                 markStack.pushForHtmlTag("mark", {
                                     type: "Highlight",
-                                    // Default to orange since that's our closest color to yellow. The default
-                                    // browser CSS typically renders `<mark>` with a yellow background.
+                                    // Default to orange since that's our closest color to yellow. The default browser
+                                    // CSS typically renders `<mark>` with a yellow background.
                                     color: color ?? "Orange",
                                 });
                             }
@@ -659,13 +661,12 @@ function* parseApiContentBlockElementFromMarkdown(
 
                                 // According to [mdn on `<pre>` elements][1]:
                                 //
-                                // > Whitespace inside this element is displayed as written, with one
-                                // > exception. If one or more leading newline characters are included
-                                // > immediately following the opening `<pre>` tag, the _first_ newline
-                                // > character is stripped.
+                                // > Whitespace inside this element is displayed as written, with one exception. If
+                                // > one or more leading newline characters are included immediately following the
+                                // > opening `<pre>` tag, the _first_ newline character is stripped.
                                 //
-                                // We also strip the final newline if one exists since it naturally forms the
-                                // end of our block.
+                                // We also strip the final newline if one exists since it naturally forms the end
+                                // of our block.
                                 //
                                 // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/pre
                                 const textElements = codeTagState.textElements;
@@ -1032,8 +1033,8 @@ class ApiContentBlockElementsMarkdownTableState {
         return true;
     }
 
-    // Ignore text when we're in a table and between table cells. Typically this
-    // will just be a bunch of whitespace and newlines we don't care about.
+    // Ignore text when we're in a table and between table cells. Typically this will
+    // just be a bunch of whitespace and newlines we don't care about.
     public onText(): boolean {
         if (this._state === null) return false;
         if (this._state.phase !== "TableCell") return true;
@@ -1332,8 +1333,8 @@ class ApiContentInlineElementsMarkdownParserMarkStack {
         forHtmlTagName: string | null;
     }> = [];
 
-    // `null` means we haven't computed the marks yet. `undefined` means we've
-    // computed the marks and there are no marks.
+    // `null` means we haven't computed the marks yet. `undefined` means we've computed
+    // the marks and there are no marks.
     private _cachedMarks: Array<ApiContentInlineElementMark> | undefined | null = null;
 
     public getLength() {
@@ -1392,8 +1393,8 @@ function* parseApiContentInlineElementsFromMarkdown(
         const content = contents[index]!;
 
         if (markStack.getLength() === 0 && content.type === "text") {
-            // `mdast` seems unable to parse `**<br/>**` bold formatted HTML when it's next
-            // to other bold/italic content. So add special support for that here.
+            // `mdast` seems unable to parse `**<br/>**` bold formatted HTML when it's next to
+            // other bold/italic content. So add special support for that here.
             if (content.value.endsWith("**") && index + 2 < contents.length) {
                 const content2 = contents[index + 1]!;
                 const content3 = contents[index + 2]!;
@@ -1434,8 +1435,8 @@ function* parseApiContentInlineElementsFromMarkdown(
                 }
             }
 
-            // `mdast` seems unable to parse `*<br/>*` italic formatted HTML when it's next
-            // to other bold/italic content. So add special support for that here.
+            // `mdast` seems unable to parse `*<br/>*` italic formatted HTML when it's next to
+            // other bold/italic content. So add special support for that here.
             if (content.value.endsWith("*") && index + 2 < contents.length) {
                 const content2 = contents[index + 1]!;
                 const content3 = contents[index + 2]!;
@@ -1476,8 +1477,8 @@ function* parseApiContentInlineElementsFromMarkdown(
                 }
             }
 
-            // `mdast` seems unable to parse `_<br/>_` italic formatted HTML when it's next
-            // to other bold/italic content. So add special support for that here.
+            // `mdast` seems unable to parse `_<br/>_` italic formatted HTML when it's next to
+            // other bold/italic content. So add special support for that here.
             if (content.value.endsWith("_") && index + 2 < contents.length) {
                 const content2 = contents[index + 1]!;
                 const content3 = contents[index + 2]!;
@@ -1518,8 +1519,8 @@ function* parseApiContentInlineElementsFromMarkdown(
                 }
             }
 
-            // `mdast` seems unable to parse `~~[test](...)~~` strike formatted HTML. So
-            // add special support for that here.
+            // `mdast` seems unable to parse `~~[test](...)~~` strike formatted HTML. So add
+            // special support for that here.
             if (content.value.endsWith("~~") && index + 2 < contents.length) {
                 const content2 = contents[index + 1]!;
                 const content3 = contents[index + 2]!;
@@ -1710,10 +1711,10 @@ function* parseApiContentInlineElementFromMarkdown(
         case "text": {
             yield {
                 type: "Text",
-                // `mdast` preserves single newlines in text. Presumably so we keep the
-                // newlines when printing the text back out. However, we don't allow
-                // newlines in `Text` elements (they're ultimately not supported by
-                // ProseMirror) so convert consecutive newlines into a single space.
+                // `mdast` preserves single newlines in text. Presumably so we keep the newlines
+                // when printing the text back out. However, we don't allow newlines in `Text`
+                // elements (they're ultimately not supported by ProseMirror) so convert
+                // consecutive newlines into a single space.
                 text: content.value.replaceAll(/\n+/g, " "),
                 marks: markStack.getMarks(),
             };
@@ -1749,9 +1750,8 @@ function* parseApiContentInlineElementFromMarkdown(
                         const tagName = content.value.slice(start, end).toLowerCase();
 
                         switch (tagName) {
-                            // We print `<br>` HTML elements when we have a break with marks. Since the
-                            // `mdast` parser struggles with marks around the standard Markdown break
-                            // syntax.
+                            // We print `<br>` HTML elements when we have a break with marks. Since the `mdast`
+                            // parser struggles with marks around the standard Markdown break syntax.
                             case "br": {
                                 elements ??= [];
                                 elements.push({type: "Break", marks: markStack.getMarks()});
@@ -1842,8 +1842,8 @@ function* parseApiContentInlineElementFromMarkdown(
 
                                 markStack.pushForHtmlTag("mark", {
                                     type: "Highlight",
-                                    // Default to orange since that's our closest color to yellow. The default
-                                    // browser CSS typically renders `<mark>` with a yellow background.
+                                    // Default to orange since that's our closest color to yellow. The default browser
+                                    // CSS typically renders `<mark>` with a yellow background.
                                     color: color ?? "Orange",
                                 });
                             }
@@ -2033,8 +2033,7 @@ function* parseApiContentInlineElementFromMarkdown(
         case "footnoteReference": {
             // Ignore images and footnotes for now.
             //
-            // TODO(calebmer): Once we support images in `ApiContent` then we'll
-            // update this.
+            // TODO(calebmer): Once we support images in `ApiContent` then we'll update this.
             break;
         }
         default:
@@ -2049,8 +2048,8 @@ function parseApiMentionTargetIfPossible(spaceId: SpaceId, url: URL): ApiMention
         url.pathname.startsWith(`/s/${spaceId}/`) &&
         url.searchParams.has("mention");
 
-    // This link is treated as a mention if it's an `https://alpine.inc` link with
-    // a `mention` search param.
+    // This link is treated as a mention if it's an `https://alpine.inc` link with a
+    // `mention` search param.
     if (!isMentionUrl) return null;
 
     const pathSegments = url.pathname.slice(`/s/${spaceId}/`.length).split("/");
@@ -2157,8 +2156,8 @@ function parseContentListBlockElementItems<
                 item.children,
                 definitions,
                 options,
-                // Instead of ignoring elements like `</td>` (which may feel broken) throw an
-                // error if we see table HTML.
+                // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
+                // if we see table HTML.
                 {withTableHtml: false},
             )) {
                 if (
@@ -2344,7 +2343,8 @@ function intoApiContentCodeBlockElementTextInlineElementMarks(
     return result.length > 0 ? result : undefined;
 }
 
-// NOTE(ifitzsimmons, 2026-01-07): See the comment for `addOrderedStartSpanToFirstItemInOrderedListIfNeeded` in
+// NOTE(ifitzsimmons, 2026-01-07): See the comment for
+// `addOrderedStartSpanToFirstItemInOrderedListIfNeeded` in
 // `print_api_content_to_markdown.ts` for more details.
 function getOrderStartIfExists(content: List): number | undefined {
     if (!content.ordered) return undefined;
@@ -2366,23 +2366,22 @@ function getOrderStartIfExists(content: List): number | undefined {
     if (!firstListItem || !firstListItemContent) return undefined;
 
     // If the first content element is an HTML element with the data-start attribute
-    // return the explicit `orderStart` value of 1.
-    // We only inject the span into the first element if the list item is empty
-    // (has no content).
-    // Example:
+    // return the explicit `orderStart` value of 1. We only inject the span into the
+    // first element if the list item is empty (has no content). Example:
+    //
     // ```markdown
     // 1. <span data-start="1"/>
     // ```
     if (doesElementHaveExplicitOrderStart(firstListItemContent)) return orderedStart;
 
     // Our `orderedListItem` does not currently support non-paragraph content.
-    // Secondly, if markdown list is an empty paragraph, that means we did
-    // not inject the html span for explicit `orderStart = 1`.
+    // Secondly, if markdown list is an empty paragraph, that means we did not inject
+    // the html span for explicit `orderStart = 1`.
     if (firstListItemContent.type !== "paragraph" || firstListItemContent.children.length === 0) {
         return undefined;
     }
 
-    // When a list item with explicit `orderStart = 1` *does* have content, we inject
+    // When a list item with explicit `orderStart = 1` _does_ have content, we inject
     // the span into the first paragraph element like so:
     //
     // ```markdown
@@ -2394,10 +2393,10 @@ function getOrderStartIfExists(content: List): number | undefined {
 
     return undefined;
 
-    // When order start is explcitly set to 1 in our Prosemirror content representation,
-    // we inject a span with the data-start attribute into the first item in the list.
-    // While parsing, we look for this span to determine if we should preserve the explicit
-    // order start value of `1`.
+    // When order start is explcitly set to 1 in our Prosemirror content
+    // representation, we inject a span with the data-start attribute into the first
+    // item in the list. While parsing, we look for this span to determine if we should
+    // preserve the explicit order start value of `1`.
     function doesElementHaveExplicitOrderStart(
         element: PhrasingContent | BlockContent | DefinitionContent,
     ): boolean {

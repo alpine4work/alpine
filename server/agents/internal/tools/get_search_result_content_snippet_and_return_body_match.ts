@@ -23,8 +23,8 @@ type ApiSearchMessageResult =
  * The number of [graphemes][1] (aka characters) to include in a link label.
  *
  * Uses graphemes instead of string `length` to accurately handle Unicode
- * characters made out of multiple JavaScript characters and to ignore
- * zero-width characters.
+ * characters made out of multiple JavaScript characters and to ignore zero-width
+ * characters.
  *
  * [1]: https://www.npmjs.com/package/grapheme-splitter
  */
@@ -33,11 +33,11 @@ const maxGraphemeCount = 50;
 /**
  * Truncates body matches to a maximum grapheme count.
  *
- * The function will try to expand to the nearest word boundary if it's within
- * 14 characters (99% of English words are 14 characters or shorter).
+ * The function will try to expand to the nearest word boundary if it's within 14
+ * characters (99% of English words are 14 characters or shorter).
  *
- * Returns the preview string with marks and the remaining body match
- * content that was not included in the preview.
+ * Returns the preview string with marks and the remaining body match content that
+ * was not included in the preview.
  *
  * Example where `maxGraphemeCount` is 15:
  *
@@ -50,6 +50,7 @@ const maxGraphemeCount = 50;
  * ```
  *
  * Returns:
+ *
  * ```
  * {
  *   preview: [
@@ -62,6 +63,7 @@ const maxGraphemeCount = 50;
  *     {text: " are you today?", isMatch: true}
  *   ],
  * }
+ * ```
  */
 export function getSearchResultContentSnippetAndReturnBodyMatch(
     result: Pick<ApiSearchMessageResult, "bodyMatch" | "author" | "type">,
@@ -72,8 +74,8 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
     const bodyMatch = result.bodyMatch || [];
     const previewMessagePrefix = {text: `${result.author.shortName}: `} as const;
 
-    // If there's no body match, we use the missing search entity title. It'll look something
-    // like "<Author>: Unknown task comment"
+    // If there's no body match, we use the missing search entity title. It'll look
+    // something like "<Author>: Unknown task comment"
     if (bodyMatch.length === 0) {
         return {
             preview: [
@@ -93,7 +95,8 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
         const text = segment.text;
         const segmentGraphemeCount = countGraphemes(text);
 
-        // If we can add this entire segment to the preview, do so and continue to the next segment.
+        // If we can add this entire segment to the preview, do so and continue to the next
+        // segment.
         if (totalGraphemeCount + segmentGraphemeCount <= maxGraphemeCount) {
             preview.push(segment);
             totalGraphemeCount += segmentGraphemeCount;
@@ -102,8 +105,8 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
             continue;
         }
 
-        // This segment doesn't fit in the preview, so we need to "split" it
-        // into a preview and a newBodyMatch.
+        // This segment doesn't fit in the preview, so we need to "split" it into a preview
+        // and a newBodyMatch.
         const remainingGraphemeCount = maxGraphemeCount - totalGraphemeCount;
 
         if (remainingGraphemeCount > 0) {
@@ -117,12 +120,12 @@ export function getSearchResultContentSnippetAndReturnBodyMatch(
             }
 
             // We've iterated through the current segment up until the max grapheme count.
-            // However, we want to try to avoid splitting in the middle of a word. So we
-            // "look ahead" up to 14 graphemes to see if we can find a space. If we find a
-            // space, we use that space to split the segment. If we don't find a space, we'll
-            // truncate midword, 14 graphemes from now. This means that the max number of
-            // graphemes we'll remove from the `bodyMatch` is 50 + 14 = 64. This isn't ideal,
-            // but it also isn't a big deal.
+            // However, we want to try to avoid splitting in the middle of a word. So we "look
+            // ahead" up to 14 graphemes to see if we can find a space. If we find a space, we
+            // use that space to split the segment. If we don't find a space, we'll truncate
+            // midword, 14 graphemes from now. This means that the max number of graphemes
+            // we'll remove from the `bodyMatch` is 50 + 14 = 64. This isn't ideal, but it also
+            // isn't a big deal.
             const lookForWhiteSpaceBuffer = maxReasonableEnglishWordGraphemeCount;
 
             const restOfText = text.slice(currentGraphemeCount);

@@ -233,8 +233,8 @@ function SpaceBotSettingsRow({
                 <AccountAvatar
                     account={accountData}
                     size={spaceListSettingsHeadingSettingsRowAvatarSize}
-                    // Render just the avatar image. Don't render removed state transparency or the
-                    // bot icon (bot icon should be implied).
+                    // Render just the avatar image. Don't render removed state transparency or the bot
+                    // icon (bot icon should be implied).
                     withoutDecoration={true}
                 />
                 <Box flexGrow="1">

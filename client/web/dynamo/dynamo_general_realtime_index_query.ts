@@ -44,9 +44,9 @@ export type DynamoGeneralRealtimeIndexQueryItem<Model, Extra = never> =
       };
 
 /**
- * An immutable object representing the client state of a query against an
- * index in a DynamoDB realtime table. Handles loading pages fetched from the
- * server with eventual consistency and receiving realtime events out-of-order.
+ * An immutable object representing the client state of a query against an index in
+ * a DynamoDB realtime table. Handles loading pages fetched from the server with
+ * eventual consistency and receiving realtime events out-of-order.
  *
  * Realtime queries should be eventually correct within a few seconds.
  */
@@ -55,9 +55,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * The name of the index we are querying. Cursors are only meaningful for a
      * specific index. Can not load results across indexes.
      *
-     * Also helps us interpret realtime events. Realtime events include the cursor
-     * for every index the item is in. If the item is not in a given index, it
-     * won't have a cursor for that index name so we can ignore it.
+     * Also helps us interpret realtime events. Realtime events include the cursor for
+     * every index the item is in. If the item is not in a given index, it won't have a
+     * cursor for that index name so we can ignore it.
      */
     private readonly _indexName: string;
 
@@ -82,21 +82,20 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * All items we currently know about in our query in order.
      *
-     * Items are ordered by cursor so we use a binary tree to maintain that order
-     * while allowing for efficient, immutable, updates.
+     * Items are ordered by cursor so we use a binary tree to maintain that order while
+     * allowing for efficient, immutable, updates.
      *
-     * May contain items outside of the "loaded page". The loaded page is the slice
-     * of the query where we know the client has all items. This is what we return
-     * from `getItem()`. We include items outside of the loaded page since we may
-     * receive realtime events out of order. See the documentation on
-     * `loadedPageInfo` for an example. The loaded page is determined by
-     * `loadedPageItemSlice`.
+     * May contain items outside of the "loaded page". The loaded page is the slice of
+     * the query where we know the client has all items. This is what we return from
+     * `getItem()`. We include items outside of the loaded page since we may receive
+     * realtime events out of order. See the documentation on `loadedPageInfo` for an
+     * example. The loaded page is determined by `loadedPageItemSlice`.
      */
     private readonly _itemByCursor: Tree<
         DynamoIndexCursor,
         DynamoGeneralRealtimeItem<Model> & {
-            // Remove `cursor` property before adding to this map. It's not strictly
-            // necessary but makes debugging a little cleaner.
+            // Remove `cursor` property before adding to this map. It's not strictly necessary
+            // but makes debugging a little cleaner.
             readonly cursor?: undefined;
             // Allow clients to add extra data to each item.
             readonly extra: Extra | null;
@@ -108,12 +107,12 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * list by key and we don't know it's exact position.
      *
      * Also we keep a record of items we've seen but are outside our query's
-     * `startCursorBound` and `endCursorBound`. We keep this record in case we
-     * receive events out-of-order. Consider an update for an item at version V
-     * that updates its name then an update for an item at version V+1 that moves
-     * its cursor out of our bounds. If we receive the V+1 realtime event first we
-     * hide the item. If we then receive the V realtime event we want to ignore
-     * that event and keep the item hidden!
+     * `startCursorBound` and `endCursorBound`. We keep this record in case we receive
+     * events out-of-order. Consider an update for an item at version V that updates
+     * its name then an update for an item at version V+1 that moves its cursor out of
+     * our bounds. If we receive the V+1 realtime event first we hide the item. If we
+     * then receive the V realtime event we want to ignore that event and keep the item
+     * hidden!
      */
     private readonly _itemVisibilityByKey: ImmutableMap<
         DynamoItemKey,
@@ -122,68 +121,66 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     >;
 
     /**
-     * Information about the page of data loaded in this query so far. If null
-     * we've loaded the entire query! Nothing is outside our loaded window.
+     * Information about the page of data loaded in this query so far. If null we've
+     * loaded the entire query! Nothing is outside our loaded window.
      *
      * We can either be loading data starting from the top of the query or starting
-     * from the end of the query. This determines where the loading spinner
-     * appears in the resulting list.
+     * from the end of the query. This determines where the loading spinner appears in
+     * the resulting list.
      *
-     * Our realtime system guarantees that data within the loaded page is
-     * eventually correct within a couple seconds. (If you're receiving all the
-     * relevant realtime events that is.)
+     * Our realtime system guarantees that data within the loaded page is eventually
+     * correct within a couple seconds. (If you're receiving all the relevant realtime
+     * events that is.)
      *
-     * We may receive items from realtime that are outside of the loaded page. We
-     * keep them around in our query in case we load more data and the data is
-     * behind an event we received in realtime. Consider:
+     * We may receive items from realtime that are outside of the loaded page. We keep
+     * them around in our query in case we load more data and the data is behind an
+     * event we received in realtime. Consider:
      *
      * 1. We start loading a query of items N through N+10
      * 2. As a part of the query, the server loads item N+2 at version V
      * 3. User updates item N+2 to version V+1
      * 4. We receive a realtime update for item N+2 as version V+1
-     * 5. We receive the data from the server for items N through N+10 where item
-     *    N+2 is version V
+     * 5. We receive the data from the server for items N through N+10 where item N+2
+     *    is version V
      *
-     * In this case we don't want to throw away the realtime update we got in step
-     * 4 since we will need to apply it after step 5. So our solution is to keep
-     * the item around in our list data structure but not render it.
+     * In this case we don't want to throw away the realtime update we got in step 4
+     * since we will need to apply it after step 5. So our solution is to keep the item
+     * around in our list data structure but not render it.
      */
     private readonly _loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
 
     /**
-     * This is a mutable piece of state inside our otherwise immutable data type.
-     * A functional programming sin! However, we do it since it's practical.
+     * This is a mutable piece of state inside our otherwise immutable data type. A
+     * functional programming sin! However, we do it since it's practical.
      *
      * The `ServerSynchronizationCheckpoint` tells us how up-to-date our client's
-     * realtime data is based on what's on the server. When we backfill realtime
-     * events we send our checkpoint to the server and the server will return all
-     * realtime events that happened between the checkpoint and now. So for example
-     * if our WebSocket disconnects for two minutes because the user lost internet,
-     * when the WebSocket reconnects we'll send the last checkpoint we had from the
-     * server (which is the time two minutes ago) and receive all realtime events
-     * we missed while we were disconnected.
+     * realtime data is based on what's on the server. When we backfill realtime events
+     * we send our checkpoint to the server and the server will return all realtime
+     * events that happened between the checkpoint and now. So for example if our
+     * WebSocket disconnects for two minutes because the user lost internet, when the
+     * WebSocket reconnects we'll send the last checkpoint we had from the server
+     * (which is the time two minutes ago) and receive all realtime events we missed
+     * while we were disconnected.
      *
      * The `ServerSynchronizationCheckpoint` is set:
      *
      * 1. When we initially load data.
      *
      * 2. Every `Ping`/`Pong` message from our WebSocket server. Since while we're
-     *    connected to the WebSocket server we know we're seeing all realtime
-     *    events. As soon as the WebSocket disconnects (and we stop receiving
-     *    `Pong` messages) our client data may be falling out-of-date with the
-     *    server since there's realtime events we're not seeing.
+     *    connected to the WebSocket server we know we're seeing all realtime events.
+     *    As soon as the WebSocket disconnects (and we stop receiving `Pong` messages)
+     *    our client data may be falling out-of-date with the server since there's
+     *    realtime events we're not seeing.
      *
-     * We ping the WebSocket server every minute. If this were an immutable
-     * property on the list we'd end up re-rendering the entire view
-     * depending on this list once per minute. Which feels inefficient. Especially
-     * if the user is actively interacting with the view and we block some other
-     * update.
+     * We ping the WebSocket server every minute. If this were an immutable property on
+     * the list we'd end up re-rendering the entire view depending on this list once
+     * per minute. Which feels inefficient. Especially if the user is actively
+     * interacting with the view and we block some other update.
      *
-     * Instead, we update a mutable property on the data type. This makes the data
-     * type "impure" in a functional programming sense but it's fine, we're not
-     * caching and reusing these objects. Making this a mutable property may be a
-     * premature optimization but mutability just doesn't seem like a big
-     * deal here.
+     * Instead, we update a mutable property on the data type. This makes the data type
+     * "impure" in a functional programming sense but it's fine, we're not caching and
+     * reusing these objects. Making this a mutable property may be a premature
+     * optimization but mutability just doesn't seem like a big deal here.
      */
     private _mutableCheckpoint: ServerSynchronizationCheckpoint;
 
@@ -217,8 +214,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         mutableCheckpoint: ServerSynchronizationCheckpoint;
     }) {
         // Run some data validity assertions to verify assumptions about our data in
-        // development and test environments but not in production since these
-        // assertions can be expensive.
+        // development and test environments but not in production since these assertions
+        // can be expensive.
         if (process.env.NODE_ENV !== "production") {
             assert(
                 iterableEvery(
@@ -324,8 +321,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                     loadedPageInfo = {type: "FromEnd", startCursor: firstItem.cursor};
                 }
 
-                // If we initialized our query with a page starting before a certain cursor
-                // then that cursor is our actual end bound.
+                // If we initialized our query with a page starting before a certain cursor then
+                // that cursor is our actual end bound.
                 //
                 // We don't currently support initializing in the middle of a query.
                 if (
@@ -353,8 +350,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Loads more data into the query. Only adds items to the loaded page if the
-     * new query result overlaps with data we already have.
+     * Loads more data into the query. Only adds items to the loaded page if the new
+     * query result overlaps with data we already have.
      *
      * Throws an error if the data is from a different index partition.
      */
@@ -387,9 +384,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         let loadedPageInfo = query._loadedPageInfo;
 
-        // Update the loaded page if our new page extends its bounds. That means the
-        // new page should start within the loaded page and should end outside of the
-        // loaded page.
+        // Update the loaded page if our new page extends its bounds. That means the new
+        // page should start within the loaded page and should end outside of the loaded
+        // page.
         switch (result.pageInfo.type) {
             case "FromStart": {
                 const lastItem =
@@ -464,8 +461,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Handles realtime events from the server and incorporates them into our
-     * query. Will correctly handle events received out-of-order.
+     * Handles realtime events from the server and incorporates them into our query.
+     * Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
@@ -476,25 +473,25 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                     case "PutItem": {
                         const index = event.indexes.get(this._indexName);
 
-                        // This item does not have a cursor for this index so it is not present in
-                        // the index.
+                        // This item does not have a cursor for this index so it is not present in the
+                        // index.
                         if (index === undefined) return;
 
                         return {
                             isDeleted: false,
                             // If the item is in a different partition then we need to add the item to our
-                            // `itemVisibilityByKey` map with `isVisible` false. Since the index partition
-                            // key may change.
+                            // `itemVisibilityByKey` map with `isVisible` false. Since the index partition key
+                            // may change.
                             partitionKey: index.partitionKey,
                             cursor: index.cursor,
-                            // Items outside of our index will not have the `Model` type. We assume the
-                            // server implementation is correct and the types will all work out.
+                            // Items outside of our index will not have the `Model` type. We assume the server
+                            // implementation is correct and the types will all work out.
                             item: event.item as DynamoGeneralRealtimeItem<Model>,
                         };
                     }
                     case "DeleteItem": {
-                        // This item is not in this index so we don't have to add a gravestone to
-                        // this query.
+                        // This item is not in this index so we don't have to add a gravestone to this
+                        // query.
                         if (!event.indexes.has(this._indexName)) return;
 
                         return {
@@ -563,8 +560,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                     ? assertExists(itemByCursor.get(oldItemVisibility.cursor)).version
                     : oldItemVisibility.version;
 
-                // We may receive items out-of-order. Only put the latest the version of the
-                // item in our query.
+                // We may receive items out-of-order. Only put the latest the version of the item
+                // in our query.
                 if (oldItemVersion < itemEntry.item.version) {
                     if (isVisible) {
                         if (oldItemVisibility.isVisible) {
@@ -645,8 +642,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Slice of `itemByCursor` that is in our loaded page. Returns null if all
-     * items are visible (or if there are no items).
+     * Slice of `itemByCursor` that is in our loaded page. Returns null if all items
+     * are visible (or if there are no items).
      *
      * Inclusive of `startIndex`. Exclusive of `endIndex`.
      *
@@ -703,8 +700,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 let loadedItemByCursor = this._itemByCursor;
                 let iterator = loadedItemByCursor.end;
 
-                // Remove items that are out of the loaded range until we find the last item in
-                // the loaded range.
+                // Remove items that are out of the loaded range until we find the last item in the
+                // loaded range.
                 while (iterator.valid) {
                     const cursor = iterator.key!;
 
@@ -722,8 +719,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 let loadedItemByCursor = this._itemByCursor;
                 let iterator = loadedItemByCursor.begin;
 
-                // Remove items that are out of the loaded range until we find the first item
-                // in the loaded range.
+                // Remove items that are out of the loaded range until we find the first item in
+                // the loaded range.
                 while (iterator.valid) {
                     const cursor = iterator.key!;
 
@@ -768,8 +765,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
     /**
      * Get the number of items rendered by our query. So may include one item for a
-     * loading indicator at the top or bottom of the query if we haven't loaded all
-     * our data yet.
+     * loading indicator at the top or bottom of the query if we haven't loaded all our
+     * data yet.
      */
     public getItemCount(): number {
         return this.getItemCountWithoutLoadingIndicator() + (this._loadedPageInfo ? 1 : 0);
@@ -786,10 +783,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             : this._itemByCursor.length;
     }
 
-    // Optimization: If you are calling `getItem()` in sequence
-    // (`getItem(N)`, `getItem(N + 1)`, `getItem(N + 2)`, `getItem(N + 3)`, etc.)
-    // then we maintain a mutable iterator so your sequential `getItem()` calls are
-    // O(1) instead of O(log(n)).
+    // Optimization: If you are calling `getItem()` in sequence (`getItem(N)`,
+    // `getItem(N + 1)`, `getItem(N + 2)`, `getItem(N + 3)`, etc.) then we maintain a
+    // mutable iterator so your sequential `getItem()` calls are O(1) instead of
+    // O(log(n)).
     private _getItemIterator: {
         index: number;
         iterator: TreeIterator<
@@ -829,8 +826,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
 
-        // If our slice starts at index N then getting the item at position 2 should
-        // load the actual item at position N+2.
+        // If our slice starts at index N then getting the item at position 2 should load
+        // the actual item at position N+2.
         index += loadedPageItemSlice ? loadedPageItemSlice.startIndex : 0;
 
         // Make sure our index is in the slice bounds...
@@ -1043,8 +1040,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Get items that were deleted from the provided `oldQuery` in this query.
-     * So any items that were in `oldQuery` but are not in this query.
+     * Get items that were deleted from the provided `oldQuery` in this query. So any
+     * items that were in `oldQuery` but are not in this query.
      */
     public getDeletedItems(oldQuery: DynamoGeneralRealtimeIndexQuery<Model, Extra>): Iterable<{
         readonly index: number;
@@ -1063,9 +1060,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 case "UpdateEntry": {
                     break;
                 }
-                // We need to look at create changes because if an item is moved then it will
-                // be represented as a delete then a create. We only want items that were
-                // deleted. Not items that were moved.
+                // We need to look at create changes because if an item is moved then it will be
+                // represented as a delete then a create. We only want items that were deleted. Not
+                // items that were moved.
                 case "CreateEntry": {
                     createdItemKeys.add(change.newValue.key);
                     deletedOldItemByKey.delete(change.newValue.key);
@@ -1100,8 +1097,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Set the mutable checkpoint property on this query object. Noops if the
-     * provided `checkpoint` is older than the current checkpoint.
+     * Set the mutable checkpoint property on this query object. Noops if the provided
+     * `checkpoint` is older than the current checkpoint.
      */
     public setMutableCheckpoint(checkpoint: ServerSynchronizationCheckpoint): void {
         this._mutableCheckpoint =
@@ -1111,10 +1108,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Set the `extra` property for the provided item. The `extra` property allows
-     * the client to attach some extra client-only data to an item in the query.
-     * For instance, channels attach the realtime comment data of a post in the
-     * `extra` property.
+     * Set the `extra` property for the provided item. The `extra` property allows the
+     * client to attach some extra client-only data to an item in the query. For
+     * instance, channels attach the realtime comment data of a post in the `extra`
+     * property.
      */
     public updateItemExtraByKeyIfExists(
         key: DynamoItemKey,
@@ -1128,14 +1125,13 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Set the `extra` property for the provided item. The `extra` property allows
-     * the client to attach some extra client-only data to an item in the query.
-     * For instance, channels attach the realtime comment data of a post in the
-     * `extra` property.
+     * Set the `extra` property for the provided item. The `extra` property allows the
+     * client to attach some extra client-only data to an item in the query. For
+     * instance, channels attach the realtime comment data of a post in the `extra`
+     * property.
      *
-     * You may update the `extra` of an item outside the loaded range with this
-     * method if the item exists in our query. (Because realtime has told us about
-     * it.)
+     * You may update the `extra` of an item outside the loaded range with this method
+     * if the item exists in our query. (Because realtime has told us about it.)
      */
     public updateItemExtraByCursorIfExists(
         cursor: DynamoIndexCursor,
@@ -1171,8 +1167,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Update the `extra` property of every item in the query.
      *
-     * Includes items outside of the query's loaded range. There may be items
-     * outside of the query's loaded range that realtime tells us about.
+     * Includes items outside of the query's loaded range. There may be items outside
+     * of the query's loaded range that realtime tells us about.
      */
     public updateAllItemExtras(
         update: (
@@ -1218,9 +1214,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Delete an item in the query if the item exists.
      *
-     * If the item updates on the server to a new version any optimistic updates
-     * will be completely overwritten. So the next update from the server should
-     * also reflect the optimistic update we've made here.
+     * If the item updates on the server to a new version any optimistic updates will
+     * be completely overwritten. So the next update from the server should also
+     * reflect the optimistic update we've made here.
      */
     public optimisticallyDeleteItemByKeyIfExists(
         key: DynamoItemKey,
@@ -1234,9 +1230,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * If `update` returns `null` then the item is deleted from the query. (Same
      * behavior as `optimisticallyDeleteItemByKeyIfExists()`.)
      *
-     * If the item updates on the server to a new version any optimistic updates
-     * will be completely overwritten. So the next update from the server should
-     * also reflect the optimistic update we've made here.
+     * If the item updates on the server to a new version any optimistic updates will
+     * be completely overwritten. So the next update from the server should also
+     * reflect the optimistic update we've made here.
      */
     public optimisticallyUpdateItemByKeyIfExists(
         key: DynamoItemKey,
@@ -1263,8 +1259,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 });
                 itemByCursor = iterator.remove();
             }
-            // Optimization: Only call `iterator.update()` if the item was actually
-            // updated.
+            // Optimization: Only call `iterator.update()` if the item was actually updated.
             else if (newItem !== iterator.node.value) {
                 // `update()` shouldn't change the item version. We'll do that here.
                 assert(newItem.version === iterator.node.value.version);

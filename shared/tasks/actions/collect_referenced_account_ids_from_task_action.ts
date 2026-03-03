@@ -6,18 +6,18 @@ import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js"
 /**
  * Get all the `AccountId`s referenced by a task action.
  *
- * Not all `AccountId`s in `TaskAction` are considered referenced. We only
- * consider `AccountId`s to be referenced if they need to render in the UI (so
- * we need to load their `AccountModel`) or we sort by the account's name (so
- * we need to index tasks by the account name in OpenSearch).
+ * Not all `AccountId`s in `TaskAction` are considered referenced. We only consider
+ * `AccountId`s to be referenced if they need to render in the UI (so we need to
+ * load their `AccountModel`) or we sort by the account's name (so we need to index
+ * tasks by the account name in OpenSearch).
  *
- * For example, the task assignee is considered referenced (we need to both
- * render the assignee and sort by assignee) but the `AccountId` in
- * `UpdateAssigneePosition` is not referenced since those accounts aren't
- * rendered in the UI.
+ * For example, the task assignee is considered referenced (we need to both render
+ * the assignee and sort by assignee) but the `AccountId` in
+ * `UpdateAssigneePosition` is not referenced since those accounts aren't rendered
+ * in the UI.
  *
- * `prepareTaskActionForClient()` will replace accounts we're not allowed to
- * see with `unknownAccountId`. So we skip over any accounts with an unknown
+ * `prepareTaskActionForClient()` will replace accounts we're not allowed to see
+ * with `unknownAccountId`. So we skip over any accounts with an unknown
  * `AccountId` in this function.
  */
 export function collectReferencedAccountIdsFromTaskAction(
@@ -74,8 +74,8 @@ export function collectReferencedAccountIdsFromTaskAction(
         case "UpdateCollection": {
             switch (action.collectionAction.type) {
                 case "UpdateAccessPolicy": {
-                    // The client doesn't expect access policy accounts to be loaded. We'll load
-                    // these accounts when the sharing modal opens.
+                    // The client doesn't expect access policy accounts to be loaded. We'll load these
+                    // accounts when the sharing modal opens.
                     return;
                 }
                 case "Create":

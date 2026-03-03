@@ -682,8 +682,8 @@ test("can comment on task with comment only access", async ({
         .first()
         .click();
 
-    // Quick test (unrelated to the share dialog) that hitting escape after the
-    // open task button closes the task peek.
+    // Quick test (unrelated to the share dialog) that hitting escape after the open
+    // task button closes the task peek.
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("More")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("More")).toBeHidden();

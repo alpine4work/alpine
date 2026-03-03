@@ -28,8 +28,8 @@ export type TestSessionItem = {
 let accountNameCounter = 1;
 
 /**
- * Creates a test account and session for the account for use in tests. The
- * account will be added as a member to the provided space.
+ * Creates a test account and session for the account for use in tests. The account
+ * will be added as a member to the provided space.
  *
  * The IDs are generated synchronously but the session is actually created in a
  * `beforeAll()` hook.

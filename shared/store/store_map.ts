@@ -6,14 +6,13 @@ import {ValueStore} from "~/shared/store/value_store.js";
 /**
  * A `StoreMap` is a `Map` of keys to values where you can also get a `Store`
  * object for arbitrary keys that lets you observe changes to the key over time
- * without observing changes to the map as a whole. It also lets you mutate the
- * map in O(1) time instead of O(n) time.
+ * without observing changes to the map as a whole. It also lets you mutate the map
+ * in O(1) time instead of O(n) time.
  *
- * The alternative is to use a `Store<Map<Key, Value>>`. With that variant if
- * you wanted to read a single key you'd end up getting an update whenever
- * anything in the map changed. If you wanted to write to a single key then
- * you'd have to clone the map which is O(n) since store values should be
- * immutable.
+ * The alternative is to use a `Store<Map<Key, Value>>`. With that variant if you
+ * wanted to read a single key you'd end up getting an update whenever anything in
+ * the map changed. If you wanted to write to a single key then you'd have to clone
+ * the map which is O(n) since store values should be immutable.
  *
  * As a tradeoff you can't iterate over entries in the map. Since that requires
  * subscribing to every change in the map.
@@ -54,9 +53,9 @@ export class StoreMap<Key, Value> {
      * Returns a store that lets you observe changes to this key over time without
      * observing changes to other keys in the map.
      *
-     * If the key does not exist in the map then the store will return `undefined`.
-     * If the key exists when you call this function you'll get `Value` but if it
-     * is later deleted you'll get `undefined` again.
+     * If the key does not exist in the map then the store will return `undefined`. If
+     * the key exists when you call this function you'll get `Value` but if it is later
+     * deleted you'll get `undefined` again.
      *
      * Unused stores are cleaned up automatically.
      */
@@ -65,8 +64,8 @@ export class StoreMap<Key, Value> {
     }
 
     /**
-     * Update the value associated with this key in our map. If someone is
-     * listening to a store for this key then they'll get a notification.
+     * Update the value associated with this key in our map. If someone is listening to
+     * a store for this key then they'll get a notification.
      */
     public set(key: Key, value: Value): void {
         this._map.set(key, value);
@@ -74,8 +73,8 @@ export class StoreMap<Key, Value> {
     }
 
     /**
-     * Delete the value associated with this key in our map. If someone is
-     * listening to a store for this key then they'll get a notification.
+     * Delete the value associated with this key in our map. If someone is listening to
+     * a store for this key then they'll get a notification.
      */
     public delete(key: Key): boolean {
         const wasDeleted = this._map.delete(key);

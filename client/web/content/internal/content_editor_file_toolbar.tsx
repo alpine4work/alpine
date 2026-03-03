@@ -80,13 +80,12 @@ export function ContentEditorFileToolbarController({
         isDisablingInitialAnimation: boolean;
     } | null>(null);
 
-    // Put a small delay on when the file toolbar is visible after the content
-    // editor has been focused in case the content editor is immediately unfocused.
-    // This happens on `pointerdown` for a file. See `handlePointerDown` in
+    // Put a small delay on when the file toolbar is visible after the content editor
+    // has been focused in case the content editor is immediately unfocused. This
+    // happens on `pointerdown` for a file. See `handlePointerDown` in
     // `addContentFilePreviewBehaviorBase`. On `handlePointerDown` the browser by
-    // default focuses the content editable, but we don't want that if the user is
-    // only clicking to expand a file. So we call `blur()` after
-    // `requestAnimationFrame()`.
+    // default focuses the content editable, but we don't want that if the user is only
+    // clicking to expand a file. So we call `blur()` after `requestAnimationFrame()`.
     const isFocusedWithDelay = useDelayLoadingIndicator(isFocused, perceivedAsInstantLimitMs);
 
     const isFileToolbarVisible: boolean =
@@ -193,8 +192,8 @@ function ContentEditorFileToolbar({
 
     const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
-    // Don't render the replace button for file entities. It would be weird to open
-    // a file selector when clicking the replace button on a file entity.
+    // Don't render the replace button for file entities. It would be weird to open a
+    // file selector when clicking the replace button on a file entity.
     const hasReplaceButton =
         !selection.node.attrs.fileId || isId<FileId>(selection.node.attrs.fileId);
 
@@ -221,9 +220,9 @@ function ContentEditorFileToolbar({
             const fileIdObject = parseFileEntityId(fileId);
             const entityNoun = getFileEntityNoun(fileIdObject.type);
 
-            // Use a softer verb than "Delete". Since you're not "deleting a document" when
-            // you select the delete option, rather you're removing a document embed from
-            // the content.
+            // Use a softer verb than "Delete". Since you're not "deleting a document" when you
+            // select the delete option, rather you're removing a document embed from the
+            // content.
             return {deleteVerb: "Remove", entityNoun};
         }
     }, [references.fileById, selection.node.attrs.fileId]);
@@ -470,8 +469,8 @@ function ContentEditorFileToolbar({
                                                 .then(files => {
                                                     if (files.length !== 1) return;
 
-                                                    // If the component unmounted while we were waiting on a selection then don't
-                                                    // try replacing this file.
+                                                    // If the component unmounted while we were waiting on a selection then don't try
+                                                    // replacing this file.
                                                     if (!selectionRef.current) return;
 
                                                     onInsertFiles(selectionRef.current, [
@@ -504,9 +503,9 @@ function ContentEditorFileToolbar({
                         {state.schema.marks.comment && (
                             <ContentEditorFileToolbarButton
                                 dividerLeft={hasEditAccessLevel}
-                                // Intentionally not rendering keyboard shortcut since "Comment" is the only
-                                // option that supports a keyboard shortcut. Only showing a keyboard shortcut
-                                // on this one button's tooltip would look weird.
+                                // Intentionally not rendering keyboard shortcut since "Comment" is the only option
+                                // that supports a keyboard shortcut. Only showing a keyboard shortcut on this one
+                                // button's tooltip would look weird.
                                 description={hasEditAccessLevel ? "Comment" : null}
                                 viewRef={viewRef}
                                 isActive={false}
@@ -609,11 +608,11 @@ function ContentEditorFileToolbarButton({
                 {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
                 aria-label={description ?? undefined}
-                // Disable the ability to focus this icon button! The icon buttons in the
-                // selection toolbar are only mouse accessible. They are not keyboard
-                // accessible. By being focusable then the button steals focus when you click
-                // on it, so instead make the button not focusable. This also makes it so the
-                // button is not reachable in tab order.
+                // Disable the ability to focus this icon button! The icon buttons in the selection
+                // toolbar are only mouse accessible. They are not keyboard accessible. By being
+                // focusable then the button steals focus when you click on it, so instead make the
+                // button not focusable. This also makes it so the button is not reachable in tab
+                // order.
                 tabIndex={undefined}
                 className={sprinkles({
                     paddingY: "1",
@@ -624,8 +623,8 @@ function ContentEditorFileToolbarButton({
             >
                 <Box
                     // We implement dividers in this funky way so that as the mouse scrubs left and
-                    // right over our toolbar the tooltips immediately disappear/reappear because
-                    // there is no gap in between the hovered elements.
+                    // right over our toolbar the tooltips immediately disappear/reappear because there
+                    // is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0.5"}
                     borderRight={dividerRight ? "grey-5" : undefined}
                     paddingLeft={dividerLeft ? "1" : undefined}

@@ -1,11 +1,11 @@
 // IMPORTANT: Don't add tests to this file! This is leftover from the
 // `forum_actions.ts` refactor. Everything, and I mean everything, in
 // `server/forum/data` used to be in a single `forum_actions.ts` file. And this
-// test tested everything in that file. Now we want to move tests into
-// individual files that live next to the implementation of those tests. We
-// haven't performed that refactor yet for this test file. New tests should go
-// into files next to their implementation. For example tests for
-// `createPost()` should go into `create_post.test.ts`.
+// test tested everything in that file. Now we want to move tests into individual
+// files that live next to the implementation of those tests. We haven't performed
+// that refactor yet for this test file. New tests should go into files next to
+// their implementation. For example tests for `createPost()` should go into
+// `create_post.test.ts`.
 
 import {addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
@@ -9491,8 +9491,8 @@ describe("getChannelAndMetadata", () => {
                 const primarySession = assertExists(activeSessions[0]);
                 const channel = await TestChannel.create(primarySession);
 
-                // Alternate our active/removed sessions so we don't have a block of
-                // active then a block of removed.
+                // Alternate our active/removed sessions so we don't have a block of active then a
+                // block of removed.
                 const alternatedSessions: Array<TestSpaceSession> = [];
                 for (let i = 0; i < activeSessions.length + removedSessions.length; i++) {
                     if (i < activeSessions.length) {

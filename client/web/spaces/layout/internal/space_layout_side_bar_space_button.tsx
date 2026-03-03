@@ -138,8 +138,8 @@ export function SpaceLayoutSideBarSpaceButton() {
                                     <Box paddingY="0.5">
                                         <Box
                                             position="relative"
-                                            // Picked so we get the same margin horizontally and vertically between the
-                                            // icon and hover/press background edge.
+                                            // Picked so we get the same margin horizontally and vertically between the icon
+                                            // and hover/press background edge.
                                             width="8"
                                             height="8"
                                             display="flex"

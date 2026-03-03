@@ -23,8 +23,8 @@ import {SpaceRole} from "~/shared/spaces/space_model.js";
 let testSpaceCount = 1;
 
 /**
- * Our test object system gives you a way to quickly set up scenarios for your
- * unit and integration tests.
+ * Our test object system gives you a way to quickly set up scenarios for your unit
+ * and integration tests.
  *
  * When migrating tests from the old style (`createTestSpace()` and
  * `createTestSession()`) we wrap old tests in a `describe()` block labeled
@@ -32,15 +32,15 @@ let testSpaceCount = 1;
  *
  * ## Conventions
  *
- * - Avoid properties on the test object that change. Instead provide getters
- *   that read from the database. You may have a property that changes if you
- *   prefix it with "initial" like `initialName` if that's useful.
+ * - Avoid properties on the test object that change. Instead provide getters that
+ *   read from the database. You may have a property that changes if you prefix it
+ *   with "initial" like `initialName` if that's useful.
  *
  * - Provide low-level convenience helpers off dot methods like
  *   `space.createSession()` and `task.updatePriority()`.
  *
- * - Don't `return this` from update methods. Update chaining unfortunately
- *   isn't a good style for asynchronous functions.
+ * - Don't `return this` from update methods. Update chaining unfortunately isn't a
+ *   good style for asynchronous functions.
  */
 export class TestSpace {
     public readonly context: TestContext;
@@ -80,9 +80,9 @@ export class TestSpace {
     }
 
     /**
-     * Get a `TestSpace` helper object for an existing space. In case you didn't
-     * create the space with `TestSpace.create()`. Throws an error if the space
-     * doesn't already exist.
+     * Get a `TestSpace` helper object for an existing space. In case you didn't create
+     * the space with `TestSpace.create()`. Throws an error if the space doesn't
+     * already exist.
      */
     public static async get(context: TestContext, id: SpaceId) {
         // Confirm the space exists.
@@ -182,9 +182,8 @@ export class TestSpace {
     }
 
     /**
-     * Invites a valid email address to the space.
-     * If you're expecting to validate errors from this call, use
-     * inviteEmailAddressesToSpace directly.
+     * Invites a valid email address to the space. If you're expecting to validate
+     * errors from this call, use inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddress(session: TestSession, emailAddress: string) {
         const result = await inviteEmailAddressesToSpace(session.action(), {
@@ -216,8 +215,8 @@ export class TestSpace {
     }
 
     /**
-     * Invites a valid email address to the space and creates a session for the created account.
-     * If you're expecting to validate errors from this call, use
+     * Invites a valid email address to the space and creates a session for the created
+     * account. If you're expecting to validate errors from this call, use
      * inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddressAndCreateSession(

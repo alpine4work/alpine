@@ -101,9 +101,9 @@ function TaskCollectionChipBase(
 
     return (
         <div
-            // `react-aria` has a bug where `usePress()` will call `event.preventDefault()`
-            // on `keydown` events even when disabled. Given a chip could include a text
-            // `<input>` we don't want to prevent enter/space keypresses.
+            // `react-aria` has a bug where `usePress()` will call `event.preventDefault()` on
+            // `keydown` events even when disabled. Given a chip could include a text `<input>`
+            // we don't want to prevent enter/space keypresses.
             {...(isDisabled ? omitObject(pressProps, ["onKeyDown", "onKeyUp"]) : pressProps)}
             ref={ref}
             className={
@@ -157,16 +157,16 @@ function TaskCollectionChipBase(
                 {name}
             </div>
             {onRemove &&
-                // If we're on mobile but `withDesktopLayout` is true then never render the
-                // remove button since it would be too small.
+                // If we're on mobile but `withDesktopLayout` is true then never render the remove
+                // button since it would be too small.
                 !(platform === "mobile" && withDesktopLayout) && (
                     <div className={removeButtonContainerClassName}>
                         <IconButton
                             size={platform === "mobile" ? "md" : "xs"}
                             variant="quiet-above-grey-5-background"
                             borderRadius={taskCollectionChipBorderRadius}
-                            // The user focuses the pill as a whole and hits the delete key to delete using
-                            // the keyboard.
+                            // The user focuses the pill as a whole and hits the delete key to delete using the
+                            // keyboard.
                             isTabbable={false}
                             description="Remove"
                             withoutTooltip={true}

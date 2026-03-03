@@ -45,9 +45,9 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
             const message =
                 "Couldn\u2019t schedule try on desktop email from after sign up mobile interstitial";
 
-            // If this RPC fails then the user won't get a reminder email to try Alpine on
-            // a computer. No user would ever report this as broken so use a loud
-            // `DataLossError` so failures here clearly show up in our logs.
+            // If this RPC fails then the user won't get a reminder email to try Alpine on a
+            // computer. No user would ever report this as broken so use a loud `DataLossError`
+            // so failures here clearly show up in our logs.
             reporter.logErrorWithoutDisplaying(message, DataLossError.from(error, message));
         });
     }, [context, reporter, state.emailAddress, state.openSpaceId]);
@@ -59,8 +59,8 @@ export function AuthenticationAfterSignUpMobileInterstitialView({
             <Box flexShrink="0">
                 <Box display="flex" alignItems="center">
                     <Box
-                        // The `<LogoWordmark>` is only here to give this the same amount of height as
-                        // our previous authentication views.
+                        // The `<LogoWordmark>` is only here to give this the same amount of height as our
+                        // previous authentication views.
                         aria-hidden="true"
                         width="0"
                         overflow="hidden"

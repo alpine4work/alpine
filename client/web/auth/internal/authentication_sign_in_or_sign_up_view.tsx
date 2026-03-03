@@ -39,8 +39,8 @@ export function AuthenticationSignInOrSignUpView({
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Get the initial email address from `searchParams` if available. For example
-    //  the `accountEmailAddressNotFoundErrorDisplayMessage()` error uses this.
+    // Get the initial email address from `searchParams` if available. For example the
+    // `accountEmailAddressNotFoundErrorDisplayMessage()` error uses this.
     const [emailAddress, setEmailAddress] = useState(() => searchParams.get("email") ?? "");
 
     // Delete the `email` search param now that we've used it to initialize state.
@@ -117,10 +117,10 @@ export function AuthenticationSignInOrSignUpView({
                                         toSearchParam: searchParams.get("to"),
                                     });
 
-                                // If the account hasn't signed up yet then we'll redirect them to the sign
-                                // up flow. We can't use `onStateChange` because we're changing the route
-                                // variant here from `sign-in` to `sign-up`. So we have special handling for
-                                // `sign-up` with an email address.
+                                // If the account hasn't signed up yet then we'll redirect them to the sign up
+                                // flow. We can't use `onStateChange` because we're changing the route variant here
+                                // from `sign-in` to `sign-up`. So we have special handling for `sign-up` with an
+                                // email address.
                                 if (hasNotSignedUp) {
                                     const urlPath = new UrlPath("/auth/sign-up");
 

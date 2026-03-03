@@ -19,20 +19,19 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
-// This file is for running a Node.js service. It shouldn't be used in
-// Cloudflare Workers.
+// This file is for running a Node.js service. It shouldn't be used in Cloudflare
+// Workers.
 assert(process.versions.node);
 
-// More error stack frames in development to help debug issues. The defaults is
-// 10 which frequently isn't enough for us given our code typically features
-// deep call stacks.
+// More error stack frames in development to help debug issues. The defaults is 10
+// which frequently isn't enough for us given our code typically features deep call
+// stacks.
 if (process.env.NODE_ENV !== "production") {
     assert(typeof Error.stackTraceLimit === "number");
     Error.stackTraceLimit *= 2;
 }
 
-// Kill the process if we get an uncaught exception before the
-// tracer initializes.
+// Kill the process if we get an uncaught exception before the tracer initializes.
 function handleUncaughtExceptionBeforeTracerInitialization(error: unknown) {
     // eslint-disable-next-line no-console
     console.error(error);
@@ -76,16 +75,15 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     withoutCluster?: boolean;
     honeycombDataset: HoneycombDataset;
     /**
-     * If true, the service will gracefully shutdown after `run()` completes.
-     * Use this for non-daemon services like `MigrationService` that should exit
-     * after their work is done. Daemon services like `AppService` should leave
-     * this false so they keep running their HTTP server until a shutdown signal
-     * is received.
+     * If true, the service will gracefully shutdown after `run()` completes. Use this
+     * for non-daemon services like `MigrationService` that should exit after their
+     * work is done. Daemon services like `AppService` should leave this false so they
+     * keep running their HTTP server until a shutdown signal is received.
      */
     shutdownAfterRun?: boolean;
 }) {
-    // Make our service easy to find in process managers. We include
-    // "cyberworlds" and "node" so you can grep by those strings.
+    // Make our service easy to find in process managers. We include "cyberworlds" and
+    // "node" so you can grep by those strings.
     process.title = `${serviceName}${
         withoutCluster ? " " : cluster.isPrimary ? " primary " : " worker "
     }(cyberworlds, node)`;
@@ -117,11 +115,11 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         // Perform environment variable substitution for any CLI options. That way:
         //
         // 1. We don't need to run in a shell
-        // 2. Long environment variables (e.g. RSA keys) aren't passed into the
-        //    program's arguments
+        // 2. Long environment variables (e.g. RSA keys) aren't passed into the program's
+        //    arguments
         //
-        // Prefer accessing environment variables through args! That way you can't
-        // access secrets via the `process.env` global from anywhere in the code.
+        // Prefer accessing environment variables through args! That way you can't access
+        // secrets via the `process.env` global from anywhere in the code.
         for (const [key, value] of Object.entries(parsedOptions.values)) {
             if (typeof value !== "string" || !value.startsWith("$")) continue;
 
@@ -136,8 +134,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             (parsedOptions.values as any)[key] = envValue;
         }
 
-        // If a Honeycomb API key is not provided in production then we get no logging
-        // from our service.
+        // If a Honeycomb API key is not provided in production then we get no logging from
+        // our service.
         const honeycombApiKey: string | undefined = (parsedOptions.values as any).honeycombApiKey;
         if (!honeycombApiKey && process.env.NODE_ENV === "production")
             throw new InternalError("Must provide `honeycombApiKey` option in production");
@@ -157,8 +155,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         if (process.env.NODE_ENV === "production") {
             const [ec2InstanceId, ecsTaskId] = await runAllPromiseThunks(
                 async () => {
-                    // IMDSv2 isn't available in ECS Fargate. `MigrationService` runs in ECS
-                    // Fargate and throws if we try to access http://169.254.169.254.
+                    // IMDSv2 isn't available in ECS Fargate. `MigrationService` runs in ECS Fargate
+                    // and throws if we try to access http://169.254.169.254.
                     if (process.env.AWS_EXECUTION_ENV === "AWS_ECS_FARGATE") return;
 
                     // IMDSv2 requires a token first
@@ -181,8 +179,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                 async () => {
                     const metadataUri = process.env.ECS_CONTAINER_METADATA_URI_V4;
 
-                    // Some services (like `DeployService`) don't run in ECS and instead run
-                    // directly on EC2 instances.
+                    // Some services (like `DeployService`) don't run in ECS and instead run directly
+                    // on EC2 instances.
                     if (!metadataUri) return;
 
                     // eslint-disable-next-line cyberworlds/no-global-fetch
@@ -240,9 +238,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         const shutdownManager = result.shutdownManager;
         shutdown = result.shutdown;
 
-        // Perform a graceful shutdown when requested. Any code in our system can
-        // schedule a callback for graceful shutdown with
-        // `shutdownManager.registerListener()`.
+        // Perform a graceful shutdown when requested. Any code in our system can schedule
+        // a callback for graceful shutdown with `shutdownManager.registerListener()`.
         let shutdownTracerPropagationContext: TracerSpanPropagationContext | null = null;
         process.on("SIGINT", () => {
             void shutdown({type: "Signal", signal: "SIGINT"}, shutdownTracerPropagationContext);
@@ -251,16 +248,15 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             void shutdown({type: "Signal", signal: "SIGTERM"}, shutdownTracerPropagationContext);
         });
 
-        // In production, run our service across all available CPUs so we get full
-        // CPU utilization.
+        // In production, run our service across all available CPUs so we get full CPU
+        // utilization.
         if (!withoutCluster && cluster.isPrimary) {
             const workerCount = process.env.NODE_ENV !== "production" ? 1 : os.cpus().length;
 
-            // If any worker in the cluster dies, shutdown the process with an error.
-            // Workers are not expected to exit while the service is running!
+            // If any worker in the cluster dies, shutdown the process with an error. Workers
+            // are not expected to exit while the service is running!
             cluster.on("exit", (worker, exitCode, signal) => {
-                // If we are currently shutting down the cluster then worker exits are
-                // expected.
+                // If we are currently shutting down the cluster then worker exits are expected.
                 if (shutdownManager.isShuttingDown()) return;
 
                 const error = new InternalError(
@@ -276,8 +272,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                 });
             }
 
-            // If we are the primary node of a cluster then on shutdown, kill all cluster
-            // nodes and wait for them to exit before letting shutdown finish.
+            // If we are the primary node of a cluster then on shutdown, kill all cluster nodes
+            // and wait for them to exit before letting shutdown finish.
             shutdownManager.registerListener("Killing cluster workers", async (signal, span) => {
                 const workers = Object.values(cluster.workers!) as Array<Worker>;
 
@@ -320,8 +316,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         // `process.env`.
         //
         // We only delete environment variables on workers. Don't delete on the cluster
-        // primary. Since the cluster primary passes `process.env` to worker children
-        // it spawns with `cluster.fork()`.
+        // primary. Since the cluster primary passes `process.env` to worker children it
+        // spawns with `cluster.fork()`.
         for (const envKey of deleteEnvKeys) {
             delete process.env[envKey];
         }
@@ -329,8 +325,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         process.on("message", untypedMessage => {
             const message = untypedMessage as ServiceClusterMessage;
 
-            // If in the future we add more message types, TypeScript will error here and
-            // we should change this to an exhaustive switch.
+            // If in the future we add more message types, TypeScript will error here and we
+            // should change this to an exhaustive switch.
             cast<"ShutdownTracerPropagationContext">(message.type);
 
             shutdownTracerPropagationContext = message.propagationContext;
@@ -395,9 +391,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
 
             void shutdown({type: "Error", error}, null);
 
-            // We don't need to `throw actualError` since calling `shutdown()` will make
-            // sure the process exits with exit code 1 once all shutdown listeners have
-            // been run.
+            // We don't need to `throw actualError` since calling `shutdown()` will make sure
+            // the process exits with exit code 1 once all shutdown listeners have been run.
         }
     }
 
@@ -449,9 +444,9 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         () => {
             process.off("beforeExit", handleBeforeExitDuringMainCall);
 
-            // For non-daemon services (like MigrationService), gracefully shutdown
-            // after run() completes. Daemon services (like AppService) should keep
-            // running their HTTP server until a shutdown signal is received.
+            // For non-daemon services (like MigrationService), gracefully shutdown after run()
+            // completes. Daemon services (like AppService) should keep running their HTTP
+            // server until a shutdown signal is received.
             if (shutdownAfterRun) {
                 assert(shutdown);
                 void shutdown({type: "ProcessEnded"}, null);

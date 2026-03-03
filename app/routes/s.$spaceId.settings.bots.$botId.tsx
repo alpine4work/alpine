@@ -135,8 +135,8 @@ export default function SpaceBotSettingsRoute() {
 
     const [botAccount, setBotAccount] = useStateWithDependencies(
         () => botAccountFromLoader,
-        // If we get `loaderData` with a new `botAccount` then we want to use that
-        // instead of whatever was set via `setBotAccount()`. This is why we use
+        // If we get `loaderData` with a new `botAccount` then we want to use that instead
+        // of whatever was set via `setBotAccount()`. This is why we use
         // `useStateWithDependencies()` here.
         [botAccountFromLoader],
     );
@@ -206,8 +206,8 @@ export default function SpaceBotSettingsRoute() {
                 <AccountAvatar
                     account={botAccountData}
                     size={spaceBotSettingsHeadingAvatarSize}
-                    // Render just the avatar image. Don't render removed state transparency or the
-                    // bot icon (bot icon should be implied).
+                    // Render just the avatar image. Don't render removed state transparency or the bot
+                    // icon (bot icon should be implied).
                     withoutDecoration={true}
                 />
                 <Box
@@ -475,8 +475,8 @@ function SpaceBotSettingsStringProperty({
         propertySchema.isSecret && (value ?? originalValue).length > 0 && !isDisabled;
 
     const handleCancelEditing = () => {
-        // After we cancel editing, select all content in the text input. So the
-        // selection doesn't move somewhere weird.
+        // After we cancel editing, select all content in the text input. So the selection
+        // doesn't move somewhere weird.
         shouldSelectAllAfterCancelRef.current = true;
 
         setValue(null);
@@ -561,9 +561,9 @@ function SpaceBotSettingsStringProperty({
                         // Make sure the secret content doesn't overlap with the reveal icon button.
                         paddingRight={isSecretRevealButtonVisible ? "9" : undefined}
                         value={
-                            // If this is a secret property with a value but we're not an admin so we're
-                            // not allowed to see the value then fill the input with `x`s which will render
-                            // as dots.
+                            // If this is a secret property with a value but we're not an admin so we're not
+                            // allowed to see the value then fill the input with `x`s which will render as
+                            // dots.
                             isDisabled && propertySchema.isSecret && isSecretPropertyWithValue
                                 ? "x".repeat(16)
                                 : (value ?? originalValue)
@@ -581,8 +581,8 @@ function SpaceBotSettingsStringProperty({
                     />
                     {isSecretRevealButtonVisible && (
                         <Box
-                            // The icon button `borderRadius` corners when clicked should fallthrough to
-                            // the input.
+                            // The icon button `borderRadius` corners when clicked should fallthrough to the
+                            // input.
                             className={pointerEventsNoneNotInheritedClassName}
                             position="absolute"
                             right="0"

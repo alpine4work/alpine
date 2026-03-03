@@ -157,8 +157,8 @@ export function PostContentView({
     const fileRegistry = useFileRegistry();
 
     // Update `SearchEntityRegistry` with the post content. Now as the post content
-    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in
-    // the product will also update.
+    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
+    // will also update.
     {
         const searchEntity = useStore(
             useMemo(() => {
@@ -221,10 +221,9 @@ export function PostContentView({
                         post.content.doc.resolve(0),
                         {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 5 : 16},
                         {
-                            // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                            // want to be slightly more aggressive than the default grapheme count (which
-                            // counts the "l" character which is narrower) since we render the entire
-                            // snippet.
+                            // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
+                            // be slightly more aggressive than the default grapheme count (which counts the
+                            // "l" character which is narrower) since we render the entire snippet.
                             maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
                         },
                     ),
@@ -259,9 +258,9 @@ export function PostContentView({
             fileNodePos = pos;
         });
 
-        // We need to run after a microtask since our `<VirtualizedScrollView>` parent
-        // will set scroll top to its initial value (0) in a `useLayoutEffect()`. So we
-        // need to apply our scroll after that.
+        // We need to run after a microtask since our `<VirtualizedScrollView>` parent will
+        // set scroll top to its initial value (0) in a `useLayoutEffect()`. So we need to
+        // apply our scroll after that.
         scheduleMicrotask(() => {
             const fileElement = contentContainerElement.querySelector(
                 // eslint-disable-next-line cyberworlds/string-quotes
@@ -319,10 +318,10 @@ export function PostContentView({
 
     const editorHeightSpacerRef = useRef<HTMLDivElement>(null);
 
-    // When we switch from not editing to editing, measure the current height of
-    // the content container element. This runs before React makes any changes to
-    // the DOM. So we'll get the content container height before it switches to the
-    // editor component.
+    // When we switch from not editing to editing, measure the current height of the
+    // content container element. This runs before React makes any changes to the DOM.
+    // So we'll get the content container height before it switches to the editor
+    // component.
     //
     // I feel ok reading mutable state in a `useState()` initializer function (vs
     // `useMemo()` or directly in the React render function).
@@ -334,9 +333,9 @@ export function PostContentView({
         );
 
     // When we switch from not editing to editing, after the editor has rendered
-    // measure the new height and take the difference of the height pre-editor
-    // render and post-editor render. We'll render the difference in some empty
-    // space below the post so layout doesn't shift.
+    // measure the new height and take the difference of the height pre-editor render
+    // and post-editor render. We'll render the difference in some empty space below
+    // the post so layout doesn't shift.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (oldContentContainerHeightForEditorHeightDifference === null) return;
 
@@ -354,8 +353,8 @@ export function PostContentView({
             oldContentContainerHeight - newContentContainerHeight,
         );
 
-        // Directly set the `style` attribute in this effect so we don't need a
-        // React re-render.
+        // Directly set the `style` attribute in this effect so we don't need a React
+        // re-render.
         editorHeightSpacerElement.setAttribute("style", `height: ${editorHeightDifference}px`);
     }, [oldContentContainerHeightForEditorHeightDifference]);
 
@@ -458,8 +457,8 @@ export function PostContentView({
                                 sprinkles({padding: postContentViewInnerMarginY}),
                             )}
                             style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
-                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're
-                            // referencing a post and not a post comment.
+                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're referencing
+                            // a post and not a post comment.
                             data-room={post.id}
                             data-index={-1}
                             jumpAnimation={jumpAnimation}
@@ -477,8 +476,8 @@ export function PostContentView({
                             contentSnippet={postSnippet}
                             isShowingAllContent={isShowingAllContent}
                             onIsShowingAllContentChange={onIsShowingAllContentChange}
-                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're
-                            // referencing a post and not a post comment.
+                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're referencing
+                            // a post and not a post comment.
                             data-room={post.id}
                             data-index={-1}
                             jumpAnimation={jumpAnimation}
@@ -619,8 +618,8 @@ function PostContentViewFooter({
                         });
 
                         // On the server, `setPostReaction()` uses the same logic as
-                        // `setPostCommentReaction()` for archiving a post in response to a
-                        // reaction. So use the same logic on the client as well.
+                        // `setPostCommentReaction()` for archiving a post in response to a reaction. So
+                        // use the same logic on the client as well.
                         inboxContext?.onSetMessageReactionOptimistically(promise, post.id);
 
                         onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
@@ -751,8 +750,8 @@ function PostContentViewFooter({
 
                             const postCommentsPromise = onLoadInitialPostComments();
 
-                            // Open post comments once we get our data back. But if the data is taking a
-                            // long time to load, open post comments after a delay.
+                            // Open post comments once we get our data back. But if the data is taking a long
+                            // time to load, open post comments after a delay.
                             await Promise.race([
                                 postCommentsPromise,
                                 wait(delayLoadingIndicatorLimitMs),
@@ -824,9 +823,9 @@ function PostCommentsAccountAvatarPile({
     );
 
     const {previewAccounts, accountCount} = useMemo(() => {
-        // If there are unloaded comment authors then don't touch our author state.
-        // Since we don't know whether an additional comment author has already been
-        // counted in `commentAuthorCount`.
+        // If there are unloaded comment authors then don't touch our author state. Since
+        // we don't know whether an additional comment author has already been counted in
+        // `commentAuthorCount`.
         if (previewCommentAuthors.length < post.commentAuthorCount) {
             return {
                 previewAccounts: previewCommentAuthors,
@@ -894,13 +893,12 @@ function PostContentViewEditor({
         const editor = assertExists(editorRef.current);
 
         // If the user is in the middle of a post and they hit "edit" we don't want to
-        // scroll the post. However, if the user is reading comments then they hit
-        // "edit" on the post then we do want to scroll.
+        // scroll the post. However, if the user is reading comments then they hit "edit"
+        // on the post then we do want to scroll.
         //
-        // By default, Chrome's scroll on focus will always scroll to the top of the
-        // editor even if the editor is already visible. However, the
-        // `onScrollToIfNotVisible()` function won't scroll if the editor is already
-        // visible.
+        // By default, Chrome's scroll on focus will always scroll to the top of the editor
+        // even if the editor is already visible. However, the `onScrollToIfNotVisible()`
+        // function won't scroll if the editor is already visible.
         editor.focus({preventScroll: true});
         if (isPostView) onScrollToIfNotVisible();
     }, [isPostView, onScrollToIfNotVisible]);
@@ -926,8 +924,8 @@ function PostContentViewEditor({
             }}
         >
             <FocusRing
-                // Don't render a focus ring around the post if a node is selected since the
-                // node will have a blue focus ring. We don't want both focus rings to clash.
+                // Don't render a focus ring around the post if a node is selected since the node
+                // will have a blue focus ring. We don't want both focus rings to clash.
                 isDisabled={
                     postEditingForThisPost.state.contentEditorState.getSelection() instanceof
                     NodeSelection
@@ -946,8 +944,8 @@ function PostContentViewEditor({
                     // `<FocusRing>` when they line up in the bottom corners.
                     borderRadius="2.5"
                     style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                        // CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
@@ -975,8 +973,8 @@ function PostContentViewEditor({
                                 transaction,
                             });
                         }}
-                        // On mobile, don't allow interactions when unfocused. We're already in an
-                        // editing modality.
+                        // On mobile, don't allow interactions when unfocused. We're already in an editing
+                        // modality.
                         withoutMobileDualModality={true}
                         placeholder="Share your ideas, press @ to insert…"
                         fileAttachmentTarget={fileAttachmentTarget}

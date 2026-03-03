@@ -9,30 +9,29 @@ import {
 } from "~/shared/schema/schema.js";
 
 /**
- * Preview content for a code file. To preview a code file we take the first
- * couple lines of the file, syntax highlight them, and display the syntax
- * highlighted text. By syntax highlighting on the server, the client doesn't
- * need to have loaded the language's syntax highlighter.
+ * Preview content for a code file. To preview a code file we take the first couple
+ * lines of the file, syntax highlight them, and display the syntax highlighted
+ * text. By syntax highlighting on the server, the client doesn't need to have
+ * loaded the language's syntax highlighter.
  *
  * Code previews can get a little large. The maximum size of a code preview is
  * ~9kb. However, that assumes every Unicode code point is 4 bytes long, the
  * preview is completely filled with code points, and each code point is
- * highlighted. In practice code previews should be an order of magnitude
- * smaller.
+ * highlighted. In practice code previews should be an order of magnitude smaller.
  *
- * Since we always send the code preview down when a code file is visible we
- * encode the code preview in binary to make sure it's the absolute smallest
- * possible size.
+ * Since we always send the code preview down when a code file is visible we encode
+ * the code preview in binary to make sure it's the absolute smallest possible
+ * size.
  *
  * ## Format
  *
  * Specification for the file code preview content binary format in [BNF][1].
  *
- * The atoms in our syntax are bytes in binary notation (e.g. "00000010" is 2
- * in decimal notation). If a letter is used that represents arbitrary bits
- * (e.g. "aaa" could be "000", "001", "010", "011", etc.). The number of bits
- * is intentional. In "0aaaaaaa" there are 7 "a"s. This plus 0 makes a full
- * byte (which is 8 bits long).
+ * The atoms in our syntax are bytes in binary notation (e.g. "00000010" is 2 in
+ * decimal notation). If a letter is used that represents arbitrary bits (e.g.
+ * "aaa" could be "000", "001", "010", "011", etc.). The number of bits is
+ * intentional. In "0aaaaaaa" there are 7 "a"s. This plus 0 makes a full byte
+ * (which is 8 bits long).
  *
  * ```
  * <content> ::= ""
@@ -55,13 +54,13 @@ import {
  *             where "cccccccc" != "00000000"
  * ```
  *
- * In `<highlight>`, "aaaaaaa" and "bbbbbbb" represent `index + 2` where
- * `index` is in index in `lezerClassHighlighterClasses`. It's necessary to add
- * 2 so there's no ambiguity with an empty `<highlight>` (which is 0) or with
- * `<newline>` (which is 1).
+ * In `<highlight>`, "aaaaaaa" and "bbbbbbb" represent `index + 2` where `index` is
+ * in index in `lezerClassHighlighterClasses`. It's necessary to add 2 so there's
+ * no ambiguity with an empty `<highlight>` (which is 0) or with `<newline>` (which
+ * is 1).
  *
- * `<string-utf8>` is in UTF-8 encoding. It may not contain null bytes since we
- * use a null byte to terminate the string.
+ * `<string-utf8>` is in UTF-8 encoding. It may not contain null bytes since we use
+ * a null byte to terminate the string.
  *
  * [1]: https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form
  */
@@ -88,9 +87,9 @@ export const maxFileCodePreviewLineCodePointCount = 85;
 const maxFileCodePreviewHighlightClassCount = 2;
 
 /**
- * The max byte length of some `FileCodePreviewContent`. It ends up being ~9kb.
- * We rarely approach this size since most code files are sparse, don't
- * highlight every character, and use predominantly ASCII characters.
+ * The max byte length of some `FileCodePreviewContent`. It ends up being ~9kb. We
+ * rarely approach this size since most code files are sparse, don't highlight
+ * every character, and use predominantly ASCII characters.
  */
 const maxFileCodePreviewByteLength =
     // Maximum number of Unicode code points in a code preview.
@@ -109,9 +108,9 @@ const maxFileCodePreviewByteLength =
     maxFileCodePreviewLineCount;
 
 /**
- * How many times does 2 factor into `maxFileCodePreviewByteLength`? We use this
- * to determine our initial `FileCodePreviewContent` buffer size. It means we
- * can double the buffer's size with `resize()` this many times.
+ * How many times does 2 factor into `maxFileCodePreviewByteLength`? We use this to
+ * determine our initial `FileCodePreviewContent` buffer size. It means we can
+ * double the buffer's size with `resize()` this many times.
  */
 const maxFileCodePreviewByteLength2FactorCount = 4;
 
@@ -166,9 +165,9 @@ const lezerClassHighlighterClasses = [
 let lezerClassHighlighterByteByClass: Map<string, number> | null = null;
 
 /**
- * Get a map of Lezer highlight classes to the byte which represents the class
- * in our binary encoding of `FileCodePreviewContent`. The byte is +2 the
- * class's index in `lezerClassHighlighterClasses`.
+ * Get a map of Lezer highlight classes to the byte which represents the class in
+ * our binary encoding of `FileCodePreviewContent`. The byte is +2 the class's
+ * index in `lezerClassHighlighterClasses`.
  */
 function getLezerClassHighlighterByteByClass() {
     if (lezerClassHighlighterByteByClass === null) {
@@ -232,9 +231,9 @@ export const FileCodePreviewContent = createSchemaLazyTransformClass<
                         class_ => getLezerClassHighlighterByteByClass().get(class_),
                     );
 
-                    // If we don't have enough space to write this code, double our buffer's size.
-                    // We multiply `substringCodePoints.length` by 4 to be conservative. At most
-                    // each Unicode code point will be encoded as 4 bytes in UTF-8.
+                    // If we don't have enough space to write this code, double our buffer's size. We
+                    // multiply `substringCodePoints.length` by 4 to be conservative. At most each
+                    // Unicode code point will be encoded as 4 bytes in UTF-8.
                     while (
                         byteOffset +
                             Math.max(1, classBytes.length) +
@@ -263,9 +262,8 @@ export const FileCodePreviewContent = createSchemaLazyTransformClass<
                     }
 
                     for (let codePoint of stringCodePoints) {
-                        // Replace the null Unicode code point with the [Unicode replacement
-                        // character][1]. We use null terminated strings to signal when a highlight
-                        // is done.
+                        // Replace the null Unicode code point with the [Unicode replacement character][1].
+                        // We use null terminated strings to signal when a highlight is done.
                         //
                         // [1]: https://graphemica.com/FFFD
                         if (codePoint === "\u0000") {

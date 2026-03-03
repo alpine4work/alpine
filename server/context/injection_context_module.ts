@@ -1,25 +1,24 @@
 /**
- * Bazel prevents packages from having cyclic dependencies. This is a good
- * thing! Cyclic dependencies increase bundle size, increase type checking
- * time, and generally make code a mess to deal with.
+ * Bazel prevents packages from having cyclic dependencies. This is a good thing!
+ * Cyclic dependencies increase bundle size, increase type checking time, and
+ * generally make code a mess to deal with.
  *
  * However, quite often our features need to integrate with one another. For
- * example, when we're adding an account to a space in `//server/spaces`, we
- * want to add some default favorite search entities with functions from
- * `//server/search`. However, `//server/search` depends on `//server/spaces`
- * and we can't add a cyclic dependency!
+ * example, when we're adding an account to a space in `//server/spaces`, we want
+ * to add some default favorite search entities with functions from
+ * `//server/search`. However, `//server/search` depends on `//server/spaces` and
+ * we can't add a cyclic dependency!
  *
- * The solution: Dependency injection. That's where injection context modules
- * come into play. Injection context modules declare a bunch of functions we
- * want to use from across the backend codebase in ways that break the
- * dependency graph. In production, we provide the proper implementation for
- * each injected function. In tests we either mock injected functions or throw
- * an error.
+ * The solution: Dependency injection. That's where injection context modules come
+ * into play. Injection context modules declare a bunch of functions we want to use
+ * from across the backend codebase in ways that break the dependency graph. In
+ * production, we provide the proper implementation for each injected function. In
+ * tests we either mock injected functions or throw an error.
  *
- * IMPORTANT: Only use this module if you specifically can't take the Bazel
- * package which originally defines the function as a dependency since it'll
- * create a circular dependency. And there's no way to refactor Bazel packages
- * such that you can eliminate the circular dependency.
+ * IMPORTANT: Only use this module if you specifically can't take the Bazel package
+ * which originally defines the function as a dependency since it'll create a
+ * circular dependency. And there's no way to refactor Bazel packages such that you
+ * can eliminate the circular dependency.
  */
 
 import {
@@ -77,9 +76,9 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
-// HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when
-// we try to reference `ContextModuleBase` in `createInjectionContextModule()`
-// if `ContextModuleBase` isn't declared as a `const`.
+// HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when we
+// try to reference `ContextModuleBase` in `createInjectionContextModule()` if
+// `ContextModuleBase` isn't declared as a `const`.
 const ContextModuleBase = _ContextModuleBase;
 type ContextModuleBase<Modules extends {[key: string]: ContextModuleBase | undefined} = {}> =
     _ContextModuleBase<Modules>;
@@ -394,8 +393,8 @@ type InjectionContextModuleClass<
 };
 
 /**
- * An injection context module instance. Has a method for every injection
- * function. The method expects the context to be of the correct type.
+ * An injection context module instance. Has a method for every injection function.
+ * The method expects the context to be of the correct type.
  */
 type InjectionContextModuleInstance<
     Injection extends {[key: string]: (context: Context<any>, ...args: Array<any>) => any},
@@ -417,8 +416,8 @@ type InjectionContextModuleInstance<
 function createInjectionContextModule<
     Injection extends {[key: string]: (...args: Array<any>) => any},
 >(
-    // Use `Record` to use TypeScript to force the caller to explicitly list out
-    // each injection.
+    // Use `Record` to use TypeScript to force the caller to explicitly list out each
+    // injection.
     injectionKeysObject: Record<keyof Injection, true>,
 ): InjectionContextModuleClass<Injection> {
     const injectionKeys = Object.keys(injectionKeysObject);

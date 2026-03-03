@@ -34,8 +34,8 @@ export default function NotificationsUnsubscribeRoute() {
     const hasInitiallyMountedRef = useRef(false);
     const context = useSpaceContext();
 
-    // This is an unauthenticated (but presigned) route. Unless we're logged in,
-    // we won't have the actual theme color here - just the default.
+    // This is an unauthenticated (but presigned) route. Unless we're logged in, we
+    // won't have the actual theme color here - just the default.
     const themeColor = context.space.themeColor;
 
     const [unsubscribeComplete, setUnsubscribeComplete] = useState(false);

@@ -35,8 +35,8 @@ export class BillingContextModule extends BillingContextModuleBase {
     }
 
     /**
-     * Creates a Stripe Checkout session for purchasing lifetime access.
-     * This is purposefully hardcoded to a specific price ID for simplicity.
+     * Creates a Stripe Checkout session for purchasing lifetime access. This is
+     * purposefully hardcoded to a specific price ID for simplicity.
      */
     async createLifetimeAccessCheckoutSessionUrl(
         this: BillingContextModule & ContextModuleBase<ServerSessionActionContextModules>,

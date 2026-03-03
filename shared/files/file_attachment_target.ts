@@ -14,9 +14,9 @@ import {
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
- * Files may be attached to various entities in our system. A file may be
- * attached to zero, one, or many entities. You can attach one file to multiple
- * entities by copy/pasting it.
+ * Files may be attached to various entities in our system. A file may be attached
+ * to zero, one, or many entities. You can attach one file to multiple entities by
+ * copy/pasting it.
  *
  * This type represents the target of an attachment. You can think of a file
  * attachment as a link of `source -> target` where "source" is the file and

@@ -19,8 +19,8 @@ export const taskCollectionChipBaseClassNameBase = sprinkles({
     // These two properties are particularly important for
     // `<TaskDetailCollectionsField>` which renders an `<input>` as `name` when
     // creating a new collection. If the user types a lot of content then the chip
-    // should grow until we reach the max-width then the `<input>` within should
-    // start scrolling.
+    // should grow until we reach the max-width then the `<input>` within should start
+    // scrolling.
     maxWidth: "full",
     overflow: "hidden",
 });
@@ -76,8 +76,8 @@ export const taskCollectionChipBaseNameGradientClassName = sprinkles({
  * Renders a task collection chip to an `HtmlElementGenerator` object. For
  * rendering chips in `<ContentEditor>` where we can't render React UI.
  *
- * This is a non-interactive version that always uses desktop layout and
- * has no press or remove functionality.
+ * This is a non-interactive version that always uses desktop layout and has no
+ * press or remove functionality.
  */
 // IMPORTANT: If you update the HTML here you should also update
 // `<TaskCollectionChipBase>` for code that renders chips in React.

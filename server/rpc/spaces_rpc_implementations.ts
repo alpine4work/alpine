@@ -93,8 +93,8 @@ export default implementRpcs(definitions, {
             const [spaces, inboxes] = await runAllPromises([
                 runAllPromises(
                     Array.from(spaceIds, async spaceId => {
-                        // In case we read stale a stale list of `SpaceId`s that includes a space we
-                        // lost access to.
+                        // In case we read stale a stale list of `SpaceId`s that includes a space we lost
+                        // access to.
                         const spaceResult = await getSpaceIfPossible(context, spaceId);
 
                         if (!spaceResult) return null;
@@ -162,8 +162,9 @@ export default implementRpcs(definitions, {
     updateSpaceAccountRole: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            // The updateSpaceAccountRole function from spaces_table.ts will handle all permission
-            // checks (actor is owner/admin, target is not owner, etc.) and the actual update.
+            // The updateSpaceAccountRole function from spaces_table.ts will handle all
+            // permission checks (actor is owner/admin, target is not owner, etc.) and the
+            // actual update.
             const account = await updateSpaceAccountRole(context.actor.authorizeSession(), {
                 spaceId: input.spaceId,
                 accountId: input.accountId,

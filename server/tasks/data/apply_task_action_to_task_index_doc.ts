@@ -25,18 +25,18 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/title/task_title.js";
  * commutative and idempotent. This means they can be applied in any order or
  * multiple times and we'll converge to the same result every time.
  *
- * We inline the account name and version into our OpenSearch index so we can
- * sort by them. In theory there's a `TaskAccountName` object in our CRDT task
- * system similar to the `Task` and `TaskCollection` CRDT objects but instead
- * of being stored in its own OpenSearch index it needs to be inlined into our
- * tasks so we can sort by it.
+ * We inline the account name and version into our OpenSearch index so we can sort
+ * by them. In theory there's a `TaskAccountName` object in our CRDT task system
+ * similar to the `Task` and `TaskCollection` CRDT objects but instead of being
+ * stored in its own OpenSearch index it needs to be inlined into our tasks so we
+ * can sort by it.
  *
  * Inlining task account names means different tasks with the same referenced
- * `AccountId` may have different account names. But eventually all tasks
- * should converge on the right account name. Sorting may be weird in the
- * meantime. The client may choose to update all tasks with the latest account
- * name to avoid exposing our account name eventual consistency to the end user
- * which looks like a glitch (this isn't implemented as of 2023-09-26).
+ * `AccountId` may have different account names. But eventually all tasks should
+ * converge on the right account name. Sorting may be weird in the meantime. The
+ * client may choose to update all tasks with the latest account name to avoid
+ * exposing our account name eventual consistency to the end user which looks like
+ * a glitch (this isn't implemented as of 2023-09-26).
  */
 export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
     task: Task,
@@ -285,8 +285,8 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 rawAssigneeStatus: newRawAssigneeStatus,
 
                 // NOTE(calebmer): We intentionally don't update `assigneePosition` during an
-                // `UpdateAssignee` action. That way if the user changes the task's assignee
-                // and undoes the change, then the task will be placed back in the old assignee
+                // `UpdateAssignee` action. That way if the user changes the task's assignee and
+                // undoes the change, then the task will be placed back in the old assignee
                 // position.
                 //
                 // Whenever we use the `assigneePosition` we always check that

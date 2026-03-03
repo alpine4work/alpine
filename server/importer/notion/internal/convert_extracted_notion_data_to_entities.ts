@@ -34,26 +34,30 @@ import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
  * Notion data to Alpine entities. For now, this is just documents.
  *
  * This function will:
+ *
  * - Loop through each teamspace
  * - Loop through each document in the teamspace
  * - Create an Alpine document for the document using a markdown parser
- *   - Use the correct accessPolicy based on the teamspace import option
+ *     - Use the correct accessPolicy based on the teamspace import option
  * - Update all references within this document to a link to the alpine document
- *   - use the format https://alpine.inc/s/{spaceId}/documents/{documentId}
- * - Notion exported documents will have their children under the title, above the first divider (---)
- *   - Check if all children and only the children exist between the # title and the first divider (---)
- *   - If this is the case, we need to remove the children and the divider from the document content.
+ *     - use the format https://alpine.inc/s/{spaceId}/documents/{documentId}
+ * - Notion exported documents will have their children under the title, above the
+ *   first divider (---)
+ *     - Check if all children and only the children exist between the # title and
+ *       the first divider (---)
+ *     - If this is the case, we need to remove the children and the divider from
+ *       the document content.
  * - Add a "Parent document: <parent mention>" under the title
- * - At the end of the document, add a "### Children documents:\n- <child link document>\n- <child link document>\n- ..."
+ * - At the end of the document, add a "### Children documents:\n-
+ *   <child link document>\n- <child link document>\n- ..."
  * - Update all references of the markdown files to the new Alpine fileIds.
  * - Update the status of the import item as we go
  * - TODO: Upload all files of filesToUpload to the space
- *   - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9v5j2e2jrpm2xz419k1q11v02w
+ *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9v5j2e2jrpm2xz419k1q11v02w
  * - TODO: Batch document creation
- *   - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+ *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
  * - TODO: Run teamspace uploaded in parrallel
- *   - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qytsx10ph8ba5z05gfdafya9r4
- *
+ *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qytsx10ph8ba5z05gfdafya9r4
  */
 export async function convertExtractedNotionDataToEntities(
     context: ServerSystemActionContext,
@@ -72,9 +76,10 @@ export async function convertExtractedNotionDataToEntities(
         documentIdToPath,
     } = mappedReferencesResult;
 
-    // Generate teamspace root document IDs upfront so we can set parent links.
-    // Also add them to documentIdToPath so child documents can resolve their parent title.
-    // Use deterministic IDs based on space ID + workspace ID + teamspace ID for consistency.
+    // Generate teamspace root document IDs upfront so we can set parent links. Also
+    // add them to documentIdToPath so child documents can resolve their parent title.
+    // Use deterministic IDs based on space ID + workspace ID + teamspace ID for
+    // consistency.
     const teamspaceRootDocumentIds = new Map<string, DocumentId>();
     for (const teamspace of teamspaces) {
         const rootDocumentId = generateDeterministicNotionDocumentIdSync(
@@ -83,15 +88,16 @@ export async function convertExtractedNotionDataToEntities(
             `teamspace-root:${teamspace.id}`,
         );
         teamspaceRootDocumentIds.set(teamspace.id, rootDocumentId);
-        // Use a synthetic path that follows the Notion file name pattern for title extraction.
-        // Use teamspace.id for uniqueness since teamspace names aren't guaranteed unique.
+        // Use a synthetic path that follows the Notion file name pattern for title
+        // extraction. Use teamspace.id for uniqueness since teamspace names aren't
+        // guaranteed unique.
         const syntheticPath = `${teamspace.name} ${teamspace.id}.md`;
         documentIdToPath.set(rootDocumentId, syntheticPath);
     }
 
-    // Create synthetic documents for root-level CSV-only databases.
-    // These need document entries so their children can have proper parent links.
-    // Use deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
+    // Create synthetic documents for root-level CSV-only databases. These need
+    // document entries so their children can have proper parent links. Use
+    // deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
     const csvDatabaseDocuments = new Map<
         string,
         {id: DocumentId; teamspaceId: string; childPaths: Array<string>}
@@ -111,14 +117,15 @@ export async function convertExtractedNotionDataToEntities(
     }
 
     // TODO: Handle multiple pages at once
-    //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
 
     // Process each teamspace
     for (const teamspace of teamspaces) {
         const isPublic = teamspace.importOption.type === "Public";
         const teamspaceRootDocumentId = teamspaceRootDocumentIds.get(teamspace.id)!;
 
-        // Update parent references for children of root-level CSV databases in this teamspace.
+        // Update parent references for children of root-level CSV databases in this
+        // teamspace.
         for (const [csvPath, {id: csvDocumentId, childPaths}] of csvDatabaseDocuments) {
             for (const childPath of childPaths) {
                 const childDocument = teamspace.documents[childPath];
@@ -128,9 +135,9 @@ export async function convertExtractedNotionDataToEntities(
             }
         }
 
-        // Update parent for first-layer documents (those with no parent).
-        // They should have the teamspace root document as their parent.
-        // Note: relativeFilePath is empty because the teamspace root is a synthetic document.
+        // Update parent for first-layer documents (those with no parent). They should have
+        // the teamspace root document as their parent. Note: relativeFilePath is empty
+        // because the teamspace root is a synthetic document.
         for (const [, documentInfo] of Object.entries(teamspace.documents)) {
             if (documentInfo.parent === null) {
                 documentInfo.parent = {documentId: teamspaceRootDocumentId, relativeFilePath: ""};
@@ -148,24 +155,22 @@ export async function convertExtractedNotionDataToEntities(
 
             const rawContent = strFromU8(fileContent);
 
-            // ============================================================
-            // Preprocess markdown for database properties
-            // ============================================================
-            // Notion exports database row pages with property lines separated
-            // by single newlines (e.g., "Status: Done\nPriority: High").
-            // In markdown, single newlines don't create paragraph breaks - they
-            // become spaces. We convert single newlines between property-like
-            // lines to double newlines so the markdown parser creates separate
+            // ============================================================ Preprocess markdown
+            // for database properties
+            // ============================================================ Notion exports
+            // database row pages with property lines separated by single newlines (e.g.,
+            // "Status: Done\nPriority: High"). In markdown, single newlines don't create
+            // paragraph breaks - they become spaces. We convert single newlines between
+            // property-like lines to double newlines so the markdown parser creates separate
             // paragraphs, which we can then detect and format in API content.
             const preprocessedContent = preprocessNotionDatabaseProperties(rawContent);
 
-            // ============================================================
-            // Parse markdown to API content
-            // ============================================================
+            // ============================================================ Parse markdown to
+            // API content ============================================================
             const rawApiContent = parseApiContentFromMarkdown(preprocessedContent, {spaceId});
 
-            // ============================================================
-            // Transform API content for Alpine's format
+            // ============================================================ Transform API
+            // content for Alpine's format
             // ============================================================
             const {title, content: finalApiContent} = reformatNotionApiContentIntoOurDesiredFormat(
                 rawApiContent,
@@ -217,9 +222,8 @@ export async function convertExtractedNotionDataToEntities(
                 from: {type: "Importer", source: {type: "Notion"}},
             });
 
-            // Increment the imported count
-            // TODO: batch this:
-            //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+            // Increment the imported count TODO: batch this:
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
             await NotionImporterTable.updateItem(
                 context,
                 {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
@@ -257,9 +261,8 @@ export async function convertExtractedNotionDataToEntities(
                 inlineDatabaseChildren,
             });
 
-            // Increment the imported count
-            // TODO: batch this:
-            //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+            // Increment the imported count TODO: batch this:
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
             await NotionImporterTable.updateItem(
                 context,
                 {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
@@ -301,9 +304,9 @@ export async function convertExtractedNotionDataToEntities(
 
 // ============================================================================
 // MARKDOWN PREPROCESSING
-// ============================================================================
-// We do minimal preprocessing on raw markdown before parsing. The goal is to
-// handle Notion export quirks that are difficult to detect in parsed content.
+// ============================================================================ We
+// do minimal preprocessing on raw markdown before parsing. The goal is to handle
+// Notion export quirks that are difficult to detect in parsed content.
 // ============================================================================
 
 /**
@@ -311,8 +314,8 @@ export async function convertExtractedNotionDataToEntities(
  *
  * ## Why this is necessary
  *
- * Notion exports database row pages with property lines at the top, formatted
- * as `Property Name: value` on separate lines with single newlines:
+ * Notion exports database row pages with property lines at the top, formatted as
+ * `Property Name: value` on separate lines with single newlines:
  *
  * ```
  * Status: Done
@@ -322,9 +325,9 @@ export async function convertExtractedNotionDataToEntities(
  * Task description here.
  * ```
  *
- * In markdown, single newlines don't create paragraph breaks - they become
- * spaces when parsed. So the above becomes a single paragraph:
- * "Status: Done Priority: High Due Date: 2025-01-15"
+ * In markdown, single newlines don't create paragraph breaks - they become spaces
+ * when parsed. So the above becomes a single paragraph: "Status: Done Priority:
+ * High Due Date: 2025-01-15"
  *
  * By adding an extra newline between property lines, we get separate paragraphs
  * that we can detect and format as a bulleted list in API content.
@@ -335,13 +338,14 @@ export async function convertExtractedNotionDataToEntities(
  * Text node, making it impossible to reliably split them back apart (values can
  * contain spaces that look like property boundaries).
  *
- * @param markdown - Raw markdown content from Notion export
- * @returns Markdown with double newlines between property lines
+ * @param markdown - Raw markdown content from Notion export @returns Markdown with
+ * double newlines between property lines
  */
 function preprocessNotionDatabaseProperties(markdown: string): string {
     const lines = markdown.split("\n");
 
     // Pattern to match property lines: "Property Name: value"
+    //
     // - One or more words (letters only) as the key
     // - Followed by colon
     // - Followed by the value
@@ -406,8 +410,8 @@ function preprocessNotionDatabaseProperties(markdown: string): string {
     return result.join("\n");
 }
 
-// ============================================================================
-// API CONTENT TRANSFORMATION
+// ============================================================================ API
+// CONTENT TRANSFORMATION
 // ============================================================================
 
 /**
@@ -417,8 +421,8 @@ function preprocessNotionDatabaseProperties(markdown: string): string {
  * horizontal rule (Divider). This function removes all elements up to and
  * including the first Divider.
  *
- * @param elements - Block elements to process
- * @returns Elements with child links section removed
+ * @param elements - Block elements to process @returns Elements with child links
+ * section removed
  */
 function removeChildLinksSectionFromApiContent(
     elements: Array<ApiContentBlockElement>,
@@ -435,12 +439,12 @@ function removeChildLinksSectionFromApiContent(
 /**
  * Format database page properties as a bulleted list with dividers.
  *
- * After preprocessing, database property lines appear as consecutive
- * Paragraph elements, each containing a single "Key: Value" text.
- * We detect this pattern and convert to: Divider, UnorderedList, Divider.
+ * After preprocessing, database property lines appear as consecutive Paragraph
+ * elements, each containing a single "Key: Value" text. We detect this pattern and
+ * convert to: Divider, UnorderedList, Divider.
  *
- * @param elements - Block elements to process
- * @returns Elements with formatted properties
+ * @param elements - Block elements to process @returns Elements with formatted
+ * properties
  */
 function formatDatabasePropertiesInApiContent(
     elements: Array<ApiContentBlockElement>,
@@ -500,12 +504,12 @@ function formatDatabasePropertiesInApiContent(
     return formattedElements;
 }
 
-// ============================================================================
-// API CONTENT TRANSFORMATION
+// ============================================================================ API
+// CONTENT TRANSFORMATION
 // ============================================================================
 // These functions operate on parsed API content to transform it into Alpine's
-// desired format. They handle structural changes like extracting titles,
-// promoting headings, and converting links to mentions.
+// desired format. They handle structural changes like extracting titles, promoting
+// headings, and converting links to mentions.
 // ============================================================================
 
 /**
@@ -513,29 +517,29 @@ function formatDatabasePropertiesInApiContent(
  *
  * This function handles transformations that work well on parsed API content:
  *
- * 1. **Extract title** - Find the first H1 heading, use its text as the
- *    document title, and remove it from the content.
+ * 1. **Extract title** - Find the first H1 heading, use its text as the document
+ *    title, and remove it from the content.
  *
- * 2. **Promote headings** - Since we extracted H1 as the title, demote all
- *    other headings by one level (H2 → H1, H3 → H2, etc.) to maintain
- *    proper document hierarchy.
+ * 2. **Promote headings** - Since we extracted H1 as the title, demote all other
+ *    headings by one level (H2 → H1, H3 → H2, etc.) to maintain proper document
+ *    hierarchy.
  *
  * 3. **Convert document links** - Replace links to `.md` files with Alpine
  *    document mentions that reference the imported documents.
  *
- * 4. **Convert database links** - Replace links to `.csv` files with actual
- *    table blocks containing the parsed CSV data.
+ * 4. **Convert database links** - Replace links to `.csv` files with actual table
+ *    blocks containing the parsed CSV data.
  *
- * 5. **Add navigation** - Add "Parent document" mention at the top and
- *    "Child documents" section at the bottom for document hierarchy.
+ * 5. **Add navigation** - Add "Parent document" mention at the top and "Child
+ *    documents" section at the bottom for document hierarchy.
  *
- * @see README.md "Header Level Promotion" section for heading level changes.
- * @see README.md "Empty Parent Documents" section for child-mentions-only handling.
+ * @see README.md "Header Level Promotion" section for heading level changes. @see
+ * README.md "Empty Parent Documents" section for child-mentions-only handling.
  * @see README.md "Inline vs Full-Page Databases" section for CSV link conversion.
  *
- * @param apiContent - Parsed API content from markdown
- * @param options - Configuration including document mappings and files
- * @returns Object with extracted title and transformed content
+ * @param apiContent - Parsed API content from markdown @param options -
+ * Configuration including document mappings and files @returns Object with
+ * extracted title and transformed content
  */
 function reformatNotionApiContentIntoOurDesiredFormat(
     apiContent: ApiContent,
@@ -566,11 +570,14 @@ function reformatNotionApiContentIntoOurDesiredFormat(
 
     // ----------------------------------------------------------------
     // Extract title from first H1 heading
-    // ----------------------------------------------------------------
-    // Notion exports the page title as a `# Title` heading. We extract
-    // this to use as the document's title field and remove it from the
-    // body content.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Notion exports the page title as a `# Title` heading. We extract this to use as
+    // the document's title field and remove it from the body content.
+    //
+    // ---
     let title = "Untitled";
     const firstHeading1Index = elements.findIndex(
         element => element.type === "Heading" && element.level === 1,
@@ -592,31 +599,42 @@ function reformatNotionApiContentIntoOurDesiredFormat(
 
     // ----------------------------------------------------------------
     // Remove child links section if present
-    // ----------------------------------------------------------------
-    // Notion exports child page links after the title, followed by a
-    // horizontal rule (---). We remove this section since we add our
-    // own "Child documents" section at the end.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Notion exports child page links after the title, followed by a horizontal rule
+    // (---). We remove this section since we add our own "Child documents" section at
+    // the end.
+    //
+    // ---
     if (hasChildrenHeader) {
         elements = removeChildLinksSectionFromApiContent(elements);
     }
 
     // ----------------------------------------------------------------
     // Format database properties
-    // ----------------------------------------------------------------
-    // Notion exports database row pages with property lines at the top.
-    // These appear as a paragraph with "Key: Value" text separated by
-    // Break elements. We convert these to a bulleted list with dividers.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Notion exports database row pages with property lines at the top. These appear
+    // as a paragraph with "Key: Value" text separated by Break elements. We convert
+    // these to a bulleted list with dividers.
+    //
+    // ---
     elements = formatDatabasePropertiesInApiContent(elements);
 
     // ----------------------------------------------------------------
     // Promote all headings by one level
-    // ----------------------------------------------------------------
-    // Since we extracted the H1 as the title, we need to promote all
-    // remaining headings: H2 → H1, H3 → H2, etc. This maintains proper
-    // document hierarchy.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Since we extracted the H1 as the title, we need to promote all remaining
+    // headings: H2 → H1, H3 → H2, etc. This maintains proper document hierarchy.
+    //
+    // ---
     elements = elements.map(element => {
         if (element.type === "Heading" && element.level > 1) {
             return {...element, level: element.level - 1};
@@ -641,9 +659,10 @@ function reformatNotionApiContentIntoOurDesiredFormat(
     );
     elements = [...transformedContent.elements];
 
-    // Check if the content is ONLY child document mentions (no real content).
-    // This happens when a Notion page has no content except links to child pages.
-    // In this case, we skip the inline children since Alpine adds a "## Child documents" section.
+    // Check if the content is ONLY child document mentions (no real content). This
+    // happens when a Notion page has no content except links to child pages. In this
+    // case, we skip the inline children since Alpine adds a "## Child documents"
+    // section.
     if (isApiContentOnlyChildMentions(elements, childIds)) {
         elements = [];
     }
@@ -713,9 +732,9 @@ function extractTextFromInlineElements(elements: ReadonlyArray<ApiContentInlineE
 /**
  * Check if API content contains ONLY child document mentions (no real content).
  *
- * This detects Notion pages that have no content except links to child pages.
- * When true, we skip adding the inline children content since Alpine will add
- * a structured "Child documents" section at the end anyway.
+ * This detects Notion pages that have no content except links to child pages. When
+ * true, we skip adding the inline children content since Alpine will add a
+ * structured "Child documents" section at the end anyway.
  */
 function isApiContentOnlyChildMentions(
     elements: Array<ApiContentBlockElement>,
@@ -773,8 +792,8 @@ function isApiContentOnlyChildMentions(
 /**
  * Transform CSV links to table blocks.
  *
- * Paragraphs containing a link to a .csv file are replaced with a Table
- * block containing the parsed CSV data.
+ * Paragraphs containing a link to a .csv file are replaced with a Table block
+ * containing the parsed CSV data.
  */
 function transformCsvLinksToTables(
     elements: Array<ApiContentBlockElement>,
@@ -853,9 +872,9 @@ function transformCsvLinksToTables(
 /**
  * Transform .md links to document mentions using the visitor pattern.
  *
- * This uses `visitAndProduceApiContent` to traverse the entire content tree
- * and replace Text elements with Link marks pointing to .md files with
- * Mention elements.
+ * This uses `visitAndProduceApiContent` to traverse the entire content tree and
+ * replace Text elements with Link marks pointing to .md files with Mention
+ * elements.
  */
 function transformMdLinksToMentions(
     content: ApiContent,
@@ -891,10 +910,9 @@ function transformMdLinksToMentions(
                 }
             }
 
-            // Search by filename if not found by full path.
-            // This handles cases where the link path includes a parent
-            // folder that may not match the actual file structure (e.g.,
-            // nested vs flat exports).
+            // Search by filename if not found by full path. This handles cases where the link
+            // path includes a parent folder that may not match the actual file structure
+            // (e.g., nested vs flat exports).
             if (!documentId) {
                 const linkFilename = normalizedPath.includes("/")
                     ? normalizedPath.slice(normalizedPath.lastIndexOf("/") + 1)

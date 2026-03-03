@@ -11,10 +11,10 @@ import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/share
 /**
  * A schema representing a Prosemirror `Selection` object.
  *
- * In order to deserialize a `Selection` you need access to the ProseMirror
- * `Node` which it is for. So we wrap the selection in a class that requires
- * you to always provided the `Node` associated with the `Selection` when
- * trying to access the selection.
+ * In order to deserialize a `Selection` you need access to the ProseMirror `Node`
+ * which it is for. So we wrap the selection in a class that requires you to always
+ * provided the `Node` associated with the `Selection` when trying to access the
+ * selection.
  */
 export const ContentSelectionSchema = Schema.unknown().transform<ContentSelectionWrapper>({
     serialize: selection => selection.toJSON(),
@@ -39,8 +39,8 @@ type ContentSelectionWrapperData =
 
 /**
  * A selection wrapper wraps a `Selection` object that may or may not be
- * deserialized. You must always provide a `Node` when accessing the
- * `Selection` so if it is serialized we may deserialize it.
+ * deserialized. You must always provide a `Node` when accessing the `Selection` so
+ * if it is serialized we may deserialize it.
  *
  * If the `Selection` is deserialized, passing in a `Node` does nothing.
  */
@@ -66,12 +66,11 @@ export class ContentSelectionWrapper {
                     selection:
                         // NOTE(calebmer): We don't register the cell selection class with
                         // `Selection.jsonID()`. Because our hot reloading implementation makes global
-                        // registry patterns like the one used by `Selection.jsonID()` difficult (if
-                        // not impossible) to work with. Since if we hot reload this file then
-                        // `Selection.jsonID()` will be called twice for the type `"cell"` which throws
-                        // an error. Instead if you're serializing a selection from JSON you should be
-                        // using `ContentSelectionSchema` which has built-in knowledge of cell
-                        // selections.
+                        // registry patterns like the one used by `Selection.jsonID()` difficult (if not
+                        // impossible) to work with. Since if we hot reload this file then
+                        // `Selection.jsonID()` will be called twice for the type `"cell"` which throws an
+                        // error. Instead if you're serializing a selection from JSON you should be using
+                        // `ContentSelectionSchema` which has built-in knowledge of cell selections.
                         isObject(this._data.selection) && this._data.selection.type === "cell"
                             ? ContentTableCellSelection.fromJSON(
                                   doc,

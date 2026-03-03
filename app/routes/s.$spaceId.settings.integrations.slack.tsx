@@ -90,9 +90,9 @@ export async function loader({context, params}: LoaderArgs) {
     }
 
     // Generate a state token to prevent CSRF attacks. This gets validated in the OAuth
-    // callback at `/s/$spaceId/integrations/slack/oauth` to ensure the request is coming from us.
-    // The cookie expires after 30 minutes, so if they don't complete the OAuth flow within 30
-    // minutes, they'll need to start over.
+    // callback at `/s/$spaceId/integrations/slack/oauth` to ensure the request is
+    // coming from us. The cookie expires after 30 minutes, so if they don't complete
+    // the OAuth flow within 30 minutes, they'll need to start over.
     const state = crypto.randomUUID();
     const addToSlackUrl = await context.slack.getOAuthUrl(spaceId, state);
 
@@ -122,8 +122,8 @@ const slackIntegrationSettingsSectionConnectButtonHeight = "6";
 const slackIntegrationSettingsAvatarGap = "6";
 const slackIntegrationSettingsAvatarSize = "10";
 
-// This is to set a left margin that horizontally aligns the avatars at the start of each section
-// with the center of the Slack logo in the header.
+// This is to set a left margin that horizontally aligns the avatars at the start
+// of each section with the center of the Slack logo in the header.
 // (slackHeaderLogoSize - slackIntegrationSettingsAvatarSize) / 2
 const slackIntegrationSettingsSectionMarginLeft = "1";
 
@@ -143,11 +143,11 @@ export default function SpaceSlackIntegrationSettingsRoute() {
     const hasAdminAccess = hasSpaceRole(currentAccountData.space.role, "Admin");
 
     useEffect(() => {
-        // We send a message back from the popup window that is opened on connect to Slack to
-        // perform the Slack OAuth flow and report back the authentication status.
-        // If it succeeded, we revalidate the page to show the new Slack workspace and account.
-        // If it failed, we display an error to the user. We use message events so we can close the
-        // popup window and return to the settings page.
+        // We send a message back from the popup window that is opened on connect to Slack
+        // to perform the Slack OAuth flow and report back the authentication status. If it
+        // succeeded, we revalidate the page to show the new Slack workspace and account.
+        // If it failed, we display an error to the user. We use message events so we can
+        // close the popup window and return to the settings page.
         const handleMessage = (event: MessageEvent) => {
             if (event.data.type === slackOAuthStatusMessageType) {
                 const {success, error} = SlackOAuthStatusMessageSchema.deserialize(event.data);
@@ -162,8 +162,8 @@ export default function SpaceSlackIntegrationSettingsRoute() {
         return () => window.removeEventListener("message", handleMessage);
     }, [revalidator, reporter]);
 
-    // Connecting a workspace and connecting an account follow the same OAuth flow, so we can
-    // reuse the same function for both.
+    // Connecting a workspace and connecting an account follow the same OAuth flow, so
+    // we can reuse the same function for both.
     const handleConnectToSlack = () => {
         window.open(addToSlackUrl, slackOAuthWindowName, slackOAuthWindowFeatures)?.focus();
     };

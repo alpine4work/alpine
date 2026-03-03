@@ -1,8 +1,8 @@
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 
 /**
- * Run all timers and any promises passed until `context.process.waitUntil()`
- * until there are no timers or `context.process.waitUntil()` promises.
+ * Run all timers and any promises passed until `context.process.waitUntil()` until
+ * there are no timers or `context.process.waitUntil()` promises.
  */
 export async function runAllTimersAndWaitForTestTasks() {
     await ProcessContextModule.waitForTestTasks();

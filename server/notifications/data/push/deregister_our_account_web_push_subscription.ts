@@ -3,13 +3,14 @@ import {deregisterWebPushSubscriptionWithoutAuthorization} from "~/server/notifi
 import {BrowserId} from "~/shared/id/types/id_types.js";
 
 /**
- * Deregisters a web push subscription for a given account and browser.
- * If the subscription item doesn't exist or the subscription attribute is already null,
+ * Deregisters a web push subscription for a given account and browser. If the
+ * subscription item doesn't exist or the subscription attribute is already null,
  * this function does nothing.
  *
- * Removing a web push subscription removes it for all spaces on that browser, meaning they will not
- * receive push notifications from that browser until they re-subscribe. If you want to opt out of
- * notifications for a specific space, you should use `optOutOfWebPushForSpace()` instead.
+ * Removing a web push subscription removes it for all spaces on that browser,
+ * meaning they will not receive push notifications from that browser until they
+ * re-subscribe. If you want to opt out of notifications for a specific space, you
+ * should use `optOutOfWebPushForSpace()` instead.
  */
 export async function deregisterOurAccountWebPushSubscription(
     context: ServerSessionActionContext,

@@ -252,7 +252,8 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
             }),
         );
 
-        // Call the function with space1 - should opt in to space1 but keep space2 opted out
+        // Call the function with space1 - should opt in to space1 but keep space2 opted
+        // out
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,

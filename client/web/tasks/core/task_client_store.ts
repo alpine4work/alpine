@@ -125,19 +125,19 @@ export type TaskClientStoreTaskEntry =
       };
 
 /**
- * If the task has some optimistic updates then this optimistic state object
- * will be populated on the task entry until the server either accepts or
- * rejects our actions.
+ * If the task has some optimistic updates then this optimistic state object will
+ * be populated on the task entry until the server either accepts or rejects our
+ * actions.
  *
- * We keep track of the original task before any optimistic updates and all
- * actions (optimistic and non-optimistic) after. If one of our optimistic
- * actions fails then we take the original task, apply all the actions in our
- * optimistic state excluding the failed action, and set that as our new
- * `TaskModel`. This effectively reverts the failed action.
+ * We keep track of the original task before any optimistic updates and all actions
+ * (optimistic and non-optimistic) after. If one of our optimistic actions fails
+ * then we take the original task, apply all the actions in our optimistic state
+ * excluding the failed action, and set that as our new `TaskModel`. This
+ * effectively reverts the failed action.
  */
 // NOTE(calebmer, 2023-09-08): Instead of adding non-optimistic updates to an
-// `actions` array could we directly apply them to `original`? Would this
-// simplify the code?
+// `actions` array could we directly apply them to `original`? Would this simplify
+// the code?
 export type TaskClientStoreTaskEntryOptimisticState = {
     readonly original:
         | {
@@ -183,9 +183,8 @@ export type TaskClientStoreCollectionEntry =
       };
 
 /**
- * If the collection has some optimistic updates then this object will be
- * populated with those updates until the server either accepts or rejects our
- * actions.
+ * If the collection has some optimistic updates then this object will be populated
+ * with those updates until the server either accepts or rejects our actions.
  *
  * See `TaskClientStoreTaskEntryOptimisticState` for more info.
  */
@@ -273,32 +272,30 @@ export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
 };
 
 /**
- * An affinity manager object decides which search entity to give affinity
- * points on some update interaction. For instance, when editing tasks in a
- * collection we give affinity points to the collection. Not the task being
- * updated!
+ * An affinity manager object decides which search entity to give affinity points
+ * on some update interaction. For instance, when editing tasks in a collection we
+ * give affinity points to the collection. Not the task being updated!
  *
  * These objects are typically constructed at the route level and passed down
- * through child components until we reach a
- * `store.commitTaskActionTransaction()` call.
+ * through child components until we reach a `store.commitTaskActionTransaction()`
+ * call.
  */
 export interface TaskClientStoreSearchAffinityManager {
     /**
-     * Whenever the user changes something within a task we want to track that as a
-     * low intent update and feed it into our task affinity system.
+     * Whenever the user changes something within a task we want to track that as a low
+     * intent update and feed it into our task affinity system.
      */
     markLowIntentUpdateInteraction(update: TaskClientStoreBatchUpdate): void;
 
     /**
-     * Add a global loading indicator that lasts until the provided promise
-     * resolves.
+     * Add a global loading indicator that lasts until the provided promise resolves.
      */
-    // TODO(calebmer): Adding this to affinity manager since it's required that we
-    // pass an affinity manager into `commitActionTransaction()` but this method
-    // has nothing to do with affinity. We should consider renaming "affinity
-    // manager" to something else. Waiting until we have a third method to better
-    // understand what that name should be. Maybe "route manager" since affinity
-    // managers are created at a route level?
+    // TODO(calebmer): Adding this to affinity manager since it's required that we pass
+    // an affinity manager into `commitActionTransaction()` but this method has nothing
+    // to do with affinity. We should consider renaming "affinity manager" to something
+    // else. Waiting until we have a third method to better understand what that name
+    // should be. Maybe "route manager" since affinity managers are created at a route
+    // level?
     addGlobalLoadingIndicator(promise: Promise<unknown>, indicator: GlobalLoadingIndicator): void;
 }
 
@@ -339,10 +336,10 @@ export type TaskClientReadonlyStore = Pick<
  * authorization rules, `TaskClientStore` lives on the client and only contains
  * data the user is allowed to see as dictated by `TaskRealtimeService`.
  *
- * `TaskClientStore` holds data in `Store` objects. Which allows downstream
- * UI components to have granular subscriptions to exactly the data they need.
- * We can also use our tree store helpers to incrementally compute information
- * based on our client queries.
+ * `TaskClientStore` holds data in `Store` objects. Which allows downstream UI
+ * components to have granular subscriptions to exactly the data they need. We can
+ * also use our tree store helpers to incrementally compute information based on
+ * our client queries.
  */
 export class TaskClientStore implements SearchEntityRegistryFriend {
     private readonly _internal: TaskClientStoreInternal;
@@ -501,8 +498,8 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
     }
 
     /**
-     * Only `TaskRealtimeClient` should call this function. Which is why it's
-     * prefixed with an underscore.
+     * Only `TaskRealtimeClient` should call this function. Which is why it's prefixed
+     * with an underscore.
      */
     public _onQueryUnsubscribed(query: TaskClientQuery) {
         this._internal.onQueryUnsubscribed(query);
@@ -535,8 +532,8 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
     }
 
     /**
-     * Only `TaskRealtimeClient` should call this function. Which is why it's
-     * prefixed with an underscore.
+     * Only `TaskRealtimeClient` should call this function. Which is why it's prefixed
+     * with an underscore.
      */
     public _onTaskSubscriptionUnsubscribed(subscription: TaskClientTaskSubscription) {
         this._internal.onTaskSubscriptionUnsubscribed(subscription);
@@ -549,8 +546,8 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
     }
 
     /**
-     * Only `TaskRealtimeClient` should call this function. Which is why it's
-     * prefixed with an underscore.
+     * Only `TaskRealtimeClient` should call this function. Which is why it's prefixed
+     * with an underscore.
      */
     public _onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
         this._internal.onCollectionSubscriptionUnsubscribed(subscription);
@@ -558,10 +555,10 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
 
     /**
      * We can add `TaskClientStore` as a friend of `SearchEntityRegistry`.
-     * `SearchEntityRegistry` uses friends to augment its normalized store of
-     * search entities with data from another normalized store. So if we have a
-     * search entity reference to a task it'll use the same task data that's
-     * available in `TaskClientStore`.
+     * `SearchEntityRegistry` uses friends to augment its normalized store of search
+     * entities with data from another normalized store. So if we have a search entity
+     * reference to a task it'll use the same task data that's available in
+     * `TaskClientStore`.
      */
     public getSearchEntityRegistryFriendStoreIfExists(
         entityId: SearchEntityModelId,
@@ -621,10 +618,9 @@ export class TaskClientStoreInternal {
     private readonly _clientId = generateId<TaskRealtimeClientId>();
 
     /**
-     * The clock we use on the client for assigning a time to actions. This clock
-     * is backed by our client's synchronized system clock which uses an NTP
-     * protocol with the server to get within a few milliseconds of the
-     * correct time.
+     * The clock we use on the client for assigning a time to actions. This clock is
+     * backed by our client's synchronized system clock which uses an NTP protocol with
+     * the server to get within a few milliseconds of the correct time.
      */
     public readonly clock: HybridLogicalClock;
 
@@ -632,16 +628,16 @@ export class TaskClientStoreInternal {
      * The tasks currently in our store.
      *
      * It's not guaranteed that every task in our store is up-to-date! Only data we
-     * have an active subscription to in `TaskRealtimeService` will be kept
-     * up-to-date in realtime. If a task leaves a query then our WebSocket
-     * connection will give us the final action which caused the task to leave but
-     * will not deliver any future updates to the task. Instead the WebSocket will
-     * backfill the task if it becomes visible again.
+     * have an active subscription to in `TaskRealtimeService` will be kept up-to-date
+     * in realtime. If a task leaves a query then our WebSocket connection will give us
+     * the final action which caused the task to leave but will not deliver any future
+     * updates to the task. Instead the WebSocket will backfill the task if it becomes
+     * visible again.
      *
-     * We use a weak map to hold tasks. This means when a task leaves all queries
-     * and is no longer visible in the UI then the JavaScript garbage collector
-     * will eventually clean it up and remove it from this map. You need to hold a
-     * reference to the `ValueStore` for all tasks that are currently visible.
+     * We use a weak map to hold tasks. This means when a task leaves all queries and
+     * is no longer visible in the UI then the JavaScript garbage collector will
+     * eventually clean it up and remove it from this map. You need to hold a reference
+     * to the `ValueStore` for all tasks that are currently visible.
      */
     private readonly _taskEntryStoreById = new Map<
         TaskId,
@@ -654,8 +650,8 @@ export class TaskClientStoreInternal {
     /**
      * The collections currently in our store.
      *
-     * Like `taskById`, it's not guaranteed that a collection is up-to-date if it's
-     * in this map. See the documentation on `taskById` for more of an explanation.
+     * Like `taskById`, it's not guaranteed that a collection is up-to-date if it's in
+     * this map. See the documentation on `taskById` for more of an explanation.
      */
     private readonly _collectionEntryStoreById = new Map<
         TaskCollectionId,
@@ -668,15 +664,15 @@ export class TaskClientStoreInternal {
     /**
      * Stores for `TaskId`s that update between the task entry and null based on
      * whether the task is in the store or not. By calling
-     * `TaskClientStore.getTaskEntryStore()` even if the task doesn't currently
-     * exist you'll get a `Store` whose value is null that will update to the task
-     * entry if the task is later loaded (e.g. by `<TaskDetailView>`).
+     * `TaskClientStore.getTaskEntryStore()` even if the task doesn't currently exist
+     * you'll get a `Store` whose value is null that will update to the task entry if
+     * the task is later loaded (e.g. by `<TaskDetailView>`).
      *
      * To reduce memory usage we use an `AdvancedWeakValuesMap`. Users of
      * `TaskClientStore` get a simple API since there's no way to observe whether a
-     * task entry store has been garbage collected or not. To `TaskClientStore`
-     * users there's _always_ a store for _every_ `TaskId`. But in reality we
-     * garbage collect stores that aren't used.
+     * task entry store has been garbage collected or not. To `TaskClientStore` users
+     * there's _always_ a store for _every_ `TaskId`. But in reality we garbage collect
+     * stores that aren't used.
      */
     private readonly _taskEntryStoreByIdStores = new AdvancedWeakValuesMap<
         TaskId,
@@ -686,19 +682,18 @@ export class TaskClientStoreInternal {
     >();
 
     /**
-     * Stores for `TaskCollectionId`s that update between the collection entry and
-     * null based on whether the collection is in the store or not. By calling
+     * Stores for `TaskCollectionId`s that update between the collection entry and null
+     * based on whether the collection is in the store or not. By calling
      * `TaskClientStore.getCollectionEntryStore()` even if the collection doesn't
-     * currently exist you'll get a `Store` whose value is null that will update to
-     * the collection entry if the collection is later loaded (e.g. by
+     * currently exist you'll get a `Store` whose value is null that will update to the
+     * collection entry if the collection is later loaded (e.g. by
      * `<TaskCollectionView>`).
      *
      * To reduce memory usage we use an `AdvancedWeakValuesMap`. Users of
      * `TaskClientStore` get a simple API since there's no way to observe whether a
-     * collection entry store has been garbage collected or not. To
-     * `TaskClientStore` users there's _always_ a store for _every_
-     * `TaskCollectionId`. But in reality we garbage collect stores that aren't
-     * used.
+     * collection entry store has been garbage collected or not. To `TaskClientStore`
+     * users there's _always_ a store for _every_ `TaskCollectionId`. But in reality we
+     * garbage collect stores that aren't used.
      */
     private readonly _collectionEntryStoreByIdStores = new AdvancedWeakValuesMap<
         TaskCollectionId,
@@ -710,9 +705,8 @@ export class TaskClientStoreInternal {
     /**
      * Accounts referenced by our tasks.
      *
-     * We can't rely on `AccountRegistry.weakGetAccountStoreByIdIfExists()` to
-     * get an account referenced by a task. Since the account might be garbage
-     * collected.
+     * We can't rely on `AccountRegistry.weakGetAccountStoreByIdIfExists()` to get an
+     * account referenced by a task. Since the account might be garbage collected.
      */
     private readonly _referencedAccountStoreById = new Map<
         AccountId,
@@ -738,21 +732,20 @@ export class TaskClientStoreInternal {
 
     /**
      * We want to send our `commitTaskActionTransaction()` calls in order. If one
-     * transaction creates a task and another updates that task we need to wait for
-     * the task creation transaction to commit. This mutex coordinates the queue.
+     * transaction creates a task and another updates that task we need to wait for the
+     * task creation transaction to commit. This mutex coordinates the queue.
      */
     private readonly _commitTaskActionTransactionMutex = new Mutex();
 
-    // Allow releasing of task entry stores to be delayed. For example, while
-    // updating our store if one query releases a task then another query retains
-    // the same task then we want to keep the task around instead of garbage
-    // collecting it.
+    // Allow releasing of task entry stores to be delayed. For example, while updating
+    // our store if one query releases a task then another query retains the same task
+    // then we want to keep the task around instead of garbage collecting it.
     private _delayReleaseTaskEntryStoreIds: Set<TaskId> | null = null;
     private _delayReleaseCollectionEntryStoreIds: Set<TaskCollectionId> | null = null;
 
     /**
-     * If this callback is set then when a task is removed from `TaskClientQuery`
-     * it will call this function.
+     * If this callback is set then when a task is removed from `TaskClientQuery` it
+     * will call this function.
      */
     public onQueryLoadedTaskRemove:
         | ((query: TaskClientQueryInternal, taskId: TaskId) => void)
@@ -792,8 +785,8 @@ export class TaskClientStoreInternal {
                 const synchronizedSystemClockPromiseState =
                     synchronizedSystemClockPromise.getStateWithoutListening();
 
-                // While our synchronized system clock is loading (or if it failed to load) use
-                // our unsynchronized system clock time.
+                // While our synchronized system clock is loading (or if it failed to load) use our
+                // unsynchronized system clock time.
                 //
                 // 90% of the time our synchronized system clock is available synchronously.
                 // Because we add timing information to a `Server-Timing` HTTP header which is
@@ -874,9 +867,9 @@ export class TaskClientStoreInternal {
     /**
      * Get the store representing the assignee account from our store.
      *
-     * Must pass in the exact `TaskModel` object that's currently in the store for
-     * the provided `TaskId`. Since the store only keeps track of accounts
-     * referenced in the tasks it knows about.
+     * Must pass in the exact `TaskModel` object that's currently in the store for the
+     * provided `TaskId`. Since the store only keeps track of accounts referenced in
+     * the tasks it knows about.
      */
     public getTaskAssigneeAccountStore(task: TaskModel): Store<AccountModelData> | null {
         assert(
@@ -892,9 +885,9 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Gets an account store referenced by a task if the account is actually
-     * referenced by one of our tasks. Returns null if the account isn't referenced
-     * by one of our tasks.
+     * Gets an account store referenced by a task if the account is actually referenced
+     * by one of our tasks. Returns null if the account isn't referenced by one of our
+     * tasks.
      */
     public getReferencedAccountStoreIfExists(accountId: AccountId): Store<AccountModelData> | null {
         return this._referencedAccountStoreById.get(accountId)?.store ?? null;
@@ -940,9 +933,8 @@ export class TaskClientStoreInternal {
                 taskEntry.actions.length > 0
             ) {
                 this._onError({
-                    // We don't display the error in a toast to the user since while this error
-                    // will cause glitches the user might not see it. (They'd definitely see a
-                    // toast.)
+                    // We don't display the error in a toast to the user since while this error will
+                    // cause glitches the user might not see it. (They'd definitely see a toast.)
                     display: false,
                     error: new DeadlineExceededError(
                         "Received actions for a task that wasn\u2019t loaded",
@@ -986,8 +978,8 @@ export class TaskClientStoreInternal {
             );
 
             // We may receive a `TaskAction` before the collection is backfilled. When we
-            // receive such an action we expect to receive the collection shortly
-            // thereafter! If we don't receive the collection we consider it an error.
+            // receive such an action we expect to receive the collection shortly thereafter!
+            // If we don't receive the collection we consider it an error.
             const collectionEntry = collectionEntryStore.store.getSnapshot();
             if (
                 collectionEntryStore.referenceCount === 1 &&
@@ -995,9 +987,8 @@ export class TaskClientStoreInternal {
                 collectionEntry.actions.length > 0
             ) {
                 this._onError({
-                    // We don't display the error in a toast to the user since while this error
-                    // will cause glitches the user might not see it. (They'd definitely see a
-                    // toast.)
+                    // We don't display the error in a toast to the user since while this error will
+                    // cause glitches the user might not see it. (They'd definitely see a toast.)
                     display: false,
                     error: new DeadlineExceededError(
                         "Received actions for a task collection that was never loaded",
@@ -1010,10 +1001,10 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Apply an update event from our WebSocket connection to `TaskRealtimeService`
-     * to our store. This method is commutative and idempotent. That means you can
-     * call it with events in any order or call it with an event multiple times and
-     * we'll converge to the same result.
+     * Apply an update event from our WebSocket connection to `TaskRealtimeService` to
+     * our store. This method is commutative and idempotent. That means you can call it
+     * with events in any order or call it with an event multiple times and we'll
+     * converge to the same result.
      */
     public applyUpdateEvent(event: TaskRealtimeUpdateEvent): void {
         batchStoreUpdates(() => {
@@ -1025,16 +1016,16 @@ export class TaskClientStoreInternal {
         event: TaskRealtimeUpdateEvent,
         action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
     ): Value {
-        // If this event originated from our client then ignore it! We've already
-        // applied the action or are in the process of applying it. (e.g. We're waiting
-        // on a `commitTaskActionTransaction()` request to finish.)
+        // If this event originated from our client then ignore it! We've already applied
+        // the action or are in the process of applying it. (e.g. We're waiting on a
+        // `commitTaskActionTransaction()` request to finish.)
         //
         // Actions are idempotent so it should be ok to apply the event but we avoid
-        // warnings from `_temporarilyRetainTaskEntryStore()` this way. If you commit
-        // an action that removes a task from a query (e.g. close a task) applying that
-        // action a second time here will create a null task entry that is temporarily
-        // retained. Then we warn when the task isn't retained by anyone else. By not
-        // applying the action we avoid a warning.
+        // warnings from `_temporarilyRetainTaskEntryStore()` this way. If you commit an
+        // action that removes a task from a query (e.g. close a task) applying that action
+        // a second time here will create a null task entry that is temporarily retained.
+        // Then we warn when the task isn't retained by anyone else. By not applying the
+        // action we avoid a warning.
         if (event.originClientId === this._clientId) {
             return action({
                 taskEntryUpdateById: emptyMap,
@@ -1064,8 +1055,8 @@ export class TaskClientStoreInternal {
                     this._taskEntryStoreById.get(backfillTask.task.id)?.store.getSnapshot();
 
                 if (!oldTaskEntry) {
-                    // This backfill introduced new data. Make sure our logical clock's time is
-                    // beyond any times used in this object.
+                    // This backfill introduced new data. Make sure our logical clock's time is beyond
+                    // any times used in this object.
                     backfillTask.task.tick(this.clock);
 
                     newTaskEntryById.set(backfillTask.task.id, {
@@ -1080,11 +1071,11 @@ export class TaskClientStoreInternal {
                     continue;
                 }
 
-                // When backfilling the task, we may have received actions out-of-order from
-                // the server or we may have some out-of-order optimistic actions. We need to
-                // apply actions we received (from the server and optimistic) to the task. We
-                // also need to update our original task in `optimisticState` so if we need to
-                // revert an optimistic action we preserve the backfilled task.
+                // When backfilling the task, we may have received actions out-of-order from the
+                // server or we may have some out-of-order optimistic actions. We need to apply
+                // actions we received (from the server and optimistic) to the task. We also need
+                // to update our original task in `optimisticState` so if we need to revert an
+                // optimistic action we preserve the backfilled task.
                 let newTask: TaskModel;
                 let newOptimisticState: TaskClientStoreTaskEntryOptimisticState | null;
                 if (oldTaskEntry.task === null) {
@@ -1128,8 +1119,8 @@ export class TaskClientStoreInternal {
                 }
 
                 if (newTask !== oldTaskEntry.task) {
-                    // This backfill introduced new data. Make sure our logical clock's time is
-                    // beyond any times used in this object.
+                    // This backfill introduced new data. Make sure our logical clock's time is beyond
+                    // any times used in this object.
                     newTask.tick(this.clock);
                 }
 
@@ -1159,14 +1150,13 @@ export class TaskClientStoreInternal {
                         oldTaskEntry.optimisticState?.original.task &&
                     newAuthorizationState === oldTaskEntry.authorizationState
                 ) {
-                    // We do still, however, add the task to our `newTaskEntryById` map since we
-                    // want to try adding all backfilled tasks to the queries in our store. Since
-                    // when loading a query the server sends relevant tasks in `backfilledTasks`.
-                    // If the server knows a task has already been backfilled
-                    // (`TaskRealtimeConnection` keeps track) then it will include the task in a
-                    // `previouslyBackfilledTaskIds` array. But the server only knows what it's
-                    // backfilled in the current WebSocket connection. It does not know what the
-                    // client has from before that.
+                    // We do still, however, add the task to our `newTaskEntryById` map since we want
+                    // to try adding all backfilled tasks to the queries in our store. Since when
+                    // loading a query the server sends relevant tasks in `backfilledTasks`. If the
+                    // server knows a task has already been backfilled (`TaskRealtimeConnection` keeps
+                    // track) then it will include the task in a `previouslyBackfilledTaskIds` array.
+                    // But the server only knows what it's backfilled in the current WebSocket
+                    // connection. It does not know what the client has from before that.
                     //
                     // If applying an action results in a noop then we don't need to add to
                     // `newTaskEntryById` since queries should have already seen the task.
@@ -1217,9 +1207,8 @@ export class TaskClientStoreInternal {
                     version: authorizationStateVersion,
                 });
 
-                // Authorization state in the store wins. We may be applying events
-                // out-of-order. We return a referentially identical entry to avoid updating
-                // the map.
+                // Authorization state in the store wins. We may be applying events out-of-order.
+                // We return a referentially identical entry to avoid updating the map.
                 if (oldTaskEntry.authorizationState === newAuthorizationState) continue;
 
                 newTaskEntryById.set(backfillTask.taskId, {
@@ -1245,8 +1234,8 @@ export class TaskClientStoreInternal {
                         ?.store.getSnapshot();
 
                 if (!oldCollectionEntry) {
-                    // This backfill introduced new data. Make sure our logical clock's time is
-                    // beyond any times used in this object.
+                    // This backfill introduced new data. Make sure our logical clock's time is beyond
+                    // any times used in this object.
                     backfillCollection.collection.tick(this.clock);
 
                     newCollectionEntryById.set(backfillCollection.collection.id, {
@@ -1262,10 +1251,10 @@ export class TaskClientStoreInternal {
                 }
 
                 // When backfilling the collection, we may have received actions out-of-order from
-                // the server or we may have some out-of-order optimistic actions. We need to
-                // apply actions we received (from the server and optimistic) to the collection.
-                // We also need to update our original collection in `optimisticState` so if we
-                // need to revert an optimistic action we preserve the backfilled collection.
+                // the server or we may have some out-of-order optimistic actions. We need to apply
+                // actions we received (from the server and optimistic) to the collection. We also
+                // need to update our original collection in `optimisticState` so if we need to
+                // revert an optimistic action we preserve the backfilled collection.
                 let newCollection: TaskCollectionModel;
                 let newOptimisticState: TaskClientStoreCollectionEntryOptimisticState | null;
                 if (oldCollectionEntry.collection === null) {
@@ -1314,8 +1303,8 @@ export class TaskClientStoreInternal {
                 }
 
                 if (newCollection !== oldCollectionEntry.collection) {
-                    // This backfill introduced new data. Make sure our logical clock's time is
-                    // beyond any times used in this object.
+                    // This backfill introduced new data. Make sure our logical clock's time is beyond
+                    // any times used in this object.
                     newCollection.tick(this.clock);
                 }
 
@@ -1345,9 +1334,9 @@ export class TaskClientStoreInternal {
                         oldCollectionEntry.optimisticState?.original.collection &&
                     newAuthorizationState === oldCollectionEntry.authorizationState
                 ) {
-                    // For symmetry with tasks, backfilled collections go in
-                    // `newCollectionEntryById` even if the backfill was a noop. Actions that are a
-                    // noop do not go in `newCollectionEntryById`.
+                    // For symmetry with tasks, backfilled collections go in `newCollectionEntryById`
+                    // even if the backfill was a noop. Actions that are a noop do not go in
+                    // `newCollectionEntryById`.
                     newCollectionEntryById.set(
                         backfillCollection.collection.id,
                         oldCollectionEntry,
@@ -1398,9 +1387,8 @@ export class TaskClientStoreInternal {
                     version: authorizationStateVersion,
                 });
 
-                // Authorization state in the store wins. We may be applying events
-                // out-of-order. We return a referentially identical entry to avoid updating
-                // the map.
+                // Authorization state in the store wins. We may be applying events out-of-order.
+                // We return a referentially identical entry to avoid updating the map.
                 if (oldCollectionEntry.authorizationState === newAuthorizationState) continue;
 
                 newCollectionEntryById.set(backfillCollection.collectionId, {
@@ -1417,8 +1405,8 @@ export class TaskClientStoreInternal {
 
         // Apply actions:
         for (const action of event.actions) {
-            // All actions our client commits will have a greater logical time than the
-            // actions we've already seen.
+            // All actions our client commits will have a greater logical time than the actions
+            // we've already seen.
             this.clock.tick(action.time);
 
             const getActionReferencedSortableAccount = createGetTaskActionReferencedSortableAccount(
@@ -1453,9 +1441,9 @@ export class TaskClientStoreInternal {
                                 task: newTask,
                                 actions: null,
                                 optimisticState: null,
-                                // If we receive the create event for a task we assume it to be
-                                // authorized. In practice when a task is created we'll get a backfill for the
-                                // task instead of the create action.
+                                // If we receive the create event for a task we assume it to be authorized. In
+                                // practice when a task is created we'll get a backfill for the task instead of the
+                                // create action.
                                 authorizationState: new TaskAuthorizationStateRegister(
                                     taskAuthorizedState,
                                     event.defaultAuthorizationStateVersion,
@@ -1497,8 +1485,7 @@ export class TaskClientStoreInternal {
                                 getActionReferencedSortableAccount,
                             );
 
-                            // Apply any actions we received out-of-order now that the task has
-                            // been created.
+                            // Apply any actions we received out-of-order now that the task has been created.
                             newTask = applyPendingTaskActions(newTask, oldTaskEntry.actions);
 
                             if (oldTaskEntry.optimisticState) {
@@ -1524,9 +1511,9 @@ export class TaskClientStoreInternal {
                                           ],
                                       }
                                     : null,
-                                // If we receive the create event for a task we assume it to be
-                                // authorized. In practice when a task is created we'll get a backfill for the
-                                // task instead of the create action.
+                                // If we receive the create event for a task we assume it to be authorized. In
+                                // practice when a task is created we'll get a backfill for the task instead of the
+                                // create action.
                                 authorizationState:
                                     oldTaskEntry.authorizationState ??
                                     new TaskAuthorizationStateRegister(
@@ -1543,8 +1530,8 @@ export class TaskClientStoreInternal {
                         getActionReferencedSortableAccount,
                     );
 
-                    // Optimization: If the task didn't change and we don't have optimistic state
-                    // for the task then don't update our store.
+                    // Optimization: If the task didn't change and we don't have optimistic state for
+                    // the task then don't update our store.
                     if (newTask === oldTaskEntry.task && oldTaskEntry.optimisticState === null) {
                         continue;
                     }
@@ -1596,9 +1583,9 @@ export class TaskClientStoreInternal {
                                 collection: newCollection,
                                 actions: null,
                                 optimisticState: null,
-                                // If we receive the create event for a collection we assume it to be
-                                // authorized. In practice when a collection is created we'll get a backfill
-                                // for the collection instead of the create action.
+                                // If we receive the create event for a collection we assume it to be authorized.
+                                // In practice when a collection is created we'll get a backfill for the collection
+                                // instead of the create action.
                                 authorizationState: new TaskAuthorizationStateRegister(
                                     taskAuthorizedState,
                                     event.defaultAuthorizationStateVersion,
@@ -1632,8 +1619,7 @@ export class TaskClientStoreInternal {
                                 action.collectionAction,
                             );
 
-                            // Apply any actions we received out-of-order now that the task has
-                            // been created.
+                            // Apply any actions we received out-of-order now that the task has been created.
                             newCollection = applyPendingTaskCollectionActions(
                                 newCollection,
                                 oldCollectionEntry.actions,
@@ -1651,9 +1637,9 @@ export class TaskClientStoreInternal {
                                           ],
                                       }
                                     : null,
-                                // If we receive the create event for a collection we assume it to be
-                                // authorized. In practice when a collection is created we'll get a backfill
-                                // for the collection instead of the create action.
+                                // If we receive the create event for a collection we assume it to be authorized.
+                                // In practice when a collection is created we'll get a backfill for the collection
+                                // instead of the create action.
                                 authorizationState:
                                     oldCollectionEntry.authorizationState ??
                                     new TaskAuthorizationStateRegister(
@@ -1699,9 +1685,9 @@ export class TaskClientStoreInternal {
         }
 
         for (const {action, getActionReferencedSortableAccount} of updateAccountNameActions) {
-            // The server must provide an updated `AccountModel` for `UpdateTaskName`
-            // actions so that when we apply actions in the future that reference this
-            // `AccountId` they get the right account name.
+            // The server must provide an updated `AccountModel` for `UpdateTaskName` actions
+            // so that when we apply actions in the future that reference this `AccountId` they
+            // get the right account name.
             const account = event.referencedAccounts.find(
                 account => account.id === action.accountId,
             );
@@ -1717,8 +1703,8 @@ export class TaskClientStoreInternal {
 
                 const newTask = oldTaskEntry.task.applyUpdateAccountNameAction(action);
 
-                // Optimization: If the task didn't change and we don't have optimistic state
-                // for the task then don't update our store.
+                // Optimization: If the task didn't change and we don't have optimistic state for
+                // the task then don't update our store.
                 if (newTask === oldTaskEntry.task && oldTaskEntry.optimisticState === null) {
                     return;
                 }
@@ -1766,21 +1752,20 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Makes a change to the tasks in this space as the current user. We
-     * optimistically make the change and send a network request to the server. If
-     * the server responds without an error, great! Our tasks don't need to change.
-     * If the server responds with an error then we need to revert the changes made
-     * by this transaction.
+     * Makes a change to the tasks in this space as the current user. We optimistically
+     * make the change and send a network request to the server. If the server responds
+     * without an error, great! Our tasks don't need to change. If the server responds
+     * with an error then we need to revert the changes made by this transaction.
      *
-     * To accomplish this revert, while we're waiting on the server to accept or
-     * reject our transaction we keep track of all changes made to the task. If the
-     * server rejects our update then we take the original task and apply all
-     * actions we saw after our optimistic action excluding the optimistic action.
+     * To accomplish this revert, while we're waiting on the server to accept or reject
+     * our transaction we keep track of all changes made to the task. If the server
+     * rejects our update then we take the original task and apply all actions we saw
+     * after our optimistic action excluding the optimistic action.
      *
-     * If you are referencing some collections in your transaction that don't
-     * already exist in the store then you need to provide the collections with
-     * `referencedCollection` in the `AddCollection` action so we can add their
-     * data to the store.
+     * If you are referencing some collections in your transaction that don't already
+     * exist in the store then you need to provide the collections with
+     * `referencedCollection` in the `AddCollection` action so we can add their data to
+     * the store.
      */
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
@@ -1792,9 +1777,9 @@ export class TaskClientStoreInternal {
             undoableSlice = null,
             updateAccessPolicyShareNotification = null,
         }: {
-            // This property is required to force callers to make a decision on whether or
-            // not to pass in `undoManager`. Most of the time you want to pass in
-            // `undoManager`. If you pass in null the change can't be undone.
+            // This property is required to force callers to make a decision on whether or not
+            // to pass in `undoManager`. Most of the time you want to pass in `undoManager`. If
+            // you pass in null the change can't be undone.
             undoManager: TaskClientStoreUndoManager | null;
             // This property is required to force callers to pass down a `affinityManager`
             // object from the route component.
@@ -1814,8 +1799,8 @@ export class TaskClientStoreInternal {
         const mutexLockedPromiseResolver = createPromiseResolver();
         const mutexUnlockPromiseResolver = createPromiseResolver();
 
-        // Make sure we're immediately holding the action transaction mutex. In case
-        // any synchronous code between now and when we actually call
+        // Make sure we're immediately holding the action transaction mutex. In case any
+        // synchronous code between now and when we actually call
         // `commitTaskActionTransaction()` runs some callback that needs to wait on the
         // mutex.
         //
@@ -1828,10 +1813,10 @@ export class TaskClientStoreInternal {
         // ```
         //
         // Needs this. Since `_applyUpdateEvent()` will run some code in
-        // `useTaskGridViewExpansionState()` that expands "task 1"'s children and
-        // creates a query subscription for "task 1"'s children. However, that query
-        // will fail if run before `commitTaskActionTransaction()` asynchronously
-        // finishes creating the task in DynamoDB.
+        // `useTaskGridViewExpansionState()` that expands "task 1"'s children and creates a
+        // query subscription for "task 1"'s children. However, that query will fail if run
+        // before `commitTaskActionTransaction()` asynchronously finishes creating the task
+        // in DynamoDB.
         if (!shouldDisableCommitTaskActionTransactionMutexForTest) {
             void this._commitTaskActionTransactionMutex.withLock(() => {
                 mutexLockedPromiseResolver.resolve();
@@ -1844,8 +1829,8 @@ export class TaskClientStoreInternal {
         let createLeaseIfLostAccessId: TaskActionTransactionLeaseId | null;
         let release: () => void;
         try {
-            // We need to create undo actions before applying our actions to the store so
-            // we can read old task data from the store.
+            // We need to create undo actions before applying our actions to the store so we
+            // can read old task data from the store.
             undoActions = undoManager
                 ? createTaskUndoActionsIfPossible(this, actions, undoableSlice)
                 : null;
@@ -1885,10 +1870,10 @@ export class TaskClientStoreInternal {
                             );
                         }
 
-                        // If we have some `referencedCollections` then we want to backfill it in the
-                        // store THEN apply our optimistic actions. We need to apply our optimistic
-                        // actions in the `onBatchUpdate` callback or else the backfilled collections
-                        // will be immediately released.
+                        // If we have some `referencedCollections` then we want to backfill it in the store
+                        // THEN apply our optimistic actions. We need to apply our optimistic actions in
+                        // the `onBatchUpdate` callback or else the backfilled collections will be
+                        // immediately released.
                         return this._applyUpdateEvent(
                             {
                                 type: "Update",
@@ -1936,8 +1921,8 @@ export class TaskClientStoreInternal {
                 if (referenceCount === 0) actuallyRelease?.();
             };
 
-            // Leases allow us to temporarily add a task back to our query with undo
-            // actions even if we've lost access.
+            // Leases allow us to temporarily add a task back to our query with undo actions
+            // even if we've lost access.
             createLeaseIfLostAccessId =
                 removedFromQueries.size > 0 && undoManager && undoActions
                     ? generateId<TaskActionTransactionLeaseId>()
@@ -2002,8 +1987,8 @@ export class TaskClientStoreInternal {
             : mutexLockedPromiseResolver.promise.then(run);
 
         // Will show a "Saving" indicator while we wait for the action transaction to
-        // commit. Will also add a `beforeunload` listener that warns the user that we
-        // have unsaved changes if they try to navigate away.
+        // commit. Will also add a `beforeunload` listener that warns the user that we have
+        // unsaved changes if they try to navigate away.
         affinityManager.addGlobalLoadingIndicator(commitPromise, {type: "Saving"});
 
         const pendingActions = allPendingActions.slice(0, actions.length);
@@ -2028,21 +2013,21 @@ export class TaskClientStoreInternal {
 
         commitPromise.then(
             ({extraActions, referencedAccounts}) => {
-                // Between applying an update event and committing our optimistic actions we
-                // have a lot of store updates we want to batch together.
+                // Between applying an update event and committing our optimistic actions we have a
+                // lot of store updates we want to batch together.
                 batchStoreUpdates(() => {
                     this._commitOptimisticTaskActions(pendingActions);
 
-                    // The code below is all about reconciling `optimisticExtraActions`. The
-                    // procedure is:
+                    // The code below is all about reconciling `optimisticExtraActions`. The procedure
+                    // is:
                     //
                     // 1. Apply `extraActions` from the server
-                    // 2. Commit any `optimisticExtraActions` that "match" the `extraActions` from
-                    //    the server and revert any that don't
+                    // 2. Commit any `optimisticExtraActions` that "match" the `extraActions` from the
+                    //    server and revert any that don't
                     //
                     // Our check that `optimisticExtraActions` match `extraActions` tests whether
-                    // applying `optimisticExtraActions` at this point would be a noop. If it would
-                    // be a noop then we consider `optimisticExtraActions` to match `extraActions`.
+                    // applying `optimisticExtraActions` at this point would be a noop. If it would be
+                    // a noop then we consider `optimisticExtraActions` to match `extraActions`.
 
                     const taskByIdBeforeExtraActions = new Map<TaskId, TaskModel | null>();
                     for (const taskId of optimisticExtraPendingActionsByTaskId.keys()) {
@@ -2079,10 +2064,9 @@ export class TaskClientStoreInternal {
                         const taskBeforeExtraActions =
                             taskByIdBeforeExtraActions.get(taskId) ?? null;
 
-                        // In the most common case we'll have a task entry with some optimistic state
-                        // and an original task. In unexpected cases perform the safe logic of
-                        // reverting optimistic extra task actions. Since we apply the true extra
-                        // actions above.
+                        // In the most common case we'll have a task entry with some optimistic state and
+                        // an original task. In unexpected cases perform the safe logic of reverting
+                        // optimistic extra task actions. Since we apply the true extra actions above.
                         //
                         // These unexpected cases are:
                         //
@@ -2108,15 +2092,14 @@ export class TaskClientStoreInternal {
                             ),
                         );
 
-                        // We want to check that `optimisticExtraActions` are a noop after
-                        // `extraActions` are applied. If they are not a noop then our generated
-                        // `optimisticExtraActions` are incorrect and the server sent us the real extra
-                        // actions.
+                        // We want to check that `optimisticExtraActions` are a noop after `extraActions`
+                        // are applied. If they are not a noop then our generated `optimisticExtraActions`
+                        // are incorrect and the server sent us the real extra actions.
                         //
-                        // We know `optimisticExtraActions` are a noop if a task with `extraActions`
-                        // but not `optimisticExtraActions` survives a merge with a task that has
-                        // `optimisticExtraActions`. That means the task with `optimisticExtraActions`
-                        // does not contribute any changes to the final, merged, task.
+                        // We know `optimisticExtraActions` are a noop if a task with `extraActions` but
+                        // not `optimisticExtraActions` survives a merge with a task that has
+                        // `optimisticExtraActions`. That means the task with `optimisticExtraActions` does
+                        // not contribute any changes to the final, merged, task.
                         if (
                             taskWithoutOptimisticExtraActions.merge(taskBeforeExtraActions) ===
                             taskWithoutOptimisticExtraActions
@@ -2127,9 +2110,9 @@ export class TaskClientStoreInternal {
                         }
                     }
 
-                    // Release any references held when we applied the optimistic action. If tasks
-                    // are fully released by the optimistic action, we retain them until the action
-                    // commits in case we need to revert the action.
+                    // Release any references held when we applied the optimistic action. If tasks are
+                    // fully released by the optimistic action, we retain them until the action commits
+                    // in case we need to revert the action.
                     release();
                 });
             },
@@ -2148,8 +2131,8 @@ export class TaskClientStoreInternal {
                             break;
                         }
                         case "UpdateAccountName": {
-                            // Generic error message if this fails. The client shouldn't be committing
-                            // this anyway.
+                            // Generic error message if this fails. The client shouldn't be committing this
+                            // anyway.
                             break;
                         }
                         case "UpdateNotepadPage": {
@@ -2187,9 +2170,9 @@ export class TaskClientStoreInternal {
                             : pendingActions,
                     );
 
-                    // Release any references held when we applied the optimistic action. If tasks
-                    // are fully released by the optimistic action, we retain them until the action
-                    // commits in case we need to revert the action.
+                    // Release any references held when we applied the optimistic action. If tasks are
+                    // fully released by the optimistic action, we retain them until the action commits
+                    // in case we need to revert the action.
                     release();
                 });
             },
@@ -2204,18 +2187,17 @@ export class TaskClientStoreInternal {
 
     /**
      * Helps build a merged task `UpdateTitle` transaction from many individual
-     * actions. Each individual `UpdateTitle` transaction is applied optimistically
-     * to our store but when `commit()` is called we send one, merged, action to
-     * the server.
-     *
-     * We only send one `UpdateTitle` action at a time so it's naturally throttled
-     * by the network. If the user's network is slow we send fewer, larger,
-     * `UpdateTitle` actions. If the user's network is fast we send many smaller
-     * `UpdateTitle` actions.
-     *
-     * Under the hood this has the same logic as `commitTaskActionTransaction()`
-     * but allows you to merge individual actions into a single action for the
+     * actions. Each individual `UpdateTitle` transaction is applied optimistically to
+     * our store but when `commit()` is called we send one, merged, action to the
      * server.
+     *
+     * We only send one `UpdateTitle` action at a time so it's naturally throttled by
+     * the network. If the user's network is slow we send fewer, larger, `UpdateTitle`
+     * actions. If the user's network is fast we send many smaller `UpdateTitle`
+     * actions.
+     *
+     * Under the hood this has the same logic as `commitTaskActionTransaction()` but
+     * allows you to merge individual actions into a single action for the server.
      */
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
@@ -2224,9 +2206,9 @@ export class TaskClientStoreInternal {
             undoManager,
             affinityManager,
         }: {
-            // This property is required to force callers to make a decision on whether or
-            // not to pass in `undoManager`. Most of the time you want to pass in
-            // `undoManager`. If you pass in null the change can't be undone.
+            // This property is required to force callers to make a decision on whether or not
+            // to pass in `undoManager`. Most of the time you want to pass in `undoManager`. If
+            // you pass in null the change can't be undone.
             undoManager: TaskClientStoreUndoManager | null;
             affinityManager: TaskClientStoreSearchAffinityManager;
         },
@@ -2266,8 +2248,8 @@ export class TaskClientStoreInternal {
 
             individualActions.push(action);
 
-            // We need to create undo actions before applying our actions to the store so
-            // we can read old task data from the store.
+            // We need to create undo actions before applying our actions to the store so we
+            // can read old task data from the store.
             const undoActions = undoManager
                 ? createTaskUndoActionsIfPossible(this, [action])
                 : null;
@@ -2298,9 +2280,9 @@ export class TaskClientStoreInternal {
                 undoManager.pushUndoStackEntry({
                     undoActions,
                     removedFromQueries,
-                    // Changing the title can never remove the account's access to the task. Since
-                    // task access is determined by the creator, assignee, parent task, and
-                    // collections. So we'll never need to generate a lease.
+                    // Changing the title can never remove the account's access to the task. Since task
+                    // access is determined by the creator, assignee, parent task, and collections. So
+                    // we'll never need to generate a lease.
                     leaseId: null,
                     release: () => {
                         assert(!isUndoEntryReleased);
@@ -2348,8 +2330,8 @@ export class TaskClientStoreInternal {
                     : this._commitTaskActionTransactionMutex.withLock(run);
 
                 // Will show a "Saving" indicator while we wait for the action transaction to
-                // commit. Will also add a `beforeunload` listener that warns the user that we
-                // have unsaved changes if they try to navigate away.
+                // commit. Will also add a `beforeunload` listener that warns the user that we have
+                // unsaved changes if they try to navigate away.
                 affinityManager.addGlobalLoadingIndicator(commitPromise, {type: "Saving"});
 
                 commitPromise.then(
@@ -2403,19 +2385,19 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Handles race conditions when committing a task action transaction. This
-     * will apply the actions to the store and create undo actions if possible.
+     * Handles race conditions when committing a task action transaction. This will
+     * apply the actions to the store and create undo actions if possible.
      *
-     * @param undoManager - The undo manager to pass the undo actions to. If null
-     * then no undo actions will be saved.
+     * @param undoManager - The undo manager to pass the undo actions to. If null then
+     * no undo actions will be saved.
      *
      * @param run - A function that returns a promise that resolves with an object
      * containing at least the `actions` and `referencedAccounts` properties.
      *
-     * @param mapUndoActions  - A function that takes an iterable of
-     * `TaskAction` objects and returns an iterable of `TaskActionModel`
-     * objects that will be passed to the undo manager. This function may remove any
-     * actions that we don't want to undo.
+     * @param mapUndoActions - A function that takes an iterable of `TaskAction`
+     * objects and returns an iterable of `TaskActionModel` objects that will be passed
+     * to the undo manager. This function may remove any actions that we don't want to
+     * undo.
      */
 
     private _withSpecializedCommitTaskActionTransaction<T>(
@@ -2438,8 +2420,8 @@ export class TaskClientStoreInternal {
             readonly referencedAccounts: ReadonlyArray<AccountModel>;
         }
     > {
-        // We don't use `addGlobalLoadingIndicator()` with this promise
-        // because it's expected that the caller handle pending states and errors.
+        // We don't use `addGlobalLoadingIndicator()` with this promise because it's
+        // expected that the caller handle pending states and errors.
         const promise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
@@ -2468,8 +2450,8 @@ export class TaskClientStoreInternal {
             let releaseCollectionIds: Array<TaskCollectionId>;
 
             try {
-                // We need to create undo actions before applying our actions to the store so
-                // we can read old task data from the store.
+                // We need to create undo actions before applying our actions to the store so we
+                // can read old task data from the store.
                 const undoActions = undoManager
                     ? createTaskUndoActionsIfPossible(this, mapUndoActions(actions))
                     : null;
@@ -2513,9 +2495,9 @@ export class TaskClientStoreInternal {
             } finally {
                 this.onQueryLoadedTaskRemove = null;
 
-                // Any tasks or collections that were released while updating our store, we
-                // want to retain as long as we have an undo stack entry. Since hitting undo
-                // may reintroduce the tasks to the store.
+                // Any tasks or collections that were released while updating our store, we want to
+                // retain as long as we have an undo stack entry. Since hitting undo may
+                // reintroduce the tasks to the store.
 
                 releaseTaskIds = Array.from(delayReleaseTaskEntryStoreIds);
                 releaseCollectionIds = Array.from(delayReleaseCollectionEntryStoreIds);
@@ -2566,11 +2548,11 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Deletes a task and all of its children. Does not optimistically update since
-     * we may not know all of a task's children on the client. The UI should show a
+     * Deletes a task and all of its children. Does not optimistically update since we
+     * may not know all of a task's children on the client. The UI should show a
      * loading spinner for this action. You also need to handle pending state and
-     * errors from this action yourself. Unlike `commitTaskActionTransaction()`
-     * which displays errors on its own.
+     * errors from this action yourself. Unlike `commitTaskActionTransaction()` which
+     * displays errors on its own.
      */
     public async deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
@@ -2584,8 +2566,8 @@ export class TaskClientStoreInternal {
         },
     ): Promise<void> {
         const mapUndoActions = (actions: Iterable<TaskAction>) =>
-            // We need to create undo actions before applying our actions to the store so
-            // we can read old task data from the store.
+            // We need to create undo actions before applying our actions to the store so we
+            // can read old task data from the store.
             mapIterable(actions, action => {
                 if (action.type === "UpdateTask" && action.taskAction.type === "UpdateTitle") {
                     throw new InternalError(
@@ -2612,8 +2594,8 @@ export class TaskClientStoreInternal {
      * Duplicates a task and all of its children. Does not optimistically update since
      * we may not know all of a task's children on the client. The UI should show a
      * loading spinner for this action. You also need to handle pending state and
-     * errors from this action yourself. Unlike `commitTaskActionTransaction()`
-     * which displays errors on its own.
+     * errors from this action yourself. Unlike `commitTaskActionTransaction()` which
+     * displays errors on its own.
      */
     public async duplicateTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
@@ -2630,8 +2612,8 @@ export class TaskClientStoreInternal {
         },
     ): Promise<{taskId: TaskId}> {
         const mapUndoActions = (actions: Iterable<TaskAction>) =>
-            // The only undo actions we should care about is the create actions.
-            // This will save time as we don't need to undo the other actions.
+            // The only undo actions we should care about is the create actions. This will save
+            // time as we don't need to undo the other actions.
             filterMapIterable(actions, action => {
                 return action.type === "UpdateTask" && action.taskAction.type === "Create"
                     ? (action as TaskActionModel)
@@ -2654,9 +2636,9 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * If we have any pending `commitTaskActionTransaction()` calls (or another
-     * update like `deleteTaskAndAllChildren()`) then calling this function waits
-     * for this pending calls to resolve before returning.
+     * If we have any pending `commitTaskActionTransaction()` calls (or another update
+     * like `deleteTaskAndAllChildren()`) then calling this function waits for this
+     * pending calls to resolve before returning.
      */
     public waitForCommitTaskActionTransactions() {
         return this._commitTaskActionTransactionMutex.waitForUnlock();
@@ -2746,8 +2728,8 @@ export class TaskClientStoreInternal {
                                         },
                                     ],
                                 },
-                                // If we receive an optimistic create action it's from our account (other
-                                // creates will be rejected by the backend) so the task is authorized.
+                                // If we receive an optimistic create action it's from our account (other creates
+                                // will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
                                     taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
@@ -2823,8 +2805,8 @@ export class TaskClientStoreInternal {
                                         },
                                     ],
                                 },
-                                // If we receive an optimistic create action it's from our account (other
-                                // creates will be rejected by the backend) so the task is authorized.
+                                // If we receive an optimistic create action it's from our account (other creates
+                                // will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
                                     taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
@@ -2903,8 +2885,8 @@ export class TaskClientStoreInternal {
                                     },
                                     actions: [{isOptimistic: true, action}],
                                 },
-                                // If we receive an optimistic create action it's from our account (other
-                                // creates will be rejected by the backend) so the task is authorized.
+                                // If we receive an optimistic create action it's from our account (other creates
+                                // will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
                                     taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
@@ -2974,8 +2956,8 @@ export class TaskClientStoreInternal {
                                         },
                                     ],
                                 },
-                                // If we receive an optimistic create action it's from our account (other
-                                // creates will be rejected by the backend) so the task is authorized.
+                                // If we receive an optimistic create action it's from our account (other creates
+                                // will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
                                     taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
@@ -3038,10 +3020,9 @@ export class TaskClientStoreInternal {
                 action,
             );
         } finally {
-            // Any tasks or collections that were released while updating our store, we
-            // want to retain until the optimistic action is committed or rejected. Because
-            // the task may be reintroduced to a query, say, if the optimistic action was
-            // rejected.
+            // Any tasks or collections that were released while updating our store, we want to
+            // retain until the optimistic action is committed or rejected. Because the task
+            // may be reintroduced to a query, say, if the optimistic action was rejected.
 
             releaseTaskIds = Array.from(delayReleaseTaskEntryStoreIds);
             releaseCollectionIds = Array.from(delayReleaseCollectionEntryStoreIds);
@@ -3092,8 +3073,7 @@ export class TaskClientStoreInternal {
                         continue;
                     }
 
-                    // Entry has been recreated since we added our action to optimistic
-                    // state, ignore.
+                    // Entry has been recreated since we added our action to optimistic state, ignore.
                     if (!oldTaskEntry.optimisticState) {
                         continue;
                     }
@@ -3102,8 +3082,8 @@ export class TaskClientStoreInternal {
                         optimisticAction => optimisticAction.action !== action,
                     );
 
-                    // Optimistic action is not present in task entry's optimistic state. Maybe
-                    // entry has been recreated, ignore.
+                    // Optimistic action is not present in task entry's optimistic state. Maybe entry
+                    // has been recreated, ignore.
                     if (
                         newOptimisticActions.length === oldTaskEntry.optimisticState.actions.length
                     ) {
@@ -3111,9 +3091,9 @@ export class TaskClientStoreInternal {
                     }
 
                     // Remove any `isOptimistic: false` actions from the start of the optimistic
-                    // actions array. These are actions we'd need to re-apply on top of
-                    // `originalTask` to revert an optimistic action. Since there are no optimistic
-                    // actions that come before we won't need to reapply these.
+                    // actions array. These are actions we'd need to re-apply on top of `originalTask`
+                    // to revert an optimistic action. Since there are no optimistic actions that come
+                    // before we won't need to reapply these.
                     const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
                         optimisticAction => optimisticAction.isOptimistic,
                     );
@@ -3140,8 +3120,8 @@ export class TaskClientStoreInternal {
                         continue;
                     }
 
-                    // Update `original` to include the committed action and any non-optimistic
-                    // actions we don't need to keep anymore.
+                    // Update `original` to include the committed action and any non-optimistic actions
+                    // we don't need to keep anymore.
                     if (oldTaskEntry.task === null) {
                         // If there was a create action then `oldTaskEntry.task` should be non-null.
                         assert(
@@ -3273,8 +3253,7 @@ export class TaskClientStoreInternal {
                         continue;
                     }
 
-                    // Entry has been recreated since we added our action to optimistic
-                    // state, ignore.
+                    // Entry has been recreated since we added our action to optimistic state, ignore.
                     if (!oldCollectionEntry.optimisticState) {
                         continue;
                     }
@@ -3283,8 +3262,8 @@ export class TaskClientStoreInternal {
                         optimisticAction => optimisticAction.action !== action,
                     );
 
-                    // Optimistic action is not present in task entry's optimistic state. Maybe
-                    // entry has been recreated, ignore.
+                    // Optimistic action is not present in task entry's optimistic state. Maybe entry
+                    // has been recreated, ignore.
                     if (
                         newOptimisticActions.length ===
                         oldCollectionEntry.optimisticState.actions.length
@@ -3293,9 +3272,9 @@ export class TaskClientStoreInternal {
                     }
 
                     // Remove any `isOptimistic: false` actions from the start of the optimistic
-                    // actions array. These are actions we'd need to re-apply on top of
-                    // `originalTask` to revert an optimistic action. Since there are no optimistic
-                    // actions that come before we won't need to reapply these.
+                    // actions array. These are actions we'd need to re-apply on top of `originalTask`
+                    // to revert an optimistic action. Since there are no optimistic actions that come
+                    // before we won't need to reapply these.
                     const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
                         optimisticAction => optimisticAction.isOptimistic,
                     );
@@ -3322,8 +3301,8 @@ export class TaskClientStoreInternal {
                         continue;
                     }
 
-                    // Update `original` to include the committed action and any non-optimistic
-                    // actions we don't need to keep anymore.
+                    // Update `original` to include the committed action and any non-optimistic actions
+                    // we don't need to keep anymore.
                     if (oldCollectionEntry.collection === null) {
                         // If there was a create action then `oldTaskEntry.task` should be non-null.
                         assert(
@@ -3468,8 +3447,7 @@ export class TaskClientStoreInternal {
                         continue;
                     }
 
-                    // Entry has been recreated since we added our action to optimistic
-                    // state, ignore.
+                    // Entry has been recreated since we added our action to optimistic state, ignore.
                     if (!oldTaskEntry.optimisticState) {
                         continue;
                     }
@@ -3478,8 +3456,8 @@ export class TaskClientStoreInternal {
                         optimisticAction => optimisticAction.action !== action,
                     );
 
-                    // Optimistic action is not present in task entry's optimistic state. Maybe
-                    // entry has been recreated, ignore.
+                    // Optimistic action is not present in task entry's optimistic state. Maybe entry
+                    // has been recreated, ignore.
                     if (
                         newOptimisticActions.length === oldTaskEntry.optimisticState.actions.length
                     ) {
@@ -3487,8 +3465,8 @@ export class TaskClientStoreInternal {
                     }
 
                     // Remove any `isOptimistic: false` actions from the start of the optimistic
-                    // actions array. These are actions we'd need to re-apply on top of
-                    // `originalTask` to revert an optimistic action.
+                    // actions array. These are actions we'd need to re-apply on top of `originalTask`
+                    // to revert an optimistic action.
                     //
                     // We'll apply these to the original task now and won't need them for future
                     // optimistic actions.
@@ -3523,8 +3501,8 @@ export class TaskClientStoreInternal {
 
                         newTaskEntryById.set(action.taskId, {
                             ...oldTaskEntry,
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             task: applyPendingTaskActions(newOriginal.task, newOptimisticActions),
                             actions: null,
                             optimisticState:
@@ -3580,15 +3558,14 @@ export class TaskClientStoreInternal {
                     }
 
                     if (newOriginal.task !== null) {
-                        // If our new original task is non-null because there was a non-optimistic
-                        // create action then the task entry as a whole should also have a
-                        // non-null task.
+                        // If our new original task is non-null because there was a non-optimistic create
+                        // action then the task entry as a whole should also have a non-null task.
                         assert(oldTaskEntry.task !== null);
 
                         newTaskEntryById.set(action.taskId, {
                             ...oldTaskEntry,
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             task: applyPendingTaskActions(newOriginal.task, newOptimisticActions),
                             actions: null,
                             optimisticState:
@@ -3619,8 +3596,8 @@ export class TaskClientStoreInternal {
                     if (!optimisticCreateAction) {
                         newTaskEntryById.set(action.taskId, {
                             ...oldTaskEntry,
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             task: null,
                             actions: [
                                 ...newOriginal.actions,
@@ -3641,8 +3618,8 @@ export class TaskClientStoreInternal {
                         });
                     } else {
                         newTaskEntryById.set(action.taskId, {
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             task: applyPendingTaskActions(
                                 applyPendingTaskActions(
                                     TaskModel.createFromAction(
@@ -3664,8 +3641,8 @@ export class TaskClientStoreInternal {
                                           actions: newOptimisticActions,
                                       }
                                     : null,
-                            // If we receive an optimistic create action it's from our account (other
-                            // creates will be rejected by the backend) so the task is authorized.
+                            // If we receive an optimistic create action it's from our account (other creates
+                            // will be rejected by the backend) so the task is authorized.
                             authorizationState:
                                 oldTaskEntry.authorizationState ??
                                 new TaskAuthorizationStateRegister(
@@ -3689,8 +3666,7 @@ export class TaskClientStoreInternal {
                         continue;
                     }
 
-                    // Entry has been recreated since we added our action to optimistic
-                    // state, ignore.
+                    // Entry has been recreated since we added our action to optimistic state, ignore.
                     if (!oldCollectionEntry.optimisticState) {
                         continue;
                     }
@@ -3699,8 +3675,8 @@ export class TaskClientStoreInternal {
                         optimisticAction => optimisticAction.action !== action,
                     );
 
-                    // Optimistic action is not present in task entry's optimistic state. Maybe
-                    // entry has been recreated, ignore.
+                    // Optimistic action is not present in task entry's optimistic state. Maybe entry
+                    // has been recreated, ignore.
                     if (
                         newOptimisticActions.length ===
                         oldCollectionEntry.optimisticState.actions.length
@@ -3709,8 +3685,8 @@ export class TaskClientStoreInternal {
                     }
 
                     // Remove any `isOptimistic: false` actions from the start of the optimistic
-                    // actions array. These are actions we'd need to re-apply on top of
-                    // `originalTask` to revert an optimistic action.
+                    // actions array. These are actions we'd need to re-apply on top of `originalTask`
+                    // to revert an optimistic action.
                     //
                     // We'll apply these to the original task now and won't need them for future
                     // optimistic actions.
@@ -3745,8 +3721,8 @@ export class TaskClientStoreInternal {
 
                         newCollectionEntryById.set(action.collectionId, {
                             ...oldCollectionEntry,
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             collection: applyPendingTaskCollectionActions(
                                 newOriginal.collection,
                                 newOptimisticActions,
@@ -3804,15 +3780,14 @@ export class TaskClientStoreInternal {
                     }
 
                     if (newOriginal.collection !== null) {
-                        // If our new original task is non-null because there was a non-optimistic
-                        // create action then the task entry as a whole should also have a
-                        // non-null task.
+                        // If our new original task is non-null because there was a non-optimistic create
+                        // action then the task entry as a whole should also have a non-null task.
                         assert(oldCollectionEntry.collection !== null);
 
                         newCollectionEntryById.set(action.collectionId, {
                             ...oldCollectionEntry,
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             collection: applyPendingTaskCollectionActions(
                                 newOriginal.collection,
                                 newOptimisticActions,
@@ -3846,8 +3821,8 @@ export class TaskClientStoreInternal {
                     if (!optimisticCreateAction) {
                         newCollectionEntryById.set(action.collectionId, {
                             ...oldCollectionEntry,
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             collection: null,
                             actions: [
                                 ...newOriginal.actions,
@@ -3865,8 +3840,8 @@ export class TaskClientStoreInternal {
                         });
                     } else {
                         newCollectionEntryById.set(action.collectionId, {
-                            // Reset `task` and `actions` in the task entry so it doesn't include the
-                            // rejected action.
+                            // Reset `task` and `actions` in the task entry so it doesn't include the rejected
+                            // action.
                             collection: applyPendingTaskCollectionActions(
                                 applyPendingTaskCollectionActions(
                                     TaskCollectionModel.createFromAction(
@@ -3887,8 +3862,8 @@ export class TaskClientStoreInternal {
                                           actions: newOptimisticActions,
                                       }
                                     : null,
-                            // If we receive an optimistic create action it's from our account (other
-                            // creates will be rejected by the backend) so the task is authorized.
+                            // If we receive an optimistic create action it's from our account (other creates
+                            // will be rejected by the backend) so the task is authorized.
                             authorizationState:
                                 oldCollectionEntry.authorizationState ??
                                 new TaskAuthorizationStateRegister(
@@ -3922,12 +3897,11 @@ export class TaskClientStoreInternal {
         // action.
         actions: ReadonlyArray<TaskActionMaybeModel>,
         // This action is called after our updates have been applied to the store and
-        // before we clean up any new tasks/collections with zero references. It lets
-        // you "save" tasks/collections that were about to be released.
+        // before we clean up any new tasks/collections with zero references. It lets you
+        // "save" tasks/collections that were about to be released.
         //
         // We use the `action` function format (instead of an event callback like
-        // `onBatchUpdate`) to guarantee the action is called and its value is
-        // returned.
+        // `onBatchUpdate`) to guarantee the action is called and its value is returned.
         action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
     ): Value {
         // Apply all the updates to our store in one batch...
@@ -3970,8 +3944,8 @@ export class TaskClientStoreInternal {
                 delayReleaseCollectionEntryStoreIds ?? previousDelayReleaseCollectionEntryStoreIds;
 
             try {
-                // Update all our task stores and create new ones when necessary. Listeners
-                // will be called at the end of the batch.
+                // Update all our task stores and create new ones when necessary. Listeners will be
+                // called at the end of the batch.
                 for (const [taskId, newTaskEntry] of newTaskEntryById) {
                     let taskEntryStore = this._taskEntryStoreById.get(taskId);
                     const oldTaskEntry = taskEntryStore?.store.getSnapshot() ?? null;
@@ -3990,10 +3964,10 @@ export class TaskClientStoreInternal {
                     } else {
                         assert(oldTaskEntry);
 
-                        // Optimization: If the only thing that changed about a task is the `version`
-                        // of its `authorizationState` register then we don't update our `ValueStore`
-                        // (which causes all tasks to re-render) and instead sneakily mutate the old
-                        // task entry with the new register.
+                        // Optimization: If the only thing that changed about a task is the `version` of
+                        // its `authorizationState` register then we don't update our `ValueStore` (which
+                        // causes all tasks to re-render) and instead sneakily mutate the old task entry
+                        // with the new register.
                         //
                         // This works since no consumer of the task entry should really care about its
                         // authorization state version.
@@ -4034,8 +4008,8 @@ export class TaskClientStoreInternal {
                     this._updateReferencedAccountStores(oldTaskEntry, newTaskEntry);
                 }
 
-                // Update all our collection stores and create new ones when necessary.
-                // Listeners will be called at the end of the batch.
+                // Update all our collection stores and create new ones when necessary. Listeners
+                // will be called at the end of the batch.
                 for (const [collectionId, newCollectionEntry] of newCollectionEntryById) {
                     let collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
                     const oldCollectionEntry = collectionEntryStore?.store.getSnapshot() ?? null;
@@ -4051,19 +4025,19 @@ export class TaskClientStoreInternal {
                             .get(collectionId)
                             ?.set(collectionEntryStore.store);
 
-                        // If a reference isn't added to the collection by the end of this function then
-                        // we immediately garbage collect the new store.
+                        // If a reference isn't added to the collection by the end of this function then we
+                        // immediately garbage collect the new store.
                         newCollectionEntryStoreIds.add(collectionId);
                     } else {
                         assert(oldCollectionEntry);
 
-                        // Optimization: If the only thing that changed about a collection is the
-                        // `version` of its `authorizationState` register then we don't update our
-                        // `ValueStore` (which causes all tasks to re-render) and instead sneakily
-                        // mutate the old collection entry with the new register.
+                        // Optimization: If the only thing that changed about a collection is the `version`
+                        // of its `authorizationState` register then we don't update our `ValueStore`
+                        // (which causes all tasks to re-render) and instead sneakily mutate the old
+                        // collection entry with the new register.
                         //
-                        // This works since no consumer of the collection entry should really care
-                        // about its authorization state version.
+                        // This works since no consumer of the collection entry should really care about
+                        // its authorization state version.
                         //
                         // This happens when we connect to realtime and backfill data from our initial
                         // load. We stop a re-render of all tasks on the page which is nice.
@@ -4102,8 +4076,8 @@ export class TaskClientStoreInternal {
                     });
                 }
 
-                // Apply task updates to our subscriptions. This will also update stores within
-                // the subscriptions which will call listeners at the end of the batch.
+                // Apply task updates to our subscriptions. This will also update stores within the
+                // subscriptions which will call listeners at the end of the batch.
                 const subscriptions = this._subscriptionsStore.getSnapshot();
 
                 for (const query of subscriptions.queries.keys()) {
@@ -4128,10 +4102,11 @@ export class TaskClientStoreInternal {
 
                 return actionValue;
             } finally {
-                // We delay releasing tasks/collections until the end of our store update so
-                // that if one query releases a task (setting its `referenceCount` to 0) and
-                // another query wants to retain a task (setting its `referenceCount` back to
-                // 1) we don't end up deleting the task from our store.
+                // We delay releasing tasks/collections until the end of our store update so that
+                // if one query releases a task (setting its `referenceCount` to 0) and another
+                // query wants to retain a task (setting its `referenceCount` back to
+                //
+                // 1. we don't end up deleting the task from our store.
                 {
                     this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
                     this._delayReleaseCollectionEntryStoreIds =
@@ -4168,11 +4143,10 @@ export class TaskClientStoreInternal {
                 }
 
                 // Check that any tasks or collections we added with zero references got a
-                // reference when updating our subscriptions. If they didn't get a reference
-                // then the tasks/collections are immediately garbage and we clean them up.
+                // reference when updating our subscriptions. If they didn't get a reference then
+                // the tasks/collections are immediately garbage and we clean them up.
                 //
-                // In a `finally` block so we still perform this cleanup even if something
-                // throws.
+                // In a `finally` block so we still perform this cleanup even if something throws.
                 {
                     for (const taskId of newTaskEntryStoreIds) {
                         const taskEntryStore = this._taskEntryStoreById.get(taskId);
@@ -4181,10 +4155,9 @@ export class TaskClientStoreInternal {
                         if (taskEntryStore.referenceCount === 0) {
                             const taskEntry = taskEntryStore.store.getSnapshot();
 
-                            // If we're releasing a task entry with some actions but no backing `task`,
-                            // then we're receiving events out-of-order. Hold on to the actions for a
-                            // bit while we wait for the task to be backfilled instead of immediately
-                            // releasing.
+                            // If we're releasing a task entry with some actions but no backing `task`, then
+                            // we're receiving events out-of-order. Hold on to the actions for a bit while we
+                            // wait for the task to be backfilled instead of immediately releasing.
                             if (taskEntry.task === null && taskEntry.actions.length > 0) {
                                 this._temporarilyRetainTaskEntryStore(taskId);
                             } else {
@@ -4204,9 +4177,9 @@ export class TaskClientStoreInternal {
                             const collectionEntry = collectionEntryStore.store.getSnapshot();
 
                             // If we're releasing a collection entry with some actions but no backing
-                            // `collection`, then we're receiving events out-of-order. Hold on to the
-                            // actions for a bit while we wait for the collection to be backfilled
-                            // instead of immediately releasing.
+                            // `collection`, then we're receiving events out-of-order. Hold on to the actions
+                            // for a bit while we wait for the collection to be backfilled instead of
+                            // immediately releasing.
                             if (
                                 collectionEntry.collection === null &&
                                 collectionEntry.actions.length > 0
@@ -4229,8 +4202,8 @@ export class TaskClientStoreInternal {
      * Subscribes to all store task updates.
      *
      * Store task updates are made in batch in a `batchStoreUpdates()` call. This
-     * listener is called within that `batchStoreUpdates()` context which means you
-     * can make your own store updates that will fire listeners in the same batch.
+     * listener is called within that `batchStoreUpdates()` context which means you can
+     * make your own store updates that will fire listeners in the same batch.
      */
     public subscribeToBatchUpdate(listener: (update: TaskClientStoreBatchUpdate) => void) {
         return this._batchUpdateEventEmitter.subscribe(listener);
@@ -4280,11 +4253,10 @@ export class TaskClientStoreInternal {
                 const accountStore =
                     this.accountRegistry.weakGetAccountStoreByIdIfExists(newReferencedAccountId);
 
-                // It's expected that when a `newTaskEntry` is introduced by the server, the
-                // server has made referenced accounts available through `referencedAccounts`.
-                // When `newTaskEntry` is introduced by the client (through an optimistic
-                // update) it's expected that the account is available since it's rendered
-                // somewhere in the UI.
+                // It's expected that when a `newTaskEntry` is introduced by the server, the server
+                // has made referenced accounts available through `referencedAccounts`. When
+                // `newTaskEntry` is introduced by the client (through an optimistic update) it's
+                // expected that the account is available since it's rendered somewhere in the UI.
                 if (!accountStore) {
                     throw new InternalError(
                         "Couldn\u2019t find `AccountId` referenced by `TaskModel` in `AccountRegistry`",
@@ -4300,19 +4272,19 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * When committing actions, the server will sometimes generate extra actions
-     * based on data it has available that the client doesn't have available.
+     * When committing actions, the server will sometimes generate extra actions based
+     * on data it has available that the client doesn't have available.
      *
-     * This function attempts to guess what those actions are optimistically so we
-     * can immediately apply them to our local client state instead of waiting on a
-     * server roundtrip.
+     * This function attempts to guess what those actions are optimistically so we can
+     * immediately apply them to our local client state instead of waiting on a server
+     * roundtrip.
      *
-     * It's ok to miss actions that the server will return or to get the action
-     * wrong. When the server returns we will apply the server's extra actions and
-     * revert any incorrect actions.
+     * It's ok to miss actions that the server will return or to get the action wrong.
+     * When the server returns we will apply the server's extra actions and revert any
+     * incorrect actions.
      *
-     * This function should be called before applying the optimistic actions
-     * against our store since it needs to read old task values.
+     * This function should be called before applying the optimistic actions against
+     * our store since it needs to read old task values.
      */
     private _getOptimisticExtraActions(
         actions: ReadonlyArray<TaskActionModel>,
@@ -4370,8 +4342,8 @@ export class TaskClientStoreInternal {
                 return task;
             };
 
-            // If the parent tasks involved are available in our client store then we
-            // update their children counts after the parent task change.
+            // If the parent tasks involved are available in our client store then we update
+            // their children counts after the parent task change.
             if (action.type === "UpdateTask" && action.taskAction.type === "UpdateParentTaskId") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
@@ -4442,8 +4414,8 @@ export class TaskClientStoreInternal {
                 }
             }
 
-            // If the parent tasks involved are available in our client store then we
-            // update their children counts after the parent task change.
+            // If the parent tasks involved are available in our client store then we update
+            // their children counts after the parent task change.
             if (action.type === "UpdateTask" && action.taskAction.type === "UpdateStatus") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
@@ -4483,8 +4455,8 @@ export class TaskClientStoreInternal {
                     oldStatusType === "Closed" && newStatusType !== "Closed" ? 1 : 0;
             }
 
-            // When a task is deleted, we change the task's children count since deleted
-            // tasks don't show up in child task queries.
+            // When a task is deleted, we change the task's children count since deleted tasks
+            // don't show up in child task queries.
             if (action.type === "UpdateTask" && action.taskAction.type === "Delete") {
                 const taskEntryStore = this._taskEntryStoreById.get(action.taskId);
                 const task = applyPreviousActions(
@@ -4580,9 +4552,9 @@ export class TaskClientStoreInternal {
      * Creates a new query model in our store. The query will be kept up-to-date in
      * realtime whenever there's a change to a task that affects the query.
      *
-     * Also retains the query once. You are responsible for calling `release()` on
-     * the query when you're done with it to make sure resources the query uses are
-     * cleaned up.
+     * Also retains the query once. You are responsible for calling `release()` on the
+     * query when you're done with it to make sure resources the query uses are cleaned
+     * up.
      */
     public createAndRetainQuery({
         filters,
@@ -4702,9 +4674,8 @@ export class TaskClientStoreInternal {
                 return {...subscriptions, queries: newQueries};
             });
 
-            // If this is a child task query then remove our query from the child task map.
-            // We will need to send a new query from here on out if you want to see child
-            // tasks.
+            // If this is a child task query then remove our query from the child task map. We
+            // will need to send a new query from here on out if you want to see child tasks.
             const parentTaskId = getParentTaskIdIfChildrenQuery(query);
             if (
                 parentTaskId &&
@@ -4716,8 +4687,8 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Once `TaskRealtimeClient` has finished unsubscribing from a query it must
-     * call this method so we can cleanup the query from our store.
+     * Once `TaskRealtimeClient` has finished unsubscribing from a query it must call
+     * this method so we can cleanup the query from our store.
      */
     public onQueryUnsubscribed(query: TaskClientQuery) {
         batchStoreUpdates(() => {
@@ -4740,9 +4711,9 @@ export class TaskClientStoreInternal {
      * Finish loading tasks into the query with the provided `TaskQueryModelId` we
      * assigned on the client. This will extend the query's loaded range.
      *
-     * All the tasks for the query should already have been backfilled in our
-     * store. Tasks that were backfilled before we initialized the query (and so
-     * the query has not gotten an `onTaskCreate()` event for) are present in
+     * All the tasks for the query should already have been backfilled in our store.
+     * Tasks that were backfilled before we initialized the query (and so the query has
+     * not gotten an `onTaskCreate()` event for) are present in
      * `previouslyBackfilledTaskIds`.
      */
     public loadTasksIntoQuery(
@@ -4767,18 +4738,18 @@ export class TaskClientStoreInternal {
                 const taskEntry = taskEntryStore?.getSnapshot();
 
                 // The server only includes tasks in `previouslyBackfilledTaskIds` that it has
-                // previously backfilled in our client in the `backfillTasks`
-                // property of a `TaskRealtimeUpdateEvent` event and is actively keeping the
-                // task up-to-date in realtime. If the server sends a task the server hasn't
-                // backfilled then the server is broken.
+                // previously backfilled in our client in the `backfillTasks` property of a
+                // `TaskRealtimeUpdateEvent` event and is actively keeping the task up-to-date in
+                // realtime. If the server sends a task the server hasn't backfilled then the
+                // server is broken.
                 //
                 // Instead of trying to silently recover (which to the user is perceived as an
                 // unexplainable glitch), loudly blow up.
                 //
                 // Even considering garbage collection, the task should be loaded in some other
-                // query (or else the server would not be keeping the task up-to-date in
-                // realtime) which means we've kept the reference to the task retained since it's
-                // been created.
+                // query (or else the server would not be keeping the task up-to-date in realtime)
+                // which means we've kept the reference to the task retained since it's been
+                // created.
                 assert(taskEntryStore && taskEntry?.task);
 
                 return {taskEntryStore, taskEntry};
@@ -4787,10 +4758,10 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * If a children query for the provided task does not exist then we create a
-     * query and retain it. Otherwise we return the existing children query and
-     * retain it again (if it was pre-existing that implies some other code is
-     * already retaining the children query, we add an additional retain).
+     * If a children query for the provided task does not exist then we create a query
+     * and retain it. Otherwise we return the existing children query and retain it
+     * again (if it was pre-existing that implies some other code is already retaining
+     * the children query, we add an additional retain).
      *
      * You should call `release()` when done with the query to free up resources.
      */
@@ -4923,8 +4894,8 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Once `TaskRealtimeClient` has finished unsubscribing from a task it must
-     * call this method so we can cleanup the task from our store.
+     * Once `TaskRealtimeClient` has finished unsubscribing from a task it must call
+     * this method so we can cleanup the task from our store.
      */
     public onTaskSubscriptionUnsubscribed(taskSubscription: TaskClientTaskSubscription) {
         batchStoreUpdates(() => {
@@ -4962,12 +4933,12 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Create and retain a new collection subscription. You must call `release()`
-     * on the subscription when you're done with it to free up resources.
+     * Create and retain a new collection subscription. You must call `release()` on
+     * the subscription when you're done with it to free up resources.
      *
      * If the `TaskCollectionId` is not currently loaded in the store,
-     * `TaskRealtimeClient` listens to our subscribed collections and will
-     * subscribe to the task on the server.
+     * `TaskRealtimeClient` listens to our subscribed collections and will subscribe to
+     * the task on the server.
      */
     public createAndRetainCollectionSubscription(
         collectionId: TaskCollectionId,
@@ -5051,8 +5022,8 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Once `TaskRealtimeClient` has finished unsubscribing from a collection it
-     * must call this method so we can cleanup the collection from our store.
+     * Once `TaskRealtimeClient` has finished unsubscribing from a collection it must
+     * call this method so we can cleanup the collection from our store.
      */
     public onCollectionSubscriptionUnsubscribed(
         collectionSubscription: TaskClientCollectionSubscription,

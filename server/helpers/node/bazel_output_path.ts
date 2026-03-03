@@ -2,8 +2,8 @@ import patchedFs from "fs";
 import {join as joinPath, resolve as resolvePath} from "path";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 
-// Use the Node.js implementation of `fs` that doesn't include the `rules_js`
-// `fs` patch.
+// Use the Node.js implementation of `fs` that doesn't include the `rules_js` `fs`
+// patch.
 const unpatchedFs: typeof patchedFs = (patchedFs as any)._unpatched ?? patchedFs;
 
 let bazelOutputPath: string | null = null;
@@ -25,9 +25,8 @@ export function getBazelOutputPath(): string {
 }
 
 /**
- * Get Bazel's `outputBasePath`. This is where Bazel builds code for a
- * repository. Learn more in the Bazel documentation article "[Output Directory
- * Layout][1]."
+ * Get Bazel's `outputBasePath`. This is where Bazel builds code for a repository.
+ * Learn more in the Bazel documentation article "[Output Directory Layout][1]."
  *
  * [1]: https://bazel.build/remote/output-directories
  */

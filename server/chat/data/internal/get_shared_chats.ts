@@ -8,25 +8,24 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get chats shared between the authenticated account and provided accounts in
- * the provided space.
+ * Get chats shared between the authenticated account and provided accounts in the
+ * provided space.
  *
  * Sorts chats with fewer accounts first. So if a chat that exclusively contains
  * the provided accounts and authenticated account will be first.
  *
- * The current implementation isn't optimized. It loads all chats for each
- * account and finds intersecting chats.
+ * The current implementation isn't optimized. It loads all chats for each account
+ * and finds intersecting chats.
  *
  * Idea for an optimized implementation: For every pair of accounts in a space
- * (key: `{spaceId, account1Id, account2Id}`) maintain a list of `ChatId`s they
- * are both in. Then to implement this function load all pairs between the
+ * (key: `{spaceId, account1Id, account2Id}`) maintain a list of `ChatId`s they are
+ * both in. Then to implement this function load all pairs between the
  * authenticated account and other accounts (should be O(otherAccounts)) and
- * intersect those chat IDs. This would eliminate a lot of the search space of
- * this function.
- *
- * Decided that the search space is small enough (~100 * number of accounts)
- * and the items are small enough it's not worth prematurely optimizing this
+ * intersect those chat IDs. This would eliminate a lot of the search space of this
  * function.
+ *
+ * Decided that the search space is small enough (~100 \* number of accounts) and
+ * the items are small enough it's not worth prematurely optimizing this function.
  */
 export function getSharedChats(
     context: ServerActionContext,
@@ -49,8 +48,8 @@ export function getSharedChats(
         // Make sure we're either a system actor or a session actor for this account.
         await authorizeOwnSpaceAccountAccess(context, actorAccountId);
 
-        // Make sure `otherAccountIds` is unique and doesn't include our
-        // authenticated account.
+        // Make sure `otherAccountIds` is unique and doesn't include our authenticated
+        // account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
             accountId => accountId !== actorAccountId,
         );
@@ -107,8 +106,8 @@ export function getSharedChats(
         const chats: Array<{id: ChatId; accountCount: number}> = [];
 
         for (const [chatId, chat] of chatById) {
-            // Only include accounts with every requested account and the
-            // authenticated account.
+            // Only include accounts with every requested account and the authenticated
+            // account.
             if (!chat.includedAccountIds.has(actorAccountId)) continue;
             if (!otherAccountIds.every(accountId => chat.includedAccountIds.has(accountId)))
                 continue;

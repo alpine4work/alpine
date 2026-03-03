@@ -157,8 +157,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -18971,7 +18971,8 @@ describe("duplicateDocument", () => {
         expect(newDocumentFileRow.child(0).attrs.fileId).toBe(file.id);
         expect(newDocument.content.references.fileById?.has(file.id)).toBe(true);
 
-        // Verify the file is attached to the new document (can be accessed through the new document)
+        // Verify the file is attached to the new document (can be accessed through the new
+        // document)
         const fileFromNewDocument = await file.from(
             session,
             FileDocumentAuthorizer.bind({type: "Document", documentId: newDocumentId}),

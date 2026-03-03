@@ -27,12 +27,12 @@ export function normalizeTaskDetailViewQuery(
     sorts: ReadonlyArray<TaskQuerySort>,
     evaluationContext: TaskQueryEvaluationContext,
 ) {
-    // If no filters or sorts have been explicitly set then the user can manually
-    // sort by parent position.
+    // If no filters or sorts have been explicitly set then the user can manually sort
+    // by parent position.
     //
-    // If the detail view is filtered we automatically apply a sort since there
-    // can be some weirdness creating a task and expecting it to be in one place
-    // when there's no filter but instead it goes to another place.
+    // If the detail view is filtered we automatically apply a sort since there can be
+    // some weirdness creating a task and expecting it to be in one place when there's
+    // no filter but instead it goes to another place.
     const normalizedSorts =
         filters.length === 0 && sorts.length === 0
             ? taskDetailViewDefaultQueryNormalizedSorts

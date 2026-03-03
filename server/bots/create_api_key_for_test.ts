@@ -31,9 +31,9 @@ export async function createUnscopedApiKeyForTest(
 }
 
 /**
- * Create a scoped API key for a bot. We assume the caller has validated that
- * the space and account is an instantiation of the `BotId` and that the
- * `scope` is a valid entity in the space.
+ * Create a scoped API key for a bot. We assume the caller has validated that the
+ * space and account is an instantiation of the `BotId` and that the `scope` is a
+ * valid entity in the space.
  */
 export async function createScopedApiKeyForTest(
     context: DynamoContext,

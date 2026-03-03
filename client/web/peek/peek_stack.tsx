@@ -199,8 +199,8 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
                 ...state,
                 stack: [action.entry, ...state.stack],
                 unmountedStartStackIndex: state.unmountedStartStackIndex + 1,
-                // When a new peek entry is pushed, we assume the user is interacting with
-                // the peek.
+                // When a new peek entry is pushed, we assume the user is interacting with the
+                // peek.
                 wasLastInteractionOutside: false,
             };
         }
@@ -386,8 +386,8 @@ function PeekStackContextProvider(
     const navigationType = useNavigationType();
 
     // If we are navigating to a location with a peek stack we need to restore then
-    // start preloading the peek stack during the transition so our data is ready
-    // when we land on the page.
+    // start preloading the peek stack during the transition so our data is ready when
+    // we land on the page.
     const preloadRestoreStackRef = useRef<{
         location: Location;
         abortController: AbortController;
@@ -427,9 +427,8 @@ function PeekStackContextProvider(
         restoreStackGenerationRef.current += 1;
         const generation = restoreStackGenerationRef.current;
 
-        // When the location changes, store our peek stack state for our last
-        // location. So if the user navigates back to this location we can revive
-        // the peek stack.
+        // When the location changes, store our peek stack state for our last location. So
+        // if the user navigates back to this location we can revive the peek stack.
         if (lastLocationKey !== null) {
             storePeekStack(lastLocationKey, state.stack);
         }
@@ -453,8 +452,8 @@ function PeekStackContextProvider(
 
         result.stackPromise.then(
             stack => {
-                // Make sure we didn't switch to a different location while waiting for the
-                // peek stack promise.
+                // Make sure we didn't switch to a different location while waiting for the peek
+                // stack promise.
                 if (restoreStackGenerationRef.current !== generation) return;
 
                 dispatch({type: "Restore", stack});
@@ -499,17 +498,16 @@ function PeekStackContextProvider(
                     // If the last interaction was inside the peek, then let the peek try to handle
                     // keydown events (like undo) before any child components.
                     //
-                    // So if the user was interacting with the peek and they hit undo then it will
-                    // undo their changes within the peek. If they were interacting with content
-                    // below and hit undo then it will undo their changes there.
+                    // So if the user was interacting with the peek and they hit undo then it will undo
+                    // their changes within the peek. If they were interacting with content below and
+                    // hit undo then it will undo their changes there.
                     if (!state.wasLastInteractionOutside) {
                         peekStackGlobalKeyDownManualContextRef.current?.dispatchEvent(event);
                     }
                 }}
                 onGlobalKeyDown={event => {
                     // If the last interaction was outside the peek then the peek will try to handle
-                    // keydown events after all the main content has tried to handle the keydown
-                    // event.
+                    // keydown events after all the main content has tried to handle the keydown event.
                     if (state.wasLastInteractionOutside) {
                         peekStackGlobalKeyDownManualContextRef.current?.dispatchEvent(event);
                     }
@@ -520,8 +518,8 @@ function PeekStackContextProvider(
                         // Always perform full page navigations on mobile.
                         if (platform === "mobile") return;
 
-                        // Only intercept navigation events that want to push a new history entry. We
-                        // will instead push a peek.
+                        // Only intercept navigation events that want to push a new history entry. We will
+                        // instead push a peek.
                         if (options?.replace) return;
 
                         const path = resolvePath(
@@ -529,8 +527,8 @@ function PeekStackContextProvider(
                             dataRouterContext.router.state.location.pathname,
                         );
 
-                        // Don't open a peek if it's the URL we're navigating to is the same as the
-                        // current URL.
+                        // Don't open a peek if it's the URL we're navigating to is the same as the current
+                        // URL.
                         if (
                             path.pathname === location.pathname &&
                             path.search === location.search
@@ -563,19 +561,19 @@ function PeekStackContextProvider(
                         // - `route/s/$spaceId/tasks/view`
                         // - `route/s/$spaceId/peek/tasks/$taskId`
                         //
-                        // When you navigate to `/s/$spaceId/tasks/view` it correctly picks the view
-                        // route instead of the wildcard route. But when navigating to a peek
+                        // When you navigate to `/s/$spaceId/tasks/view` it correctly picks the view route
+                        // instead of the wildcard route. But when navigating to a peek
                         // `/s/$spaceId/peek/tasks/view` matches the `$taskId` wildcard peek route.
                         //
-                        // We don't want the peek to open in this case and instead we want the full
-                        // page route to open. So the way we detect this case is by trying to match the
-                        // URL we're navigating to both by peek path and by regular path. Then we
-                        // compare the `params` object of the last match since the last match will have
-                        // all the accumulated wildcard values.
+                        // We don't want the peek to open in this case and instead we want the full page
+                        // route to open. So the way we detect this case is by trying to match the URL
+                        // we're navigating to both by peek path and by regular path. Then we compare the
+                        // `params` object of the last match since the last match will have all the
+                        // accumulated wildcard values.
                         //
-                        // So the main path match will be `{spaceId: '...'}` while the peek path match
-                        // will be `{spaceId: '...', taskId: 'view'}`. These are not equal and it
-                        // tells us we shouldn't open this route in a peek.
+                        // So the main path match will be `{spaceId: '...'}` while the peek path match will
+                        // be `{spaceId: '...', taskId: 'view'}`. These are not equal and it tells us we
+                        // shouldn't open this route in a peek.
                         //
                         // Admittedly, this is a little hacky.
                         if (
@@ -601,8 +599,8 @@ function PeekStackContextProvider(
                             };
                         }
 
-                        // If there is a peek route then open a peek instead of navigating to the URL!
-                        // The user can then expand the peek fullscreen if desired.
+                        // If there is a peek route then open a peek instead of navigating to the URL! The
+                        // user can then expand the peek fullscreen if desired.
                         return {
                             preventDefault: true,
                             promise: push(to),
@@ -668,8 +666,8 @@ const PeekStack = forwardRef(function PeekStack(
     },
     ref: Ref<PeekStackRef>,
 ) {
-    // Measured in percentage of our container width so when our container resizes
-    // the peek moves with it.
+    // Measured in percentage of our container width so when our container resizes the
+    // peek moves with it.
     const [deltaXPercentage, setDeltaXPercentage] = useState(0);
 
     const dndModifier: Modifier = useCallback(
@@ -801,18 +799,19 @@ function PeekStackDraggable({
         [],
     );
 
-    // We manually implement double-click support instead of using the operating
-    // system double click. This means we aren't using the operating system double
-    // click timer! This is bad for accessibility since users with motor skill
-    // issues struggle to double click fast enough.
+    // We manually implement double-click support instead of using the operating system
+    // double click. This means we aren't using the operating system double click
+    // timer! This is bad for accessibility since users with motor skill issues
+    // struggle to double click fast enough.
     //
     // The reason we need to manually implement double clicking is we need to delay
-    // closing the peek overlay for some amount of time to detect a double click.
-    // If we waited the max operating system double click timeout ([5s on
-    // Windows][1]) without responding to a single click that would be ridiculous.
-    // (We also can't get the double click time from JavaScript.)
+    // closing the peek overlay for some amount of time to detect a double click. If we
+    // waited the max operating system double click timeout ([5s on Windows][1])
+    // without responding to a single click that would be ridiculous. (We also can't
+    // get the double click time from JavaScript.)
     //
-    // [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime
+    // [1]:
+    //     https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdoubleclicktime
     const doubleClickTimeoutRef = useRef<Timeout | null>(null);
 
     const onClosePress = (event: PressEvent) => {
@@ -827,11 +826,11 @@ function PeekStackDraggable({
             return;
         }
 
-        // Double click to close all only works when using a mouse. On keyboards you
-        // may use the shift keyboard modifier. For touch platforms you may swipe down.
+        // Double click to close all only works when using a mouse. On keyboards you may
+        // use the shift keyboard modifier. For touch platforms you may swipe down.
         //
-        // TODO(calebmer): Implement swipe down to close all peeks on touch devices
-        // like iPads.
+        // TODO(calebmer): Implement swipe down to close all peeks on touch devices like
+        // iPads.
         if (
             event.pointerType === "mouse" &&
             state.stack.length > 1 &&
@@ -975,8 +974,8 @@ function PeekStackOverlay({
                 bottom: `-${parseRemLength(peekUnderlayOffset) * offset}rem`,
                 right: `-${parseRemLength(peekUnderlayOffset) * offset}rem`,
             }}
-            // We have no affordance that underlayed peeks are clickable so give them a
-            // pointer cursor to let the user know they can click.
+            // We have no affordance that underlayed peeks are clickable so give them a pointer
+            // cursor to let the user know they can click.
             cursor="pointer"
             onClick={() => dispatch({type: "Pop"})}
         />
@@ -1014,9 +1013,8 @@ function PeekStackOverlay({
             const animation = animate(
                 overlayContainerElement,
                 {
-                    // Can't use `transform: translateY()` because `spring()` only animates
-                    // independent transforms like `y` with a spring so it can overshoot
-                    // correctly.
+                    // Can't use `transform: translateY()` because `spring()` only animates independent
+                    // transforms like `y` with a spring so it can overshoot correctly.
                     // https://motion.dev/dom/spring
                     y: [translateY, 0],
                 },
@@ -1032,8 +1030,7 @@ function PeekStackOverlay({
                 trackNavigationAnimationFinish();
                 setIsAnimatingOpen(false);
 
-                // If auto-focus is enabled then focus the overlay once we're done
-                // animating up.
+                // If auto-focus is enabled then focus the overlay once we're done animating up.
                 if (entry.autoFocus) {
                     overlayContentRef.current?.focus();
                 }
@@ -1054,8 +1051,8 @@ function PeekStackOverlay({
             const overlayElement = assertExists(overlayRef.current);
             const overlayContainerElement = assertExists(overlayContainerRef.current);
 
-            // If the overlay we're unmounting contains the focused element then unfocus
-            // the element while unmounting.
+            // If the overlay we're unmounting contains the focused element then unfocus the
+            // element while unmounting.
             if (
                 document.activeElement instanceof HTMLElement &&
                 overlayContainerElement.contains(document.activeElement)
@@ -1072,9 +1069,8 @@ function PeekStackOverlay({
             const animation = animate(
                 overlayContainerElement,
                 {
-                    // Can't use `transform: translateY()` because `spring()` only animates
-                    // independent transforms like `y` with a spring so it can overshoot
-                    // correctly.
+                    // Can't use `transform: translateY()` because `spring()` only animates independent
+                    // transforms like `y` with a spring so it can overshoot correctly.
                     // https://motion.dev/dom/spring
                     y: [0, translateY],
                 },
@@ -1097,8 +1093,8 @@ function PeekStackOverlay({
 
     // Animation 2: Shift overlays later in the stack right and down.
     {
-        // On initial render, imperatively set our initial styles so we render from
-        // this starting place.
+        // On initial render, imperatively set our initial styles so we render from this
+        // starting place.
         const hasInitiallyMountedRef = useRef(false);
         useLayoutEffect(() => {
             if (hasInitiallyMountedRef.current) return;
@@ -1119,9 +1115,9 @@ function PeekStackOverlay({
 
         const {transform, opacity} = getPeekStackOverlayAnimationStyles(index);
 
-        // Whenever our styles change, animate to the new styles. The `animate()`
-        // function is interruptible so if an animation is ongoing we will continue
-        // from that position.
+        // Whenever our styles change, animate to the new styles. The `animate()` function
+        // is interruptible so if an animation is ongoing we will continue from that
+        // position.
         useLayoutEffect(() => {
             const overlayElement = assertExists(overlayRef.current);
 
@@ -1162,8 +1158,8 @@ function PeekStackOverlay({
     // - The second peek
     // - Peeks that aren't finished with the hide animation
     //
-    // We render the second peek to preload its data and keep it up-to-date so if
-    // the first peek is closed we can immediately render the second.
+    // We render the second peek to preload its data and keep it up-to-date so if the
+    // first peek is closed we can immediately render the second.
     const isContentRendered = index === 0 || index === 1 || !isContentHidden;
 
     {
@@ -1182,8 +1178,7 @@ function PeekStackOverlay({
                 assert(overlayContentContainerRef.current);
                 const overlayContentContainerElement = overlayContentContainerRef.current;
 
-                // If our content is already hidden then make sure opacity is 0
-                // without animating.
+                // If our content is already hidden then make sure opacity is 0 without animating.
                 if (isContentHidden) {
                     overlayContentContainerElement.style.opacity = "0";
                     return;
@@ -1226,8 +1221,7 @@ function PeekStackOverlay({
                 // Start from an opacity of 0.
                 overlayContentContainerElement.style.opacity = "0";
 
-                // If our content is already shown then make sure opacity is 1
-                // without animating.
+                // If our content is already shown then make sure opacity is 1 without animating.
                 if (!isContentHidden) {
                     overlayContentContainerElement.style.opacity = "1";
                     return;
@@ -1258,9 +1252,9 @@ function PeekStackOverlay({
         }, [isContentHidden, isContentRendered, shouldHideContent]);
     }
 
-    // If the content is hidden but still rendered then make double sure the
-    // opacity is 0. This happens on component initial mount since our animation
-    // assumes `isContentHidden` means the content isn't rendered either.
+    // If the content is hidden but still rendered then make double sure the opacity
+    // is 0. This happens on component initial mount since our animation assumes
+    // `isContentHidden` means the content isn't rendered either.
     useLayoutEffect(() => {
         if (isContentHidden && isContentRendered) {
             assert(overlayContentContainerRef.current);
@@ -1306,9 +1300,9 @@ function PeekStackOverlay({
                                 width="full"
                                 height="full"
                                 overflow="hidden"
-                                // The [`<Offscreen>` component][1] React claims is coming may be a better
-                                // fit here so we don't actually render content in the DOM. `inert` has good
-                                // browser support though!
+                                // The [`<Offscreen>` component][1] React claims is coming may be a better fit here
+                                // so we don't actually render content in the DOM. `inert` has good browser support
+                                // though!
                                 //
                                 // [1]: https://react.dev/blog/2022/03/29/react-v18
                                 // [2]: https://caniuse.com/?search=inert
@@ -1316,16 +1310,15 @@ function PeekStackOverlay({
                                 // Make sure inert content is not in the accessibility tree.
                                 aria-hidden={isContentHidden ? "true" : undefined}
                                 style={{
-                                    // Because of our animation code, our element should already be at opacity 0
-                                    // but we also apply `visibility: hidden` so Playwright considers the element
-                                    // as not visible:
-                                    // https://playwright.dev/docs/actionability#visible
+                                    // Because of our animation code, our element should already be at opacity 0 but we
+                                    // also apply `visibility: hidden` so Playwright considers the element as not
+                                    // visible: https://playwright.dev/docs/actionability#visible
                                     //
-                                    // To avoid conflicting with the animation, we also check that
-                                    // `shouldHideContent` is true. If `shouldHideContent` is set to false then
-                                    // we'll begin an opacity animation that eventually sets `isContentHidden` to
-                                    // false. During that time `visibility: "hidden"` should not be set since the
-                                    // opacity animation controls whether we're visible.
+                                    // To avoid conflicting with the animation, we also check that `shouldHideContent`
+                                    // is true. If `shouldHideContent` is set to false then we'll begin an opacity
+                                    // animation that eventually sets `isContentHidden` to false. During that time
+                                    // `visibility: "hidden"` should not be set since the opacity animation controls
+                                    // whether we're visible.
                                     visibility:
                                         isContentHidden && shouldHideContent ? "hidden" : undefined,
                                 }}
@@ -1604,8 +1597,9 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         display="flex"
                         justifyContent="center"
                         alignItems="center"
-                        // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
-                        // is not accessible the only accessible way to drag is the drag handle.
+                        // As a convenience, allow dragging to start by clicking anywhere on the peek
+                        // overlay header. This is not accessible the only accessible way to drag is the
+                        // drag handle.
                         onPointerDown={event => {
                             if (event.target === event.currentTarget) {
                                 draggableListeners?.onPointerDown?.(event);
@@ -1637,8 +1631,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                                     window.open(
                                         createPath(spacePath),
                                         "_blank",
-                                        // Important security measure. See:
-                                        // https://mathiasbynens.github.io/rel-noopener
+                                        // Important security measure. See: https://mathiasbynens.github.io/rel-noopener
                                         "noopener noreferrer",
                                     );
                                 } else {
@@ -1665,8 +1658,8 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                 </Box>
                 {useMemo(
                     // While dragging there may be many re-renders. Since re-rendering the peek is
-                    // expensive, `useMemo()` short-circuits React updates that don't affect the
-                    // peek content.
+                    // expensive, `useMemo()` short-circuits React updates that don't affect the peek
+                    // content.
                     () =>
                         !routerResult.isPending && (
                             <ContentBlockWidthContextProvider width={peekNarrowLayoutWidth}>
@@ -1771,9 +1764,9 @@ function restorePeekStack(
             };
         });
 
-        // Start preloading the data for the first entry in the stack. So that
-        // hopefully when we render, all the data is available and the user doesn't see
-        // a loading spinner.
+        // Start preloading the data for the first entry in the stack. So that hopefully
+        // when we render, all the data is available and the user doesn't see a loading
+        // spinner.
         if (stack[0]) {
             const firstEntry = stack[0];
 

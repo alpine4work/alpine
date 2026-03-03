@@ -32,8 +32,8 @@ export type TaskGridViewVirtualizedListViewRef = {
 };
 
 // Should be able to pass `VirtualizedScrollViewRef` in for
-// `TaskGridViewVirtualizedListViewRef`. Often our virtualized grid view will
-// have other stuff besides tasks so a modified ref object may be passed in.
+// `TaskGridViewVirtualizedListViewRef`. Often our virtualized grid view will have
+// other stuff besides tasks so a modified ref object may be passed in.
 assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
 
 export type TaskGridViewVirtualizedListEvents = MemoObject<{

@@ -3,8 +3,8 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 
 /**
  * Hook to debug why a React effect is re-running. You pass in a list of
- * dependencies and it logs which ones changed. Should generally not be using
- * this in production. It's only useful for debugging.
+ * dependencies and it logs which ones changed. Should generally not be using this
+ * in production. It's only useful for debugging.
  */
 export function useDebugDependencyChanges(
     dependencies: DependencyList,

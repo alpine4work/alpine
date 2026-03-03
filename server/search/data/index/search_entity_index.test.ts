@@ -130,8 +130,8 @@ beforeAll(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -1159,9 +1159,9 @@ test("can search based on vector embeddings", async () => {
                     knn: {
                         "vector.allMiniLmL6V2": {
                             vector: new OpensearchQueryValue(
-                                // These words aren't in our source material but the model should figure out
-                                // that "dungeon master" is associated with tabletop games and "scary" is
-                                // associated with suspense or running away.
+                                // These words aren't in our source material but the model should figure out that
+                                // "dungeon master" is associated with tabletop games and "scary" is associated
+                                // with suspense or running away.
                                 await embedQuery("scary tabletop game"),
                             ),
                             k: 100,
@@ -4291,8 +4291,8 @@ test("search by affinity will also return up to five favorites", async () => {
 
     // Admittedly, this is an edge case. Ideally `hasMoreFavoriteResults` would be
     // `false` because there are truly only 4 favorites the user has access to. But
-    // because there are >11 favorited entities and we don't check whether the user
-    // has access to all of them we can't be certain there aren't more favorites.
+    // because there are >11 favorited entities and we don't check whether the user has
+    // access to all of them we can't be certain there aren't more favorites.
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
@@ -4370,8 +4370,8 @@ test("search by affinity will also return up to five favorites", async () => {
 
     // Admittedly, this is an edge case. Ideally `hasMoreFavoriteResults` would be
     // `false` because there are truly only 2 favorites the user has access to. But
-    // because there are >11 favorited entities and we don't check whether the user
-    // has access to all of them we can't be certain there aren't more favorites.
+    // because there are >11 favorited entities and we don't check whether the user has
+    // access to all of them we can't be certain there aren't more favorites.
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
@@ -4719,8 +4719,8 @@ test(
         testSearchSpace = otherSpace;
         await runTests();
     },
-    // Increase test timeout since we've found that sometimes this test is slow to
-    // run in CI.
+    // Increase test timeout since we've found that sometimes this test is slow to run
+    // in CI.
     30 * 1000,
 );
 
@@ -6493,7 +6493,7 @@ describe("bot with account-specific grants has access to entities that every acc
             const humanSession2 = await space.createSession();
             const botAccount = await TestBot.createAndInstantiate(botSession);
             const botAccount2 = await TestBot.createAndInstantiate(botSession);
-            // Human 3 is *not* in the chat.
+            // Human 3 is _not_ in the chat.
             const humanSession3 = await space.createSession();
 
             const testBody = createArrayWithLength(100, () => "test").join(" ");
@@ -6515,9 +6515,9 @@ describe("bot with account-specific grants has access to entities that every acc
             });
             await document3.access.grantDefault(humanSession1);
 
-            // Document 4 is created by a human that is not in the chat and only
-            // one member of the chat (human 1) has access. Document 4 should then
-            // not be accessible to the bot.
+            // Document 4 is created by a human that is not in the chat and only one member of
+            // the chat (human 1) has access. Document 4 should then not be accessible to the
+            // bot.
             const document4 = await TestDocument.create(humanSession3, {
                 title: "test",
                 body: testBody,
@@ -6617,8 +6617,8 @@ test("bot in a chat with all bots has access to space-level content", async () =
     const collection = await TestTaskCollection.create(humanSession, {name: "test"});
     await collection.access.grantDefault(humanSession);
 
-    // Create a chat with only bot accounts
-    // This shouldn't be possible but is worth testing
+    // Create a chat with only bot accounts This shouldn't be possible but is worth
+    // testing
     const chat = await createChatForTest(botSession.action(), {
         spaceId: space.id,
         otherAccountIds: [bot2.id, bot3.id],

@@ -7,12 +7,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SlackAccount} from "~/shared/integrations/slack/slack_space_integration_schema.js";
 
 /**
- * Links a Slack account to an existing Slack workspace connection by creating a new integration
- * item in the database. If the account is already connected to the Slack workspace in this space,
- * this function does nothing.
+ * Links a Slack account to an existing Slack workspace connection by creating a
+ * new integration item in the database. If the account is already connected to the
+ * Slack workspace in this space, this function does nothing.
  *
- * This function will throw an error if the actor does not have Space access or
- * if no connected Slack workspace is found for the space.
+ * This function will throw an error if the actor does not have Space access or if
+ * no connected Slack workspace is found for the space.
  */
 export async function createSlackAccountIntegration(
     context: ServerSessionActionContext,

@@ -44,18 +44,18 @@ export interface MessageModelBase {
     readonly createdTimeZone: TimeZone;
 
     /**
-     * The message payload. Determines the contents of the message and how it
-     * will be rendered.
+     * The message payload. Determines the contents of the message and how it will be
+     * rendered.
      */
     readonly payload: MessagePayloadModel;
 
     /**
-     * If this message is a stream then this property will be set and will contain
-     * the stream's parts.
+     * If this message is a stream then this property will be set and will contain the
+     * stream's parts.
      *
      * The references for content parts will be in
-     * `MessagePayloadModel.content.references`. So if a message references the
-     * same content multiple times we only include it once in the message model.
+     * `MessagePayloadModel.content.references`. So if a message references the same
+     * content multiple times we only include it once in the message model.
      */
     readonly stream: MessageStream | null;
 }
@@ -73,10 +73,10 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * between index 0 and 10 exist.
      *
      * When an author deletes their message it leaves a "Message deleted by X"
-     * statement with the same index. This is a compromise to let users control
-     * their data (messages can be edited + deleted) while maintaining the shape of
-     * the conversation to combat gaslighting. Users won't be confused if they get
-     * a notification and a message is no longer there.
+     * statement with the same index. This is a compromise to let users control their
+     * data (messages can be edited + deleted) while maintaining the shape of the
+     * conversation to combat gaslighting. Users won't be confused if they get a
+     * notification and a message is no longer there.
      */
     readonly index: number;
 
@@ -101,8 +101,8 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
     getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number | "Files"): string;
 
     /**
-     * Clone the model object, replacing any values with those provided in the
-     * partial value.
+     * Clone the model object, replacing any values with those provided in the partial
+     * value.
      */
     clone(partialValue: {
         version?: number;
@@ -115,9 +115,9 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
 }
 
 /**
- * An optimistic message is one which has been created on the client but has
- * not yet been confirmed on the server. Which means the server has not yet
- * assigned it an index.
+ * An optimistic message is one which has been created on the client but has not
+ * yet been confirmed on the server. Which means the server has not yet assigned it
+ * an index.
  */
 export interface OptimisticMessageModel extends MessageModelBase {
     readonly isOptimistic: true;
@@ -128,8 +128,8 @@ export interface OptimisticMessageModel extends MessageModelBase {
     readonly optimisticId: Id;
 
     /**
-     * Was there an error when trying to send this optimistic message to the
-     * server? If true we tell the user and let them retry.
+     * Was there an error when trying to send this optimistic message to the server? If
+     * true we tell the user and let them retry.
      */
     readonly optimisticRequestErrorState:
         | {readonly hasError: false}
@@ -161,8 +161,8 @@ export const MessageContentPayloadModelFileSchema = Schema.union({
         fileEntityResult: FileEntityModelResultSchema,
     }),
     // If we couldn't load the file entity for some reason, we'll use this `Null`
-    // variant. The only reason we'd return this variant as of 2026-02-24 is we
-    // exceed the file entity depth recursion limit.
+    // variant. The only reason we'd return this variant as of 2026-02-24 is we exceed
+    // the file entity depth recursion limit.
     //
     // Conceptually, this is the same as a `file` node being present in
     // `DocumentContent` with a `fileId` that doesn't exist in
@@ -200,13 +200,12 @@ const MessageDeletedPayloadModelSchema: Schema<{
 
 /**
  * `MessagePayloadModel` is different from `MessagePayload` in that
- * `MessagePayloadModel` is what we send to the client whereas `MessagePayload`
- * is what we store in the database. So `MessagePayloadModel` typically has
- * extra data for the client we don't need in the database.
+ * `MessagePayloadModel` is what we send to the client whereas `MessagePayload` is
+ * what we store in the database. So `MessagePayloadModel` typically has extra data
+ * for the client we don't need in the database.
  *
  * We expect that `MessagePayloadModel` is a supertype of `MessagePayload`. So
- * anywhere that expects a `MessagePayload` could also get
- * a `MessagePayloadModel`.
+ * anywhere that expects a `MessagePayload` could also get a `MessagePayloadModel`.
  */
 export const MessagePayloadModelSchema = Schema.union({
     Content: MessageContentPayloadModelSchema,

@@ -12,13 +12,13 @@ type RemoveSpaceFromAppSpaceRouteId<T> = T extends `routes/s.$spaceId.${infer U}
 type AppSpaceDynamicRouteId = RemoveSpaceFromAppSpaceRouteId<AppSpaceRouteId> &
     `${string}$${string}`;
 
-// We use TypeScript to make sure every dynamic route has an integration test
-// here. If you add a new route then the TypeScript type will update and you'll
-// get a TypeScript error. When this happens please add a test here.
+// We use TypeScript to make sure every dynamic route has an integration test here.
+// If you add a new route then the TypeScript type will update and you'll get a
+// TypeScript error. When this happens please add a test here.
 const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
     "accounts.$accountId": () => {
-        // This route only redirects to `/chat/with/${accountId}` right now so it
-        // doesn't have its own not found page.
+        // This route only redirects to `/chat/with/${accountId}` right now so it doesn't
+        // have its own not found page.
     },
     "channels.$channelId._index": () => {
         test("not found error for route `channels.$channelId._index`", async ({
@@ -139,16 +139,15 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
         });
     },
     "documents.$documentId.duplicate": () => {
-        // Doesn't actually load document data so won't throw a not found error
-        // on load.
+        // Doesn't actually load document data so won't throw a not found error on load.
     },
     "notifications.channel-posts.$channelIdAndBucketGeneration": () => {
-        // Users generally won't navigate to this route on their own. Don't bother
-        // testing the 404 not found page.
+        // Users generally won't navigate to this route on their own. Don't bother testing
+        // the 404 not found page.
     },
     "notifications.document-comment-threads.$documentIdAndBucketGeneration": () => {
-        // Users generally won't navigate to this route on their own. Don't bother
-        // testing the 404 not found page.
+        // Users generally won't navigate to this route on their own. Don't bother testing
+        // the 404 not found page.
     },
     "posts.$postId._index": () => {
         test("not found error for route `posts.$postId._index`", async ({
@@ -239,8 +238,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
         });
     },
     "tasks.$taskId.duplicate": () => {
-        // Doesn't actually load task data so won't throw a not found error
-        // on load.
+        // Doesn't actually load task data so won't throw a not found error on load.
     },
     "tasks.collections.$collectionId": () => {
         test("not found error for route `tasks.collections.$collectionId`", async ({

@@ -18,30 +18,29 @@ import {undefinedStore} from "~/shared/store/const_store.js";
 
 /**
  * A complete re-implementation of the [SWR library][1]. The SWR library has a
- * great API for client side read requests but it's overly complicated. It has
- * too many options and a confusing implementation that doesn't always do
- * precisely what we want. Furthermore we keep finding "bugs" or behaviors
- * that don't exactly match how we think of the library. So we rewrote to
- * simplify, make sure behavior is well defined, and allow for easy
- * modification in the future.
+ * great API for client side read requests but it's overly complicated. It has too
+ * many options and a confusing implementation that doesn't always do precisely
+ * what we want. Furthermore we keep finding "bugs" or behaviors that don't exactly
+ * match how we think of the library. So we rewrote to simplify, make sure behavior
+ * is well defined, and allow for easy modification in the future.
  *
  * Before 2023-12-29 we used the SWR library directly. This is designed to be a
  * drop-in replacement. API names and options match what SWR defines. There are
  * some breaking changes in our implementation.
  *
  * The name "SWR" is derived from `stale-while-revalidate`, a HTTP cache
- * invalidation strategy popularized by [HTTP RFC 5861][2]. SWR is a strategy
- * to first return the data from cache (stale), then send the fetch request
+ * invalidation strategy popularized by [HTTP RFC 5861][2]. SWR is a strategy to
+ * first return the data from cache (stale), then send the fetch request
  * (revalidate), and finally come with the up-to-date data.
  *
- * At a high level, we have a cache shared across the entire app. Multiple
- * calls to `useSwr()` will share the same result for the same `key` string. If
- * we have data in the cache for the provided `key` then we'll return that
- * while loading new data in the background so the user sees something.
+ * At a high level, we have a cache shared across the entire app. Multiple calls to
+ * `useSwr()` will share the same result for the same `key` string. If we have data
+ * in the cache for the provided `key` then we'll return that while loading new
+ * data in the background so the user sees something.
  *
  * If `isLoading` is true that means we have no cached `data` and we're loading
- * more in the background. If we have `data` but `isValidating` is true then
- * that means we're presenting stale data to the user while fetching new data.
+ * more in the background. If we have `data` but `isValidating` is true then that
+ * means we're presenting stale data to the user while fetching new data.
  *
  * [1]: https://swr.vercel.app
  * [2]: https://datatracker.ietf.org/doc/html/rfc5861
@@ -57,8 +56,8 @@ export function useSwr(
     }: {
         /**
          * By default, when the key changes we throw away old data from the last key.
-         * However, often you can create a better user experience by showing the user
-         * data from the last key while you fetch data for the new key.
+         * However, often you can create a better user experience by showing the user data
+         * from the last key while you fetch data for the new key.
          *
          * To continue returning data from the last key while fetching new data set
          * `keepPreviousData: true`.
@@ -67,22 +66,22 @@ export function useSwr(
 
         /**
          * When we make a request for a given `key`, how long should we consider the
-         * request "fresh". Any other component that wants data for the key will reuse
-         * the existing pending request instead of sending a new one.
+         * request "fresh". Any other component that wants data for the key will reuse the
+         * existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
 
         /**
-         * Only refetch the entry in the SWR cache if it isn't available. Otherwise,
-         * use the existing data in the cache.
+         * Only refetch the entry in the SWR cache if it isn't available. Otherwise, use
+         * the existing data in the cache.
          */
         onlyFetchIfNotAvailable?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
-         * won't call `fetcher` and will instead use the data from this object. The
-         * data from this object will be placed in the cache so may be seen by other
-         * `useSwr()` hooks observing the same key.
+         * won't call `fetcher` and will instead use the data from this object. The data
+         * from this object will be placed in the cache so may be seen by other `useSwr()`
+         * hooks observing the same key.
          */
         initialData?: object | null;
     } = {},
@@ -116,17 +115,17 @@ export function useSwr(
                 cache.revalidateEntry(key, fetcher, {dedupingInterval});
             }
         } else {
-            // Wait a microtask before putting our initial data in the cache. So if there
-            // are two `useSwr()` hooks looking at the same key no matter what order the
-            // hooks are mounted in we'll send a network request if one of the hooks
-            // doesn't have `initialData`.
+            // Wait a microtask before putting our initial data in the cache. So if there are
+            // two `useSwr()` hooks looking at the same key no matter what order the hooks are
+            // mounted in we'll send a network request if one of the hooks doesn't have
+            // `initialData`.
             //
-            // If another network request is sent then this `revalidateEntry()` call will
-            // be a noop because of `dedupingInterval`.
+            // If another network request is sent then this `revalidateEntry()` call will be a
+            // noop because of `dedupingInterval`.
             //
-            // IMPORTANT: Don't cancel this microtask if the `useEffect()` cleans up. Since
-            // if the hook re-runs we won't re-schedule the microtask because this only
-            // runs once on key change.
+            // IMPORTANT: Don't cancel this microtask if the `useEffect()` cleans up. Since if
+            // the hook re-runs we won't re-schedule the microtask because this only runs once
+            // on key change.
             scheduleMicrotask(() => {
                 cache.revalidateEntry(key, () => PromiseImmediate.resolve(initialData), {
                     dedupingInterval,
@@ -135,13 +134,13 @@ export function useSwr(
         }
     }, [cache, dedupingInterval, fetcher, initialData, key, onlyFetchIfNotAvailable]);
 
-    // Revalidate whenever the browser activates (e.g. the window was hidden then
-    // made visible again).
+    // Revalidate whenever the browser activates (e.g. the window was hidden then made
+    // visible again).
     useEffect(() => {
         if (key === null) return;
 
-        // Don't revalidate when the browser activates if we were instructed to only
-        // fetch if the data isn't already available.
+        // Don't revalidate when the browser activates if we were instructed to only fetch
+        // if the data isn't already available.
         if (onlyFetchIfNotAvailable) return;
 
         return cache.subscribeToBrowserActivated(() => {
@@ -177,8 +176,8 @@ export function useSwr(
         }
     }
 
-    // If `keepPreviousData` is true then `historyStack` may be set which may
-    // contain data from previous `key`s this hook has seen.
+    // If `keepPreviousData` is true then `historyStack` may be set which may contain
+    // data from previous `key`s this hook has seen.
     const entryResult =
         useStore(historyStack ?? entryStack) ??
         (key === null ? disabledSwrCacheEntryResult : pendingSwrCacheEntryResult);
@@ -195,9 +194,9 @@ export function useSwr(
 let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
 
 /**
- * Preload data into our SWR cache with idle priority. Useful if you have some
- * UI that uses `useSwr()` to render data and you want the data to be
- * immediately available when the user navigates to that UI.
+ * Preload data into our SWR cache with idle priority. Useful if you have some UI
+ * that uses `useSwr()` to render data and you want the data to be immediately
+ * available when the user navigates to that UI.
  */
 export function useIdlyPreloadSwr(
     key: string | null,
@@ -207,8 +206,8 @@ export function useIdlyPreloadSwr(
     }: {
         /**
          * When we make a request for a given `key`, how long should we consider the
-         * request "fresh". Any other component that wants data for the key will reuse
-         * the existing pending request instead of sending a new one.
+         * request "fresh". Any other component that wants data for the key will reuse the
+         * existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
     } = {},
@@ -238,10 +237,9 @@ export function useIdlyPreloadSwr(
         if (scheduledIdlePreloadRpcCallbacks === null) {
             scheduledIdlePreloadRpcCallbacks = [];
 
-            // Use the React scheduler to schedule an idle callback.
-            // `requestIdleCallback()` is not implemented in Safari. Generally we recommend
-            // using the React scheduler since it has centralized knowledge of all our
-            // tasks (including UI rendering).
+            // Use the React scheduler to schedule an idle callback. `requestIdleCallback()` is
+            // not implemented in Safari. Generally we recommend using the React scheduler
+            // since it has centralized knowledge of all our tasks (including UI rendering).
             unstable_scheduleCallback(unstable_IdlePriority, () => {
                 assert(scheduledIdlePreloadRpcCallbacks !== null);
 
@@ -257,9 +255,8 @@ export function useIdlyPreloadSwr(
         assert(retainedKeyRef.current === key);
 
         scheduledIdlePreloadRpcCallbacks.push(() => {
-            // Make sure `key` is still retained. If `key` changes or the component
-            // unmounts after we scheduled the idle callback then we need to not run our
-            // idle callback.
+            // Make sure `key` is still retained. If `key` changes or the component unmounts
+            // after we scheduled the idle callback then we need to not run our idle callback.
             if (retainedKeyRef.current === key) {
                 cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
             }

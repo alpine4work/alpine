@@ -103,8 +103,8 @@ export async function fetchFileFromBucket(
         return new Response(request.method !== "HEAD" ? (object as R2ObjectBody).body : null, {
             status: isRangedRequest ? 206 : 200,
             // We need to return the same headers between here and `resizeFile()` in
-            // `server/files/processor`. If you add a header here you should also add a
-            // header there.
+            // `server/files/processor`. If you add a header here you should also add a header
+            // there.
             headers: {
                 "content-type": assertExists(object.httpMetadata?.contentType),
                 "content-length": String(isRangedRequest ? object.range.length : object.size),
@@ -124,17 +124,17 @@ export async function fetchFileFromBucket(
                 "accept-ranges": "bytes",
                 // After resizing, the result should be cached.
                 //
-                // - `private`: A user can only see files they have access to. Don't store
-                //   files in a shared cache since an attacker may be able to see a file they
-                //   don't have access to.
+                // - `private`: A user can only see files they have access to. Don't store files in
+                //   a shared cache since an attacker may be able to see a file they don't have
+                //   access to.
                 //
-                // - `immutable`: Files are immutable after they've been uploaded. While
-                //   hitting this route will resize the file on demand causing the bytes to not
-                //   be strictly the same over time, the perceived result to the end user will
-                //   never change so it's safe to cache this response as an immutable value.
+                // - `immutable`: Files are immutable after they've been uploaded. While hitting
+                //   this route will resize the file on demand causing the bytes to not be strictly
+                //   the same over time, the perceived result to the end user will never change so
+                //   it's safe to cache this response as an immutable value.
                 //
-                // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
-                //   the file after that and request again if needed.
+                // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of the
+                //   file after that and request again if needed.
                 "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
             },
         });

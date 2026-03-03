@@ -6,8 +6,9 @@ import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the most recently added email address for the provided `AccountId`.
- * System actors can see the most recently added email address for any account in their space.
+ * Get the most recently added email address for the provided `AccountId`. System
+ * actors can see the most recently added email address for any account in their
+ * space.
  */
 export async function getLatestEmailAddressByAccountId(
     context: ServerActionContext,

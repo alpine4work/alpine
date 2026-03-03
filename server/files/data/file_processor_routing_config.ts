@@ -31,15 +31,15 @@ const oneHundredMb = 100 * oneMb;
 /**
  * File processor routing configuration.
  *
- * Rules are evaluated in priority order (lower number = higher priority).
- * First matching rule determines the target tier.
- * If no rules match, defaultTier is used.
+ * Rules are evaluated in priority order (lower number = higher priority). First
+ * matching rule determines the target tier. If no rules match, defaultTier is
+ * used.
  *
- * Strategy: Define heavy compute scenarios and default to lightweight.
- * This covers ~10 heavy compute scenarios vs ~60+ lightweight scenarios.
+ * Strategy: Define heavy compute scenarios and default to lightweight. This covers
+ * ~10 heavy compute scenarios vs ~60+ lightweight scenarios.
  */
-// TODO(ifizsimmons, 2025-07-30): Consider moving to DynamoDB for runtime updates without
-// deployment.
+// TODO(ifizsimmons, 2025-07-30): Consider moving to DynamoDB for runtime updates
+// without deployment.
 export const fileProcessorRoutingConfig: FileProcessorRoutingConfig = {
     defaultJobType: "ProcessFileLight",
     rules: [

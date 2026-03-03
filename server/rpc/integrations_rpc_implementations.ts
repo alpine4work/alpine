@@ -7,8 +7,8 @@ export default implementRpcs(definitions, {
     disconnectSlackWorkspace: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            // Uninstall the Alpine app from the Slack workspace before disconnecting the workspace
-            // so we still have the bot token.
+            // Uninstall the Alpine app from the Slack workspace before disconnecting the
+            // workspace so we still have the bot token.
             await context.slack.uninstallAlpineAppFromSlackWorkspace(
                 context.actor.authorizeSession(),
                 {spaceId: input.spaceId},

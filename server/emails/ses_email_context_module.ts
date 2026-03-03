@@ -89,8 +89,8 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                 if (error.name === "ServiceUnavailable" || error.$retryable) {
                     throw UnavailableError.from(error, "SES SendEmail failed");
                 }
-                // These errors are not recoverable and indicate an invalid input payload or an
-                // AWS account or configuration issue
+                // These errors are not recoverable and indicate an invalid input payload or an AWS
+                // account or configuration issue
                 throw InternalError.from(error, "SES SendEmail failed");
             }
         });

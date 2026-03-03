@@ -25,9 +25,8 @@ export class MappedManyStore<
     }
 
     public override isFinal(): boolean {
-        // This function should be fast. Recursively checking if all our stores are
-        // final defeats the point of this optimization. So assume the store is not
-        // final.
+        // This function should be fast. Recursively checking if all our stores are final
+        // defeats the point of this optimization. So assume the store is not final.
         return false;
     }
 

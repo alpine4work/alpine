@@ -12,11 +12,11 @@ assert(process.env.NODE_ENV === "development");
 // This script should not be imported in production or tests! It likely has a
 // pretty negative performance impact.
 //
-// I (@calebmer) have founding myself needing a tool like this a couple times.
-// We do a lot of advanced things in many different code paths with scroll
-// positioning (e.g. `<VirtualizedScrollView>`,
-// `useScrollToAvoidMobileKeyboard()`, `useScrollToNewMessages()`) so being able
-// to track down an errant scroll is super useful.
+// I (@calebmer) have founding myself needing a tool like this a couple times. We
+// do a lot of advanced things in many different code paths with scroll positioning
+// (e.g. `<VirtualizedScrollView>`, `useScrollToAvoidMobileKeyboard()`,
+// `useScrollToNewMessages()`) so being able to track down an errant scroll is
+// super useful.
 if (typeof window !== "undefined") {
     let nextScrollElementDebugId = 1;
     const debugIdByScrollElement = new WeakMap<Element, number>();
@@ -27,9 +27,8 @@ if (typeof window !== "undefined") {
 
         const {overflowX, overflowY} = getComputedStyle(element);
 
-        // If `element.scrollTop = 0` was set on a non-scrollable element (which
-        // happens for ProseMirror `<EditorView>`s) we don't want our debugger to log
-        // the scroll.
+        // If `element.scrollTop = 0` was set on a non-scrollable element (which happens
+        // for ProseMirror `<EditorView>`s) we don't want our debugger to log the scroll.
         if (
             element.scrollTop === 0 &&
             element.scrollLeft === 0 &&
@@ -102,8 +101,8 @@ if (typeof window !== "undefined") {
         };
     }
 
-    // Make sure we always log for scroll events on `<body>`. Even if we there
-    // isn't a scroll property set or scroll method call on `<body>` first.
+    // Make sure we always log for scroll events on `<body>`. Even if we there isn't a
+    // scroll property set or scroll method call on `<body>` first.
     document.body.addEventListener("scroll", () => {
         const debugId = getScrollElementDebugId(document.body);
 

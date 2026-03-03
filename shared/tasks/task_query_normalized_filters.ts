@@ -115,13 +115,11 @@ const TaskQueryDisplayStatusNormalizedFilterSchema = Schema.object({
 }) as Schema<TaskQueryDisplayStatusNormalizedFilter>;
 
 /**
- * The normalized format for collection filters is in [conjunctive normal
- * form][1].
+ * The normalized format for collection filters is in [conjunctive normal form][1].
  *
  * - The items in the top-level array are "and"ed together.
  * - The entries of the nested map are "or"ed together.
- * - If the value of an entry in the nested map is true then that entry
- *   is "not"ed.
+ * - If the value of an entry in the nested map is true then that entry is "not"ed.
  * - If the key of an entry in the nested map is a `TaskCollectionId` the
  *   expression is `collections.has(collectionId)`.
  * - If the key of an entry in the nested map is `IsEmpty` then expression is
@@ -302,8 +300,8 @@ const TaskQueryAccountNormalizedFilterSchema = Schema.union({
     }),
 });
 
-// At least one of `exclusiveUpperBoundDate` or `exclusiveLowerBoundDate` must
-// be set.
+// At least one of `exclusiveUpperBoundDate` or `exclusiveLowerBoundDate` must be
+// set.
 export type TaskQueryDateNormalizedFilter =
     | {
           readonly type: "Range";
@@ -358,12 +356,12 @@ export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters
 
 /**
  * Convert an array of task query filters to a normalized representation which
- * consolidates all filters on the same fields and removes any dynamic
- * variables like the current date or current account.
+ * consolidates all filters on the same fields and removes any dynamic variables
+ * like the current date or current account.
  *
- * Normalized filters are useful for actually performing query execution. While
- * a list of task query filters from the UI may have repetitive terms, we may
- * not need to re-evaluate.
+ * Normalized filters are useful for actually performing query execution. While a
+ * list of task query filters from the UI may have repetitive terms, we may not
+ * need to re-evaluate.
  */
 export function normalizeTaskQueryFilters(
     filters: ReadonlyArray<TaskQueryFilter>,
@@ -462,16 +460,15 @@ export function normalizeTaskQueryFilters(
             case "Title": {
                 const newTitleFilter = [...(normalizedFilters.titleFilter ?? [])];
 
-                // We need to analyze the title query string the same way OpenSearch (which
-                // uses Lucene under the hood) would. The OpenSearch standard analyzer we use
-                // splits up words based on the Unicode default word boundary specification so
-                // we do as well.
+                // We need to analyze the title query string the same way OpenSearch (which uses
+                // Lucene under the hood) would. The OpenSearch standard analyzer we use splits up
+                // words based on the Unicode default word boundary specification so we do as well.
                 //
                 // https://github.com/apache/lucene/blob/dd4e66dad6726c53f2d89c5b7bcf74216949e4d3/lucene/core/src/java/org/apache/lucene/analysis/standard/StandardTokenizerImpl.java#L26-L43
                 const titleQueryWords = analyzeTaskTitleText(filter.operation.titleQuery);
 
-                // Empty strings or strings with only whitespace do not contribute to
-                // filtering. They act as if the filter doesn't exist at all.
+                // Empty strings or strings with only whitespace do not contribute to filtering.
+                // They act as if the filter doesn't exist at all.
                 if (isNonEmptyReadonlyArray(titleQueryWords)) {
                     newTitleFilter.push({
                         operationType: filter.operation.type,
@@ -883,8 +880,8 @@ function mergeTaskQueryCollectionsFilters(
                     throw exhaustive(result);
             }
 
-            // We can exit the loop if our stack clause was merged. The merged clause is on
-            // the stack so we'll revisit it.
+            // We can exit the loop if our stack clause was merged. The merged clause is on the
+            // stack so we'll revisit it.
             if (wasStackClauseMerged) {
                 break;
             }
@@ -900,8 +897,8 @@ function mergeTaskQueryCollectionsFilters(
         return {type: "AlwaysTrue"};
     }
 
-    // Sort our filters so that we always return the same result no matter what
-    // order the filters you pass into `normalizeTaskQueryFilters()` are in.
+    // Sort our filters so that we always return the same result no matter what order
+    // the filters you pass into `normalizeTaskQueryFilters()` are in.
     newFilter.sort((a, b) => {
         return compareArrays(
             Array.from(a, ([k, v]) => `${k}-${v ? 1 : 0}`).sort(),
@@ -920,14 +917,12 @@ function mergeTaskQueryCollectionsFilterClauses(
     | {type: "AlwaysFalse"}
     | {type: "Merged"; clause: TaskQueryCollectionsNormalizedFilterClause}
     | {type: "Unchanged"} {
-    // These are combined as:
-    // distributedClause || (newClause1 && newClause2)
+    // These are combined as: distributedClause || (newClause1 && newClause2)
     const distributedClause = new Map<TaskCollectionId | "IsEmpty", boolean>();
     const newClause1 = new Map<TaskCollectionId | "IsEmpty", boolean>();
     const newClause2 = new Map<TaskCollectionId | "IsEmpty", boolean>(clause2);
 
-    // Distributive law:
-    // (a || b) && (a || c) === a || (b && c)
+    // Distributive law: (a || b) && (a || c) === a || (b && c)
     //
     // https://en.wikipedia.org/wiki/Logical_equivalence
     for (const [term, not1] of clause1) {
@@ -939,8 +934,7 @@ function mergeTaskQueryCollectionsFilterClauses(
         }
     }
 
-    // Identity laws:
-    // a && false === false
+    // Identity laws: a && false === false
     //
     // https://en.wikipedia.org/wiki/Logical_equivalence
     if (newClause1.size === 0 || newClause2.size === 0) {
@@ -952,8 +946,7 @@ function mergeTaskQueryCollectionsFilterClauses(
         const [term1, not1] = assertExists(iterableFirst(newClause1));
         const [term2, not2] = assertExists(iterableFirst(newClause2));
 
-        // Negation laws:
-        // a && !a === false
+        // Negation laws: a && !a === false
         //
         // https://en.wikipedia.org/wiki/Logical_equivalence
         if (term1 === term2 && not1 !== not2) {
@@ -961,8 +954,8 @@ function mergeTaskQueryCollectionsFilterClauses(
             return {type: "Merged", clause: distributedClause};
         }
 
-        // Property specific to our terms:
-        // ((collections.size === 0) && collections.has(collectionId)) === false
+        // Property specific to our terms: ((collections.size === 0) &&
+        // collections.has(collectionId)) === false
         if (term1 === "IsEmpty" && not1 === false && term2 !== "IsEmpty" && not2 === false) {
             if (!isNonEmptyReadonlyMap(distributedClause)) return {type: "AlwaysFalse"};
             return {type: "Merged", clause: distributedClause};
@@ -972,8 +965,8 @@ function mergeTaskQueryCollectionsFilterClauses(
             return {type: "Merged", clause: distributedClause};
         }
 
-        // Property specific to our terms:
-        // ((collections.size === 0) && !collections.has(collectionId)) === (collections.size === 0)
+        // Property specific to our terms: ((collections.size === 0) &&
+        // !collections.has(collectionId)) === (collections.size === 0)
         if (term1 === "IsEmpty" && not1 === false && term2 !== "IsEmpty" && not2 === true) {
             return {
                 type: "Merged",
@@ -1076,9 +1069,10 @@ function normalizeTaskQueryLayoutFilter(
     | {type: "Filter"; filter: TaskQueryLayoutNormalizedFilter}
     | {type: "Undefined"}
     | {type: "AlwaysFalse"} {
-    // NOTE(calebmer): Eventually we should evolve this to `ReadonlySet<TaskLayout | null>`
-    // but right now our UI only supports filtering "is project" and "is not project". We
-    // don't want the data model to support filters our UI won't render.
+    // NOTE(calebmer): Eventually we should evolve this to
+    // `ReadonlySet<TaskLayout | null>` but right now our UI only supports filtering
+    // "is project" and "is not project". We don't want the data model to support
+    // filters our UI won't render.
     const layouts = cast<ReadonlyArray<TaskLayout | null>>(filter.operation.layouts);
 
     if (layouts.length === 0) return {type: "Undefined"};
@@ -1344,8 +1338,8 @@ function mergeTaskQueryDateNormalizedFilters(
             filter: {type: "Range", exclusiveLowerBoundDate, exclusiveUpperBoundDate},
         };
     } else {
-        // Should be safe because the inputs to this function have at least one
-        // non-null lower/upper bound.
+        // Should be safe because the inputs to this function have at least one non-null
+        // lower/upper bound.
         assert(false);
     }
 }

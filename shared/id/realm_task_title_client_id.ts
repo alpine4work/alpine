@@ -5,8 +5,8 @@ import {getRealmId} from "~/shared/id/realm_id.js";
 /**
  * We use the `RealmId` (really the first 32 bits of the `RealmId`) as the
  * `clientID` for Yjs. For this to work we must be careful to not create two
- * conflicting `TaskTitleUpdate`s within the same JavaScript realm. Otherwise
- * if we commit two conflicting updates the task title will be corrupted!
+ * conflicting `TaskTitleUpdate`s within the same JavaScript realm. Otherwise if we
+ * commit two conflicting updates the task title will be corrupted!
  */
 export const realmTaskTitleClientId = new Lazy((): number => {
     const realmIdBytes = decodeId(getRealmId());

@@ -54,7 +54,8 @@ import {AccountId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_type
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
- * NOTE: this file is currently being split up. We do not anticipate adding more methods here.
+ * NOTE: this file is currently being split up. We do not anticipate adding more
+ * methods here.
  */
 
 type FileItem = DynamoTableItemType<typeof FilesTable, "Space", "File">;
@@ -150,19 +151,18 @@ function getFileAttachmentTargetItemKey(
 }
 
 /**
- * The total number of bytes you're allowed to store in an Alpine space on the
- * free plan (5 GB). After you exceed this amount we'll start deleting old
- * files. This is the same as Slack's file limit for their free plan.
+ * The total number of bytes you're allowed to store in an Alpine space on the free
+ * plan (5 GB). After you exceed this amount we'll start deleting old files. This
+ * is the same as Slack's file limit for their free plan.
  *
- * We should allow paying users to upload more but this is a fine starting
- * place.
+ * We should allow paying users to upload more but this is a fine starting place.
  */
 const maxFileTotalContentLengthForSpace = 5e9;
 
 /**
- * Called by `EdgeService` before writing our file to Cloudflare R2. Makes sure
- * the space has enough storage for the file and creates a file item in
- * DynamoDB containing information about the file.
+ * Called by `EdgeService` before writing our file to Cloudflare R2. Makes sure the
+ * space has enough storage for the file and creates a file item in DynamoDB
+ * containing information about the file.
  *
  * Throws an error if not called by `EdgeService`. A complete file upload is
  * orchestrated by `EdgeService` and involves three parts:
@@ -172,8 +172,8 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * 3. `finishUploadingAndStartProcessingFile()` (which submits a job to our job
  *    queue to process the file)
  *
- * If there's an error and we don't complete one of those three steps the
- * resulting file item in DynamoDB won't be very useful.
+ * If there's an error and we don't complete one of those three steps the resulting
+ * file item in DynamoDB won't be very useful.
  */
 export async function startUploadingFile(
     context: ServerAccountActionContext,
@@ -193,8 +193,8 @@ export async function startUploadingFile(
 ): Promise<{fileId: FileId}> {
     await authorizeSpaceAccess(context, spaceId);
 
-    // If we're attaching the file to a target as a part of the upload, verify we
-    // have edit access to the target.
+    // If we're attaching the file to a target as a part of the upload, verify we have
+    // edit access to the target.
     await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
 
     if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
@@ -216,8 +216,8 @@ export async function startUploadingFile(
         const time = getChronologicalIdTime(providedFileId);
         const currentTime = Date.now();
 
-        // Make sure the time provided by the client is reasonable so our files table
-        // is still roughly sorted by creation time.
+        // Make sure the time provided by the client is reasonable so our files table is
+        // still roughly sorted by creation time.
         if (Math.abs(time - currentTime) > 1000 * 60 * 2) {
             throw new FailedPreconditionError(
                 "Provided `FileId` must be within a 4 minute window of the current time",
@@ -240,8 +240,8 @@ export async function startUploadingFile(
             contentLength: 0,
         };
 
-        // If we're in the default development space then we'll allow infinite file
-        // uploads so developers can test file uploads without limits.
+        // If we're in the default development space then we'll allow infinite file uploads
+        // so developers can test file uploads without limits.
         const isFileLimitEnforced =
             (process.env.NODE_ENV !== "development" ||
                 spaceId !== getDynamoSeedConstants().defaultSpaceId) &&
@@ -349,10 +349,10 @@ export async function startUploadingFile(
 }
 
 /**
- * Once `EdgeService` has finished uploading a file to Cloudflare R2 it calls
- * this function which marks the file as uploaded and starts processing the
- * file. Throws an error if not called by `EdgeService`. See the documentation
- * on `startUploadingFile()` for more information.
+ * Once `EdgeService` has finished uploading a file to Cloudflare R2 it calls this
+ * function which marks the file as uploaded and starts processing the file. Throws
+ * an error if not called by `EdgeService`. See the documentation on
+ * `startUploadingFile()` for more information.
  */
 export async function finishUploadingAndStartProcessingFile(
     context: ServerAccountActionContext,
@@ -381,8 +381,8 @@ export async function finishUploadingAndStartProcessingFile(
             consistency: "Eventual",
         });
 
-        // In case there's an eventual consistency lag, retry reading the item with
-        // strong consistency.
+        // In case there's an eventual consistency lag, retry reading the item with strong
+        // consistency.
         if (!item) {
             item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
                 consistency: "Strong",
@@ -416,9 +416,9 @@ export async function finishUploadingAndStartProcessingFile(
             fileProcessorDeclarationByContentType[item.contentType];
 
         if (!withoutProcessJobForTest && (hasAlternative || hasPreview)) {
-            // Now that the file has finished uploading we can start processing it. Wait
-            // for the message to be added to our queue. If sending the process file
-            // message fails we want to fail the entire upload.
+            // Now that the file has finished uploading we can start processing it. Wait for
+            // the message to be added to our queue. If sending the process file message fails
+            // we want to fail the entire upload.
 
             // Determine the appropriate processing tier based on content type and file size
             const {jobType, reason} = routeFileToProcessor(item);
@@ -437,8 +437,8 @@ export async function finishUploadingAndStartProcessingFile(
 }
 
 /**
- * Get an instance of `FileUploader` we can use for finishing a file upload.
- * Only an uploader may get an instance of the `FileUploader` class.
+ * Get an instance of `FileUploader` we can use for finishing a file upload. Only
+ * an uploader may get an instance of the `FileUploader` class.
  */
 export async function getFileUploaderAsUploader(
     context: FileProcessorActionContext,
@@ -449,8 +449,8 @@ export async function getFileUploaderAsUploader(
         consistency: "Eventual",
     });
 
-    // If we weren't able to find a file that might be because of eventual
-    // consistency lag. Try again with strong consistency.
+    // If we weren't able to find a file that might be because of eventual consistency
+    // lag. Try again with strong consistency.
     if (!fileItem) {
         fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
             consistency: "Strong",
@@ -467,9 +467,9 @@ export async function getFileUploaderAsUploader(
 /**
  * Stateful object used to update our file in DynamoDB while it's uploading.
  *
- * It's useful to have a stateful object to save on read requests since the
- * class can hold onto the last value of `FileItem` so we don't need to read it
- * from the database.
+ * It's useful to have a stateful object to save on read requests since the class
+ * can hold onto the last value of `FileItem` so we don't need to read it from the
+ * database.
  */
 export class FileUploader {
     public readonly spaceId: SpaceId;
@@ -540,9 +540,9 @@ export class FileUploader {
     }
 
     /**
-     * Finish processing the file's alternative if the file has an alternative. If
-     * the file was not declared to have an alternative upon creation then this
-     * method will throw an error.
+     * Finish processing the file's alternative if the file has an alternative. If the
+     * file was not declared to have an alternative upon creation then this method will
+     * throw an error.
      */
     public async finishProcessingAlternative(
         context: FileProcessorActionContext,
@@ -597,13 +597,13 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.size` we call this method to add the
-     * preview size to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
+     * When we're done processing `preview.size` we call this method to add the preview
+     * size to DynamoDB. If we've finished processing all of `preview.size`,
+     * `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      *
-     * May also finish processing the video duration if `alsoPreviewVideoDuration`
-     * is provided as an option.
+     * May also finish processing the video duration if `alsoPreviewVideoDuration` is
+     * provided as an option.
      */
     public async finishProcessingImagePreviewSize(
         context: FileProcessorActionContext,
@@ -629,8 +629,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an image preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
 
                     if (
@@ -653,9 +653,8 @@ export class FileUploader {
                                       type: "Image",
                                       isProcessing: false,
                                       ok: true,
-                                      // Only update if size is processing. If we've already finished
-                                      // processing size then we want to leave the old size in
-                                      // place. This makes the function idempotent.
+                                      // Only update if size is processing. If we've already finished processing size
+                                      // then we want to leave the old size in place. This makes the function idempotent.
                                       size:
                                           item.preview.size === "Processing"
                                               ? size
@@ -664,8 +663,8 @@ export class FileUploader {
                                       content: item.preview.content,
                                       videoDuration:
                                           // Only update if video duration is processing. If we've already finished
-                                          // processing video duration then we want to leave the old video duration in
-                                          // place. This makes the function idempotent.
+                                          // processing video duration then we want to leave the old video duration in place.
+                                          // This makes the function idempotent.
                                           (item.preview.videoDuration === "Processing"
                                               ? (alsoPreviewVideoDuration ??
                                                 item.preview.videoDuration)
@@ -674,9 +673,8 @@ export class FileUploader {
                                 : {
                                       type: "Image",
                                       isProcessing: true,
-                                      // Only update if size is processing. If we've already finished
-                                      // processing size then we want to leave the old size in
-                                      // place. This makes the function idempotent.
+                                      // Only update if size is processing. If we've already finished processing size
+                                      // then we want to leave the old size in place. This makes the function idempotent.
                                       size:
                                           item.preview.size === "Processing"
                                               ? size
@@ -685,8 +683,8 @@ export class FileUploader {
                                       content: item.preview.content,
                                       videoDuration:
                                           // Only update if video duration is processing. If we've already finished
-                                          // processing video duration then we want to leave the old video duration in
-                                          // place. This makes the function idempotent.
+                                          // processing video duration then we want to leave the old video duration in place.
+                                          // This makes the function idempotent.
                                           item.preview.videoDuration === "Processing"
                                               ? (alsoPreviewVideoDuration ??
                                                 item.preview.videoDuration)
@@ -695,8 +693,8 @@ export class FileUploader {
                     };
 
                     // Optimization: If we left both `item.preview.size` alone and
-                    // `item.preview.videoDuration` alone then return the old item to skip a
-                    // DynamoDB write.
+                    // `item.preview.videoDuration` alone then return the old item to skip a DynamoDB
+                    // write.
                     if (isDeepEqual(newItem, item)) return item;
 
                     return newItem;
@@ -707,8 +705,8 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.placeholder` we call this method to add
-     * the preview placeholder to DynamoDB. If we've finished processing all of
+     * When we're done processing `preview.placeholder` we call this method to add the
+     * preview placeholder to DynamoDB. If we've finished processing all of
      * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      */
@@ -735,8 +733,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an image preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.placeholder !== "Processing") return item;
 
@@ -771,9 +769,9 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.content` we call this method to add
-     * the preview image to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
+     * When we're done processing `preview.content` we call this method to add the
+     * preview image to DynamoDB. If we've finished processing all of `preview.size`,
+     * `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewContent(
@@ -817,8 +815,8 @@ export class FileUploader {
                         ...item,
                         alternative:
                             // Only update if the alternative is processing. If we've already finished
-                            // processing the alternative then we want to leave the old alternative in
-                            // place. This makes the function idempotent.
+                            // processing the alternative then we want to leave the old alternative in place.
+                            // This makes the function idempotent.
                             isAlternative &&
                             item.alternative?.isProcessing &&
                             (item.preview.content === "Processing" ||
@@ -833,8 +831,8 @@ export class FileUploader {
                                 : item.alternative,
                         preview:
                             // Only update if preview content is processing. If we've already finished
-                            // processing the alternative then we want to leave the old alternative in
-                            // place. This makes the function idempotent.
+                            // processing the alternative then we want to leave the old alternative in place.
+                            // This makes the function idempotent.
                             item.preview.isProcessing && item.preview.content === "Processing"
                                 ? item.preview.size !== "Processing" &&
                                   item.preview.placeholder !== "Processing" &&
@@ -875,10 +873,10 @@ export class FileUploader {
      * the preview video duration to DynamoDB. If we've finished processing all the
      * data in `preview` then we can set `preview.isProcessing` to false.
      *
-     * Calling this multiple times with the same `videoDuration` will noop. (Hence
-     * the "if needed" in the name.) This is because sometimes preview video
-     * duration is available at the same time preview size is available and so we
-     * write the video duration with the preview size.
+     * Calling this multiple times with the same `videoDuration` will noop. (Hence the
+     * "if needed" in the name.) This is because sometimes preview video duration is
+     * available at the same time preview size is available and so we write the video
+     * duration with the preview size.
      */
     public async finishProcessingImagePreviewVideoDurationIfNeeded(
         context: FileProcessorActionContext,
@@ -910,8 +908,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an image preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
 
                     if (item.preview.videoDuration === undefined) {
@@ -920,8 +918,8 @@ export class FileUploader {
                         );
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (item.preview.videoDuration !== "Processing") return item;
 
                     return {
@@ -955,8 +953,8 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.duration` for a file with an audio
-     * preview this function is called.
+     * When we're done processing `preview.duration` for a file with an audio preview
+     * this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
         context: FileProcessorActionContext,
@@ -981,8 +979,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an audio preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.duration !== "Processing") return item;
 
@@ -1011,8 +1009,8 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.metadata` for a file with an audio
-     * preview this function is called.
+     * When we're done processing `preview.metadata` for a file with an audio preview
+     * this function is called.
      */
     public async finishProcessingAudioPreviewMetadata(
         context: FileProcessorActionContext,
@@ -1037,8 +1035,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an audio preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.metadata !== "Processing") return item;
 
@@ -1067,10 +1065,10 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.content` for a file with a code
-     * preview this function is called. Since code previews only need the preview
-     * content the file is immediately considered to have finished processing after
-     * this function is called.
+     * When we're done processing `preview.content` for a file with a code preview this
+     * function is called. Since code previews only need the preview content the file
+     * is immediately considered to have finished processing after this function is
+     * called.
      */
     public async finishProcessingCodePreviewContent(
         context: FileProcessorActionContext,
@@ -1095,8 +1093,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have a code preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.content !== "Processing") return item;
 
@@ -1179,8 +1177,8 @@ export class FileUploader {
 
                     switch (item.preview.type) {
                         case "Image": {
-                            // Noop if we've already finished processing the preview. This makes the
-                            // function idempotent.
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
                             if (!item.preview.isProcessing) return item;
 
                             return {
@@ -1210,8 +1208,8 @@ export class FileUploader {
                             };
                         }
                         case "Audio": {
-                            // Noop if we've already finished processing the preview. This makes the
-                            // function idempotent.
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
                             if (!item.preview.isProcessing) return item;
 
                             return {
@@ -1233,8 +1231,8 @@ export class FileUploader {
                             };
                         }
                         case "Code": {
-                            // Noop if we've already finished processing the preview. This makes the
-                            // function idempotent.
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
                             if (!item.preview.isProcessing) return item;
 
                             return {
@@ -1262,8 +1260,8 @@ export class FileUploader {
 }
 
 const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, FileItem | null>({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -1333,11 +1331,11 @@ async function getFileItemIfExistsAsUploader(
 
 /**
  * Get a file as the file's uploader. Returns null if the file doesn't exist.
- * Throws an error if you're not the account that upload the file. If we have
- * a system actor then the system actor may read all files.
+ * Throws an error if you're not the account that upload the file. If we have a
+ * system actor then the system actor may read all files.
  *
- * Prefer calling `getFileIfExistsFromAttachment()` since that will work for
- * all accounts with access to the file.
+ * Prefer calling `getFileIfExistsFromAttachment()` since that will work for all
+ * accounts with access to the file.
  */
 export async function getFileIfExistsAsUploader(
     context: FileProcessorActionContext,
@@ -1351,12 +1349,12 @@ export async function getFileIfExistsAsUploader(
 }
 
 /**
- * Get a file as the file's uploader. Throws an error if the file doesn't
- * exist. Throws an error if you're not the account that upload the file. If we
- * have a system actor then the system actor may read all files.
+ * Get a file as the file's uploader. Throws an error if the file doesn't exist.
+ * Throws an error if you're not the account that upload the file. If we have a
+ * system actor then the system actor may read all files.
  *
- * Prefer calling `getFileIfFromAttachment()` since that will work for all
- * accounts with access to the file.
+ * Prefer calling `getFileIfFromAttachment()` since that will work for all accounts
+ * with access to the file.
  */
 export async function getFileAsUploader(
     context: FileProcessorActionContext,
@@ -1388,18 +1386,18 @@ export function getFileAsSystem(
 ) {
     context.actor.authorizeSystem();
 
-    // `getFileAsUploader()` works for system actors. This is a convenience
-    // function with a nicer name for system actors.
+    // `getFileAsUploader()` works for system actors. This is a convenience function
+    // with a nicer name for system actors.
     return getFileAsUploader(context, context.actor.getSpaceId(), fileId, options);
 }
 
 /**
  * Get a file attached to some entity. Returns null if the file doesn't exist.
  *
- * To authorize we need a `FileAuthorizer`. This object contains the target
- * we're viewing the file in the context of. We'll throw an error if the actor
- * doesn't have access to the attachment target or the file isn't actually
- * attached to the target.
+ * To authorize we need a `FileAuthorizer`. This object contains the target we're
+ * viewing the file in the context of. We'll throw an error if the actor doesn't
+ * have access to the attachment target or the file isn't actually attached to the
+ * target.
  */
 export async function getFileIfExistsFromAttachment(
     context: ServerActionContext,
@@ -1427,9 +1425,9 @@ export async function getFileIfExistsFromAttachment(
                 getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
                 {
                     consistency,
-                    // It's ok to call this function when expecting strong read consistency.
-                    // This authorization check is mostly strongly consistent since we retry with
-                    // strong consistency below if our eventually consistent read fails.
+                    // It's ok to call this function when expecting strong read consistency. This
+                    // authorization check is mostly strongly consistent since we retry with strong
+                    // consistency below if our eventually consistent read fails.
                     allowsEventualReadConsistency: true,
                 },
             );
@@ -1468,13 +1466,12 @@ function createFileModelFromItem(item: FileItem) {
 }
 
 /**
- * Get a file attached to some entity. Throws an error if the file doesn't
- * exist.
+ * Get a file attached to some entity. Throws an error if the file doesn't exist.
  *
- * To authorize we need a `FileAuthorizer`. This object contains the target
- * we're viewing the file in the context of. We'll throw an error if the actor
- * doesn't have access to the attachment target or the file isn't actually
- * attached to the target.
+ * To authorize we need a `FileAuthorizer`. This object contains the target we're
+ * viewing the file in the context of. We'll throw an error if the actor doesn't
+ * have access to the attachment target or the file isn't actually attached to the
+ * target.
  */
 export async function getFileFromAttachment(
     context: ServerActionContext,
@@ -1495,9 +1492,9 @@ export async function getFileFromAttachment(
 }
 
 /**
- * Attach a file to some `FileAttachmentTarget` (represented by a
- * `FileAuthorizer` instance) as the file's uploader. Throws an error if the
- * file doesn't exist or if the actor isn't the file's uploader.
+ * Attach a file to some `FileAttachmentTarget` (represented by a `FileAuthorizer`
+ * instance) as the file's uploader. Throws an error if the file doesn't exist or
+ * if the actor isn't the file's uploader.
  *
  * If you want to attach the file to another target and you're not the file's
  * uploader then use `attachFileFromAttachment()`.
@@ -1515,8 +1512,8 @@ export async function attachFileAsUploader(
         // Make sure the file exists and our actor is the uploader.
         //
         // If we can't read the file with eventual consistency then retry with strong
-        // consistency in case the file was just created and we're observing an
-        // eventual consistency lag.
+        // consistency in case the file was just created and we're observing an eventual
+        // consistency lag.
         (async () => {
             const file = await getFileIfExistsAsUploader(context, spaceId, fileId, {
                 consistency: "Eventual",
@@ -1541,8 +1538,8 @@ export async function attachFileAsUploader(
 }
 
 /**
- * Attach a file to some `FileAttachmentTarget` (`to`) based on the actor's
- * access to the file through a different `FileAttachmentTarget` (`from`).
+ * Attach a file to some `FileAttachmentTarget` (`to`) based on the actor's access
+ * to the file through a different `FileAttachmentTarget` (`from`).
  *
  * See `attachFileAsUploader()` for more information. You call this method when
  * there's a file you already have you want to attach to another target (e.g.
@@ -1568,12 +1565,12 @@ export async function attachFileFromAttachment(
 
         // Make sure we have access to the new file authorizer.
         //
-        // Allow skipping this authorization check. Useful if we're attaching a file to
-        // an entity that's about to be created. It's not even that dangerous to allow
-        // file attachments to an entity you don't have access to. An "attached" file
-        // isn't rendered unless the underlying entity references the file. If the
-        // actor can't update the underlying entity then the unused attached file will
-        // eventually be garbage collected away.
+        // Allow skipping this authorization check. Useful if we're attaching a file to an
+        // entity that's about to be created. It's not even that dangerous to allow file
+        // attachments to an entity you don't have access to. An "attached" file isn't
+        // rendered unless the underlying entity references the file. If the actor can't
+        // update the underlying entity then the unused attached file will eventually be
+        // garbage collected away.
         !dangerouslySkipToAuthorizeTargetAccess
             ? toTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit")
             : null,
@@ -1588,8 +1585,8 @@ export async function attachFileFromAttachment(
 }
 
 /**
- * Detach a file from the provided attachment target. Noop if the file
- * attachment doesn't exist but throws if the file doesn't exist.
+ * Detach a file from the provided attachment target. Noop if the file attachment
+ * doesn't exist but throws if the file doesn't exist.
  */
 export async function detachFile(
     context: ServerActionContext,

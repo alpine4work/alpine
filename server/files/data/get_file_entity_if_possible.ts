@@ -25,10 +25,10 @@ import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_coll
 import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 
 // NOTE(calebmer, 2025-08-19): It could be useful to have a generic
-// `StateContextModule` that lets you stash arbitrary state in context instead
-// of creating one-off context modules like this. However, following our style
-// guide recommendation that "No abstraction is better than the wrong
-// abstraction". Let's wait until we have more examples of state in context.
+// `StateContextModule` that lets you stash arbitrary state in context instead of
+// creating one-off context modules like this. However, following our style guide
+// recommendation that "No abstraction is better than the wrong abstraction". Let's
+// wait until we have more examples of state in context.
 class FileEntityDepthContextModule extends ContextModuleBase {
     public readonly depth: number;
 
@@ -45,13 +45,13 @@ export async function getFileEntityIfPossible(
 ): Promise<Result<FileEntityModel, ErrorBase> | null> {
     const depth = context.fileEntityDepth?.depth ?? 0;
 
-    // Cut off file entity loading when we're three entities deep. File entities
-    // may recursively load each other (e.g. a document which has a file entity to
-    // itself in its preview) so we need some protection to protect against
-    // infinite recursion.
+    // Cut off file entity loading when we're three entities deep. File entities may
+    // recursively load each other (e.g. a document which has a file entity to itself
+    // in its preview) so we need some protection to protect against infinite
+    // recursion.
     //
-    // Also, practically after three levels of depth previews shrink to such a size
-    // you can't see what's being rendered.
+    // Also, practically after three levels of depth previews shrink to such a size you
+    // can't see what's being rendered.
     if (depth >= fileEntityMaxRecursionDepth) return null;
 
     // Increment file entity depth.

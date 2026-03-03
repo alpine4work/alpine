@@ -187,8 +187,8 @@ export type MessageEditing<RoomKey extends string> = {
 };
 
 /**
- * Use state for managing message editing. Message editing state is hoisted to
- * the message virtualized list level because:
+ * Use state for managing message editing. Message editing state is hoisted to the
+ * message virtualized list level because:
  *
  * - We only want to allow editing one message at a time.
  * - We don't want to lose editing state if the message is unmounted by the
@@ -249,9 +249,9 @@ export function useMessageEditing<RoomKey extends string>({
             }
         }
 
-        // If the content hasn't actually changed, skip the update. This way we
-        // don't mark the message as edited if the user enters edit mode, makes
-        // changes, and then reverts back to the original content.
+        // If the content hasn't actually changed, skip the update. This way we don't mark
+        // the message as edited if the user enters edit mode, makes changes, and then
+        // reverts back to the original content.
         const finalDoc = trimTransaction !== null ? trimTransaction.doc : doc;
         if (finalDoc.eq(state.initialContent)) {
             state.savePromiseResolver?.resolve();

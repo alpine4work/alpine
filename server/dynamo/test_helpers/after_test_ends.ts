@@ -38,8 +38,8 @@ testSharedHooks.afterEach(async () => {
 
 /**
  * Schedules a callback to be run when the current test ends. Useful for adding
- * cleanup for resources constructed dynamically in a test. Callbacks are run
- * in the order this function is called.
+ * cleanup for resources constructed dynamically in a test. Callbacks are run in
+ * the order this function is called.
  */
 export function afterTestEnds(callback: () => MaybePromise<void>) {
     if (capturingCallbacks !== null) {
@@ -57,9 +57,8 @@ export function afterTestEnds(callback: () => MaybePromise<void>) {
 }
 
 /**
- * If you need to run some code in tests after a test block (e.g. in
- * `beforeAll()`) then use this to capture callbacks passed into
- * `afterTestEnds()`.
+ * If you need to run some code in tests after a test block (e.g. in `beforeAll()`)
+ * then use this to capture callbacks passed into `afterTestEnds()`.
  *
  * Returns a function you call to run the `afterTestEnds()` callbacks.
  */

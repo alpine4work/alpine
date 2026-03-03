@@ -43,8 +43,8 @@ type WebsocketClientConnectionState =
       };
 
 function resolveWebSocketUrl(url: string) {
-    // If this is an absolute URL, add our current domain's origin. This will
-    // only work in the browser.
+    // If this is an absolute URL, add our current domain's origin. This will only work
+    // in the browser.
     if (url.startsWith("/")) url = `${new URL(window.location.href).origin}${url}`;
 
     // Switch HTTP protocol to WS protocol.
@@ -55,21 +55,20 @@ function resolveWebSocketUrl(url: string) {
 }
 
 /**
- * A helper for communicating over WebSockets. See `WebSocketServer` for the
- * server side of this helper.
+ * A helper for communicating over WebSockets. See `WebSocketServer` for the server
+ * side of this helper.
  *
- * This represents a single WebSocket connection. Over the course of an
- * application there may be transient WebSocket errors we want to reconnect.
- * This is managed by `WebSocketClient`.
+ * This represents a single WebSocket connection. Over the course of an application
+ * there may be transient WebSocket errors we want to reconnect. This is managed by
+ * `WebSocketClient`.
  *
  * Features:
  *
  * - Type safe messages using our schema framework.
- * - Automatic heart beating so the server knows our WebSocket is still alive
- *   and we know our server is still alive.
- * - Resolves URL by replacing the `http://` protocol with `ws://` or
- *   automatically adding the domain name if you use an absolute path like
- *   `/hello/world`.
+ * - Automatic heart beating so the server knows our WebSocket is still alive and
+ *   we know our server is still alive.
+ * - Resolves URL by replacing the `http://` protocol with `ws://` or automatically
+ *   adding the domain name if you use an absolute path like `/hello/world`.
  *
  * You probably shouldn't use this class directly and instead should be using
  * `WebSocketClient` which adds a couple other essential features. Like trying to
@@ -163,9 +162,9 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             this._openPromiseResolver.resolve();
         });
 
-        // From reading the spec, it looks like the `error` event is only fired before
-        // a `close` event. But the `close` event has more interesting information
-        // about the error. So we don't have a listener for `error`, just `close`.
+        // From reading the spec, it looks like the `error` event is only fired before a
+        // `close` event. But the `close` event has more interesting information about the
+        // error. So we don't have a listener for `error`, just `close`.
         // https://websockets.spec.whatwg.org/#dom-websocket-onerror
         this._socket.addEventListener("close", event => {
             // If the user called `close()` then we consider the close to be expected and we
@@ -178,25 +177,25 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             pingTimeout?.clear();
             checkConnectionInterval.clear();
 
-            // When the WebSocket closes, resolve our ping promise since we won't
-            // be getting a pong from our new connection. We resolve instead of reject
-            // since it's expected we won't receive a pong if our socket closes. The socket
-            // closing itself may be in error but that will be reported elsewhere.
+            // When the WebSocket closes, resolve our ping promise since we won't be getting a
+            // pong from our new connection. We resolve instead of reject since it's expected
+            // we won't receive a pong if our socket closes. The socket closing itself may be
+            // in error but that will be reported elsewhere.
             pongPromiseResolver?.resolve();
             pongPromiseResolver = undefined;
 
-            // When the WebSocket closes, reject all messages that haven't been
-            // acknowledged since we will not be receiving an acknowledgement for them. We
-            // do not resubmit messages when reopening the WebSocket.
+            // When the WebSocket closes, reject all messages that haven't been acknowledged
+            // since we will not be receiving an acknowledgement for them. We do not resubmit
+            // messages when reopening the WebSocket.
             //
-            // If the WebSocket gave us an error object, use that when rejecting instead of
-            // an `UnavailableError`.
+            // If the WebSocket gave us an error object, use that when rejecting instead of an
+            // `UnavailableError`.
             for (const promiseResolver of this._procedureResponsePromiseResolverByRequestId.values()) {
                 promiseResolver.reject(
                     closeErrorResult?.error ??
-                        // If the user is offline then we use a `FailedPreconditionError` since it's a
-                        // user error (no internet connection) not a system error. System errors show a
-                        // red error icon.
+                        // If the user is offline then we use a `FailedPreconditionError` since it's a user
+                        // error (no internet connection) not a system error. System errors show a red
+                        // error icon.
                         new (navigator.onLine ? UnavailableError : FailedPreconditionError)(
                             "WebSocket closed before procedure response",
                             {
@@ -207,14 +206,14 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             }
             this._procedureResponsePromiseResolverByRequestId.clear();
 
-            // If the WebSocket gave us an error object, use that when rejecting instead of
-            // an `UnavailableError`.
+            // If the WebSocket gave us an error object, use that when rejecting instead of an
+            // `UnavailableError`.
             const error =
                 closeErrorResult?.error ??
                 (!wasCloseExpected
-                    ? // If the user is offline then we use a `FailedPreconditionError` since it's a
-                      // user error (no internet connection) not a system error. System errors show a
-                      // red error icon.
+                    ? // If the user is offline then we use a `FailedPreconditionError` since it's a user
+                      // error (no internet connection) not a system error. System errors show a red
+                      // error icon.
                       new (navigator.onLine ? UnavailableError : FailedPreconditionError)(
                           `WebSocket closed unexpectedly with code ${event.code}${
                               event.reason ? quote`and reason ${event.reason}` : ""
@@ -252,8 +251,8 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                 const serializedMessage = JSON.parse(event.data);
                 message = this._messageFromServerSchema.deserialize(serializedMessage);
             } catch (error) {
-                // Reclassify deserialization errors as internal errors if we can't deserialize
-                // the data coming from our WebSocket.
+                // Reclassify deserialization errors as internal errors if we can't deserialize the
+                // data coming from our WebSocket.
                 if (error instanceof SchemaDeserializationError)
                     throw new InternalError(error.message, {cause: error});
 
@@ -275,8 +274,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                         }
                     }
 
-                    // Once all our pending messages have been acknowledged, actually close
-                    // the client.
+                    // Once all our pending messages have been acknowledged, actually close the client.
                     if (
                         this._state.type === "SoftClosedWhileWaitingForProcedureResponses" &&
                         this._procedureResponsePromiseResolverByRequestId.size === 0
@@ -287,16 +285,16 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                     break;
                 }
                 case "Event": {
-                    // If we get an event in our `SoftClosedWhileWaitingForProcedureResponses`
-                    // state, don't emit it.
+                    // If we get an event in our `SoftClosedWhileWaitingForProcedureResponses` state,
+                    // don't emit it.
                     if (this._state.type === "Open") {
                         this._events.emit(message.event);
                     }
                     break;
                 }
                 case "Pong": {
-                    // If we get an event in our `SoftClosedWhileWaitingForProcedureResponses`
-                    // state, don't save it as our new checkpoint.
+                    // If we get an event in our `SoftClosedWhileWaitingForProcedureResponses` state,
+                    // don't save it as our new checkpoint.
                     if (this._state.type === "Open") {
                         this._pongs.emit(message);
                     }
@@ -332,8 +330,8 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     /**
      * Execute a procedure through the socket.
      *
-     * If the socket is not currently connected then we queue messages to send once
-     * the socket connects.
+     * If the socket is not currently connected then we queue messages to send once the
+     * socket connects.
      */
     public executeProcedure<Name extends keyof WebSocketProtocolProceduresType<Protocol> & string>(
         name: Name,
@@ -413,10 +411,9 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
      * Close the WebSocket. You will immediately no longer be able to execute
      * procedures.
      *
-     * If we have some previously executed procedures we are waiting on
-     * acknowledgments for then the underlying WebSocket won't actually close until
-     * we get those acknowledgements. No new procedures will be executed in
-     * the meantime.
+     * If we have some previously executed procedures we are waiting on acknowledgments
+     * for then the underlying WebSocket won't actually close until we get those
+     * acknowledgements. No new procedures will be executed in the meantime.
      *
      * Returns a promise that resolves when the WebSocket actually closes.
      */
@@ -456,23 +453,23 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     }
 
     /**
-     * Wait for the WebSocket to close. May not immediately resolve when `close()`
-     * is called. We wait for procedure responses before fully closing our
-     * WebSocket connection.
+     * Wait for the WebSocket to close. May not immediately resolve when `close()` is
+     * called. We wait for procedure responses before fully closing our WebSocket
+     * connection.
      */
     public waitForClose() {
         return this._closePromiseResolver.promise;
     }
 
     /**
-     * Wait for the WebSocket to soft close. When `close()` is called we soft close
-     * the WebSocket, wait for pending procedure responses, then fully close the
-     * WebSocket. The server may also choose to soft close our connection during a
-     * graceful server shutdown.
+     * Wait for the WebSocket to soft close. When `close()` is called we soft close the
+     * WebSocket, wait for pending procedure responses, then fully close the WebSocket.
+     * The server may also choose to soft close our connection during a graceful server
+     * shutdown.
      *
      * If we soft close successfully this promise will resolve. If the server
-     * unexpectedly closes with an error this promise will reject. Even if this
-     * promise resolves the `waitForClose()` function may still reject.
+     * unexpectedly closes with an error this promise will reject. Even if this promise
+     * resolves the `waitForClose()` function may still reject.
      *
      * Will always resolve before `waitForClose()`.
      */
@@ -481,8 +478,8 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     }
 
     /**
-     * Wait for the WebSocket to open. If the WebSocket never opens then this
-     * will reject.
+     * Wait for the WebSocket to open. If the WebSocket never opens then this will
+     * reject.
      */
     public waitForOpen() {
         return this._openPromiseResolver.promise;

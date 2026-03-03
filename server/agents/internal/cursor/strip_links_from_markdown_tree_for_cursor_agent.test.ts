@@ -120,8 +120,8 @@ describe("account mentions", () => {
     });
 
     test("converts Cursor agent mention to @Cursor", async () => {
-        // This test verifies that Cursor mentions are presented as @Cursor
-        // which is important context for the agent to know it's being addressed
+        // This test verifies that Cursor mentions are presented as @Cursor which is
+        // important context for the agent to know it's being addressed
         const cursorAccountId = generateId<AccountId>();
 
         const content: ApiContentResponse = {

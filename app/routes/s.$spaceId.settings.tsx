@@ -42,7 +42,8 @@ function parseSettingsRouteFromPathname(pathname: string): SettingsRoute {
     // NOTE: The match should always be defined because we're using a (route loader)[1]
     // to redirect to the general settings page.
     //
-    // If it is not defined then we should throw an error to make sure it breaks loudly.
+    // If it is not defined then we should throw an error to make sure it breaks
+    // loudly.
     //
     // [1]: app/routes/s.$spaceId.settings._index.tsx
     assert(match);
@@ -130,12 +131,12 @@ export default function SettingsLayout() {
 
     const currentRoute = parseSettingsRouteFromPathname(currentPathname);
 
-    // First check if we're actually trying to parse a settings route
-    // If this isn't a settings route at all (e.g., navigating to /home),
-    // then just use "general" as a default to avoid throwing errors.
+    // First check if we're actually trying to parse a settings route If this isn't a
+    // settings route at all (e.g., navigating to /home), then just use "general" as a
+    // default to avoid throwing errors.
     //
-    // FYI, it doesn't matter what we use here because we'll always
-    // redirect to the non-settings route.
+    // FYI, it doesn't matter what we use here because we'll always redirect to the
+    // non-settings route.
     const isSettingsRoute = nextPathname.match(/^\/s\/([^/]+)\/settings(?:\/|$)/);
     let nextRoute: SettingsRoute = currentRoute;
     if (isSettingsRoute) {
@@ -222,10 +223,10 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                                 pointerEvents="none"
                                 position="absolute"
                                 height="border"
-                                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
-                                // than if we used `grey-5` directly. This is because the border operates more
-                                // like a shadow. When rendered over some other content (e.g. an image) the
-                                // image's colors show through the border but a little darker.
+                                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer than if we
+                                // used `grey-5` directly. This is because the border operates more like a shadow.
+                                // When rendered over some other content (e.g. an image) the image's colors show
+                                // through the border but a little darker.
                                 backgroundColor="grey-5-translucent"
                                 style={{
                                     bottom: -1,

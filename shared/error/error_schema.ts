@@ -104,8 +104,8 @@ export function serializeError(error: unknown) {
         }
     }
 
-    // Rank the highest priority errors first. So when we select the first N errors
-    // to serialize we have the worst errors.
+    // Rank the highest priority errors first. So when we select the first N errors to
+    // serialize we have the worst errors.
     aggregateErrors.sort(
         (error1, error2) => getAggregateErrorPriority(error2) - getAggregateErrorPriority(error1),
     );
@@ -125,8 +125,8 @@ function serializeErrorBaseWithCause(error: unknown): ErrorBaseWithCause {
     return {
         ...serializeErrorBase(error),
 
-        // Only include causes that, themselves, are instances of `Error`. Only
-        // serialize causes 3 deep. (Same as `getTracerEventExceptionData()`.)
+        // Only include causes that, themselves, are instances of `Error`. Only serialize
+        // causes 3 deep. (Same as `getTracerEventExceptionData()`.)
         cause:
             error instanceof Error && error.cause && error.cause instanceof Error
                 ? error.cause.cause && error.cause.cause instanceof Error
@@ -143,15 +143,15 @@ function serializeErrorBase(error: unknown) {
     return {
         code: getErrorCode(error),
         message:
-            // NOTE(calebmer): I've found some strange error objects that look like errors
-            // but aren't `instanceof Error`.
+            // NOTE(calebmer): I've found some strange error objects that look like errors but
+            // aren't `instanceof Error`.
             isObject(error) && "message" in error && typeof error.message === "string"
                 ? error.message
                 : String(error),
         displayMessage: error instanceof ErrorBase ? error.displayMessage : undefined,
         aggregateDedupeKey: error instanceof ErrorBase ? error.aggregateDedupeKey : undefined,
-        // In development include the stack trace of the error so we can show it to
-        // the developer.
+        // In development include the stack trace of the error so we can show it to the
+        // developer.
         ...(process.env.NODE_ENV !== "production" && error instanceof Error
             ? {name: error.name, stack: error.stack}
             : {}),

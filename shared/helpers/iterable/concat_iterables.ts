@@ -1,6 +1,6 @@
 /**
- * Combines multiple iterables together into one. Each iterable running after
- * the other in sequence. Same as `Array.concat()` but for iterables.
+ * Combines multiple iterables together into one. Each iterable running after the
+ * other in sequence. Same as `Array.concat()` but for iterables.
  */
 export function concatIterables<Value>(...iterables: Array<Iterable<Value>>): Iterable<Value> {
     return {

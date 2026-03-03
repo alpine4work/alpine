@@ -75,8 +75,8 @@ export function Link({
                         textDecorationThickness:
                             textDecorationThicknessBySpacingScale[spacingScale],
                     }}
-                    // We don't support arbitrary navigation in the native mobile app. Since not
-                    // all URLs are openable in the native mobile app.
+                    // We don't support arbitrary navigation in the native mobile app. Since not all
+                    // URLs are openable in the native mobile app.
                     target={newTab || isNativeMobile ? "_blank" : undefined}
                     rel={newTab || isNativeMobile ? "noreferrer" : undefined}
                 >
@@ -101,8 +101,8 @@ export function Link({
                         textDecorationThickness:
                             textDecorationThicknessBySpacingScale[spacingScale],
                     }}
-                    // We don't support arbitrary navigation in the native mobile app. Since not
-                    // all URLs are openable in the native mobile app.
+                    // We don't support arbitrary navigation in the native mobile app. Since not all
+                    // URLs are openable in the native mobile app.
                     target={newTab || isNativeMobile ? "_blank" : undefined}
                     rel={newTab || isNativeMobile ? "noreferrer" : undefined}
                 >

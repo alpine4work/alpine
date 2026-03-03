@@ -101,20 +101,20 @@ const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 const maxAccountCount = 5;
 
 /**
- * If we have a Fuse.js score below this when parsing a name then we consider
- * the name a match.
+ * If we have a Fuse.js score below this when parsing a name then we consider the
+ * name a match.
  *
- * We maintain a stricter score cutoff than Fuse.js since it would be odd to
- * show fuse matched items with very few similar characters next to results
- * from our search backend.
+ * We maintain a stricter score cutoff than Fuse.js since it would be odd to show
+ * fuse matched items with very few similar characters next to results from our
+ * search backend.
  */
 const fuseScoreMatchCutoff = 0.35;
 
 /**
  * The order of sections in the mention menu when there's no search query.
  *
- * When there is a search query insert is always first (the other sections
- * follow the same order).
+ * When there is a search query insert is always first (the other sections follow
+ * the same order).
  */
 export type ContentEditorMentionFloaterSectionOrder =
     | "PeopleSuggestedInsert"
@@ -149,8 +149,9 @@ export function ContentEditorMentionFloater({
     sectionOrder: ContentEditorMentionFloaterSectionOrder;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
-    // Optional callback to handle file entities when the content doesn't support file nodes
-    // (e.g. message inputs that support file attachments but not inline file previews).
+    // Optional callback to handle file entities when the content doesn't support file
+    // nodes (e.g. message inputs that support file attachments but not inline file
+    // previews).
     onPasteOrDropFiles?: (
         fileInfos: ReadonlyArray<FileInfoWithEntity>,
     ) => SafeFloatingPromise<void>;
@@ -174,9 +175,9 @@ export function ContentEditorMentionFloater({
         const view = assertExists(viewRef.current);
         const schema = view.state.schema;
 
-        // If the schema doesn't support files (e.g. message content) then we don't
-        // want to insert a file entity preview. But if there's an `onAttachFileEntity`
-        // callback (message inputs) we want to call that.
+        // If the schema doesn't support files (e.g. message content) then we don't want to
+        // insert a file entity preview. But if there's an `onAttachFileEntity` callback
+        // (message inputs) we want to call that.
         if (!schema.nodes.fileRow || !schema.nodes.file) {
             if (!onPasteOrDropFiles) return false;
 
@@ -199,8 +200,8 @@ export function ContentEditorMentionFloater({
                     onCloseWithoutAnimation();
                 },
                 error => {
-                    // We only call `setPendingEntityId(null)` on error since on success we close
-                    // the mention floater (so the state is implicitly cleared).
+                    // We only call `setPendingEntityId(null)` on error since on success we close the
+                    // mention floater (so the state is implicitly cleared).
                     setPendingEntityId(null);
 
                     const entityIdObject = parseSearchMentionEntityId(insertFileEntityId);
@@ -270,8 +271,8 @@ export function ContentEditorMentionFloater({
                     onCloseWithoutAnimation();
                 },
                 error => {
-                    // We only call `setPendingEntityId(null)` on error since on success we close
-                    // the mention floater (so the state is implicitly cleared).
+                    // We only call `setPendingEntityId(null)` on error since on success we close the
+                    // mention floater (so the state is implicitly cleared).
                     setPendingEntityId(null);
 
                     const entityIdObject = parseSearchMentionEntityId(insertFileEntityId);
@@ -301,9 +302,9 @@ export function ContentEditorMentionFloater({
         saveAccountMention: (accountData: AccountModelData) => {
             const view = assertExists(viewRef.current);
 
-            // If the account's short name is not ambiguous when searching all account
-            // names then we will insert a short mention by default. The user can undo
-            // (cmd-z) to get the long version of the mention.
+            // If the account's short name is not ambiguous when searching all account names
+            // then we will insert a short mention by default. The user can undo (cmd-z) to get
+            // the long version of the mention.
             const isShortNameAmbiguous = allAccountsFuse
                 ? allAccountsFuse
                       .search(getAccountShortNameWithoutFullNameTooltip(accountData))
@@ -315,8 +316,8 @@ export function ContentEditorMentionFloater({
                 type: "Account",
                 accountId: accountData.id,
                 // Only use short name for a non-ambiguous name on desktop. Since on mobile the
-                // quick undo capability doesn't really exist. Instead the user may tap delete
-                // to get a short name.
+                // quick undo capability doesn't really exist. Instead the user may tap delete to
+                // get a short name.
                 isShort: platform !== "mobile" && !isShortNameAmbiguous,
             };
 
@@ -375,6 +376,7 @@ export function ContentEditorMentionFloater({
 
             // Check if we should insert a file entity preview instead of an inline mention.
             // Conditions:
+            //
             // 1. Entity supports file preview (isFileEntityId)
             // 2. Schema supports file nodes
             // 3. Range is in an empty paragraph (paragraph only contains `@` + search text)
@@ -388,8 +390,8 @@ export function ContentEditorMentionFloater({
                 // Check if we're in a paragraph directly in doc or tableCell
                 if (parentNode.type.name !== "paragraph") return null;
 
-                // Check if paragraph only contains the mention text (@ + search query)
-                // The @ is at position 0 and the mention range covers the rest
+                // Check if paragraph only contains the mention text (@ + search query) The @ is at
+                // position 0 and the mention range covers the rest
                 const isEmptyParagraph =
                     $from.parentOffset === 0 && // @ is at start of paragraph
                     parentNode.content.size === range.to - range.from; // paragraph only has mention text
@@ -398,8 +400,8 @@ export function ContentEditorMentionFloater({
 
                 const grandParentNode = $from.node(-1);
 
-                // Check if the paragraph can be replaced by a `fileRow`. (So that means we're
-                // in a `doc` or `tableCell` node most likely.)
+                // Check if the paragraph can be replaced by a `fileRow`. (So that means we're in a
+                // `doc` or `tableCell` node most likely.)
                 if (
                     grandParentNode.type.name !== "doc" &&
                     grandParentNode.type.name !== "tableCell"
@@ -412,9 +414,9 @@ export function ContentEditorMentionFloater({
 
             if (
                 insertFileEntityId !== null &&
-                // If this function returns true then we inserted a file entity! (Or we kicked
-                // off a promise that will insert a file entity.) If it returns false then we
-                // need to insert an inline mention.
+                // If this function returns true then we inserted a file entity! (Or we kicked off
+                // a promise that will insert a file entity.) If it returns false then we need to
+                // insert an inline mention.
                 tryToSaveSearchEntityMentionAsFileEntity(insertFileEntityId)
             ) {
                 return;
@@ -448,8 +450,8 @@ export function ContentEditorMentionFloater({
     useLayoutEffect(() => {
         if (!isFocused) {
             // `onCloseWithAnimation` ends up calling `view.dispatch()` which runs
-            // `flushSync()`. Since `flushSync()` can't be run in an effect we schedule
-            // a microtask.
+            // `flushSync()`. Since `flushSync()` can't be run in an effect we schedule a
+            // microtask.
             scheduleMicrotask(() => {
                 onCloseWithAnimation();
             });
@@ -473,8 +475,8 @@ export function ContentEditorMentionFloater({
         onQueryTextChange: onSearchStateQueryTextChange,
     } = useSearchMentionState({initialQueryText: searchQuery});
 
-    // `searchQuery` is controlled by a prop. Make sure we keep the state internal
-    // to keep `useSearchMentionState()` in sync with the `searchQuery` prop.
+    // `searchQuery` is controlled by a prop. Make sure we keep the state internal to
+    // keep `useSearchMentionState()` in sync with the `searchQuery` prop.
     if (searchQuery !== searchStateQueryText) {
         onSearchStateQueryTextChange(searchQuery);
     }
@@ -495,15 +497,15 @@ export function ContentEditorMentionFloater({
         let $to = view.state.doc.resolve(range.to);
         let $from = view.state.doc.resolve(range.from);
 
-        // As a convenience, if we have "foo @divider bar" then we want to trim the
-        // space at the start of " bar" when inserting our divider.
+        // As a convenience, if we have "foo @divider bar" then we want to trim the space
+        // at the start of " bar" when inserting our divider.
         if ($to.nodeAfter?.isText) {
             const newText = $to.nodeAfter.text!.trimStart();
             $to = view.state.doc.resolve($to.pos + ($to.nodeAfter.text!.length - newText.length));
         }
 
-        // As a convenience, if we have "foo @divider bar" then we want to trim the
-        // space at the end of "foo " when inserting our divider.
+        // As a convenience, if we have "foo @divider bar" then we want to trim the space
+        // at the end of "foo " when inserting our divider.
         if ($from.nodeBefore?.isText) {
             const newText = $from.nodeBefore.text!.trimEnd();
             $from = view.state.doc.resolve(
@@ -529,9 +531,9 @@ export function ContentEditorMentionFloater({
         return new Fuse(insertMenuActions, {keys: ["label"], includeScore: true});
     }, [insertMenuActions]);
 
-    // We use `searchMentionOutput.queryText` for searching menu actions not the
-    // prop `searchQuery`. That's because we want our menu action search result to
-    // update at the same time as our entity mentions search result.
+    // We use `searchMentionOutput.queryText` for searching menu actions not the prop
+    // `searchQuery`. That's because we want our menu action search result to update at
+    // the same time as our entity mentions search result.
     const searchedInsertMenuActions = useMemo(() => {
         if (searchMentionOutput.queryText.length === 0) {
             return insertMenuActions.filter(action => action.isSuggestedInMentionFloater);
@@ -570,8 +572,8 @@ export function ContentEditorMentionFloater({
     }, [allAccountDatas]);
 
     // We use `searchMentionOutput.queryText` for searching accounts not the prop
-    // `searchQuery`. That's because we want our account search result to update at
-    // the same time as our entity mentions search result.
+    // `searchQuery`. That's because we want our account search result to update at the
+    // same time as our entity mentions search result.
     const searchedAccountDatas = useMemo(() => {
         if (!allAccountDatas || !allAccountsFuse) return null;
 
@@ -772,19 +774,18 @@ export function ContentEditorMentionFloater({
 
     const originalInteractionModalityRef = useRef<Modality | null>(null);
 
-    // When we lose our selection (usually because we unmounted) return the
-    // interaction modality to whatever it was before we started keyboard
-    // navigating.
+    // When we lose our selection (usually because we unmounted) return the interaction
+    // modality to whatever it was before we started keyboard navigating.
     //
-    // When this component loses its selection (or unmounts) restore
-    // interaction modality to whatever it was before we set it to `keyboard`.
-    // While editing, the user may hit @ to mention then arrow keys to select an
-    // account. Only keep them in `keyboard` interaction modality if that's the
-    // state they were previously in. Since keyboard navigation within this
-    // component is a pretty common pattern even for a user that predominantly uses
-    // `pointer` navigation. Showing focus rings for new elements the user focuses
-    // (e.g. the link input when the user hits Cmd+K) will likely confuse them
-    // since they didn't intend to enter keyboard navigation mode.
+    // When this component loses its selection (or unmounts) restore interaction
+    // modality to whatever it was before we set it to `keyboard`. While editing, the
+    // user may hit @ to mention then arrow keys to select an account. Only keep them
+    // in `keyboard` interaction modality if that's the state they were previously in.
+    // Since keyboard navigation within this component is a pretty common pattern even
+    // for a user that predominantly uses `pointer` navigation. Showing focus rings for
+    // new elements the user focuses (e.g. the link input when the user hits Cmd+K)
+    // will likely confuse them since they didn't intend to enter keyboard navigation
+    // mode.
     useEffect(() => {
         return () => {
             if (hasSelection && originalInteractionModalityRef.current !== null) {
@@ -796,8 +797,7 @@ export function ContentEditorMentionFloater({
 
     useImperativeHandle(handleKeyDownRef, () => event => {
         switch (event.key) {
-            // Moves focus to the next item, optionally wrapping from the last to
-            // the first.
+            // Moves focus to the next item, optionally wrapping from the last to the first.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "ArrowDown": {
@@ -819,8 +819,8 @@ export function ContentEditorMentionFloater({
                 }
                 break;
             }
-            // Moves focus to the previous item, optionally wrapping from the first to
-            // the last.
+            // Moves focus to the previous item, optionally wrapping from the first to the
+            // last.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "ArrowUp": {
@@ -841,9 +841,9 @@ export function ContentEditorMentionFloater({
                 }
                 break;
             }
-            // Moves focus to the first item in the current menu. Technically, the spec
-            // says only implement if arrow key wrapping is not supported but it's easy
-            // to support so why not.
+            // Moves focus to the first item in the current menu. Technically, the spec says
+            // only implement if arrow key wrapping is not supported but it's easy to support
+            // so why not.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Home": {
@@ -861,9 +861,9 @@ export function ContentEditorMentionFloater({
                 }
                 break;
             }
-            // Moves focus to the last item in the current menu. Technically, the spec
-            // says only implement if arrow key wrapping is not supported but it's easy
-            // to support so why not.
+            // Moves focus to the last item in the current menu. Technically, the spec says
+            // only implement if arrow key wrapping is not supported but it's easy to support
+            // so why not.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "End": {
@@ -881,9 +881,9 @@ export function ContentEditorMentionFloater({
                 }
                 break;
             }
-            // Escape closes the menu with focus and returns focus to the context the menu
-            // was opened. Given focus always stays in the content editor we just close
-            // the floater.
+            // Escape closes the menu with focus and returns focus to the context the menu was
+            // opened. Given focus always stays in the content editor we just close the
+            // floater.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Escape": {
@@ -930,18 +930,18 @@ export function ContentEditorMentionFloater({
         searchMentionOutput.isPending,
     );
 
-    // Suppress hover styles until the pointer moves. That way if the user's
-    // pointer just happens to be over the mention floater while they're typing it
-    // doesn't appear like you're about to select the item the pointer is
-    // coincidentally hovering over.
+    // Suppress hover styles until the pointer moves. That way if the user's pointer
+    // just happens to be over the mention floater while they're typing it doesn't
+    // appear like you're about to select the item the pointer is coincidentally
+    // hovering over.
     const [suppressHover, setSuppressHover] = useState(true);
 
     useEffect(() => {
         // Wait until we're done loading to unsuppress hover styles.
         if (isLoading && !shouldShowLoadingIndicatorIfLoading) return;
 
-        // Hovering has been unsuppressed! We don't need to listen for `pointermove`
-        // events anymore.
+        // Hovering has been unsuppressed! We don't need to listen for `pointermove` events
+        // anymore.
         if (!suppressHover) return;
 
         const handlePointerMove = () => {
@@ -1075,12 +1075,12 @@ export function ContentEditorMentionFloater({
             disableAnimation={!wasInitiallyLoading && !isClosing}
             placement="bottom-start"
             overflowTop={navigationBarHeight}
-            // Set a constant `overflowBottom` value instead of relying on the current
-            // keyboard height (which will be updated asynchronously after `isEditing` is
-            // true). This stops the overlay placement from jumping around while the
-            // keyboard opens. The value was calculated based on the keyboard height in
-            // iOS. We may need to change this constant if the keyboard height for iOS
-            // changes or the Android keyboard height is bigger.
+            // Set a constant `overflowBottom` value instead of relying on the current keyboard
+            // height (which will be updated asynchronously after `isEditing` is true). This
+            // stops the overlay placement from jumping around while the keyboard opens. The
+            // value was calculated based on the keyboard height in iOS. We may need to change
+            // this constant if the keyboard height for iOS changes or the Android keyboard
+            // height is bigger.
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
             offset="2.5"
             overlay={
@@ -1089,8 +1089,8 @@ export function ContentEditorMentionFloater({
                     ref={mergedMenuRef}
                     position="relative"
                     width={Menu.sizeConstants.lg[platform].width}
-                    // Hide the scrollbar while animating closed by setting overflow to `hidden`
-                    // while animating.
+                    // Hide the scrollbar while animating closed by setting overflow to `hidden` while
+                    // animating.
                     overflowX="hidden"
                     overflowY={!isClosing ? "auto" : "hidden"}
                     borderRadius="1.5"
@@ -1099,8 +1099,8 @@ export function ContentEditorMentionFloater({
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     style={{
-                        // On mobile the height needs to be less than half of the available space when
-                        // the keyboard and navigation bar are open.
+                        // On mobile the height needs to be less than half of the available space when the
+                        // keyboard and navigation bar are open.
                         maxHeight: platform === "mobile" ? spacing["48"] : spacing["96"],
                     }}
                 >

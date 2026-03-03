@@ -43,15 +43,14 @@ export const SearchEntityMediaModelSchema = Schema.union({
  * product-specific version information we use to figure out which media should
  * win.
  *
- * This is not commutative like a CRDT merge function (e.g.
- * `TaskModel.merge()`). We prefer data from `oldMedia` when the media are
- * equal. We prefer `newMedia` when there's insufficient version information to
- * pick a winner.
+ * This is not commutative like a CRDT merge function (e.g. `TaskModel.merge()`).
+ * We prefer data from `oldMedia` when the media are equal. We prefer `newMedia`
+ * when there's insufficient version information to pick a winner.
  *
- * You should generally pass in the older data into `oldMedia` and newer data
- * to `newMedia`. So we avoid unnecessary re-renders when the data is equal
- * (and `oldMedia` is preferred) and in case we don't have clear version
- * information we prefer the newer data (`newMedia`).
+ * You should generally pass in the older data into `oldMedia` and newer data to
+ * `newMedia`. So we avoid unnecessary re-renders when the data is equal (and
+ * `oldMedia` is preferred) and in case we don't have clear version information we
+ * prefer the newer data (`newMedia`).
  */
 export function mergeSearchEntityMediaModel(
     oldMedia: SearchEntityMediaModel | null,
@@ -87,8 +86,8 @@ export function mergeSearchEntityMediaModel(
                 return mergedAccount;
             });
 
-            // If `newMedia` is exactly equal to `oldMedia` then return `oldMedia` to
-            // reduce re-renders.
+            // If `newMedia` is exactly equal to `oldMedia` then return `oldMedia` to reduce
+            // re-renders.
             if (
                 oldMedia.accountCount === newMedia.accountCount &&
                 oldMedia.previewAccounts.length === newMedia.previewAccounts.length &&

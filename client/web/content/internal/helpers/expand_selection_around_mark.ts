@@ -2,9 +2,9 @@ import {Mark, Node} from "prosemirror-model";
 import {Selection, TextSelection} from "prosemirror-state";
 
 /**
- * Expand the editor selection to include all text in the current text block
- * with the same mark of a type (e.g. link). If there's no mark of the type
- * covering the selection return null. Allows you to update a mark all at once.
+ * Expand the editor selection to include all text in the current text block with
+ * the same mark of a type (e.g. link). If there's no mark of the type covering the
+ * selection return null. Allows you to update a mark all at once.
  */
 export function expandSelectionAroundMark(
     doc: Node,
@@ -47,8 +47,7 @@ export function expandSelectionAroundMark(
     const selectionNodeAfter = selection.$to.nodeAfter;
     if (selectionNodeAfter && !selectionNodeAfter.isText) return null;
 
-    // 2. Try to find the mark before the selection (if selection isn't
-    //    at start)
+    // 2. Try to find the mark before the selection (if selection isn't at start)
     const selectionNodeBeforeMark = selectionNodeBefore?.marks.find(
         mark => mark.type.name === markName,
     );
@@ -60,8 +59,7 @@ export function expandSelectionAroundMark(
         }
     }
 
-    // 3. Try to find the mark after the selection (if selection isn't
-    //    at end)
+    // 3. Try to find the mark after the selection (if selection isn't at end)
     const selectionNodeAfterMark = selectionNodeAfter?.marks.find(
         mark => mark.type.name === markName,
     );
@@ -78,8 +76,8 @@ export function expandSelectionAroundMark(
 
     let extendFrom = selectionNodeBeforeMark ? (selectionNodeBefore?.nodeSize ?? 0) : 0;
     if (selectionNodeBeforeMark) {
-        // If `textOffset` is 0 then `nodeBefore` will be the full child before the
-        // node `$from` points to.
+        // If `textOffset` is 0 then `nodeBefore` will be the full child before the node
+        // `$from` points to.
         // https://github.com/ProseMirror/prosemirror-model/blob/a37b6b3adeb548dc9822211b680ce9d31be65842/src/resolvedpos.ts#L107-L115
         const startIndex = selection.$from.index() - (selection.$from.textOffset === 0 ? 2 : 1);
 

@@ -25,12 +25,12 @@ import {
 
 /**
  * Describes an update to a search entity. This type is the same as
- * `SearchDynamicEntityIdObject` (to identify the entity being updated) but
- * with an `updatedTraits` property (to identify the attributes on the entity
- * that were updated).
+ * `SearchDynamicEntityIdObject` (to identify the entity being updated) but with an
+ * `updatedTraits` property (to identify the attributes on the entity that were
+ * updated).
  *
- * `updatedTraits` is an array of the traits that were affected by this update.
- * A trait is an arbitrary subset of attributes on the entity we care about
+ * `updatedTraits` is an array of the traits that were affected by this update. A
+ * trait is an arbitrary subset of attributes on the entity we care about
  * specifically depending on. So we don't need to depend on the entire entity.
  *
  * For example, you can depend on the `Authorization` trait on a `Task` entity.
@@ -38,12 +38,12 @@ import {
  * those aren't `Authorization` attributes.
  *
  * If `updatedTraits` is `Any` then any of the entity's traits could have been
- * updated. `Any` is typically used either when everything is updated (the
- * entity was just created) or we don't precisely know what updated.
+ * updated. `Any` is typically used either when everything is updated (the entity
+ * was just created) or we don't precisely know what updated.
  *
- * If `updateTraits` is `None` then none of the entity's traits were updated.
- * The update was a noop. We may use this when we need to reindex an entity
- * because a dependency changed but the entity itself didn't change.
+ * If `updateTraits` is `None` then none of the entity's traits were updated. The
+ * update was a noop. We may use this when we need to reindex an entity because a
+ * dependency changed but the entity itself didn't change.
  */
 export type SearchEntityUpdate = {
     [Type in keyof typeof searchEntityUpdateSchemaDescription]: MergeObjectIntersection<
@@ -61,8 +61,8 @@ export type SearchEntityUpdate = {
     >;
 }[keyof typeof searchEntityUpdateSchemaDescription];
 
-// `SearchEntityUpdate` should be the same as
-// `SearchDynamicEntityIdObject` but with an `updatedTraits` property.
+// `SearchEntityUpdate` should be the same as `SearchDynamicEntityIdObject` but
+// with an `updatedTraits` property.
 assertEqualTypes<
     SearchDynamicEntityIdObject,
     DistributiveOmit<SearchEntityUpdate, "updatedTraits">
@@ -188,8 +188,8 @@ export const SearchEntityUpdateSchema = Schema.union(
 ) as Schema<SearchEntityUpdate>;
 
 /**
- * Get the `SearchEntityDependencyId`s affected by the `SearchEntityUpdate`
- * object. Anything in `updatedTraits` is updated.
+ * Get the `SearchEntityDependencyId`s affected by the `SearchEntityUpdate` object.
+ * Anything in `updatedTraits` is updated.
  */
 export function getSearchEntityDependencyIdsAffectedByUpdate(
     update: SearchEntityUpdate,

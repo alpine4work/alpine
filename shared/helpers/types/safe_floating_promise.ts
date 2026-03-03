@@ -7,8 +7,8 @@
  * - Don't throw errors
  * - Display loading indicators to the user through some other means
  *
- * The `navigate()` function is a good example of this. After ~1s we navigate
- * to the route with a loading shimmer to show the user progress.
+ * The `navigate()` function is a good example of this. After ~1s we navigate to
+ * the route with a loading shimmer to show the user progress.
  *
  * [1]: https://typescript-eslint.io/rules/no-floating-promises/
  */

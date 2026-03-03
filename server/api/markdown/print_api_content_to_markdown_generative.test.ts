@@ -92,8 +92,8 @@ const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElemen
             {weight: 50, arbitrary: fc.webUrl()},
             {weight: 1, arbitrary: fc.string({unit: "grapheme"})},
 
-            // We have special handling for link marks that look like mentions so they're
-            // not parsed as mention nodes. Make sure we generate mention-looking URLs.
+            // We have special handling for link marks that look like mentions so they're not
+            // parsed as mention nodes. Make sure we generate mention-looking URLs.
             {
                 weight: 1,
                 arbitrary: fc
@@ -381,8 +381,8 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
             return table;
         }),
 
-    // Arbitrary table that's not limited to simple constructs that'll work in
-    // a GFM table.
+    // Arbitrary table that's not limited to simple constructs that'll work in a GFM
+    // table.
     fc.record({
         type: fc.constant("Table"),
         width: fc.float({min: 1, max: 20, noNaN: true}),

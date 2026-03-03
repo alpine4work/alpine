@@ -11,8 +11,8 @@ import {generateApiKey} from "~/shared/id/api_key.js";
 const mutexByDirectoryPath = new DefaultMap<string, Mutex>(() => new Mutex());
 
 /**
- * Make sure our development key files exist. If our key files do not exist
- * then we generate new keys. Otherwise this function does nothing.
+ * Make sure our development key files exist. If our key files do not exist then we
+ * generate new keys. Otherwise this function does nothing.
  */
 export async function ensureServiceKeys(directoryPath: string) {
     await mutexByDirectoryPath.getOrSetDefault(directoryPath).withLock(async () => {

@@ -20,8 +20,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * This is useful for creating a button-like element that doesn't take focus or
  * trigger hover styles when interacting with it.
  *
- * You can use this to add a button-like element to a code block that doesn't
- * take focus away from the code block when interacting with it.
+ * You can use this to add a button-like element to a code block that doesn't take
+ * focus away from the code block when interacting with it.
  */
 export function addUnfocusableButtonBehaviorToElement(
     element: HTMLElement,

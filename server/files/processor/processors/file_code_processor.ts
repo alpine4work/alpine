@@ -41,8 +41,8 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
 
                 const parserPromise = language.getParser()?.promise;
 
-                // Receive data from stream until we've received a certain number of lines.
-                // Then stop waiting for data. Next we'll parse the data we've received...
+                // Receive data from stream until we've received a certain number of lines. Then
+                // stop waiting for data. Next we'll parse the data we've received...
                 const stringPromise = new Promise<string>((resolve, reject) => {
                     if (stream.readableEnded) {
                         resolve("");

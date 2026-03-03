@@ -185,12 +185,12 @@ const metadataByRouteId: Record<
 };
 
 /**
- * Get error title to use when the route error boundary catches an error. The
- * title is generally pretty generic like "Couldn't open document" and the
- * error is expected to provide a more detailed error message.
+ * Get error title to use when the route error boundary catches an error. The title
+ * is generally pretty generic like "Couldn't open document" and the error is
+ * expected to provide a more detailed error message.
  *
- * We prefer using short, generic, language like "Couldn't open tasks" instead
- * of "Couldn't open task collection" so the user has less to parse when they
+ * We prefer using short, generic, language like "Couldn't open tasks" instead of
+ * "Couldn't open task collection" so the user has less to parse when they
  * encounter an error.
  */
 export function getRouteErrorTitle(routeId: string | null): string {
@@ -203,12 +203,12 @@ export function getRouteErrorTitle(routeId: string | null): string {
 }
 
 /**
- * Get error title to use when the route error boundary catches an error. The
- * title is generally pretty generic like "Couldn't open document" and the
- * error is expected to provide a more detailed error message.
+ * Get error title to use when the route error boundary catches an error. The title
+ * is generally pretty generic like "Couldn't open document" and the error is
+ * expected to provide a more detailed error message.
  *
- * We prefer using short, generic, language like "Couldn't open tasks" instead
- * of "Couldn't open task collection" so the user has less to parse when they
+ * We prefer using short, generic, language like "Couldn't open tasks" instead of
+ * "Couldn't open task collection" so the user has less to parse when they
  * encounter an error.
  */
 export function useRouteErrorTitle() {
@@ -219,8 +219,8 @@ export function useRouteErrorTitle() {
 /**
  * Are we in a full width route? A full width route is one where the route's
  * contents extend from the left edge of the screen to the right edge of the
- * screen. The space sidebar does not contribute width to routes which aren't
- * full width which allows us to center non-full width route contents.
+ * screen. The space sidebar does not contribute width to routes which aren't full
+ * width which allows us to center non-full width route contents.
  */
 export function useSpaceSideBarSpacing(): "Always" | "Never" | "Sometimes" {
     const {matches} = assertExists(useContext(DataRouterStateContext));

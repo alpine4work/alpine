@@ -39,12 +39,14 @@ test("places characters after our character first, then characters before our ch
         c => c.type === ourCharacter.type && c.variant === ourCharacter.variant,
     );
 
-    // Get characters that come after our character in original order (excluding same type)
+    // Get characters that come after our character in original order (excluding same
+    // type)
     const charactersAfterUs = orderedReactionCharacters
         .slice(ourCharacterIndex + 1)
         .filter(c => c.type !== ourCharacter.type);
 
-    // Get characters that come before our character in original order (excluding same type)
+    // Get characters that come before our character in original order (excluding same
+    // type)
     const charactersBeforeUs = orderedReactionCharacters
         .slice(0, ourCharacterIndex)
         .filter(c => c.type !== ourCharacter.type);
@@ -123,7 +125,8 @@ test("handles middle character correctly", () => {
     const ourCharacter: ReactionCharacter = {type: "Cat", variant: "Yellow"}; // Middle of Cat variants
     const result = sortReactionCharactersAroundOurCharacter(ourCharacter);
 
-    // Should be: Yellow Cat, Pink Cat, Grey Cat, then Yetis, then Trees, then Blue Tree, Green Tree
+    // Should be: Yellow Cat, Pink Cat, Grey Cat, then Yetis, then Trees, then Blue
+    // Tree, Green Tree
     const expectedOrder = [
         {type: "Cat", variant: "Yellow"},
         {type: "Cat", variant: "Pink"},

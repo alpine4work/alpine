@@ -413,7 +413,8 @@ describe("getPersonalTaskViewRemainingSectionQueryFilters", () => {
     });
 
     test("returns null when user filters for due date entirely before remaining range", () => {
-        // User filters for due date < today + 3 days (before the remaining section's range)
+        // User filters for due date < today + 3 days (before the remaining section's
+        // range)
         const result = callWithDefaults([
             {
                 type: "DueDate",
@@ -477,8 +478,8 @@ describe("getPersonalTaskViewClosedSectionQueryFilters", () => {
     test("returns null when no user filters (closed section only shown when user explicitly filters for Closed)", () => {
         const result = callWithDefaults();
 
-        // By default (no filters), the normalized display status filter doesn't include Closed,
-        // so the Closed section should not be shown
+        // By default (no filters), the normalized display status filter doesn't include
+        // Closed, so the Closed section should not be shown
         expect(result).toBeNull();
     });
 

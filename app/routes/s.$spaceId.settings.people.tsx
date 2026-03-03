@@ -126,10 +126,10 @@ function SpacePeopleSettingsRouteAccounts({
     const accountRegistry = useAccountRegistry();
     const {revalidate} = useRevalidator();
 
-    // Add `accounts` to the RPC cache so future RPC calls have access to them
-    // and we can skip any preloads but don't read `accounts` from the RPC
-    // cache since it may have eventually consistent data that overrides our strongly
-    // consistent `accounts` loaded from the server!
+    // Add `accounts` to the RPC cache so future RPC calls have access to them and we
+    // can skip any preloads but don't read `accounts` from the RPC cache since it may
+    // have eventually consistent data that overrides our strongly consistent
+    // `accounts` loaded from the server!
     useLazyLoadRpc(
         expensivelyGetAllSpaceAccountsRpc,
         {spaceId: space.id},
@@ -181,8 +181,8 @@ function SpacePeopleSettingsRouteAccounts({
         let ownerAccount: AccountModelData | undefined;
 
         for (const account of allAccountsDatas) {
-            // Don't render bots in the people settings page. They'll be managed in the
-            // bots settings page.
+            // Don't render bots in the people settings page. They'll be managed in the bots
+            // settings page.
             if (account.botId) continue;
 
             if (account.space.state.type === "Removed") {
@@ -225,10 +225,10 @@ function SpacePeopleSettingsRouteAccounts({
     }, [allAccountsDatas]);
 
     const onSendInvitesSuccess = () => {
-        // TODO: update this to use the promise that is now available
-        // TODO: revalidate does not return a promise, so we can't wait for it to finish. We
-        // should create some method of waiting for the data to come back before closing the modal.
-        // This would be a great UX improvement as we don't want users to see flashes of new data
+        // TODO: update this to use the promise that is now available TODO: revalidate does
+        // not return a promise, so we can't wait for it to finish. We should create some
+        // method of waiting for the data to come back before closing the modal. This would
+        // be a great UX improvement as we don't want users to see flashes of new data
         // coming in after the modal closes.
 
         // If we've sent any new invites, revalidate to refetch the loader data.
@@ -592,9 +592,9 @@ function SpacePeopleSettingsCopyInviteLinkButton({onPress}: {onPress: () => Prom
             isTooltipVisibleAfterPress={true}
             onHoverStart={() => setIsCopied(false)}
             onPress={() => {
-                // We can't use `await` here since while the button is pending the tooltip will
-                // be disabled and `skipTooltipHoverDelayAndAnimation()` won't be able to skip
-                // the animation. So assume the copy works.
+                // We can't use `await` here since while the button is pending the tooltip will be
+                // disabled and `skipTooltipHoverDelayAndAnimation()` won't be able to skip the
+                // animation. So assume the copy works.
                 void onPress();
 
                 setIsCopied(true);

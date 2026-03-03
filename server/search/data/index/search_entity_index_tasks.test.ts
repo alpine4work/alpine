@@ -78,8 +78,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -2259,8 +2259,8 @@ test("excludes collections account doesn\u2019t have access to when searching", 
     await ProcessContextModule.waitForTestTasks();
 });
 
-// Tests that would be in `get_search_entity.test.ts` except we don't want to
-// start OpenSearch in that file.
+// Tests that would be in `get_search_entity.test.ts` except we don't want to start
+// OpenSearch in that file.
 describe("getSearchEntity", () => {
     test("can get task search entity", async () => {
         const space = await TestSpace.create(context);

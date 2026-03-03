@@ -32,8 +32,7 @@ export async function getChannelRealtimeEvent(
                 eventTransaction.map(async eventStub => {
                     const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
 
-                    // Check that the `itemKey` we're reading is for the channel we've
-                    // authorized.
+                    // Check that the `itemKey` we're reading is for the channel we've authorized.
                     if (
                         itemKey.partitionType === "Channel" &&
                         itemKey.channelId === channelId &&
@@ -44,8 +43,8 @@ export async function getChannelRealtimeEvent(
                         return {...eventStub, itemKey};
                     }
 
-                    // Check that the `itemKey` we're reading is for a post in the channel
-                    // we've authorized.
+                    // Check that the `itemKey` we're reading is for a post in the channel we've
+                    // authorized.
                     if (
                         itemKey.partitionType === "Post" &&
                         allowedPostSortRangeTypesForGetPostRealtimeEvent[itemKey.sortRangeType]

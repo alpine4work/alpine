@@ -60,10 +60,10 @@ export function updateInboxPostCommentsEntry(
                 newItem = omitObject(newItem, ["archiveChannelPostsEntryAgain"]);
             }
 
-            // If we're creating this `PostCommentsEntry` then at the same time if the post
-            // is present in `ChannelPostsEntry` then we want to archive it in the
-            // `ChannelPostsEntry`. So the user refers to `PostCommentsEntry` from now on
-            // for this post.
+            // If we're creating this `PostCommentsEntry` then at the same time if the post is
+            // present in `ChannelPostsEntry` then we want to archive it in the
+            // `ChannelPostsEntry`. So the user refers to `PostCommentsEntry` from now on for
+            // this post.
 
             const postInChannelPostsItemKey: InboxPostInChannelPostsEntryItemKey = {
                 partitionType: "Inbox",
@@ -80,8 +80,8 @@ export function updateInboxPostCommentsEntry(
 
             // The post isn't present in any `ChannelPostsEntry`.
             if (!postInChannelPostsItem) {
-                // Create the `PostInChannelPostsEntry` item when we commit this transaction.
-                // This item existing means if a `CreatePost` event is processed later we'll
+                // Create the `PostInChannelPostsEntry` item when we commit this transaction. This
+                // item existing means if a `CreatePost` event is processed later we'll
                 // automatically archive the post in the channel posts entry.
                 //
                 // If the item already exists then we need to retry.
@@ -109,8 +109,8 @@ export function updateInboxPostCommentsEntry(
                 bucketGeneration: postInChannelPostsItem.channelPostsEntry.bucketGeneration,
             };
 
-            // Item might not exist if we're running this job multiple times since the
-            // inbox entry might have been deleted.
+            // Item might not exist if we're running this job multiple times since the inbox
+            // entry might have been deleted.
             const channelPostsItem = await InboxTable.getItemIfExists(context, channelPostsItemKey);
 
             if (!channelPostsItem) {
@@ -158,9 +158,9 @@ export function updateInboxPostCommentsEntry(
                 };
             }
 
-            // Make sure we always create an archived entry for the post when we archived
-            // the post in its corresponding `ChannelPostsEntry`. So the user can unarchive
-            // the post to put it back in their inbox.
+            // Make sure we always create an archived entry for the post when we archived the
+            // post in its corresponding `ChannelPostsEntry`. So the user can unarchive the
+            // post to put it back in their inbox.
             if (newItem.isArchived) {
                 newItem = {
                     ...newItem,

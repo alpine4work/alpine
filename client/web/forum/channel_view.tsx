@@ -142,9 +142,9 @@ export function ChannelView({
         });
     }
 
-    // Update `SearchEntityRegistry` with the latest channel name. Now as the
-    // name changes in realtime, any `SearchEntityModel`s rendered elsewhere in
-    // the product will also update.
+    // Update `SearchEntityRegistry` with the latest channel name. Now as the name
+    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
+    // will also update.
     useMemo(() => {
         return searchEntityRegistry.getEntityStore(
             new SearchEntityModel({
@@ -160,9 +160,9 @@ export function ChannelView({
         PostQueryList.new(initialPostsResult),
     );
 
-    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
-    // expanded comments on mobile. So make sure to close them all.
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+    // in a new route. `<PostListView>` will throw if you pass in `posts` with expanded
+    // comments on mobile. So make sure to close them all.
     if (platform === "mobile" && posts.hasOpenPostComments()) {
         setPosts(posts => posts.closeAllPostComments());
     }
@@ -218,10 +218,9 @@ export function ChannelView({
         },
     );
 
-    // When a post is created, we should get it from our channel WebSocket
-    // connection. But in case our WebSocket connection is slow, `<NewPostView>`
-    // emits an event after a post has been successfully created and we handle
-    // that event here.
+    // When a post is created, we should get it from our channel WebSocket connection.
+    // But in case our WebSocket connection is slow, `<NewPostView>` emits an event
+    // after a post has been successfully created and we handle that event here.
     useEffect(() => {
         return optimisticCreatePostEventEmitter.subscribe(event => {
             if (event.channelId !== channel.id) return;
@@ -260,9 +259,9 @@ export function ChannelView({
             <Box display="flex" alignItems="center" gap={platform === "mobile" ? "1.5" : "2"}>
                 {!channel.accessPolicy.defaultGrant && !channel.accessPolicy.urlGrant && (
                     // We add a lock icon to private channels because unlike other entities we don't
-                    // show the share switch in the navigation bar. Since knowing whether a channel
-                    // is public or private is important context, we include a lock to make sure you
-                    // know the channel is private before posting.
+                    // show the share switch in the navigation bar. Since knowing whether a channel is
+                    // public or private is important context, we include a lock to make sure you know
+                    // the channel is private before posting.
                     <LockBoldFillIcon
                         className={sprinkles({flexShrink: "0"})}
                         size={spacing[platform === "mobile" ? "3" : "4"]}
@@ -280,8 +279,8 @@ export function ChannelView({
 
                             setIsEditingNameInline(false);
 
-                            // Immediately apply a realtime event transaction to update our channel in case
-                            // our realtime WebSocket connection is slow.
+                            // Immediately apply a realtime event transaction to update our channel in case our
+                            // realtime WebSocket connection is slow.
                             handleEventForChannel(event.eventTransaction);
                         }}
                     />
@@ -301,9 +300,9 @@ export function ChannelView({
                                 //
                                 // We implement double click with `onPointerDown` instead of `onDoubleClick`
                                 // because `onDoubleClick` fires one pointer up but the browser performs text
-                                // selection on double click pointer down. So there's a small visual glitch
-                                // where you can see the browser selection after double click before pointer up
-                                // when you use `onDoubleClick`,
+                                // selection on double click pointer down. So there's a small visual glitch where
+                                // you can see the browser selection after double click before pointer up when you
+                                // use `onDoubleClick`,
                                 event.preventDefault();
 
                                 setIsEditingNameInline(true);
@@ -319,8 +318,8 @@ export function ChannelView({
             routeLayout !== "narrow"
                 ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
                 : contentStyles.contentMaxWidth,
-        // Create a bit of space to the left so we don't cut off the channel name
-        // editor border.
+        // Create a bit of space to the left so we don't cut off the channel name editor
+        // border.
         desktopTitleLeftSlop: "1",
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
@@ -331,12 +330,12 @@ export function ChannelView({
                 initialIsSubscribed={initialIsSubscribed}
             />
         ) : undefined,
-        // Always put the share UI in the more menu. You should add users to a channel
-        // by clicking the invite button in `<ChannelViewContributorsSection>`. Since
-        // in a public channel it doesn't make sense to invite people from the share
-        // overlay. Having both the share menu visible and the invite button in
-        // `<ChannelViewContributorsSection>` may make it unclear what to use for
-        // adding people to a channel.
+        // Always put the share UI in the more menu. You should add users to a channel by
+        // clicking the invite button in `<ChannelViewContributorsSection>`. Since in a
+        // public channel it doesn't make sense to invite people from the share overlay.
+        // Having both the share menu visible and the invite button in
+        // `<ChannelViewContributorsSection>` may make it unclear what to use for adding
+        // people to a channel.
         withWideRouteLayoutShareMenuItem: true,
         // Don't render the share button if the account doesn't have space access. They
         // won't be allowed to see the names of accounts in the share dialog.
@@ -358,9 +357,9 @@ export function ChannelView({
                   accessLevelText: channelAccessLevelText,
               }
             : undefined,
-        // Move the menu further away from the subscribe button. It's quite large and
-        // the default offset renders our menu too close to the subscribe button in my
-        // design opinion.
+        // Move the menu further away from the subscribe button. It's quite large and the
+        // default offset renders our menu too close to the subscribe button in my design
+        // opinion.
         menuOffset: platform !== "mobile" ? "2.5" : undefined,
         menuActions: [
             [
@@ -436,8 +435,8 @@ export function ChannelView({
 
                 setIsEditingDescriptionInline(false);
 
-                // Immediately apply a realtime event transaction to update our channel in case
-                // our realtime WebSocket connection is slow.
+                // Immediately apply a realtime event transaction to update our channel in case our
+                // realtime WebSocket connection is slow.
                 handleEventForChannel(event.eventTransaction);
             },
             onAddAccountGrantsToAccessPolicy: async ({accountGrantById, notification}) => {
@@ -513,8 +512,8 @@ export function ChannelView({
                 onOptimisticPostRealtimeEventTransaction={useCallback(
                     (promise, postId, update) => {
                         setPostsOptimistically(promise, (posts, promiseValue) => {
-                            // Once `promise` resolves, use the event transaction from `promise` to update
-                            // the posts instead of our optimistic updater.
+                            // Once `promise` resolves, use the event transaction from `promise` to update the
+                            // posts instead of our optimistic updater.
                             if (promiseValue) {
                                 return posts.updateQuery(query =>
                                     query.handleEventTransaction(promiseValue),
@@ -528,8 +527,8 @@ export function ChannelView({
                             const newPostItem = {
                                 ...oldPostItem,
                                 // Always pretend like our optimistic update is one version higher than what's
-                                // currently in state. Once `promise` resolves then we'll update the item with
-                                // the real version.
+                                // currently in state. Once `promise` resolves then we'll update the item with the
+                                // real version.
                                 version: oldPostItem.version + 1,
                                 model: newPost,
                             };
@@ -579,8 +578,8 @@ export function ChannelView({
                                     },
                                 );
 
-                                // Immediately apply a realtime event transaction to update our channel in case
-                                // our realtime WebSocket connection is slow.
+                                // Immediately apply a realtime event transaction to update our channel in case our
+                                // realtime WebSocket connection is slow.
                                 handleEventForChannel(eventTransaction);
                             }}
                             onCloseWithAnimation={() => onCloseWithAnimation()}

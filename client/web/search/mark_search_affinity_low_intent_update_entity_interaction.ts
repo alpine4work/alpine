@@ -21,13 +21,13 @@ let scheduledPersistSessionStorageSearchAffinityEntityIds: Set<SearchAffinityEnt
 
 /**
  * Send `markSearchAffinityEntityInteraction()` with a `LowIntentUpdate`
- * interaction once every 24 seconds. The idea is a single update gives you a
- * low intent update interaction but continuous updating over the course of two
- * minutes gives you the equivalent of a medium intent update interaction (five
- * low intent update interactions).
+ * interaction once every 24 seconds. The idea is a single update gives you a low
+ * intent update interaction but continuous updating over the course of two minutes
+ * gives you the equivalent of a medium intent update interaction (five low intent
+ * update interactions).
  *
- * Our convention is to call this hook from a route file in `app/routes` to
- * make it easier to manage/audit how this hook gets used.
+ * Our convention is to call this hook from a route file in `app/routes` to make it
+ * easier to manage/audit how this hook gets used.
  */
 export function markSearchAffinityLowIntentUpdateEntityInteraction(
     context: AppContext,
@@ -36,9 +36,9 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
     {
         isVeryLow = false,
     }: {
-        // TODO(calebmer): Mixing very low intent updates with regular low intent
-        // updates isn't supported right now. Ideally one regular low intent update
-        // makes the entire thing low intent (vs very low intent).
+        // TODO(calebmer): Mixing very low intent updates with regular low intent updates
+        // isn't supported right now. Ideally one regular low intent update makes the
+        // entire thing low intent (vs very low intent).
         isVeryLow?: boolean;
     } = {},
 ) {
@@ -60,8 +60,7 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
     const updateThrottleDuration = (1000 * 60 * 2) / 5; // 2min / 5 = 24s
 
     if (lastUpdateTime === null || updateThrottleDuration < currentTime - lastUpdateTime) {
-        // If this errs it will show up in our telemetry but we don't care about
-        // it here.
+        // If this errs it will show up in our telemetry but we don't care about it here.
         void markSearchAffinityEntityInteraction(context, {
             spaceId,
             entityId,
@@ -84,9 +83,9 @@ function schedulePersistSessionStorageEntityIdsIfNeeded() {
     // disk so may have unexpected performance characteristics. Safer to call in an
     // idle callback.
     //
-    // We can't use `requestIdleCallback()` since Safari doesn't support it. We use
-    // the React scheduler since the React scheduler knows about all our other
-    // ongoing work.
+    // We can't use `requestIdleCallback()` since Safari doesn't support it. We use the
+    // React scheduler since the React scheduler knows about all our other ongoing
+    // work.
     unstable_scheduleCallback(unstable_IdlePriority, () => {
         assert(scheduledPersistSessionStorageSearchAffinityEntityIds !== null);
 

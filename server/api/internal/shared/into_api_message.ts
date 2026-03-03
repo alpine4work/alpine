@@ -60,22 +60,22 @@ export async function intoApiMessage(
         switch (streamPart.type) {
             case "ToolCall": {
                 // TODO(calebmer, #api): Find a way to represent tool calls in the API. I'm
-                // imagining we have a `stream` property on messages with a `parts` array. If
-                // the `parts` array has content we've already added to `content` then we
-                // reference that content with an index.
+                // imagining we have a `stream` property on messages with a `parts` array. If the
+                // `parts` array has content we've already added to `content` then we reference
+                // that content with an index.
                 break;
             }
             case "Reasoning": {
-                // TODO(ifitzsimmons, #api): Don't show Reasoning summaries in the returned
-                // message content. This ultimately will get loaded in Agent Conversation context
-                // and is a bad use of tokens. We should expose a way to fetch a message along
-                // with *all* of its stream parts.
+                // TODO(ifitzsimmons, #api): Don't show Reasoning summaries in the returned message
+                // content. This ultimately will get loaded in Agent Conversation context and is a
+                // bad use of tokens. We should expose a way to fetch a message along with _all_ of
+                // its stream parts.
                 break;
             }
             case "Content": {
-                // Concatenate all the streamed content into the content we return from the
-                // API. That way in rendering code developers don't have to worry about whether
-                // this is a streamed message or not. They can render the content all the same.
+                // Concatenate all the streamed content into the content we return from the API.
+                // That way in rendering code developers don't have to worry about whether this is
+                // a streamed message or not. They can render the content all the same.
                 for (const element of streamPart.content.elements) {
                     contentElements.push(element);
                 }

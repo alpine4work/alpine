@@ -199,8 +199,8 @@ const testCases: Array<{
             }
 
             if (isMobile) {
-                // Comment button doesn't use a `<button>` element on mobile so it doesn't
-                // move focus.
+                // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+                // focus.
                 await page.getByLabel("Comment").click();
             } else {
                 await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();

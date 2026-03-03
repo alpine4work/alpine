@@ -39,8 +39,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 /**
  * A keyboard toolbar that's basically the same as
  * `<ContentEditorMobileKeyboardToolbar>` but designed for use with
- * `<MessageInput>`. Lives in `~/client/content` instead of
- * `~/client/messaging` since we use internal content editor code.
+ * `<MessageInput>`. Lives in `~/client/content` instead of `~/client/messaging`
+ * since we use internal content editor code.
  */
 export function MessageInputMobileKeyboardToolbar({
     state,
@@ -166,26 +166,25 @@ export function MessageInputMobileKeyboardToolbar({
                     const view = assertExists(viewRef.current);
                     const inputContainerElement = assertExists(inputContainerRef.current);
 
-                    // In our native mobile app, blur the link modal input before animating the
-                    // modal closed. In our web mobile app, we want to keep focus in a hidden input
-                    // so the keyboard doesn't close.
+                    // In our native mobile app, blur the link modal input before animating the modal
+                    // closed. In our web mobile app, we want to keep focus in a hidden input so the
+                    // keyboard doesn't close.
                     //
                     // - In native mobile, even if we maintain focus in the DOM, iOS will do the
                     //   keyboard open/close animation. We might as well control the timing there.
                     //
-                    // - In web mobile, the keyboard open/close animation is incredibly janky since
-                    //   we don't have the same level of control as we do in native. So it feels
-                    //   better to keep the keyboard open the whole time.
+                    // - In web mobile, the keyboard open/close animation is incredibly janky since we
+                    //   don't have the same level of control as we do in native. So it feels better to
+                    //   keep the keyboard open the whole time.
                     if (NativeMobileBridge) {
-                        // Instead of calling `view.dom.blur()` which moves focus to `document.body`,
-                        // we put focus on the toolbar element. That way
-                        // `useConfirmSaveAfterLosingFocus()` (used for document comment editing) sees
-                        // that focus stays inside the toolbar.
+                        // Instead of calling `view.dom.blur()` which moves focus to `document.body`, we
+                        // put focus on the toolbar element. That way `useConfirmSaveAfterLosingFocus()`
+                        // (used for document comment editing) sees that focus stays inside the toolbar.
                         inputContainerElement.focus();
                     } else {
                         // For iOS Safari, move focus to a temporary, invisible, element so that when
-                        // opening the link input the mobile keyboard stays open. The link modal will
-                        // focus its link input after it mounts.
+                        // opening the link input the mobile keyboard stays open. The link modal will focus
+                        // its link input after it mounts.
                         const temporaryInputElement = document.createElement("input");
                         temporaryInputElement.type = "text";
                         temporaryInputElement.style.width = "0";
@@ -305,8 +304,8 @@ function MessageInputMobileKeyboardToolbarButton({
 }) {
     const {isHovered, hoverProps} = useHover({});
     const {isPressed, pressProps} = usePress({
-        // Toolbar buttons should not be focusable since we don't want the content
-        // editor to lose focus.
+        // Toolbar buttons should not be focusable since we don't want the content editor
+        // to lose focus.
         preventFocusOnPress: true,
         isDisabled,
         onPress,
@@ -325,8 +324,8 @@ function MessageInputMobileKeyboardToolbarButton({
         <>
             {dividerLeft && (
                 <Box
-                    // We want all space on the toolbar to be touchable so the user doesn't touch
-                    // and nothing happens (which can feel like a bug).
+                    // We want all space on the toolbar to be touchable so the user doesn't touch and
+                    // nothing happens (which can feel like a bug).
                     {...pressAndHoverProps}
                     // In case `pressAndHoverProps` had a `ref`, unset it.
                     ref={null}
@@ -335,8 +334,8 @@ function MessageInputMobileKeyboardToolbarButton({
                 />
             )}
             <Box
-                // None of this is focusable since it's used on mobile where there's no
-                // keyboard navigation.
+                // None of this is focusable since it's used on mobile where there's no keyboard
+                // navigation.
                 {...pressAndHoverProps}
                 aria-label={label}
                 flexGrow="1"

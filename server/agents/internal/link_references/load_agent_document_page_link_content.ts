@@ -23,8 +23,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * This means that the agent can't go backward to a preious page.
  *
  * For example
- * ```markdown
  *
+ * ```markdown
  * Document page content in the form of a list of elements
  *
  * [Next Page »](/document/my-document?page=3)
@@ -71,13 +71,13 @@ export async function loadAgentDocumentPageLinkContent({
             {elements: pageElements},
             {
                 // Remove comment marks from the document content since there's no way for the
-                // agent to currently read document comments so the comment mark is merely
-                // wasted tokens.
+                // agent to currently read document comments so the comment mark is merely wasted
+                // tokens.
                 //
-                // TODO(calebmer, #ai): Provide agents a way to see all the comments in a
-                // document. We're thinking about implementing this as a separate
-                // `/document/${title}-comments` link that has all the comments in the document
-                // and further links to read each comment thread individually.
+                // TODO(calebmer, #ai): Provide agents a way to see all the comments in a document.
+                // We're thinking about implementing this as a separate
+                // `/document/${title}-comments` link that has all the comments in the document and
+                // further links to read each comment thread individually.
                 visitInlineElement: element => {
                     if (!element.marks) return;
                     const newMarks = element.marks.filter(mark => mark.type !== "Comment");

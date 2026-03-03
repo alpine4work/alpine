@@ -61,8 +61,8 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
                     break;
                 }
 
-                // Remove empty unordered and ordered lists in between lists of the same type
-                // we want to merge.
+                // Remove empty unordered and ordered lists in between lists of the same type we
+                // want to merge.
                 if (nextElement.items.length === 0) {
                     elements.splice(index + 1, 1);
                     continue;
@@ -108,22 +108,27 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                     normalizeApiContentBlockElements(item.elements);
                 } else if (element.type !== "UnorderedList") {
                     // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
-                    // lists. `CheckList` and `OrderedList` can't support phantom lists in the same way.
+                    // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
+                    // way.
                     //
                     // So while unordered phantom lists look like:
+                    //
                     // ```markdown
-                    // - - - item at 3rd level in a phantom unordered list
+                    // -   -   - item at 3rd level in a phantom unordered list
                     // ```
                     //
                     // Checklists and ordered phantom lists get an empty paragraph and look like:
+                    //
                     // ```markdown
                     // 1. <p></p>
-                    //   - Mixed types with phantoms
+                    //
+                    // - Mixed types with phantoms
                     //
                     // OR
                     //
                     // [ ] <p></p>
-                    //   - Mixed types with phantoms
+                    //
+                    // - Mixed types with phantoms
                     // ```
                     item.elements = [{type: "Paragraph", elements: []}];
                 }
@@ -232,8 +237,8 @@ function normalizeApiContentInlineElements(
                 delete element.title;
             }
 
-            // `isAccountShortName` can only be true for account targets. Otherwise set
-            // to undefined.
+            // `isAccountShortName` can only be true for account targets. Otherwise set to
+            // undefined.
             if (
                 element.isAccountShortName === false ||
                 (element.isAccountShortName && element.target.type !== "Account")
@@ -263,10 +268,11 @@ function normalizeApiContentInlineElements(
 }
 
 export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithKeyofType(
-    // We use an object so TypeScript makes sure we list each type once. Then
-    // convert to an array with `Object.keys()`.
+    // We use an object so TypeScript makes sure we list each type once. Then convert
+    // to an array with `Object.keys()`.
     cast<Record<ApiContentInlineElementMark["type"], true>>({
-        // Always put other marks inside comments so the `<mark>` HTML isn't broken apart. Like this:
+        // Always put other marks inside comments so the `<mark>` HTML isn't broken apart.
+        // Like this:
         //
         // ```md
         // <mark data-comment="abc">123</mark>[<mark data-comment="abc">456</mark>](https://example.com)<mark data-comment="abc">789</mark>

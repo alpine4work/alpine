@@ -2,15 +2,15 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
  * Is the provided error a failure due to a DynamoDB condition check from a
- * transaction? Checks that `conditionCheckIndex` is the cancellation reason
- * with condition check failure.
+ * transaction? Checks that `conditionCheckIndex` is the cancellation reason with
+ * condition check failure.
  */
 export function isDynamoTransactionCancelledExceptionByConditionCheckError(
     error: unknown,
     conditionCheckIndex: number,
 ): boolean {
-    // Recurse into the error's cause if there is one. `classifyDynamoError()` will
-    // put the raw error JSON from the response in the cause property.
+    // Recurse into the error's cause if there is one. `classifyDynamoError()` will put
+    // the raw error JSON from the response in the cause property.
     if (error instanceof Error && "cause" in error) {
         return isDynamoTransactionCancelledExceptionByConditionCheckError(
             error.cause,

@@ -28,33 +28,33 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
-// Keep track of the previous task object the query saw so we can check if
-// we've missed any updates. We run this validation in `development` and
-// `test` since maintaining task update state correctly is a little tricky to
-// get right but critical to the operation of this class.
+// Keep track of the previous task object the query saw so we can check if we've
+// missed any updates. We run this validation in `development` and `test` since
+// maintaining task update state correctly is a little tricky to get right but
+// critical to the operation of this class.
 const previousTaskByIdByQueryForTest =
     process.env.NODE_ENV !== "production"
         ? new WeakMap<TaskClientQueryInternal, Map<TaskId, TaskClientStoreTaskEntry>>()
         : null;
 
 /**
- * Maintains the state of a query on the client. Whenever a task is updated in
- * the client store we let all our client queries know and they decide whether
- * or not an update is needed.
+ * Maintains the state of a query on the client. Whenever a task is updated in the
+ * client store we let all our client queries know and they decide whether or not
+ * an update is needed.
  *
  * The loading sequence for a query goes like this:
  *
- * 1. A new query model is created in the store before we send a
- *    `subscribeToQuery` procedure from `TaskRealtimeProtocol` to the server.
+ * 1. A new query model is created in the store before we send a `subscribeToQuery`
+ *    procedure from `TaskRealtimeProtocol` to the server.
  *
  * 2. The query receives and incorporates realtime events into the query model
- *    state, including the realtime event side-effect of `subscribeToQuery`
- *    that backfills all our tasks.
+ *    state, including the realtime event side-effect of `subscribeToQuery` that
+ *    backfills all our tasks.
  *
  * 3. `subscribeToQuery` returns with the `loadedState` (our query's pagination
- *    state) and `previouslyBackfilledTaskIds` which is tasks the server
- *    previously backfilled that may not be in our query model since they
- *    weren't in the backfill event we sent for the query. Once we incorporate
+ *    state) and `previouslyBackfilledTaskIds` which is tasks the server previously
+ *    backfilled that may not be in our query model since they weren't in the
+ *    backfill event we sent for the query. Once we incorporate
  *    `previouslyBackfilledTaskIds` into our query model the model is considered
  *    fully loaded.
  *
@@ -70,11 +70,11 @@ export class TaskClientQuery {
     /**
      * A readonly reference to the task store.
      *
-     * If you want to write you should have a full `TaskClientStore` instance.
-     * This allows code to carefully control write access. For example,
-     * `<TaskRowView>` has a `TaskClientReadonlyStore` and `TaskClientQuery`.
-     * `<TaskRowView>` must make mutations through a `commitActionTransaction` prop
-     * since it doesn't have types that allow write access.
+     * If you want to write you should have a full `TaskClientStore` instance. This
+     * allows code to carefully control write access. For example, `<TaskRowView>` has
+     * a `TaskClientReadonlyStore` and `TaskClientQuery`. `<TaskRowView>` must make
+     * mutations through a `commitActionTransaction` prop since it doesn't have types
+     * that allow write access.
      */
     public readonly store: TaskClientReadonlyStore;
 
@@ -90,18 +90,18 @@ export class TaskClientQuery {
     /**
      * The query's loaded task order.
      *
-     * The query might be keeping track of more tasks that aren't in the loaded
-     * task range.
+     * The query might be keeping track of more tasks that aren't in the loaded task
+     * range.
      */
     public readonly taskOrderStore: Store<Tree<TaskQuerySortCursor, null>>;
 
     /**
-     * The number of tasks we want to additionally load on top of what's already in
-     * the query. Will be zero if the query is fully loaded.
+     * The number of tasks we want to additionally load on top of what's already in the
+     * query. Will be zero if the query is fully loaded.
      *
-     * The `TaskClientQuery` class does not make requests to load more data.
-     * Instead `TaskRealtimeClient` listens to this store and will make a request
-     * to load more data.
+     * The `TaskClientQuery` class does not make requests to load more data. Instead
+     * `TaskRealtimeClient` listens to this store and will make a request to load more
+     * data.
      */
     public readonly loadMoreTaskCountStore: Store<number>;
 
@@ -141,27 +141,25 @@ export class TaskClientQuery {
     }
 
     /**
-     * If there was an error in our `TaskRealtimeService` subscription for this
-     * query then this function is called to transition the query to an error
-     * state. The error will be re-thrown in UI components when trying to access
-     * the query's data.
+     * If there was an error in our `TaskRealtimeService` subscription for this query
+     * then this function is called to transition the query to an error state. The
+     * error will be re-thrown in UI components when trying to access the query's data.
      */
     public setError(error: unknown) {
         this._internal.setError(error);
     }
 
     /**
-     * If this query is in an erred state because `setError()` was previously
-     * called then this function clears the error and allows normal operation to
-     * resume.
+     * If this query is in an erred state because `setError()` was previously called
+     * then this function clears the error and allows normal operation to resume.
      */
     public clearError() {
         this._internal.clearError();
     }
 
     /**
-     * Get the store associated with the provided `TaskId` if it's loaded in the
-     * query. If it's not loaded in the query you'll get null.
+     * Get the store associated with the provided `TaskId` if it's loaded in the query.
+     * If it's not loaded in the query you'll get null.
      */
     public getLoadedTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
         return this._internal.getLoadedTaskEntryStoreIfExists(taskId);
@@ -173,18 +171,18 @@ export class TaskClientQuery {
      * Throws an error if `TaskId` is not a part of the query when you call this
      * function.
      *
-     * The `task` in this store should be non-null when this function is called but
-     * if you hold onto this reference for long enough you may see `task` become
-     * null because the task leaves this query and becomes unauthorized.
+     * The `task` in this store should be non-null when this function is called but if
+     * you hold onto this reference for long enough you may see `task` become null
+     * because the task leaves this query and becomes unauthorized.
      */
     public getLoadedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
         return this._internal.getLoadedTaskEntryStore(taskId);
     }
 
     /**
-     * Get a snapshot of the task associated with the provided `TaskId`. Prefer
-     * using `getLoadedTaskEntryStore()` since it will give you changes to the task
-     * over time.
+     * Get a snapshot of the task associated with the provided `TaskId`. Prefer using
+     * `getLoadedTaskEntryStore()` since it will give you changes to the task over
+     * time.
      *
      * Throws an error if `TaskId` is not a part of the query when you call this
      * function.
@@ -196,24 +194,24 @@ export class TaskClientQuery {
     /**
      * Get the store associated with the provided `TaskId`.
      *
-     * Throws an error if `TaskId` is not referenced by some task in the query when
-     * you call this function.
+     * Throws an error if `TaskId` is not referenced by some task in the query when you
+     * call this function.
      *
-     * The `task` in this store should be non-null when this function is called but
-     * if you hold onto this reference for long enough you may see `task` become
-     * null because the task becomes unauthorized.
+     * The `task` in this store should be non-null when this function is called but if
+     * you hold onto this reference for long enough you may see `task` become null
+     * because the task becomes unauthorized.
      */
     public getReferencedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
         return this._internal.getReferencedTaskEntryStore(taskId);
     }
 
     /**
-     * Get a snapshot of the task associated with the provided `TaskId`. Prefer
-     * using `getReferencedTaskEntryStore()` since it will give you changes to the
-     * task over time.
+     * Get a snapshot of the task associated with the provided `TaskId`. Prefer using
+     * `getReferencedTaskEntryStore()` since it will give you changes to the task over
+     * time.
      *
-     * Throws an error if `TaskId` is not referenced by some task in the query when
-     * you call this function.
+     * Throws an error if `TaskId` is not referenced by some task in the query when you
+     * call this function.
      */
     public getReferencedTaskSnapshot(taskId: TaskId): TaskModel {
         return this._internal.getReferencedTaskSnapshot(taskId);
@@ -222,12 +220,12 @@ export class TaskClientQuery {
     /**
      * Get the collection associated with the provided `TaskCollectionId`.
      *
-     * Throws an error if `TaskCollectionId` is not referenced by this class
-     * when you call this function.
+     * Throws an error if `TaskCollectionId` is not referenced by this class when you
+     * call this function.
      *
-     * The `collection` in this store should be non-null when this function is
-     * called but if you hold onto this reference for long enough you may see
-     * `collection` become null because the task becomes unauthorized.
+     * The `collection` in this store should be non-null when this function is called
+     * but if you hold onto this reference for long enough you may see `collection`
+     * become null because the task becomes unauthorized.
      */
     public getReferencedCollectionEntryStore(
         collectionId: TaskCollectionId,
@@ -240,8 +238,8 @@ export class TaskClientQuery {
      * Prefer using `getReferencedCollectionEntryStore()` since it will give you
      * changes to the task over time.
      *
-     * Throws an error if `TaskCollectionId` is not referenced by this class when
-     * you call this function.
+     * Throws an error if `TaskCollectionId` is not referenced by this class when you
+     * call this function.
      */
     public getReferencedCollectionSnapshot(collectionId: TaskCollectionId): TaskCollectionModel {
         return this._internal.getReferencedCollectionSnapshot(collectionId);
@@ -252,11 +250,10 @@ export class TaskClientQuery {
      *
      * Will do nothing if the query is already fully loaded.
      *
-     * If we're waiting on some data to load and you call this function again with
-     * the same `limit` then your request is covered by the previous load and we
-     * won't load additional data. If your limit is higher than what we're already
-     * loading (say by 10) then once the current requests finishes we'll ask for 10
-     * more tasks.
+     * If we're waiting on some data to load and you call this function again with the
+     * same `limit` then your request is covered by the previous load and we won't load
+     * additional data. If your limit is higher than what we're already loading (say
+     * by 10) then once the current requests finishes we'll ask for 10 more tasks.
      *
      * Can only load more data if we're connected to the task realtime service.
      */
@@ -266,8 +263,8 @@ export class TaskClientQuery {
 
     /**
      * Get the index of the `cursor` for a loaded task in our query. Will throw an
-     * error if the cursor is not a valid cursor for a task currently loaded in
-     * our query.
+     * error if the cursor is not a valid cursor for a task currently loaded in our
+     * query.
      */
     public getLoadedTaskIndex(cursor: TaskQuerySortCursor): number {
         return this._internal.getLoadedTaskIndex(cursor);
@@ -275,8 +272,8 @@ export class TaskClientQuery {
 
     /**
      * Return a promise that resolves when the query has some tasks loaded. Queries
-     * start in an unloaded state with no data. This allows you to wait until the
-     * query has some data you can display to the user.
+     * start in an unloaded state with no data. This allows you to wait until the query
+     * has some data you can display to the user.
      *
      * This promise never rejects.
      */
@@ -365,15 +362,15 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     public readonly external: TaskClientQuery;
 
     /**
-     * Queries start with 1 reference. The reference count can be increased by
-     * calling `retain()` and decreased by calling `release()` once the
-     * reference count reaches 0 the query is unloaded.
+     * Queries start with 1 reference. The reference count can be increased by calling
+     * `retain()` and decreased by calling `release()` once the reference count reaches
+     * 0 the query is unloaded.
      */
     private _referenceCount = 1;
 
     private readonly _taskOrderAndLoadedStateStore: ValueStore<{
-        // `loadedState` is null when the query has not finished loading for the
-        // first time.
+        // `loadedState` is null when the query has not finished loading for the first
+        // time.
         readonly loadedState: TaskRealtimeQueryLoadedState | null;
         readonly taskOrder: Tree<TaskQuerySortCursor, null>;
     }>;
@@ -391,18 +388,18 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     /**
      * The query's loaded task order.
      *
-     * The query might be keeping track of more tasks that aren't in the loaded
-     * task range.
+     * The query might be keeping track of more tasks that aren't in the loaded task
+     * range.
      */
     public readonly taskOrderStore: Store<Tree<TaskQuerySortCursor, null>>;
 
     /**
-     * The number of tasks we want to additionally load on top of what's already in
-     * the query. Will be zero if the query is fully loaded.
+     * The number of tasks we want to additionally load on top of what's already in the
+     * query. Will be zero if the query is fully loaded.
      *
-     * The `TaskClientQuery` class does not make requests to load more data.
-     * Instead `TaskRealtimeClient` listens to this store and will make a request
-     * to load more data.
+     * The `TaskClientQuery` class does not make requests to load more data. Instead
+     * `TaskRealtimeClient` listens to this store and will make a request to load more
+     * data.
      */
     public readonly loadMoreTaskCountStore: ValueStore<number>;
 
@@ -424,8 +421,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         this.loadMoreTaskCountStore = new ValueStore(limit);
 
         this._taskOrderAndLoadedStateStore = new ValueStore<{
-            // `loadedState` is null when the query has not finished loading for the
-            // first time.
+            // `loadedState` is null when the query has not finished loading for the first
+            // time.
             readonly loadedState: TaskRealtimeQueryLoadedState | null;
             readonly taskOrder: Tree<TaskQuerySortCursor, null>;
         }>({
@@ -461,8 +458,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     let loadedTaskOrder = taskOrder;
                     let iterator = loadedTaskOrder.end;
 
-                    // Remove tasks that are out of the loaded range until we find the last task in
-                    // the loaded range.
+                    // Remove tasks that are out of the loaded range until we find the last task in the
+                    // loaded range.
                     while (iterator.valid) {
                         const cursor = iterator.key!;
 
@@ -561,8 +558,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
     /**
      * Add a reference for our query. You should call `release()` later when you no
-     * longer need the reference. Once the query hits zero references we will clean
-     * up this query and all its data.
+     * longer need the reference. Once the query hits zero references we will clean up
+     * this query and all its data.
      */
     public retain() {
         assert(this._referenceCount > 0, "Can\u2019t retain a released query");
@@ -571,8 +568,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     /**
-     * Release our reference to the query. Once the query hits zero references we
-     * will clean up this query and all its data.
+     * Release our reference to the query. Once the query hits zero references we will
+     * clean up this query and all its data.
      */
     public release() {
         assert(this._referenceCount > 0, "Query is already released");
@@ -581,8 +578,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
         if (this._referenceCount === 0) {
             batchStoreUpdates(() => {
-                // We shouldn't be loading any new tasks after this. There may still be an
-                // outgoing load task request though.
+                // We shouldn't be loading any new tasks after this. There may still be an outgoing
+                // load task request though.
                 this.loadMoreTaskCountStore.set(0);
 
                 // Delete the query from our store.
@@ -641,8 +638,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
     /**
      * Get the index of the `cursor` for a loaded task in our query. Will throw an
-     * error if the cursor is not a valid cursor for a task currently loaded in
-     * our query.
+     * error if the cursor is not a valid cursor for a task currently loaded in our
+     * query.
      */
     public getLoadedTaskIndex(cursor: TaskQuerySortCursor): number {
         const iterator = this._taskOrderAndLoadedStateStore.getSnapshot().taskOrder.find(cursor);
@@ -660,8 +657,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         if (limit <= 0) return;
 
         this.loadMoreTaskCountStore.set(loadMoreTaskCount =>
-            // Take the max since if we're already loading more tasks this call will be
-            // covered by the ongoing load.
+            // Take the max since if we're already loading more tasks this call will be covered
+            // by the ongoing load.
             Math.max(loadMoreTaskCount, limit),
         );
     }
@@ -706,8 +703,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             const taskEntryUpdate = taskEntryUpdateById.get(taskId);
             if (!taskEntryUpdate) return;
 
-            // If we started this function call with a reference to this task then a task
-            // entry must have already existed in our store.
+            // If we started this function call with a reference to this task then a task entry
+            // must have already existed in our store.
             assert(taskEntryUpdate.oldTaskEntry);
 
             this._onReferencedTaskUpdate(
@@ -730,8 +727,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                 const taskEntryUpdate = taskEntryUpdateById.get(taskId);
                 if (!taskEntryUpdate) continue;
 
-                // If we started this function call with a reference to this task then a task
-                // entry must have already existed in our store.
+                // If we started this function call with a reference to this task then a task entry
+                // must have already existed in our store.
                 assert(taskEntryUpdate.oldTaskEntry);
 
                 this._onReferencedTaskUpdate(
@@ -749,8 +746,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     // Ignore tasks that haven't been backfilled yet.
                     if (oldTaskEntry === null || oldTaskEntry.task === null) continue;
 
-                    // If a task is being reverted we need to remove it from our query. But we
-                    // don't have to remove tasks that don't exist in our query.
+                    // If a task is being reverted we need to remove it from our query. But we don't
+                    // have to remove tasks that don't exist in our query.
                     if (!this._loadedTaskEntryStoreById.has(taskId)) continue;
 
                     const oldCursor = getTaskQueryNormalizedSortCursorForModel(
@@ -770,8 +767,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     newTaskEntry.task,
                 );
 
-                // If a task was not visible in our query, check if it's visible now and add it
-                // if so.
+                // If a task was not visible in our query, check if it's visible now and add it if
+                // so.
                 if (!this._loadedTaskEntryStoreById.has(taskId)) {
                     if (!isVisible) continue;
 
@@ -780,13 +777,12 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                         newTaskEntry.task,
                     );
 
-                    // Only add tasks to our query that pass our filters and fit in our loaded
-                    // range. This mirrors our behavior on the server.
-                    // `TaskRealtimeQuerySubscription` only holds references to tasks in its loaded
-                    // range. If we hold a reference to more tasks then we'll have state drift
-                    // between the server and client. The server will think we do NOT have a task
-                    // loaded, won't send update actions, when in fact the client has kept it
-                    // retained.
+                    // Only add tasks to our query that pass our filters and fit in our loaded range.
+                    // This mirrors our behavior on the server. `TaskRealtimeQuerySubscription` only
+                    // holds references to tasks in its loaded range. If we hold a reference to more
+                    // tasks then we'll have state drift between the server and client. The server will
+                    // think we do NOT have a task loaded, won't send update actions, when in fact the
+                    // client has kept it retained.
                     if (
                         loadedState !== null &&
                         (loadedState.type === "Full" ||
@@ -805,8 +801,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     continue;
                 }
 
-                // If this task exists in our query that means we've seen the backfilled
-                // task before.
+                // If this task exists in our query that means we've seen the backfilled task
+                // before.
                 assert(oldTaskEntry?.task);
 
                 // If the task didn't change we don't need to update anything.
@@ -846,14 +842,14 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     const haveSortValuesChanged =
                         compareTaskQuerySortCursors(this.sorts, oldCursor, newCursor) !== 0;
 
-                    // The task is visible in the query but the change does not affect its position
-                    // in the query.
+                    // The task is visible in the query but the change does not affect its position in
+                    // the query.
                     if (!haveSortValuesChanged) continue;
 
                     taskOrder = taskOrder.remove(oldCursor).insert(newCursor, null);
                 }
-                // If the task moved outside of our loaded range then we need to remove it from
-                // the query. The server no longer considers it subscribed anymore.
+                // If the task moved outside of our loaded range then we need to remove it from the
+                // query. The server no longer considers it subscribed anymore.
                 else {
                     this._onLoadedTaskRemove(taskId, oldTaskEntry);
 
@@ -879,10 +875,9 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     /**
-     * Called by `TaskClientStore` after the server tells us that all the tasks for
-     * a query have loaded. The server also tells us which tasks it didn't include
-     * in the backfill update event which we should have and should backfill into
-     * our query.
+     * Called by `TaskClientStore` after the server tells us that all the tasks for a
+     * query have loaded. The server also tells us which tasks it didn't include in the
+     * backfill update event which we should have and should backfill into our query.
      */
     public onTasksLoaded({
         limit,
@@ -910,8 +905,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         let nextTaskOrder = previousTaskOrder;
 
         for (const {taskEntryStore, taskEntry} of previouslyBackfilledTasks) {
-            // If the task is already in our store (perhaps an update event added it) then
-            // we don't need to insert the task again.
+            // If the task is already in our store (perhaps an update event added it) then we
+            // don't need to insert the task again.
             if (this._loadedTaskEntryStoreById.has(taskEntry.task.id)) continue;
 
             const isVisible = evaluateTaskQueryNormalizedFiltersForModel(
@@ -951,8 +946,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     private _onLoadedTaskAdd(taskId: TaskId, newTaskEntry: TaskClientStoreTaskEntry) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousTaskByIdByQueryForTest),
@@ -979,8 +974,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         oldTaskEntry: TaskClientStoreTaskEntry,
         newTaskEntry: TaskClientStoreTaskEntry,
     ) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousTaskByIdByQueryForTest),
@@ -1000,8 +995,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     private _onLoadedTaskRemove(taskId: TaskId, oldTaskEntry: TaskClientStoreTaskEntry) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousTaskByIdByQueryForTest),

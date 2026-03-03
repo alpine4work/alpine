@@ -111,35 +111,35 @@ import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
- * The refresh interval of our task index and task collection index. Since we
- * use OpenSearch serverless we must use the constant refresh interval they
- * provide.
+ * The refresh interval of our task index and task collection index. Since we use
+ * OpenSearch serverless we must use the constant refresh interval they provide.
  *
- * > The refresh interval for indexes in vector search collections is
- * > approximately 60 seconds. The refresh interval for indexes in search and
- * > time series collections is approximately 10 seconds.
+ * > The refresh interval for indexes in vector search collections is approximately
+ * > 60 seconds. The refresh interval for indexes in search and time series
+ * > collections is approximately 10 seconds.
  *
  * ([Source][1])
  *
- * [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+ * [1]:
+ *     https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
  */
 const taskIndexRefreshIntervalMs = 10 * 1000;
 
 /**
- * Since we don't have a way to reliably wait for the task index to refresh we
- * wait _three times_ the refresh interval. This should be enough to cover any
- * variance in refresh interval time.
+ * Since we don't have a way to reliably wait for the task index to refresh we wait
+ * _three times_ the refresh interval. This should be enough to cover any variance
+ * in refresh interval time.
  *
  * Ideally AWS OpenSearch serverless would provide us a `/_wait_for_refresh`
  * endpoint that gives us reliable read-after-write consistency.
  */
 export const taskIndexWaitForRefreshDelayMs = taskIndexRefreshIntervalMs * 3;
 
-// IMPORTANT: Don't export this. All access to the index should be exposed
-// through functions in this file. Like how we organize DynamoDB tables. By
-// putting all the logic around this index in one file it allows developers to
-// carefully control how data is written to this index. Instead of updates
-// sprawling out around the codebase.
+// IMPORTANT: Don't export this. All access to the index should be exposed through
+// functions in this file. Like how we organize DynamoDB tables. By putting all the
+// logic around this index in one file it allows developers to carefully control
+// how data is written to this index. Instead of updates sprawling out around the
+// codebase.
 const TaskIndex = new OpensearchIndex<
     SpaceId,
     TaskId,
@@ -152,9 +152,9 @@ const TaskIndex = new OpensearchIndex<
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(taskIndexRefreshIntervalMs / 1000)}s`,
 
-    // Our searches are basically always within a specific space and basically
-    // always exclude deleted tasks. After that tasks exclude closed tasks most
-    // of the time and the default sort order for views is creation time.
+    // Our searches are basically always within a specific space and basically always
+    // exclude deleted tasks. After that tasks exclude closed tasks most of the time
+    // and the default sort order for views is creation time.
     sort: [
         {field: "spaceId"},
         {field: "isDeleted"},
@@ -163,11 +163,11 @@ const TaskIndex = new OpensearchIndex<
     ],
 });
 
-// IMPORTANT: Don't export this. All access to the index should be exposed
-// through functions in this file. Like how we organize DynamoDB tables. By
-// putting all the logic around this index in one file it allows developers to
-// carefully control how data is written to this index. Instead of updates
-// sprawling out around the codebase.
+// IMPORTANT: Don't export this. All access to the index should be exposed through
+// functions in this file. Like how we organize DynamoDB tables. By putting all the
+// logic around this index in one file it allows developers to carefully control
+// how data is written to this index. Instead of updates sprawling out around the
+// codebase.
 const TaskCollectionIndex = new OpensearchIndex<
     SpaceId,
     TaskCollectionId,
@@ -180,8 +180,8 @@ const TaskCollectionIndex = new OpensearchIndex<
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(taskIndexRefreshIntervalMs / 1000)}s`,
 
-    // Our searches are basically always within a specific space and basically
-    // always exclude deleted collections.
+    // Our searches are basically always within a specific space and basically always
+    // exclude deleted collections.
     //
     // Finally sort by `createdTime` since that's generally useful.
     sort: [{field: "spaceId"}, {field: "isDeleted"}, {field: "createdTime"}],
@@ -193,25 +193,25 @@ function assertInteger(value: number): number {
 }
 
 /**
- * The throttle interval for task indexing jobs in seconds. Indexing a
- * task requires reading the entire thing and saving it to OpenSearch which
- * can be expensive. Given how frequently users update tasks, we throttle
- * how frequently a task is indexed.
+ * The throttle interval for task indexing jobs in seconds. Indexing a task
+ * requires reading the entire thing and saving it to OpenSearch which can be
+ * expensive. Given how frequently users update tasks, we throttle how frequently a
+ * task is indexed.
  *
- * When the user first makes an edit to a task we queue an indexing job
- * with this delay. If the user makes an update to the task before the
- * delay has passed then we don't index again. Since when the indexing job
- * finally runs, the update will be picked up. If the user makes an update after
- * the delay has passed then we schedule another indexing job with a new delay.
+ * When the user first makes an edit to a task we queue an indexing job with this
+ * delay. If the user makes an update to the task before the delay has passed then
+ * we don't index again. Since when the indexing job finally runs, the update will
+ * be picked up. If the user makes an update after the delay has passed then we
+ * schedule another indexing job with a new delay.
  *
- * We throttle updates to every 10 seconds for the first ~10 minutes of
- * continuous editing to a task (the first 60 indexes). Then after that we
- * throttle updates to once every 60 seconds. Reindexing large tasks can be
- * expensive so we use the number of prior indexes as a proxy for how large a
- * task is and slow down indexing once it reaches a certain threshold.
+ * We throttle updates to every 10 seconds for the first ~10 minutes of continuous
+ * editing to a task (the first 60 indexes). Then after that we throttle updates to
+ * once every 60 seconds. Reindexing large tasks can be expensive so we use the
+ * number of prior indexes as a proxy for how large a task is and slow down
+ * indexing once it reaches a certain threshold.
  */
 function getTaskIndexSearchEntityJobDelaySeconds(generation: number) {
-    // For the first 10 minutes (60 * 10 / 60) update every 10 seconds.
+    // For the first 10 minutes (60 \* 10 / 60) update every 10 seconds.
     if (generation <= 60) return 10;
 
     // After that initial period, update every 60 seconds.
@@ -257,8 +257,7 @@ export async function deployTaskIndexes(
 
 /**
  * We added `assigneePosition` on 2025-03-10. This migration makes sure
- * `rawAssigneePosition` and `assigneePosition` exist on every task in
- * OpenSearch.
+ * `rawAssigneePosition` and `assigneePosition` exist on every task in OpenSearch.
  */
 export async function runIndexTaskInitialAssigneePositionMigrationForTask(
     context: Context<DynamoContextModules & {opensearch: OpensearchContextModule}>,
@@ -289,8 +288,8 @@ export async function runIndexTaskInitialAssigneePositionMigrationForTask(
 }
 
 /**
- * Get multiple tasks in parallel as a system actor. System actors have access
- * to all tasks in the space.
+ * Get multiple tasks in parallel as a system actor. System actors have access to
+ * all tasks in the space.
  */
 export async function getTaskIndexDocsIfExist(
     context: Context<{
@@ -304,8 +303,8 @@ export async function getTaskIndexDocsIfExist(
     spaceId: SpaceId,
     taskIds: ReadonlyArray<TaskId>,
 ): Promise<ReadonlyArray<OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc> | null>> {
-    // We don't verify that the account is allowed to load these documents. We
-    // require a system actor with access to the entire space.
+    // We don't verify that the account is allowed to load these documents. We require
+    // a system actor with access to the entire space.
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
@@ -313,9 +312,9 @@ export async function getTaskIndexDocsIfExist(
         taskIds.map(taskId => new OpensearchGetDocCommand(TaskIndex, spaceId, taskId)),
     );
 
-    // Make sure we're only returning tasks from the requested `SpaceId`.
-    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
-    // So it may return tasks from other spaces.
+    // Make sure we're only returning tasks from the requested `SpaceId`. OpenSearch
+    // only uses `SpaceId` as a routing value to get to the right shard. So it may
+    // return tasks from other spaces.
     return tasks.map(task => (task !== null && task.spaceId === spaceId ? task : null));
 }
 
@@ -340,8 +339,8 @@ export async function getTaskCollectionIndexDocsIfExist(
         TaskCollectionIndexActualDoc
     > | null>
 > {
-    // We don't verify that the account is allowed to load these documents. We
-    // require a system actor with access to the entire space.
+    // We don't verify that the account is allowed to load these documents. We require
+    // a system actor with access to the entire space.
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
@@ -352,8 +351,8 @@ export async function getTaskCollectionIndexDocsIfExist(
     );
 
     // Make sure we're only returning collections from the requested `SpaceId`.
-    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
-    // So it may return collections from other spaces.
+    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard. So
+    // it may return collections from other spaces.
     return collections.map(collection =>
         collection !== null && collection.spaceId === spaceId ? collection : null,
     );
@@ -364,9 +363,9 @@ export async function getTaskCollectionIndexDocsIfExist(
  * This doesn't rely on an OpenSearch refresh to be up-to-date since we read
  * individual OpenSearch documents.
  *
- * This will give you read-after-write consistency after successful index
- * writes. Not after the `commitTaskActionTransaction()` function which writes
- * to the index in the background.
+ * This will give you read-after-write consistency after successful index writes.
+ * Not after the `commitTaskActionTransaction()` function which writes to the index
+ * in the background.
  */
 export async function getTaskFromIndex(
     context: TaskRealtimeSystemActionContext,
@@ -388,9 +387,9 @@ export async function getTaskFromIndex(
  * This doesn't rely on an OpenSearch refresh to be up-to-date since we read
  * individual OpenSearch documents.
  *
- * This will give you read-after-write consistency after successful index
- * writes. Not after the `commitTaskActionTransaction()` function which writes
- * to the index in the background.
+ * This will give you read-after-write consistency after successful index writes.
+ * Not after the `commitTaskActionTransaction()` function which writes to the index
+ * in the background.
  */
 export async function getTaskFromIndexIfExists(
     context: TaskRealtimeSystemActionContext,
@@ -402,17 +401,17 @@ export async function getTaskFromIndexIfExists(
     referencedCollections: ReadonlyArray<TaskCollectionModel>;
     approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
 } | null> {
-    // We don't verify that the account is allowed to load this task. We
-    // require a system actor with access to the entire space.
+    // We don't verify that the account is allowed to load this task. We require a
+    // system actor with access to the entire space.
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
     const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
     if (!task) return null;
 
-    // Make sure we're only returning tasks from the requested `SpaceId`.
-    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
-    // So it may return tasks from other spaces.
+    // Make sure we're only returning tasks from the requested `SpaceId`. OpenSearch
+    // only uses `SpaceId` as a routing value to get to the right shard. So it may
+    // return tasks from other spaces.
     if (task.spaceId !== spaceId) return null;
 
     const approximateActionCountByAccountId = task.approximateActionCountByAccountId;
@@ -421,8 +420,8 @@ export async function getTaskFromIndexIfExists(
         actor: context.actor,
         // We've already authorized our system actor has access to the space.
         isSpaceAccessAuthorized: true,
-        // System actors have access to all task collections. So we don't need to
-        // evaluate the collection access policy.
+        // System actors have access to all task collections. So we don't need to evaluate
+        // the collection access policy.
         isCollectionAccessAuthorized: async () => true,
     };
 
@@ -488,9 +487,9 @@ export async function getTaskFromIndexIfExists(
  * OpenSearch refresh to be up-to-date since we read individual OpenSearch
  * documents.
  *
- * This will give you read-after-write consistency after successful index
- * writes. Not after the `commitTaskActionTransaction()` function which writes
- * to the index in the background.
+ * This will give you read-after-write consistency after successful index writes.
+ * Not after the `commitTaskActionTransaction()` function which writes to the index
+ * in the background.
  */
 export async function getTaskCollectionFromIndex(
     context: TaskRealtimeSystemActionContext,
@@ -507,17 +506,17 @@ export async function getTaskCollectionFromIndex(
  * OpenSearch refresh to be up-to-date since we read individual OpenSearch
  * documents.
  *
- * This will give you read-after-write consistency after successful index
- * writes. Not after the `commitTaskActionTransaction()` function which writes
- * to the index in the background.
+ * This will give you read-after-write consistency after successful index writes.
+ * Not after the `commitTaskActionTransaction()` function which writes to the index
+ * in the background.
  */
 export async function getTaskCollectionFromIndexIfExists(
     context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionModel | null> {
-    // We don't verify that the account is allowed to load this task. We
-    // require a system actor with access to the entire space.
+    // We don't verify that the account is allowed to load this task. We require a
+    // system actor with access to the entire space.
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
@@ -529,8 +528,8 @@ export async function getTaskCollectionFromIndexIfExists(
     if (!collection) return null;
 
     // Make sure we're only returning collections from the requested `SpaceId`.
-    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
-    // So it may return collections from other spaces.
+    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard. So
+    // it may return collections from other spaces.
     if (collection.spaceId !== spaceId) return null;
 
     return prepareTaskCollectionForClient(collection);
@@ -579,8 +578,8 @@ export function refreshTaskIndexForTest(
 }
 
 /**
- * Manually refresh the task collection index in tests. This means any changes
- * to the task index will be available when searching.
+ * Manually refresh the task collection index in tests. This means any changes to
+ * the task index will be available when searching.
  */
 export function refreshTaskCollectionIndexForTest(
     context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
@@ -594,14 +593,13 @@ export const indexTaskActionTransactionBeforeUpdateTestCheckpoint = new TestChec
 export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 /**
- * Takes a transaction of `TaskAction`s and indexes them in our OpenSearch
- * task index. This function assumes the action transaction has been committed
- * but it may not have been!
+ * Takes a transaction of `TaskAction`s and indexes them in our OpenSearch task
+ * index. This function assumes the action transaction has been committed but it
+ * may not have been!
  *
  * - We sometimes call this in tests without committing to test behavior.
- * - Only `tasks_table.ts` should call this function in production and only
- *   after committing an action transaction, at which point the assumption
- *   is valid.
+ * - Only `tasks_table.ts` should call this function in production and only after
+ *   committing an action transaction, at which point the assumption is valid.
  */
 export function indexTaskActionTransactionAssumingItsCommitted(
     context: TaskRealtimeSystemActionContext,
@@ -635,12 +633,11 @@ export function indexTaskActionTransactionAssumingItsCommitted(
                 options,
             );
         } catch (error) {
-            // Escalate task indexing errors to `DataLossError` since it means we
-            // failed to index tasks but the user doesn't know.
+            // Escalate task indexing errors to `DataLossError` since it means we failed to
+            // index tasks but the user doesn't know.
             //
-            // It would be very bad for the process to shutdown midway through indexing
-            // such that we don't see this error! We need some backup monitoring/retry
-            // method.
+            // It would be very bad for the process to shutdown midway through indexing such
+            // that we don't see this error! We need some backup monitoring/retry method.
             throw DataLossError.from(error);
         }
     });
@@ -688,20 +685,19 @@ function actuallyIndexTaskActionTransactionAssumingItsCommitted(
         );
     }
 
-    // We don't have a `context.tracer.withSpan()` call here because the one
-    // call-site for this function adds a span.
+    // We don't have a `context.tracer.withSpan()` call here because the one call-site
+    // for this function adds a span.
     return TaskActionTransactionIndexState.index(context, spaceId, actorId, actions, options);
 }
 
 /**
- * Abstraction for managing state during `indexTaskActionTransaction()`.
- * We may update a task multiple times in an action transaction but we only
- * want to send one bulk update request to OpenSearch.
+ * Abstraction for managing state during `indexTaskActionTransaction()`. We may
+ * update a task multiple times in an action transaction but we only want to send
+ * one bulk update request to OpenSearch.
  *
- * All reads/writes must go through this class. There is no direct access to
- * the context or OpenSearch. That way the implementation of
- * `indexTaskActionTransaction()` must use the relevant caches we have
- * in place.
+ * All reads/writes must go through this class. There is no direct access to the
+ * context or OpenSearch. That way the implementation of
+ * `indexTaskActionTransaction()` must use the relevant caches we have in place.
  */
 class TaskActionTransactionIndexState {
     private readonly _context: TaskRealtimeSystemActionContext;
@@ -858,9 +854,9 @@ class TaskActionTransactionIndexState {
 
                     const oldTask = await state._retrievedTaskIndexDocById.get(newTask.id);
 
-                    // We expect `!oldTask` to mean the task is being created. We won't know the
-                    // right version number if we didn't read the previous task so our bulk update
-                    // will fail if the task is being updated instead of created.
+                    // We expect `!oldTask` to mean the task is being created. We won't know the right
+                    // version number if we didn't read the previous task so our bulk update will fail
+                    // if the task is being updated instead of created.
                     if (!oldTask || !newTask.lastIndexSearchEntityJob) {
                         const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
                             sendTime: currentTime,
@@ -965,11 +961,11 @@ class TaskActionTransactionIndexState {
                                         ),
                                 ));
 
-                        // Don't add another task index job until after the first one's delay has
-                        // finished. When the delayed indexing job runs it will pick up this update.
+                        // Don't add another task index job until after the first one's delay has finished.
+                        // When the delayed indexing job runs it will pick up this update.
                         //
-                        // Or add another task index job if a trait changed which isn't covered by
-                        // the last index job.
+                        // Or add another task index job if a trait changed which isn't covered by the last
+                        // index job.
                         if (
                             !areUpdatedTraitsInLastIndexSearchEntityJob ||
                             isDatePossiblyLessThanWithUncertaintyWindow(
@@ -1019,9 +1015,9 @@ class TaskActionTransactionIndexState {
                             : false;
 
                         // If the active status of the task changes then we want to add/remove affinity
-                        // points. Setting a task as active will boost the task to the top of the
-                        // account's affinity list. Removing the active status from the task will remove
-                        // that boost and take it out of the top of the affinity list.
+                        // points. Setting a task as active will boost the task to the top of the account's
+                        // affinity list. Removing the active status from the task will remove that boost
+                        // and take it out of the top of the affinity list.
                         if (
                             oldTask?.assignee.value?.assignee.accountId !==
                                 newTask.assignee.value?.assignee.accountId ||
@@ -1090,8 +1086,8 @@ class TaskActionTransactionIndexState {
 
                         // Record an affinity interaction whenever the task is added to a collection for
                         // that collection. Whenever the user chooses a collection from the collections
-                        // dropdown we want the collection to rank higher for the next time the user
-                        // opens the collections dropdown.
+                        // dropdown we want the collection to rank higher for the next time the user opens
+                        // the collections dropdown.
                         if (actorId !== null) {
                             for (const [
                                 collectionId,
@@ -1118,8 +1114,8 @@ class TaskActionTransactionIndexState {
                     );
 
                     // We expect `!oldCollection` to mean the collection is being created. We won't
-                    // know the right version number if we didn't read the previous collection so
-                    // our bulk update will fail if the task is being updated instead of created.
+                    // know the right version number if we didn't read the previous collection so our
+                    // bulk update will fail if the task is being updated instead of created.
                     if (!oldCollection) {
                         jobs.push({
                             job: {
@@ -1128,8 +1124,8 @@ class TaskActionTransactionIndexState {
                                 update: {
                                     type: "TaskCollection",
                                     collectionId: newCollection.id,
-                                    // Nothing depends on this entity when it's created. Don't bother trying to
-                                    // reindex dependencies.
+                                    // Nothing depends on this entity when it's created. Don't bother trying to reindex
+                                    // dependencies.
                                     updatedTraits: {type: "None"},
                                 },
                             },
@@ -1172,9 +1168,8 @@ class TaskActionTransactionIndexState {
                             updatedTraits.push("Name");
                         }
 
-                        // We reindex collections every time they update, instead of throttling like we
-                        // do for tasks. Task may be updated frequently while you're typing in their
-                        // titles.
+                        // We reindex collections every time they update, instead of throttling like we do
+                        // for tasks. Task may be updated frequently while you're typing in their titles.
                         jobs.push({
                             job: {
                                 type: "IndexSearchEntity",
@@ -1190,11 +1185,11 @@ class TaskActionTransactionIndexState {
 
                     // Record affinity points when a collection is created.
                     //
-                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch?
-                    // Or there's an OpenSearch durability issue and we need to reindex some
-                    // actions? Since marking search affinity interactions isn't idempotent we may
-                    // end up adding more points than expected. Consider adding a flag to disable
-                    // affinity updates when reindexing OpenSearch from scratch.
+                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch? Or
+                    // there's an OpenSearch durability issue and we need to reindex some actions?
+                    // Since marking search affinity interactions isn't idempotent we may end up adding
+                    // more points than expected. Consider adding a flag to disable affinity updates
+                    // when reindexing OpenSearch from scratch.
                     if (actorId !== null && !oldCollection) {
                         afterWriteCallbacks.push(() =>
                             markSearchAffinityEntityInteractionForAccount(context, {
@@ -1221,34 +1216,32 @@ class TaskActionTransactionIndexState {
             });
 
             for (const {job, delaySeconds} of jobs) {
-                // The search indexing jobs read from the task OpenSearch index. So sending
-                // the job after the index write will give us correct write-after-read
-                // semantics.
+                // The search indexing jobs read from the task OpenSearch index. So sending the job
+                // after the index write will give us correct write-after-read semantics.
                 state._context.jobs.send(job, {delaySeconds});
             }
 
-            // Wait for any registered callbacks to complete (e.g. callbacks that update
-            // search affinity for tasks marked as active).
+            // Wait for any registered callbacks to complete (e.g. callbacks that update search
+            // affinity for tasks marked as active).
             await runAllPromises(
                 afterWriteCallbacks.map(afterWriteCallback => afterWriteCallback()),
             );
 
-            // After we've indexed our data, read all our referenced accounts again but
-            // with a strong read consistency. If any referenced account name changed while
-            // indexing then we need to re-index our transaction.
+            // After we've indexed our data, read all our referenced accounts again but with a
+            // strong read consistency. If any referenced account name changed while indexing
+            // then we need to re-index our transaction.
             //
-            // Account names are not logically a part of a task object in our system, but
-            // we do need to inline account names into tasks in OpenSearch so we can sort
-            // by account name. We inline account names at indexing time.
+            // Account names are not logically a part of a task object in our system, but we do
+            // need to inline account names into tasks in OpenSearch so we can sort by account
+            // name. We inline account names at indexing time.
             //
             // When an account name updates, we run [update by query][1] to update all
-            // previously written account names. However, "previously written" is the
-            // operative word. Our update by query can only catch data that finished
-            // indexing before the query starts. So what happens to actions that started
-            // indexing but have not finished? That's where this check comes into play.
-            // When we finish indexing, we check if a name update has occurred. If it has
-            // then our transaction might not have been picked up by the update by query so
-            // we attempt to re-index.
+            // previously written account names. However, "previously written" is the operative
+            // word. Our update by query can only catch data that finished indexing before the
+            // query starts. So what happens to actions that started indexing but have not
+            // finished? That's where this check comes into play. When we finish indexing, we
+            // check if a name update has occurred. If it has then our transaction might not
+            // have been picked up by the update by query so we attempt to re-index.
             //
             // Here's a diagram to visually explain the situation. The following line
             // represents time with events happening on the timeline:
@@ -1266,19 +1259,20 @@ class TaskActionTransactionIndexState {
             //           updates              Index UpdateAccountName
             // ```
             //
-            // This is the edge case we want to prevent with the retry below. We read
-            // accounts at 1 which are outdated by the account name update at 2. Then we
-            // finish writing our new tasks at 4 (with old inlined data) AFTER
-            // the `UpdateAccountName` indexer has searched the tasks to update at 3.
+            // This is the edge case we want to prevent with the retry below. We read accounts
+            // at 1 which are outdated by the account name update at 2. Then we finish writing
+            // our new tasks at 4 (with old inlined data) AFTER the `UpdateAccountName` indexer
+            // has searched the tasks to update at 3.
             //
             // The retry will redo 1 and 4 so we write correct data.
             //
-            // In practice indexing `UpdateAccountName` also requires us to first wait for
-            // an OpenSearch index refresh which is currently configured to be 30s long. So
-            // this edge case happens if 4 is written after the refresh 3 observes. Our
-            // example is simplified to not consider index refreshing.
+            // In practice indexing `UpdateAccountName` also requires us to first wait for an
+            // OpenSearch index refresh which is currently configured to be 30s long. So this
+            // edge case happens if 4 is written after the refresh 3 observes. Our example is
+            // simplified to not consider index refreshing.
             //
-            // [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+            // [1]:
+            //     https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
             {
                 const newReferencedAccountById = await runAllPromises(
                     Array.from(referencedAccountIds, accountId =>
@@ -1327,8 +1321,8 @@ class TaskActionTransactionIndexState {
     /**
      * Gets the name of an `AccountId` referenced by one of the `TaskAction`s we're
      * indexing. Referenced accounts are determined by
-     * `collectReferencedAccountIdsFromTaskAction()`. If the account is not
-     * referenced then we'll throw an error.
+     * `collectReferencedAccountIdsFromTaskAction()`. If the account is not referenced
+     * then we'll throw an error.
      */
     public getActionReferencedSortableAccount(accountId: AccountId): TaskSortableAccount {
         const account = this._actionReferencedAccountById.get(accountId);
@@ -1347,12 +1341,12 @@ class TaskActionTransactionIndexState {
     }
 
     /**
-     * Get the `TaskIndexDoc` for the specified `TaskId` and return null if the
-     * task doesn't exist.
+     * Get the `TaskIndexDoc` for the specified `TaskId` and return null if the task
+     * doesn't exist.
      */
     public getTaskIndexDocIfExists(taskId: TaskId) {
-        // Return the updated doc if we have one. Otherwise we need to load the doc
-        // from OpenSearch.
+        // Return the updated doc if we have one. Otherwise we need to load the doc from
+        // OpenSearch.
         const updatedTaskEntry = this._updatedTaskIndexDocById.get(taskId);
         if (updatedTaskEntry) return updatedTaskEntry.task;
 
@@ -1373,9 +1367,8 @@ class TaskActionTransactionIndexState {
     /**
      * Updates the `TaskIndexDoc` for the specified `TaskId`.
      *
-     * Uses optimistic concurrency control. If the task does not exist then we
-     * create it. If the task exists with a different version then we need
-     * to retry.
+     * Uses optimistic concurrency control. If the task does not exist then we create
+     * it. If the task exists with a different version then we need to retry.
      */
     public putTaskIndexDoc(
         taskId: TaskId,
@@ -1421,12 +1414,12 @@ class TaskActionTransactionIndexState {
     }
 
     /**
-     * Get the `TaskCollectionIndexDoc` for the specified `TaskCollectionId` and
-     * return null if the collection doesn't exist.
+     * Get the `TaskCollectionIndexDoc` for the specified `TaskCollectionId` and return
+     * null if the collection doesn't exist.
      */
     public getCollectionIndexDocIfExists(collectionId: TaskCollectionId) {
-        // Return the updated doc if we have one. Otherwise we need to load the doc
-        // from OpenSearch.
+        // Return the updated doc if we have one. Otherwise we need to load the doc from
+        // OpenSearch.
         const updatedCollection = this._updatedCollectionIndexDocById.get(collectionId);
         if (updatedCollection) return updatedCollection;
 
@@ -1452,9 +1445,9 @@ class TaskActionTransactionIndexState {
     /**
      * Updates the `TaskCollectionIndexDoc` for the specified `TaskCollectionId`.
      *
-     * Uses optimistic concurrency control. If the collection does not exist then
-     * we create it. If the collection exists with a different version then we need
-     * to retry.
+     * Uses optimistic concurrency control. If the collection does not exist then we
+     * create it. If the collection exists with a different version then we need to
+     * retry.
      */
     public putCollectionIndexDoc(
         collectionId: TaskCollectionId,
@@ -1490,8 +1483,8 @@ async function actuallyIndexTaskAction(
     switch (action.type) {
         case "UpdateTask": {
             const oldTask =
-                // If this is our initial attempt to create a task then optimistically assume
-                // it doesn't exist.
+                // If this is our initial attempt to create a task then optimistically assume it
+                // doesn't exist.
                 action.taskAction.type === "Create" && isInitialAttempt
                     ? null
                     : await state.getTaskIndexDocIfExists(action.taskId);
@@ -1523,12 +1516,12 @@ async function actuallyIndexTaskAction(
             }
 
             // Retry if we can't find the task. Actions may be applied out of order but a
-            // prerequisite for committing an update task action is having seen a create
-            // task action. So eventually we expect the task to exist.
+            // prerequisite for committing an update task action is having seen a create task
+            // action. So eventually we expect the task to exist.
             //
-            // Another option could be to put the action in some kind of pending queue,
-            // wait for the task to be created, then apply tasks from the pending queue but
-            // that would have storage costs.
+            // Another option could be to put the action in some kind of pending queue, wait
+            // for the task to be created, then apply tasks from the pending queue but that
+            // would have storage costs.
             if (!oldTask) {
                 throw state.retry(
                     new InternalError(
@@ -1547,10 +1540,10 @@ async function actuallyIndexTaskAction(
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.
             //
-            // In addition to avoiding a network request, this optimization can help avoid
-            // some retries too under high contention workloads since it's ok if the doc in
-            // OpenSearch has updated from underneath us. The result if we try to reapply
-            // would be the same.
+            // In addition to avoiding a network request, this optimization can help avoid some
+            // retries too under high contention workloads since it's ok if the doc in
+            // OpenSearch has updated from underneath us. The result if we try to reapply would
+            // be the same.
             if (newTask !== oldTask) {
                 state.putTaskIndexDoc(
                     action.taskId,
@@ -1564,8 +1557,8 @@ async function actuallyIndexTaskAction(
             return;
         }
         case "UpdateCollection": {
-            // If this is our initial attempt to create a collection then optimistically
-            // assume it doesn't exist.
+            // If this is our initial attempt to create a collection then optimistically assume
+            // it doesn't exist.
             const oldCollection =
                 action.collectionAction.type === "Create" && isInitialAttempt
                     ? null
@@ -1581,9 +1574,9 @@ async function actuallyIndexTaskAction(
                 return;
             }
 
-            // Retry if we can't find the collection. Actions may be applied out of order
-            // but a prerequisite for committing an update collection action is having seen
-            // a create collection action. So eventually we expect the collection to exist.
+            // Retry if we can't find the collection. Actions may be applied out of order but a
+            // prerequisite for committing an update collection action is having seen a create
+            // collection action. So eventually we expect the collection to exist.
             if (!oldCollection) {
                 throw state.retry(
                     new InternalError(
@@ -1601,10 +1594,10 @@ async function actuallyIndexTaskAction(
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.
             //
-            // In addition to avoiding a network request, this optimization can help avoid
-            // some retries too under high contention workloads since it's ok if the doc in
-            // OpenSearch has updated from underneath us. The result if we try to reapply
-            // would be the same.
+            // In addition to avoiding a network request, this optimization can help avoid some
+            // retries too under high contention workloads since it's ok if the doc in
+            // OpenSearch has updated from underneath us. The result if we try to reapply would
+            // be the same.
             if (newCollection !== oldCollection) {
                 state.putCollectionIndexDoc(
                     action.collectionId,
@@ -1625,15 +1618,14 @@ function getTaskActionApproximateActionCountType(
     actionType: TaskUpdateTaskAction["taskAction"]["type"],
 ): "Discrete" | "Continuous" | null {
     switch (actionType) {
-        // We don't increment action count for `UpdateChildrenCounts` because it's a
-        // system action automatically committed when updating a child task. Child task
-        // updates should not count as contribution to the parent task.
+        // We don't increment action count for `UpdateChildrenCounts` because it's a system
+        // action automatically committed when updating a child task. Child task updates
+        // should not count as contribution to the parent task.
         case "UpdateChildrenCounts":
             return null;
 
-        // We don't increment action count for `UpdateAssigneePosition` since it
-        // updates private information not observable by anyone but the assigned
-        // account.
+        // We don't increment action count for `UpdateAssigneePosition` since it updates
+        // private information not observable by anyone but the assigned account.
         case "UpdateAssigneePosition":
             return null;
 
@@ -1673,17 +1665,18 @@ export const indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 /**
- * Index an account name update action for a space. Uses the OpenSearch [update
- * by query API][1] to find every `TaskSortableAccount` the account name is
- * referenced in and updates to the latest value. This may take a while to run
- * as queries and bulk updates may be expensive. Then we need to retry on
- * version conflicts as well.
+ * Index an account name update action for a space. Uses the OpenSearch [update by
+ * query API][1] to find every `TaskSortableAccount` the account name is referenced
+ * in and updates to the latest value. This may take a while to run as queries and
+ * bulk updates may be expensive. Then we need to retry on version conflicts as
+ * well.
  *
  * As long as this takes less than, say, 5min we're good. So that indexing
- * comfortably completes before the action leaves `TaskRealtimeService`'s
- * action history window.
+ * comfortably completes before the action leaves `TaskRealtimeService`'s action
+ * history window.
  *
- * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+ * [1]:
+ *     https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
 function indexTaskUpdateAccountNameActionAssumingItsCommitted(
     context: Context<DynamoContextModules & {opensearch: OpensearchContextModule}>,
@@ -1691,34 +1684,36 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
     action: TaskUpdateAccountNameAction,
 ) {
     return context.tracer.withSpan("Index account name update task action", async context => {
-        // Assuming the update account name action has been committed, all future
-        // actions that reference an account use the new account name. (Because we read
-        // referenced accounts with strong consistency during action indexing.)
+        // Assuming the update account name action has been committed, all future actions
+        // that reference an account use the new account name. (Because we read referenced
+        // accounts with strong consistency during action indexing.)
         //
         // We immediately start updating account names in tasks (the first `run()` call
         // above) but we since OpenSearch doesn't have read-after-write consistency we
-        // can't guarantee we've updated absolutely all tasks until the index
-        // refreshes. The [OpenSearch serverless refresh interval for search
-        // indexes][1] is approximately 10 seconds. We'll wait 3x that (30 seconds) to
-        // absolutely make sure we're running after the index refreshes then we call
-        // `run()` to update all account names update a second time in case there are
-        // any new tasks we missed before the refresh.
+        // can't guarantee we've updated absolutely all tasks until the index refreshes.
+        // The [OpenSearch serverless refresh interval for search indexes][1] is
+        // approximately 10 seconds. We'll wait 3x that (30 seconds) to absolutely make
+        // sure we're running after the index refreshes then we call `run()` to update all
+        // account names update a second time in case there are any new tasks we missed
+        // before the refresh.
         //
-        // We're ok with action indexing taking a while as long as it takes less
-        // than ~5min so it fits in our `TaskRealtimeService` action history window
-        // (currently configured to be ~10min).
+        // We're ok with action indexing taking a while as long as it takes less than ~5min
+        // so it fits in our `TaskRealtimeService` action history window (currently
+        // configured to be ~10min).
         //
         // In unit tests we force a refresh immediately. Since indexes must be manually
-        // refreshed in unit tests (refresh interval set to -1). It's not recommended
-        // to force a refresh in production since that could harm index performance.
+        // refreshed in unit tests (refresh interval set to -1). It's not recommended to
+        // force a refresh in production since that could harm index performance.
         //
         // NOTE(calebmer, 2025-04-10): This used to be implemented with [OpenSearch's
-        // `_update_by_query`][2] but since we migrated to OpenSearch serverless we
-        // can't use `_update_by_query`. So we manually implement effectively the same
-        // behavior here.
+        // `_update_by_query`][2] but since we migrated to OpenSearch serverless we can't
+        // use `_update_by_query`. So we manually implement effectively the same behavior
+        // here.
         //
-        // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
-        // [2]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+        // [1]:
+        //     https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+        // [2]:
+        //     https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
         if (import.meta.jest) {
             await context.opensearch.refresh(TaskIndex);
 
@@ -1772,8 +1767,8 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                                         // Only update tasks in this space:
                                         {term: {spaceId: new OpensearchQueryValue(spaceId)}},
 
-                                        // We want to update deleted tasks in addition to undeleted tasks. Which is why
-                                        // we don't have a deleted task filter here.
+                                        // We want to update deleted tasks in addition to undeleted tasks. Which is why we
+                                        // don't have a deleted task filter here.
                                     ],
 
                                     minimum_should_match: 1,
@@ -1823,13 +1818,13 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                 for (let i = 0; i < hits.length; i++) {
                     const hit = hits[i]!;
 
-                    // Add to a `promiseWaiter` so if the we reject `promiseWaiter.wait()`
-                    // will throw. `mutex.waitForUnlock()` will not throw.
+                    // Add to a `promiseWaiter` so if the we reject `promiseWaiter.wait()` will throw.
+                    // `mutex.waitForUnlock()` will not throw.
                     promiseWaiter.waitUntil(
                         mutexes[i % mutexes.length]!.withLock(async () => {
                             await retryWithExponentialBackoff(async retry => {
-                                // Use the doc from `search()` on our initial attempt and if there was a
-                                // version conflict with the initial doc try loading the doc again.
+                                // Use the doc from `search()` on our initial attempt and if there was a version
+                                // conflict with the initial doc try loading the doc again.
                                 const doc = assertExists(
                                     await context.opensearch.getDocIfExists(
                                         TaskIndex,
@@ -1911,8 +1906,8 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                     hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
                 ) as ReadonlyArray<JsonScalarValue> | null;
 
-                // If we did not reach the pagination limit then don't query again for the
-                // next page.
+                // If we did not reach the pagination limit then don't query again for the next
+                // page.
                 if (hits.length < searchSize) afterCursor = null;
             } while (afterCursor !== null);
         }
@@ -1924,30 +1919,29 @@ export const queryTaskIndexTestCounter = new TestCounter<SpaceId>();
 /**
  * Query the OpenSearch task index.
  *
- * Remember that the task index will be behind by (hopefully) no more than
- * 2min. So to catch the query up to the actual present result you need to
- * replay ~2min of actions since the query started.
+ * Remember that the task index will be behind by (hopefully) no more than 2min. So
+ * to catch the query up to the actual present result you need to replay ~2min of
+ * actions since the query started.
  *
- * Where do we get 2min from?
- * `indexDuration + refreshInterval + refreshDuration` should be less than
- * 2min. What do each of these mean?
+ * Where do we get 2min from? `indexDuration + refreshInterval + refreshDuration`
+ * should be less than 2min. What do each of these mean?
  *
- * - `indexDuration`: The time it takes from action transaction commit finish
- *   to action transaction index finish. Basically the duration of
+ * - `indexDuration`: The time it takes from action transaction commit finish to
+ *   action transaction index finish. Basically the duration of
  *   `indexTaskActionTransactionAssumingItsCommitted()`.
  *
- * - `refreshInterval`: The interval at which OpenSearch refreshes its indexes.
- *   For the task index we've configured this to be 30 seconds.
+ * - `refreshInterval`: The interval at which OpenSearch refreshes its indexes. For
+ *   the task index we've configured this to be 30 seconds.
  *
  * - `refreshDuration`: The amount of time it takes to refresh the OpenSearch
  *   index.
  *
- * By default `TaskRealtimeActionHistory` (which is responsible for maintaining
- * our action history in memory) holds the last ~5min of actions. We also
- * timeout searches after 30s.
+ * By default `TaskRealtimeActionHistory` (which is responsible for maintaining our
+ * action history in memory) holds the last ~5min of actions. We also timeout
+ * searches after 30s.
  *
- * We should eventually set SLAs for task indexing and OpenSearch to avoid
- * weird glitches when we can't fully catch up a query.
+ * We should eventually set SLAs for task indexing and OpenSearch to avoid weird
+ * glitches when we can't fully catch up a query.
  */
 export async function queryTaskIndex(
     context: Context<{
@@ -1994,14 +1988,14 @@ export async function queryTaskIndex(
 }
 
 /**
- * If the action completes successfully then we'll schedule an
- * `IndexSearchEntity` job for the provided `TaskId` if there isn't already a
- * job scheduled for this update.
+ * If the action completes successfully then we'll schedule an `IndexSearchEntity`
+ * job for the provided `TaskId` if there isn't already a job scheduled for this
+ * update.
  *
- * We do no authorization that the `actor` is allowed to access a task. Since
- * this function does not reveal information about the task to the caller or
- * update the task. It only schedules a indexing job which is idempotent and
- * should be run whenever the task changes.
+ * We do no authorization that the `actor` is allowed to access a task. Since this
+ * function does not reveal information about the task to the caller or update the
+ * task. It only schedules a indexing job which is idempotent and should be run
+ * whenever the task changes.
  */
 export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
     context: TaskRealtimeSessionActionContext,
@@ -2030,8 +2024,8 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
             ? initialTask
             : await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
 
-        // If we didn't find the task, we may be waiting for it to be created in the
-        // index. The index is updated asynchronously after tasks are committed.
+        // If we didn't find the task, we may be waiting for it to be created in the index.
+        // The index is updated asynchronously after tasks are committed.
         if (!task) {
             throw retry(new InternalError("Task not found in index"));
         }
@@ -2040,8 +2034,8 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
 
         const currentTime = new Date();
 
-        // Don't add a task index job until after the first one's delay has finished.
-        // When the delayed indexing job runs it will pick up this update.
+        // Don't add a task index job until after the first one's delay has finished. When
+        // the delayed indexing job runs it will pick up this update.
         if (
             isDatePossiblyLessThanWithUncertaintyWindow(
                 task.lastIndexSearchEntityJob.sendTime.getTime() +
@@ -2049,8 +2043,8 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
                 currentTime,
             )
         ) {
-            // NOTE(calebmer): Updating traits is currently unsupported for this function
-            // but should be easy to add.
+            // NOTE(calebmer): Updating traits is currently unsupported for this function but
+            // should be easy to add.
             const updatedTraits: Array<never> = [];
 
             const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {

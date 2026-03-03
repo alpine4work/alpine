@@ -2,20 +2,27 @@
  * Key tests:
  *
  * Plugin State Management:
- *    - Lints are stored in plugin state and persist across editor transactions
- *    - Plugin state is updated via transactions using setMeta() with the plugin key
- *    - State includes both the lints and logic for hiding lints under the cursor
+ *
+ * - Lints are stored in plugin state and persist across editor transactions
+ * - Plugin state is updated via transactions using setMeta() with the plugin key
+ * - State includes both the lints and logic for hiding lints under the cursor
  *
  * Position Mapping:
- *    - When the document changes, lint positions are automatically mapped to their new locations
- *    - ProseMirror's transaction.mapping handles this via transaction.mapping.map()
- *    - Lints are removed if their content is deleted (when from === to after mapping)
+ *
+ * - When the document changes, lint positions are automatically mapped to their
+ *   new locations
+ * - ProseMirror's transaction.mapping handles this via transaction.mapping.map()
+ * - Lints are removed if their content is deleted (when from === to after mapping)
  *
  * Test Structure:
- * - createEditorState() creates a ProseMirror EditorState with the spell checker plugin
+ *
+ * - createEditorState() creates a ProseMirror EditorState with the spell checker
+ *   plugin
  * - createMockLint() creates realistic ContentSpellCheckLint objects for testing
- * - Tests use ProseMirror's transaction system (state.tr) to simulate editor changes
- * - Plugin state is accessed via getContentEditorSpellCheckerLints() helper function
+ * - Tests use ProseMirror's transaction system (state.tr) to simulate editor
+ *   changes
+ * - Plugin state is accessed via getContentEditorSpellCheckerLints() helper
+ *   function
  */
 
 import {EditorState, TextSelection} from "prosemirror-state";

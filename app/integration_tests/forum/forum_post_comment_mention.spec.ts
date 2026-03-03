@@ -159,8 +159,8 @@ test("can undo to get the full mention when a short mention was inferred", async
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await page.getByRole("textbox", {name: "New comment"}).type("Siobahn");
 
-    // On mobile the user doesn't commonly have cmd-z so we insert the full mention
-    // and let them press backspace to get the short version.
+    // On mobile the user doesn't commonly have cmd-z so we insert the full mention and
+    // let them press backspace to get the short version.
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");

@@ -30,19 +30,20 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * This is a fork of the [`<RouterProvider>` component in `react-router`][1].
  *
- * We forked this component to add support for our native mobile router. We've
- * also simplified some some bits we don't need.
+ * We forked this component to add support for our native mobile router. We've also
+ * simplified some some bits we don't need.
  *
- * [1]: https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router-dom/index.tsx#L477-L743
+ * [1]:
+ *     https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router-dom/index.tsx#L477-L743
  */
 export function AppRouterProvider({
     fallbackElement,
     router,
     future,
 }: RouterProviderProps): React.ReactElement {
-    // In our native mobile app, we send a ping every 500ms to native to let it
-    // know our React component is still up and running. If React crashes we want
-    // to let the user know and show them an error message.
+    // In our native mobile app, we send a ping every 500ms to native to let it know
+    // our React component is still up and running. If React crashes we want to let the
+    // user know and show them an error message.
     useEffect(() => {
         if (!NativeMobileBridge) return;
 
@@ -58,16 +59,16 @@ export function AppRouterProvider({
         };
     }, []);
 
-    // Need to use a layout effect here so we are subscribed early enough to
-    // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
+    // Need to use a layout effect here so we are subscribed early enough to pick up on
+    // any render-driven redirects/navigations (useEffect/<Navigate>)
     const [state, setStateImpl] = useState(router.state);
     const fetcherData = useRef<Map<string, any>>(new Map());
     const {v7_startTransition} = future || {};
 
     const setState: RouterSubscriber = useCallback(
         (newState, {deletedFetchers, unstable_flushSync, unstable_viewTransitionOpts}) => {
-            // NOTE(calebmer): We don't currently use Remix view transitions so don't
-            // include them in our fork.
+            // NOTE(calebmer): We don't currently use Remix view transitions so don't include
+            // them in our fork.
             if (unstable_viewTransitionOpts) {
                 throw new UnimplementedError("`unstable_viewTransitionOpts` is not implemented");
             }
@@ -109,33 +110,33 @@ export function AppRouterProvider({
             createHref: router.createHref.bind(router),
             encodeLocation: router.encodeLocation.bind(router),
             go: n => {
-                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()`
-                // promises. We try to avoid calling these functions to navigate, instead using
-                // our `useNavigate()` hook which returns a promise.
+                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()` promises.
+                // We try to avoid calling these functions to navigate, instead using our
+                // `useNavigate()` hook which returns a promise.
                 //
-                // The promise here actually isn't that useful. Since it resolves once data
-                // loading is done. Not when React has finished rendering.
+                // The promise here actually isn't that useful. Since it resolves once data loading
+                // is done. Not when React has finished rendering.
                 void router.navigate(n);
             },
             push: (to, state, opts) => {
-                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()`
-                // promises. We try to avoid calling these functions to navigate, instead using
-                // our `useNavigate()` hook which returns a promise.
+                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()` promises.
+                // We try to avoid calling these functions to navigate, instead using our
+                // `useNavigate()` hook which returns a promise.
                 //
-                // The promise here actually isn't that useful. Since it resolves once data
-                // loading is done. Not when React has finished rendering.
+                // The promise here actually isn't that useful. Since it resolves once data loading
+                // is done. Not when React has finished rendering.
                 void router.navigate(to, {
                     state,
                     preventScrollReset: opts?.preventScrollReset,
                 });
             },
             replace: (to, state, opts) => {
-                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()`
-                // promises. We try to avoid calling these functions to navigate, instead using
-                // our `useNavigate()` hook which returns a promise.
+                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()` promises.
+                // We try to avoid calling these functions to navigate, instead using our
+                // `useNavigate()` hook which returns a promise.
                 //
-                // The promise here actually isn't that useful. Since it resolves once data
-                // loading is done. Not when React has finished rendering.
+                // The promise here actually isn't that useful. Since it resolves once data loading
+                // is done. Not when React has finished rendering.
                 void router.navigate(to, {
                     replace: true,
                     state,
@@ -162,8 +163,8 @@ export function AppRouterProvider({
 
     // 1. Prepare navigation animation before we paint our new screen
     //
-    // Insertion effects run while React is constructing DOM nodes and before the
-    // DOM nodes are added to our view. So the old content is painted on screen.
+    // Insertion effects run while React is constructing DOM nodes and before the DOM
+    // nodes are added to our view. So the old content is painted on screen.
     useInsertionEffect(() => {
         if (lastLocationKeyForInsertionEffectRef.current === state.location.key) return;
         lastLocationKeyForInsertionEffectRef.current = state.location.key;
@@ -174,10 +175,9 @@ export function AppRouterProvider({
                     getLocationNativeMobileTab(state.location),
                 );
             } else {
-                // TODO(calebmer): I'd like to add some performance instrumentation to find out
-                // how much time we spend synchronously blocked. Ideally add it as a property
-                // to a navigation span since the duration may be too small to justify its
-                // own span.
+                // TODO(calebmer): I'd like to add some performance instrumentation to find out how
+                // much time we spend synchronously blocked. Ideally add it as a property to a
+                // navigation span since the duration may be too small to justify its own span.
                 NativeMobileBridge?.navigation.preparePush();
             }
         } else if (state.historyAction === Action.Pop) {
@@ -206,15 +206,15 @@ export function AppRouterProvider({
 
         if (!NativeMobileBridge) return;
 
-        // Double request animation frame to make absolutely certain the browser
-        // has finished painting the new location. We've observed cases on iOS for the
-        // drag from left to pop gesture where the animation finishes and the old route
-        // briefly flashes before the new route renders. This is because the browser
-        // hasn't finished rendering the correct route by the time we call
+        // Double request animation frame to make absolutely certain the browser has
+        // finished painting the new location. We've observed cases on iOS for the drag
+        // from left to pop gesture where the animation finishes and the old route briefly
+        // flashes before the new route renders. This is because the browser hasn't
+        // finished rendering the correct route by the time we call
         // `NativeMobileBridge.navigation.externalPop()`.
         //
-        // Double request animation frame guarantees we run some code after the
-        // browser's next animation frame.
+        // Double request animation frame guarantees we run some code after the browser's
+        // next animation frame.
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 assert(NativeMobileBridge);

@@ -126,9 +126,9 @@ export function TaskProjectDetailViewNavigationBarTitle({
                         //
                         // We implement double click with `onPointerDown` instead of `onDoubleClick`
                         // because `onDoubleClick` fires one pointer up but the browser performs text
-                        // selection on double click pointer down. So there's a small visual glitch
-                        // where you can see the browser selection after double click before pointer up
-                        // when you use `onDoubleClick`,
+                        // selection on double click pointer down. So there's a small visual glitch where
+                        // you can see the browser selection after double click before pointer up when you
+                        // use `onDoubleClick`,
                         event.preventDefault();
 
                         setIsEditingTitleInline(true);
@@ -149,8 +149,8 @@ export function TaskProjectDetailViewNavigationBarTitle({
                             onTitleChange(emptyTaskTitleModel.get().replace(0, 0, title));
                         } else {
                             // Don't try to do piecemeal updates for project task titles. Update the full
-                            // thing! Our input doesn't show realtime updates so trying to merge for
-                            // realtime updates after the update would likely get an unexpected result.
+                            // thing! Our input doesn't show realtime updates so trying to merge for realtime
+                            // updates after the update would likely get an unexpected result.
                             onTitleChange(
                                 task.getTitle().replace(0, originalTitleText.length, title),
                             );
@@ -230,8 +230,8 @@ function TaskProjectDetailViewNavigationBarDesktopTitleEditor({
                             inputRef,
                             useConfirmSaveAfterLosingFocus({
                                 shouldConfirmSave:
-                                    // Otherwise if you delete all of the collection name it will revert back to
-                                    // the initial name.
+                                    // Otherwise if you delete all of the collection name it will revert back to the
+                                    // initial name.
                                     title !== initialTitle,
 
                                 isConfirmingSave: shouldShowConfirmSaveDialog,
@@ -286,8 +286,8 @@ function TaskProjectDetailViewNavigationBarDesktopTitleEditor({
                     title="Save project name"
                     description="Would you like to save your new project name?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

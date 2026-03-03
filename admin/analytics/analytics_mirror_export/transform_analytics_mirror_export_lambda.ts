@@ -68,8 +68,7 @@ type DimensionRecords = {
 };
 
 /**
- * Intermediate data for merging 1:1 items.
- * Maps entity ID to partial record data.
+ * Intermediate data for merging 1:1 items. Maps entity ID to partial record data.
  */
 type MergeData = {
     accountAttributes: Map<string, Omit<AccountDimension, AccountSettingsKeys>>;
@@ -81,9 +80,9 @@ type MergeData = {
 /**
  * Lambda handler that transforms DynamoDB export data to JSONL format for Athena.
  *
- * This Lambda is triggered by S3 events when a DynamoDB export manifest file is written.
- * It reads the export data files, filters to allowlisted columns, and writes JSONL to
- * the dimension tables location.
+ * This Lambda is triggered by S3 events when a DynamoDB export manifest file is
+ * written. It reads the export data files, filters to allowlisted columns, and
+ * writes JSONL to the dimension tables location.
  *
  * The export manifest path format is:
  * s3://{bucket}/{prefix}/AWSDynamoDB/{export-id}/manifest-files.json
@@ -91,9 +90,10 @@ type MergeData = {
  * For more on the output format from DynamoDb exports, see:
  * https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataExport.Output.html
  *
- * IMPORTANT: This is really brittle -- it's not type safe. We export raw dynamoDB items,
- * so we don't get to take advantage of the schema validation that we do for other data.
- * So if we update a dynamo item's schema, we'll have to update this export manually.
+ * IMPORTANT: This is really brittle -- it's not type safe. We export raw dynamoDB
+ * items, so we don't get to take advantage of the schema validation that we do for
+ * other data. So if we update a dynamo item's schema, we'll have to update this
+ * export manually.
  */
 export const handler: S3Handler = async (event: S3Event, context: Context) => {
     await withLambdaTimeout(context, new AbortController(), async () => {
@@ -104,8 +104,8 @@ export const handler: S3Handler = async (event: S3Event, context: Context) => {
             const bucket = record.s3.bucket.name;
             const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, " "));
 
-            // Extract table name from the export path
-            // Path format: raw-exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
+            // Extract table name from the export path Path format:
+            // raw-exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
             const tableName = extractTableNameFromPath(key);
             if (!tableName) {
                 // eslint-disable-next-line no-console
@@ -156,7 +156,8 @@ export const handler: S3Handler = async (event: S3Event, context: Context) => {
 };
 
 function extractTableNameFromPath(key: string): string | null {
-    // Path format: raw-exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
+    // Path format:
+    // raw-exports/{table-name}/AWSDynamoDB/{export-id}/manifest-files.json
     const match = key.match(/^raw-exports\/([^/]+)\/AWSDynamoDB\//);
     return match?.[1] ?? null;
 }
@@ -425,8 +426,7 @@ function transformSpacesTableItem(
         return;
     }
 
-    // Space#Account -> space_accounts
-    // Sort key format: a1#Account#<account-id>
+    // Space#Account -> space_accounts Sort key format: a1#Account#<account-id>
     if (partitionKey.startsWith("Space#") && sortKey.includes("#Account#")) {
         const spaceId = partitionKey.replace("Space#", "");
         const accountId = sortKey.split("#").at(-1);
@@ -455,8 +455,8 @@ function transformSpacesTableItem(
         return;
     }
 
-    // AutoAddAccountsFromEmailDomain#Space -> space_email_domains
-    // spaceId is stored as a separate field, not in the sort key
+    // AutoAddAccountsFromEmailDomain#Space -> space_email_domains spaceId is stored as
+    // a separate field, not in the sort key
     if (partitionKey.startsWith("AutoAddAccountsFromEmailDomain#") && sortKey.endsWith("#Space")) {
         const emailDomain = partitionKey.replace("AutoAddAccountsFromEmailDomain#", "");
         const spaceId = parseRequiredAttributeValue<string>(item.spaceId);

@@ -37,32 +37,32 @@ const SearchEntityModelDataSchema = Schema.object({
 });
 
 /**
- * Model representing a search entity on the client. Search entity is a
- * standard interface for all content in our system so we can reference objects
- * in a consistent way throughout the product.
+ * Model representing a search entity on the client. Search entity is a standard
+ * interface for all content in our system so we can reference objects in a
+ * consistent way throughout the product.
  *
- * We don't allow accounts as search entity models. Instead use `AccountModel`
- * so we don't end up with conflicting versions of the same data.
+ * We don't allow accounts as search entity models. Instead use `AccountModel` so
+ * we don't end up with conflicting versions of the same data.
  *
  * The data for `SearchEntityModel` is in an `initialData` property. You're
  * discouraged from using the `initialData` property on the client. Instead you
- * should use `SearchEntityClientStore` which normalizes search entities so you
- * see consistent data for each individual search entity and if a search entity
- * updates in one place it updates everywhere.
+ * should use `SearchEntityClientStore` which normalizes search entities so you see
+ * consistent data for each individual search entity and if a search entity updates
+ * in one place it updates everywhere.
  */
 export class SearchEntityModel {
     public readonly id: SearchEntityModelId;
 
     /**
-     * Don't use this property on the client! Use `SearchEntityClientStore` to get
-     * the latest data for this search entity.
+     * Don't use this property on the client! Use `SearchEntityClientStore` to get the
+     * latest data for this search entity.
      */
     public readonly initialData: SearchEntityModelData;
 
     constructor(initialData: SearchEntityModelData) {
-        // Double check that we can't have an account `SearchEntityModel`. The type
-        // system should already disallow this but we want to be extra sure. Instead
-        // we should use `AccountModel` to represent accounts on the client.
+        // Double check that we can't have an account `SearchEntityModel`. The type system
+        // should already disallow this but we want to be extra sure. Instead we should use
+        // `AccountModel` to represent accounts on the client.
         assert(!initialData.id.startsWith("Account:"));
 
         this.id = initialData.id;
@@ -75,9 +75,8 @@ export class SearchEntityModel {
     });
 
     /**
-     * Also implemented by `AccountModel` so you can call
-     * `getSearchEntityId()` on `SearchEntityModel | AccountModel` to get the
-     * `SearchEntityId`.
+     * Also implemented by `AccountModel` so you can call `getSearchEntityId()` on
+     * `SearchEntityModel | AccountModel` to get the `SearchEntityId`.
      */
     public getSearchEntityId(): SearchEntityModelId {
         return this.id;
@@ -86,10 +85,10 @@ export class SearchEntityModel {
     /**
      * Merge two `SearchEntityModel`s together.
      *
-     * You should generally pass in the older data into `oldData` and newer data
-     * to `newData`. So we avoid unnecessary re-renders when the data is equal
-     * (and `oldData` is preferred) and in case we don't have clear version
-     * information we prefer the newer data (`newData`).
+     * You should generally pass in the older data into `oldData` and newer data to
+     * `newData`. So we avoid unnecessary re-renders when the data is equal (and
+     * `oldData` is preferred) and in case we don't have clear version information we
+     * prefer the newer data (`newData`).
      */
     public static mergeData(
         oldData: SearchEntityModelData,
@@ -134,8 +133,7 @@ export class SearchEntityModel {
  * Variant of `SearchEntityModel` that only supports search entities that collect
  * affinity points. So search entities with an `id` of `SearchAffinityEntityId`.
  *
- * If you call `new SearchAffinityEntityModel()` it returns a
- * `SearchEntityModel`.
+ * If you call `new SearchAffinityEntityModel()` it returns a `SearchEntityModel`.
  */
 export interface SearchAffinityEntityModel extends SearchEntityModel {
     readonly id: SearchEntityModelId & SearchAffinityEntityId;
@@ -149,8 +147,8 @@ export interface SearchAffinityEntityModel extends SearchEntityModel {
 }
 
 export const SearchAffinityEntityModel: {
-    // TypeScript treats `new` as a keyword and not a property when it doesn't
-    // have quotes when generating a `.d.ts` file.
+    // TypeScript treats `new` as a keyword and not a property when it doesn't have
+    // quotes when generating a `.d.ts` file.
     "new"(
         initialData: Replace<
             SearchEntityModelData,

@@ -1,10 +1,9 @@
-// Reporter is in three separate files: `reporter.tsx`, `reporter_context.ts`,
-// and `reporter_context_provider.tsx` to prevent `reporter.tsx` from importing
+// Reporter is in three separate files: `reporter.tsx`, `reporter_context.ts`, and
+// `reporter_context_provider.tsx` to prevent `reporter.tsx` from importing
 // `reporter_context_provider.tsx` which would create a cyclic import because
-// `reporter_context_provider.tsx` imports UI components like `<IconButton>`
-// which need the `useReporter()` hook. Cyclic imports degrade the HMR
-// developer experience since all files in the cycle need to be re-evaluated
-// on change.
+// `reporter_context_provider.tsx` imports UI components like `<IconButton>` which
+// need the `useReporter()` hook. Cyclic imports degrade the HMR developer
+// experience since all files in the cycle need to be re-evaluated on change.
 
 import {useContext} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";

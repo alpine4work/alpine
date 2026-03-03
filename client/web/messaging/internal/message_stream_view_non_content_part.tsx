@@ -279,8 +279,8 @@ export function MessageStreamViewNonContentPart({
     return (
         <HtmlGeneratorView
             ref={containerRef}
-            // Must be an inline element `<span>` instead of a `<div>` so text truncation
-            // works properly.
+            // Must be an inline element `<span>` instead of a `<div>` so text truncation works
+            // properly.
             as="span"
             htmlGenerator={htmlGenerator}
         />

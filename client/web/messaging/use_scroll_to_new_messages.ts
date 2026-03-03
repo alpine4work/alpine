@@ -25,15 +25,15 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     messages: MessageList<Message> | null;
     getItemKey: Memo<(item: MessageListItem<Message>) => Key>;
 }) {
-    // When new messages are added and the user is near the end of the scroll
-    // view, we want to scroll our view down so that the user can see the new
-    // message. There are two cases where this is important:
+    // When new messages are added and the user is near the end of the scroll view, we
+    // want to scroll our view down so that the user can see the new message. There are
+    // two cases where this is important:
     //
-    // 1. The user is actively having a conversation at the end of the messaging
-    //    view. When they send a message we scroll their new message into view so
-    //    they can see it.
-    // 2. The user is actively having a conversation at the end of the messaging
-    //    view and another person in the conversation sends a message.
+    // 1. The user is actively having a conversation at the end of the messaging view.
+    //    When they send a message we scroll their new message into view so they can
+    //    see it.
+    // 2. The user is actively having a conversation at the end of the messaging view
+    //    and another person in the conversation sends a message.
 
     const lastItemCountRef = useRef(messages?.getItemCount() ?? null);
     const lastHasTypingIndicatorsItemRef = useRef(false);
@@ -76,14 +76,14 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         const run = () => {
             let firstNewItemIndex = lastItemCount;
 
-            // If we previously had typing indicators item but now we don't, we want to
-            // scroll to the item which replaced the typing indicator.
+            // If we previously had typing indicators item but now we don't, we want to scroll
+            // to the item which replaced the typing indicator.
             if (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem) {
                 firstNewItemIndex -= 1;
             }
-            // If the item count didn't change but the reaction count on the last
-            // message changed, we want to scroll the last item (can't scroll a new item
-            // since there is no new item).
+            // If the item count didn't change but the reaction count on the last message
+            // changed, we want to scroll the last item (can't scroll a new item since there is
+            // no new item).
             else if (
                 lastItemCount === itemCount &&
                 lastFinalMessageHasEndingReactions !== finalMessageHasEndingReactions
@@ -101,8 +101,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             const firstNewItemKey = getItemKey(firstNewItem);
             const firstNewItemPosition = view.getPositionByKeyIfExists(firstNewItemKey);
 
-            // If a position doesn't exist (maybe because the item is offscreen), don't
-            // perform a scroll adjustment.
+            // If a position doesn't exist (maybe because the item is offscreen), don't perform
+            // a scroll adjustment.
             if (!firstNewItemPosition) return;
 
             const spacingScale = getSpacingScaleWithoutListening();
@@ -124,8 +124,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 // meaningful when the keyboard is open and there's lots of safe area.
                 //
                 // TODO(calebmer): Sticky positioned inputs will commonly be above
-                // `viewRect.bottom` based on their scroll position. I think we'll need
-                // different handling for sticky positioned inputs on mobile.
+                // `viewRect.bottom` based on their scroll position. I think we'll need different
+                // handling for sticky positioned inputs on mobile.
                 (!isInputStickyPositioned && inputRect
                     ? Math.max(0, viewRect.bottom - inputRect.top)
                     : 0);
@@ -137,21 +137,20 @@ export function useScrollToNewMessages<Message extends MessageModel>({
 
             let scrollDelta = actualNewItemsTop - idealNewItemsTop;
 
-            // NOTE(calebmer, #mobile-webkit-weirdness): So mobile WebKit doesn't
-            // automatically adjust scroll when content in a scrollable element shrinks
-            // until the user or JavaScript initiates a scroll. This may happen when we
-            // have a typing indicator that's replaced by a message that's smaller than
-            // the typing indicator (will happen if the message merges with the previous
-            // one).
+            // NOTE(calebmer, #mobile-webkit-weirdness): So mobile WebKit doesn't automatically
+            // adjust scroll when content in a scrollable element shrinks until the user or
+            // JavaScript initiates a scroll. This may happen when we have a typing indicator
+            // that's replaced by a message that's smaller than the typing indicator (will
+            // happen if the message merges with the previous one).
             //
             // So if our scroll delta is 0 (well between -1 and 1 to support fractions like
-            // 0.5) then move our scroll just a smidge so WebKit automatic scroll
-            // adjustment kicks in. This seems to work fine on desktop WebKit.
+            // 0.5) then move our scroll just a smidge so WebKit automatic scroll adjustment
+            // kicks in. This seems to work fine on desktop WebKit.
             //
             // To test this, open the keyboard in a chat at the end of messages. In another
             // window (desktop or mobile) type a short one line message. Wait for typing
-            // indicators to appear on your first test mobile device then send from your
-            // second window (the message needs to merge with the previous message).
+            // indicators to appear on your first test mobile device then send from your second
+            // window (the message needs to merge with the previous message).
             //
             // We use this same trick in `useScrollToAvoidBottomBarsAndMobileKeyboard()`.
             if (
@@ -166,16 +165,16 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             const newScrollOffset = view.getScrollOffset() + scrollDelta;
 
             // Only scroll if we're near the bottom. If we'd have to scroll more than ~4
-            // message views then don't do it since messages would jump unexpectedly and
-            // the user might be disturbed while reading.
+            // message views then don't do it since messages would jump unexpectedly and the
+            // user might be disturbed while reading.
             if (scrollDelta <= newItemsHeight + getScrollToNewMessagesMargin(spacingScale)) {
                 view.setScrollOffset(newScrollOffset);
                 flushNavigationBarScrollEventEmitter.emit(view.getElement());
             }
         };
 
-        // Run our effect after a microtask so that refs from the parent component
-        // are populated.
+        // Run our effect after a microtask so that refs from the parent component are
+        // populated.
         let isCancelled = false;
         scheduleMicrotask(() => {
             if (isCancelled) return;

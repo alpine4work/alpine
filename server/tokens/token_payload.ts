@@ -16,12 +16,12 @@ import {Schema} from "~/shared/schema/schema.js";
 export type SessionTokenPayload = {
     readonly type: "Session";
     readonly sessionId: SessionId;
-    // Though we could load the `AccountId` from the database item for our
-    // `SessionId`, it saves us database roundtrips to include it in the token
-    // given the `AccountId` for a session will never change.
+    // Though we could load the `AccountId` from the database item for our `SessionId`,
+    // it saves us database roundtrips to include it in the token given the `AccountId`
+    // for a session will never change.
     //
-    // When verifying the session still exists, we also need to verify the
-    // `AccountId` for the session is correct.
+    // When verifying the session still exists, we also need to verify the `AccountId`
+    // for the session is correct.
     readonly accountId: AccountId;
 };
 
@@ -46,8 +46,8 @@ export type BotTokenPayload = {
 export type BotTokenPayloadScope =
     // The bot has access to everything this account has access to.
     //
-    // Theoretically, this is the same as `Chat` for a 1:1 chat between just the
-    // bot and the account.
+    // Theoretically, this is the same as `Chat` for a 1:1 chat between just the bot
+    // and the account.
     | {readonly type: "Account"; readonly accountId: AccountId}
     // The bot has access to everything that everyone with view access to these
     // entities has access to.
@@ -55,8 +55,8 @@ export type BotTokenPayloadScope =
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {readonly type: "Post"; readonly postId: PostId}
     | {readonly type: "Task"; readonly taskId: TaskId}
-    // The bot has access to only things that are shared with everyone in the
-    // space. So only what's been shared with `AccessPolicy`'s `defaultGrant`.
+    // The bot has access to only things that are shared with everyone in the space. So
+    // only what's been shared with `AccessPolicy`'s `defaultGrant`.
     | {readonly type: "Space"};
 
 export type TokenPayload =

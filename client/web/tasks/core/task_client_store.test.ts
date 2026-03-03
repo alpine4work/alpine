@@ -36,14 +36,13 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {taskAuthorizedState} from "~/shared/tasks/task_realtime_protocol.js";
 
-// We disable the `commitTaskActionTransaction()` mutex in this file so commits
-// can be sent and responses received out-of-order. These tests were written
-// before we placed a mutex around `commitTaskActionTransaction()` and the
-// out-of-order tests tickle interesting code-paths in `TaskClientStore` we
-// want to keep testing.
+// We disable the `commitTaskActionTransaction()` mutex in this file so commits can
+// be sent and responses received out-of-order. These tests were written before we
+// placed a mutex around `commitTaskActionTransaction()` and the out-of-order tests
+// tickle interesting code-paths in `TaskClientStore` we want to keep testing.
 //
-// So even though out-of-order commits aren't possible in a web browser, allow
-// them in this test file.
+// So even though out-of-order commits aren't possible in a web browser, allow them
+// in this test file.
 beforeAll(() => {
     setShouldDisableCommitTaskActionTransactionMutexForTest(true);
 });
@@ -86,12 +85,12 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     const taskEntry = store.getTaskEntrySnapshot(taskId);
     if (!taskEntry) return null;
 
-    // This test was written before we added `actionReferencedAccountStoreById` to
-    // task entries. Discard `actionReferencedAccountStoreById` so we can avoid
-    // rewriting tests.
+    // This test was written before we added `actionReferencedAccountStoreById` to task
+    // entries. Discard `actionReferencedAccountStoreById` so we can avoid rewriting
+    // tests.
 
-    // Use a `WeakMap` to make sure we maintain referential equality if the task
-    // entry doesn't change.
+    // Use a `WeakMap` to make sure we maintain referential equality if the task entry
+    // doesn't change.
     return getOrSetDefaultMapValue(taskEntryCache, taskEntry, () => ({
         ...taskEntry,
         actions: taskEntry.actions?.map(({action}) => action) ?? null,
@@ -206,8 +205,8 @@ function createAutoRetainStore() {
             if (taskIdsWithSubscription.has(taskId)) continue;
             taskIdsWithSubscription.add(taskId);
 
-            // Create a subscription to every `TaskId` we see updated so our tests don't
-            // have to worry about retaining task entries.
+            // Create a subscription to every `TaskId` we see updated so our tests don't have
+            // to worry about retaining task entries.
             taskSubscriptions.push(store.createAndRetainTaskSubscription(taskId));
         }
 
@@ -215,8 +214,8 @@ function createAutoRetainStore() {
             if (collectionIdsWithSubscription.has(collectionId)) continue;
             collectionIdsWithSubscription.add(collectionId);
 
-            // Create a subscription to every `TaskId` we see updated so our tests don't
-            // have to worry about retaining task entries.
+            // Create a subscription to every `TaskId` we see updated so our tests don't have
+            // to worry about retaining task entries.
             collectionSubscriptions.push(store.createAndRetainCollectionSubscription(collectionId));
         }
     });
@@ -300,8 +299,8 @@ async function resolveLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     output: Output,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.resolveLastExecution(definition, output);
@@ -315,8 +314,8 @@ async function resolveRpcExecution<Input, Output>(
     n: number,
     output: Output,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.resolveExecution(definition, n, output);
@@ -329,8 +328,8 @@ async function rejectRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     n: number,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectExecution(definition, n);
@@ -342,8 +341,8 @@ async function rejectRpcExecution<Input, Output>(
 async function rejectLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectLastExecution(definition);
@@ -14586,8 +14585,8 @@ test("subscription to parent task captures all updates during child task removal
         expect(newChildTask.getParent()?.taskId).toBe(parentTask.id);
     }
 
-    // Create subscription to parent task before performing the removal
-    // This is crucial for the bug reproduction
+    // Create subscription to parent task before performing the removal This is crucial
+    // for the bug reproduction
     const parentSubscription = store.createAndRetainTaskSubscription(parentTask.id);
 
     // Now remove the parent reference which should update child counts on parent
@@ -14601,8 +14600,8 @@ test("subscription to parent task captures all updates during child task removal
         },
     };
 
-    // The bug appears to be related to how these updates are processed
-    // Commit the action instead of applying it directly to test the optimistic update path
+    // The bug appears to be related to how these updates are processed Commit the
+    // action instead of applying it directly to test the optimistic update path
     store.commitTaskActionTransaction(context, [removeParentAction], {
         undoManager: null,
         affinityManager: noopAffinityManager,

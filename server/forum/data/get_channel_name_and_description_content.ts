@@ -10,8 +10,8 @@ import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get the channel name and description content without references. Used for
- * building a search entity which will load content references on its own in a
- * way that tracks dependencies.
+ * building a search entity which will load content references on its own in a way
+ * that tracks dependencies.
  */
 export async function getChannelNameAndDescriptionContent(
     context: ServerActionContext,

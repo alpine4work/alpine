@@ -15,9 +15,9 @@ import {
 } from "~/shared/web_socket/web_socket_protocol.js";
 
 /**
- * The schema for a message sent from the client to the server. Messages for
- * the specific WebSocket protocol must be a union type so new messages can be
- * added in the future.
+ * The schema for a message sent from the client to the server. Messages for the
+ * specific WebSocket protocol must be a union type so new messages can be added in
+ * the future.
  */
 export type WebSocketMessageFromClient<Protocol extends WebSocketProtocolBase> =
     | {
@@ -68,9 +68,9 @@ export function createWebSocketMessageFromClientSchema<Protocol extends WebSocke
 }
 
 /**
- * The schema for a message sent from the server to the client. Messages for
- * the specific WebSocket protocol must be a union type so new messages can be
- * added in the future.
+ * The schema for a message sent from the server to the client. Messages for the
+ * specific WebSocket protocol must be a union type so new messages can be added in
+ * the future.
  */
 export type WebSocketMessageFromServer<Protocol extends WebSocketProtocolBase> =
     | {

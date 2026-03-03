@@ -87,10 +87,10 @@ type TaskPersonalViewQueryState = {
  * Hook that manages multiple task queries simultaneously and coordinates their
  * filter/sort changes.
  *
- * Unlike `useTaskQueryState` which manages a single query, this hook ensures
- * that when filters change, ALL queries wait until they've finished loading
- * before swapping from pending to active. This provides a smoother UX when
- * multiple sections need to update together.
+ * Unlike `useTaskQueryState` which manages a single query, this hook ensures that
+ * when filters change, ALL queries wait until they've finished loading before
+ * swapping from pending to active. This provides a smoother UX when multiple
+ * sections need to update together.
  */
 export function useTaskPersonalViewQueryState({
     filters,
@@ -173,8 +173,8 @@ export function useTaskPersonalViewQueryState({
         pendingSorts: null,
     });
 
-    // Make sure the queries in `queryStates` stay retained during this
-    // component's lifetime.
+    // Make sure the queries in `queryStates` stay retained during this component's
+    // lifetime.
     useEffect(() => {
         // Collect all queries that need to be retained (and later released)
         const queriesToRelease: Array<TaskClientQuery> = [];
@@ -204,9 +204,9 @@ export function useTaskPersonalViewQueryState({
         };
     }, [queryStates.queries]);
 
-    // If the filters/sorts set by the user differ from the filters/sorts of the
-    // active queries we're presenting then we need to start a new pending query
-    // for each query whose filters/sorts have changed in the background we'll swap out.
+    // If the filters/sorts set by the user differ from the filters/sorts of the active
+    // queries we're presenting then we need to start a new pending query for each
+    // query whose filters/sorts have changed in the background we'll swap out.
     useEffect(() => {
         const queryStateQueriesUpdates: Array<TaskQueryState> = [];
         const createdPendingQueries: Array<TaskClientQuery> = [];
@@ -267,13 +267,13 @@ export function useTaskPersonalViewQueryState({
                               query: null,
                           };
 
-                // Make sure comparing with `isDeepEqual()` is ok by checking that the types
-                // are equal.
+                // Make sure comparing with `isDeepEqual()` is ok by checking that the types are
+                // equal.
                 assertEqualTypes<typeof currentActiveQuery, typeof newQuery>();
                 assertEqualTypes<typeof currentPendingQuery, typeof newQuery | null>();
 
-                // If our filters/sorts do not equal the active query or the pending query then
-                // we need to start a new pending query.
+                // If our filters/sorts do not equal the active query or the pending query then we
+                // need to start a new pending query.
                 if (
                     stringifyForDeepEqualCheck<CalendarDate>(currentActiveQuery, date =>
                         date.toString(),
@@ -318,10 +318,10 @@ export function useTaskPersonalViewQueryState({
                 });
 
                 // This needs to be called in `batchStoreUpdates()` since `batchStoreUpdates()`
-                // delays our `TaskRealtimeClient` subscribing to the query. We want to wait
-                // until after `setShouldLoadGridViewExpansionStateForQuery()` to subscribe so
-                // that the realtime client can include the load-grid-view-expansion-state
-                // flag as true when the subscription happens.
+                // delays our `TaskRealtimeClient` subscribing to the query. We want to wait until
+                // after `setShouldLoadGridViewExpansionStateForQuery()` to subscribe so that the
+                // realtime client can include the load-grid-view-expansion-state flag as true when
+                // the subscription happens.
                 getTaskRealtimeClientIfExistsForClient(
                     space.id,
                 )?.setShouldLoadGridViewExpansionStateForQuery(newPendingQuery);
@@ -348,8 +348,8 @@ export function useTaskPersonalViewQueryState({
         });
 
         return () => {
-            // Release after a microtask since when the component re-renders we
-            // synchronously call `retain()` in the above hook keeping the query alive.
+            // Release after a microtask since when the component re-renders we synchronously
+            // call `retain()` in the above hook keeping the query alive.
             scheduleMicrotask(() => {
                 for (const query of createdPendingQueries) {
                     query.release();
@@ -424,8 +424,8 @@ export function useTaskPersonalViewQueryState({
                 };
             }
 
-            // Use functional update to avoid stale closure - queryStates captured
-            // when the effect ran may be outdated by the time the promise resolves.
+            // Use functional update to avoid stale closure - queryStates captured when the
+            // effect ran may be outdated by the time the promise resolves.
             setQueryStates({
                 queries: newQueryStateQueries,
                 activeFilters: assertExists(queryStates.pendingFilters),
@@ -476,12 +476,12 @@ function getTaskPersonalViewSectionQueries({
     initialclosedQuery: TaskPersonalViewSectionQueryOptions | null;
     initialRemainingQuery: TaskPersonalViewSectionQueryOptions | null;
 }): ReadonlyArray<TaskPersonalViewQueryOptions> {
-    // If no filters or sorts have been explicitly set then the user can manually
-    // sort by collection position.
+    // If no filters or sorts have been explicitly set then the user can manually sort
+    // by collection position.
     //
-    // If the collection view is filtered we automatically apply a sort since there
-    // can be some weirdness creating a task and expecting it to be in one place
-    // when there's no filter but instead it goes to another place.
+    // If the collection view is filtered we automatically apply a sort since there can
+    // be some weirdness creating a task and expecting it to be in one place when
+    // there's no filter but instead it goes to another place.
     const normalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = normalizeTaskPersonalViewSorts(
         sorts,
         filters.length,
@@ -494,18 +494,18 @@ function getTaskPersonalViewSectionQueries({
         currentAccountId: currentAccount.id,
     };
 
-    // Compute normalized filters for each section based on current user filters.
-    // In unified mode, only the "remaining" section is used with unified filters.
-    // In sections mode, each section gets its own specific filters.
+    // Compute normalized filters for each section based on current user filters. In
+    // unified mode, only the "remaining" section is used with unified filters. In
+    // sections mode, each section gets its own specific filters.
     const activeNormalizedFilters = getPersonalTaskViewActiveSectionQueryFilters({
         userFilters: filters,
         evaluationContext,
         assigneeFilter,
     });
 
-    // Display status filter for non-active sections (Overdue, DueToday, DueSoon, Remaining).
-    // These sections only show OpenInactive tasks. Closed tasks are shown in the dedicated
-    // Closed section.
+    // Display status filter for non-active sections (Overdue, DueToday, DueSoon,
+    // Remaining). These sections only show OpenInactive tasks. Closed tasks are shown
+    // in the dedicated Closed section.
     const defaultInactiveTaskSectionFilters = {
         assigneeFilter,
         displayStatusFilter: createPersonalTaskViewDisplayStatusFilter(new Set(["OpenInactive"])),

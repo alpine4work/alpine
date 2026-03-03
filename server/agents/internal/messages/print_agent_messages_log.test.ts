@@ -545,8 +545,9 @@ test("combination of timezone and time attributes", async () => {
         }),
     ]);
 
-    // Second message should have timezone attribute but NO time attribute (time tag was just injected)
-    // Note: Time tag shows the time in the CONTEXT timezone (EST), not the message timezone (PST)
+    // Second message should have timezone attribute but NO time attribute (time tag
+    // was just injected) Note: Time tag shows the time in the CONTEXT timezone (EST),
+    // not the message timezone (PST)
     expect(
         printAgentMessagesLog(messages, {
             time: new Date("2024-01-01T12:00:00Z"),
@@ -590,8 +591,8 @@ test("multiple timezone changes in conversation", async () => {
         }),
     ]);
 
-    // Context is New York, so Bob and Charlie should have timezone attributes
-    // Charlie is only 5 minutes after Bob (< 10 minutes), so no time attribute
+    // Context is New York, so Bob and Charlie should have timezone attributes Charlie
+    // is only 5 minutes after Bob (< 10 minutes), so no time attribute
     expect(
         printAgentMessagesLog(messages, {
             time: new Date("2024-01-01T12:00:00Z"),
@@ -687,8 +688,9 @@ test("grouped messages with different timezones", async () => {
         }),
     ]);
 
-    // Messages should be grouped, but only first should have timezone attribute
-    // Note: Time tag shows the time in the CONTEXT timezone (EST), not the message timezone (PST)
+    // Messages should be grouped, but only first should have timezone attribute Note:
+    // Time tag shows the time in the CONTEXT timezone (EST), not the message timezone
+    // (PST)
     expect(
         printAgentMessagesLog(messages, {
             time: new Date("2024-01-01T12:00:00Z"),
@@ -722,7 +724,8 @@ test("same author switching timezones within 1 hour", async () => {
         }),
     ]);
 
-    // Messages should NOT be grouped because timezone changed, even though same author and < 1 hour
+    // Messages should NOT be grouped because timezone changed, even though same author
+    // and < 1 hour
     expect(
         printAgentMessagesLog(messages, {
             time: new Date("2024-01-01T12:00:00Z"),
@@ -759,8 +762,8 @@ test("messages from authors in different olson timezones but same formatted time
         }),
     ]);
 
-    // Both timezones format to the same abbreviation (EST),
-    // so no timezone attribute should be shown
+    // Both timezones format to the same abbreviation (EST), so no timezone attribute
+    // should be shown
     const result = printAgentMessagesLog(messages, {
         time: new Date("2024-01-01T12:00:00Z"),
         timeZone: assertTimeZone("America/New_York"),
@@ -816,8 +819,8 @@ test("message without trailing newline is not modified", async () => {
         content: "Hello",
     });
 
-    // Manually verify the message text to ensure it ends with newline (from printAgentContentToMarkdown)
-    // Then check the output is properly formatted
+    // Manually verify the message text to ensure it ends with newline (from
+    // printAgentContentToMarkdown) Then check the output is properly formatted
     expect(printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
@@ -1014,17 +1017,14 @@ test("time tag and relative time attribute work together", async () => {
         }),
     ]);
 
-    // NOTE(ifitzsimmons): This is the one pretty strange case to me.
-    // Alice sends message 1 at timestamp 0
-    // Alice sends message 2 at timestamp 5
-    // Alice sends message 3 at timestamp 10
-    // Alice sends message 4 at timestamp 15
-    // Alice sends message 5 at timestamp 25
+    // NOTE(ifitzsimmons): This is the one pretty strange case to me. Alice sends
+    // message 1 at timestamp 0 Alice sends message 2 at timestamp 5 Alice sends
+    // message 3 at timestamp 10 Alice sends message 4 at timestamp 15 Alice sends
+    // message 5 at timestamp 25
     //
-    // It kinda looks like message 5 comes in at timestep 10 to the
-    // agent. I am really starting to feel that just adding message
-    // times to the messages is the clearest way to do this, but
-    // am like a 3/6 Belief Strength.
+    // It kinda looks like message 5 comes in at timestep 10 to the agent. I am really
+    // starting to feel that just adding message times to the messages is the clearest
+    // way to do this, but am like a 3/6 Belief Strength.
     //
     // ```
     // <time>timestep 0</time>
@@ -1135,8 +1135,8 @@ test("time tag with relative time attribute on same message", async () => {
         }),
     ]);
 
-    // The second message does NOT have a relative time attribute because
-    // a time tag was just injected (currentMessageTime === previousTimeInjectionTime)
+    // The second message does NOT have a relative time attribute because a time tag
+    // was just injected (currentMessageTime === previousTimeInjectionTime)
     expect(
         printAgentMessagesLog(messages, {
             time: baseTime,

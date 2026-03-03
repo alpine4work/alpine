@@ -1,7 +1,7 @@
 /**
- * Wait for all the data from a `ReadableStream` and return the data
- * concatenated into one string. Assumes the `ReadableStream` is UTF-8 encoded
- * if `encoding` is not provided.
+ * Wait for all the data from a `ReadableStream` and return the data concatenated
+ * into one string. Assumes the `ReadableStream` is UTF-8 encoded if `encoding` is
+ * not provided.
  */
 export async function waitForReadableStreamString(
     stream: ReadableStream<Uint8Array<ArrayBuffer>>,

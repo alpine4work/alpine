@@ -1,30 +1,29 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
- * features we don't use and customize the user experience. You can find the
- * original file in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove features
+ * we don't use and customize the user experience. You can find the original file
+ * in the `prosemirror-tables` package at:
  * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/util.ts
  *
  * The MIT License
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 // Various helper function for working with tables
@@ -62,7 +61,8 @@ export function contentTableCellAround($pos: ResolvedPos): ResolvedPos | null {
  * console.log(`Wrapped cell: ${wrappedCell}`);
  * ```
  *
- * This function helps in identifying the cell node that wraps around a specific position.
+ * This function helps in identifying the cell node that wraps around a specific
+ * position.
  */
 export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
     for (let d = $pos.depth; d > 0; d--) {
@@ -82,8 +82,8 @@ export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
  * console.log(`Is in table: ${inTable}`);
  * ```
  *
- * This function is useful for validating if operations should be performed
- * within a table context.
+ * This function is useful for validating if operations should be performed within
+ * a table context.
  */
 export function isInContentTable(state: EditorState): boolean {
     return isSelectionInContentTable(state.selection);
@@ -148,8 +148,8 @@ export type ContentTableMapRectWithTable = ContentTableMapRect & {
 };
 
 /**
- * Helper to get the selected rectangle in a table, if any. Adds table
- * map, table node, and table start offset to the object for convenience.
+ * Helper to get the selected rectangle in a table, if any. Adds table map, table
+ * node, and table start offset to the object for convenience.
  */
 export function selectedContentTableRect(state: EditorState): ContentTableMapRectWithTable {
     const selection = state.selection;
@@ -212,7 +212,7 @@ export function moveContentTableCellForward($pos: ResolvedPos): ResolvedPos {
  * Example usage:
  *
  * ```ts
- * const nextCellPos = nextContentTableCell($pos, 'horiz', 1);
+ * const nextCellPos = nextContentTableCell($pos, "horiz", 1);
  * console.log(`Next cell position: ${nextCellPos}`);
  * ```
  *

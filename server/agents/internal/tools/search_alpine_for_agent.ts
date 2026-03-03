@@ -352,11 +352,12 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
     };
 }
 
-// TODO(ifitzsimmons, #ai): Right now, we load all of the messages into the agent conversation.
-// Eventually, we will use pagination to load messages into the agent conversation (likely from
-// the end of the conversation). When that happens, we will need to update this function such
-// that it only returns `true` if the message is in the current room **and** the message is
-// loaded in the conversation state.
+// TODO(ifitzsimmons, #ai): Right now, we load all of the messages into the agent
+// conversation. Eventually, we will use pagination to load messages into the agent
+// conversation (likely from the end of the conversation). When that happens, we
+// will need to update this function such that it only returns `true` if the
+// message is in the current room **and** the message is loaded in the conversation
+// state.
 //
 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
 function isApiSearchResultInConversationState(
@@ -390,9 +391,9 @@ function intoApiMessageRoomPathFromPathIfPossible(
         case "Channel":
         case "Document":
         case "TaskCollection":
-        // NOTE(ifitzsimmons, 2025-11-05): Tasks are not loaded with task comments, so if the
-        // current conversation is occurring in task comments, there's no guarantee that the
-        // task data is already loaded in the conversation.
+        // NOTE(ifitzsimmons, 2025-11-05): Tasks are not loaded with task comments, so if
+        // the current conversation is occurring in task comments, there's no guarantee
+        // that the task data is already loaded in the conversation.
         case "Task":
             return null;
         case "Post":

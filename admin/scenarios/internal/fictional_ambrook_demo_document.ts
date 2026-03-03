@@ -33,9 +33,9 @@ export async function createFictionalAmbrookDemoDocument(
         TestDocument.create(cassCade, {
             title: "Receipt Uploader",
 
-            // Abruptly cut to only the content shown in our preview so there's no
-            // artifacts at the end of the preview hinting more text. Content we're cutting
-            // goes in an HTML comment so we can use it later if needed.
+            // Abruptly cut to only the content shown in our preview so there's no artifacts at
+            // the end of the preview hinting more text. Content we're cutting goes in an HTML
+            // comment so we can use it later if needed.
             body: markdown`
 # Problem
 
@@ -48,9 +48,9 @@ went. -->
         TestDocument.create(cassCade, {
             title: "PAD PRD",
 
-            // Abruptly cut to only the content shown in our preview so there's no
-            // artifacts at the end of the preview hinting more text. Content we're cutting
-            // goes in an HTML comment so we can use it later if needed.
+            // Abruptly cut to only the content shown in our preview so there's no artifacts at
+            // the end of the preview hinting more text. Content we're cutting goes in an HTML
+            // comment so we can use it later if needed.
             body: markdown`
 Profit by Acre is a dashboard in our app that brings together revenues and costs at the field level
 to show true profitability per acre. It combines transaction data (sales, inputs, services),
@@ -62,9 +62,9 @@ underperforming and which management changes are working. -->
         TestDocument.create(cassCade, {
             title: "Grants Navigator",
 
-            // Abruptly cut to only the content shown in our preview so there's no
-            // artifacts at the end of the preview hinting more text. Content we're cutting
-            // goes in an HTML comment so we can use it later if needed.
+            // Abruptly cut to only the content shown in our preview so there's no artifacts at
+            // the end of the preview hinting more text. Content we're cutting goes in an HTML
+            // comment so we can use it later if needed.
             body: markdown`
 Goals:
 
@@ -89,9 +89,9 @@ Goals:
     const document = await TestDocument.create(cassCade, {
         title: "Q2 Product Roadmap",
 
-        // NOTE(calebmer): I think the blobs cover is making the screenshot too busy.
-        // It also won't work with the gradient border design we'll be using. So I'm
-        // cutting the cover. Here's the code if you want to add it back in the future:
+        // NOTE(calebmer): I think the blobs cover is making the screenshot too busy. It
+        // also won't work with the gradient border design we'll be using. So I'm cutting
+        // the cover. Here's the code if you want to add it back in the future:
         //
         // ```
         // cover: {
@@ -193,8 +193,8 @@ Some photos of the farms we helped last quarter to get us hyped for Q2!
 
     const schema = DocumentContentProsemirrorSchema;
 
-    // Unfortunately, our content Markdown parser doesn't support file entities yet
-    // so we have to manually add them via steps.
+    // Unfortunately, our content Markdown parser doesn't support file entities yet so
+    // we have to manually add them via steps.
     await document.update(cassCade, [
         new ReplaceStep(
             tablePos + table.nodeSize + heading.nodeSize + paragraph2.nodeSize,

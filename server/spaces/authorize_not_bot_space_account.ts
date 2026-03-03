@@ -10,14 +10,12 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Authorize that the provided space account isn't a bot. Throws an error if
- * either the provided space account is a bot or the space account doesn't
- * exist.
+ * Authorize that the provided space account isn't a bot. Throws an error if either
+ * the provided space account is a bot or the space account doesn't exist.
  *
- * If you called `authorizeSpaceAccess()` before this function (as a session
- * actor for the `AccountId` you're passing into this function) then we don't
- * make any database requests. The information we need os be available in
- * cache.
+ * If you called `authorizeSpaceAccess()` before this function (as a session actor
+ * for the `AccountId` you're passing into this function) then we don't make any
+ * database requests. The information we need os be available in cache.
  */
 export async function authorizeNotBotSpaceAccount(
     context: Context<{

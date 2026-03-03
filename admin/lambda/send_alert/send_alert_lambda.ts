@@ -10,9 +10,9 @@ import {
     sendPagerDutyAlertToAlpine,
 } from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
 
-// This file implements a Lambda function that processes incoming alert events
-// from PagerDuty and Honeycomb. It parses the event data and makes posts within
-// Alpine for alerting purposes.
+// This file implements a Lambda function that processes incoming alert events from
+// PagerDuty and Honeycomb. It parses the event data and makes posts within Alpine
+// for alerting purposes.
 //
 // This is purposefullly very scrappy. We do not want to build out a full-fledged
 // webhook/alerting system at this time. We just want to be able to receive alerts
@@ -50,8 +50,8 @@ function verifyPagerDutySignature(
     signatureHeader: string,
     webhookSecret: string,
 ): boolean {
-    // Step 1: Extract signatures from X-PagerDuty-Signature header
-    // Split by comma and filter for v1 signatures only
+    // Step 1: Extract signatures from X-PagerDuty-Signature header Split by comma and
+    // filter for v1 signatures only
     const signatures = signatureHeader
         .split(",")
         .map(sig => sig.trim())

@@ -13,8 +13,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 export const suggestedSpaceAccountMaxCount = 5;
 
 /**
- * Get the first 5 active `AccountId`s to be added to the space. Useful when
- * adding an account to a space to populate their suggested list.
+ * Get the first 5 active `AccountId`s to be added to the space. Useful when adding
+ * an account to a space to populate their suggested list.
  */
 export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
@@ -42,8 +42,8 @@ export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAu
                 },
             }),
             item => {
-                // Optimization: Add item to cache so we can skip loading it later if the item
-                // is requested again.
+                // Optimization: Add item to cache so we can skip loading it later if the item is
+                // requested again.
                 SpaceAccountItemContextCache.set(
                     context,
                     consistency,
@@ -67,8 +67,8 @@ export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAu
 
                 if (item.state.type !== "Active") return;
 
-                // Don't include bots in suggested accounts. We separately add affinity points
-                // for bots in the welcome package.
+                // Don't include bots in suggested accounts. We separately add affinity points for
+                // bots in the welcome package.
                 if (item.botId) return;
 
                 return item.accountId;

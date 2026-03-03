@@ -35,10 +35,10 @@ const honeycombTeam = "cyberworlds";
 /**
  * Run a deploy.
  *
- * This function is written to work in `DeployService` and nowhere else. It
- * looks for runfiles declared as dependencies of `DeployService`. It uses the
- * `git` CLI which is only available in GitHub action runners. Trying to call
- * this function from anywhere but `DeployService` will likely fail.
+ * This function is written to work in `DeployService` and nowhere else. It looks
+ * for runfiles declared as dependencies of `DeployService`. It uses the `git` CLI
+ * which is only available in GitHub action runners. Trying to call this function
+ * from anywhere but `DeployService` will likely fail.
  */
 export async function deploy(
     context: Context<
@@ -71,8 +71,8 @@ export async function deploy(
     const handleSpanName = "Deploy";
     const clock = new MonotonicClock(tracer.getNonMonotonicClock());
 
-    // Request without tracing since we need the result of this request to
-    // initialize our trace with the correct start time.
+    // Request without tracing since we need the result of this request to initialize
+    // our trace with the correct start time.
     const workflowRunJobsOutput = await context.github.quietlyRequestWithoutTracing(
         "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs",
         {
@@ -243,13 +243,13 @@ async function actuallyDeploy(
         await context.tracer.withSpan("Deploy AWS", (context, span) => deployAws(span));
 
         // Our deploy table updates `deployItem.commitSha` once the AWS deploy is done.
-        // Since after the AWS deploy if the deploy fails we won't rollback our changes
-        // to AWS.
+        // Since after the AWS deploy if the deploy fails we won't rollback our changes to
+        // AWS.
         //
-        // We should consider deploying to Cloudflare (and uploading static files)
-        // within CloudFormation to get proper rollback handling when a Cloudflare
-        // deploy fails. Right now if the Cloudflare deploy fails the AWS deploy stays
-        // in production but Cloudflare continues to run old code.
+        // We should consider deploying to Cloudflare (and uploading static files) within
+        // CloudFormation to get proper rollback handling when a Cloudflare deploy fails.
+        // Right now if the Cloudflare deploy fails the AWS deploy stays in production but
+        // Cloudflare continues to run old code.
         hasAwsDeployFinished = true;
 
         await context.tracer.withSpan("Deploy Cloudflare Workers", () =>
@@ -266,8 +266,8 @@ async function actuallyDeploy(
 
     const deployEndTime = new Date();
 
-    // We've seen occasional transient failures when creating Honeycomb markers.
-    // Retry 5xx errors (which throw UnavailableError) but not 4xx errors.
+    // We've seen occasional transient failures when creating Honeycomb markers. Retry
+    // 5xx errors (which throw UnavailableError) but not 4xx errors.
     await retryWithExponentialBackoff(async retry => {
         try {
             await honeycombClient.createMarker({

@@ -115,8 +115,9 @@ async function inviteEmailAddressesAndGetResults(
         await cancelButton.click();
     }
 
-    // TODO(#fix-remix-revalidate): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2hrj3rz107gwgw428kvv1yzn4w
-    //   Once this bug is fixed, we can remove this sleep
+    // TODO(#fix-remix-revalidate):
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2hrj3rz107gwgw428kvv1yzn4w
+    // Once this bug is fixed, we can remove this sleep
     await new Promise(resolve => setTimeout(resolve, 2500));
 
     const invitePendingEmailLocators = await page.getByTestId("InviteAccountName").all();

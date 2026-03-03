@@ -32,8 +32,8 @@ export function getSearchEntityPath({
             return `/s/${spaceId}/chat/new`;
         }
         case "CreatePost": {
-            // Make sure we use the same `draftId` consistently for the current search
-            // result list.
+            // Make sure we use the same `draftId` consistently for the current search result
+            // list.
             const draftId = unsafelyGenerateStableChronologicalId(
                 getStableRandom(),
                 entityId,
@@ -50,8 +50,8 @@ export function getSearchEntityPath({
             // result list.
             const documentId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
-            // Documents are only created once the user starts typing in them. The user
-            // doesn't create a document every time they navigate to this search route.
+            // Documents are only created once the user starts typing in them. The user doesn't
+            // create a document every time they navigate to this search route.
             return `/s/${spaceId}/documents/${documentId}?create`;
         }
         case "CreateTaskCollection": {
@@ -65,8 +65,8 @@ export function getSearchEntityPath({
             return `/s/${spaceId}/tasks/view`;
         }
         case "CreateTask": {
-            // Make sure we use the same `taskId` consistently for the current search
-            // result list.
+            // Make sure we use the same `taskId` consistently for the current search result
+            // list.
             const taskId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/tasks/${taskId}?create`;
@@ -200,11 +200,11 @@ export function getSearchDynamicEntityPath(
 ): string {
     switch (entityId.type) {
         case "Account": {
-            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts.
-            // Since we don't currently have that, route to a 1:1 chat with the account.
+            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts. Since
+            // we don't currently have that, route to a 1:1 chat with the account.
             //
-            // Though even if we had a profile page for accounts, routing to the 1:1 chat
-            // in search may be more useful.
+            // Though even if we had a profile page for accounts, routing to the 1:1 chat in
+            // search may be more useful.
             return `/s/${spaceId}/chat/with/${entityId.accountId}`;
         }
         case "Document": {

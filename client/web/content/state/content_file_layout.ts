@@ -60,13 +60,13 @@ const actuallyLayoutContentFileParent = createCachedFunction(
 );
 
 /**
- * Layout the files within a file parent node (e.g. a `fileRow` or
- * `fileFloat`). Every child of the file parent should be a `file` node and
- * we'll return a `ContentFileLayout` object for each child.
+ * Layout the files within a file parent node (e.g. a `fileRow` or `fileFloat`).
+ * Every child of the file parent should be a `file` node and we'll return a
+ * `ContentFileLayout` object for each child.
  *
- * This function is cached so if the node hasn't changed, file references
- * haven't changed, and configuration options haven't changed then you'll get
- * the exact same (referentially equal) value.
+ * This function is cached so if the node hasn't changed, file references haven't
+ * changed, and configuration options haven't changed then you'll get the exact
+ * same (referentially equal) value.
  */
 export function layoutContentFileParent(
     node: Node,
@@ -104,10 +104,10 @@ export function layoutContentFileParent(
  * `layoutContentFileParent()`).
  *
  * This function is cached and shares the same cache as
- * `layoutContentFileParent()`. If you call this function with a child node of
- * the parent node you passed into `layoutContentFileParent()` and file
- * references plus options are the same then you'll get the exact same
- * (referentially equal) layout without needing to recompute layout.
+ * `layoutContentFileParent()`. If you call this function with a child node of the
+ * parent node you passed into `layoutContentFileParent()` and file references plus
+ * options are the same then you'll get the exact same (referentially equal) layout
+ * without needing to recompute layout.
  */
 export function layoutContentFile(
     doc: Node,

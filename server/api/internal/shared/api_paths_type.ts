@@ -23,9 +23,9 @@ export type ApiPaths = {
 };
 
 /**
- * The base type of our API implementation. `ApiPaths` is assignable to this
- * type. Can be easier to use since this type has dynamic string keys and
- * doesn't bother itself with generic types.
+ * The base type of our API implementation. `ApiPaths` is assignable to this type.
+ * Can be easier to use since this type has dynamic string keys and doesn't bother
+ * itself with generic types.
  */
 export type ApiPathsBase = {
     readonly [path: string]: {

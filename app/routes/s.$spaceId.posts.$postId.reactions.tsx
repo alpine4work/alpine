@@ -57,8 +57,8 @@ export default function PostReactionsRoute() {
     return (
         <ReactionsView
             entityNoun="post"
-            // NOTE(calebmer): This route doesn't update `reactions` in realtime. Shouldn't
-            // be a problem. People won't be doing a lot of collaborative work on this surface.
+            // NOTE(calebmer): This route doesn't update `reactions` in realtime. Shouldn't be
+            // a problem. People won't be doing a lot of collaborative work on this surface.
             reactions={post.model.reactions}
             accounts={accounts}
         />

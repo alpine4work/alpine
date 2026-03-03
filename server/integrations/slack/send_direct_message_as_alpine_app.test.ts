@@ -43,7 +43,8 @@ test("sends direct message successfully when workspace and account are connected
     await connectWorkspace(adminSession);
     await connectAccount(adminSession);
 
-    // The NoopSlackContextModule makes no network calls, so this succeeds without error.
+    // The NoopSlackContextModule makes no network calls, so this succeeds without
+    // error.
     await sendDirectMessageAsAlpineApp(adminSession.action(), {
         spaceId: space.id,
         accountId: adminSession.account.id,

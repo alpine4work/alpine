@@ -64,11 +64,11 @@ export function* fromApiContentBlockElements(
                         case "CheckList": {
                             // NOTE(ifitzsimmons, 2025-12-19): As of this writing, only documents support
                             // checklists. When a user passes a checklist into a content surface that doesn't
-                            // support checklists, we have to decide what to do.
-                            // In the app, if a user tries to copy and paste a checklist from a document into
-                            // another surface, we paste it as an unordered list. We've decided to maintain the
-                            // current behavior. If a user tries to create a checklist in a post/comment/message
-                            // via the API, we'll convert it into an unordered list.
+                            // support checklists, we have to decide what to do. In the app, if a user tries to
+                            // copy and paste a checklist from a document into another surface, we paste it as
+                            // an unordered list. We've decided to maintain the current behavior. If a user
+                            // tries to create a checklist in a post/comment/message via the API, we'll convert
+                            // it into an unordered list.
                             if (!schema.nodes.checkListItem) {
                                 typeName = "unorderedListItem";
                             } else {
@@ -94,8 +94,8 @@ export function* fromApiContentBlockElements(
                                 attrs.checked = assertCheckListItem(item).checked;
                             }
 
-                            // Only set orderStart for the first ordered list item.
-                            // Subsequent items auto-increment naturally.
+                            // Only set orderStart for the first ordered list item. Subsequent items
+                            // auto-increment naturally.
                             if (element.type === "OrderedList" && itemIndex === 0) {
                                 attrs.orderStart = element.orderStart;
                             }
@@ -125,8 +125,8 @@ export function* fromApiContentBlockElements(
                     fromApiContentBlockElements(schema, element.elements),
                 );
 
-                // Quote blocks require at least one block element ((paragraph | listItem)+)
-                // If the quote is empty, add an empty paragraph
+                // Quote blocks require at least one block element ((paragraph | listItem)+) If the
+                // quote is empty, add an empty paragraph
                 if (quoteContent.length === 0) {
                     quoteContent.push(schema.nodes.paragraph!.create());
                 }
@@ -171,8 +171,8 @@ export function* fromApiContentBlockElements(
                                     fromApiContentBlockElements(schema, cell.elements),
                                 );
 
-                                // Table cells require at least one block element (tableBlock+)
-                                // If the cell is empty, create an empty paragraph
+                                // Table cells require at least one block element (tableBlock+) If the cell is
+                                // empty, create an empty paragraph
                                 if (cellContent.length === 0) {
                                     cellContent.push(schema.nodes.paragraph!.create());
                                 }

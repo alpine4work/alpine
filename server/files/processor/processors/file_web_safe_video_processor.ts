@@ -33,13 +33,13 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
 /**
- * WebM files are [completely supported by all web browsers][1]. All video
- * codecs and audio codecs used by WebM are supported cross browsers. So to
- * process a WebM file we only need to take a screenshot. We don't need to
- * transcode the file to a different format.
+ * WebM files are [completely supported by all web browsers][1]. All video codecs
+ * and audio codecs used by WebM are supported cross browsers. So to process a WebM
+ * file we only need to take a screenshot. We don't need to transcode the file to a
+ * different format.
  *
- * We consider some MP4 videos to be web safe as well. Depending on what codecs
- * the MP4 video uses.
+ * We consider some MP4 videos to be web safe as well. Depending on what codecs the
+ * MP4 video uses.
  *
  * [1]: https://caniuse.com/webm
  */
@@ -120,15 +120,14 @@ export async function processFileWebSafeVideo(
                 // data it needs with HTTP `Range` requests.
                 "-i",
                 inputUrl,
-                // Limit the number of threads for FFmpeg to reduce resource contention
-                // in `FileProcessorService`.
+                // Limit the number of threads for FFmpeg to reduce resource contention in
+                // `FileProcessorService`.
                 "-threads",
                 String(ffmpegThreadCount),
                 // Capture thumbnails from the beginning of the video.
                 //
-                // We must output to a file. We can't output to stdout when taking a screenshot
-                // or else we get the error "[avif] muxer does not support non seekable
-                // output".
+                // We must output to a file. We can't output to stdout when taking a screenshot or
+                // else we get the error "[avif] muxer does not support non seekable output".
                 ...getFfmpegImagePreviewContentOutputOptions({
                     output1Path,
                     output2Path,
@@ -146,10 +145,10 @@ export async function processFileWebSafeVideo(
         let stdout = "";
         let stderr = "";
 
-        // This function checks to see if the input's duration and width/height have
-        // been written to stderr and if it has then we can resolve
-        // `previewContentPromise`. This will push an update to the user waiting on their
-        // file to upload so they can see a preview of the file in the product.
+        // This function checks to see if the input's duration and width/height have been
+        // written to stderr and if it has then we can resolve `previewContentPromise`.
+        // This will push an update to the user waiting on their file to upload so they can
+        // see a preview of the file in the product.
         const attemptResolvePreviewSize = () => {
             if (previewSizePromiseResolver.isSettled()) return;
 
@@ -157,9 +156,9 @@ export async function processFileWebSafeVideo(
                 const previewSize =
                     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
                         stderr,
-                        // HACK: Which content types may have an alpha channel? It's ok to return true
-                        // if the video doesn't actually have any transparent pixels but it's not ok to
-                        // return false if the video does have transparent pixels.
+                        // HACK: Which content types may have an alpha channel? It's ok to return true if
+                        // the video doesn't actually have any transparent pixels but it's not ok to return
+                        // false if the video does have transparent pixels.
                         //
                         // TODO: We should parse the pixel format out of stderr and check if the pixel
                         // format has an alpha channel.
@@ -230,13 +229,13 @@ export async function processFileWebSafeVideo(
             );
         }
 
-        // Determine which thumbnail to use. If the second thumbnail (taken at 1s) is
-        // empty then we need to use the third thumbnail (taken at 0s). If the first
-        // thumbnail (taken at 10s) is empty but not the second thumbnail then we'll
-        // use the second thumbnail (taken at 1s).
+        // Determine which thumbnail to use. If the second thumbnail (taken at 1s) is empty
+        // then we need to use the third thumbnail (taken at 0s). If the first thumbnail
+        // (taken at 10s) is empty but not the second thumbnail then we'll use the second
+        // thumbnail (taken at 1s).
         //
-        // This way if a video is longer than 10s we'll use the 10s thumbnail.
-        // Otherwise we'll use the 1s thumbnail.
+        // This way if a video is longer than 10s we'll use the 10s thumbnail. Otherwise
+        // we'll use the 1s thumbnail.
         let outputPath: string;
         if (
             /(?:^|\n)\[out#1\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
@@ -270,9 +269,9 @@ export async function processFileWebSafeVideo(
         };
     })().then(
         previewContent => {
-            // All of these promise resolvers MUST have either been resolved or rejected by
-            // the end of this promise. So any promise resolvers that haven't been settled
-            // yet reject with an error as a safety mechanism.
+            // All of these promise resolvers MUST have either been resolved or rejected by the
+            // end of this promise. So any promise resolvers that haven't been settled yet
+            // reject with an error as a safety mechanism.
             if (!previewSizePromiseResolver.isSettled()) {
                 previewSizePromiseResolver.reject(
                     new InternalError("Promise resolver wasn\u2019t resolved"),
@@ -292,25 +291,25 @@ export async function processFileWebSafeVideo(
         },
     );
 
-    // To determine the video's duration we first wait for metadata from our FFmpeg
-    // run (from `previewSizePromiseResolver`). If we have duration metadata we can
-    // return immediately! If we don't then we use `ffprobe` to parse the video
-    // file and figure out the duration.
+    // To determine the video's duration we first wait for metadata from our FFmpeg run
+    // (from `previewSizePromiseResolver`). If we have duration metadata we can return
+    // immediately! If we don't then we use `ffprobe` to parse the video file and
+    // figure out the duration.
     const previewVideoDurationPromise = (async () => {
         const previewSize = await previewSizePromiseResolver.promise;
 
-        // If we were able to parse `videoDuration` with the preview size then hooray!
-        // That means the video had easily accessible duration metadata. Destroy
+        // If we were able to parse `videoDuration` with the preview size then hooray! That
+        // means the video had easily accessible duration metadata. Destroy
         // `pausedProbeStream` since we don't need it and return the video duration
         // immediately.
         if (previewSize.videoDuration !== undefined) {
             return previewSize.videoDuration;
         }
 
-        // Otherwise we need to decode the full stream to figure out the video
-        // duration. Command from this [Stack Exchange][1] post using the
-        // "With `ffmpeg`" solution. This approach is also recommended by the FFmpeg
-        // docs in the FFprobe tips "[Get duration by decoding][2]" section.
+        // Otherwise we need to decode the full stream to figure out the video duration.
+        // Command from this [Stack Exchange][1] post using the "With `ffmpeg`" solution.
+        // This approach is also recommended by the FFmpeg docs in the FFprobe tips "[Get
+        // duration by decoding][2]" section.
         //
         // [1]: https://superuser.com/a/945604/857823
         // [2]: https://trac.ffmpeg.org/wiki/FFprobeTips#Getdurationbydecoding
@@ -319,12 +318,12 @@ export async function processFileWebSafeVideo(
             [
                 "-i",
                 inputUrl,
-                // Limit the number of threads for FFmpeg to reduce resource contention
-                // in `FileProcessorService`.
+                // Limit the number of threads for FFmpeg to reduce resource contention in
+                // `FileProcessorService`.
                 "-threads",
                 String(ffmpegThreadCount),
-                // We're only running this to get the `time` output after FFmpeg has
-                // decoded our file.
+                // We're only running this to get the `time` output after FFmpeg has decoded our
+                // file.
                 "-f",
                 "null",
                 "pipe:1",

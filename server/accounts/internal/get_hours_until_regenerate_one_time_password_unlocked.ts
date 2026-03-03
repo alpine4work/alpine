@@ -6,14 +6,13 @@ import {
 } from "~/server/accounts/one_time_password_constants.js";
 
 /**
- * Get the number of hours until the user can regenerate their password. If
- * the number is 0 than the account may be unlocked.
+ * Get the number of hours until the user can regenerate their password. If the
+ * number is 0 than the account may be unlocked.
  */
 export function getHoursUntilRegenerateOneTimePasswordUnlocked({
     oneTimePasswordSignInState,
 }: AccountEmailAddressItem): number {
-    // If the email address is not locked, the user may regenerate a password
-    // whenever.
+    // If the email address is not locked, the user may regenerate a password whenever.
     if (
         !oneTimePasswordSignInState ||
         oneTimePasswordSignInState.failedAttemptCount < maxFailedOneTimePasswordAttemptCount

@@ -1710,8 +1710,8 @@ test("updates search affinity points for task when it\u2019s marked as active", 
     expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
     expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
 
-    // Intentionally using `session1` as the actor here to test updating affinity
-    // on another account's behalf.
+    // Intentionally using `session1` as the actor here to test updating affinity on
+    // another account's behalf.
     await task.updateAssigneeStatus(session1, "Active");
     await ProcessContextModule.waitForTestTasks();
 

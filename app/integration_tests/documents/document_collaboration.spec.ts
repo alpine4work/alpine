@@ -151,8 +151,8 @@ test("can write collaboratively at the same time in a document", async ({
     await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}`);
     await page1.evaluate(() => {
-        // This test is doing a lot already and can time out our typing
-        // Disable spell check for this window to reduce load
+        // This test is doing a lot already and can time out our typing Disable spell check
+        // for this window to reduce load
         localStorage.setItem("disableSpellCheck", "true");
     });
 
@@ -170,8 +170,8 @@ test("can write collaboratively at the same time in a document", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}`);
     await page2.evaluate(() => {
-        // This test is doing a lot already and can time out our typing
-        // Disable spell check for this window to reduce load
+        // This test is doing a lot already and can time out our typing Disable spell check
+        // for this window to reduce load
         localStorage.setItem("disableSpellCheck", "true");
     });
 

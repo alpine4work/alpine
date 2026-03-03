@@ -13,8 +13,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  * Called by the chat account picker component after the user has selected some
  * accounts to send a message to. Tells us what the shared chat between those
  * accounts is (and creates an empty chat for those accounts if one does not
- * exist). Also returns some suggested accounts we will show in the chat
- * account picker's autocomplete list.
+ * exist). Also returns some suggested accounts we will show in the chat account
+ * picker's autocomplete list.
  *
  * We only suggest chats that:
  *
@@ -45,8 +45,8 @@ export function selectChatForAccounts(
     suggestedChats: ReadonlyArray<ChatModel>;
 }> {
     return context.tracer.withSpan("Select chat or suggest chats", async context => {
-        // Make sure `otherAccountIds` is unique and doesn't include our
-        // authenticated account.
+        // Make sure `otherAccountIds` is unique and doesn't include our authenticated
+        // account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
             accountId => accountId !== context.actor.getAccountId(),
         );
@@ -77,19 +77,18 @@ export function selectChatForAccounts(
                 // Don't suggest chats if we are selecting the chat with ourself.
                 if (otherAccountIds.length === 0) return [];
 
-                // Limit the number of chats we return since we need to load the full chat
-                // object. We sort shared chats by some heuristics to put more relevant chats
-                // first but the heuristics don't consider user activity. Ideally we would also
-                // sort with our affinity system. (I (@calebmer) have a rough idea of an
-                // affinity system I'd like to build.)
+                // Limit the number of chats we return since we need to load the full chat object.
+                // We sort shared chats by some heuristics to put more relevant chats first but the
+                // heuristics don't consider user activity. Ideally we would also sort with our
+                // affinity system. (I (@calebmer) have a rough idea of an affinity system I'd like
+                // to build.)
                 const suggestedChatLimit = 5;
 
                 return parallelFilterMapLimitAsyncIterableToArray(
                     asyncIterableFromIterable(sharedChats),
                     suggestedChatLimit,
                     async sharedChat => {
-                        // We only suggest chats with additional accounts on top of the ones
-                        // we requested.
+                        // We only suggest chats with additional accounts on top of the ones we requested.
                         if (sharedChat.accountCount <= otherAccountIds.length + 1) return null;
 
                         const chat = await getChat(context, sharedChat.id);
@@ -105,11 +104,10 @@ export function selectChatForAccounts(
 
         return {
             selectedChat,
-            // Make sure we only return direct chats. Just in case due to race conditions
-            // we ended up loading some room chats. We shouldn't have loaded room chats
-            // because room chats don't have chat account items (which is what this
-            // function searches) but due to race condition we may have seen a chat account
-            // item for a room chat.
+            // Make sure we only return direct chats. Just in case due to race conditions we
+            // ended up loading some room chats. We shouldn't have loaded room chats because
+            // room chats don't have chat account items (which is what this function searches)
+            // but due to race condition we may have seen a chat account item for a room chat.
             suggestedChats: suggestedChats.filter(chat => chat.definition.type === "Direct"),
         };
     });

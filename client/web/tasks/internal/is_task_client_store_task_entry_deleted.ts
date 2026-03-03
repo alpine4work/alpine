@@ -3,8 +3,8 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**
  * Should we consider the provided task entry to be a deleted task? It's not as
- * simple as checking `isDeleted()` on `TaskModel`. For unauthorized tasks we
- * need to check the error code (since deleted tasks are unauthorized).
+ * simple as checking `isDeleted()` on `TaskModel`. For unauthorized tasks we need
+ * to check the error code (since deleted tasks are unauthorized).
  */
 export function isTaskClientStoreTaskEntryDeleted(taskEntry: TaskClientStoreTaskEntry): boolean {
     if (taskEntry.task) return taskEntry.task.isDeleted();

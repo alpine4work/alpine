@@ -5,14 +5,17 @@ import {DateString} from "~/shared/helpers/date/date_string.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
- * A representation of a scheduled date and time that is a subtype of the JavaScript `Date` object.
- * This means all `ScheduleDateTime`s are valid `Date` objects, but not all `Date` objects are valid `ScheduleDateTime`s.
+ * A representation of a scheduled date and time that is a subtype of the
+ * JavaScript `Date` object. This means all `ScheduleDateTime`s are valid `Date`
+ * objects, but not all `Date` objects are valid `ScheduleDateTime`s.
  *
- * It adds enforcement that the time is truncated to the nearest hour and uses `@internationalized/date`
- * to perform actions on the date while zoned in UTC. However, since it still
- * uses the native `Date` object, once it has been returned, it is time zone naive.
+ * It adds enforcement that the time is truncated to the nearest hour and uses
+ * `@internationalized/date` to perform actions on the date while zoned in UTC.
+ * However, since it still uses the native `Date` object, once it has been
+ * returned, it is time zone naive.
  *
- * NOTE (rmtobin): When/if we adopt Temporal, this should be time zone aware in UTC.
+ * NOTE (rmtobin): When/if we adopt Temporal, this should be time zone aware in
+ * UTC.
  */
 export type ScheduleDateTime = Date & {readonly _ScheduleDateTime: never};
 
@@ -46,9 +49,9 @@ export function deserializeScheduleDateTime(ScheduleDateTime: ScheduleDateTime):
 }
 
 /**
- * An ISO 8601 time string representing a ScheduleDateTime in the format "YYYY-MM-DDTHH:mm:00.000Z".
- * All `ScheduleDateTimeStrings` are valid `DateString`s, but not all `DateString`s are valid
- * `ScheduleDateTimeStrings`.
+ * An ISO 8601 time string representing a ScheduleDateTime in the format
+ * "YYYY-MM-DDTHH:mm:00.000Z". All `ScheduleDateTimeStrings` are valid
+ * `DateString`s, but not all `DateString`s are valid `ScheduleDateTimeStrings`.
  */
 export type ScheduleDateTimeString = DateString & {readonly _ScheduleDateTimeString: never};
 
@@ -96,5 +99,6 @@ export const ScheduleDateTimeSchema = Schema.date.transform<ScheduleDateTime>({
     },
 });
 
-// Matches the format "YYYY-MM-DDTHH:mm:00.000Z" where seconds and milliseconds are zero
+// Matches the format "YYYY-MM-DDTHH:mm:00.000Z" where seconds and milliseconds are
+// zero
 const ScheduleDateTimeMatcher = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00\.000Z$/;

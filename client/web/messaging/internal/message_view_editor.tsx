@@ -96,8 +96,8 @@ export function MessageViewEditor<RoomKey extends string>({
                     marginBottom: !shouldMergeWithPreviousMessage
                         ? -messageViewNotMergedEditorOutlineMarginBottomPx[spacingScale]
                         : undefined,
-                    // Use box shadow to draw the border so it doesn't add 1px to layout like
-                    // `border` CSS would.
+                    // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                    // CSS would.
                     boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                 }}
             >
@@ -114,11 +114,11 @@ export function MessageViewEditor<RoomKey extends string>({
                         });
                     }}
                     aria-label={messageStartOfSentenceNoun}
-                    // With no content the message bubble will be at its min-width so only render
-                    // an en-dash as a placeholder.
+                    // With no content the message bubble will be at its min-width so only render an
+                    // en-dash as a placeholder.
                     placeholder={"\u2013"}
-                    // On mobile, don't allow interactions when unfocused. We're already in an
-                    // editing modality.
+                    // On mobile, don't allow interactions when unfocused. We're already in an editing
+                    // modality.
                     withoutMobileDualModality={true}
                     className={classNames(
                         contentStyles.messageDocClassName,

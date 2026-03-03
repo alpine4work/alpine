@@ -34,8 +34,8 @@ export class AwsCronJobs extends Construct {
             const jobString = JSON.stringify(cronJob.job);
 
             // There may be a way to escape the characters used by AWS for variable
-            // interpolation but avoid the problem for now by disallowing these characters
-            // in `jobString`.
+            // interpolation but avoid the problem for now by disallowing these characters in
+            // `jobString`.
             assert(
                 !/[<>]/.test(jobString),
                 "Maintenance job description must not contain `<` or `>`",

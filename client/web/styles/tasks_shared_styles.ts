@@ -22,9 +22,9 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
 
-// A little extra margin at the bottom of the header so when we render the
-// subtasks button (which renders in the margin bottom to avoid changing the
-// layout) it looks good.
+// A little extra margin at the bottom of the header so when we render the subtasks
+// button (which renders in the margin bottom to avoid changing the layout) it
+// looks good.
 export const taskDetailViewHeaderMarginBottom = addRemLengths(taskDetailViewSectionGap, "1");
 
 export const taskDetailViewDenseFieldGap = "5";

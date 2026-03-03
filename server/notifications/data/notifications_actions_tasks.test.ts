@@ -79,11 +79,10 @@ const context = createTestContext({
     notificationsInjection,
 });
 
-// Exercise idempotency by running the test suite again with jobs
-// processed twice.
+// Exercise idempotency by running the test suite again with jobs processed twice.
 for (const {type: currentProcessingType, processingMultiple} of testSuites) {
-    // If another suite has `only` set then skip this suite so we only run the
-    // suite with `only` set.
+    // If another suite has `only` set then skip this suite so we only run the suite
+    // with `only` set.
     if (
         testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
     ) {
@@ -359,13 +358,14 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             });
         });
 
-        // For this test we have session 2 make a task comment mentioning session 3. Session 1 will
-        // get a notification since they created the task, and Session 3 will receive a loud
-        // notification despite not being a subscriber.
+        // For this test we have session 2 make a task comment mentioning session 3.
+        // Session 1 will get a notification since they created the task, and Session 3
+        // will receive a loud notification despite not being a subscriber.
         //
-        // Then Session 1 will make a task comment mentioning Session 2, so Session 2 will receive
-        // a loud notification, however Session 3 will now receive notifications for that task,
-        // because mentioning a Session in a task subscribes them to that task.
+        // Then Session 1 will make a task comment mentioning Session 2, so Session 2 will
+        // receive a loud notification, however Session 3 will now receive notifications
+        // for that task, because mentioning a Session in a task subscribes them to that
+        // task.
         test("mentioning someone in a task comment a creates a loud notification for them whether or not they are a subscriber", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
@@ -591,17 +591,18 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        // In this test Session 1 and OtherSession are the task creators in different spaces.
-        // SharedSession makes task comments subscribing to both Session 1 and OtherSession
-        // task's in different spaces.
+        // In this test Session 1 and OtherSession are the task creators in different
+        // spaces. SharedSession makes task comments subscribing to both Session 1 and
+        // OtherSession task's in different spaces.
         //
-        // Session 2 comments on Session 1's task in the first space, therefore SharedSession should
-        // receive a notification about Session 2's comment on Session 1's task. While OtherSession
-        // does not receive a notification from Session 2's comment.
+        // Session 2 comments on Session 1's task in the first space, therefore
+        // SharedSession should receive a notification about Session 2's comment on Session
+        // 1's task. While OtherSession does not receive a notification from Session 2's
+        // comment.
         //
-        // When OtherSession comments on their own task, SharedSession receives a notification
-        // in OtherSpace regarding that comment, however SharedSession doesn't receive the new notification
-        // in Session 1's space.
+        // When OtherSession comments on their own task, SharedSession receives a
+        // notification in OtherSpace regarding that comment, however SharedSession doesn't
+        // receive the new notification in Session 1's space.
         test("accounts have separate inboxes for each space", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
@@ -719,13 +720,14 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
-        // Session 3 is subscribed to Session 1's task comment, however Session 3 is not part of
-        // the OtherSession's space therefore receiving a `PermissionDeniedError`.
+        // Session 3 is subscribed to Session 1's task comment, however Session 3 is not
+        // part of the OtherSession's space therefore receiving a `PermissionDeniedError`.
         //
-        // Now Session 2 mentiones Session 3 in a task comment in Space 1, therefore Session 3 receives
-        // one loud notification. However, when OtherSession in the OtherSpace mentiones session 3,
-        // Session 3 will not receive another loud notification since Session 3 is not part of
-        // the OtherSpace. So Session 3 will only have 1 loud notification count.
+        // Now Session 2 mentiones Session 3 in a task comment in Space 1, therefore
+        // Session 3 receives one loud notification. However, when OtherSession in the
+        // OtherSpace mentiones session 3, Session 3 will not receive another loud
+        // notification since Session 3 is not part of the OtherSpace. So Session 3 will
+        // only have 1 loud notification count.
         test("account can not see mention in a different space", async () => {
             const scenario = await createNotificationsTestScenario(context);
 

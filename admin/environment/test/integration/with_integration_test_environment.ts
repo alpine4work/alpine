@@ -44,8 +44,8 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {ApiKey, assertApiKey} from "~/shared/id/api_key.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
-// This file should only run in a Node.js test environment. Either Jest
-// or Playwright.
+// This file should only run in a Node.js test environment. Either Jest or
+// Playwright.
 assert(process.release.name === "node");
 assert(isTestNodeEnvOrAdminScenariosScript);
 
@@ -53,8 +53,8 @@ const debug = createDebug(import.meta.url);
 
 const env = parseDotenv();
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
+// Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
+// picks them up.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
@@ -88,8 +88,8 @@ export type TestServices = {
     getMockChatGptLocalUnscopedApiKey(): Promise<ApiKey>;
 
     /**
-     * Sign a session in to the test browser context by setting the
-     * appropriate cookies.
+     * Sign a session in to the test browser context by setting the appropriate
+     * cookies.
      */
     signIn(
         browserContext: BrowserContext,
@@ -99,21 +99,21 @@ export type TestServices = {
     ): Promise<void>;
 
     /**
-     * Get the one time passwords generated during the current test. The array
-     * resets after each test.
+     * Get the one time passwords generated during the current test. The array resets
+     * after each test.
      */
     getOneTimePasswords(): ReadonlyArray<{emailAddress: string; oneTimePassword: string}>;
 
     /**
-     * Get the invite URLs generated during the current test. The array resets
-     * after each test.
+     * Get the invite URLs generated during the current test. The array resets after
+     * each test.
      */
     getInviteUrls(): ReadonlyArray<{emailAddress: string; inviteUrl: string}>;
 };
 
 /**
- * Runs a test server for Playwright tests using the test context's DynamoDB.
- * Also sets that server as the base URL for future tests.
+ * Runs a test server for Playwright tests using the test context's DynamoDB. Also
+ * sets that server as the base URL for future tests.
  */
 export async function withIntegrationTestEnvironment<Value>(
     options: {
@@ -159,8 +159,8 @@ export async function withIntegrationTestEnvironment<Value>(
 
         const value = await action(actualContext, services);
 
-        // Wait for all `waitUntil()` promises to resolve before cleaning up
-        // the environment.
+        // Wait for all `waitUntil()` promises to resolve before cleaning up the
+        // environment.
         await promiseWaiter.wait();
 
         return value;
@@ -176,16 +176,16 @@ export async function withIntegrationTestEnvironment<Value>(
 }
 
 /**
- * Creates an integration test environment and the associated
- * `TestActualContext` object. Designed to be used in Playwright tests where
- * setup/teardown is managed by `beforeAll()` and `afterAll()` callbacks.
+ * Creates an integration test environment and the associated `TestActualContext`
+ * object. Designed to be used in Playwright tests where setup/teardown is managed
+ * by `beforeAll()` and `afterAll()` callbacks.
  *
  * When writing a Playwright test, prefer using `createTestServices()` which
  * provides a more convenient interface for establishing an integration test
  * environment in Playwright.
  *
- * If you need an integration test environment outside of Playwright (e.g. in
- * an adhoc script), use `withIntegrationTestEnvironment()` which automatically
+ * If you need an integration test environment outside of Playwright (e.g. in an
+ * adhoc script), use `withIntegrationTestEnvironment()` which automatically
  * manages setup/teardown of the environment for you.
  */
 export function actuallyCreateIntegrationTestEnvironment(
@@ -206,20 +206,20 @@ export function actuallyCreateIntegrationTestEnvironment(
     context: TestActualContext;
     services: TestServices;
 } {
-    // Important that this comes before `actuallyCreateUnitTestEnvironment()`! We
-    // want all our services to finish shutting down before we kill the database
-    // services we start in `actuallyCreateUnitTestEnvironment()`.
+    // Important that this comes before `actuallyCreateUnitTestEnvironment()`! We want
+    // all our services to finish shutting down before we kill the database services we
+    // start in `actuallyCreateUnitTestEnvironment()`.
     //
-    // For instance, the job queue needs to finish processing its jobs before we
-    // can kill OpenSearch.
+    // For instance, the job queue needs to finish processing its jobs before we can
+    // kill OpenSearch.
     testHooks.afterAll(async () => {
         debug("Stopping services");
 
-        // First wait for `EdgeServiceFamily` to finish since it may need to make
-        // requests to `AppService` while finishing up ingress traffic.
+        // First wait for `EdgeServiceFamily` to finish since it may need to make requests
+        // to `AppService` while finishing up ingress traffic.
         //
-        // Catch any errors so we can still shutdown `AppService` even if the shutdown
-        // of one of these processes fails.
+        // Catch any errors so we can still shutdown `AppService` even if the shutdown of
+        // one of these processes fails.
         const result1 = await captureResultPromise(async () => {
             edgeServiceSubprocess?.kill("SIGINT");
 
@@ -513,7 +513,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -618,7 +619,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -652,7 +654,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -694,7 +697,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -732,7 +736,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -781,8 +786,8 @@ export function actuallyCreateIntegrationTestEnvironment(
             waitForProcessSpawn(edgeServiceSubprocess),
             waitForProcessSpawn(taskRealtimeServiceSubprocess),
             waitForProcessSpawn(jobQueueServiceSubprocess).then(() => {
-                // We don't wait on a port for `JobQueueService` so log once the process
-                // has spawned.
+                // We don't wait on a port for `JobQueueService` so log once the process has
+                // spawned.
                 debug("`JobQueueService` is ready");
             }),
             waitForProcessSpawn(fileProcessorServiceSubprocess),
@@ -809,8 +814,8 @@ export function actuallyCreateIntegrationTestEnvironment(
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
-        // `edgePort` will forward the request to `appPort` since the edge service
-        // proxies our app service.
+        // `edgePort` will forward the request to `appPort` since the edge service proxies
+        // our app service.
         await waitForHttpServer(edgeServicePort).then(() => {
             debug("`EdgeService` is ready");
         });
@@ -834,8 +839,8 @@ export function actuallyCreateIntegrationTestEnvironment(
 
         await browserContext.addCookies(
             parseSetCookieHeader(sessionCookieHeader).map(cookie => ({
-                // Playwright requires a `domain`/`path` pair but outside of production our
-                // cookie only has a `path`.
+                // Playwright requires a `domain`/`path` pair but outside of production our cookie
+                // only has a `path`.
                 domain: "localhost",
                 ...cookie,
                 // Transform the result from our parser to what Playwright expects.

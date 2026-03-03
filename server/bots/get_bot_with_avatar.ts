@@ -6,10 +6,9 @@ import {Bot} from "~/shared/bots/bot_schema.js";
 import {BotId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the information associated with a bot. Currently, basic information
- * about a bot is public globally (e.g. its name, presence of a webhook URL,
- * and avatar)! Importantly, excludes protected information like the
- * webhook URL and API keys.
+ * Get the information associated with a bot. Currently, basic information about a
+ * bot is public globally (e.g. its name, presence of a webhook URL, and avatar)!
+ * Importantly, excludes protected information like the webhook URL and API keys.
  */
 export async function getBotWithAvatar(
     context: DynamoContext,

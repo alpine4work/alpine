@@ -65,8 +65,8 @@ export class TestSpaceSession extends TestSession {
     }
 
     /**
-     * Get the `AccountModel` stub for this session's account. We return stubs
-     * to actors which only have URL access to some URL.
+     * Get the `AccountModel` stub for this session's account. We return stubs to
+     * actors which only have URL access to some URL.
      */
     public async getStub(): Promise<AccountModel> {
         const account = await dangerouslyGetAccountStubIfExistsWithoutAuthorization(

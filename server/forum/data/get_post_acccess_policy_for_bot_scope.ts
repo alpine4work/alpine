@@ -8,8 +8,8 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
 /**
- * Load the post's access policy for a bot scoped to the post. Used
- * when evaluating whether a bot has permissions to certain resources.
+ * Load the post's access policy for a bot scoped to the post. Used when evaluating
+ * whether a bot has permissions to certain resources.
  */
 export async function getPostAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,

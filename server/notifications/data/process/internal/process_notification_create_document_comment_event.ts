@@ -52,12 +52,12 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
     updateInboxEntry: async (context, event, {info: {}, accountId, clientRequestToken}) => {
         const isFirstComment = event.commentIndex === 0;
 
-        // The first comment in a thread (if it doesn't contain a mention of our user)
-        // is batched into a "new comments" inbox entry. This makes it easier for the
-        // document owner to browse new comments.
+        // The first comment in a thread (if it doesn't contain a mention of our user) is
+        // batched into a "new comments" inbox entry. This makes it easier for the document
+        // owner to browse new comments.
         if (isFirstComment && !event.mentionedAccountIds.has(accountId)) {
-            // Don't update a new comment threads entry for the account who authored
-            // the comment.
+            // Don't update a new comment threads entry for the account who authored the
+            // comment.
             if (event.authorId === accountId) return null;
 
             const inboxItem = await InboxTable.getItemIfExists(context, {
@@ -95,8 +95,8 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                                     createdTime: event.createdTime,
                                 },
                             ] as const,
-                            // Make sure the comment threads are in chronological order no matter
-                            // what order the events are processed in.
+                            // Make sure the comment threads are in chronological order no matter what order
+                            // the events are processed in.
                         ].sort(([, a], [, b]) => a.createdTime.getTime() - b.createdTime.getTime()),
                     );
 
@@ -111,10 +111,9 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                         };
 
                     // Normally when processing `CreateDocumentComment` the
-                    // `DocumentCommentThreadInNewCommentThreadsEntry` item doesn't exist and we
-                    // need to create it. The `DocumentCommentThreadInNewCommentThreadsEntry` item
-                    // only already exists during race conditions when we process events
-                    // out-of-order.
+                    // `DocumentCommentThreadInNewCommentThreadsEntry` item doesn't exist and we need
+                    // to create it. The `DocumentCommentThreadInNewCommentThreadsEntry` item only
+                    // already exists during race conditions when we process events out-of-order.
                     const documentCommentThreadInNewCommentThreadsItem = isInitialAttempt
                         ? null
                         : await NotificationsTable.getItemIfExists(
@@ -124,13 +123,12 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
 
                     if (documentCommentThreadInNewCommentThreadsItem) {
                         // If a `DocumentCommentThreadInNewCommentThreadsEntry` item already exists for
-                        // this comment thread then we noop. This may happen if we process
-                        // notifications out-of-order.
+                        // this comment thread then we noop. This may happen if we process notifications
+                        // out-of-order.
                         return "Noop";
                     } else {
-                        // When we add a comment thread to the new comment threads entry, create an
-                        // item mapping the `DocumentCommentThreadId` back to this new comment
-                        // threads entry.
+                        // When we add a comment thread to the new comment threads entry, create an item
+                        // mapping the `DocumentCommentThreadId` back to this new comment threads entry.
                         addAdditionalTransactionEntry(
                             NotificationsTable.transactionCreateItem(
                                 {
@@ -167,12 +165,12 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                 commentThreadId: event.commentThreadId,
             },
             async oldItem => {
-                // When the user comments on a document comment thread we archive the
-                // corresponding inbox entry. Or if the entry is already archived, we keep it
-                // archived. By sending a comment the user implicitly marks their entry as done.
+                // When the user comments on a document comment thread we archive the corresponding
+                // inbox entry. Or if the entry is already archived, we keep it archived. By
+                // sending a comment the user implicitly marks their entry as done.
                 //
-                // If the events were received out-of-order we keep the last archive state
-                // of the entry.
+                // If the events were received out-of-order we keep the last archive state of the
+                // entry.
                 const isArchived =
                     !oldItem?.latestComment ||
                     (event.commentIndex > oldItem.latestComment.index &&
@@ -189,9 +187,9 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                 } else {
                     isMention = event.mentionedAccountIds.has(accountId);
 
-                    // We increment the loud notification count only if someone is explicitly
-                    // trying to get your attention by mentioning your account. Otherwise, we
-                    // expect users will respond to new post comments in their own time.
+                    // We increment the loud notification count only if someone is explicitly trying to
+                    // get your attention by mentioning your account. Otherwise, we expect users will
+                    // respond to new post comments in their own time.
                     const shouldIncrementLoudNotificationCount = isMention;
 
                     loudNotificationCount =
@@ -213,12 +211,12 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     // what's in the entry's latest message then don't bother updating the latest
                     // message.
                     (oldItem.latestComment.index >= event.commentIndex ||
-                        // Or if the latest comment was a mention then we'll leave that in place even
-                        // if there are further comments added.
+                        // Or if the latest comment was a mention then we'll leave that in place even if
+                        // there are further comments added.
                         (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
-                        // Or if the message from our event is from the same account as the inbox
-                        // owner's then don't update the latest message. Leave the last message from an
-                        // account other than our inbox's account in the entry.
+                        // Or if the message from our event is from the same account as the inbox owner's
+                        // then don't update the latest message. Leave the last message from an account
+                        // other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
@@ -234,9 +232,9 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     if (!oldItem) {
                         otherCommentAuthorId = null;
                     } else {
-                        // If the `latestComment`'s author changed then move the old `latestComment`
-                        // author into `otherCommentAuthorId`. But not if the old `latestComment`
-                        // had our inbox's account as the author.
+                        // If the `latestComment`'s author changed then move the old `latestComment` author
+                        // into `otherCommentAuthorId`. But not if the old `latestComment` had our inbox's
+                        // account as the author.
                         otherCommentAuthorId =
                             oldItem.latestComment &&
                             oldItem.latestComment.authorId !== latestComment.authorId &&
@@ -339,8 +337,8 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     subtitle += "their";
                 } else {
                     subtitle += `${getAccountShortNameWithoutFullNameTooltip(
-                        // We should have loaded `firstCommentAuthor` under the same conditions as it
-                        // took to reach this branch.
+                        // We should have loaded `firstCommentAuthor` under the same conditions as it took
+                        // to reach this branch.
                         assertExists(firstCommentAuthor).initialData,
                     )}\u2019s`;
                 }

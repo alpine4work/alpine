@@ -156,8 +156,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
     const inputRef = useRef<MessageInputRef>(null);
 
-    // If we're on a mobile device then message editing will happen inside this
-    // message input component instead of inline within `<MessageView>`.
+    // If we're on a mobile device then message editing will happen inside this message
+    // input component instead of inline within `<MessageView>`.
     const messageEditingForThisInput =
         platform === "mobile" && messageEditing.state.isEditing
             ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
@@ -265,8 +265,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     }, [inputFiles, inputState, restoreStateRef]);
 
     // If we're editing a message then clear any new message text so when we finish
-    // editing the input is empty. Also clear reply state but we need to do that in
-    // an effect since the state isn't local.
+    // editing the input is empty. Also clear reply state but we need to do that in an
+    // effect since the state isn't local.
     if (messageEditingForThisInput && !isContentEmpty(inputState.getDoc())) {
         resetInputState();
     }
@@ -344,8 +344,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             stream: null,
         };
 
-        // If the input was focused then after we reset our input state, we want to
-        // focus the re-rendered input.
+        // If the input was focused then after we reset our input state, we want to focus
+        // the re-rendered input.
         const wasInputFocused = assertExists(inputRef.current).isFocused();
 
         // Make sure these updates happen in one React render. These external callbacks
@@ -398,9 +398,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             );
                         }
 
-                        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                        // close the page if we haven't finished sending their message. It will
-                        // look ok on their machine but might not be on the server.
+                        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to close
+                        // the page if we haven't finished sending their message. It will look ok on their
+                        // machine but might not be on the server.
                         await createMessage({
                             parent: parent ? parentWithoutMessages : null,
                             content: inputContent.doc,
@@ -413,9 +413,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     })();
 
                     // Sending a message dismisses post comment entries and chat entries.
-                    // Optimistically archive these entries so we don't need to wait for
-                    // realtime. The latency of which may be long since notification events are
-                    // processed by a queue.
+                    // Optimistically archive these entries so we don't need to wait for realtime. The
+                    // latency of which may be long since notification events are processed by a queue.
                     inboxPeekContext?.onCreateMessageOptimistically(
                         promise,
                         postRoom
@@ -431,8 +430,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     await promise;
 
                     // We wait to receive the new message over realtime to confirm the optimistic
-                    // message. We do this so that messages are delivered to the user in order
-                    // instead of confirming a message and discovering some unloaded messages.
+                    // message. We do this so that messages are delivered to the user in order instead
+                    // of confirming a message and discovering some unloaded messages.
                 } catch (error) {
                     reporter.displayError(`Couldn\u2019t create ${messageNoun}`, error);
 
@@ -444,8 +443,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                 optimisticRequestErrorState: {
                                     hasError: true,
                                     retry: () => {
-                                        // Clear the error when we are retrying then call this
-                                        // function again.
+                                        // Clear the error when we are retrying then call this function again.
                                         onUpdateMessages(messages =>
                                             messages.updateOptimisticMessage(
                                                 optimisticMessage.optimisticId,
@@ -477,8 +475,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 ref={useMergedRefs(inputRef, externalRef)}
                 key={
                     // Fully remount the message input after sending a message or when switching to
-                    // editing mode. This should reset iOS auto complete. Otherwise the last
-                    // message's auto complete will still be suggested.
+                    // editing mode. This should reset iOS auto complete. Otherwise the last message's
+                    // auto complete will still be suggested.
                     !messageEditingForThisInput
                         ? inputKey
                         : `MessageEditing:${messageEditingForThisInput.state.messageRoomKey}:${messageEditingForThisInput.state.messageIndex}`
@@ -520,9 +518,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             messageEditingForThisInput.state.initialContent)
                 }
                 isSendButtonPending={messageEditingForThisInput?.state.isSaving}
-                // Always treat `fileAttachmentTarget` as null if we want to attach files
-                // before creating the message instead of when they're dropped on the message
-                // input.
+                // Always treat `fileAttachmentTarget` as null if we want to attach files before
+                // creating the message instead of when they're dropped on the message input.
                 fileAttachmentTarget={
                     withAttachFileBeforeCreateMessage ? null : fileAttachmentTarget
                 }
@@ -537,8 +534,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 alwaysRegisterBottomBarFrame={alwaysRegisterBottomBarFrame}
                 data-testid={dataTestId}
                 withMobileMaxHeight={withMobileMaxHeight}
-                // Hide the top border if there are no messages. (For example, when we're
-                // replying to a post.) Then the message input top border conflicts with the
+                // Hide the top border if there are no messages. (For example, when we're replying
+                // to a post.) Then the message input top border conflicts with the
                 // `<PostContentView>` bottom border.
                 withoutParentBorderTop={messages.getMessageCountIncludingOptimisticMessages() === 0}
                 onFocus={() => {
@@ -567,8 +564,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         event.preventDefault();
                         event.stopPropagation();
 
-                        // Look at the last 10 messages. Start editing state for the last one our
-                        // account authored.
+                        // Look at the last 10 messages. Start editing state for the last one our account
+                        // authored.
                         for (const message of sliceIterable(
                             messages.iterateLoadedMessagesFromEnd(),
                             0,
@@ -577,9 +574,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             if (
                                 message.author.id === currentAccount?.id &&
                                 message.payload.type === "Content" &&
-                                // Don't start editing a message that just has files. Normally we don't allow
-                                // empty message content but we do allow empty message content if the message
-                                // has files.
+                                // Don't start editing a message that just has files. Normally we don't allow empty
+                                // message content but we do allow empty message content if the message has files.
                                 !isContentEmpty(message.payload.content.doc)
                             ) {
                                 messageEditing.dispatch({

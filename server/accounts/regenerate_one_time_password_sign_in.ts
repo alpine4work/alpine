@@ -10,8 +10,8 @@ import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Generates a new one time password for signing into an account with the
- * provided email address. Sends the password to the account's email address.
+ * Generates a new one time password for signing into an account with the provided
+ * email address. Sends the password to the account's email address.
  */
 export async function regenerateOneTimePasswordSignIn(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
@@ -38,8 +38,8 @@ export async function regenerateOneTimePasswordSignIn(
     const [accountItem] = await runAllPromises([
         accountItemPromise,
         actuallyRegenerateOneTimePasswordSignIn(context, accountEmailAddressItem, {
-            // If the account hasn't signed up then we'll be redirecting them to the sign
-            // up flow. So send them the sign up email instead of the sign in email.
+            // If the account hasn't signed up then we'll be redirecting them to the sign up
+            // flow. So send them the sign up email instead of the sign in email.
             emailVariant: accountItemPromise.then(accountItem =>
                 accountItem.hasNotSignedUp ? "SignUp" : "SignIn",
             ),

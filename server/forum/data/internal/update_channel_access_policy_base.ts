@@ -83,14 +83,14 @@ export async function updateChannelAccessPolicyBase(
                 const oldAccountIdsWithGrant = Array.from(oldAccessPolicy.accountGrantById.keys());
                 const newAccountIdsWithGrant = Array.from(newAccessPolicy.accountGrantById.keys());
 
-                // If we're adding or removing accounts to the `accessPolicy` then we also want
-                // to update the `Contributors` item. The `Contributors` item includes the
-                // granted `AccountId`s in the contributor list when we're out of accounts that
-                // have actually contributed content.
+                // If we're adding or removing accounts to the `accessPolicy` then we also want to
+                // update the `Contributors` item. The `Contributors` item includes the granted
+                // `AccountId`s in the contributor list when we're out of accounts that have
+                // actually contributed content.
                 //
-                // We do it in a transaction so that the `eventTransaction` we return to the
-                // client includes the updated contributors model. So we can immediately
-                // re-render the contributors item with the new data.
+                // We do it in a transaction so that the `eventTransaction` we return to the client
+                // includes the updated contributors model. So we can immediately re-render the
+                // contributors item with the new data.
                 if (isDeepEqual(oldAccountIdsWithGrant, newAccountIdsWithGrant)) {
                     const {getEvent} = await ForumRealtimeTable.directlyUpdateItem(
                         context,

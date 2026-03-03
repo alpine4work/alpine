@@ -50,8 +50,8 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
         [passedSettings],
     );
 
-    // We need a predictable ID for the canvas so that the server-side script can draw to it.
-    // This must then translate to the same ID on the client.
+    // We need a predictable ID for the canvas so that the server-side script can draw
+    // to it. This must then translate to the same ID on the client.
     const canvasId = getBlobsCanvasId(settings, scale);
     const safeCanvasId = safeIdentifierString(canvasId);
 
@@ -74,8 +74,8 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
             <div
                 className={blobsArtStyles.containerClassName}
                 aria-hidden="true"
-                // Our blob `<script>` writes a `style` attribute on this element. Tell React
-                // not to log a hydration warning, this is expected.
+                // Our blob `<script>` writes a `style` attribute on this element. Tell React not
+                // to log a hydration warning, this is expected.
                 suppressHydrationWarning
             >
                 <canvas
@@ -84,14 +84,14 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
                     data-testid={
                         process.env.NODE_ENV !== "production" ? `BlobsArtCanvas` : undefined
                     }
-                    // Our blob `<script>` writes a `style` attribute on this element. Tell React
-                    // not to log a hydration warning, this is expected.
+                    // Our blob `<script>` writes a `style` attribute on this element. Tell React not
+                    // to log a hydration warning, this is expected.
                     suppressHydrationWarning
                 />
                 <div
                     className={blobsArtGradientClassName}
-                    // Our blob `<script>` writes a `style` attribute on this element. Tell React
-                    // not to log a hydration warning, this is expected.
+                    // Our blob `<script>` writes a `style` attribute on this element. Tell React not
+                    // to log a hydration warning, this is expected.
                     suppressHydrationWarning
                 />
                 <ScriptBeforeAppInitialRender script={generateBlobs} />
@@ -103,21 +103,21 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
     );
 }
 
-// Adds a "bezel" effect when blobs are rendered within a peek stack overlay.
-// It doesn't look good when blobs run up against the edge of a peek because
-// the light grey border looks muddy next to the vibrant blob colors. This
-// bezel (2px border around the edge of the blob art) adds contrast that makes
-// sure blobs don't look muddy in a peek.
+// Adds a "bezel" effect when blobs are rendered within a peek stack overlay. It
+// doesn't look good when blobs run up against the edge of a peek because the light
+// grey border looks muddy next to the vibrant blob colors. This bezel (2px border
+// around the edge of the blob art) adds contrast that makes sure blobs don't look
+// muddy in a peek.
 //
-// The implementation is a little delicate. Because we want the bezel to only
-// cover blobs not anything else (e.g. the navigation bar bottom border that
-// shows up after scrolling). Also, while blobs scroll with content the bezel
-// needs to stick to the top of the peek. It's easy enough to render the
-// left/right bezel (absolute positioned element). But we need render the top
-// bezel with a portal into the nearest `<OverlayScopeContextProvider>` so it
-// can be sticky. This depends on cooperation from the parent component which
-// needs to render `<BlobsArt>` at the right place to make sure it finds the
-// right `<OverlayScopeContextProvider>`.
+// The implementation is a little delicate. Because we want the bezel to only cover
+// blobs not anything else (e.g. the navigation bar bottom border that shows up
+// after scrolling). Also, while blobs scroll with content the bezel needs to stick
+// to the top of the peek. It's easy enough to render the left/right bezel
+// (absolute positioned element). But we need render the top bezel with a portal
+// into the nearest `<OverlayScopeContextProvider>` so it can be sticky. This
+// depends on cooperation from the parent component which needs to render
+// `<BlobsArt>` at the right place to make sure it finds the right
+// `<OverlayScopeContextProvider>`.
 function BlobsArtBezel({withTop, withX}: {withTop?: boolean; withX?: boolean}) {
     const overlayPortalElement = useOverlayPortalElement();
 

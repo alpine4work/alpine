@@ -8,16 +8,16 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
 /**
- * Creates a function that will incrementally collect snippets from a document
- * for the provided comment threads at the first position the comment thread
- * appears. If a comment thread does not exist in a document then you will not
- * get a snippet.
+ * Creates a function that will incrementally collect snippets from a document for
+ * the provided comment threads at the first position the comment thread appears.
+ * If a comment thread does not exist in a document then you will not get a
+ * snippet.
  *
  * Uses `createProsemirrorIncrementalReducer()` under the hood to avoid full
- * document traversals whenever the document changes. You should use this with
- * two separate `useMemo()`s in a React component. One that just depends on the
- * `DocumentCommentThreadId`s and another that depends on the full document.
- * The first `useMemo()` will cache subsets of the document we've seen before.
+ * document traversals whenever the document changes. You should use this with two
+ * separate `useMemo()`s in a React component. One that just depends on the
+ * `DocumentCommentThreadId`s and another that depends on the full document. The
+ * first `useMemo()` will cache subsets of the document we've seen before.
  */
 export function createDocumentCommentThreadSnippetCollector(
     commentThreadIds: Iterable<DocumentCommentThreadId>,

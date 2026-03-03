@@ -80,15 +80,14 @@ export function SearchEntityView({
     const showTitle =
         (entityData.title !== null ||
             // If there's no body snippet and we have a `null` title then showing the title
-            // will render "Deleted ${entityNoun}". For example, tasks in the suggested
-            // list render in this state once they've been deleted.
+            // will render "Deleted ${entityNoun}". For example, tasks in the suggested list
+            // render in this state once they've been deleted.
             !result.bodyTextSnippet) &&
         typeDisplay.type !== "Post";
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
 
-    // Top context menu group
-    // Includes copy link and open in peek.
+    // Top context menu group Includes copy link and open in peek.
     {
         const firstRightClickContextMenuGroup: Array<MenuAction> = [];
 
@@ -145,8 +144,8 @@ export function SearchEntityView({
                 paddingX={marginX}
                 style={{
                     // Tiny detail: The search modal's input renders its border on top of the first
-                    // search entity view. So for it to look like the first search entity has the
-                    // same Y margin as it does X margin we need to add an extra pixel of margin.
+                    // search entity view. So for it to look like the first search entity has the same
+                    // Y margin as it does X margin we need to add an extra pixel of margin.
                     paddingTop: withMarginTop
                         ? convertRemLengthToPx("1", spacingScale) + 1
                         : undefined,
@@ -154,8 +153,8 @@ export function SearchEntityView({
                     minHeight: searchEntityViewMinHeightPx[spacingScale],
                 }}
                 onPointerDown={event => {
-                    // Presses in a modal outside our element tree shouldn't select the search
-                    // entity. This happens when clicking to close an overlay opened by
+                    // Presses in a modal outside our element tree shouldn't select the search entity.
+                    // This happens when clicking to close an overlay opened by
                     // `<SearchEntityViewExplainDebugWidget>`.
                     if (
                         event.target instanceof Element &&
@@ -165,8 +164,8 @@ export function SearchEntityView({
                     }
                 }}
                 onDoubleClick={event => {
-                    // Presses in a modal outside our element tree shouldn't select the search
-                    // entity. This happens when clicking to close an overlay opened by
+                    // Presses in a modal outside our element tree shouldn't select the search entity.
+                    // This happens when clicking to close an overlay opened by
                     // `<SearchEntityViewExplainDebugWidget>`.
                     if (
                         event.target instanceof Element &&
@@ -253,9 +252,9 @@ export function SearchEntityView({
                                     icon={typeDisplay.icon}
                                     type={typeDisplay.type}
                                     media={entityData.media}
-                                    // An entity is only considered to be deleted if there's no title and there's
-                                    // no body. In this context we're rendering things like chat messages which
-                                    // have a null `title` but do have a body.
+                                    // An entity is only considered to be deleted if there's no title and there's no
+                                    // body. In this context we're rendering things like chat messages which have a
+                                    // null `title` but do have a body.
                                     isDeleted={false}
                                 />
                             )}
@@ -306,12 +305,11 @@ function SearchEntityViewExplainDebugWidget({
 }: {
     explanation: OpensearchSearchHitExplanation;
 }) {
-    // When we add to a search entity score using factors other than OpenSearch
-    // BM25 we include an emoji to communicate this is a "smart" score addition. We
-    // use a sparkle for semantic search and a heart for search entities the user
-    // has an affinity for. To make it easier to spot scores affected by AI magic
-    // (semantic search or affinity search) we want to put the same emoji in the
-    // explain button.
+    // When we add to a search entity score using factors other than OpenSearch BM25 we
+    // include an emoji to communicate this is a "smart" score addition. We use a
+    // sparkle for semantic search and a heart for search entities the user has an
+    // affinity for. To make it easier to spot scores affected by AI magic (semantic
+    // search or affinity search) we want to put the same emoji in the explain button.
     const emojis = useMemo(() => {
         const stack = [explanation];
         const maxValueByEmoji = new Map<string, number>();

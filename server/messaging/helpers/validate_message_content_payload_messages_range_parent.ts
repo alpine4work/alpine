@@ -15,9 +15,8 @@ export function validateMessageContentPayloadMessagesRangeParent(
         allowDeletedMessagesForStartAndEndMessages?: boolean;
     } = {},
 ) {
-    // The following should be true since they're
-    // `MessageContentPayloadParentSchema` validations. We `assert()` here to
-    // double check.
+    // The following should be true since they're `MessageContentPayloadParentSchema`
+    // validations. We `assert()` here to double check.
     assert(parent.startIndex <= parent.endIndex);
     assert(
         parent.startIndex !== parent.endIndex ||
@@ -65,11 +64,11 @@ export function validateMessageContentPayloadMessagesRangeParent(
     }
 
     // We don't currently validate `startPos` and `endPos` since if we're using a
-    // `startVersion`/`endVersion` from the past then `startPos` and `endPos` may
-    // point to a position not in the current content.
+    // `startVersion`/`endVersion` from the past then `startPos` and `endPos` may point
+    // to a position not in the current content.
     //
-    // We could use `contentUpdate.mappings` to get a `startPos` and `endPos`
-    // relative to the current version but that doesn't seem worthwhile.
+    // We could use `contentUpdate.mappings` to get a `startPos` and `endPos` relative
+    // to the current version but that doesn't seem worthwhile.
 
     let previousMessageItem = startMessageItem;
 
@@ -92,8 +91,7 @@ export function validateMessageContentPayloadMessagesRangeParent(
             );
         }
 
-        // The messages in the range are from different authors. Can't reply to
-        // this range.
+        // The messages in the range are from different authors. Can't reply to this range.
         if (messageItem.authorId !== previousMessageItem.authorId) {
             throw new FailedPreconditionError(
                 "Message range can\u2019t contain messages from different authors",

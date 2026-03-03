@@ -40,8 +40,8 @@ export function TaskQuerySortsEditor({
     const platform = usePlatform();
 
     // By default `<DndContext>` uses `PointerSensor` and `KeyboardSensor` but
-    // `PointerSensor` can't stop scroll when dragging with touch. So instead we
-    // want to directly use `MouseSensor` and `TouchSensor`.
+    // `PointerSensor` can't stop scroll when dragging with touch. So instead we want
+    // to directly use `MouseSensor` and `TouchSensor`.
     const sensors = useSensors(
         useSensor(MouseSensor),
         useSensor(TouchSensor),
@@ -451,8 +451,8 @@ function TaskQuerySortsEditorRowBase({
                         cursor: "grab",
                         color: "grey-70",
                     })}
-                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is
-                    // not done with tab navigation.
+                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is not
+                    // done with tab navigation.
                     tabIndex={-1}
                 >
                     <DotsSixVertical size={spacing[platform === "mobile" ? "4" : "3"]} />

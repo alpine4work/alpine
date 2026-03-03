@@ -7,10 +7,10 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 /**
  * Extracts the currently viewed entity from the route pathname.
  *
- * This is used to provide context to bots about what the user is looking at
- * when they send a message. Uses the "root" location so it works correctly
- * when called from inside a peek (where useLocation() would return the peek's
- * memory router location instead of the main browser router location).
+ * This is used to provide context to bots about what the user is looking at when
+ * they send a message. Uses the "root" location so it works correctly when called
+ * from inside a peek (where useLocation() would return the peek's memory router
+ * location instead of the main browser router location).
  *
  * Returns `null` if no matching entity is found in the pathname.
  */

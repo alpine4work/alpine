@@ -28,18 +28,17 @@ export type ContentCodeBlockLanguage = {
     readonly name: string;
 
     /**
-     * Other names for the language that will be matched when searching for
-     * languages. Typically this array will include a file extension associated
-     * with the language. For example JavaScript has the alias "ECMAScript"
-     * and "js".
+     * Other names for the language that will be matched when searching for languages.
+     * Typically this array will include a file extension associated with the language.
+     * For example JavaScript has the alias "ECMAScript" and "js".
      */
     readonly aliases: ReadonlyArray<string>;
 
     /**
-     * Get the parser for this language. If the parser hasn't been loaded yet
-     * we'll load the parser from the network. Returns a store you should
-     * subscribe to if the language hasn't been loaded yet so you can re-render
-     * when the parser is available.
+     * Get the parser for this language. If the parser hasn't been loaded yet we'll
+     * load the parser from the network. Returns a store you should subscribe to if the
+     * language hasn't been loaded yet so you can re-render when the parser is
+     * available.
      */
     readonly getParser: () =>
         | (Store<PromiseState<Parser>> & {readonly promise: Promise<Parser>})
@@ -47,11 +46,11 @@ export type ContentCodeBlockLanguage = {
 };
 
 /**
- * The definition for each language. For each language our code block supports,
- * we need to find a Lezer parser. We follow the following lookup process to
- * find a Lezer parser. If no parsers exist we can't support the language. It's
- * also fine to use a CodeMirror language since a CodeMirror language includes
- * a Lezer parser.
+ * The definition for each language. For each language our code block supports, we
+ * need to find a Lezer parser. We follow the following lookup process to find a
+ * Lezer parser. If no parsers exist we can't support the language. It's also fine
+ * to use a CodeMirror language since a CodeMirror language includes a Lezer
+ * parser.
  *
  * 1. Check the [`@lezer` npm organization][1] for an official parser
  * 2. Check the [`@codemirror` npm organization][2] for an official parser
@@ -67,30 +66,31 @@ export type ContentCodeBlockLanguage = {
  * maintain the list long term:
  *
  * - Write auto-updater code for parser packages
- * - Tell users the package we use for each parser, if they need to add new
- *   syntax they should file a pull request against that package
+ * - Tell users the package we use for each parser, if they need to add new syntax
+ *   they should file a pull request against that package
  *
- * Since we can't guarantee packages we depend on will be updated regularly,
- * maybe we create an open source repository with our language definitions that
- * automatically deploys to npm and anoint community members with the ability
- * to approve changes.
+ * Since we can't guarantee packages we depend on will be updated regularly, maybe
+ * we create an open source repository with our language definitions that
+ * automatically deploys to npm and anoint community members with the ability to
+ * approve changes.
  *
  * [1]: https://www.npmjs.com/org/lezer
  * [2]: https://www.npmjs.com/org/codemirror
  * [3]: https://www.npmjs.com/org/replit
- * [4]: https://github.com/codemirror/language-data/blob/7b21009213b9fdb44d6ec172ad0a779234170f52/src/language-data.ts#L11-L12
+ * [4]:
+ *     https://github.com/codemirror/language-data/blob/7b21009213b9fdb44d6ec172ad0a779234170f52/src/language-data.ts#L11-L12
  * [5]: https://www.npmjs.com/package/@codemirror/legacy-modes
  */
 // TODO(calebmer, 2024-07-15): I wonder if the asynchronous lazy-loading of
-// languages is more trouble than it's worth. Lezer generates pretty small
-// parser files for each language. We should consider:
+// languages is more trouble than it's worth. Lezer generates pretty small parser
+// files for each language. We should consider:
 //
 // 1. Putting all parsers in one bundle and lazy loading that
 // 2. Putting parsers in `contentReferences` so they're automatically loaded
 //
-// We need to lazy load parsers. If we didn't, language parsers would be ~1/3
-// of the JavaScript we sent to the client. For a feature most users won't use
-// that's not acceptable.
+// We need to lazy load parsers. If we didn't, language parsers would be ~1/3 of
+// the JavaScript we sent to the client. For a feature most users won't use that's
+// not acceptable.
 const contentCodeBlockLanguageDefinitionById: Record<
     ContentCodeBlockLanguageId,
     ContentCodeBlockLanguageDefinition
@@ -130,7 +130,8 @@ const contentCodeBlockLanguageDefinitionById: Record<
             // dialects are designed to be PostgreSQL compatible. e.g. CockroachDB's SQL
             // dialect and Snowflake's SQL dialect.
             //
-            // [1]: https://survey.stackoverflow.co/2023/#most-popular-technologies-database-prof
+            // [1]:
+            //     https://survey.stackoverflow.co/2023/#most-popular-technologies-database-prof
             const {PostgreSQL} = await import("@codemirror/lang-sql");
             return PostgreSQL.language.parser;
         },
@@ -439,9 +440,9 @@ export const contentCodeBlockLanguageById: Readonly<
 
                             // Classify network errors as the `Unavailable` status code.
                             //
-                            // If the user is offline then we use a `FailedPreconditionError` since it's a
-                            // user error (no internet connection) not a system error. System errors show a
-                            // red error icon.
+                            // If the user is offline then we use a `FailedPreconditionError` since it's a user
+                            // error (no internet connection) not a system error. System errors show a red
+                            // error icon.
                             throw (
                                 !navigator.onLine ? FailedPreconditionError : UnavailableError
                             ).from(error, undefined, {

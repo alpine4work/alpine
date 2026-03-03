@@ -204,10 +204,10 @@ function ShareOverlayAccountInput(
         },
 
         onBlur: event => {
-            // Chrome dispatches a "fake" blur event when the user has an element focused
-            // but then clicks on another window, focusing that window but leaving our
-            // current window visible. `blur` is dispatched but `document.activeElement`
-            // doesn't change!
+            // Chrome dispatches a "fake" blur event when the user has an element focused but
+            // then clicks on another window, focusing that window but leaving our current
+            // window visible. `blur` is dispatched but `document.activeElement` doesn't
+            // change!
             //
             // Detect this case. If we receive a `blur` event but `document.activeElement`
             // hasn't changed then escalate to a real blur.
@@ -215,15 +215,15 @@ function ShareOverlayAccountInput(
                 event.target.blur();
             }
 
-            // Animate when the combobox loses focus. Losing focus is typically not a
-            // direct user interaction. e.g. Clicking outside of the text box. Tabbing out
-            // of the text box we consider an indirect interaction since the animation can
-            // highlight to the user that their state is going away.
+            // Animate when the combobox loses focus. Losing focus is typically not a direct
+            // user interaction. e.g. Clicking outside of the text box. Tabbing out of the text
+            // box we consider an indirect interaction since the animation can highlight to the
+            // user that their state is going away.
             setDisableAnimationOut(false);
         },
 
-        // No key is ever selected by the combobox. Instead when a selection occurs we
-        // add it to a list of selected values.
+        // No key is ever selected by the combobox. Instead when a selection occurs we add
+        // it to a list of selected values.
         selectedKey: null,
         onSelectionChange: key => {
             if (isClosingComboBox) return;
@@ -267,9 +267,9 @@ function ShareOverlayAccountInput(
             },
             isComboBoxOpen: () => comboBoxState.isOpen,
             closeComboBox: () => {
-                // Animate closing the combobox from an component component. If a parent
-                // component wants to close our combobox it's unlikely that action is the
-                // result of a direct user interaction so we'll want to animate.
+                // Animate closing the combobox from an component component. If a parent component
+                // wants to close our combobox it's unlikely that action is the result of a direct
+                // user interaction so we'll want to animate.
                 setDisableAnimationOut(false);
 
                 comboBoxState.close();
@@ -305,8 +305,8 @@ function ShareOverlayAccountInput(
                         break;
                     }
 
-                    // If we are at the beginning of the combobox text input, the backspace key
-                    // will delete the last selected account.
+                    // If we are at the beginning of the combobox text input, the backspace key will
+                    // delete the last selected account.
                     case "Backspace": {
                         if (
                             selectedAccounts.length > 0 &&
@@ -324,8 +324,8 @@ function ShareOverlayAccountInput(
                         }
                         break;
                     }
-                    // If we are at the beginning of the combobox text input, the arrow left key
-                    // will focus a previously selected account if we have one.
+                    // If we are at the beginning of the combobox text input, the arrow left key will
+                    // focus a previously selected account if we have one.
                     case "ArrowLeft": {
                         if (
                             selectedAccountRefs.length > 0 &&
@@ -391,8 +391,8 @@ function ShareOverlayAccountInput(
                     }
                     break;
                 }
-                // Arrow keys navigate through selected accounts. Only the first selected
-                // account is focusable since you use arrow keys to navigate between accounts.
+                // Arrow keys navigate through selected accounts. Only the first selected account
+                // is focusable since you use arrow keys to navigate between accounts.
                 case "ArrowLeft": {
                     event.preventDefault();
                     event.stopPropagation();
@@ -400,8 +400,8 @@ function ShareOverlayAccountInput(
                     selectedAccountRefs[index - 1]?.current?.focus();
                     break;
                 }
-                // Arrow keys navigate through selected accounts. Only the first selected
-                // account is focusable since you use arrow keys to navigate between accounts.
+                // Arrow keys navigate through selected accounts. Only the first selected account
+                // is focusable since you use arrow keys to navigate between accounts.
                 case "ArrowRight": {
                     event.preventDefault();
                     event.stopPropagation();
@@ -414,9 +414,9 @@ function ShareOverlayAccountInput(
                     break;
                 }
                 default: {
-                    // If the user presses a letter then interpret that as the user trying to
-                    // replace the focused account. So delete the selected account and add the text
-                    // to our search input.
+                    // If the user presses a letter then interpret that as the user trying to replace
+                    // the focused account. So delete the selected account and add the text to our
+                    // search input.
                     if (/^[0-9a-zA-Z]$/.test(event.key)) {
                         event.preventDefault();
                         event.stopPropagation();
@@ -441,9 +441,9 @@ function ShareOverlayAccountInput(
                     alignItems="center"
                     tabIndex={index === 0 ? 0 : -1}
                     // On mobile we want taps to fallthrough and focus the combobox input instead of
-                    // selecting the account. On mobile you can only press backspace to delete the
-                    // last account, you can't delete a specific account (unless you have an
-                    // external keyboard, then you can use arrow keys).
+                    // selecting the account. On mobile you can only press backspace to delete the last
+                    // account, you can't delete a specific account (unless you have an external
+                    // keyboard, then you can use arrow keys).
                     pointerEvents={platform !== "mobile" ? undefined : "none"}
                     onKeyDown={handleKeyDown}
                 >
@@ -469,9 +469,9 @@ function ShareOverlayAccountInput(
             if (event.pointerType === "mouse") {
                 assertExists(inputRef.current).focus();
 
-                // As a convenience, if you tap on this element while it's already focused but
-                // the combobox isn't open then open the combobox. After you select an option
-                // the combobox closes but the user may want to select another account.
+                // As a convenience, if you tap on this element while it's already focused but the
+                // combobox isn't open then open the combobox. After you select an option the
+                // combobox closes but the user may want to select another account.
                 if (!comboBoxState.isOpen) {
                     comboBoxState.open();
                 }
@@ -484,9 +484,9 @@ function ShareOverlayAccountInput(
             if (event.pointerType !== "mouse") {
                 assertExists(inputRef.current).focus();
 
-                // As a convenience, if you tap on this element while it's already focused but
-                // the combobox isn't open then open the combobox. After you select an option
-                // the combobox closes but the user may want to select another account.
+                // As a convenience, if you tap on this element while it's already focused but the
+                // combobox isn't open then open the combobox. After you select an option the
+                // combobox closes but the user may want to select another account.
                 if (!comboBoxState.isOpen) {
                     comboBoxState.open();
                 }
@@ -502,12 +502,12 @@ function ShareOverlayAccountInput(
             placement="bottom-start"
             sameWidth={true}
             offset="2"
-            // Set a constant `overflowBottom` value instead of relying on the current
-            // keyboard height (which will be updated asynchronously after `isEditing` is
-            // true). This stops the overlay placement from jumping around while the
-            // keyboard opens. The value was calculated based on the keyboard height in
-            // iOS. We may need to change this constant if the keyboard height for iOS
-            // changes or the Android keyboard height is bigger.
+            // Set a constant `overflowBottom` value instead of relying on the current keyboard
+            // height (which will be updated asynchronously after `isEditing` is true). This
+            // stops the overlay placement from jumping around while the keyboard opens. The
+            // value was calculated based on the keyboard height in iOS. We may need to change
+            // this constant if the keyboard height for iOS changes or the Android keyboard
+            // height is bigger.
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
             overflowTop={navigationBarHeight}
             overlay={
@@ -525,8 +525,8 @@ function ShareOverlayAccountInput(
                 isVisibleWhenFocusWithin={true}
                 // Render below the listbox overlay.
                 overlayZIndex="-10"
-                // If we are selecting an item within the combobox show a focus ring there,
-                // not here.
+                // If we are selecting an item within the combobox show a focus ring there, not
+                // here.
                 isDisabled={
                     comboBoxState.isOpen && comboBoxState.selectionManager.focusedKey !== null
                 }
@@ -538,8 +538,8 @@ function ShareOverlayAccountInput(
                     minHeight="10"
                     borderRadius="1.5"
                     style={{
-                        // Use `box-shadow` instead of `border` so drawing the border doesn't take
-                        // space in the layout.
+                        // Use `box-shadow` instead of `border` so drawing the border doesn't take space in
+                        // the layout.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                 >
@@ -599,14 +599,14 @@ function ShareOverlayAccountInput(
                             })}
                             placeholder={selectedAccounts.length === 0 ? "Add people…" : undefined}
                             // By default `<input>` elements have a `min-width` determined by the `size`
-                            // property. We want our `<input>`s `min-width` to be determined by our CSS
-                            // so set it to a small value as not to matter.
+                            // property. We want our `<input>`s `min-width` to be determined by our CSS so set
+                            // it to a small value as not to matter.
                             // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
                             size={1}
                             // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
-                            // disables these capabilities because the user has combobox suggestions.
-                            // However, fixing typos at the OS level when typos are common (like on iOS)
-                            // is really useful.
+                            // disables these capabilities because the user has combobox suggestions. However,
+                            // fixing typos at the OS level when typos are common (like on iOS) is really
+                            // useful.
                             autoCorrect={undefined}
                             spellCheck={undefined}
                             onKeyDown={event => {
@@ -616,23 +616,24 @@ function ShareOverlayAccountInput(
                                 ) {
                                     // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                     // whenever `Enter` is pressed][1] whether or not an option is focused. If an
-                                    // option isn't focused this just closes the combobox and leaves the user
-                                    // confused. Is what they typed the new value or not? It's not, you can tell
-                                    // since the avatar doesn't change. This is particularly confusing on mobile
-                                    // where the user may hit the return key expecting the first value in the menu
-                                    // to be selected. But that won't happen, the menu will just close.
+                                    // option isn't focused this just closes the combobox and leaves the user confused.
+                                    // Is what they typed the new value or not? It's not, you can tell since the avatar
+                                    // doesn't change. This is particularly confusing on mobile where the user may hit
+                                    // the return key expecting the first value in the menu to be selected. But that
+                                    // won't happen, the menu will just close.
                                     //
                                     // So intercept this case and don't call into `@react-aria/combobox`.
                                     //
-                                    // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                    // [1]:
+                                    //     https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
                                 } else {
                                     inputProps.onKeyDown?.(event);
                                 }
                             }}
                             onPointerDown={event => {
-                                // As a convenience, if you tap on this element while it's already focused but
-                                // the combobox isn't open then open the combobox. After you select an option
-                                // the combobox closes but the user may want to select another account.
+                                // As a convenience, if you tap on this element while it's already focused but the
+                                // combobox isn't open then open the combobox. After you select an option the
+                                // combobox closes but the user may want to select another account.
                                 //
                                 // We have to be a little careful and make sure this doesn't break the default
                                 // browser behavior of focusing the input if it's unfocused.
@@ -662,9 +663,9 @@ function ShareOverlayAccountInput(
                                 (!accessLevel.withoutEditAccessLevel &&
                                     accessLevel.isAltKeyDown &&
                                     hasAccessLevel("Edit", minAccessLevel)) ||
-                                // We need to show the edit access level without holding alt when
-                                // `minAccessLevel` is `Edit` otherwise there will be no access level selector
-                                // even when you're allowed to change access level to `Manage`.
+                                // We need to show the edit access level without holding alt when `minAccessLevel`
+                                // is `Edit` otherwise there will be no access level selector even when you're
+                                // allowed to change access level to `Manage`.
                                 minAccessLevel === "Edit"
                             ) {
                                 actions.push({
@@ -714,8 +715,8 @@ function ShareOverlayAccountInput(
                                         placement="bottom-end"
                                         // Align this menu to the right edge of the input. So it's consistent with the
                                         // access level menus from account grants. We can do this thanks to the add
-                                        // button's fixed width. This helps the design especially on mobile where
-                                        // otherwise the overlay is pushed to the right side of the screen.
+                                        // button's fixed width. This helps the design especially on mobile where otherwise
+                                        // the overlay is pushed to the right side of the screen.
                                         offsetAlong="2"
                                         actions={actions}
                                     >
@@ -760,10 +761,9 @@ function ShareOverlayAccountInputListBox({
 
     return (
         <div
-            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
-            // doesn't need to add a resize listener to every child. This means we need to
-            // provide `useListBox()` a `scrollRef` if we want to scroll to the
-            // focused option.
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()` doesn't
+            // need to add a resize listener to every child. This means we need to provide
+            // `useListBox()` a `scrollRef` if we want to scroll to the focused option.
             ref={useMergedRefs(useScrollbar(), scrollRef)}
             className={classNames(
                 greyElevated2ClassName,
@@ -820,12 +820,11 @@ function ShareOverlayAccountInputListBoxOption({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,

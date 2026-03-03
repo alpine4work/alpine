@@ -3,8 +3,8 @@ import {ApiContent} from "~/shared/api/types/api_specification_convenience_types
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * Convert all straight quotes (`'` and `"`) into proper curly quotes
- * (`\u201C`, `\u201D`, `\u2018`, `\u2019`).
+ * Convert all straight quotes (`'` and `"`) into proper curly quotes (`\u201C`,
+ * `\u201D`, `\u2018`, `\u2019`).
  */
 export function convertApiContentToProperQuotes(content: ApiContent): ApiContent {
     return visitAndProduceApiContent(content, {

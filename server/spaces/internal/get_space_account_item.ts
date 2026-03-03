@@ -11,14 +11,13 @@ export const SpaceAccountItemContextCache = new DynamoContextCache<
     `${SpaceId}:${AccountId}`,
     SpaceAccountItem | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
 /**
- * Internal function to get a `SpaceAccountItem`. Caches the result in a
- * context cache.
+ * Internal function to get a `SpaceAccountItem`. Caches the result in a context
+ * cache.
  *
  * Does not authorize the actor has access! You must do that yourself.
  */
@@ -48,8 +47,8 @@ export async function getSpaceAccountItemIfExists(
 }
 
 /**
- * Internal function to get a `SpaceAccountItem`. Caches the result in a
- * context cache.
+ * Internal function to get a `SpaceAccountItem`. Caches the result in a context
+ * cache.
  *
  * Does not authorize the actor has access! You must do that yourself.
  *
@@ -75,8 +74,8 @@ export async function getSpaceAccountItem(
 }
 
 /**
- * Internal function to get a `SpaceAccountItem`. Caches the result in a
- * context cache.
+ * Internal function to get a `SpaceAccountItem`. Caches the result in a context
+ * cache.
  *
  * Does not authorize the actor has access! You must do that yourself.
  *

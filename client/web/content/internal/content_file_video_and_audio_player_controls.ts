@@ -76,8 +76,8 @@ export function renderContentFileVideoAndAudioPlayerControls({
                 contentFileVideoAndAudioPlayerControlsStyles.durationProgressCurrentClassName,
             );
 
-            // Set `data-time` on the initial render since our add behavior function won't
-            // run until React mounts.
+            // Set `data-time` on the initial render since our add behavior function won't run
+            // until React mounts.
             if (isInitialAppRender) {
                 durationProgressCurrentHtml.setAttribute(
                     "data-time",
@@ -141,8 +141,8 @@ export function renderContentFileVideoAndAudioPlayerControls({
                     contentFileVideoAndAudioPlayerControlsStyles.scrubberTrackClassName,
                 );
 
-                // Don't render our tracks on the initial render since we won't be able to
-                // scale them until React mounts.
+                // Don't render our tracks on the initial render since we won't be able to scale
+                // them until React mounts.
                 if (!isInitialAppRender) {
                     {
                         const scrubberTrackProgressHtml = new HtmlElementGenerator("div");
@@ -166,8 +166,8 @@ export function renderContentFileVideoAndAudioPlayerControls({
         }
     }
 
-    // Only render the volume controls on desktop.
-    // In mobile environments, we'll trust the device's native controls.
+    // Only render the volume controls on desktop. In mobile environments, we'll trust
+    // the device's native controls.
     if (platform === "desktop") {
         const volumeButtonContainerHtml = new HtmlElementGenerator("div");
         controlsHtml.appendChild(volumeButtonContainerHtml);
@@ -234,8 +234,8 @@ export function renderContentFileVideoAndAudioPlayerControls({
                         contentFileVideoAndAudioPlayerControlsStyles.volumeTrackClassName,
                     );
 
-                    // Don't render our tracks on the initial render since we won't be able to
-                    // scale them until React mounts.
+                    // Don't render our tracks on the initial render since we won't be able to scale
+                    // them until React mounts.
                     if (!isInitialAppRender) {
                         {
                             const volumeScrubberTrackProgressHtml = new HtmlElementGenerator("div");
@@ -259,8 +259,8 @@ export function renderContentFileVideoAndAudioPlayerControls({
             contentFileVideoAndAudioPlayerControlsStyles.playbackRateButtonClassName,
         );
 
-        // Set `data-rate` on the initial render since our add behavior function won't
-        // run until React mounts.
+        // Set `data-rate` on the initial render since our add behavior function won't run
+        // until React mounts.
         if (isInitialAppRender) {
             playbackRateButtonHtml.setAttribute("data-rate", "1x");
         }
@@ -270,22 +270,22 @@ export function renderContentFileVideoAndAudioPlayerControls({
 }
 
 /**
- * Add interactions to the content file video or audio player controls rendered
- * by `renderContentFileVideoAndAudioPlayerControls()`. The provided container
- * element must have the class
+ * Add interactions to the content file video or audio player controls rendered by
+ * `renderContentFileVideoAndAudioPlayerControls()`. The provided container element
+ * must have the class
  * `contentFileVideoAndAudioPlayerControlsStyles.containerClassName`.
  *
  * IMPORTANT: Read the following implementation notes before making changes.
  *
  * ## Implementation notes
  *
- * The code for our video and audio player is styled after React. (We'll use
- * the video player as an example for the rest of this comment.) We have a
- * functional render function (`renderContentFileVideoPlayer()`) and setup
- * interactivity with an effect (`addContentFileVideoPlayerBehavior()`). We'd
- * love to use React directly but we can't because our video player is rendered
- * in a ProseMirror `contenteditable`. So we need to build the video player's
- * interactivity by directly attaching DOM events.
+ * The code for our video and audio player is styled after React. (We'll use the
+ * video player as an example for the rest of this comment.) We have a functional
+ * render function (`renderContentFileVideoPlayer()`) and setup interactivity with
+ * an effect (`addContentFileVideoPlayerBehavior()`). We'd love to use React
+ * directly but we can't because our video player is rendered in a ProseMirror
+ * `contenteditable`. So we need to build the video player's interactivity by
+ * directly attaching DOM events.
  *
  * Our behavior function MUST NOT edit the DOM by adding or removing DOM nodes.
  * This will mess up `HtmlElementGenerator.patchNode()` if ProseMirror needs to
@@ -417,9 +417,9 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             }),
             onPress: event => {
                 // Secret feature! If you shift click the fullscreen button in a video preview
-                // it'll open the file viewer. This feature is really only for developers. We
-                // need to support videos in the file viewer even though basically all
-                // functionality is available inline.
+                // it'll open the file viewer. This feature is really only for developers. We need
+                // to support videos in the file viewer even though basically all functionality is
+                // available inline.
                 if (event.shiftKey && onOpenViewer) {
                     if (mediaElement && !mediaElement.paused) {
                         mediaElement.pause();
@@ -480,21 +480,21 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
 
             let hasBufferedTimeRange = false;
 
-            // `mediaElement.buffered` is a [normalized `TimeRanges` object][1] which
-            // means:
+            // `mediaElement.buffered` is a [normalized `TimeRanges` object][1] which means:
             //
             // > The ranges in such an object are ordered, don't overlap, and don't touch
             // > (adjacent ranges are folded into one bigger range). A range can be empty
             // > (referencing just a single moment in time).
             //
-            // [1]: https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges#normalized_timeranges_objects
+            // [1]:
+            //     https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges#normalized_timeranges_objects
             if (mediaElement !== null) {
                 for (let i = 0; i < mediaElement.buffered.length; i++) {
                     const bufferedTimeRangeStartTime = mediaElement.buffered.start(i);
                     const bufferedTimeRangeEndTime = mediaElement.buffered.end(i);
 
-                    // There won't be any relevant buffered time ranges after this because all
-                    // further time ranges in this array will be greater than `progressTime`.
+                    // There won't be any relevant buffered time ranges after this because all further
+                    // time ranges in this array will be greater than `progressTime`.
                     if (progressTime < bufferedTimeRangeStartTime) {
                         break;
                     }
@@ -554,9 +554,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                 playingAnimationState = null;
             }
 
-            // If while waiting the user pauses we need to remove the waiting class name
-            // since we won't receive the `playing` event which normally removes this
-            // class.
+            // If while waiting the user pauses we need to remove the waiting class name since
+            // we won't receive the `playing` event which normally removes this class.
             containerElement.classList.remove(
                 contentFileVideoAndAudioPlayerControlsStyles.waitingClassName,
             );
@@ -564,8 +563,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             onPause?.();
         };
 
-        // While the video is playing we run a `requestAnimationFrame()` loop that
-        // animates our scrubber.
+        // While the video is playing we run a `requestAnimationFrame()` loop that animates
+        // our scrubber.
         const runPlayAnimationLoop = () => {
             return requestAnimationFrame(() => {
                 if (playingAnimationState === null) return;
@@ -573,8 +572,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                 // If we've set `display: none` on the scrubber (which means
                 // `scrubberElement.clientWidth` will be 0) then don't animate our scrubber.
                 //
-                // If we're dragging then we position the scrubber based on the user's current
-                // drag position. Not based on the video's actual time.
+                // If we're dragging then we position the scrubber based on the user's current drag
+                // position. Not based on the video's actual time.
                 if (scrubberThumbDragState === null && durationScrubberElement.clientWidth > 0) {
                     const currentSessionTime = performance.now();
 
@@ -588,9 +587,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                     // Since `videoElement.currentTime` doesn't update as quickly as we'd like
                     // (`timeupdate` fires every ~200ms) we estimate the correct time using a high
                     // resolution clock. If our estimated time is within a 1.5s window of
-                    // `videoElement.currentTime` then we use it. If our estimated time isn't in a
-                    // 1.5s window that's probably because the user skipped ahead or backwards in
-                    // the video.
+                    // `videoElement.currentTime` then we use it. If our estimated time isn't in a 1.5s
+                    // window that's probably because the user skipped ahead or backwards in the video.
                     let videoTime;
                     if (Math.abs(actualVideoTime - expectedVideoTime) < 1500 / 2) {
                         videoTime = expectedVideoTime;
@@ -610,8 +608,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             });
         };
 
-        // When we re-initialize the effect, make sure we update the playing class
-        // name state.
+        // When we re-initialize the effect, make sure we update the playing class name
+        // state.
         if (mediaElement && !mediaElement.paused) {
             handlePlay();
         } else {
@@ -640,8 +638,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         if (mediaElement.paused) {
             mediaElement.play().catch(error => {
                 // Chrome throws an abort error if `pause()` is called before `play()` has
-                // returned. Ignore play abort errors from Chrome. It's reasonable for the user
-                // to pause if play is taking a long time to load.
+                // returned. Ignore play abort errors from Chrome. It's reasonable for the user to
+                // pause if play is taking a long time to load.
                 if (
                     error instanceof Error &&
                     error.name === "AbortError" &&
@@ -668,8 +666,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             );
 
             // Once we actually start playing our video for the first time we add the "has
-            // played" class and never remove it. We don't show video controls until the
-            // video starts playing.
+            // played" class and never remove it. We don't show video controls until the video
+            // starts playing.
             if (
                 !containerElement.classList.contains(
                     contentFileVideoAndAudioPlayerControlsStyles.hasPlayedClassName,
@@ -679,9 +677,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                     contentFileVideoAndAudioPlayerControlsStyles.hasPlayedClassName,
                 );
 
-                // Reset the still pointer timeout after `hasPlayedClassName` has been added
-                // since the controls won't be visible until after `hasPlayedClassName` is
-                // added.
+                // Reset the still pointer timeout after `hasPlayedClassName` has been added since
+                // the controls won't be visible until after `hasPlayedClassName` is added.
                 onHasPlayed?.();
             }
         };
@@ -721,16 +718,16 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
 
             const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
 
-            // If the `fastSeek()` method is available then use that. Precision doesn't
-            // matter as much when moving by clicking on the scrubber. Speed matters more.
+            // If the `fastSeek()` method is available then use that. Precision doesn't matter
+            // as much when moving by clicking on the scrubber. Speed matters more.
             if (mediaElement.fastSeek) {
                 mediaElement.fastSeek((progress * durationMs) / 1000);
             } else {
                 mediaElement.currentTime = (progress * durationMs) / 1000;
             }
 
-            // Optimistically the scrubber based on the click position. Instead of waiting
-            // for a `timeupdate` event which happens after the video has loaded.
+            // Optimistically the scrubber based on the click position. Instead of waiting for
+            // a `timeupdate` event which happens after the video has loaded.
             updateScrubberProgress(progress);
 
             onSeek?.();
@@ -799,8 +796,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             mediaElement.currentTime = (progress * durationMs) / 1000;
 
             // Update the scrubber based on our current drag position. While dragging we
-            // optimistically use the user's pointer position, not the video's actual
-            // current time.
+            // optimistically use the user's pointer position, not the video's actual current
+            // time.
             updateScrubberProgress(progress);
 
             onSeek?.();
@@ -809,8 +806,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         durationScrubberThumbTargetElement.addEventListener("pointerdown", startScrubberThumbDrag);
 
         cleanupFunctions.push(() => {
-            // We don't preserve our drag state in the DOM. It's ok to cancel our drag when
-            // the behavior function re-runs.
+            // We don't preserve our drag state in the DOM. It's ok to cancel our drag when the
+            // behavior function re-runs.
             cancelScrubberThumbDrag();
 
             durationScrubberThumbTargetElement.removeEventListener(
@@ -826,11 +823,11 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
 
     {
         const maybeUpdateScrubberProgress = () => {
-            // If our `requestAnimationFrame()` loop is not running then update the
-            // scrubber position on every `timeupdate` event.
+            // If our `requestAnimationFrame()` loop is not running then update the scrubber
+            // position on every `timeupdate` event.
             //
-            // If we're dragging then we position the scrubber based on the user's current
-            // drag position. Not based on the video's actual time.
+            // If we're dragging then we position the scrubber based on the user's current drag
+            // position. Not based on the video's actual time.
             if (playingAnimationState === null && scrubberThumbDragState === null) {
                 const progress = ((mediaElement?.currentTime ?? 0) * 1000) / durationMs;
                 updateScrubberProgress(progress);
@@ -852,8 +849,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             maybeUpdateScrubberProgress();
         };
 
-        // We listen to the `progress` event to update the buffered segment of our
-        // track. As more data loads more data may be buffered.
+        // We listen to the `progress` event to update the buffered segment of our track.
+        // As more data loads more data may be buffered.
         const handleProgress = () => {
             maybeUpdateScrubberProgress();
         };
@@ -1010,7 +1007,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         \* ========================================================================== */
 
         // Note: this is largely duplicated from the timing scrubber drag events above. We
-        // should probably refactor this into a shared function the next time we need to use it.
+        // should probably refactor this into a shared function the next time we need to
+        // use it.
 
         if (mediaElement !== null) {
             const handleVolumeScrubberPointerDown = (event: PointerEvent) => {
@@ -1094,9 +1092,9 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             };
 
             const handleVolumeSelectorHover = () => {
-                // Since the element has no width on render, we can't calculate the width,
-                // and therefore the progress, of the scrubber. So we need to set the volume
-                // to the current volume on when we hover.
+                // Since the element has no width on render, we can't calculate the width, and
+                // therefore the progress, of the scrubber. So we need to set the volume to the
+                // current volume on when we hover.
                 updateVolumeScrubberProgress(mediaElement.volume);
             };
 

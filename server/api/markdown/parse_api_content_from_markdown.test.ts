@@ -1352,8 +1352,8 @@ test("table HTML in blockquote throws error", () => {
 });
 
 test("empty blockquote creates empty Quote element", () => {
-    // Notion exports can have empty blockquotes like "> \n> \n"
-    // These should be parsed as Quote with empty elements
+    // Notion exports can have empty blockquotes like "> \n> \n" These should be parsed
+    // as Quote with empty elements
     expect(parseApiContentFromMarkdown("> \n> \n", {spaceId})).toEqual({
         elements: [
             {

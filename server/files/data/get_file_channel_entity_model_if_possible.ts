@@ -33,8 +33,8 @@ export async function getFileChannelEntityModelIfPossible(
     if (!channelQueryResult.ok) return channelQueryResult;
     const channelQuery = channelQueryResult.value;
 
-    // Only throw error from `isSubscribedToChannel()` if we're authorized to view
-    // the channel.
+    // Only throw error from `isSubscribedToChannel()` if we're authorized to view the
+    // channel.
     const isSubscribed = isSubscribedResult ? unwrapResult(isSubscribedResult) : false;
 
     const channel = assertExists(

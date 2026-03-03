@@ -2,8 +2,8 @@ import {WebSocket, WebSocketServer} from "ws";
 import {subscribeToBazelBuildEvents} from "~/admin/dev/bazel/build_bazel_target.js";
 
 /**
- * We run a WebSocket dev server which reports Bazel build status so we can
- * show a "Building" indicator on the client.
+ * We run a WebSocket dev server which reports Bazel build status so we can show a
+ * "Building" indicator on the client.
  */
 export async function startBazelDevServer({
     port,

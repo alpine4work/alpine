@@ -39,8 +39,7 @@ export function ShareSwitch({
         accessPolicyWithoutOptimisticUpdates,
     ] = useStateWithOptimisticUpdates(accessPolicyFromProps);
 
-    // Make sure the base access policy in state is always the value from our
-    // props.
+    // Make sure the base access policy in state is always the value from our props.
     if (accessPolicyWithoutOptimisticUpdates !== accessPolicyFromProps)
         setAccessPolicy(() => accessPolicyFromProps);
 
@@ -57,11 +56,11 @@ export function ShareSwitch({
     if (showCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog && !inherited)
         setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(false);
 
-    // Our share switch doesn't have an inline loading indicator so use the
-    // global loading indicator.
+    // Our share switch doesn't have an inline loading indicator so use the global
+    // loading indicator.
     //
-    // TODO(calebmer): We should probably perform an optimistic update since
-    // pressing the switch and then it doesn't move for a beat will feel weird.
+    // TODO(calebmer): We should probably perform an optimistic update since pressing
+    // the switch and then it doesn't move for a beat will feel weird.
     const onAccessPolicyChange = (action: AccessPolicyAction) => {
         if (!currentAccount) return;
 
@@ -81,8 +80,8 @@ export function ShareSwitch({
     };
 
     const icon = showDeleteDefaultGrantOrUrlGrantConfirmationDialog
-        ? // Optimistically show the lock icon while the "make entity private" confirmation dialog
-          // is open.
+        ? // Optimistically show the lock icon while the "make entity private" confirmation
+          // dialog is open.
           ("Lock" as const)
         : accessPolicy.urlGrant || inherited?.accessPolicy.urlGrant
           ? ("Globe" as const)
@@ -98,17 +97,17 @@ export function ShareSwitch({
                 isInert={isReadOnly || !currentAccount}
                 onPress={() => {
                     if (inherited?.accessPolicy.urlGrant || inherited?.accessPolicy.defaultGrant) {
-                        // We can't delete inherited default grants or URL grants since they're not set
-                        // on our current entity but rather some referenced entity (e.g. a task
-                        // collection or parent task). Let the user know this.
+                        // We can't delete inherited default grants or URL grants since they're not set on
+                        // our current entity but rather some referenced entity (e.g. a task collection or
+                        // parent task). Let the user know this.
                         setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(true);
                         return;
                     }
 
                     if (accessPolicy.defaultGrant || accessPolicy.urlGrant) {
-                        // Ask the user to confirm when pressing the switch to make the entity private.
-                        // We want to make it very easy to share the entity but un-sharing the entity
-                        // should have a little friction so the user doesn't do it accidentally.
+                        // Ask the user to confirm when pressing the switch to make the entity private. We
+                        // want to make it very easy to share the entity but un-sharing the entity should
+                        // have a little friction so the user doesn't do it accidentally.
                         setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog(true);
                         return;
                     }
@@ -126,11 +125,11 @@ export function ShareSwitch({
                             </span>
                         </>,
                         {
-                            // This message is short, appears a lot, and the user only really needs to read
-                            // it once over the course of their lifetime with the product. Once the user
-                            // learns what this switch does (ideally the first time they press the switch)
-                            // they don't need to read this message again. So use a fast duration even
-                            // though it's not accessible.
+                            // This message is short, appears a lot, and the user only really needs to read it
+                            // once over the course of their lifetime with the product. Once the user learns
+                            // what this switch does (ideally the first time they press the switch) they don't
+                            // need to read this message again. So use a fast duration even though it's not
+                            // accessible.
                             durationSeconds: 3,
                         },
                     );

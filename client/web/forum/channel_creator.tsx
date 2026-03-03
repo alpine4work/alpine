@@ -153,20 +153,19 @@ export function ChannelCreator({
                                 },
                             );
                         } else {
-                            // It's slightly more efficient to create a channel with the `create` URL
-                            // parameter because:
+                            // It's slightly more efficient to create a channel with the `create` URL parameter
+                            // because:
                             //
-                            // 1. We don't need to read the channel back from DynamoDB in the loader since
-                            //    we created the DynamoDB item in the loader.
+                            // 1. We don't need to read the channel back from DynamoDB in the loader since we
+                            //    created the DynamoDB item in the loader.
                             //
-                            // 2. We need to read the channel back from DynamoDB with strong read
-                            //    consistency (which is more expensive than eventual consistency) or else
-                            //    we risk telling the user the channel they just created doesn't exist.
+                            // 2. We need to read the channel back from DynamoDB with strong read consistency
+                            //    (which is more expensive than eventual consistency) or else we risk telling
+                            //    the user the channel they just created doesn't exist.
                             //
-                            // However, the `create` URL parameter doesn't support descriptions. We
-                            // couldn't fit a long description into the URL. So if the user typed up a
-                            // description we need to create the channel with an RPC then navigate to
-                            // its URL.
+                            // However, the `create` URL parameter doesn't support descriptions. We couldn't
+                            // fit a long description into the URL. So if the user typed up a description we
+                            // need to create the channel with an RPC then navigate to its URL.
                             const channel = await createChannel(context, {
                                 spaceId: space.id,
                                 name,
@@ -204,8 +203,8 @@ export function ChannelCreator({
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {
-        // Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        // initial render.
+        // Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        // render.
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(
             () => getContentEditorScrollAnchorPosition(descriptionEditorRef),

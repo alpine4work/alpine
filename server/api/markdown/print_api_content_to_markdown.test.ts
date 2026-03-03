@@ -37,8 +37,8 @@ async function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdo
         normalizeApiContent(content),
     );
 
-    // Test that `AgentMessageStream` can parse all the content we test in this
-    // file exactly the same as the test expects.
+    // Test that `AgentMessageStream` can parse all the content we test in this file
+    // exactly the same as the test expects.
     await testTracer.withSpan("Test `AgentMessageStream`", async span => {
         const message = new AgentMessageStream({
             spaceId,

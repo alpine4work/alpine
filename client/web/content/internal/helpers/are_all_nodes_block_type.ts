@@ -3,8 +3,8 @@ import {Attrs, Node, NodeType} from "prosemirror-model";
 /**
  * Are all nodes the provided block type?
  *
- * If true then we expect `createToggleBlockTypeCommand()` to toggle the block
- * type off.
+ * If true then we expect `createToggleBlockTypeCommand()` to toggle the block type
+ * off.
  */
 export function areAllNodesBlockType(
     parentNode: Node,

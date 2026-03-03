@@ -19,8 +19,8 @@ import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 const {context, services} = createTestServices();
 
 async function waitForSavingIndicatorAndReloadPage(page: Page) {
-    // Wait for the saving indicator to disappear before reloading the page. To
-    // make sure our update has actually made it to the server.
+    // Wait for the saving indicator to disappear before reloading the page. To make
+    // sure our update has actually made it to the server.
     await page.evaluate("dev.globalLoadingIndicator.waitForSavingIndicator()");
 
     await page.reload();
@@ -394,8 +394,8 @@ test("can create task by adding due date", async ({page, context: browserContext
 
     await expect(page).toHaveURL(/[?&]create/);
 
-    // HACK(calebmer): There's some time zone weirdness going on here I'm not going
-    // to debug right now.
+    // HACK(calebmer): There's some time zone weirdness going on here I'm not going to
+    // debug right now.
     const dueDateLocator = page.getByText(/Yesterday|Today|Tomorrow/);
 
     await expect(dueDateLocator).toBeHidden();

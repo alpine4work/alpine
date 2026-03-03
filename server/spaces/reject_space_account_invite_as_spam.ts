@@ -7,8 +7,8 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
  * Reject a space account invite by marking the account as "Removed" with a reason
  * of "InviteRejectedAsSpam".
  *
- * This function is used when the account decides to reject the invitation to
- * the space, marking it as spam or unwanted.
+ * This function is used when the account decides to reject the invitation to the
+ * space, marking it as spam or unwanted.
  */
 export async function rejectSpaceAccountInviteAsSpam(
     context: ServerSessionActionContext,

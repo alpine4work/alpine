@@ -45,9 +45,9 @@ export class TestDocument {
     public readonly createdTime: Date;
     public readonly initialAccessPolicy: AccessPolicy;
 
-    // NOTE(calebmer): A cool capability would be to allow testers to create
-    // multiple `TestDocumentClient`s that have their own state so you can make
-    // concurrent, version conflicting, updates.
+    // NOTE(calebmer): A cool capability would be to allow testers to create multiple
+    // `TestDocumentClient`s that have their own state so you can make concurrent,
+    // version conflicting, updates.
     private readonly _state: MutexValue<{
         lastVersion: number;
         lastUpdatePos: number;
@@ -214,9 +214,8 @@ export class TestDocument {
     });
 
     /**
-     * Type new text into the document starting from the last updated position in
-     * this `TestDocument`'s state. Moves the update position to after the
-     * new text.
+     * Type new text into the document starting from the last updated position in this
+     * `TestDocument`'s state. Moves the update position to after the new text.
      */
     public async type(
         session: TestSpaceSession,
@@ -283,8 +282,8 @@ export class TestDocument {
     /**
      * Update the document content with some steps at the current version.
      *
-     * Does not use the current update cursor in this test document class's
-     * state and does not update the cursor.
+     * Does not use the current update cursor in this test document class's state and
+     * does not update the cursor.
      */
     public async update(
         session: TestSpaceSession,
@@ -313,8 +312,8 @@ export class TestDocument {
     }
 
     /**
-     * Attach a file to the document. Will attach the file as a block immediately
-     * below the current typing position.
+     * Attach a file to the document. Will attach the file as a block immediately below
+     * the current typing position.
      */
     public async attachFile(session: TestSpaceSession, file: TestFile) {
         await attachFileAsUploader(

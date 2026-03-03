@@ -5,11 +5,12 @@ import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 /**
- * Allowlisted columns for the accounts dimension table.
- * Merges Account#Attributes + Account#Settings (1:1 per account).
+ * Allowlisted columns for the accounts dimension table. Merges
+ * Account#Attributes + Account#Settings (1:1 per account).
  *
- * IMPORTANT: Only add columns here that are safe to expose in Athena queries.
- * Do NOT add PII or sensitive data like:
+ * IMPORTANT: Only add columns here that are safe to expose in Athena queries. Do
+ * NOT add PII or sensitive data like:
+ *
  * - Session data
  * - Billing/Stripe data
  * - One-time passwords
@@ -38,8 +39,8 @@ export type AccountDimension = SchemaType<typeof AccountDimensionSchema>;
 export type AccountSettingsKeys = "last_opened_space_id" | "observed_time_zone";
 
 /**
- * Allowlisted columns for the account_email_addresses dimension table.
- * Source: AccountEmailAddress#Attributes (1:N per account).
+ * Allowlisted columns for the account_email_addresses dimension table. Source:
+ * AccountEmailAddress#Attributes (1:N per account).
  *
  * IMPORTANT: Email addresses are PII but included for debugging/analysis.
  * Excludes: oneTimePasswordSignInState (sensitive auth data)
@@ -54,8 +55,8 @@ export const AccountEmailAddressDimensionSchema = Schema.object({
 export type AccountEmailAddressDimension = SchemaType<typeof AccountEmailAddressDimensionSchema>;
 
 /**
- * Allowlisted columns for the stripe_customers dimension table.
- * Source: StripeCustomer#Attributes (1:1 per Stripe customer).
+ * Allowlisted columns for the stripe_customers dimension table. Source:
+ * StripeCustomer#Attributes (1:1 per Stripe customer).
  */
 export const StripeCustomerDimensionSchema = Schema.object({
     stripe_customer_id: Schema.string,
@@ -65,8 +66,8 @@ export const StripeCustomerDimensionSchema = Schema.object({
 export type StripeCustomerDimension = SchemaType<typeof StripeCustomerDimensionSchema>;
 
 /**
- * Allowlisted columns for the spaces dimension table.
- * Merges Space#Attributes + Space#WelcomePackage (1:1 per space).
+ * Allowlisted columns for the spaces dimension table. Merges Space#Attributes +
+ * Space#WelcomePackage (1:1 per space).
  *
  * IMPORTANT: Only add columns here that are safe to expose in Athena queries.
  */
@@ -97,8 +98,8 @@ export type SpaceWelcomePackageKeys =
     | "welcome_package_chat_gpt_bot_account_id";
 
 /**
- * Allowlisted columns for the space_accounts dimension table.
- * Source: Space#Account (N:N relationship).
+ * Allowlisted columns for the space_accounts dimension table. Source:
+ * Space#Account (N:N relationship).
  */
 export const SpaceAccountDimensionSchema = Schema.object({
     space_id: Schema.string,
@@ -111,8 +112,8 @@ export const SpaceAccountDimensionSchema = Schema.object({
 export type SpaceAccountDimension = SchemaType<typeof SpaceAccountDimensionSchema>;
 
 /**
- * Allowlisted columns for the space_email_domains dimension table.
- * Source: AutoAddAccountsFromEmailDomain#Space (1 row per space-domain pair).
+ * Allowlisted columns for the space_email_domains dimension table. Source:
+ * AutoAddAccountsFromEmailDomain#Space (1 row per space-domain pair).
  */
 export const SpaceEmailDomainDimensionSchema = Schema.object({
     space_id: Schema.string,

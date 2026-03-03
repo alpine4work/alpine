@@ -123,10 +123,9 @@ export function ChatView({
             return;
         }
 
-        // Backfill the chat once realtime is connected. When we've connected to
-        // realtime we'll get all events from the time `isConnected` is true on but
-        // we'll have missed any events from when we weren't connected to the
-        // WebSocket.
+        // Backfill the chat once realtime is connected. When we've connected to realtime
+        // we'll get all events from the time `isConnected` is true on but we'll have
+        // missed any events from when we weren't connected to the WebSocket.
         if (lastBackfilledChatIdRef.current !== chat.id) {
             lastBackfilledChatIdRef.current = chat.id;
 
@@ -145,9 +144,9 @@ export function ChatView({
         });
     }, [chat.id, context, isConnected, onUpdateChat, subscribeToEvents]);
 
-    // Update `SearchEntityRegistry` with the latest chat name. Now as the
-    // name changes in realtime, any `SearchEntityModel`s rendered elsewhere in
-    // the product will also update.
+    // Update `SearchEntityRegistry` with the latest chat name. Now as the name changes
+    // in realtime, any `SearchEntityModel`s rendered elsewhere in the product will
+    // also update.
     useMemo(() => {
         if (chat.definition.type !== "Room") return;
 
@@ -249,8 +248,8 @@ function ChatViewTopBar({
     if (showTurnIntoChatRoomModalDialog && !canConvertDirectChatToRoomChat)
         setShowTurnIntoChatRoomModalDialog(false);
 
-    // Exclude the current user from the list of accounts we display on top of the
-    // chat unless this is a one-person chat with only the current user.
+    // Exclude the current user from the list of accounts we display on top of the chat
+    // unless this is a one-person chat with only the current user.
     const otherChatAccounts =
         chat.definition.type === "Direct"
             ? chat.definition.accounts.length === 1 &&
@@ -291,13 +290,12 @@ function ChatViewTopBar({
     const [actuallyIsSubscribed, setIsSubscribed, setIsSubscribedOptimistically] =
         useStateWithOptimisticUpdates(initialIsSubscribed);
 
-    // If we don't know the subscription state we assume `isSubscribed` is true.
-    // This will happen if user A is viewing a direct chat with user B and user B
-    // turns the direct chat into a room chat. User A's `initialIsSubscribed` value
-    // will be null (since we return null for direct chats) and we'll render that
-    // null as "subscribed" because in the case where user B turns the direct chat
-    // into a room chat we automatically subscribe all previous members of the
-    // direct chat.
+    // If we don't know the subscription state we assume `isSubscribed` is true. This
+    // will happen if user A is viewing a direct chat with user B and user B turns the
+    // direct chat into a room chat. User A's `initialIsSubscribed` value will be null
+    // (since we return null for direct chats) and we'll render that null as
+    // "subscribed" because in the case where user B turns the direct chat into a room
+    // chat we automatically subscribe all previous members of the direct chat.
     const isSubscribed = actuallyIsSubscribed ?? true;
 
     const hasFetchedIsSubscribed = useRef(false);
@@ -306,8 +304,8 @@ function ChatViewTopBar({
         // Don't fetch subscribed state if this isn't a chat room.
         if (chat.definition.type !== "Room") return;
 
-        // If the actor doesn't have space access they'll never be subscribed, don't
-        // try loading subscribed state.
+        // If the actor doesn't have space access they'll never be subscribed, don't try
+        // loading subscribed state.
         if (!hasCurrentAccount) return;
 
         if (actuallyIsSubscribed !== null) {
@@ -337,8 +335,7 @@ function ChatViewTopBar({
 
     const lastPointerDownTimeRef = useRef<number | null>(null);
 
-    // Preload accounts so they're available if the user opens the room share
-    // dropdown.
+    // Preload accounts so they're available if the user opens the room share dropdown.
     useIdlyPreloadRpc(
         expensivelyGetAllSpaceAccounts,
         chat.definition.type === "Room" && currentAccount ? {spaceId: space.id} : null,
@@ -360,10 +357,10 @@ function ChatViewTopBar({
                 pointerEvents="none"
                 position="absolute"
                 height="border"
-                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
-                // than if we used `grey-5` directly. This is because the border operates more
-                // like a shadow. When rendered over some other content (e.g. an image) the
-                // image's colors show through the border but a little darker.
+                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer than if we
+                // used `grey-5` directly. This is because the border operates more like a shadow.
+                // When rendered over some other content (e.g. an image) the image's colors show
+                // through the border but a little darker.
                 backgroundColor="grey-5-translucent"
                 style={{
                     bottom: -1,
@@ -443,10 +440,10 @@ function ChatViewTopBar({
                     {chat.definition.type === "Room" &&
                         !chat.definition.accessPolicy.defaultGrant &&
                         !chat.definition.accessPolicy.urlGrant && (
-                            // We add a lock icon to private chats because unlike other entities we don't
-                            // show the share switch in the navigation bar. Since knowing whether a chat
-                            // is public or private is important context, we include a lock to make sure you
-                            // know the chat is private before posting.
+                            // We add a lock icon to private chats because unlike other entities we don't show
+                            // the share switch in the navigation bar. Since knowing whether a chat is public
+                            // or private is important context, we include a lock to make sure you know the
+                            // chat is private before posting.
                             <LockBoldFillIcon
                                 className={sprinkles({flexShrink: "0"})}
                                 size={spacing[platform === "mobile" ? "3" : "4"]}
@@ -531,9 +528,9 @@ function ChatViewTopBar({
                                                         //
                                                         // We implement double click with `onPointerDown` instead of `onDoubleClick`
                                                         // because `onDoubleClick` fires one pointer up but the browser performs text
-                                                        // selection on double click pointer down. So there's a small visual glitch
-                                                        // where you can see the browser selection after double click before pointer up
-                                                        // when you use `onDoubleClick`,
+                                                        // selection on double click pointer down. So there's a small visual glitch where
+                                                        // you can see the browser selection after double click before pointer up when you
+                                                        // use `onDoubleClick`,
                                                         event.preventDefault();
 
                                                         setIsEditingRoomNameInline(true);
@@ -597,9 +594,9 @@ function ChatViewTopBar({
                     paddingRight={platform === "mobile" ? navigationBarMobileGap : "5"}
                 >
                     <NavigationBarContentMoreButton
-                        // Move the menu further away from the subscribe button. It's quite large and
-                        // the default offset renders our menu too close to the subscribe button in my
-                        // design opinion.
+                        // Move the menu further away from the subscribe button. It's quite large and the
+                        // default offset renders our menu too close to the subscribe button in my design
+                        // opinion.
                         menuOffset={
                             chat.definition.type === "Room" && platform !== "mobile"
                                 ? "2.5"
@@ -615,15 +612,15 @@ function ChatViewTopBar({
                                       entityId: `Chat:${chat.id}`,
                                       accessPolicy: chat.definition.accessPolicy,
                                       accessLevelText: {
-                                          // The text is "can chat" (and not "can message") so that when you press the
-                                          // alt key to show "can chat (can't share)" it doesn't grow the dropdown width.
+                                          // The text is "can chat" (and not "can message") so that when you press the alt
+                                          // key to show "can chat (can't share)" it doesn't grow the dropdown width.
                                           Manage: "can chat",
                                           Edit: "can chat (can\u2019t share)",
                                           Comment: "can chat (can\u2019t share)",
                                           View: "can view",
                                       },
-                                      // `Edit` access level and `Comment` access level are the same for chat rooms.
-                                      // Keep both hidden by default and reveal them only while holding "alt".
+                                      // `Edit` access level and `Comment` access level are the same for chat rooms. Keep
+                                      // both hidden by default and reveal them only while holding "alt".
                                       withoutEditAccessLevel: true,
                                       withHiddenCommentAccessLevel: true,
                                       onAccessPolicyChange: async (notification, accessPolicy) => {
@@ -728,9 +725,8 @@ function ChatViewTopBar({
                                                           await promise;
                                                       }
 
-                                                      // Don't close the menu when subscribing/unsubscribing since there's no
-                                                      // feedback other than the menu action label changing when the user
-                                                      // subscribes/unsubscribes.
+                                                      // Don't close the menu when subscribing/unsubscribing since there's no feedback
+                                                      // other than the menu action label changing when the user subscribes/unsubscribes.
                                                       return {withoutClose: true};
                                                   },
                                               }),
@@ -833,8 +829,8 @@ function ChatMessagingView({
     const spaceContext = useSpaceContext();
     let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
 
-    // We only send the currently viewed entity for 1:1 chats with a bot.
-    // We do some validation here and on the server.
+    // We only send the currently viewed entity for 1:1 chats with a bot. We do some
+    // validation here and on the server.
     currentlyViewingSearchEntityId = getSafeCurrentlyViewedEntityIfPossibleForClient(
         spaceContext,
         chat,
@@ -844,8 +840,8 @@ function ChatMessagingView({
     const hasInitializedRef = useRef(false);
 
     // TODO(calebmer): Support server-side rendering for immediately jumping to a
-    // comment in the middle of a post. This will make transitions seamless when
-    // you click on a link to a comment.
+    // comment in the middle of a post. This will make transitions seamless when you
+    // click on a link to a comment.
     useEffect(() => {
         if (hasInitializedRef.current) return;
         hasInitializedRef.current = true;

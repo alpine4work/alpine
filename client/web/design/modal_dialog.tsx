@@ -18,24 +18,24 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 
 /**
- * Present information to the user, blocking their experience, and ask them to
- * make a choice. The user may not interact with content under the modal
- * through mouse, keyboard, or touch.
+ * Present information to the user, blocking their experience, and ask them to make
+ * a choice. The user may not interact with content under the modal through mouse,
+ * keyboard, or touch.
  *
- * - A dialog is a component with a title, a message, and some action buttons.
- *   It can be rendered as in a popover or modal form factor.
- * - A modal is a view which takes over the entire screen. It renders an
- *   underlay so the user can't interact with content underneath and it
- *   captures focus. It forces the user to interact with the modal.
+ * - A dialog is a component with a title, a message, and some action buttons. It
+ *   can be rendered as in a popover or modal form factor.
+ * - A modal is a view which takes over the entire screen. It renders an underlay
+ *   so the user can't interact with content underneath and it captures focus. It
+ *   forces the user to interact with the modal.
  *
- * Refer to [Adobe Spectrum][1] content guidelines for writing the message in
- * the modal dialog.
+ * Refer to [Adobe Spectrum][1] content guidelines for writing the message in the
+ * modal dialog.
  *
  * [1]: https://spectrum.adobe.com/page/alert-dialog/#Content-standards
  */
-// In our native mobile app, we use the platform alert to render
-// `<ModalDialog>`. It's ok to swap out component implementations this way
-// since we should never server-side render `<ModalDialog>`.
+// In our native mobile app, we use the platform alert to render `<ModalDialog>`.
+// It's ok to swap out component implementations this way since we should never
+// server-side render `<ModalDialog>`.
 const ActualModalDialog = NativeMobileBridge ? ModalDialogNativeMobile : ModalDialog;
 export {ActualModalDialog as ModalDialog};
 
@@ -63,8 +63,8 @@ function ModalDialog({
     withoutCloseInteractions,
     initiallyFocus = "Primary",
 }: ModalDialogProps) {
-    // Can't server-render `<ModalDialog>` since in our native mobile app we'll
-    // have a different implementation then on the server.
+    // Can't server-render `<ModalDialog>` since in our native mobile app we'll have a
+    // different implementation then on the server.
     const isInitialAppRender = useIsInitialAppRender();
     if (isInitialAppRender) throw new InternalError("Can\u2019t server render `<ModalDialog>`");
 
@@ -194,10 +194,10 @@ function ModalDialogNativeMobile({
     const reporter = useReporter();
 
     // The native mobile app is deprecated so we'll likely never implement this
-    // (eventually this code will be deleted). However, in theory this property
-    // makes sense for `<ModalDialog>` which has a constrained, opinionated,
-    // interface since the iOS dialog we opened for this component
-    // (`UIAlertController`) has the option to add a text input.
+    // (eventually this code will be deleted). However, in theory this property makes
+    // sense for `<ModalDialog>` which has a constrained, opinionated, interface since
+    // the iOS dialog we opened for this component (`UIAlertController`) has the option
+    // to add a text input.
     if (withTextInput) {
         throw new UnimplementedError("Text input not implemented for native modal dialog");
     }
@@ -207,10 +207,9 @@ function ModalDialogNativeMobile({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        // If we were rendering our custom `<ModalDialog>` (instead of the native one)
-        // then our focus would move into the `<ModalDialog>` component. Make sure even
-        // with our native modal dialog we still remove focus from whatever's presently
-        // focused.
+        // If we were rendering our custom `<ModalDialog>` (instead of the native one) then
+        // our focus would move into the `<ModalDialog>` component. Make sure even with our
+        // native modal dialog we still remove focus from whatever's presently focused.
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }
@@ -234,8 +233,8 @@ function ModalDialogNativeMobile({
                     case "SensitiveText":
                     // TODO(calebmer): When showing an error in `<ModalDialog>` we strip all links
                     // since the modal content isn't interactive. Figure out if it's possible to put
-                    // links in an iOS dialog and if it's not can we write some code to add the
-                    // links as action buttons in the dialog?
+                    // links in an iOS dialog and if it's not can we write some code to add the links
+                    // as action buttons in the dialog?
                     case "Link":
                         descriptionString += displayMessageSegment.text;
                         break;
@@ -254,8 +253,8 @@ function ModalDialogNativeMobile({
             onPrimaryButtonPress: () => {
                 const promise = onPrimaryButtonPress?.("");
 
-                // We can't show a pending indicator in our native mobile modal dialog so
-                // close immediately.
+                // We can't show a pending indicator in our native mobile modal dialog so close
+                // immediately.
                 onClose();
 
                 if (promise instanceof Promise) {
@@ -273,8 +272,8 @@ function ModalDialogNativeMobile({
             onCancelButtonPress: () => {
                 const promise = onCancelButtonPress?.();
 
-                // We can't show a pending indicator in our native mobile modal dialog so
-                // close immediately.
+                // We can't show a pending indicator in our native mobile modal dialog so close
+                // immediately.
                 onClose();
 
                 if (promise instanceof Promise) {

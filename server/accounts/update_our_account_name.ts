@@ -14,8 +14,8 @@ export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoin
 
 /**
  * Updates an account's name. When we update an account's name we also need to
- * update our search index and task index since the account name is present in
- * both indexes.
+ * update our search index and task index since the account name is present in both
+ * indexes.
  */
 export async function updateOurAccountName(
     context: ServerSessionActionContext,

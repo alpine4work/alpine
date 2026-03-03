@@ -57,8 +57,8 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     const chatPromiseResolver = createPromiseResolver<ChatModel>();
 
-    // Generate checkpoint before we start loading data. So when we backfill we
-    // include any realtime events that happened while loading data.
+    // Generate checkpoint before we start loading data. So when we backfill we include
+    // any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
     const createSearchParam = url.searchParams.get("create");
@@ -90,9 +90,9 @@ export async function loader({context: unauthenticatedContext, request, params}:
                 throw error;
             }
 
-            // If there was an issue creating our chat, it might be because the
-            // chat already exists. Attempt to authorize, if that fails we
-            // believe the issue was actually with chat creation.
+            // If there was an issue creating our chat, it might be because the chat already
+            // exists. Attempt to authorize, if that fails we believe the issue was actually
+            // with chat creation.
             //
             // This check makes this `GET` endpoint idempotent. You can hit the endpoint
             // multiple times and if our chat is already created we'll noop.
@@ -123,8 +123,8 @@ export async function loader({context: unauthenticatedContext, request, params}:
             : getChatAndInitialMessages(context, {
                   chatId,
                   messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-                  // Immediately resolve `chatPromiseResolver` once the chat is loaded. This
-                  // function may take longer to return as it loads messages from the chat.
+                  // Immediately resolve `chatPromiseResolver` once the chat is loaded. This function
+                  // may take longer to return as it loads messages from the chat.
                   onChat: chatPromiseResolver.resolve,
               }).then(
                   result => {
@@ -208,8 +208,8 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
                     ? "Chat with yourself"
                     : `Chat with ${joinPrettyConjunctionList(
                           otherChatAccounts.map(account =>
-                              // Account name in title won't update when account changes without reload
-                              // because we're using `initialData`.
+                              // Account name in title won't update when account changes without reload because
+                              // we're using `initialData`.
                               getAccountShortNameWithoutFullNameTooltip(account.initialData),
                           ),
                       )}`,
@@ -273,11 +273,11 @@ export default function ChatRoute() {
     }, [hasSearchParamToDelete, setSearchParams]);
 
     // If you're spending time in a 1:1 chat, then we give affinity points to the
-    // account you're messaging. Not the chat itself. The page we route you to for
-    // an account in search is currently your 1:1 chat with the account anyways.
+    // account you're messaging. Not the chat itself. The page we route you to for an
+    // account in search is currently your 1:1 chat with the account anyways.
     //
-    // By accruing points to the account we allow chat conversations to affect
-    // account selector type-ahead affinity rankings.
+    // By accruing points to the account we allow chat conversations to affect account
+    // selector type-ahead affinity rankings.
     useSearchAffinityViewEntityInteraction(
         getChatOrAccountSearchAffinityEntityId(currentAccount?.id, chat),
     );

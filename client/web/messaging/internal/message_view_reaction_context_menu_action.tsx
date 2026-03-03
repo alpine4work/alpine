@@ -57,8 +57,8 @@ export function messageViewReactionContextMenuAction<
 
                 const usableStreamPartCount =
                     message.stream.parts.length -
-                    // If the stream is incomplete then we can't react to the last part. Since the
-                    // last part may still be receiving updates.
+                    // If the stream is incomplete then we can't react to the last part. Since the last
+                    // part may still be receiving updates.
                     (message.stream.completedTime === null ? 1 : 0);
 
                 for (let i = 0; i < usableStreamPartCount; i++) {

@@ -29,23 +29,22 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 type LoadAgentPostCommentsLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
 
 /**
- * Loads content for a list of message/comments. When paginating through a list of messages,
- * we don't provide links to already-visited pages. This means that the agent can't go backward
- * to a previous page via a `[Previous Page]()` link.
+ * Loads content for a list of message/comments. When paginating through a list of
+ * messages, we don't provide links to already-visited pages. This means that the
+ * agent can't go backward to a previous page via a `[Previous Page]()` link.
  *
- * The *only* time we'll show links to next **and** previous pages is when we're loading
- * the first "chunk" of messages. So if the agent is trying to load the page for a message
- * at index 100, we'll give it links so that it can paginate in either direction from there.
+ * The _only_ time we'll show links to next **and** previous pages is when we're
+ * loading the first "chunk" of messages. So if the agent is trying to load the
+ * page for a message at index 100, we'll give it links so that it can paginate in
+ * either direction from there.
  *
  * ```markdown
  * [Post](/post/link-to-post)
  *
  * <-- Zeroth chunk of messages start -->
  *
- * <human name="Ian">message 1</human>
- * <bot name="GPT">message 2</bot>
- * <human name="Josh">message 3</human>
- * <human name="Rachel">message 4</human>
+ * <human name="Ian">message 1</human> <bot name="GPT">message 2</bot>
+ * <human name="Josh">message 3</human> <human name="Rachel">message 4</human>
  *
  * <-- Zeroth chunk of messages end -->
  *
@@ -64,15 +63,15 @@ export async function loadAgentPostCommentsLinkContent(options: {
     messages: Array<AgentMessage>;
     messagesContent: Root;
 }> {
-    // We always fetch the post when loading a page of comments. We need the post in order to
-    // create the preamble elements for the list of messages. If we're loading the first page,
-    // we also need to fetch the post's content.
+    // We always fetch the post when loading a page of comments. We need the post in
+    // order to create the preamble elements for the list of messages. If we're loading
+    // the first page, we also need to fetch the post's content.
     //
-    // TODO(ifitzsimmons, #ai): add post preview API endpoint so we can fetch the
-    // data we need without needing to fetch the entire contents of the post.
-    // As is, it kinda stinks that we load the contents of the post here and then
-    // throw it away. If/when the Agent tries to read the post, we'll load the entire
-    // post again. We can then just fetch the post content only when we need it.
+    // TODO(ifitzsimmons, #ai): add post preview API endpoint so we can fetch the data
+    // we need without needing to fetch the entire contents of the post. As is, it
+    // kinda stinks that we load the contents of the post here and then throw it away.
+    // If/when the Agent tries to read the post, we'll load the entire post again. We
+    // can then just fetch the post content only when we need it.
     //
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
     const post = await fetchPost(options.tracer, options.request, options.link.postId);
@@ -254,7 +253,8 @@ async function getMarkdownContentForPageFromEnd({
             ? await putAgentPreviousMessagesPageLink(transaction, link, nextCursor)
             : null;
 
-    // If we loaded the first comment when loading this page, load the post content as well.
+    // If we loaded the first comment when loading this page, load the post content as
+    // well.
     const isFirstPage = !previousPageLink;
 
     const originalPostMessage = isFirstPage
@@ -345,7 +345,8 @@ async function getMarkdownContentForPageFromMiddle({
             : null,
     ]);
 
-    // If we loaded the first comment when loading this page, load the post content as well.
+    // If we loaded the first comment when loading this page, load the post content as
+    // well.
     const isFirstPage = !previousPageLink;
 
     const originalPostMessage = isFirstPage
@@ -391,8 +392,8 @@ async function getPreambleForPostComments({
     doesPageContainPost: boolean;
     doesPageContainPostComments: boolean;
 }): Promise<Paragraph> {
-    // If the page type is "page", we already showed the post content on the first page.
-    // For chunks, we want to show a link to the post for the first chunk only.
+    // If the page type is "page", we already showed the post content on the first
+    // page. For chunks, we want to show a link to the post for the first chunk only.
     const shouldLinkPost =
         currentPageLink.paginationType === "chunk" && currentPageLink.pageNumber === 0;
 

@@ -88,7 +88,8 @@ describe("updateOurStripeCustomerId()", () => {
         // First account successfully sets the customer ID
         await updateOurStripeCustomerId(session1.action(), stripeCustomerId);
 
-        // Second account tries to use the same customer ID and should get an assertion error
+        // Second account tries to use the same customer ID and should get an assertion
+        // error
         await expect(
             updateOurStripeCustomerId(session2.action(), stripeCustomerId),
         ).rejects.toThrow(

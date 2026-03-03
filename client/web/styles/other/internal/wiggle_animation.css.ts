@@ -23,9 +23,9 @@ const {animationKeyframes: springKeyframes, animationDuration: springDuration} =
     });
 
 /**
- * To highlight a message for the user on page load or after jump scrolling to
- * the message we wiggle the message horizontally a bit. We choose this as the
- * way to highlight a message because:
+ * To highlight a message for the user on page load or after jump scrolling to the
+ * message we wiggle the message horizontally a bit. We choose this as the way to
+ * highlight a message because:
  *
  * - It is temporary
  * - Movement catches the user's attention (maybe better than color would)
@@ -37,20 +37,20 @@ const {animationKeyframes: springKeyframes, animationDuration: springDuration} =
  * 1. The pull
  * 2. Spring physics
  *
- * First we pull the message away from its resting position then a spring
- * brings it back.
+ * First we pull the message away from its resting position then a spring brings it
+ * back.
  *
- * We use a high tension low friction spring. The message really wants to go
- * back to its resting position (high tension) but it overshoots (low
- * friction). The low friction surface is supported by the fact the user can
- * drag the message with no resistance with their finger.
+ * We use a high tension low friction spring. The message really wants to go back
+ * to its resting position (high tension) but it overshoots (low friction). The low
+ * friction surface is supported by the fact the user can drag the message with no
+ * resistance with their finger.
  *
- * To simulate a pull we use an ease-in-out animation. We need to ease-in since
- * the object needs to build momentum, then we need to ease-out since the
- * object needs to lose the momentum it gained.
+ * To simulate a pull we use an ease-in-out animation. We need to ease-in since the
+ * object needs to build momentum, then we need to ease-out since the object needs
+ * to lose the momentum it gained.
  *
- * This animation was initially built for highlighting a message but since has
- * been expanded for use in other places.
+ * This animation was initially built for highlighting a message but since has been
+ * expanded for use in other places.
  */
 export const wiggleAnimation = `${pullKeyframes} ${pullDuration}ms ${easeInOutQuad.cubicBezier} forwards, ${springKeyframes} ${springDuration}ms linear ${pullDuration}ms forwards`;
 

@@ -60,11 +60,10 @@ export function subscribeToColorSchemeChange(
 }
 
 /**
- * Switch the color scheme. If the color scheme is light, we switch to dark. If
- * the color scheme is dark, we switch to light.
+ * Switch the color scheme. If the color scheme is light, we switch to dark. If the
+ * color scheme is dark, we switch to light.
  *
- * Calling this function once means we will no longer inherit the system
- * setting.
+ * Calling this function once means we will no longer inherit the system setting.
  */
 export function toggleColorScheme() {
     assert(typeof document !== "undefined", "Can not toggle color scheme on the server");
@@ -76,8 +75,7 @@ export function toggleColorScheme() {
 }
 
 /**
- * Get the color scheme and re-render the component when the color
- * scheme changes.
+ * Get the color scheme and re-render the component when the color scheme changes.
  *
  * Will return null when rendering on the server.
  */

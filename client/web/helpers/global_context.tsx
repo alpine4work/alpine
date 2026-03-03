@@ -17,15 +17,15 @@ export type GlobalContext<Value> = {
 /**
  * Create global React context.
  *
- * Global React context is a helper for context that has a single instance
- * which is shared across the entire app. It allows you to avoid creating new
- * context provider components which add cost to React renders and make
- * debugging more difficult (since you have to scroll past them in the React
- * debugger, React profiler, and performance stack traces).
+ * Global React context is a helper for context that has a single instance which is
+ * shared across the entire app. It allows you to avoid creating new context
+ * provider components which add cost to React renders and make debugging more
+ * difficult (since you have to scroll past them in the React debugger, React
+ * profiler, and performance stack traces).
  *
- * You often need to use global React context instead of creating a global
- * variable since when server rendering you need a separate instance of the
- * global context for each render.
+ * You often need to use global React context instead of creating a global variable
+ * since when server rendering you need a separate instance of the global context
+ * for each render.
  *
  * Global context is automatically available in unit tests unlike React context
  * which requires you to render a provider.
@@ -68,8 +68,8 @@ export function useGlobalContext<Value>(context: GlobalContext<Value>): Value {
 }
 
 /**
- * Get a global context on the client. This will throw an error during
- * server-side rendering. You may only call this on the client.
+ * Get a global context on the client. This will throw an error during server-side
+ * rendering. You may only call this on the client.
  */
 export function getGlobalContext<Value>(context: GlobalContext<Value>): Value {
     assert(typeof window !== "undefined" || import.meta.jest);

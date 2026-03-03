@@ -26,8 +26,8 @@ export const PostItemAuthorizationCache = new DynamoContextCache<
         | "updateLockVersion"
     > | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -99,8 +99,8 @@ export function getPostItemWithContentForAuthorizationIfExists(
         {consistency},
     );
 
-    // After we've loaded a post, save it to the authorization cache so if we need
-    // to authorize later in the action it's available.
+    // After we've loaded a post, save it to the authorization cache so if we need to
+    // authorize later in the action it's available.
     PostItemAuthorizationCache.set(context, consistency, postId, itemPromise);
 
     return itemPromise;

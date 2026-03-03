@@ -14,8 +14,8 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 
 const context = createTestContext();
 
-// Use TypeScript to make sure we have at least one file as a test case for
-// each of the `FileContentType`s we support.
+// Use TypeScript to make sure we have at least one file as a test case for each of
+// the `FileContentType`s we support.
 const testCases: {
     [Key in Exclude<
         FileContentType,
@@ -326,11 +326,11 @@ const testCases: {
             imagePreviewContent: {
                 contentType: "image/avif",
                 // When using the Apple Preview app to export
-                // `wikimedia_png_transparency_demonstration.png` the colors got darker,
-                // especially around the edges. So we can't compare to the original `.png`
-                // image. Instead we re-exported the darker `.heic` file to `.png` and we'll
-                // use that as the similar image. This does not appear to be an issue with our
-                // code but rather the Apple Preview app's export functionality.
+                // `wikimedia_png_transparency_demonstration.png` the colors got darker, especially
+                // around the edges. So we can't compare to the original `.png` image. Instead we
+                // re-exported the darker `.heic` file to `.png` and we'll use that as the similar
+                // image. This does not appear to be an issue with our code but rather the Apple
+                // Preview app's export functionality.
                 similarPath: "wikimedia_png_transparency_demonstration.heic.avif",
             },
         },
@@ -419,12 +419,11 @@ const testCases: {
                 contentType: "image/avif",
                 // The PDF preview:
                 //
-                // 1. Removes the transparent background and replaces it with a white
-                //    background
+                // 1. Removes the transparent background and replaces it with a white background
                 // 2. Is twice as large as `wikimedia_png_transparency_demonstration.avif`
                 //
-                // TODO(calebmer): Ideally we would preserve the transparent background. Vips
-                // can do this but [`sharp` doesn't expose the option we need][1].
+                // TODO(calebmer): Ideally we would preserve the transparent background. Vips can
+                // do this but [`sharp` doesn't expose the option we need][1].
                 //
                 // [1]: https://github.com/lovell/sharp/issues/3321
                 similarPath: "wikimedia_png_transparency_demonstration.pdf.avif",
@@ -442,8 +441,8 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "pdfsharp_sample_page_sizes.avif",
             },
-            // Needs higher tolerance probably because this file is much bigger than others
-            // we test so there's more space for there to be mismatches.
+            // Needs higher tolerance probably because this file is much bigger than others we
+            // test so there's more space for there to be mismatches.
             looksSameTolerance: 70,
         },
         {

@@ -73,11 +73,11 @@ export function InboxView({
      *                                 Peek state                                 *
     \* ========================================================================== */
 
-    // Takes the initial path we get when server-side rendering and returns the key
-    // for the first item in our query that has a matching path.
+    // Takes the initial path we get when server-side rendering and returns the key for
+    // the first item in our query that has a matching path.
     //
-    // The item that rendered the path in the previous session may be offscreen. So
-    // we will only know the corresponding key when it's lazy loaded.
+    // The item that rendered the path in the previous session may be offscreen. So we
+    // will only know the corresponding key when it's lazy loaded.
     const findItemKeyForSpacePathIfExists = useCallback(
         (spacePath: string): DynamoItemKey | null => {
             const itemCount = query.getItemCount();
@@ -108,11 +108,11 @@ export function InboxView({
         },
     });
 
-    // If we don't know the item key for our peek, try searching the query whenever
-    // we load new data to see if an item was loaded that matches our peek's path.
+    // If we don't know the item key for our peek, try searching the query whenever we
+    // load new data to see if an item was loaded that matches our peek's path.
     //
-    // This will happen when we server-side render a peek who's item is not
-    // included in the initial set of inbox entries.
+    // This will happen when we server-side render a peek who's item is not included in
+    // the initial set of inbox entries.
     useEffect(() => {
         if (activePeek && !activePeek.extra.key) {
             const key = findItemKeyForSpacePathIfExists(activePeek.initialSpacePath);
@@ -135,8 +135,8 @@ export function InboxView({
         [query, selectedEntryKey],
     );
 
-    // Whenever a new entry is selected we want to call our `onPeekChange()`
-    // callback which changes the URL.
+    // Whenever a new entry is selected we want to call our `onPeekChange()` callback
+    // which changes the URL.
     const lastSelectedEntryKeyRef = useRef(selectedEntryKey ?? null);
     useLayoutEffectWithoutServerSideWarning(() => {
         if (lastSelectedEntryKeyRef.current === selectedEntryKey) return;
@@ -152,16 +152,16 @@ export function InboxView({
     const [rememberedSelectedEntryCursor, setRememberedSelectedEntryCursor] =
         useStateWithDependencies(selectedEntry?.cursor ?? null, [selectedEntryKey]);
 
-    // If `selectedEntry` changes then update `rememberedSelectedEntryCursor`. But
-    // not when `selectedEntry` changes to null! If `selectedEntry` is null we want
-    // to remember the old cursor for `selectedEntryKey`.
+    // If `selectedEntry` changes then update `rememberedSelectedEntryCursor`. But not
+    // when `selectedEntry` changes to null! If `selectedEntry` is null we want to
+    // remember the old cursor for `selectedEntryKey`.
     if (selectedEntry && rememberedSelectedEntryCursor !== selectedEntry.cursor) {
         setRememberedSelectedEntryCursor(selectedEntry.cursor);
     }
 
     const nextEntry = useMemo(() => {
-        // If we know where the selected item is in the inbox, select the item after
-        // it. Otherwise select the first item.
+        // If we know where the selected item is in the inbox, select the item after it.
+        // Otherwise select the first item.
         if (rememberedSelectedEntryCursor) {
             return query.getItemAfterCursorIfExists(rememberedSelectedEntryCursor);
         } else if (query.getItemCount() > 0) {
@@ -173,8 +173,8 @@ export function InboxView({
     }, [query, rememberedSelectedEntryCursor]);
 
     const previousEntry = useMemo(() => {
-        // If we know where the selected item is in the inbox, select the item before
-        // it. Otherwise select the first item.
+        // If we know where the selected item is in the inbox, select the item before it.
+        // Otherwise select the first item.
         if (rememberedSelectedEntryCursor) {
             return query.getItemBeforeCursorIfExists(rememberedSelectedEntryCursor);
         } else if (query.getItemCount() > 0) {
@@ -191,8 +191,8 @@ export function InboxView({
                 return switchPeek(null);
             }
 
-            // Don't select the same entry twice in a row since that would cause two
-            // data fetches.
+            // Don't select the same entry twice in a row since that would cause two data
+            // fetches.
             if (selectedEntryKey === entry.key) return Promise.resolve();
 
             return switchPeek({
@@ -232,8 +232,8 @@ export function InboxView({
                         // Ignore modified arrow up/down events like cmd-up which scrolls.
                         if (isModifiedKeyboardEvent(event)) break;
 
-                        // If focus is within a text input element then arrow key presses are for
-                        // text editing.
+                        // If focus is within a text input element then arrow key presses are for text
+                        // editing.
                         if (isTextInputElement(document.activeElement)) break;
 
                         event.stopPropagation();
@@ -248,8 +248,8 @@ export function InboxView({
                         // Ignore modified arrow up/down events like cmd-down which scrolls.
                         if (isModifiedKeyboardEvent(event)) break;
 
-                        // If focus is within a text input element then arrow key presses are for
-                        // text editing.
+                        // If focus is within a text input element then arrow key presses are for text
+                        // editing.
                         if (isTextInputElement(document.activeElement)) break;
 
                         event.stopPropagation();
@@ -344,11 +344,11 @@ function InboxViewEntries({
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    // Whenever our query data changes, try loading more entries. In case our
-    // rendered range stayed the same but we now see the loading indicator.
+    // Whenever our query data changes, try loading more entries. In case our rendered
+    // range stayed the same but we now see the loading indicator.
     //
-    // This effect should also fire when `tryLoadingMore()` completes in case it
-    // didn't fully load the query.
+    // This effect should also fire when `tryLoadingMore()` completes in case it didn't
+    // fully load the query.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         query;
@@ -359,10 +359,9 @@ function InboxViewEntries({
 
     const itemCount = query.getItemCount();
 
-    // We use this to help assistive technologies understand our list
-    // virtualization. If we haven't loaded all items we set the size to -1 which
-    // indicates the size is unknown.
-    // https://w3c.github.io/aria/#aria-setsize
+    // We use this to help assistive technologies understand our list virtualization.
+    // If we haven't loaded all items we set the size to -1 which indicates the size is
+    // unknown. https://w3c.github.io/aria/#aria-setsize
     const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
 
     const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
@@ -372,8 +371,8 @@ function InboxViewEntries({
         if (lastSelectedEntryKeyRef.current === selectedEntryKey) return;
         lastSelectedEntryKeyRef.current = selectedEntryKey ?? null;
 
-        // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
-        // it if it is not visible.
+        // When a new entry is selected, make sure it is visible in our scroll window.
+        // Scroll to it if it is not visible.
         if (selectedEntryKey) {
             view.scrollToKeyIfExists(`Loaded:${selectedEntryKey}`, {withAnchor: true});
         }
@@ -390,14 +389,13 @@ function InboxViewEntries({
     return (
         <FocusRing offset="inset">
             <Box
-                // Our notification inbox implements the `listbox` ARIA role. So the inbox
-                // receives focus and you use arrow keys to navigate through notifications.
+                // Our notification inbox implements the `listbox` ARIA role. So the inbox receives
+                // focus and you use arrow keys to navigate through notifications.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
                 //
                 // The arrow key keyboard handlers are attached globally with
-                // `<GlobalKeyDownEvent>` so the user doesn't need the listbox focused to
-                // move between items. (This is nice for sighted users who like
-                // keyboard shortcuts.)
+                // `<GlobalKeyDownEvent>` so the user doesn't need the listbox focused to move
+                // between items. (This is nice for sighted users who like keyboard shortcuts.)
                 role="listbox"
                 tabIndex={0}
                 aria-label="Inbox"
@@ -478,10 +476,10 @@ function InboxViewEntries({
                                                 filter={filter}
                                                 entry={item.item.model}
                                                 isSelected={selectedEntryKey === item.item.key}
-                                                // We use `onPressStart` to select so the selected style is applied immediately.
-                                                // We use the selected style to indicate interaction to the user instead of an
-                                                // `isPressed` style. The benefit of using selection is the previous item loses
-                                                // its style.
+                                                // We use `onPressStart` to select so the selected style is applied immediately. We
+                                                // use the selected style to indicate interaction to the user instead of an
+                                                // `isPressed` style. The benefit of using selection is the previous item loses its
+                                                // style.
                                                 onPressStart={() => {
                                                     void selectEntry(item.item);
                                                 }}
@@ -498,8 +496,7 @@ function InboxViewEntries({
                                                         withAnimation,
                                                     });
 
-                                                    // If we are archiving the select entry then navigate the user to the
-                                                    // next entry.
+                                                    // If we are archiving the select entry then navigate the user to the next entry.
                                                     if (selectedEntryKey === item.item.key) {
                                                         const nextEntry =
                                                             index + 1 < query.getItemCount()
@@ -528,8 +525,7 @@ function InboxViewEntries({
                                                         withAnimation: false,
                                                     });
 
-                                                    // If we are unarchiving the select entry then navigate the user to the
-                                                    // next entry.
+                                                    // If we are unarchiving the select entry then navigate the user to the next entry.
                                                     if (selectedEntryKey === item.item.key) {
                                                         const nextEntry =
                                                             index + 1 < query.getItemCount()
@@ -597,18 +593,17 @@ function InboxViewEntries({
                         ],
                     )}
                     extraChildrenOutsideContentElement={({contentHeight}) => (
-                        // Our items all have a bottom border. This is good when there's less content
-                        // than room to scroll since it creates a clear shape for the last item in the
-                        // list.
+                        // Our items all have a bottom border. This is good when there's less content than
+                        // room to scroll since it creates a clear shape for the last item in the list.
                         //
                         // However, if there are enough items to scroll then when the user has fully
-                        // scrolled we want the last item to *not* have a border bottom since the
-                        // bottom of the screen creates that boundary. We don't need to render an extra
-                        // line in the margins.
+                        // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                        // the screen creates that boundary. We don't need to render an extra line in the
+                        // margins.
                         //
-                        // This div covers the bottom border of the last item but only when there's
-                        // enough content to scroll. Otherwise the bottom border needs to be visible to
-                        // visually contain the last item. To debug this it's helpful to switch the
+                        // This div covers the bottom border of the last item but only when there's enough
+                        // content to scroll. Otherwise the bottom border needs to be visible to visually
+                        // contain the last item. To debug this it's helpful to switch the
                         // `backgroundColor` to `red-30` or something similar.
                         <Box
                             position="absolute"

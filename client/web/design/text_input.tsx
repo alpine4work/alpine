@@ -20,34 +20,32 @@ export type TextInputProps = {
     /**
      * The current value of the text input.
      *
-     * You may use `<ControlledTextInput/>` if you want a input component that
-     * manages its own value.
+     * You may use `<ControlledTextInput/>` if you want a input component that manages
+     * its own value.
      */
     value: string;
 
     /**
      * Fired when the value changes.
      *
-     * You may use `<ControlledTextInput/>` if you want a input component that
-     * manages its own value.
+     * You may use `<ControlledTextInput/>` if you want a input component that manages
+     * its own value.
      */
     onChange: (value: string) => void;
 
     /**
-     * If the enter key is pressed while focused on this text input this
-     * event fires.
+     * If the enter key is pressed while focused on this text input this event fires.
      */
     onEnter?: () => void;
 
     /**
-     * If the enter key is pressed with command (on MacOS) or control (on windows)
-     * this event fires.
+     * If the enter key is pressed with command (on MacOS) or control (on windows) this
+     * event fires.
      */
     onModEnter?: () => void;
 
     /**
-     * If the escape key is pressed while focused on this text input this
-     * event fires.
+     * If the escape key is pressed while focused on this text input this event fires.
      */
     onEscape?: () => void;
 
@@ -63,37 +61,39 @@ export type TextInputProps = {
     isDisabled?: boolean;
 
     /**
-     * Is this input read-only? A read-only input is focusable but not editable.
-     * Unlike a disabled input which is neither focused nor editable.
+     * Is this input read-only? A read-only input is focusable but not editable. Unlike
+     * a disabled input which is neither focused nor editable.
      */
     isReadOnly?: boolean;
 
     /**
-     * Hint to the browser for what type of virtual keyboard to use when editing
-     * this input. See the [HTML `inputmode` attribute docs][1] for valid values.
+     * Hint to the browser for what type of virtual keyboard to use when editing this
+     * input. See the [HTML `inputmode` attribute docs][1] for valid values.
      *
      * Depending on what value you set, the input type might change.
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
      */
     inputMode?: "tel" | "url" | "email" | "numeric" | "decimal" | "password" | "text";
 
     /**
-     * Hint to the browser what it should allow users to auto-complete. See the
-     * [HTML `autocomplete` attribute docs][1] for valid values.
+     * Hint to the browser what it should allow users to auto-complete. See the [HTML
+     * `autocomplete` attribute docs][1] for valid values.
      *
-     * If you set to `email` then instead of `type="text"` we will set
-     * `type="email"` on the input.
+     * If you set to `email` then instead of `type="text"` we will set `type="email"`
+     * on the input.
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete
      */
     autoComplete?: string;
 
     /**
-     * Hint to the browser whether auto-capitalization should be allowed. See the
-     * [HTML `autocaptialize` attribute docs][1].
+     * Hint to the browser whether auto-capitalization should be allowed. See the [HTML
+     * `autocaptialize` attribute docs][1].
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/autocapitalize
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/autocapitalize
      */
     autoCapitalize?: "sentences" | "words" | "none";
 
@@ -161,8 +161,8 @@ export const textInputClassName = sprinkles({
  * Simple, single-line, text input with a label.
  */
 // TODO(calebmer): This is a very standard web design text input. Consider the
-// design more closely. Should the label be on the side? Should we have some
-// kind of dimensionality in the input?
+// design more closely. Should the label be on the side? Should we have some kind
+// of dimensionality in the input?
 export const TextInput = forwardRef(function TextInput(
     props: TextInputProps,
     ref: Ref<HTMLInputElement>,
@@ -219,8 +219,8 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         isFocusRingVisible = false,
         maxLength,
     }: Omit<TextInputProps, "label"> &
-        // You must provide one of these props for accessibility! Or use `<TextInput>`
-        // that comes with an accessible label.
+        // You must provide one of these props for accessibility! Or use `<TextInput>` that
+        // comes with an accessible label.
         (| {id: string; "aria-label"?: undefined; "aria-labelledby"?: undefined}
             | {"aria-label": string; id?: undefined; "aria-labelledby"?: undefined}
             | {"aria-labelledby": string; id?: undefined; "aria-label"?: undefined}
@@ -244,9 +244,9 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         const inputElement = assertExists(inputRef.current);
 
         if (isMobileWebKit) {
-            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug.
-            // There's much written on the topic in `content_editor.tsx` where we have the
-            // same assignment to `caretColor`. Read there for more information.
+            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug. There's
+            // much written on the topic in `content_editor.tsx` where we have the same
+            // assignment to `caretColor`. Read there for more information.
             inputElement.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
         }
     }, []);
@@ -315,8 +315,8 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                         event.key === "Enter" &&
                         !event.altKey &&
                         !event.shiftKey &&
-                        // Cmd+Enter on MacOS platforms should trigger the callback
-                        // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                        // Cmd+Enter on MacOS platforms should trigger the callback Ctrl+Enter on non-MacOS
+                        // platforms should trigger the callback
                         (isAppleDevice ? event.metaKey : event.ctrlKey)
                     ) {
                         event.preventDefault();

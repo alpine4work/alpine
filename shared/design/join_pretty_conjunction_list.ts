@@ -1,8 +1,8 @@
 /**
  * Join an array of strings into an English conjunction list. For example
  * `joinPrettyConjunctionList(["apples", "grapes", "pears"])` will become
- * `"apples, grapes, and pears"`. This implementation will need to evolve
- * when we internationalize.
+ * `"apples, grapes, and pears"`. This implementation will need to evolve when we
+ * internationalize.
  *
  * If you want each item to be a React component instead of a string, use
  * `<PrettyConjunctionList>`.

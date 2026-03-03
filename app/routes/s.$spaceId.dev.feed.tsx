@@ -26,9 +26,9 @@ const LoaderSchema = Schema.object({
     }),
 });
 
-// NOTE(calebmer): Remix hot reloading always tries to revalidate the loader on
-// hot update unless there's a `shouldRevalidate` function. So if loading is
-// slow we flash the loading shimmer which defeats the purpose of hot reloading.
+// NOTE(calebmer): Remix hot reloading always tries to revalidate the loader on hot
+// update unless there's a `shouldRevalidate` function. So if loading is slow we
+// flash the loading shimmer which defeats the purpose of hot reloading.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl: _currentUrl,
     nextUrl: _nextUrl,
@@ -47,9 +47,9 @@ export const meta = createMetaFunction(LoaderSchema, ({getParentData}) => {
 
 export async function loader({request, context: unauthenticatedContext, params}: LoaderArgs) {
     // This route renders the same thing as `/s/:spaceId` but you list the entries
-    // using an `entries` search param instead of the user's actual feed. Useful
-    // for testing the feed UI without dealing with feed entries being added for
-    // every last little action.
+    // using an `entries` search param instead of the user's actual feed. Useful for
+    // testing the feed UI without dealing with feed entries being added for every last
+    // little action.
     if (process.env.NODE_ENV === "production") {
         throw new PermissionDeniedError(
             "Mock feed route is only for use in development and test environments",
@@ -93,9 +93,9 @@ export async function loader({request, context: unauthenticatedContext, params}:
 
 export default function HomeRoute() {
     // This route renders the same thing as `/s/:spaceId` but you list the entries
-    // using an `entries` search param instead of the user's actual feed. Useful
-    // for testing the feed UI without dealing with feed entries being added for
-    // every last little action.
+    // using an `entries` search param instead of the user's actual feed. Useful for
+    // testing the feed UI without dealing with feed entries being added for every last
+    // little action.
     if (process.env.NODE_ENV === "production") {
         throw new PermissionDeniedError(
             "Mock feed route is only for use in development and test environments",

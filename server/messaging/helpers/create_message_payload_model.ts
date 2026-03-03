@@ -23,8 +23,8 @@ import {MessagePayload, MessageStream} from "~/shared/messaging/message_schema.j
  * `MessagePayload` (what we store in the database).
  *
  * IMPORTANT: It's only safe to use this function if you've authorized that the
- * actor has view access to the content. Since we'll dangerously load account
- * stubs assuming you've already authorized access.
+ * actor has view access to the content. Since we'll dangerously load account stubs
+ * assuming you've already authorized access.
  */
 export async function createMessagePayloadModel(
     context: ServerActionContext,

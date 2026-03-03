@@ -59,11 +59,11 @@ import {
 } from "~/shared/rpc/search_rpc_definitions.js";
 
 /**
- * Limit of search results we'll fetch on the client. We don't lazy load more
- * when the user scrolls, instead the user needs to narrow their search.
+ * Limit of search results we'll fetch on the client. We don't lazy load more when
+ * the user scrolls, instead the user needs to narrow their search.
  *
- * This is enough to give the user some choice while they scroll while not
- * using too many resources.
+ * This is enough to give the user some choice while they scroll while not using
+ * too many resources.
  */
 const channelSelectorSearchEntityLimit = 20;
 
@@ -192,8 +192,8 @@ function PostCreatorChannelSelectorInput(
                 return null;
             } else {
                 return filterMapArray(searchByAffinityOutput.results, result => {
-                    // Only show channels here that we're allowed to post in. Even if we're allowed
-                    // to view the channel.
+                    // Only show channels here that we're allowed to post in. Even if we're allowed to
+                    // view the channel.
                     if (
                         !hasAccessLevel(
                             getAccountAccessLevelAssumingSpaceAccess(
@@ -218,8 +218,8 @@ function PostCreatorChannelSelectorInput(
                       filterMapIterable(searchByAffinityOutput.results, result => {
                           if (result.origin !== "Account") return;
 
-                          // Only show channels here that we're allowed to post in. Even if we're allowed
-                          // to view the channel.
+                          // Only show channels here that we're allowed to post in. Even if we're allowed to
+                          // view the channel.
                           if (
                               !hasAccessLevel(
                                   getAccountAccessLevelAssumingSpaceAccess(
@@ -237,11 +237,11 @@ function PostCreatorChannelSelectorInput(
                   )
                 : null;
 
-            // Re-sort results so that if any keyword results were also in our affinity
-            // search then we put the affinity search results at the top.
+            // Re-sort results so that if any keyword results were also in our affinity search
+            // then we put the affinity search results at the top.
             const results = filterMapArray(searchByKeywordsOutput.results, result => {
-                // Only show channels here that we're allowed to post in. Even if we're allowed
-                // to view the channel.
+                // Only show channels here that we're allowed to post in. Even if we're allowed to
+                // view the channel.
                 if (
                     !hasAccessLevel(
                         getAccountAccessLevelAssumingSpaceAccess(
@@ -312,15 +312,15 @@ function PostCreatorChannelSelectorInput(
             // Select all text when the combobox opens.
             //
             // Except on mobile. Since on mobile devices like iOS selecting a range of text
-            // will open a hovering edit menu (with copy/paste/etc. actions) which
-            // conflicts with our overlay. So instead we clear out the text. The old text
-            // will still be visible in a placeholder.
+            // will open a hovering edit menu (with copy/paste/etc. actions) which conflicts
+            // with our overlay. So instead we clear out the text. The old text will still be
+            // visible in a placeholder.
             if (isOpen && platform !== "mobile") {
                 inputElement.select();
             }
 
-            // We need to know whether the combobox is open or not to decide whether we
-            // should load channel items.
+            // We need to know whether the combobox is open or not to decide whether we should
+            // load channel items.
             //
             // We call `setShouldLoadItems(false)` after the overlay animation finishes.
             if (isOpen) {
@@ -346,10 +346,10 @@ function PostCreatorChannelSelectorInput(
         },
 
         onBlur: event => {
-            // Chrome dispatches a "fake" blur event when the user has an element focused
-            // but then clicks on another window, focusing that window but leaving our
-            // current window visible. `blur` is dispatched but `document.activeElement`
-            // doesn't change!
+            // Chrome dispatches a "fake" blur event when the user has an element focused but
+            // then clicks on another window, focusing that window but leaving our current
+            // window visible. `blur` is dispatched but `document.activeElement` doesn't
+            // change!
             //
             // Detect this case. If we receive a `blur` event but `document.activeElement`
             // hasn't changed then escalate to a real blur.
@@ -411,8 +411,8 @@ function PostCreatorChannelSelectorInput(
 
             // Keep focus in the input if we're using a keyboard interaction modality.
             //
-            // And if an item is selected. If the user hits "Enter" to clear the selection
-            // we always want to blur the input.
+            // And if an item is selected. If the user hits "Enter" to clear the selection we
+            // always want to blur the input.
             if (item !== null && getInteractionModality() !== "pointer") {
                 setInputState(inputState => {
                     if (inputState.type !== "Typing") return inputState;
@@ -520,9 +520,9 @@ function PostCreatorChannelSelectorInput(
                         })}
                         placeholder="Channel"
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
-                        // disables these capabilities because the user has combobox suggestions.
-                        // However, fixing typos at the OS level when typos are common (like on iOS)
-                        // is really useful.
+                        // disables these capabilities because the user has combobox suggestions. However,
+                        // fixing typos at the OS level when typos are common (like on iOS) is really
+                        // useful.
                         autoCorrect={undefined}
                         spellCheck={undefined}
                         onKeyDown={event => {
@@ -532,27 +532,28 @@ function PostCreatorChannelSelectorInput(
                             ) {
                                 // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                 // whenever `Enter` is pressed][1] whether or not an option is focused. If an
-                                // option isn't focused this just closes the combobox and leaves the user
-                                // confused. Is what they typed the new value or not? It's not, you can tell
-                                // since the avatar doesn't change. This is particularly confusing on mobile
-                                // where the user may hit the return key expecting the first value in the menu
-                                // to be selected. But that won't happen, the menu will just close.
+                                // option isn't focused this just closes the combobox and leaves the user confused.
+                                // Is what they typed the new value or not? It's not, you can tell since the avatar
+                                // doesn't change. This is particularly confusing on mobile where the user may hit
+                                // the return key expecting the first value in the menu to be selected. But that
+                                // won't happen, the menu will just close.
                                 //
                                 // So intercept this case and don't call into `@react-aria/combobox`.
                                 //
-                                // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                // [1]:
+                                //     https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
 
-                                // Clear the selection when the user presses enter when nothing is focused.
-                                // This way the user has a way to empty the channel selector input.
+                                // Clear the selection when the user presses enter when nothing is focused. This
+                                // way the user has a way to empty the channel selector input.
                                 comboBoxProps.onSelectionChange?.(null as any);
                             } else {
                                 inputProps.onKeyDown?.(event);
                             }
                         }}
                         onPointerDown={event => {
-                            // As a convenience, if you tap on this element while it's already focused but
-                            // the combobox isn't open then open the combobox. After you select an option
-                            // the combobox closes but the user may want to select another account.
+                            // As a convenience, if you tap on this element while it's already focused but the
+                            // combobox isn't open then open the combobox. After you select an option the
+                            // combobox closes but the user may want to select another account.
                             //
                             // We have to be a little careful and make sure this doesn't break the default
                             // browser behavior of focusing the input if it's unfocused.
@@ -560,12 +561,12 @@ function PostCreatorChannelSelectorInput(
                                 comboBoxState.open();
                             }
 
-                            // When using the mouse, if the user clicks the input and the input isn't
-                            // focused then prevent default and open the combobox. We `preventDefault()`
-                            // since the browser default is to focus on `pointerdown` then set the
-                            // selection on `pointerup`. However, on initial tap we want to focus
-                            // everything (we call `inputElement.select()` in `onOpenChange`) so the
-                            // browser changing the selection in `pointerup` breaks that.
+                            // When using the mouse, if the user clicks the input and the input isn't focused
+                            // then prevent default and open the combobox. We `preventDefault()` since the
+                            // browser default is to focus on `pointerdown` then set the selection on
+                            // `pointerup`. However, on initial tap we want to focus everything (we call
+                            // `inputElement.select()` in `onOpenChange`) so the browser changing the selection
+                            // in `pointerup` breaks that.
                             if (
                                 event.pointerType === "mouse" &&
                                 document.activeElement !== event.target
@@ -650,10 +651,9 @@ function PostCreatorChannelSelectorListBox({
 
     return (
         <div
-            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
-            // doesn't need to add a resize listener to every child. This means we need to
-            // provide `useListBox()` a `scrollRef` if we want to scroll to the
-            // focused option.
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()` doesn't
+            // need to add a resize listener to every child. This means we need to provide
+            // `useListBox()` a `scrollRef` if we want to scroll to the focused option.
             ref={useMergedRefs(useScrollbar(), scrollRef)}
             className={classNames(
                 greyElevated2ClassName,
@@ -669,14 +669,13 @@ function PostCreatorChannelSelectorListBox({
                 }),
             )}
             style={{
-                // On mobile the height needs to be less than half of the available space when
-                // the keyboard and navigation bar are open.
+                // On mobile the height needs to be less than half of the available space when the
+                // keyboard and navigation bar are open.
                 maxHeight:
                     platform === "mobile"
                         ? "10rem"
                         : // Subtract `6` since `64` is a little awkward when we're sharing an entity in
-                          // `<PostCreator>` because it almost exactly touches the bottom of the file
-                          // entity.
+                          // `<PostCreator>` because it almost exactly touches the bottom of the file entity.
                           subtractRemLengths(spacing["64"], spacing["6"]),
             }}
         >
@@ -734,12 +733,11 @@ function PostCreatorChannelSelectorListBoxOption({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,

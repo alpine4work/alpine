@@ -93,9 +93,9 @@ export class AwsJobQueueService extends Construct {
             // instances to maintain availability while a new fleet of instances start.
             maxCapacity: 4,
 
-            // See the long comment in `AwsAppService` for why we use a public
-            // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
-            // API calls through a NAT gateway can get expensive.
+            // See the long comment in `AwsAppService` for why we use a public subnet for our
+            // services. The TL;DR is sending egress traffic like Honeycomb API calls through a
+            // NAT gateway can get expensive.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
 
@@ -130,8 +130,8 @@ export class AwsJobQueueService extends Construct {
         const taskDefinition = new Ec2TaskDefinition(this, "TaskDefinition", {
             // According to the docs:
             //
-            // > The host and awsvpc network modes offer the highest networking performance
-            // > for containers because they use the Amazon EC2 network stack.
+            // > The host and awsvpc network modes offer the highest networking performance for
+            // > containers because they use the Amazon EC2 network stack.
             //
             // Also:
             //
@@ -139,8 +139,7 @@ export class AwsJobQueueService extends Construct {
             // > containers using the root user (UID 0) for better security.
             //
             // We use the host network mode for performance. We're running on public VPC
-            // subnets so that means anyone on the internet can send a request to our
-            // instance.
+            // subnets so that means anyone on the internet can send a request to our instance.
             //
             // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
             networkMode: NetworkMode.HOST,
@@ -151,8 +150,8 @@ export class AwsJobQueueService extends Construct {
         });
 
         // Allow scheduling deploys with AWS EventBridge Scheduler. We need to allow
-        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the
-        // scheduler will need to use the role on execution.
+        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the scheduler
+        // will need to use the role on execution.
         {
             sqs.grantSendJobQueueMessages(schedulerRole);
 
@@ -191,27 +190,27 @@ export class AwsJobQueueService extends Construct {
                 ),
             ),
             cpu: 2048,
-            // Memory available to our container. We can't use the full available memory
-            // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
-            // to function.
+            // Memory available to our container. We can't use the full available memory (1024
+            // MiB for `t4g.micro` instances) because the ECS agent needs some memory to
+            // function.
             //
             // The right value is available on the container instance screen in the AWS
-            // console. Specifically under the "Resources & networking" tab. You want to
-            // look at "Total capacity" and make sure we're reserving all of it.
+            // console. Specifically under the "Resources & networking" tab. You want to look
+            // at "Total capacity" and make sure we're reserving all of it.
             //
-            // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
-            // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
-            // stuck in the "Provisioning" status forever.
+            // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much memory on
+            // `t4g.nano` instances you don't get an error. Instead the tasks are stuck in the
+            // "Provisioning" status forever.
             memoryLimitMiB: 3906,
-            // Send logs to AWS. Container logs are short-lived and used for debugging
-            // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+            // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+            // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to two minutes so essential background processes
-            // have ample time to finish. For example, task action indexing which is done
-            // in the background with `context.process.waitUntil()`.
+            // Increase stop timeout to two minutes so essential background processes have
+            // ample time to finish. For example, task action indexing which is done in the
+            // background with `context.process.waitUntil()`.
             stopTimeout: Duration.millis(ecsStopTimeoutMs),
-            // For security, use the `www-data` user which exists on our Linux image. It
-            // only has read access and execute access to files on our system.
+            // For security, use the `www-data` user which exists on our Linux image. It only
+            // has read access and execute access to files on our system.
             user: "www-data",
             secrets: {
                 APP_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
@@ -291,12 +290,12 @@ export class AwsJobQueueService extends Construct {
                 NODE_ENV: "production",
             },
             command: [
-                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
-                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
-                // (e.g. `sh -c`) not our process.
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
+                // ECS process termination. The `SIGTERM` signal is sent to the shell (e.g.
+                // `sh -c`) not our process.
                 //
-                // `runService()` implements env variable substitution which is why we can use
-                // env variable syntax like `$HONEYCOMB_API_KEY`.
+                // `runService()` implements env variable substitution which is why we can use env
+                // variable syntax like `$HONEYCOMB_API_KEY`.
                 "/var/www/server/jobs/queue/queue",
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                 `--jobQueueUrl=${sqs.getJobQueueUrl()}`,

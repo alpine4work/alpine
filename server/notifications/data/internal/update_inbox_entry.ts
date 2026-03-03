@@ -69,18 +69,18 @@ type InboxEntryMaybeDeletedItem =
       };
 
 /**
- * Helper function for updating an inbox entry and the main inbox attributes
- * item along with it. Makes sure to keep everything consistent. For example,
- * updating the inbox total loud notification count when the entry loud
- * notification count updates.
+ * Helper function for updating an inbox entry and the main inbox attributes item
+ * along with it. Makes sure to keep everything consistent. For example, updating
+ * the inbox total loud notification count when the entry loud notification count
+ * updates.
  *
  * `actorAccountId` is the account whose actions are causing this inbox update.
- * It's often different from `itemKey.accountId` which is the account of the
- * inbox we're updating. Let's say Alice sends Bob a message. When the
- * `actorAccountId` in this case is "Alice" and if we're updating Bob's inbox
- * then `itemKey.accountId` will be "Bob". If Alice is archiving an entry in
- * their own inbox then Alice is both the `actorAccountId` and
- * `itemKey.accountId` since Alice is taking an action on their own inbox.
+ * It's often different from `itemKey.accountId` which is the account of the inbox
+ * we're updating. Let's say Alice sends Bob a message. When the `actorAccountId`
+ * in this case is "Alice" and if we're updating Bob's inbox then
+ * `itemKey.accountId` will be "Bob". If Alice is archiving an entry in their own
+ * inbox then Alice is both the `actorAccountId` and `itemKey.accountId` since
+ * Alice is taking an action on their own inbox.
  */
 export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: ServerActionContext,
@@ -113,15 +113,15 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     } = {},
 ): Promise<UpdateInboxEntryResult | null> {
     await runAllPromises([
-        // Make sure we're either a system actor or we're a session actor with access
-        // to this account and this space.
+        // Make sure we're either a system actor or we're a session actor with access to
+        // this account and this space.
         authorizeSpaceAccess(context, itemKey.spaceId),
         authorizeOwnSpaceAccountAccess(context, itemKey.accountId),
         authorizeOwnSpaceAccountAccess(context, actorAccountId),
 
-        // Bots don't have an inbox. Don't allow updating inbox entries for a bot
-        // account. This should be free (no database reads) since we load and cache the
-        // account earlier while processing the event.
+        // Bots don't have an inbox. Don't allow updating inbox entries for a bot account.
+        // This should be free (no database reads) since we load and cache the account
+        // earlier while processing the event.
         authorizeNotBotSpaceAccount(context, itemKey.spaceId, itemKey.accountId),
     ]);
 
@@ -149,8 +149,8 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     // inbox entry.
                     if (!InboxTable.isDeleteItemEnabled(itemKey)) return null;
 
-                    // Most of the time if we can't find the inbox entry it's because it never
-                    // existed. Wait until we retry to see if the item was deleted.
+                    // Most of the time if we can't find the inbox entry it's because it never existed.
+                    // Wait until we retry to see if the item was deleted.
                     if (isInitialAttempt) return null;
 
                     const deletedItem = await InboxTable.getDeletedItemIfExists(context, itemKey);
@@ -163,8 +163,8 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             getAccountTimeZoneIfExists(context, itemKey.accountId),
         ]);
 
-        // Make sure we use a time that's always monotonically increasing compared to
-        // the previous `lastEntryUpdatedTime`.
+        // Make sure we use a time that's always monotonically increasing compared to the
+        // previous `lastEntryUpdatedTime`.
         const currentTime = oldInboxItem?.lastEntryUpdatedTime
             ? new Date(Math.max(Date.now(), oldInboxItem.lastEntryUpdatedTime.getTime() + 1))
             : new Date();
@@ -210,8 +210,8 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     ),
                 );
             }
-            // Optimization: Don't write to the database (and so update `updateVersionLock`)
-            // if the item didn't actually update.
+            // Optimization: Don't write to the database (and so update `updateVersionLock`) if
+            // the item didn't actually update.
             else if (!isDeepEqual(oldInboxEntryItem?.item, newInboxEntryItem)) {
                 newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
 
@@ -260,12 +260,11 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         const loudNotificationCountDifference =
             newInboxItem.loudNotificationCount - (oldInboxItem?.loudNotificationCount ?? 0);
 
-        // In practice we update the inbox item every time we update an inbox
-        // entry since we're updating the `lastEntryUpdatedTime` property on the inbox
-        // item.
+        // In practice we update the inbox item every time we update an inbox entry since
+        // we're updating the `lastEntryUpdatedTime` property on the inbox item.
         //
-        // Optimization: Don't write to the database (and so update `updateVersionLock`)
-        // if the item didn't actually update.
+        // Optimization: Don't write to the database (and so update `updateVersionLock`) if
+        // the item didn't actually update.
         if (!isDeepEqual(oldInboxItem, newInboxItem)) {
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxItem));
         }
@@ -275,14 +274,14 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         if (transactionEntries.length === 0) {
             if (!oldInboxEntryItem?.item) return null;
 
-            // Even though we don't actually write a new inbox item, we still want to
-            // return an update result. If we return null we won't send push notifications
-            // for this event!
+            // Even though we don't actually write a new inbox item, we still want to return an
+            // update result. If we return null we won't send push notifications for this
+            // event!
             //
             // It's important to still send push notifications in this case. If there's a
-            // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry
-            // won't update (it continues to show the sticky mention) but we still want to
-            // send push notifications for any messages sent after the sticky mention.
+            // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry won't
+            // update (it continues to show the sticky mention) but we still want to send push
+            // notifications for any messages sent after the sticky mention.
             return {
                 newInboxEntryItem: oldInboxEntryItem.item,
                 loudNotificationCountDifference,
@@ -370,18 +369,18 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 : oldInboxItem.lastZeroEntryCountTime,
     });
 
-    // Only schedule a digest notification if this inbox change is because of
-    // someone's actions updating another person's inbox.
+    // Only schedule a digest notification if this inbox change is because of someone's
+    // actions updating another person's inbox.
     //
-    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId`
-    // since we're updating Bob's inbox) a message we want to schedule a
-    // notification digest for Bob. However, if Alice (`actorAccountId`) archives
-    // one of her own inbox entries (so `itemKey.accountId` is Alice as well) then
-    // don't schedule a notification digest.
+    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId` since
+    // we're updating Bob's inbox) a message we want to schedule a notification digest
+    // for Bob. However, if Alice (`actorAccountId`) archives one of her own inbox
+    // entries (so `itemKey.accountId` is Alice as well) then don't schedule a
+    // notification digest.
     //
-    // If a user is acting on their own inbox then they've seen the current state
-    // of their inbox and don't need to be notified about changes (since they made
-    // the changes!).
+    // If a user is acting on their own inbox then they've seen the current state of
+    // their inbox and don't need to be notified about changes (since they made the
+    // changes!).
     if (actorAccountId !== itemKey.accountId) {
         newInboxItem = newInboxItem.update({
             digestNotificationsNextScheduledDateTime:
@@ -418,23 +417,22 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         ? newInboxEntryItemPartial1.isArchived[1]
         : undefined;
 
-    // If there was no inbox entry and the new inbox entry would be archived (maybe
-    // a user is sending a message to a chat they created) then don't create a
-    // new entry.
+    // If there was no inbox entry and the new inbox entry would be archived (maybe a
+    // user is sending a message to a chat they created) then don't create a new entry.
     if (
         !oldInboxEntryItem &&
         newInboxEntryItemPartial2.isArchived &&
-        // If `alwaysCreate` is set to true then we create an archived inbox entry even
-        // if no previous entry existed.
+        // If `alwaysCreate` is set to true then we create an archived inbox entry even if
+        // no previous entry existed.
         !newInboxEntryItemIsArchivedOptions?.alwaysCreate
     ) {
         return "Noop";
     }
 
-    // We don't update archived inbox entries. An archived inbox entry stays the
-    // same from the moment it's archived onward. Some `update()` functions may
-    // make a change (e.g. `processNotificationCreateChatMessageEvent()` always
-    // updates `latestMessage`) but we ignore it.
+    // We don't update archived inbox entries. An archived inbox entry stays the same
+    // from the moment it's archived onward. Some `update()` functions may make a
+    // change (e.g. `processNotificationCreateChatMessageEvent()` always updates
+    // `latestMessage`) but we ignore it.
     if (oldInboxEntryItem?.isArchived && newInboxEntryItemPartial2.isArchived) {
         return "Noop";
     }
@@ -449,11 +447,11 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         (!newInboxEntryItemPartial2.isArchived && oldInboxEntryItem.isArchived) ||
         loudNotificationCountDifference > 0;
 
-    // Has the actor unarchived their own entry? This happens if the user chooses
-    // "Move to new" in the UI which calls the `unarchiveInboxEntry()` RPC. If the
-    // user is personally unarchiving an entry then we want to move it to the
-    // absolute top of their inbox (instead of trying to intelligently place it
-    // near the top in the inbox's quantum state).
+    // Has the actor unarchived their own entry? This happens if the user chooses "Move
+    // to new" in the UI which calls the `unarchiveInboxEntry()` RPC. If the user is
+    // personally unarchiving an entry then we want to move it to the absolute top of
+    // their inbox (instead of trying to intelligently place it near the top in the
+    // inbox's quantum state).
     const hasActorUnarchivedOwnEntry =
         actorAccountId === itemKey.accountId &&
         oldInboxEntryItem &&
@@ -470,8 +468,8 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         // - The inbox's current generation plus an increment if this is a loud
         //   notification since loud notifications should appear on top
         //
-        // If our entry moves to a higher generation (usually due to a loud
-        // notification) then it should stay at that generation.
+        // If our entry moves to a higher generation (usually due to a loud notification)
+        // then it should stay at that generation.
         newInboxEntryItemGeneration = Math.max(
             ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
             inboxGeneration +
@@ -486,8 +484,8 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
             ? currentTime
             : getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2);
     }
-    // When we archive an item it goes back to our inbox generation. That way if
-    // it's unarchived it doesn't go back into the loud notification generation.
+    // When we archive an item it goes back to our inbox generation. That way if it's
+    // unarchived it doesn't go back into the loud notification generation.
     else if (newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived) {
         newInboxEntryItemGeneration = inboxGeneration;
         newInboxEntryItemEnteredTime = currentTime;

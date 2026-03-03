@@ -228,20 +228,21 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
                 {
                     serviceName: "AppService",
                     route,
-                    // When communicating via RPC, share cookies across requests. Particularly we
-                    // care about the [AWS ALB sticky session cookies][1] which make sure requests
-                    // from our Durable Object go to the same underlying host in AWS. That way
-                    // caches in `AppService` work properly.
+                    // When communicating via RPC, share cookies across requests. Particularly we care
+                    // about the [AWS ALB sticky session cookies][1] which make sure requests from our
+                    // Durable Object go to the same underlying host in AWS. That way caches in
+                    // `AppService` work properly.
                     //
-                    // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
+                    // [1]:
+                    //     https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
                     cookieJar: this._cookieJar,
                     method: "POST",
                     headers,
                     body: JSON.stringify(body),
                 },
                 async (response, span) => {
-                    // The first call is the parent of our HTTP execution. Link the other calls to
-                    // the HTTP execution span so we can see the causal relationship.
+                    // The first call is the parent of our HTTP execution. Link the other calls to the
+                    // HTTP execution span so we can see the causal relationship.
                     for (const otherCall of otherCalls) {
                         otherCall.span.link(`Batch execution: ${span.getName()}`, span);
                     }
@@ -251,8 +252,8 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
                             .json()
                             .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
                             .catch(error => {
-                                // If we fail to parse the response body as JSON, classify as `Internal`
-                                // status code.
+                                // If we fail to parse the response body as JSON, classify as `Internal` status
+                                // code.
                                 //
                                 // Maybe an error is also thrown here for some network errors? If so we should
                                 // classify network errors as the `Unavailable` status code.
@@ -271,8 +272,8 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
                                 RpcHttpBatchCallErrorOutputSchema.deserialize(output),
                             )
                             .catch(error => {
-                                // If we fail to parse the response body as JSON, classify as `Internal`
-                                // status code.
+                                // If we fail to parse the response body as JSON, classify as `Internal` status
+                                // code.
                                 //
                                 // Maybe an error is also thrown here for some network errors? If so we should
                                 // classify network errors as the `Unavailable` status code.

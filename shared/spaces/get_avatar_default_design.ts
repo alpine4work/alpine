@@ -10,11 +10,10 @@ import {
 } from "~/shared/reactions/reaction.js";
 
 // NOTE(calebmer): I went through all of these color combinations manually and
-// asked myself "does this look nice?" Removing color combinations that I
-// thought didn't look nice.
+// asked myself "does this look nice?" Removing color combinations that I thought
+// didn't look nice.
 //
-// We exclude `yellow` because it's too light and `indigo` because it's
-// too dark.
+// We exclude `yellow` because it's too light and `indigo` because it's too dark.
 const backgroundColorsByReactionCharacter: ReactionCharacterMap<
     ReadonlyArray<Exclude<ThemeColor, "yellow" | "indigo">>
 > = {

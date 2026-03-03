@@ -167,15 +167,15 @@ export type PostEditing = {
 };
 
 /**
- * Use state for managing post editing. Post editing state is hoisted to
- * the post virtualized list level because:
+ * Use state for managing post editing. Post editing state is hoisted to the post
+ * virtualized list level because:
  *
  * - We only want to allow editing one post at a time.
  * - We don't want to lose editing state if the post is unmounted by the
  *   virtualized list.
  *
- * This post editing state code was forked from `useMessageEditing()`. If you
- * make a change here, you might want to make a change there as well.
+ * This post editing state code was forked from `useMessageEditing()`. If you make
+ * a change here, you might want to make a change there as well.
  */
 export function usePostEditing({
     onUpdatePostContent: onUpdatePostContentFromProps,
@@ -225,9 +225,9 @@ export function usePostEditing({
             }
         }
 
-        // If the content hasn't actually changed, skip the update. This way we
-        // don't mark the post as edited if the user enters edit mode, makes
-        // changes, and then reverts back to the original content.
+        // If the content hasn't actually changed, skip the update. This way we don't mark
+        // the post as edited if the user enters edit mode, makes changes, and then reverts
+        // back to the original content.
         const finalDoc = trimTransaction !== null ? trimTransaction.doc : doc;
         if (finalDoc.eq(state.initialContent)) {
             savePromiseResolver?.resolve();

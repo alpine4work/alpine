@@ -15,8 +15,8 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 /**
  * Updates the name of a room chat.
  *
- * If you want to get the `ChatModel` after this update we return a `Lazy` and
- * when you call `get()` it builds the chat model.
+ * If you want to get the `ChatModel` after this update we return a `Lazy` and when
+ * you call `get()` it builds the chat model.
  */
 export function updateRoomChatName(
     context: ServerSessionActionContext,
@@ -47,8 +47,8 @@ export function updateRoomChatName(
             },
         });
 
-        // Reindex the chat with the chat's new name. Will need to reindex all
-        // messages in the chat.
+        // Reindex the chat with the chat's new name. Will need to reindex all messages in
+        // the chat.
         context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: attributesItem.spaceId,

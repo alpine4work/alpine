@@ -166,17 +166,17 @@ async function runNewCommand({
         "-" +
         currentTime.getDate().toString().padStart(2, "0");
 
-    // Create a branch name in the same format as `dev branch`. The stack branch
-    // format appends another `/` and includes the branch number along with the
-    // individual stack branch's name.
+    // Create a branch name in the same format as `dev branch`. The stack branch format
+    // appends another `/` and includes the branch number along with the individual
+    // stack branch's name.
     const firstBranchFullName = `${username}/${currentDate}-${stackName}/01-${firstBranchName}`;
 
     await runGit([
         "checkout",
         "-b",
         firstBranchFullName,
-        // Make sure to create a branch from main! Not where the branch that's
-        // currently checked out.
+        // Make sure to create a branch from main! Not where the branch that's currently
+        // checked out.
         "main",
     ]);
 }
@@ -194,8 +194,8 @@ async function runAddCommand({name: branchName = ""}: {name: string | undefined}
 
     const newStackBranchNumber = (lastStackBranch.number + 1).toString().padStart(2, "0");
 
-    // Don't allow stacks that require a three digit number since we won't be able
-    // to lexicographically sort stack branches anymore since we only pad to two
+    // Don't allow stacks that require a three digit number since we won't be able to
+    // lexicographically sort stack branches anymore since we only pad to two
     // characters.
     if (newStackBranchNumber.length !== 2) {
         throw new FailedPreconditionError(
@@ -203,9 +203,9 @@ async function runAddCommand({name: branchName = ""}: {name: string | undefined}
         );
     }
 
-    // Create a branch name in the same format as `dev branch`. The stack branch
-    // format appends another `/` and includes the branch number along with the
-    // individual stack branch's name.
+    // Create a branch name in the same format as `dev branch`. The stack branch format
+    // appends another `/` and includes the branch number along with the individual
+    // stack branch's name.
     const newBranchFullName = `${stack.username}/${stack.date}-${stack.name}/${newStackBranchNumber}-${branchName}`;
 
     await runGit([
@@ -251,8 +251,8 @@ async function runPrCommand({continue: shouldContinue = false}: {continue: boole
 
     try {
         await runProcess("gh", ["auth", "status"], {
-            // The GitHub CLI needs to inherit all environment variables to find
-            // authentication credentials.
+            // The GitHub CLI needs to inherit all environment variables to find authentication
+            // credentials.
             env: process.env,
         });
     } catch (error) {
@@ -404,8 +404,8 @@ async function runRunCommand(
     for (const stackBranch of stack.branches) {
         if (shouldContinue && stackBranch.fullName < currentBranchFullName) continue;
 
-        // Throw if there are uncommitted changes in the working directory before
-        // moving the branch each time.
+        // Throw if there are uncommitted changes in the working directory before moving
+        // the branch each time.
         await checkGitIsClean();
 
         // eslint-disable-next-line no-console
@@ -443,8 +443,8 @@ async function runRunCommand(
 }
 
 /**
- * Run `git` and log `git`'s output to the console. We also log the `git`
- * command we're about to run so the user knows exactly what's happening.
+ * Run `git` and log `git`'s output to the console. We also log the `git` command
+ * we're about to run so the user knows exactly what's happening.
  *
  * If you want to run git silently use `runProcess()`.
  */
@@ -469,16 +469,15 @@ async function runGit(args: ProcessArgs) {
     console.log(`${chalk.dim("$")} ${chalk.bold("git")} ${argsString}`);
 
     await runProcessWithInheritedStdio("git", args, {
-        // The git CLI needs to inherit all environment variables to find
-        // the user's `~/.gitconfig` file with their name/email.
+        // The git CLI needs to inherit all environment variables to find the user's
+        // `~/.gitconfig` file with their name/email.
         env: process.env,
     });
 }
 
 /**
- * Run the GitHub CLI (`gh`) and log `gh`'s output to the console. We also log
- * the `gh` command we're about to run so the user knows exactly what's
- * happening.
+ * Run the GitHub CLI (`gh`) and log `gh`'s output to the console. We also log the
+ * `gh` command we're about to run so the user knows exactly what's happening.
  *
  * If you want to run `gh` silently use `runProcess()`.
  */
@@ -512,8 +511,8 @@ async function runGh(
     console.log(`${chalk.dim("$")} ${chalk.bold("gh")} ${argsString}`);
 
     await runProcessWithInheritedStdio("gh", args, {
-        // The GitHub CLI needs to inherit all environment variables to find
-        // authentication credentials.
+        // The GitHub CLI needs to inherit all environment variables to find authentication
+        // credentials.
         env: process.env,
         onStdoutData,
         onStderrData,
@@ -528,8 +527,8 @@ async function getCurrentBranchFullName() {
 }
 
 /**
- * Get the stack that the provided branch name is a part of. Returns all
- * branches in the stack in order.
+ * Get the stack that the provided branch name is a part of. Returns all branches
+ * in the stack in order.
  */
 async function getStack(branchFullName: string): Promise<{
     username: string;
@@ -585,8 +584,7 @@ async function getStack(branchFullName: string): Promise<{
 }
 
 /**
- * Check that the `git` working directory is clean and throws an error if
- * it's not.
+ * Check that the `git` working directory is clean and throws an error if it's not.
  */
 async function checkGitIsClean() {
     const statusOutput = await runProcess("git", ["status", "--porcelain"]);

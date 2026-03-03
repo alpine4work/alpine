@@ -21,8 +21,8 @@ function readFixture(name: string): Uint8Array {
 }
 
 /**
- * Helper to parse a minimal HTML snippet and find the first element matching
- * a predicate.
+ * Helper to parse a minimal HTML snippet and find the first element matching a
+ * predicate.
  */
 function parseHtmlAndFind(
     html: string,

@@ -37,8 +37,8 @@ import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * Tries to sign in with the provided `oneTimePassword` and if that succeeds
- * then we create a personal space for the account.
+ * Tries to sign in with the provided `oneTimePassword` and if that succeeds then
+ * we create a personal space for the account.
  */
 export async function attemptOneTimePasswordSignUpThenCreateSpace(
     context: Context<ServerActionContextModules & {logoDev: LogoDevContextModuleBase}>,
@@ -115,22 +115,20 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
         const [accountResult, personalSpaceResult, autoAddToEmailDomainSpaceResult] =
             await runAllPromises([
-                // NOTE(calebmer): We don't use a "without avatar" version of this function
-                // since:
+                // NOTE(calebmer): We don't use a "without avatar" version of this function since:
                 //
-                // 1. There should be no avatar for the account at this point so we don't
-                //    actually pay any cost to try and load the avatar.
+                // 1. There should be no avatar for the account at this point so we don't actually
+                //    pay any cost to try and load the avatar.
                 //
-                // 2. `getAddSpaceAccountTransactionEntries()` also loads the account with
-                //    avatar (other downstream functions of
-                //    `getAddSpaceAccountTransactionEntries()` need the avatar) so by loading
-                //    the account with avatar here it's already in cache and we can skip a
-                //    DynamoDB read in `getAddSpaceAccountTransactionEntries()`.
+                // 2. `getAddSpaceAccountTransactionEntries()` also loads the account with avatar
+                //    (other downstream functions of `getAddSpaceAccountTransactionEntries()` need
+                //    the avatar) so by loading the account with avatar here it's already in cache
+                //    and we can skip a DynamoDB read in `getAddSpaceAccountTransactionEntries()`.
                 dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization(
                     context,
                     accountId,
-                    // Make sure we read the most recent account name which may have been written
-                    // by `saveAccountSignUpProfile()`.
+                    // Make sure we read the most recent account name which may have been written by
+                    // `saveAccountSignUpProfile()`.
                     {consistency: "Strong"},
                 ),
                 (async (): Promise<
@@ -224,15 +222,15 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                     account: {
                                         type: "Existing",
                                         id: accountId,
-                                        // Skip the `InvitePending` state and directly add the account as `Active`.
-                                        // This does reveal the user's name to everyone else in the space without the
-                                        // user intentionally choosing to join the space. We make this exception for
-                                        // brand new accounts since we immediately open the space for them so the user
-                                        // should immediately understand the implication of what has just happened and
-                                        // change their name if necessary.
+                                        // Skip the `InvitePending` state and directly add the account as `Active`. This
+                                        // does reveal the user's name to everyone else in the space without the user
+                                        // intentionally choosing to join the space. We make this exception for brand new
+                                        // accounts since we immediately open the space for them so the user should
+                                        // immediately understand the implication of what has just happened and change
+                                        // their name if necessary.
                                         //
-                                        // Also, if the user is using a company email domain they should be on their
-                                        // best "safe for work" behavior anyway.
+                                        // Also, if the user is using a company email domain they should be on their best
+                                        // "safe for work" behavior anyway.
                                         dangerouslyWithoutInvite: true,
                                     },
                                     role: "Member",
@@ -245,8 +243,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                         spaceId: autoAddAccountsFromEmailDomainItem.spaceId,
                                     },
                                     // If there's an eventual consistency lag and we don't read the welcome package
-                                    // item then the new user will have nothing in their suggested list which is a
-                                    // bad experience!
+                                    // item then the new user will have nothing in their suggested list which is a bad
+                                    // experience!
                                     {consistency: "Strong"},
                                 ),
 
@@ -266,9 +264,9 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 accountVersionConditionCheckTransactionEntry,
                                 accountSpacesItemTransactionEntry,
                                 transactionEntries: [
-                                    // Make sure there's no eventual consistency lag from reading the auto-add
-                                    // accounts item. If `role` or `isEnabled` changed then we want to start
-                                    // respecting those changes from the admin immediately.
+                                    // Make sure there's no eventual consistency lag from reading the auto-add accounts
+                                    // item. If `role` or `isEnabled` changed then we want to start respecting those
+                                    // changes from the admin immediately.
                                     SpacesTable.transactionUpdateLockVersionConditionCheck(
                                         autoAddAccountsFromEmailDomainItem,
                                         autoAddAccountsFromEmailDomainItem.updateLockVersion,
@@ -278,8 +276,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                             };
                         }
                     }
-                    // Create a new space for the email domain which new accounts will be
-                    // auto-added to.
+                    // Create a new space for the email domain which new accounts will be auto-added
+                    // to.
                     else {
                         span.addData({
                             common: {branch: "CreateAutoAddAccountsFromEmailDomainSpace"},
@@ -345,8 +343,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                     spaceId: autoAddAccountsFromEmailDomainSpaceId,
                                     isEnabled: true,
                                 }),
-                                // Create-or-replace is safe. If the `AutoAddAccountsFromEmailDomain#Space`
-                                // item doesn't exist then neither will this item.
+                                // Create-or-replace is safe. If the `AutoAddAccountsFromEmailDomain#Space` item
+                                // doesn't exist then neither will this item.
                                 SpacesTable.transactionCreateOrReplaceItem({
                                     partitionType: "Space",
                                     sortRangeType: "AutoAddAccountsFromEmailDomain",
@@ -356,12 +354,12 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 ...transactionEntries,
                                 ...welcomePackageTransactionEntries,
 
-                                // If we got logos from Logo.dev then add them to DynamoDB. We'll need to store
-                                // a larger version of the image in R2 later.
+                                // If we got logos from Logo.dev then add them to DynamoDB. We'll need to store a
+                                // larger version of the image in R2 later.
                                 //
                                 // TODO(calebmer): We eventually need to queue a job that runs our full avatar
-                                // processing pipeline (e.g. storing large image to R2 and generating a small
-                                // AVIF file that fits into DynamoDB 1 RCU).
+                                // processing pipeline (e.g. storing large image to R2 and generating a small AVIF
+                                // file that fits into DynamoDB 1 RCU).
                                 ...(logoDevResult.value?.logoLightContent
                                     ? [
                                           SpacesTable.transactionCreateOrReplaceItem({
@@ -396,8 +394,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
         const {account, finishSignUpTransactionEntry} = assertExists(accountResult);
 
-        // Allow us to check which reaction characters are the most popular after
-        // sign up.
+        // Allow us to check which reaction characters are the most popular after sign up.
         {
             const reactionCharacter =
                 account.initialData.reactionCharacter ??
@@ -415,8 +412,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
         // Account has already signed up! Don't bother creating spaces for the account.
         if (!finishSignUpTransactionEntry) {
-            // If we hit this code then override the branch since we're not going to create
-            // any spaces.
+            // If we hit this code then override the branch since we're not going to create any
+            // spaces.
             span.addData({common: {branch: "AlreadySignedUp"}});
 
             const [lastOpenedSpaceId, accountSpacesItem] = await runAllPromises([
@@ -442,8 +439,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         const spaceNameSuffix = "\u2019s Space";
 
         // Make sure `spaceName` is under the max label string length by slicing
-        // `accountShortName` to a value that will fit with `spaceNameSuffix` added to
-        // the end.
+        // `accountShortName` to a value that will fit with `spaceNameSuffix` added to the
+        // end.
         const spaceName =
             accountShortName.slice(0, maxLabelStringLength - spaceNameSuffix.length) +
             spaceNameSuffix;
@@ -466,8 +463,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
             ),
         ];
 
-        // Make sure we actually auto-add the account to an associated space when
-        // needed.
+        // Make sure we actually auto-add the account to an associated space when needed.
         if (autoAddToEmailDomainSpaceResult) {
             transactionEntries = [
                 ...transactionEntries.filter(
@@ -485,8 +481,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                 ),
 
                 // There must only be one transaction entry updating the `Account#Spaces` item.
-                // Remove the `Account#Spaces` transaction entries above and make sure we only
-                // have one, merged, transaction entry here.
+                // Remove the `Account#Spaces` transaction entries above and make sure we only have
+                // one, merged, transaction entry here.
                 SpacesTable.transactionDirectlyUpdateItem({
                     partitionType: "Account",
                     sortRangeType: "Spaces",
@@ -514,18 +510,18 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         await runAllPromises([
             DynamoTableSchema.executeTransaction(context, transactionEntries),
 
-            // Faster to add affinity points separately from our create space transaction.
-            // We don't care if there are some affinity point items floating around for a
-            // space that doesn't exist.
+            // Faster to add affinity points separately from our create space transaction. We
+            // don't care if there are some affinity point items floating around for a space
+            // that doesn't exist.
             dangerouslyApplySpaceWelcomePackage(context, {
                 accountId,
                 welcomePackageItem: personalSpaceResult.welcomePackageItem,
                 suggestedAccountIds: personalSpaceResult.suggestedAccountIds,
             }),
 
-            // Faster to add affinity points separately from our create space transaction.
-            // We don't care if there are some affinity point items floating around for a
-            // space that doesn't exist.
+            // Faster to add affinity points separately from our create space transaction. We
+            // don't care if there are some affinity point items floating around for a space
+            // that doesn't exist.
             autoAddToEmailDomainSpaceResult?.welcomePackageItem
                 ? dangerouslyApplySpaceWelcomePackage(context, {
                       accountId,
@@ -557,8 +553,8 @@ function getEmailDomainForAutoAddSpaceAccounts(emailAddress: string): string | n
         return null;
     }
 
-    // `emailDomain` is more than just the `hostname` part of a URL. Can't
-    // use `emailDomain`.
+    // `emailDomain` is more than just the `hostname` part of a URL. Can't use
+    // `emailDomain`.
     if (url.hostname !== emailDomain) return null;
 
     // `emailDomain` is a generic domain like `gmail.com` or `me.com` (iCloud). We
@@ -567,18 +563,18 @@ function getEmailDomainForAutoAddSpaceAccounts(emailAddress: string): string | n
     // The intent is to add all people from the same company into the same space
     // automatically. For example, if multiple people with `@netflix.com` email
     // addresses sign up, then we want them all to be placed in the same "Netflix"
-    // space automatically. We don't want strangers (e.g. everyone with
-    // `@gmail.com` emails) to be added to the same space.
+    // space automatically. We don't want strangers (e.g. everyone with `@gmail.com`
+    // emails) to be added to the same space.
     //
     // This check probably isn't perfect and we may need to moderate certain spaces
     // that get automatically created.
     //
-    // One side effect I (@calebmer) expect is people with school email domains
-    // (e.g. `@berkeley.edu`; could be students, faculty, or alumni) to be added to
-    // the same space. The trust characteristics of a school email domain is
-    // different from a company email domain, so we'll see how our auto-add policy
-    // needs to evolve. But for now, we think adding everyone with a school email
-    // to the same space is a good thing.
+    // One side effect I (@calebmer) expect is people with school email domains (e.g.
+    // `@berkeley.edu`; could be students, faculty, or alumni) to be added to the same
+    // space. The trust characteristics of a school email domain is different from a
+    // company email domain, so we'll see how our auto-add policy needs to evolve. But
+    // for now, we think adding everyone with a school email to the same space is a
+    // good thing.
     if (genericEmailAddressDomains.get().set.has(emailDomain)) return null;
 
     return emailDomain;
@@ -592,9 +588,9 @@ function fetchCompanyFromLogoDev(
         const [description, logoLightContent, logoDarkContent] = await runAllPromises([
             context.logoDev.describe(emailDomain),
 
-            // Get 2x the size of the `<SpaceAvatar>` in the top left corner of the app so
-            // the logo looks good on retina displays but is (hopefully) still small enough
-            // to fit in one DynamoDB item.
+            // Get 2x the size of the `<SpaceAvatar>` in the top left corner of the app so the
+            // logo looks good on retina displays but is (hopefully) still small enough to fit
+            // in one DynamoDB item.
             context.logoDev.logo(emailDomain, {size: 64, theme: "light"}),
             context.logoDev.logo(emailDomain, {size: 64, theme: "dark"}),
         ]);

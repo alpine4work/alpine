@@ -1,15 +1,15 @@
 /**
- * HTTP headers included in trace data. We use an HTTP header allow list so
- * that clients can't send arbitrary, unknown, headers.
+ * HTTP headers included in trace data. We use an HTTP header allow list so that
+ * clients can't send arbitrary, unknown, headers.
  *
- * Headers are in lower kebab-case. (Not uppercase like Kebab-Case.) Header
- * names are converted to snake_case before sending to telemetry services.
+ * Headers are in lower kebab-case. (Not uppercase like Kebab-Case.) Header names
+ * are converted to snake_case before sending to telemetry services.
  *
- * `user-agent` is not included since that's already captured in the trace
- * event data property `http.userAgent`.
+ * `user-agent` is not included since that's already captured in the trace event
+ * data property `http.userAgent`.
  *
- * A handpicked list from [Wikipedia's list of HTTP header fields][1] that
- * appear to not have sensitive user content.
+ * A handpicked list from [Wikipedia's list of HTTP header fields][1] that appear
+ * to not have sensitive user content.
  *
  * [1]: https://en.wikipedia.org/wiki/List_of_HTTP_header_fields
  */
@@ -200,8 +200,8 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
 };
 
 /**
- * All of the header names in our `TracerEventHttpHeaderName` type
- * available at runtime.
+ * All of the header names in our `TracerEventHttpHeaderName` type available at
+ * runtime.
  */
 export const tracerEventHttpHeaderNames: ReadonlySet<string> = new Set(
     Object.keys(tracerEventHttpHeaderNameMap),

@@ -1,8 +1,8 @@
 let detachedDocument: Document | null = null;
 
-// Trick from jQuery -- some elements must be wrapped in other
-// elements for innerHTML to work. I.e. if you do `div.innerHTML =
-// "<td>..</td>"` the table cells are ignored.
+// Trick from jQuery -- some elements must be wrapped in other elements for
+// innerHTML to work. I.e. if you do `div.innerHTML = "<td>..</td>"` the table
+// cells are ignored.
 const wrapMap: {readonly [node: string]: ReadonlyArray<string>} = {
     thead: ["table"],
     tbody: ["table"],

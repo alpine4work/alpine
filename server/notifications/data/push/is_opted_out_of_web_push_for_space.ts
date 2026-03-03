@@ -6,8 +6,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Gets the web push opt-out status for the provided `browserId`, and `spaceId` with the current
- * session actor's account.
+ * Gets the web push opt-out status for the provided `browserId`, and `spaceId`
+ * with the current session actor's account.
  */
 export async function isOptedOutOfWebPushForSpace(
     context: ServerSessionActionContext,

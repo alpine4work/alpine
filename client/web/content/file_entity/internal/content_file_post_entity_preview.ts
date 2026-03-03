@@ -209,11 +209,10 @@ export function renderContentFilePostEntityPreview(
             // case). Make sure that block width doesn't exceed the max width, though
             // (important for row of 1 recursive docs use case).
             //
-            // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in
-            // documents because we turn off max width
-            // (`contentStyles.withoutBlockMaxWidthDocClassName`) so the post extends
-            // end-to-end within the preview. Usually, the file entity preview width
-            // shouldn't be that much more than the block width.
+            // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in documents
+            // because we turn off max width (`contentStyles.withoutBlockMaxWidthDocClassName`)
+            // so the post extends end-to-end within the preview. Usually, the file entity
+            // preview width shouldn't be that much more than the block width.
             blockWidth: scaledWidthPx,
             transformScale: originalTransformScale * transformScale,
             platform,

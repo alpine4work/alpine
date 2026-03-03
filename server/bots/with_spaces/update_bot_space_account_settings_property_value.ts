@@ -13,8 +13,8 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 /**
  * Update a single property in the bot's account settings. Accounts can update
  * their own bot account settings for the space and they must update the bot
- * settings in accordance with the bot settings schema. Bot actors cannot
- * update account settings.
+ * settings in accordance with the bot settings schema. Bot actors cannot update
+ * account settings.
  */
 export async function updateBotSpaceAccountSettingsPropertyValue(
     context: ServerAccountActionContext,
@@ -66,9 +66,9 @@ export async function updateBotSpaceAccountSettingsPropertyValue(
         throw new FailedPreconditionError("Property is not an account-level bot setting");
     }
 
-    // The only supported property type right now is `String`. TypeScript will
-    // complain when we add a new property type at which point we'll need to make
-    // this an exhaustive switch that validates each property type separately.
+    // The only supported property type right now is `String`. TypeScript will complain
+    // when we add a new property type at which point we'll need to make this an
+    // exhaustive switch that validates each property type separately.
     cast<"String">(propertySchema.type);
 
     if (typeof propertyValue !== "string") {

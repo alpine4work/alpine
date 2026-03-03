@@ -8,9 +8,9 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 
 /**
- * Update the settings for all known bots in the database. We commit settings
- * to the codebase to make them easier to manage. This migration saves those
- * settings to the database where they're used to drive the UI.
+ * Update the settings for all known bots in the database. We commit settings to
+ * the codebase to make them easier to manage. This migration saves those settings
+ * to the database where they're used to drive the UI.
  */
 export async function runUpdateKnownBotSettingsMigration(context: DynamoContext) {
     await runAllPromises(

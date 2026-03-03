@@ -5,8 +5,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Scan every document and document comment in our database. Use when
- * migrating data.
+ * Scan every document and document comment in our database. Use when migrating
+ * data.
  */
 export async function* expensiveScanEveryChatAndChatMessageForMigration(
     context: DynamoContext,

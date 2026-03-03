@@ -9,12 +9,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 
 /**
- * Get all of the session actor's inboxes for all the spaces they're in.
- * Inboxes are stored in the same DynamoDB partition so it's one DynamoDB query
- * to load them all.
+ * Get all of the session actor's inboxes for all the spaces they're in. Inboxes
+ * are stored in the same DynamoDB partition so it's one DynamoDB query to load
+ * them all.
  *
- * You must provide a list of the account's `SpaceId`s so we can filter out
- * inboxes for spaces the actor has lost access to.
+ * You must provide a list of the account's `SpaceId`s so we can filter out inboxes
+ * for spaces the actor has lost access to.
  */
 export async function getOurAccountInboxes(
     context: ServerSessionActionContext,
@@ -36,9 +36,8 @@ export async function getOurAccountInboxes(
             consistency: options.consistency,
         }),
         async item => {
-            // Confirm the account is still a member of this space. If an account is
-            // removed from a space we don't clean up their inbox item in case they're
-            // re-added.
+            // Confirm the account is still a member of this space. If an account is removed
+            // from a space we don't clean up their inbox item in case they're re-added.
             if (!spaceIds.has(item.spaceId)) return null;
 
             return InboxTable.buildRealtimeItem(context, item);

@@ -18,8 +18,8 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("focus");
     nextUrl.searchParams.delete("focus");
 
-    // The client removes the `create` and `focus` search params. Don't revalidate
-    // when the client does this.
+    // The client removes the `create` and `focus` search params. Don't revalidate when
+    // the client does this.
     if (currentUrl.toString() === nextUrl.toString()) {
         return false;
     }

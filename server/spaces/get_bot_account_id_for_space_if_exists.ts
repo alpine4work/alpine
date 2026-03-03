@@ -5,8 +5,8 @@ import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * If the bot is instantiated in the provided `SpaceId` then return the
- * `AccountId` for the bot in the space.
+ * If the bot is instantiated in the provided `SpaceId` then return the `AccountId`
+ * for the bot in the space.
  *
  * Throws if you don't have access to the space.
  */

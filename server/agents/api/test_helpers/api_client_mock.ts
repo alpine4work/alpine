@@ -71,9 +71,9 @@ type RequestRecord = {
 };
 
 /**
- * If you provide a matcher, the mock will only return data if the request is an exact match.
- * If you don't provide a matcher, the mock will return data for the requested path in the order
- * in which you created the mock.
+ * If you provide a matcher, the mock will only return data if the request is an
+ * exact match. If you don't provide a matcher, the mock will return data for the
+ * requested path in the order in which you created the mock.
  */
 // Spy configuration - auto-returns {data: undefined} for matching paths
 type SpyConfig = {
@@ -94,10 +94,10 @@ export class ApiClientMock implements ApiClient {
     }
 
     /**
-     * Configure a mock response for a GET request
-     * @param path - The API path (e.g. "/chats/{id}/messages/{index}")
-     * @param responses - Array of responses to return on successive calls
-     * @param params - Optional params to match (if provided, only matches exact params)
+     * Configure a mock response for a GET request @param path - The API path (e.g.
+     * "/chats/{id}/messages/{index}") @param responses - Array of responses to return
+     * on successive calls @param params - Optional params to match (if provided, only
+     * matches exact params)
      */
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
@@ -152,8 +152,8 @@ export class ApiClientMock implements ApiClient {
     }
 
     /**
-     * Register a path to spy on. Calls to this path will be recorded in request history
-     * and auto-return {data: undefined} without needing an explicit mock.
+     * Register a path to spy on. Calls to this path will be recorded in request
+     * history and auto-return {data: undefined} without needing an explicit mock.
      * Useful for endpoints like stream parts, pings, and completions.
      */
     spy(method: HttpMethod, path: string): void {
@@ -357,8 +357,8 @@ export class ApiClientMock implements ApiClient {
             nextCursor?: number | null;
             messages?: Array<ApiMessageResponse>;
         },
-        // If you don't provide this, it'll match any page info in the order that you
-        // call the mock.
+        // If you don't provide this, it'll match any page info in the order that you call
+        // the mock.
         pageInfo?: {
             from?: "start" | "end";
             // undefined means the query is starting at the begining of the list of comments
@@ -529,8 +529,8 @@ export class ApiClientMock implements ApiClient {
             nextCursor?: number | null;
             messages?: Array<ApiMessageResponse>;
         },
-        // If you don't provide this, it'll match any page info in the order that you
-        // call the mock.
+        // If you don't provide this, it'll match any page info in the order that you call
+        // the mock.
         pageInfo?: {
             from?: "start" | "end";
             // undefined means the query is starting at the begining of the list of comments

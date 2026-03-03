@@ -9,19 +9,20 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 /**
  * README
  *
- * There are a lot of warnings in here. Be very careful here as this endpoint
- * is unauthenticated (but authorized via a secret token, hardcoded token). If
- * you are updating this file, please know what you are doing and why.
+ * There are a lot of warnings in here. Be very careful here as this endpoint is
+ * unauthenticated (but authorized via a secret token, hardcoded token). If you are
+ * updating this file, please know what you are doing and why.
  *
- * This is very much a temporary solution designed to get us going quickly. Please do not use
- * this as a pattern we should follow elsewhere in the system. I repeat, this is bad practice.
+ * This is very much a temporary solution designed to get us going quickly. Please
+ * do not use this as a pattern we should follow elsewhere in the system. I repeat,
+ * this is bad practice.
  */
 
-// If you update this, be sure to also update the token used in refreshAccountEntitlements
+// If you update this, be sure to also update the token used in
+// refreshAccountEntitlements
 const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
 
-// If you're adding any data here, be very certain this is safe
-// to return here!
+// If you're adding any data here, be very certain this is safe to return here!
 type InternalAccountsPlanResponse = {
     plan: "LifetimeAccess" | undefined;
 };
@@ -39,8 +40,7 @@ async function getInternalAccountsPlanResponse(
         throw new NotFoundError(`Account not found: ${accountId}`);
     }
 
-    // If you're adding any data here, be very certain this is safe
-    // to return here!
+    // If you're adding any data here, be very certain this is safe to return here!
     const response: InternalAccountsPlanResponse = {
         plan: account.initialData.plan,
     };
@@ -52,12 +52,13 @@ async function getInternalAccountsPlanResponse(
  * This loader is unauthenticated!
  *
  * This is used by our agent service to make an easy request about the current plan
- * of a given account. This happens when we need to update the agent entitlements for
- * an account after their plan changes.
+ * of a given account. This happens when we need to update the agent entitlements
+ * for an account after their plan changes.
  *
  * We discussed this in a [Tea Time on January 8, 2025][1].
  *
- * [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/xktt54v9vyjxmz1193tpmztt34
+ * [1]:
+ *     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/xktt54v9vyjxmz1193tpmztt34
  */
 export async function loader({request, context, span, params}: LoaderArgs) {
     try {

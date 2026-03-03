@@ -52,9 +52,9 @@ assertAssignableTypes<ContentEditorInsertMenuAction, MenuStandardAction>();
 /**
  * Return menu actions for the right click insert submenu. These insert actions
  * also show up when you hit @ and start typing (but without dividers between
- * sections). When you hit @ we show some suggested items. We only suggest
- * insert actions with `isSuggestedInMentionFloater: true`. The goal is to have
- * less than one full scroll window of suggested insert actions.
+ * sections). When you hit @ we show some suggested items. We only suggest insert
+ * actions with `isSuggestedInMentionFloater: true`. The goal is to have less than
+ * one full scroll window of suggested insert actions.
  */
 export function getContentEditorInsertMenuActions({
     schema,

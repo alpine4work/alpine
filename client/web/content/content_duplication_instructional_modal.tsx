@@ -24,8 +24,8 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 /**
- * Modal that appears when duplicating a document or task to inform users about
- * the variable substitution feature (`[[Variable Name]]` syntax).
+ * Modal that appears when duplicating a document or task to inform users about the
+ * variable substitution feature (`[[Variable Name]]` syntax).
  */
 export function ContentDuplicationInstructionalModal({
     noun,
@@ -89,8 +89,7 @@ export function ContentDuplicationInstructionalModal({
                         isInert={true}
                         withUserSelectNone={true}
                         content={content}
-                        // Our example content doesn't have files. Any attachment target will
-                        // be fine.
+                        // Our example content doesn't have files. Any attachment target will be fine.
                         fileAttachmentTarget={exampleFileAttachmentTarget}
                     />
                 </Box>

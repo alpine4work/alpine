@@ -26,16 +26,16 @@ export type SqsLocal = {
     /**
      * Stop the local SQS server. If `force: true` is set then we kill the server
      * without letting it persist its state. Normally, in a clean shutdown SQS will
-     * persist its state and wait for any ongoing `ReceiveMessage` requests to
-     * finish. For tests, when we're done we're done. We don't want to wait on
-     * `ReceiveMessage` requests.
+     * persist its state and wait for any ongoing `ReceiveMessage` requests to finish.
+     * For tests, when we're done we're done. We don't want to wait on `ReceiveMessage`
+     * requests.
      */
     stop(options: {force: boolean}): Promise<void>;
 };
 
 /**
- * Starts a local [AWS SQS][1] (Simple Queue Service) server. We use
- * [ElasticMQ][2] to simulate AWS SQS locally.
+ * Starts a local [AWS SQS][1] (Simple Queue Service) server. We use [ElasticMQ][2]
+ * to simulate AWS SQS locally.
  *
  * [1]: https://aws.amazon.com/sqs/
  * [2]: https://github.com/softwaremill/elasticmq
@@ -71,8 +71,8 @@ export async function startSqsLocal({
     const messagesStoragePath =
         dataPath !== undefined ? joinPath(dataPath, "messages_storage") : undefined;
 
-    // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but
-    // you can bind to IPv6 localhost. See:
+    // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but you
+    // can bind to IPv6 localhost. See:
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
     const bindHostname = process.platform === "darwin" ? "[::1]" : "localhost";
 
@@ -178,8 +178,8 @@ messages-storage {
                     },
                 }),
             ),
-            // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): setup dedicated
-            // DLQ for Heavy processor
+            // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): setup
+            // dedicated DLQ for Heavy processor
             client.send(
                 new CreateQueueCommand({
                     QueueName: "FileProcessorHeavyJobQueue",
@@ -189,8 +189,8 @@ messages-storage {
                     },
                 }),
             ),
-            // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): setup dedicated
-            // DLQ for Light processor
+            // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): setup
+            // dedicated DLQ for Light processor
             client.send(
                 new CreateQueueCommand({
                     QueueName: "FileProcessorLightJobQueue",

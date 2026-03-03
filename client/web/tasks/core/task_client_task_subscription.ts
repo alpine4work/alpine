@@ -10,19 +10,19 @@ import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
- * Maintains a subscription to a single task outside of a query. Useful when
- * we're looking at a task detail view, for instance. We want to load just the
- * task visible in the detail view.
+ * Maintains a subscription to a single task outside of a query. Useful when we're
+ * looking at a task detail view, for instance. We want to load just the task
+ * visible in the detail view.
  */
 export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscriptionBase {
     /**
      * A readonly reference to the task store.
      *
-     * If you want to write you should have a full `TaskClientStore` instance.
-     * This allows code to carefully control write access. For example,
-     * `<TaskRowView>` has a `TaskClientReadonlyStore` and `TaskClientQuery`.
-     * `<TaskRowView>` must make mutations through a `commitActionTransaction` prop
-     * since it doesn't have types that allow write access.
+     * If you want to write you should have a full `TaskClientStore` instance. This
+     * allows code to carefully control write access. For example, `<TaskRowView>` has
+     * a `TaskClientReadonlyStore` and `TaskClientQuery`. `<TaskRowView>` must make
+     * mutations through a `commitActionTransaction` prop since it doesn't have types
+     * that allow write access.
      */
     public readonly store: TaskClientReadonlyStore;
 
@@ -35,12 +35,12 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     >({hasError: false});
 
     /**
-     * The task associated with this subscription. The task might be `null` if
-     * our store hasn't seen it yet. `TaskRealtimeClient` is responsible for
-     * subscribing to the task on the server.
+     * The task associated with this subscription. The task might be `null` if our
+     * store hasn't seen it yet. `TaskRealtimeClient` is responsible for subscribing to
+     * the task on the server.
      *
-     * If the underlying subscription has an error then calling `getSnapshot()`
-     * will throw the error.
+     * If the underlying subscription has an error then calling `getSnapshot()` will
+     * throw the error.
      */
     public readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
 
@@ -73,16 +73,16 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     }
 
     /**
-     * Subscriptions start with 1 reference. The reference count can be increased
-     * by calling `retain()` and decreased by calling `release()` once the
-     * reference count reaches 0 the subscription is destroyed.
+     * Subscriptions start with 1 reference. The reference count can be increased by
+     * calling `retain()` and decreased by calling `release()` once the reference count
+     * reaches 0 the subscription is destroyed.
      */
     private _referenceCount = 1;
 
     /**
-     * Add a reference for our subscription. You should call `release()` later when
-     * you no longer need the reference. Once the subscription hits zero references
-     * we will clean up this subscription and all its data.
+     * Add a reference for our subscription. You should call `release()` later when you
+     * no longer need the reference. Once the subscription hits zero references we will
+     * clean up this subscription and all its data.
      */
     public retain() {
         assert(this._referenceCount > 0, "Can\u2019t retain a released subscription");
@@ -105,9 +105,9 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         }
     }
 
-    // This is a private function we expose publicly so `TaskClientStoreInternal`
-    // can call it. To call you must prove you have access to a
-    // `TaskClientStoreInternal` instance.
+    // This is a private function we expose publicly so `TaskClientStoreInternal` can
+    // call it. To call you must prove you have access to a `TaskClientStoreInternal`
+    // instance.
     //
     // We could also do a `TaskClientTaskSubscription`
     // `TaskClientTaskSubscriptionInternal` class split like we do for
@@ -127,19 +127,17 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     }
 
     /**
-     * If there was an error in our `TaskRealtimeService` subscription for this
-     * task then this function is called to transition the task to an error
-     * state. The error will be re-thrown in UI components when trying to access
-     * the tasks's data.
+     * If there was an error in our `TaskRealtimeService` subscription for this task
+     * then this function is called to transition the task to an error state. The error
+     * will be re-thrown in UI components when trying to access the tasks's data.
      */
     public setError(error: unknown) {
         this._errorStateStore.set({hasError: true, error});
     }
 
     /**
-     * If this task is in an erred state because `setError()` was previously
-     * called then this function clears the error and allows normal operation to
-     * resume.
+     * If this task is in an erred state because `setError()` was previously called
+     * then this function clears the error and allows normal operation to resume.
      */
     public clearError() {
         this._errorStateStore.set(errorState =>
@@ -148,10 +146,10 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     }
 
     /**
-     * Returns the store for the provided `TaskId` if it's loaded in this
-     * subscription. Throws an error on tasks that aren't loaded. Only the
-     * `TaskId` this subscription is directly for is considered loaded.
-     * An easier way to access the store would be `subscription.taskEntryStore`.
+     * Returns the store for the provided `TaskId` if it's loaded in this subscription.
+     * Throws an error on tasks that aren't loaded. Only the `TaskId` this subscription
+     * is directly for is considered loaded. An easier way to access the store would be
+     * `subscription.taskEntryStore`.
      *
      * We include this function for compatibility with `TaskClientQuery`. Makes it
      * convenient to get the store you care about with the same method.
@@ -161,9 +159,9 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         return this.taskEntryStore;
     }
 
-    // This is a private function we expose publicly so `TaskClientStoreInternal`
-    // can call it. To call you must prove you have access to a
-    // `TaskClientStoreInternal` instance.
+    // This is a private function we expose publicly so `TaskClientStoreInternal` can
+    // call it. To call you must prove you have access to a `TaskClientStoreInternal`
+    // instance.
     //
     // We could also do a `TaskClientTaskSubscription`
     // `TaskClientTaskSubscriptionInternal` class split like we do for
@@ -200,8 +198,8 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
             const taskEntryUpdate = taskEntryUpdateById.get(taskId);
             if (!taskEntryUpdate) return;
 
-            // If we started this function call with a reference to this task then a task
-            // entry must have already existed in our store.
+            // If we started this function call with a reference to this task then a task entry
+            // must have already existed in our store.
             assert(taskEntryUpdate.oldTaskEntry);
 
             this._onReferencedTaskUpdate(
@@ -221,8 +219,8 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
                 const taskEntryUpdate = taskEntryUpdateById.get(taskId);
                 if (!taskEntryUpdate) continue;
 
-                // If we started this function call with a reference to this task then a task
-                // entry must have already existed in our store.
+                // If we started this function call with a reference to this task then a task entry
+                // must have already existed in our store.
                 assert(taskEntryUpdate.oldTaskEntry);
 
                 this._onReferencedTaskUpdate(

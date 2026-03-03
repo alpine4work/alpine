@@ -40,7 +40,8 @@ export async function getNotificationDigestContent(
                 generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
                 enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
             },
-            // We add 51 to the limit so we can display the count of remaining entries, up to 50+
+            // We add 51 to the limit so we can display the count of remaining entries, up to
+            // 50+
             limit: digestEntryDisplayLimit + 51,
         }),
     ]);

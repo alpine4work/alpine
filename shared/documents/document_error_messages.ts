@@ -14,8 +14,8 @@ export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: R
     Manage: errorDisplayMessage`You aren\u2019t allowed to share this document. Ask someone who can share the document to give you share access.`,
 };
 
-// If the client detects this specific error message it will revert any
-// confirmed but not persisted steps and try backfilling again.
+// If the client detects this specific error message it will revert any confirmed
+// but not persisted steps and try backfilling again.
 export const documentBackfillFutureVersionErrorMessage =
     "Tried to backfill a future document version";
 

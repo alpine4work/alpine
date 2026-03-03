@@ -20,11 +20,11 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get an account without authorizing whether the current context has
- * access or not.
+ * Get an account without authorizing whether the current context has access or
+ * not.
  *
- * You should not call this function! It does not authorize that you are
- * allowed to access the account and does not cache accounts. Instead use
+ * You should not call this function! It does not authorize that you are allowed to
+ * access the account and does not cache accounts. Instead use
  * `getAccountIfExists()` in `server/spaces/spaces_table.ts`.
  */
 export async function dangerouslyGetAccountIfExistsWithoutAuthorization(
@@ -38,11 +38,11 @@ export async function dangerouslyGetAccountIfExistsWithoutAuthorization(
 }
 
 /**
- * Get an account (without avatar) without authorizing whether the current
- * context has access or not.
+ * Get an account (without avatar) without authorizing whether the current context
+ * has access or not.
  *
- * You should not call this function! It does not authorize that you are
- * allowed to access the account and does not cache accounts. Instead use
+ * You should not call this function! It does not authorize that you are allowed to
+ * access the account and does not cache accounts. Instead use
  * `getAccountIfExists()` in `server/spaces/spaces_table.ts`.
  */
 export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization(
@@ -56,10 +56,10 @@ export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthoriza
 }
 
 /**
- * Same as `dangerouslyGetAccountIfExistsWithoutAuthorization()`
- * but we also return `finishSignUpTransactionEntry` which when non-null means
- * the account hasn't finished signing up yet. Committing this transaction
- * entry will mark the account as finished signing up.
+ * Same as `dangerouslyGetAccountIfExistsWithoutAuthorization()` but we also return
+ * `finishSignUpTransactionEntry` which when non-null means the account hasn't
+ * finished signing up yet. Committing this transaction entry will mark the account
+ * as finished signing up.
  */
 export async function dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,

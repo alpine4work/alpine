@@ -4,9 +4,8 @@ import {createBotNotFoundError} from "~/shared/bots/bot_error_messages.js";
 import {BotId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the information associated with a bot. Currently, basic information
- * about a bot is public globally (e.g. its name, presence of a webhook URL,
- * and avatar)!
+ * Get the information associated with a bot. Currently, basic information about a
+ * bot is public globally (e.g. its name, presence of a webhook URL, and avatar)!
  */
 export async function getBot(context: DynamoContext, botId: BotId) {
     const botItem = await BotsTable.getItemIfExists(context, {

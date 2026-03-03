@@ -11,8 +11,8 @@ export function createAdhocTracer() {
         // database then events should go to our production Honeycomb environment?
         honeycombApiKey: env.HONEYCOMB_API_KEY,
         honeycombDataset: "tracer",
-        // Node.js automatically waits for all promises to finish before exiting
-        // the process.
+        // Node.js automatically waits for all promises to finish before exiting the
+        // process.
         waitUntil: promise => {
             promise.catch(error => {
                 // eslint-disable-next-line no-console

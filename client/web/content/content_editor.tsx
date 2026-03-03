@@ -234,13 +234,13 @@ import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
-// `ascent-override` and `descent-override` which means our phantom selection
-// or comment highlights an emoji the top looks ragged instead of straight.
+// `ascent-override` and `descent-override` which means our phantom selection or
+// comment highlights an emoji the top looks ragged instead of straight.
 // https://bugs.webkit.org/show_bug.cgi?id=219735
 
-// TODO(calebmer): We set `spellcheck="false"` but if you tap on a word that
-// Safari would have put a red squiggle under then replacement words appear.
-// This is confusing to users since it's unclear why this list would appear.
+// TODO(calebmer): We set `spellcheck="false"` but if you tap on a word that Safari
+// would have put a red squiggle under then replacement words appear. This is
+// confusing to users since it's unclear why this list would appear.
 // `autocorrect="false"` turns this off but it also turns off typing correction
 // which we don't want.
 // https://stackoverflow.com/questions/78022279/ios-safari-when-contenteditable-true-and-spellcheck-false-clicking-on-a-word-tha
@@ -248,18 +248,18 @@ import {ValueStore} from "~/shared/store/value_store.js";
 // After much debugging I've narrowed the issue down to
 // `UITextInputTraits.autocorrectionType`. If I manually set
 // `UITextInputTraits.autocorrectionType = .no` (with swizzling, see
-// `swizzleWKWebView()`) it turns off both predictive input on the keyboard and
-// the tap to show corrections behavior I don't like. So looks like these two
-// behaviors are tied together in Apple's private text input code. Unfortunate.
+// `swizzleWKWebView()`) it turns off both predictive input on the keyboard and the
+// tap to show corrections behavior I don't like. So looks like these two behaviors
+// are tied together in Apple's private text input code. Unfortunate.
 // https://developer.apple.com/documentation/uikit/uitextinputtraits/1624453-autocorrectiontype
 //
-// I know it should be possible to get the behavior I want since Google Docs
-// has figured it out. (Though I don't think they use `WKWebView`.)
+// I know it should be possible to get the behavior I want since Google Docs has
+// figured it out. (Though I don't think they use `WKWebView`.)
 //
 // Arguably this behavior is good and should be left in. I don't think so since
 // users may accidentally click on a word that makes sense to them and get this
-// menu which could be frustrating. Long term we also plan on implementing our
-// own spell checking. So the conflicting spell checking is unfortunate.
+// menu which could be frustrating. Long term we also plan on implementing our own
+// spell checking. So the conflicting spell checking is unfortunate.
 
 function wrap<Content extends ContentWithReferences>(
     state: EditorState,
@@ -289,8 +289,8 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     blur(): void;
 
     /**
-     * Does the editor contain the provided element? Only checks for children of
-     * the `contenteditable` editor. Doesn't check siblings of the editor.
+     * Does the editor contain the provided element? Only checks for children of the
+     * `contenteditable` editor. Doesn't check siblings of the editor.
      */
     contains(element: Element): boolean;
 
@@ -366,8 +366,8 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     insertCodeBlock(): void;
 
     /**
-     * Insert some files into the document as file row nodes. Generally these files
-     * are generally taken from an `<input type="file">` element.
+     * Insert some files into the document as file row nodes. Generally these files are
+     * generally taken from an `<input type="file">` element.
      */
     insertFiles(files: ReadonlyArray<File>): void;
 
@@ -388,15 +388,15 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
 
     /**
      * If we're in a mobile environment and `withoutMobileKeyboardToolbar` is false
-     * then calling this function opens the comment input for the current
-     * selection. If the selection is empty nothing happens.
+     * then calling this function opens the comment input for the current selection. If
+     * the selection is empty nothing happens.
      */
     openMobileKeyboardToolbarCommentInputIfPossible(): void;
 
     /**
-     * Get the internal ProseMirror editor view object. Prefer the public methods
-     * on this ref that provide a constrained, safe, interface. But this escape
-     * hatch is available if necessary.
+     * Get the internal ProseMirror editor view object. Prefer the public methods on
+     * this ref that provide a constrained, safe, interface. But this escape hatch is
+     * available if necessary.
      */
     _getInternalView(): EditorView;
 };
@@ -420,14 +420,14 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     /**
      * Fired whenever the content editor's state changes.
      *
-     * Every state change will be optimistically synchronously applied to the
-     * DOM. If you don't re-render with the new state then that optimistic
-     * update will be reverted.
+     * Every state change will be optimistically synchronously applied to the DOM. If
+     * you don't re-render with the new state then that optimistic update will be
+     * reverted.
      */
     onChange: (
         state: ContentEditorState<Content>,
-        // We send the transaction on change in case the parent wants to respond
-        // to some specific action taken in the transaction.
+        // We send the transaction on change in case the parent wants to respond to some
+        // specific action taken in the transaction.
         transaction: Transaction,
     ) => void;
 
@@ -442,8 +442,7 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     className?: string;
 
     /**
-     * A subset of `React.CSSProperties` we'll apply to the content editable
-     * `<div>`.
+     * A subset of `React.CSSProperties` we'll apply to the content editable `<div>`.
      */
     style?: {
         minHeight?: RemLength | number;
@@ -456,33 +455,32 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
 
     /**
      * The class name we'll apply to the `<div>` containing the content editable
-     * `<div>`. We need a container `<div>` (unfortunately) to have an element to
-     * mount ProseMirror editor within given the ProseMirror editor is not a React
-     * component.
+     * `<div>`. We need a container `<div>` (unfortunately) to have an element to mount
+     * ProseMirror editor within given the ProseMirror editor is not a React component.
      */
     containerClassName?: string;
 
     /**
-     * The access level to use for this content editor. If "View" then the editor
-     * will be in readonly mode and not allow changes. In "Comment" mode, we also
-     * won't allow changes except to add new comment threads.
+     * The access level to use for this content editor. If "View" then the editor will
+     * be in readonly mode and not allow changes. In "Comment" mode, we also won't
+     * allow changes except to add new comment threads.
      *
      * If undefined then we assume you have the highest access level possible.
      */
     accessLevel?: AccessLevel;
 
     /**
-     * Don't render the mobile keyboard toolbar with this content editor. Use this
-     * if you render your own toolbar outside the `<ContentEditor>`.
-     * `<MessageInput>` is a component that does this.
+     * Don't render the mobile keyboard toolbar with this content editor. Use this if
+     * you render your own toolbar outside the `<ContentEditor>`. `<MessageInput>` is a
+     * component that does this.
      */
     withoutMobileKeyboardToolbar?: boolean;
 
     /**
-     * Disable dual modality editing on devices that don't have a primary input
-     * that can hover (our mobile apps). The content editor will always be in our
-     * mobile editing state and never our mobile interactive state. e.g. So links
-     * won't be pressable.
+     * Disable dual modality editing on devices that don't have a primary input that
+     * can hover (our mobile apps). The content editor will always be in our mobile
+     * editing state and never our mobile interactive state. e.g. So links won't be
+     * pressable.
      */
     withoutMobileDualModality?: boolean;
 
@@ -508,11 +506,11 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      *
      * 1. Before adding a file to content we need to call either
      *    `attachFileAsUploader()` or `attachFileFromAttachment()` to make sure
-     *    everyone who has access to the attachment target has access to the file.
-     *    We use the attachment target to create the correct link.
+     *    everyone who has access to the attachment target has access to the file. We
+     *    use the attachment target to create the correct link.
      *
-     * 2. When refreshing expired signed preview URLs we need the attachment target
-     *    so we can prove the current account has access to the file.
+     * 2. When refreshing expired signed preview URLs we need the attachment target so
+     *    we can prove the current account has access to the file.
      *
      * An error will be thrown if your content supports files but doesn't provide
      * `fileAttachmentTarget`.
@@ -521,16 +519,15 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
 
     /**
      * If the content editor supports comments then you must pass in
-     * `FileAttachmentTarget` for its comments. This prop is used in a similar way
-     * to the `fileAttachmentTarget` prop but just for comments.
+     * `FileAttachmentTarget` for its comments. This prop is used in a similar way to
+     * the `fileAttachmentTarget` prop but just for comments.
      */
     commentFileAttachmentTarget?: Memo<FileAttachmentTarget>;
 
     /**
-     * Sometimes, we'll pass in an optimistic `fileAttachmentTarget` that hasn't
-     * been created yet. For example, when you click "Create document" we open a
-     * blank document but the document isn't actually created until you start
-     * typing in it.
+     * Sometimes, we'll pass in an optimistic `fileAttachmentTarget` that hasn't been
+     * created yet. For example, when you click "Create document" we open a blank
+     * document but the document isn't actually created until you start typing in it.
      *
      * Call this function to ensure the `fileAttachmentTarget` exists so you can
      * properly attach files to it.
@@ -559,16 +556,16 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
-     * Called when the selection enters the content editor. This works regardless
-     * of the `accessLevel`. If the `accessLevel` is `View` then we'll still call
-     * this function even though the editor isn't editable.
+     * Called when the selection enters the content editor. This works regardless of
+     * the `accessLevel`. If the `accessLevel` is `View` then we'll still call this
+     * function even though the editor isn't editable.
      */
     onSelectionEnter?: () => void;
 
     /**
-     * Called when the selection leaves the content editor. This works regardless
-     * of the `accessLevel`. If the `accessLevel` is `View` then we'll still call
-     * this function even though the editor isn't editable.
+     * Called when the selection leaves the content editor. This works regardless of
+     * the `accessLevel`. If the `accessLevel` is `View` then we'll still call this
+     * function even though the editor isn't editable.
      */
     onSelectionLeave?: () => void;
 
@@ -576,20 +573,20 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * Fired when the user presses enter in a content editor.
      *
      * Providing an `onEnterKeyDownFromPhysicalKeyboard` callback will prevent the
-     * default enter behavior. It will also switch our editor out of multiline mode
-     * for assistive technologies.
+     * default enter behavior. It will also switch our editor out of multiline mode for
+     * assistive technologies.
      *
-     * Pressing shift+enter has the same behavior as pressing enter as a
-     * workaround. Pressing alt+enter will insert a hard line break and won't
-     * trigger this callback. Pasting in content with multiple paragraphs also
-     * allows you to add multiple lines. So providing
-     * `onEnterKeyDownFromPhysicalKeyboard` doesn't make our editor fully single lined.
+     * Pressing shift+enter has the same behavior as pressing enter as a workaround.
+     * Pressing alt+enter will insert a hard line break and won't trigger this
+     * callback. Pasting in content with multiple paragraphs also allows you to add
+     * multiple lines. So providing `onEnterKeyDownFromPhysicalKeyboard` doesn't make
+     * our editor fully single lined.
      */
     onEnterKeyDownFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
 
     /**
-     * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
-     * in a content editor.
+     * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms) in a
+     * content editor.
      *
      * Providing an `onModEnterKeyDown` callback will prevent the default enter
      * behavior.
@@ -607,18 +604,18 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onArrowUpKeyDown?: (event: KeyboardEvent) => void;
 
     /**
-     * Opens a comment thread when clicked. If your schema supports comment marks
-     * you must provide this function to open them. `<ContentEditor>` knows almost
-     * nothing about how comments are implemented, only how they are styled.
+     * Opens a comment thread when clicked. If your schema supports comment marks you
+     * must provide this function to open them. `<ContentEditor>` knows almost nothing
+     * about how comments are implemented, only how they are styled.
      */
     openCommentThread?: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 
     /**
      * When a pointer presses down on a comment thread this function is called.
-     * `openCommentThread` is called when a press is considered a click. (So
-     * pointer up and the pointer hasn't moved off.) Our parent component is
-     * responsible for updating the styles of all marks for this comment thread
-     * using `commentActiveDynamicCssTemplate`.
+     * `openCommentThread` is called when a press is considered a click. (So pointer up
+     * and the pointer hasn't moved off.) Our parent component is responsible for
+     * updating the styles of all marks for this comment thread using
+     * `commentActiveDynamicCssTemplate`.
      */
     onCommentThreadPressedChange?: (
         commentThreadId: DocumentCommentThreadId,
@@ -626,31 +623,31 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     ) => void;
 
     /**
-     * Called when an undo stack entry is added. If you're managing undo/redo
-     * keyboard shortcuts you'll need to push to our own stack when this is called.
+     * Called when an undo stack entry is added. If you're managing undo/redo keyboard
+     * shortcuts you'll need to push to our own stack when this is called.
      */
     onUndoStackEntryPushed?: () => void;
 
     /**
-     * Called when an undo stack entry is added during a redo command. This needs
-     * to behave a bit differently than `onUndoStackEntryPushed()` since it
-     * shouldn't reset the redo stack.
+     * Called when an undo stack entry is added during a redo command. This needs to
+     * behave a bit differently than `onUndoStackEntryPushed()` since it shouldn't
+     * reset the redo stack.
      *
-     * If you're managing undo/redo keyboard shortcuts you'll need to push to our
-     * own stack when this is called.
+     * If you're managing undo/redo keyboard shortcuts you'll need to push to our own
+     * stack when this is called.
      */
     onUndoStackEntryPushedFromRedo?: () => void;
 
     /**
-     * Called when a redo stack entry is added. If you're managing undo/redo
-     * keyboard shortcuts you'll need to push to our own stack when this is called.
+     * Called when a redo stack entry is added. If you're managing undo/redo keyboard
+     * shortcuts you'll need to push to our own stack when this is called.
      */
     onRedoStackEntryPushed?: () => void;
 
     /**
-     * If the content schema used by this `<ContentEditor>` doesn't support files
-     * then we'll call this callback on a paste or drop that includes files to let
-     * the parent component handle files however it wants.
+     * If the content schema used by this `<ContentEditor>` doesn't support files then
+     * we'll call this callback on a paste or drop that includes files to let the
+     * parent component handle files however it wants.
      *
      * For example `MessageContent` doesn't support files but `<MessageInput>` does
      * allow attaching files to a message.
@@ -669,8 +666,8 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     isBodyEmpty?: boolean;
 
     /**
-     * This is a required prop on any content editor that can have spell
-     * checks ignored. If that is not needed, do not provide this prop.
+     * This is a required prop on any content editor that can have spell checks
+     * ignored. If that is not needed, do not provide this prop.
      */
     spellCheckIgnoredLints?: Iterable<{
         key: string;
@@ -678,30 +675,30 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     }>;
 
     /**
-     * This is a required prop on any content editor that can have spell
-     * checks ignored. If that is not needed, do not provide this prop.
+     * This is a required prop on any content editor that can have spell checks
+     * ignored. If that is not needed, do not provide this prop.
      */
     onSpellCheckIgnoreLint?: (lint: {key: string; kind: string}) => Promise<void>;
 
     /**
-     * If the user `mousedown`s at the end of the content editor (below the last
-     * item) should we create a new paragraph and move the selection there? False
-     * by default. Only true for `<DocumentContentEditor>` right now.
+     * If the user `mousedown`s at the end of the content editor (below the last item)
+     * should we create a new paragraph and move the selection there? False by default.
+     * Only true for `<DocumentContentEditor>` right now.
      */
     withMouseDownAtEndCreatesParagraph?: boolean;
 } & (
     | {
           /**
-           * A label exposed to assistive technology (through `aria-label`) when
-           * there is no visible label for the element.
+           * A label exposed to assistive technology (through `aria-label`) when there is no
+           * visible label for the element.
            */
           "aria-label": string;
           "aria-labelledby"?: undefined;
       }
     | {
           /**
-           * A reference to another element (through `aria-labelledby`) with a
-           * visible label for this element.
+           * A reference to another element (through `aria-labelledby`) with a visible label
+           * for this element.
            */
           "aria-labelledby": string;
           "aria-label"?: undefined;
@@ -716,9 +713,9 @@ export type ContentEditorPhantomSelection = {
     readonly isTextSelection: boolean;
 };
 
-// When server-side rendering (initial app render), we render as a
-// `<ContentView>` then once React hydrates on the client we switch out the
-// non-editable `<ContentView>` for an editable `<ContentEditor>` component.
+// When server-side rendering (initial app render), we render as a `<ContentView>`
+// then once React hydrates on the client we switch out the non-editable
+// `<ContentView>` for an editable `<ContentEditor>` component.
 function ContentEditorWrapper<Content extends ContentWithReferences>(
     props: ContentEditorProps<Content>,
     ref: Ref<ContentEditorRef<Content>>,
@@ -945,29 +942,28 @@ function ContentEditor<Content extends ContentWithReferences>(
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const blockWidth = useContentBlockWidth();
 
-    // We choose our interaction mode based on whether the device's primary input
-    // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
-    // iOS). Haven't tested this with an iPad. Ideally it's true when a hardware
-    // trackpad is connected and false when it's not.
+    // We choose our interaction mode based on whether the device's primary input can
+    // hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g. iOS).
+    // Haven't tested this with an iPad. Ideally it's true when a hardware trackpad is
+    // connected and false when it's not.
     //
-    // The difference between `platform` and `isDualModality` can be a bit
-    // confusing.
+    // The difference between `platform` and `isDualModality` can be a bit confusing.
     //
-    // - On desktop, `isDualModality` is always false. `platform` will be true if
-    //   the window is small but usually will be false (since we don't recommend
-    //   small windows on desktop).
+    // - On desktop, `isDualModality` is always false. `platform` will be true if the
+    //   window is small but usually will be false (since we don't recommend small
+    //   windows on desktop).
     //
     // - On an iPhone, document content editors are `platform = "mobile"` and
-    //   `isDualModality = true`. However, message inputs are `platform = "mobile"`
-    //   and `isDualModality = false`. Message inputs disable dual modality editing
-    //   with `withoutMobileDualModality = true`.
+    //   `isDualModality = true`. However, message inputs are `platform = "mobile"` and
+    //   `isDualModality = false`. Message inputs disable dual modality editing with
+    //   `withoutMobileDualModality = true`.
     //
     // - This isn't implemented yet but on an iPad we should have
-    //   `platform = "desktop"` (since it's big enough for our desktop screen size)
-    //   and should have `isDualModality = true` if there's no hardware keyboard
-    //   but `isDualModality = false` if there is a hardware keyboard. If the user
-    //   is primarily using the iPad via touch it should behave more like an iPhone
-    //   than a laptop.
+    //   `platform = "desktop"` (since it's big enough for our desktop screen size) and
+    //   should have `isDualModality = true` if there's no hardware keyboard but
+    //   `isDualModality = false` if there is a hardware keyboard. If the user is
+    //   primarily using the iPad via touch it should behave more like an iPhone than a
+    //   laptop.
     const isDualModality = !canPrimaryInputHover && !withoutMobileDualModality;
 
     /* ========================================================================== *\
@@ -975,15 +971,15 @@ function ContentEditor<Content extends ContentWithReferences>(
     \* ========================================================================== */
 
     // The props for the current React commit. We are integrating with a stateful
-    // component (ProseMirror's `EditorView`) so we need to be able to
-    // imperatively access props.
+    // component (ProseMirror's `EditorView`) so we need to be able to imperatively
+    // access props.
     //
-    // Importantly, we set this in a `useInsertionEffect` instead of render! If we
-    // set in render and concurrent React cancels/rebases/retries the render then
-    // there may be bugs.
+    // Importantly, we set this in a `useInsertionEffect` instead of render! If we set
+    // in render and concurrent React cancels/rebases/retries the render then there may
+    // be bugs.
     //
-    // Please avoid using `propsRef` unless you can thoroughly reason through why
-    // it's safe!
+    // Please avoid using `propsRef` unless you can thoroughly reason through why it's
+    // safe!
     const propsRef = useRef(props);
     const routeLayoutRef = useRef(routeLayout);
     const canPrimaryInputHoverRef = useRef(canPrimaryInputHover);
@@ -1000,9 +996,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         ContentFileEntityRenderers | null | ValueStore<ContentFileEntityRenderers | null>
     >(fileEntityRenderers);
 
-    // If we're in a hot reloading environment then `fileEntityRenderersRef` should
-    // be a store so that when it changes any files are re-rendered. In production,
-    // the file renderers object is a constant that never changes.
+    // If we're in a hot reloading environment then `fileEntityRenderersRef` should be
+    // a store so that when it changes any files are re-rendered. In production, the
+    // file renderers object is a constant that never changes.
     if (
         import.meta.hot &&
         !(fileEntityRenderersRef.current !== null && "set" in fileEntityRenderersRef.current)
@@ -1071,12 +1067,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return document.activeElement === view.dom;
             },
             focus: (options?: FocusOptions) => {
-                // If we're in dual modality mode then we need to set our focused state before
-                // the editor is focusable at all.
+                // If we're in dual modality mode then we need to set our focused state before the
+                // editor is focusable at all.
                 //
-                // This is a little strange. See the same line of code in our `touchstart`
-                // handler (around `touchState`'s `finish` function) for a more thorough
-                // explanation of what's happening here.
+                // This is a little strange. See the same line of code in our `touchstart` handler
+                // (around `touchState`'s `finish` function) for a more thorough explanation of
+                // what's happening here.
                 if (isDualModalityRef.current) {
                     flushSync(() => setIsFocused(true));
                 }
@@ -1160,17 +1156,16 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const [fileDropTarget, setFileDropTarget] = useState<ContentEditorFileDropTarget | null>(null);
 
-    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
-    // docs say only CSS-in-JS libraries should use it.
+    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the docs
+    // say only CSS-in-JS libraries should use it.
     //
     // Wait what?? A `rootElement` parameter??? That's not documented? What the what?
     //
-    // Read the documentation comment on `<TaskRowTitleInput>`. This is how we
-    // render the non-React ProseMirror `EditorView`. It's essential for
-    // performance on `<TaskRowTitleInput>`, it's not essential for performance
-    // here. But we use this pattern everywhere we render an `EditorView` for
-    // consistency and since we believe this is the proper way to manually mutate
-    // the DOM in React.
+    // Read the documentation comment on `<TaskRowTitleInput>`. This is how we render
+    // the non-React ProseMirror `EditorView`. It's essential for performance on
+    // `<TaskRowTitleInput>`, it's not essential for performance here. But we use this
+    // pattern everywhere we render an `EditorView` for consistency and since we
+    // believe this is the proper way to manually mutate the DOM in React.
     useInsertionEffect((rootElement?: HTMLDivElement) => {
         assert(rootElement);
 
@@ -1186,25 +1181,23 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             editable: () =>
                 initialHasEditAccessLevel &&
-                // On mobile devices we implement dual interaction modality. Before any
-                // interaction the content is read-only. Tapping on links follows the link
-                // instead of editing the content. Tapping on text switches to an editing
-                // modality and now while in an editing modality tapping on a link edits the
-                // link's text.
+                // On mobile devices we implement dual interaction modality. Before any interaction
+                // the content is read-only. Tapping on links follows the link instead of editing
+                // the content. Tapping on text switches to an editing modality and now while in an
+                // editing modality tapping on a link edits the link's text.
                 !initialIsDualModality,
 
             attributes: {
                 // Native spellcheck is often more distracting then it's worth. It puts a red
-                // squiggly under names, nouns, industry terms, and oddly sometimes
-                // contractions (like "they're", maybe has to do with curly quotes?).
+                // squiggly under names, nouns, industry terms, and oddly sometimes contractions
+                // (like "they're", maybe has to do with curly quotes?).
                 //
                 // It's also inconsistent with `<input>`s which don't have spellcheck on by
                 // default.
                 //
-                // In iOS, however, the native spellchecker is _essential_ for proper
-                // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
-                // spell check results show up inline instead of requiring a right click (which
-                // we override).
+                // In iOS, however, the native spellchecker is _essential_ for proper document
+                // editing. Since typos abound on mobile keyboards. Unlike on web, iOS spell check
+                // results show up inline instead of requiring a right click (which we override).
                 ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
             },
 
@@ -1241,16 +1234,15 @@ function ContentEditor<Content extends ContentWithReferences>(
             lastSpacingScale = spacingScale;
 
             lastScrollMargin = {
-                // If our schema has a title then use the title's padding top as our top
-                // margin. This has two important effects:
+                // If our schema has a title then use the title's padding top as our top margin.
+                // This has two important effects:
                 //
-                // 1. Content with titles (documents) also typically have a navigation bar.
-                //    Since the title padding is larger than our navigation bar height while
-                //    moving up with arrow keys the selection won't be covered by the
-                //    navigation bar.
+                // 1. Content with titles (documents) also typically have a navigation bar. Since
+                //    the title padding is larger than our navigation bar height while moving up
+                //    with arrow keys the selection won't be covered by the navigation bar.
                 //
-                // 2. Moving up through content with arrow keys and arriving at the title will
-                //    have fully scrolled the editor to the top of the view.
+                // 2. Moving up through content with arrow keys and arriving at the title will have
+                //    fully scrolled the editor to the top of the view.
                 top: schema.nodes.title
                     ? getElementSafeAreaInsetTopPx(view.dom) +
                       convertRemLengthToPx(
@@ -1266,9 +1258,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     : scrollMarginPx,
                 left:
                     scrollMarginPx +
-                    // This is the base width of code block line numbers. When scrolling left, to
-                    // make sure the selection is visible we should scroll past line numbers which
-                    // cover up content.
+                    // This is the base width of code block line numbers. When scrolling left, to make
+                    // sure the selection is visible we should scroll past line numbers which cover up
+                    // content.
                     convertRemLengthToPx(contentStyles.listItemIndentation, spacingScale),
                 right: scrollMarginPx,
                 bottom: scrollMarginPx,
@@ -1281,9 +1273,8 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                            Node and mark views                             *
         \* ========================================================================== */
 
-        // IMPORTANT: If you have a custom view in `nodeViews` here you should also
-        // have a matching custom renderer in `nodeRenderers` in
-        // `renderContentToHtml()`.
+        // IMPORTANT: If you have a custom view in `nodeViews` here you should also have a
+        // matching custom renderer in `nodeRenderers` in `renderContentToHtml()`.
         viewProps.nodeViews = {
             orderedListItem: createContentEditorOrderedListItemNodeView,
             checkListItem: createContentEditorCheckListItemNodeViewConstructor({
@@ -1307,8 +1298,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                         wasPressed: false,
                     }),
                 onCodeBlockCopyButtonHoverEnd: () => {
-                    // We intentionally do not remove our tooltip state when the hover ends. Since
-                    // we need to wait until the tooltip fades out on its own.
+                    // We intentionally do not remove our tooltip state when the hover ends. Since we
+                    // need to wait until the tooltip fades out on its own.
                 },
                 onCodeBlockCopyButtonPress: targetElement => {
                     codeBlockCopyButtonTooltipRef.current?.skipTooltipHoverDelayAndAnimation();
@@ -1375,9 +1366,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
         };
 
-        // IMPORTANT: If you have a custom view in `markViews` here you should also
-        // have a matching custom renderer in `markRenderers` in
-        // `renderContentToHtml()`.
+        // IMPORTANT: If you have a custom view in `markViews` here you should also have a
+        // matching custom renderer in `markRenderers` in `renderContentToHtml()`.
         viewProps.markViews = {
             link: createContentEditorLinkMarkViewConstructor({
                 canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
@@ -1386,14 +1376,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // We don't want to open floaters on mobile.
                     if (getPlatformWithoutListening() === "mobile") return;
 
-                    // Don't open the pointer link floater if the pointer was down when it entered
-                    // the link. Since the user is probably trying to drag to select some text.
+                    // Don't open the pointer link floater if the pointer was down when it entered the
+                    // link. Since the user is probably trying to drag to select some text.
                     if (wasPointerDown) return;
 
                     const floaterState = getContentEditorFloaterState(view.state);
 
-                    // Don't open pointer link preview if the current floater is a comment
-                    // input floater.
+                    // Don't open pointer link preview if the current floater is a comment input
+                    // floater.
                     if (floaterState.type !== "CommentInput") {
                         view.dispatch(
                             setContentEditorFloaterState(view.state.tr, {
@@ -1455,28 +1445,27 @@ function ContentEditor<Content extends ContentWithReferences>(
             // Don't perform the default ProseMirror behavior when clicking a file.
             //
             // We have pointer event listeners in `content_editor_file_node_view.ts` that
-            // implements selecting the file on shift click and opening the attachment
-            // viewer otherwise.
+            // implements selecting the file on shift click and opening the attachment viewer
+            // otherwise.
             if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
                 return true;
             }
         };
 
-        // ProseMirror provides its own triple click selection support. This is good,
-        // the browser's triple click support doesn't work well with
-        // `contenteditable="false"` children. e.g. A mention in a paragraph (the
-        // mention is `contenteditable="false"`). The browser default won't select the
-        // whole paragraph on triple click. Or a paragraph followed by a `fileFloat` or
-        // `fileRow` (which are also `contenteditable="false"`). A triple click for
-        // paragraphs followed by files moves the cursor to the start of the paragraph
-        // instead of selecting the paragraph.
+        // ProseMirror provides its own triple click selection support. This is good, the
+        // browser's triple click support doesn't work well with `contenteditable="false"`
+        // children. e.g. A mention in a paragraph (the mention is
+        // `contenteditable="false"`). The browser default won't select the whole paragraph
+        // on triple click. Or a paragraph followed by a `fileFloat` or `fileRow` (which
+        // are also `contenteditable="false"`). A triple click for paragraphs followed by
+        // files moves the cursor to the start of the paragraph instead of selecting the
+        // paragraph.
         //
         // ProseMirror's triple click support works consistently unlike the browser.
-        // However, ProseMirror doesn't implement dragging the mouse after a triple
-        // click to move the selection like the browser does. And preventing the
-        // browser default with `event.preventDefault()` means the browser won't move
-        // the selection during a drag. So we reimplement dragging the selection after
-        // a triple click here.
+        // However, ProseMirror doesn't implement dragging the mouse after a triple click
+        // to move the selection like the browser does. And preventing the browser default
+        // with `event.preventDefault()` means the browser won't move the selection during
+        // a drag. So we reimplement dragging the selection after a triple click here.
         viewProps.handleTripleClick = (view, pos, event) => {
             // Don't perform the default ProseMirror behavior when clicking a file.
             if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
@@ -1539,15 +1528,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             // entire table structure in the slice, even when the user only selected content
             // within a cell (not using CellSelection).
             //
-            // Solution: If table nodes appear in the slice without an explicit
-            // CellSelection, extract just the cell's content and remove the table
-            // structure.
+            // Solution: If table nodes appear in the slice without an explicit CellSelection,
+            // extract just the cell's content and remove the table structure.
             //
-            // Apply this custom copy logic only for slices which have single cell
-            // content from the table. For other cases, we use ProseMirror's default copy behavior.
+            // Apply this custom copy logic only for slices which have single cell content from
+            // the table. For other cases, we use ProseMirror's default copy behavior.
             //
-            // `extractedDepth` is used to adjust the `openStart` and `openEnd` of the slice
-            // to account for the depth of the table nodes in the slice.
+            // `extractedDepth` is used to adjust the `openStart` and `openEnd` of the slice to
+            // account for the depth of the table nodes in the slice.
             if (isExclusivelyTableSingleCellContent && !isCellSelection) {
                 let extractedDepth = 0;
                 // recursive function to get the content from `tableCell` node
@@ -1579,9 +1567,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.transformPasted = slice => {
-            // When pasting a slice that starts with a heading and has some other nodes,
-            // make sure we always use an `openStart` of 0 so the heading doesn't merge
-            // with the previous node.
+            // When pasting a slice that starts with a heading and has some other nodes, make
+            // sure we always use an `openStart` of 0 so the heading doesn't merge with the
+            // previous node.
             if (
                 slice.content.firstChild?.type.name === "heading" &&
                 slice.content.childCount > 1 &&
@@ -1590,9 +1578,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 slice = new Slice(slice.content, 0, slice.openEnd);
             }
 
-            // If the slice is a `codeBlock` with a single line then instead of trying to
-            // paste a code block, instead paste the individual text nodes with code
-            // styling.
+            // If the slice is a `codeBlock` with a single line then instead of trying to paste
+            // a code block, instead paste the individual text nodes with code styling.
             if (
                 slice.content.childCount === 1 &&
                 slice.content.firstChild!.type.name === "codeBlock" &&
@@ -1626,8 +1613,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         // When using a client generated `FileId` the server expects the `FileId` to be
-        // within a 4 minute window of the current time. To prevent issues with clock
-        // skew let's use our synchronized clock to generate the `FileId`.
+        // within a 4 minute window of the current time. To prevent issues with clock skew
+        // let's use our synchronized clock to generate the `FileId`.
         const generateFileIdWithSynchronizedClock = () => {
             const clock =
                 getSynchronizedSystemClock().getStateWithoutListening().value ??
@@ -1637,41 +1624,40 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.transformPastedDOM = element => {
-            // File copy/pasting is tricky. In the content itself a file is represented as
-            // a node with only a `FileId`. Data about the file is available on the side
-            // in `ContentReferences` and often needs to be loaded from the server.
+            // File copy/pasting is tricky. In the content itself a file is represented as a
+            // node with only a `FileId`. Data about the file is available on the side in
+            // `ContentReferences` and often needs to be loaded from the server.
             //
-            // The format of pasted content is HTML. We generate HTML when copying files
-            // that should be compatible with a broad range of applications. For example,
-            // file nodes become `<img>` elements.
+            // The format of pasted content is HTML. We generate HTML when copying files that
+            // should be compatible with a broad range of applications. For example, file nodes
+            // become `<img>` elements.
             //
             // We can be receiving pasted files that:
             //
             // 1. Was copied in Alpine; OR
             // 2. Was copied from a different application
             //
-            // In case 1 we already have the file uploaded to our servers. What we want to
-            // do here is create another file attachment link from wherever the file is
-            // coming from (which we store in a `data-cy-attached` attribute) to the
+            // In case 1 we already have the file uploaded to our servers. What we want to do
+            // here is create another file attachment link from wherever the file is coming
+            // from (which we store in a `data-cy-attached` attribute) to the
             // `FileAttachmentTarget` of our content editor.
             //
             // In case 2 we want to download the file from its URL and upload it to our
-            // servers. We also do this for files from different spaces since file storage
-            // is scoped to a space.
+            // servers. We also do this for files from different spaces since file storage is
+            // scoped to a space.
             //
-            // There's a bit of juggling we need to do in this code. `handlePaste` is where
-            // we implement asynchronous pastes. However, `handlePaste` receives a
-            // ProseMirror `Slice` that only contains file nodes with their `FileId`s.
-            // Knowledge about whether we're in case 1 or case 2 and the source URL of
-            // files we're pasting is available only in the HTML here in
-            // `transformPastedDOM`. We bridge this gap with `temporaryPastedFileInfoById`.
-            // `transformPastedDOM` adds additional information about each file we're
-            // pasting in `temporaryPastedFileInfoById` and `handlePaste` reads from this
-            // map for each `FileId` it found in the pasted ProseMirror `Slice`. Not very
-            // elegant but it gets the job done.
+            // There's a bit of juggling we need to do in this code. `handlePaste` is where we
+            // implement asynchronous pastes. However, `handlePaste` receives a ProseMirror
+            // `Slice` that only contains file nodes with their `FileId`s. Knowledge about
+            // whether we're in case 1 or case 2 and the source URL of files we're pasting is
+            // available only in the HTML here in `transformPastedDOM`. We bridge this gap with
+            // `temporaryPastedFileInfoById`. `transformPastedDOM` adds additional information
+            // about each file we're pasting in `temporaryPastedFileInfoById` and `handlePaste`
+            // reads from this map for each `FileId` it found in the pasted ProseMirror
+            // `Slice`. Not very elegant but it gets the job done.
             //
-            // `handleDrop` also uses paste logic for parsing dropped content. So we need
-            // to use `temporaryPastedFileInfoById` in `handleDrop` as well!
+            // `handleDrop` also uses paste logic for parsing dropped content. So we need to
+            // use `temporaryPastedFileInfoById` in `handleDrop` as well!
             if (schema.nodes.file) {
                 for (const {element: fileElement, info: fileInfo} of iterateFileInfosInElement(
                     element,
@@ -1686,14 +1672,14 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                     switch (fileInfo.type) {
                         case "AttachFileEntity": {
-                            // Ignore file entities. The ProseMirror schema will be able to successfully
-                            // parse a file entity node from an `<iframe>` element. We don't need to
-                            // preserve any additional state from the DOM.
+                            // Ignore file entities. The ProseMirror schema will be able to successfully parse
+                            // a file entity node from an `<iframe>` element. We don't need to preserve any
+                            // additional state from the DOM.
                             break;
                         }
                         case "AttachFile": {
-                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                            // use this map synchronously after `transformPastedDOM`.
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will use
+                            // this map synchronously after `transformPastedDOM`.
                             if (temporaryPastedFileInfoById === undefined) {
                                 temporaryPastedFileInfoById = new Map();
                                 scheduleMicrotask(() => {
@@ -1712,8 +1698,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                         case "UploadFile": {
                             const fileId = generateFileIdWithSynchronizedClock();
 
-                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                            // use this map synchronously after `transformPastedDOM`.
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will use
+                            // this map synchronously after `transformPastedDOM`.
                             if (temporaryPastedFileInfoById === undefined) {
                                 temporaryPastedFileInfoById = new Map();
                                 scheduleMicrotask(() => {
@@ -1734,13 +1720,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
                 }
             }
-            // If this `<ContentEditor>` doesn't support files then we completely remove
-            // file elements from pasted content. We don't want to leave whitespace where
-            // there used to be files.
+            // If this `<ContentEditor>` doesn't support files then we completely remove file
+            // elements from pasted content. We don't want to leave whitespace where there used
+            // to be files.
             //
-            // We'll call `onPasteOrDropFiles` later in `handlePaste` or `handleDrop` to
-            // let our parent choose to handle files separately. (e.g. `<MessageInput>`
-            // will attach the files to the message.)
+            // We'll call `onPasteOrDropFiles` later in `handlePaste` or `handleDrop` to let
+            // our parent choose to handle files separately. (e.g. `<MessageInput>` will attach
+            // the files to the message.)
             else {
                 for (const {element: fileElement, info: fileInfo} of iterateFileInfosInElement(
                     element,
@@ -1783,10 +1769,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
-            // Go through all entity mentions and remove the `data-cy-mention` attribute
-            // for any that come from a different space then the one we're currently in.
-            // By removing the `data-cy-mention` attribute, mentions from a different space
-            // will be parsed as links instead of mentions.
+            // Go through all entity mentions and remove the `data-cy-mention` attribute for
+            // any that come from a different space then the one we're currently in. By
+            // removing the `data-cy-mention` attribute, mentions from a different space will
+            // be parsed as links instead of mentions.
             for (const mentionElement of element.querySelectorAll("a[data-cy-mention]")) {
                 const href = mentionElement.getAttribute("href");
                 if (!href) {
@@ -1811,16 +1797,16 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         /**
-         * Shared function for handling paste and drop events. Paste and drop events
-         * have the following in common we want to keep consistent:
+         * Shared function for handling paste and drop events. Paste and drop events have
+         * the following in common we want to keep consistent:
          *
-         * - If `slice` is empty (ProseMirror couldn't parse content from `text/html`)
-         *   then we want to look in `dataTransfer` for files and paste those.
+         * - If `slice` is empty (ProseMirror couldn't parse content from `text/html`) then
+         *   we want to look in `dataTransfer` for files and paste those.
          *
          * - If `slice` has content references then we need to load those content
-         *   references into our editor. If some of those content references are files
-         *   then we need to attach the files to our attachment target and maybe upload
-         *   the files.
+         *   references into our editor. If some of those content references are files then
+         *   we need to attach the files to our attachment target and maybe upload the
+         *   files.
          */
         function handleInsertSlice<
             const Remember extends ReadonlyArray<number | Selection | null>,
@@ -1842,20 +1828,20 @@ function ContentEditor<Content extends ContentWithReferences>(
             ) => void;
         }) {
             // If we're dropping or pasting an empty slice that means ProseMirror couldn't
-            // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
-            // use `FileProcessorService` to attach the file to our content.
+            // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's use
+            // `FileProcessorService` to attach the file to our content.
             if (
                 !schema.nodes.file &&
                 dataTransfer?.items &&
                 // If `transformPastedDOM` already parsed some files from HTML then ignore any
-                // files in `dataTransfer`. We assume all files were included as `<img>` or
-                // other supported tags in the HTML so any additional files in `dataTransfer`
-                // must be redundant.
+                // files in `dataTransfer`. We assume all files were included as `<img>` or other
+                // supported tags in the HTML so any additional files in `dataTransfer` must be
+                // redundant.
                 //
-                // This case happens if you right-click to copy an image in Alpine. The
-                // resulting `dataTransfer` will have an `image/png` file and `text/html`. We
-                // should prefer the `text/html` data since it includes a link to the full
-                // resolution image whereas `image/png` will have reduced resolution.
+                // This case happens if you right-click to copy an image in Alpine. The resulting
+                // `dataTransfer` will have an `image/png` file and `text/html`. We should prefer
+                // the `text/html` data since it includes a link to the full resolution image
+                // whereas `image/png` will have reduced resolution.
                 (!temporaryPastedFileInfosForParent ||
                     temporaryPastedFileInfosForParent.length === 0)
             ) {
@@ -1882,13 +1868,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 slice.size === 0 &&
                 dataTransfer?.items &&
                 // If `transformPastedDOM` already parsed some files from HTML then ignore any
-                // files in `dataTransfer`. We assume all files were included as `<img>` or
-                // other supported tags in the HTML so any additional files in `dataTransfer`
-                // must be redundant.
+                // files in `dataTransfer`. We assume all files were included as `<img>` or other
+                // supported tags in the HTML so any additional files in `dataTransfer` must be
+                // redundant.
                 //
-                // NOTE(calebmer): This is to match the above behavior when there is no file in
-                // the schema. I believe checking `slice.size === 0` also has a similar effect:
-                // if there was a file in the parsed DOM then it should now be in the inserted
+                // NOTE(calebmer): This is to match the above behavior when there is no file in the
+                // schema. I believe checking `slice.size === 0` also has a similar effect: if
+                // there was a file in the parsed DOM then it should now be in the inserted
                 // `slice`. This may be unnecessary but including it anyway for consistency.
                 (!temporaryPastedFileInfoById || temporaryPastedFileInfoById.size === 0)
             ) {
@@ -1897,8 +1883,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 for (const item of dataTransfer.items) {
                     if (item.kind !== "file") continue;
 
-                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                    // use this map synchronously.
+                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will use
+                    // this map synchronously.
                     if (temporaryPastedFileInfoById === undefined) {
                         temporaryPastedFileInfoById = new Map();
                         scheduleMicrotask(() => {
@@ -1945,8 +1931,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             const referencedIds = getContentReferencedIdsForSlice(slice);
 
-            // If there's some references in the paste then let's perform an asynchronous
-            // paste where we load all requisite data first.
+            // If there's some references in the paste then let's perform an asynchronous paste
+            // where we load all requisite data first.
             if (isEmptyContentReferencedIds(referencedIds)) {
                 action(initialRemember, slice, () => view.state.tr);
                 return;
@@ -1982,9 +1968,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // While performing an asynchronous paste or drop we show a "Pasting" loading
             // indicator. We intentionally show a loading indicator that says "Pasting" for
-            // both asynchronous pastes and asynchronous drops. I feel like the copy
-            // "Dropping" might confuse the user since they might not associate the word
-            // "drop" with their drag operation.
+            // both asynchronous pastes and asynchronous drops. I feel like the copy "Dropping"
+            // might confuse the user since they might not associate the word "drop" with their
+            // drag operation.
             addGlobalLoadingIndicatorRef.current(promise, {type: "Pasting"});
 
             promise.catch(error => {
@@ -2013,8 +1999,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     const temporaryPastedFileInfo = temporaryPastedFileInfoById?.get(fileId);
                     if (!temporaryPastedFileInfo) return null;
 
-                    // Make sure `fileAttachmentTarget` actually exists before trying to attach
-                    // files. Otherwise we'll get a "Document not found" error or similar.
+                    // Make sure `fileAttachmentTarget` actually exists before trying to attach files.
+                    // Otherwise we'll get a "Document not found" error or similar.
                     if (propsRef.current.onEnsureFileAttachmentTarget) {
                         ensureFileAttachmentTargetPromise ??=
                             propsRef.current.onEnsureFileAttachmentTarget();
@@ -2027,9 +2013,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                         case "AttachFile": {
                             const fromTarget = temporaryPastedFileInfo.target;
 
-                            // If the file is already in our view's references that means it's already
-                            // been loaded and we have the requisite permissions for it. No file loading
-                            // needed.
+                            // If the file is already in our view's references that means it's already been
+                            // loaded and we have the requisite permissions for it. No file loading needed.
                             if (
                                 getContentEditorReferences(view.state).references.fileById?.has(
                                     fileId,
@@ -2037,9 +2022,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                             ) {
                                 return null;
                             }
-                            // If we're trying to attach the file to the same attachment target it's from
-                            // then we don't need to perform another attach mutation. Instead, all we need
-                            // to do is load the file (since it's not in our references).
+                            // If we're trying to attach the file to the same attachment target it's from then
+                            // we don't need to perform another attach mutation. Instead, all we need to do is
+                            // load the file (since it's not in our references).
                             else if (isDeepEqual(fromTarget, toTarget)) {
                                 return getFileFromAttachment(context, {
                                     spaceId: temporaryPastedFileInfo.spaceId,
@@ -2071,8 +2056,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             const actualPromise = uploadFile(context, {
                                 spaceId,
-                                // Use the `FileId` generated by the client and used in the pasted `Slice`
-                                // instead of generating a new `FileId` on the server.
+                                // Use the `FileId` generated by the client and used in the pasted `Slice` instead
+                                // of generating a new `FileId` on the server.
                                 fileId,
                                 attachmentTarget: toTarget,
                                 input: temporaryPastedFileInfo.input,
@@ -2099,9 +2084,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                             promiseWaiter.waitUntil(promise);
 
                             // While a file is uploading show an "Uploading" loading indicator with the
-                            // progress percentage. If multiple files are uploading at once then the
-                            // global loading indicator implementation is responsible for putting together
-                            // an aggregated summary.
+                            // progress percentage. If multiple files are uploading at once then the global
+                            // loading indicator implementation is responsible for putting together an
+                            // aggregated summary.
                             addGlobalLoadingIndicatorRef.current(promise, {
                                 type: "Uploading",
                                 progressStore: actualPromise.progressStore,
@@ -2119,8 +2104,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     runAllPromises(mapIterable(referencedIds.fileIds, processFile)),
                 ]);
 
-                // Any new paste transaction should start by updating content references with
-                // the data we just asynchronously fetched.
+                // Any new paste transaction should start by updating content references with the
+                // data we just asynchronously fetched.
                 const createTransaction = () =>
                     updateContentEditorReferences(
                         view.state.tr,
@@ -2156,9 +2141,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             let selection = view.state.selection;
 
             // If the slice is empty, check if there's `text/uri-list` and parse that. On
-            // mobile Safari if you open the share menu then click "Copy" the clipboard
-            // content will only contain the URL in `text/uri-list`. So we must support
-            // this content type to support pasting links from Safari's share menu.
+            // mobile Safari if you open the share menu then click "Copy" the clipboard content
+            // will only contain the URL in `text/uri-list`. So we must support this content
+            // type to support pasting links from Safari's share menu.
             if (slice.size === 0 && event.clipboardData?.types.includes("text/uri-list")) {
                 const uriListString = event.clipboardData.getData("text/uri-list");
 
@@ -2172,12 +2157,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 slice = new Slice(Fragment.from(uriListNodes), 0, 0);
             }
 
-            // If the selection starts in our title, then shift the selection out of the
-            // title. That way if we paste a paragraph in the title the paragraph doesn't
-            // become the title. Making a 50 word paragraph the title just feels broken.
+            // If the selection starts in our title, then shift the selection out of the title.
+            // That way if we paste a paragraph in the title the paragraph doesn't become the
+            // title. Making a 50 word paragraph the title just feels broken.
             //
-            // If the first child we're pasting is a heading then leave the selection as it
-            // is. We want headings to fill the title.
+            // If the first child we're pasting is a heading then leave the selection as it is.
+            // We want headings to fill the title.
             if (selection.$from.parent.type.name === "title") {
                 if (slice.content.firstChild?.type.name !== "heading") {
                     selection = TextSelection.between(
@@ -2187,20 +2172,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                             : selection.$to,
                     );
                 } else {
-                    // Make sure if we're pasting a `heading` node into a `title` node the
-                    // `openStart` is always at least 1 so the heading can fill the title instead
-                    // of creating a new block below.
+                    // Make sure if we're pasting a `heading` node into a `title` node the `openStart`
+                    // is always at least 1 so the heading can fill the title instead of creating a new
+                    // block below.
                     if (slice.openStart < 1) {
                         slice = new Slice(slice.content, 1, slice.openEnd);
                     }
 
-                    // If we're pasting a `heading` node into a `title` node and we have another
-                    // block node besides the first `heading` node and the node after the `title`
-                    // node is an empty paragraph then let's have our selection include the
-                    // paragraph.
+                    // If we're pasting a `heading` node into a `title` node and we have another block
+                    // node besides the first `heading` node and the node after the `title` node is an
+                    // empty paragraph then let's have our selection include the paragraph.
                     //
-                    // This way if the user pastes into an empty document they won't have a
-                    // trailing paragraph at the end.
+                    // This way if the user pastes into an empty document they won't have a trailing
+                    // paragraph at the end.
                     if (
                         selection.$from.pos === selection.$to.pos &&
                         selection.$from.parentOffset === selection.$from.parent.content.size &&
@@ -2222,8 +2206,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
-            // If we're pasting a URL for a `SearchEntityId` in an empty paragraph then
-            // instead of pasting the URL text we want to paste a file node.
+            // If we're pasting a URL for a `SearchEntityId` in an empty paragraph then instead
+            // of pasting the URL text we want to paste a file node.
             if (spaceContextRef.current && selection.from === selection.to) {
                 const entityId = parseSearchEntityIdFromUrl(
                     spaceContextRef.current.space.id,
@@ -2238,9 +2222,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                         node.childCount === 0 &&
                         (parentNode.type.name === "doc" || parentNode.type.name === "tableCell");
 
-                    // If the selection is in an empty paragraph directly in the `doc` node
-                    // (or `tableCell`) then replace the paragraph with a file entity. Otherwise
-                    // we insert a mention.
+                    // If the selection is in an empty paragraph directly in the `doc` node (or
+                    // `tableCell`) then replace the paragraph with a file entity. Otherwise we insert
+                    // a mention.
                     if (isEmptyParagraphInDoc && isFileEntityId(entityId)) {
                         if (schema.nodes.fileRow && schema.nodes.file) {
                             slice = new Slice(
@@ -2253,9 +2237,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 0,
                             );
                         }
-                        // If our parent component provided an `onPasteOrDropFiles` prop when we don't
-                        // have `fileRow` or `file` nodes then empty `slice` (so the link isn't pasted)
-                        // and add the file entity to the `onPasteOrDropFiles` call.
+                        // If our parent component provided an `onPasteOrDropFiles` prop when we don't have
+                        // `fileRow` or `file` nodes then empty `slice` (so the link isn't pasted) and add
+                        // the file entity to the `onPasteOrDropFiles` call.
                         else if (propsRef.current.onPasteOrDropFiles) {
                             slice = Slice.empty;
 
@@ -2275,8 +2259,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             });
                         }
                     }
-                    // If we're not in an empty paragraph then insert a mention when pasting
-                    // a link.
+                    // If we're not in an empty paragraph then insert a mention when pasting a link.
                     else {
                         if (isSearchMentionEntityId(entityId)) {
                             const mention: ContentMention = {
@@ -2338,8 +2321,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             isSync = false;
 
-            // Pass any files from this paste or drop we didn't handle to our parent
-            // component.
+            // Pass any files from this paste or drop we didn't handle to our parent component.
             if (
                 temporaryPastedFileInfosForParent &&
                 temporaryPastedFileInfosForParent.length > 0 &&
@@ -2358,8 +2340,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         viewProps.handleDrop = (_view, event, slice, move, $mouse) => {
-            // If we detected that this is a file drag then we want to use the drop target
-            // we rendered for the user instead of ProseMirror's default drop position
+            // If we detected that this is a file drag then we want to use the drop target we
+            // rendered for the user instead of ProseMirror's default drop position
             // determination logic (the `$mouse` position and `dropPoint()` function).
             const initialFileDropTarget =
                 fileDragState &&
@@ -2402,18 +2384,18 @@ function ContentEditor<Content extends ContentWithReferences>(
                           }
                         : null;
 
-                    // NOTE: This if branch will only be executed if drop target is present
-                    // that indicates we are dragging a single file.
-                    // hence in the current slice only file will be present, so we can
-                    // ignore other edge cases where slice may contain other nodes.
+                    // NOTE: This if branch will only be executed if drop target is present that
+                    // indicates we are dragging a single file. hence in the current slice only file
+                    // will be present, so we can ignore other edge cases where slice may contain other
+                    // nodes.
                     if (fileDropTarget) {
                         if (slice.size === 0) return;
 
                         assert(fileDropTarget.action);
 
                         // Make sure every node in the slice is a `file`. `fileDropTarget` will only be
-                        // non-null if `isDraggingFile` was true when the drop started and every child
-                        // of `slice` is either a `fileRow` or a `file`.
+                        // non-null if `isDraggingFile` was true when the drop started and every child of
+                        // `slice` is either a `fileRow` or a `file`.
                         if (slice.content.content.some(node => node.type.name === "file")) {
                             slice = new Slice(
                                 Fragment.from(
@@ -2468,8 +2450,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         const $pos = transaction.doc.resolve(pos);
                         switch (fileDropTarget.action.type) {
                             case "InsertFileRow": {
-                                // If we're dragging a file float then preserve the file float
-                                // styling.
+                                // If we're dragging a file float then preserve the file float styling.
                                 if (
                                     isDraggingFileFloat &&
                                     slice.content.content.length === 1 &&
@@ -2493,10 +2474,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     );
                                 }
 
-                                // If we are draging a fileRowTable node from the table and dropping
-                                // it outside of the table then we need to convert the fileRowTable
-                                // into a fileRow, otherwise we will end up with a fileRowTable node
-                                // inside a `content_document`.
+                                // If we are draging a fileRowTable node from the table and dropping it outside of
+                                // the table then we need to convert the fileRowTable into a fileRow, otherwise we
+                                // will end up with a fileRowTable node inside a `content_document`.
                                 if (
                                     slice.content.content.length === 1 &&
                                     slice.content.content[0]!.type.name === "fileRowTable"
@@ -2514,7 +2494,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     );
                                 }
 
-                                //  Empty paragraph after cursor
+                                // Empty paragraph after cursor
                                 if (
                                     $pos.nodeAfter?.type.name === "paragraph" &&
                                     $pos.nodeAfter.content.size === 0
@@ -2565,8 +2545,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     }
                                 }
 
-                                // A non-empty slice will have at least one `FileId`. If the slice is
-                                // empty then we return above.
+                                // A non-empty slice will have at least one `FileId`. If the slice is empty then we
+                                // return above.
                                 assert(fileNodes.length > 0);
 
                                 // We need to use the first file node instead of creating a new node from the
@@ -2579,8 +2559,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     .setSelection(new NodeSelection($newPos))
                                     .scrollIntoView();
 
-                                // If there's more than one file, then add all additional files as new rows
-                                // after the row we inserted into.
+                                // If there's more than one file, then add all additional files as new rows after
+                                // the row we inserted into.
                                 if (fileNodes.length > 1) {
                                     const fileNodesByRow: Array<Array<Node>> = [[]];
 
@@ -2629,8 +2609,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                 fileNodes.push(fileNode);
                                             }
                                         } else if (sourceNode.type.name === "file") {
-                                            // very unlikely to happen
-                                            // Direct file node
+                                            // very unlikely to happen Direct file node
                                             fileNodes.push(sourceNode);
                                         }
                                     }
@@ -2691,14 +2670,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
 
                     // NOTE(rohit): This is a hack to ensure that the slice is transformed for the
-                    // content table. This happens when you drag and drop a slice which may or may
-                    // not contain any file nodes.
+                    // content table. This happens when you drag and drop a slice which may or may not
+                    // contain any file nodes.
                     //
-                    // While file drag and drop only generated drop indications when we drag single file.
-                    // Although a user can select multiple nodes including multiple files and then they can
-                    // drag the whole slice and drop in the `content_table`
-                    // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
-                    // fileRowTable nodes we transform the slice here.
+                    // While file drag and drop only generated drop indications when we drag single
+                    // file. Although a user can select multiple nodes including multiple files and
+                    // then they can drag the whole slice and drop in the `content_table` To ensure
+                    // that we still are able to convert the fileRow/ fileFloat nodes into fileRowTable
+                    // nodes we transform the slice here.
                     if (isPosInContentTable($mouse)) {
                         const [transformedSlice, remainingSlice] = transformPastedForContentTable(
                             schema,
@@ -2723,8 +2702,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L674-L707
                     //
                     // Except use `selection` which may be different than `view.state.selection` and
-                    // our re-defined `$mouse` variable since the position may have moved while we
-                    // were asynchronously processing the drop.
+                    // our re-defined `$mouse` variable since the position may have moved while we were
+                    // asynchronously processing the drop.
 
                     let insertPos = slice
                         ? dropPoint(view.state.doc, $mouse.pos, slice)
@@ -2734,9 +2713,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     const transaction = createTransaction();
                     if (move) {
                         selection
-                            // We need to map `selection` because `createTransaction()` may insert some
-                            // stuff (e.g. `remainingSlice` from `transformPastedForContentTable()`) into
-                            // the document above our selection.
+                            // We need to map `selection` because `createTransaction()` may insert some stuff
+                            // (e.g. `remainingSlice` from `transformPastedForContentTable()`) into the
+                            // document above our selection.
                             .map(transaction.doc, transaction.mapping)
                             .replace(transaction);
                     }
@@ -2782,8 +2761,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             });
 
-            // Pass any files from this paste or drop we didn't handle to our parent
-            // component.
+            // Pass any files from this paste or drop we didn't handle to our parent component.
             if (
                 temporaryPastedFileInfosForParent &&
                 temporaryPastedFileInfosForParent.length > 0 &&
@@ -2792,8 +2770,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 propsRef.current.onPasteOrDropFiles(temporaryPastedFileInfosForParent);
             }
 
-            // We completely override ProseMirror's drop logic and implement our own. Our
-            // paste logic is derived from ProseMirror's drop logic.
+            // We completely override ProseMirror's drop logic and implement our own. Our paste
+            // logic is derived from ProseMirror's drop logic.
             return true;
         };
 
@@ -2810,8 +2788,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const fileId = generateFileIdWithSynchronizedClock();
                 fileIds.push(fileId);
 
-                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                // use this map synchronously after `transformPastedDOM`.
+                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will use
+                // this map synchronously after `transformPastedDOM`.
                 if (temporaryPastedFileInfoById === undefined) {
                     temporaryPastedFileInfoById = new Map();
                     scheduleMicrotask(() => {
@@ -2870,10 +2848,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                     // The various code paths we support here:
                     //
-                    // 1. Inserting a file from the insert menu. In a document the insert menu can
-                    //    be found either in the "more" menu or from a right click. We support
-                    //    inserting both when the selection is in text and when we have a file
-                    //    `NodeSelection`.
+                    // 1. Inserting a file from the insert menu. In a document the insert menu can be
+                    //    found either in the "more" menu or from a right click. We support inserting
+                    //    both when the selection is in text and when we have a file `NodeSelection`.
                     //
                     // 2. Replacing a file from the replace button in `<ContentEditorFileToolbar>`.
                     //
@@ -2892,8 +2869,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             transaction.insert(pos, slice.content);
 
-                            // Make sure we select the first file after inserting so the user can make
-                            // further modifications from there (like left/right aligning the file).
+                            // Make sure we select the first file after inserting so the user can make further
+                            // modifications from there (like left/right aligning the file).
                             if (slice.content.firstChild) {
                                 const $newPos = findInsertedNodeAfterReplaceRangeWith(
                                     $pos,
@@ -2908,9 +2885,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 }
                             }
                         }
-                        // If we're inserting into a file row that's not full, let's add files to the
-                        // row until the row is full and then start adding file rows after the full
-                        // file row.
+                        // If we're inserting into a file row that's not full, let's add files to the row
+                        // until the row is full and then start adding file rows after the full file row.
                         else {
                             const maxInsertChildCount = 3 - $pos.parent.childCount;
 
@@ -2971,8 +2947,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 selection.replace(transaction, slice);
                             }
 
-                            // Make sure we select the first file after inserting so the user can make
-                            // further modifications from there (like left/right aligning the file).
+                            // Make sure we select the first file after inserting so the user can make further
+                            // modifications from there (like left/right aligning the file).
                             if (slice.content.firstChild) {
                                 const $newPos = findInsertedNodeAfterReplaceRangeWith(
                                     selection.$from,
@@ -2987,9 +2963,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 }
                             }
                         }
-                        // If this is a file node selection then take the first file from our
-                        // `fileRow`(s) slice and replace the selected `FileId` with that first file.
-                        // All other files will be added to `fileRow`s below.
+                        // If this is a file node selection then take the first file from our `fileRow`(s)
+                        // slice and replace the selected `FileId` with that first file. All other files
+                        // will be added to `fileRow`s below.
                         else {
                             assert(fileIds.length > 0);
 
@@ -3002,10 +2978,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // If there were more than one `FileId`s then add them in rows after the file
                             // parent we updated.
                             //
-                            // NOTE(calebmer, 2024-10-15): I don't think this code path runs in practice.
-                            // The replace file button only allows uploading a single file and the insert
-                            // menu code path intentionally moves the selection off a file so we don't
-                            // replace it. I include this code path only for completeness.
+                            // NOTE(calebmer, 2024-10-15): I don't think this code path runs in practice. The
+                            // replace file button only allows uploading a single file and the insert menu code
+                            // path intentionally moves the selection off a file so we don't replace it. I
+                            // include this code path only for completeness.
                             {
                                 const fileIdsByRow: Array<Array<FileId | null>> = [[]];
 
@@ -3078,9 +3054,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 (isAppleDevice || !event.metaKey) &&
                 // On a physical keyboard where the user has access to Shift+Enter we sometimes
                 // want enter to send the message or otherwise save what's being edited. On a
-                // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter
-                // to insert a newline and have the user submit their message with a
-                // button press.
+                // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter to
+                // insert a newline and have the user submit their message with a button press.
                 !isVirtualKeyboardEvent(event)
             ) {
                 propsRef.current.onEnterKeyDownFromPhysicalKeyboard(event);
@@ -3100,11 +3075,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 if (event.defaultPrevented) return true;
             }
 
-            // Override copy keyboard shortcut when copying files. For some reason the
-            // browser doesn't execute the `copy` event when there's a file
-            // `NodeSelection`. Even if it did, it's still good to run
-            // `handleContentFileCopy()` since it'll write an `image/png` to the clipboard
-            // as well.
+            // Override copy keyboard shortcut when copying files. For some reason the browser
+            // doesn't execute the `copy` event when there's a file `NodeSelection`. Even if it
+            // did, it's still good to run `handleContentFileCopy()` since it'll write an
+            // `image/png` to the clipboard as well.
             if (
                 event.key === "c" &&
                 (isAppleDevice ? event.metaKey : event.ctrlKey) &&
@@ -3145,13 +3119,13 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.handleScrollToSelection = () => {
-            // Before scrolling to selection, synchronously flush scrollbar resizes. When
-            // the user is deleting content, our custom scrollbar from `scrollbar.tsx`'s
-            // height will shrink once `ResizeObserver` or `MutationObserver` call their
-            // callbacks. However, ProseMirror will call its `scrollRectIntoView()`
-            // function BEFORE these callbacks are called. Leading to an incorrect scroll
-            // because the parent element's scroll height is larger than it should be given
-            // our custom scrollbar from `scrollbar.tsx` hasn't updated its height yet.
+            // Before scrolling to selection, synchronously flush scrollbar resizes. When the
+            // user is deleting content, our custom scrollbar from `scrollbar.tsx`'s height
+            // will shrink once `ResizeObserver` or `MutationObserver` call their callbacks.
+            // However, ProseMirror will call its `scrollRectIntoView()` function BEFORE these
+            // callbacks are called. Leading to an incorrect scroll because the parent
+            // element's scroll height is larger than it should be given our custom scrollbar
+            // from `scrollbar.tsx` hasn't updated its height yet.
             //
             // The fix is to make sure we synchronously flush scrollbar resizes before
             // `scrollRectIntoView()` is called.
@@ -3162,8 +3136,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             // [1]: https://gist.github.com/calebmer/7ac49a81c466b14cf3bac987e7bb65a9
             flushScrollbarResizeSync(view.dom);
 
-            // If the user is in a table then we want to scroll to the edges of the table
-            // cell that we're in instead of the edge of the text.
+            // If the user is in a table then we want to scroll to the edges of the table cell
+            // that we're in instead of the edge of the text.
             if (
                 view.state.selection instanceof TextSelection &&
                 isPosInContentTable(view.state.selection.$head)
@@ -3210,10 +3184,10 @@ function ContentEditor<Content extends ContentWithReferences>(
             mousedown: (view, event) => {
                 const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
 
-                // If clicking below all content (in the bottom padding area) and the last
-                // block is not a paragraph, insert an empty paragraph and put the cursor
-                // there. This provides a convenient way to continue typing after ending a
-                // document with a non-paragraph block like a code block, quote, or list.
+                // If clicking below all content (in the bottom padding area) and the last block is
+                // not a paragraph, insert an empty paragraph and put the cursor there. This
+                // provides a convenient way to continue typing after ending a document with a
+                // non-paragraph block like a code block, quote, or list.
                 if (
                     propsRef.current.withMouseDownAtEndCreatesParagraph &&
                     posResult &&
@@ -3256,13 +3230,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                 if (view.hasFocus()) return false;
 
                 // If the `<ContentEditor>` is unfocused and the user clicks inside with their
-                // mouse then focus the position they clicked on `mousedown`. ProseMirror will
-                // set the selection on `mouseup` ([part 1][1], [part 2][2]) but we want the
-                // selection to be set on `mousedown` instead as that's what's consistent with
-                // browser behavior.
+                // mouse then focus the position they clicked on `mousedown`. ProseMirror will set
+                // the selection on `mouseup` ([part 1][1], [part 2][2]) but we want the selection
+                // to be set on `mousedown` instead as that's what's consistent with browser
+                // behavior.
                 //
-                // [1]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L294
-                // [2]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L401
+                // [1]:
+                //     https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L294
+                // [2]:
+                //     https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L401
 
                 if (posResult) {
                     const $pos = view.state.doc.resolve(posResult.pos);
@@ -3286,10 +3262,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewProps.dispatchTransaction = transaction => {
             const oldState = view.state;
 
-            // By default, applying a transaction will clear the editor's stored
-            // marks. We don't want that behavior! Instead we want to preserve stored marks
-            // until a user either explicitly toggles them off or moves their selection
-            // somewhere else in the document.
+            // By default, applying a transaction will clear the editor's stored marks. We
+            // don't want that behavior! Instead we want to preserve stored marks until a user
+            // either explicitly toggles them off or moves their selection somewhere else in
+            // the document.
             const shouldResetStoredMarks = !transaction.docChanged && transaction.selectionSet;
             if (!shouldResetStoredMarks && oldState.storedMarks && !transaction.storedMarksSet) {
                 transaction.setStoredMarks(oldState.storedMarks);
@@ -3302,25 +3278,25 @@ function ContentEditor<Content extends ContentWithReferences>(
             // Always call the change handler through a ref. By using a ref we can avoid
             // destroying and recreating an editor when the function changes.
             //
-            // We also must flush synchronously. Since ProseMirror preserves local DOM
-            // state when we call `updateState()` synchronously but won't otherwise.
+            // We also must flush synchronously. Since ProseMirror preserves local DOM state
+            // when we call `updateState()` synchronously but won't otherwise.
             //
-            // See the "Efficient updating" section in the [editor view guide][1].
-            // If we don't synchronously apply the transaction it is considered
-            // cancelled. A quote from the guide:
+            // See the "Efficient updating" section in the [editor view guide][1]. If we don't
+            // synchronously apply the transaction it is considered cancelled. A quote from the
+            // guide:
             //
-            // > When such a transaction is canceled or modified somehow, the view
-            // > will undo the DOM change...
+            // > When such a transaction is canceled or modified somehow, the view will undo
+            // > the DOM change...
             //
             // [1]: https://prosemirror.net/docs/guide/#view
             flushSync(() => {
                 propsRef.current.onChange(wrap(newState), transaction);
             });
 
-            // If the state change was accepted (`view.updateState()` was called by
-            // `onChange` triggering a React re-render which is synchronous thanks to
-            // `flushSync()` which runs the layout effect in `<ContentEditor>` which calls
-            // `view.updateState()`) then tell our spell checker about the transaction.
+            // If the state change was accepted (`view.updateState()` was called by `onChange`
+            // triggering a React re-render which is synchronous thanks to `flushSync()` which
+            // runs the layout effect in `<ContentEditor>` which calls `view.updateState()`)
+            // then tell our spell checker about the transaction.
             if (view.state !== oldState) {
                 spellChecker?.handleTransaction(transaction);
             }
@@ -3346,46 +3322,48 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         if (isMobileWebKit) {
-            // NOTE(calebmer, #mobile-webkit-weirdness): This is a fix for what I consider
-            // to be a Safari bug. In iOS the selection highlight and caret color is
-            // controlled by the `caret-color` CSS property. On desktop the caret color
-            // defaults to the current text color. On iOS the caret color defaults to
-            // `WKWebView`'s `tintColor` property. On desktop, we want the caret color to
-            // be `grey-100` even while in a link so the cursor color doesn't change as the
-            // user moves it across different styles. So we set `caret-color` to `grey-100`
-            // in `content_schema.css.ts`. However on iOS we want the caret/selection color
-            // to be `WKWebView`'s `tintColor`. The problem is:
+            // NOTE(calebmer, #mobile-webkit-weirdness): This is a fix for what I consider to
+            // be a Safari bug. In iOS the selection highlight and caret color is controlled by
+            // the `caret-color` CSS property. On desktop the caret color defaults to the
+            // current text color. On iOS the caret color defaults to `WKWebView`'s `tintColor`
+            // property. On desktop, we want the caret color to be `grey-100` even while in a
+            // link so the cursor color doesn't change as the user moves it across different
+            // styles. So we set `caret-color` to `grey-100` in `content_schema.css.ts`.
+            // However on iOS we want the caret/selection color to be `WKWebView`'s
+            // `tintColor`. The problem is:
             //
-            // 1. Setting [`caret-color: initial` in WebKit also sets the stored caret
-            //    color (which initially is null) to the current text color][1]
-            // 2. If the `WKWebView`'s `tintColor` is specifically `UIColor.systemBlue`
-            //    (the default `tintColor`) [WebKit uses the stored caret color][2] if it's
-            //    not null instead of `tintColor`
+            // 1. Setting [`caret-color: initial` in WebKit also sets the stored caret color
+            //    (which initially is null) to the current text color][1]
+            // 2. If the `WKWebView`'s `tintColor` is specifically `UIColor.systemBlue` (the
+            //    default `tintColor`) [WebKit uses the stored caret color][2] if it's not null
+            //    instead of `tintColor`
             //
-            // 1 seems like the correct behavior on MacOS Safari but on iOS Safari when we
-            // set `caret-color: initial` we want `WKWebView`'s `tintColor` even if it's
-            // `UIColor.systemBlue`. Not the text color which is black. This seems like a
-            // bug in iOS Safari but it's easy to workaround by manually setting caret
-            // color back to `UIColor.systemBlue`.
+            // 1 seems like the correct behavior on MacOS Safari but on iOS Safari when we set
+            // `caret-color: initial` we want `WKWebView`'s `tintColor` even if it's
+            // `UIColor.systemBlue`. Not the text color which is black. This seems like a bug
+            // in iOS Safari but it's easy to workaround by manually setting caret color back
+            // to `UIColor.systemBlue`.
             //
-            // This will override `WKWebView`'s custom `tintColor` if `tintColor` not
-            // system blue so we have to be a little careful. In our native mobile app we
-            // set a non-system blue `tintColor` so we need to set `caret-color: initial`
-            // when running in our native mobile app shell.
+            // This will override `WKWebView`'s custom `tintColor` if `tintColor` not system
+            // blue so we have to be a little careful. In our native mobile app we set a
+            // non-system blue `tintColor` so we need to set `caret-color: initial` when
+            // running in our native mobile app shell.
             //
-            // [1]: https://github.com/WebKit/WebKit/blob/ccd45357bd2ad7e46bbf93b899234eeb1c62cca2/Source/WebCore/rendering/style/RenderStyleSetters.h#L171
-            // [2]: https://github.com/WebKit/WebKit/blob/1a78cf12c8f5ff2e296f7eb25ff4bcbc86cfbfe8/Source/WebKit/UIProcess/ios/WKContentViewInteraction.mm#L4341-L4345
+            // [1]:
+            //     https://github.com/WebKit/WebKit/blob/ccd45357bd2ad7e46bbf93b899234eeb1c62cca2/Source/WebCore/rendering/style/RenderStyleSetters.h#L171
+            // [2]:
+            //     https://github.com/WebKit/WebKit/blob/1a78cf12c8f5ff2e296f7eb25ff4bcbc86cfbfe8/Source/WebKit/UIProcess/ios/WKContentViewInteraction.mm#L4341-L4345
             view.dom.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
         }
 
-        // Manage content editor's dual input modality on mobile devices. Content
-        // editor starts in a read only state where elements are interactive and after
-        // a tap becomes editable.
+        // Manage content editor's dual input modality on mobile devices. Content editor
+        // starts in a read only state where elements are interactive and after a tap
+        // becomes editable.
         //
         // NOTE(calebmer): The logic here also exists in a nearly identical form in
-        // `<TaskRowTitleInput>` since that component supports dual modality on mobile
-        // too. If you make a change here you probably also want to make a change
-        // there and vice versa.
+        // `<TaskRowTitleInput>` since that component supports dual modality on mobile too.
+        // If you make a change here you probably also want to make a change there and vice
+        // versa.
         let handleDocumentSelectionChange: () => void;
         {
             let touchState: {
@@ -3412,8 +3390,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     if (event.touches.length !== 1) return;
                     const touch = event.touches[0]!;
 
-                    // If there's a focused element this tap dismisses the focus. It doesn't make
-                    // the editor editable.
+                    // If there's a focused element this tap dismisses the focus. It doesn't make the
+                    // editor editable.
                     if (
                         (document.activeElement && document.activeElement !== document.body) ||
                         view.state.selection instanceof NodeSelection
@@ -3442,8 +3420,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
 
                     // If the touch target is a link or image or comment or some other interactive
-                    // element, then they handle the touch event. The touch will not give our
-                    // editor focus.
+                    // element, then they handle the touch event. The touch will not give our editor
+                    // focus.
                     if (isTargetInteractive) return;
 
                     // If there's a selection this tap dismisses the selection. It doesn't make the
@@ -3477,21 +3455,21 @@ function ContentEditor<Content extends ContentWithReferences>(
                             });
                             if (!posResult) return;
 
-                            // By default, iOS will move the selection to the end of the word you touched.
-                            // We instead want focus moved to the selection specified in our
-                            // `setSelection()` call.
+                            // By default, iOS will move the selection to the end of the word you touched. We
+                            // instead want focus moved to the selection specified in our `setSelection()`
+                            // call.
                             event.preventDefault();
 
                             // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
-                            // handler after `focus()` is called? Well in this case our editor is not
-                            // editable if we are in dual modality state and `isFocused` is false. When our
-                            // editor is not editable it's also not focusable. So we need to set `isFocused`
-                            // to true to be able to focus!
+                            // handler after `focus()` is called? Well in this case our editor is not editable
+                            // if we are in dual modality state and `isFocused` is false. When our editor is
+                            // not editable it's also not focusable. So we need to set `isFocused` to true to
+                            // be able to focus!
                             //
                             // We must call `focus()` during the `touchend` event since iOS won't open the
                             // software keyboard unless focus happens in a user-initiated event. So we call
-                            // `flushSync()` to make sure `isFocused` is updated synchronously so we can
-                            // call `focus()` synchronously.
+                            // `flushSync()` to make sure `isFocused` is updated synchronously so we can call
+                            // `focus()` synchronously.
                             flushSync(() => setIsFocused(true));
                             view.focus();
 
@@ -3519,8 +3497,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             );
 
             view.dom.addEventListener("touchend", event => {
-                // If our tap state hasn't been cancelled we actually successfully received
-                // a tap!
+                // If our tap state hasn't been cancelled we actually successfully received a tap!
                 touchState?.finish(event);
                 touchState = null;
             });
@@ -3531,9 +3508,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             });
 
             handleDocumentSelectionChange = () => {
-                // After a long press, iOS selects text. If we see the selection change during
-                // a tap we no longer have a tap gesture and instead we have a long press
-                // gesture.
+                // After a long press, iOS selects text. If we see the selection change during a
+                // tap we no longer have a tap gesture and instead we have a long press gesture.
                 touchState?.cancel();
                 touchState = null;
             };
@@ -3545,9 +3521,9 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                       Drag and drop events (part 2)                        *
         \* ========================================================================== */
 
-        // Manage the file drag interaction. While the user is dragging we'll update
-        // our `fileDropTarget` state with the rendered drop target. When the user
-        // drops we process the drop in `handleDrop` above.
+        // Manage the file drag interaction. While the user is dragging we'll update our
+        // `fileDropTarget` state with the rendered drop target. When the user drops we
+        // process the drop in `handleDrop` above.
         let fileDragState: ContentEditorFileDragState | null = null;
 
         view.dom.addEventListener("dragenter", event => {
@@ -3584,10 +3560,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             view.destroy();
         };
 
-        // IMPORTANT: If the view ref ever changes I suspect things will start
-        // breaking. (Though I'm not entirely sure.) Child components may be written
-        // assuming a constant view. Make sure this is always an empty
-        // dependency array.
+        // IMPORTANT: If the view ref ever changes I suspect things will start breaking.
+        // (Though I'm not entirely sure.) Child components may be written assuming a
+        // constant view. Make sure this is always an empty dependency array.
         //
         // Don't ignore `react-hooks/exhaustive-deps` ESLint warnings! Instead remove
         // whatever's causing the warning.
@@ -3602,9 +3577,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         readonly element: HTMLElement;
     } | null>(null);
 
-    // Reconcile our imperative `EditorView` state with state from React. If this
-    // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
-    // then this should be flushed synchronously given this is a layout effect.
+    // Reconcile our imperative `EditorView` state with state from React. If this is
+    // run by `dispatchTransaction()` (which updates state in `flushSync()`) then this
+    // should be flushed synchronously given this is a layout effect.
     useLayoutEffect(() => {
         const newState = unwrap(state);
 
@@ -3618,22 +3593,21 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (transaction?.doc !== newState.doc) transaction = null;
 
         // When ProseMirror applies a mark like `code` or `italic`, under the hood what
-        // happens is the text to be marked is removed from the DOM. Then a new
-        // `<code>` or `<em>` element is inserted into the DOM. Removing the text from
-        // the DOM sometimes causes the content editor to temporarily shrink. Then
-        // adding the text back sets the content editor back to its original size.
+        // happens is the text to be marked is removed from the DOM. Then a new `<code>` or
+        // `<em>` element is inserted into the DOM. Removing the text from the DOM
+        // sometimes causes the content editor to temporarily shrink. Then adding the text
+        // back sets the content editor back to its original size.
         //
-        // To explain this visually. Let's say you have the following wrapped text in
-        // your content editor.
+        // To explain this visually. Let's say you have the following wrapped text in your
+        // content editor.
         //
         // ```
         // The quick brown fox jumps over
         // the lazy dog
         // ```
         //
-        // I'm selecting "over the lazy dog" to turn it into italic text. To produce
-        // this change in the DOM, ProseMirror will first _delete_ the text "over the
-        // lazy dog".
+        // I'm selecting "over the lazy dog" to turn it into italic text. To produce this
+        // change in the DOM, ProseMirror will first _delete_ the text "over the lazy dog".
         //
         // ```
         // The quick brown fox jumps
@@ -3646,14 +3620,14 @@ function ContentEditor<Content extends ContentWithReferences>(
         // the lazy dog</em>
         // ```
         //
-        // So you can see that temporarily the content editor's height went from 2
-        // lines of text to 1 line of text.
+        // So you can see that temporarily the content editor's height went from 2 lines of
+        // text to 1 line of text.
         //
         // This causes a bug in `<ChatView>` (and perhaps other message surfaces). In
         // `<ChatView>` we use `display: flex` with the chat messages setting
-        // `flex-grow: 1` and the chat message input setting `flex-shrink: 1`. So the
-        // chat messages take up all vertical space not used by the message input. The
-        // chat messages is a scrollable area usually scrolled to bottom.
+        // `flex-grow: 1` and the chat message input setting `flex-shrink: 1`. So the chat
+        // messages take up all vertical space not used by the message input. The chat
+        // messages is a scrollable area usually scrolled to bottom.
         //
         // If the chat message input shrinks then grows then the chat message area will
         // grow then shrink! Causing the chat message area to scroll up if it was
@@ -3661,11 +3635,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         //
         // The fix is to set `min-height` on the content editor right before calling
         // `view.updateState()` when ProseMirror applies its updates to the DOM. Then
-        // removing `min-height` after `view.updateState()` finishes. That way the
-        // content editor never shrinks below its original height when content is
-        // temporarily removed.
+        // removing `min-height` after `view.updateState()` finishes. That way the content
+        // editor never shrinks below its original height when content is temporarily
+        // removed.
         //
-        // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/zkhvbgxayzf05xzt2bm7p9veyg
+        // [1]:
+        //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/zkhvbgxayzf05xzt2bm7p9veyg
         const previousMinHeight = view.dom.style.minHeight;
         try {
             const viewRect = view.dom.getBoundingClientRect();
@@ -3699,8 +3674,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         const selection = state.getSelection();
 
         // Keep track of the element ProseMirror marks as selected with the
-        // `ProseMirror-selectednode` CSS class so that we can render our own custom
-        // ring around it.
+        // `ProseMirror-selectednode` CSS class so that we can render our own custom ring
+        // around it.
         //
         // Don't render a `<FocusRing>` for selected mentions.
         if (!(selection instanceof NodeSelection) || selection.node.type.name === "mention") {
@@ -3721,8 +3696,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
         }
 
-        // Emit a content references change for any subscribers (typically node views
-        // which depend on content references).
+        // Emit a content references change for any subscribers (typically node views which
+        // depend on content references).
         if (
             referencesUpdateEmitterRef.current &&
             getContentEditorReferences(oldState).references !==
@@ -3731,11 +3706,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             referencesUpdateEmitterRef.current.emit();
         }
 
-        // Close the history stack if we're making cross-node edits. If we're
-        // editing within an `inlineContent` node then allow history entries to be
-        // grouped but if we're editing across nodes (e.g. typing in a paragraph, then
-        // hit enter, then created a code block all within the history debounce delay)
-        // we want to close history each time the selected node changes while editing.
+        // Close the history stack if we're making cross-node edits. If we're editing
+        // within an `inlineContent` node then allow history entries to be grouped but if
+        // we're editing across nodes (e.g. typing in a paragraph, then hit enter, then
+        // created a code block all within the history debounce delay) we want to close
+        // history each time the selected node changes while editing.
         if (oldState.doc !== newState.doc) {
             const isTypingWithinInlineContent =
                 oldState.selection.$from.parent.inlineContent &&
@@ -3787,13 +3762,13 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const [isFocused, setIsFocused] = useState(false);
 
-    // Make sure `isFocused` is false if we can't edit since the content editor
-    // will be `contenteditable="false"`.
+    // Make sure `isFocused` is false if we can't edit since the content editor will be
+    // `contenteditable="false"`.
     if (isFocused && !hasEditAccessLevel) setIsFocused(false);
 
-    // Will be true if the selection has entered the `<ContentEditor>` but the
-    // editor isn't focused. For example, when `accessLevel` is `View` and we're
-    // selecting text.
+    // Will be true if the selection has entered the `<ContentEditor>` but the editor
+    // isn't focused. For example, when `accessLevel` is `View` and we're selecting
+    // text.
     const [hasSelectionEnteredWhenUnfocused, setHasSelectionEnteredWhenUnfocused] = useState(false);
     if (isFocused && hasSelectionEnteredWhenUnfocused) setHasSelectionEnteredWhenUnfocused(false);
 
@@ -3825,8 +3800,8 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                              View attributes                               *
     \* ========================================================================== */
 
-    // Apply `className`s from our `className` prop. Take care to make sure class
-    // names added by ProseMirror or other effects continue to be applied.
+    // Apply `className`s from our `className` prop. Take care to make sure class names
+    // added by ProseMirror or other effects continue to be applied.
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
         const viewElement = view.dom;
@@ -3947,8 +3922,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
-        // Adds the `emptyTitleClassName` class if the editor document is empty and
-        // removes the class when the editor document is not empty.
+        // Adds the `emptyTitleClassName` class if the editor document is empty and removes
+        // the class when the editor document is not empty.
         {
             if (
                 isTitleEmpty &&
@@ -4036,8 +4011,8 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                         Shift or alt keydown class                         *
     \* ========================================================================== */
 
-    // Apply a class to the view element depending on whether the shift key is
-    // down or not.
+    // Apply a class to the view element depending on whether the shift key is down or
+    // not.
     useLayoutEffect(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
@@ -4077,8 +4052,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         // If we shift-right click to open the native context menu it appears that in
-        // Chrome we won't get a shift `keyup` event. So cancel our shift/alt keydown
-        // state when the context menu opens.
+        // Chrome we won't get a shift `keyup` event. So cancel our shift/alt keydown state
+        // when the context menu opens.
         const handleContextMenu = () => {
             isShiftKeyDown = false;
             isAltKeyDown = false;
@@ -4199,8 +4174,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     // selection some style so the user knows what the floater is editing.
     //
     // This is important for the link and highlight floater which gives the user's
-    // keyboard focus to another element that's still targeting the content editor.
-    // So the user needs to see what content their link/highlight will apply to.
+    // keyboard focus to another element that's still targeting the content editor. So
+    // the user needs to see what content their link/highlight will apply to.
     useLayoutEffect(() => {
         assert(viewRef.current);
         const view = viewRef.current;
@@ -4210,8 +4185,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             const floaterState = getContentEditorFloaterState(state);
 
             switch (floaterState.type) {
-                // While the comment input is open, optimistically add the highlight style so
-                // the user doesn't lose track of the text they selected.
+                // While the comment input is open, optimistically add the highlight style so the
+                // user doesn't lose track of the text they selected.
                 case "CommentInput": {
                     return decorationSet.add(state.doc, [
                         Decoration.inline(state.selection.from, state.selection.to, {
@@ -4239,9 +4214,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const handleFocusChange = (event?: globalThis.FocusEvent) => {
             // If `<ContentEditor>` is focused when `view.destroy()` is called then
-            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will
-            // cause React to log a warning. So don't change state if the view is
-            // destroyed.
+            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will cause
+            // React to log a warning. So don't change state if the view is destroyed.
             if (viewRef.current !== view) return;
 
             const focusedElement =
@@ -4267,8 +4241,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     });
 
                     // Keep track of the element ProseMirror marks as selected with the
-                    // `ProseMirror-selectednode` CSS class so that we can render our own custom
-                    // ring around it.
+                    // `ProseMirror-selectednode` CSS class so that we can render our own custom ring
+                    // around it.
                     //
                     // We have this code here in addition to in the state update `useLayoutEffect()`
                     // because we've observed sometimes ProseMirror doesn't set the
@@ -4334,16 +4308,15 @@ function ContentEditor<Content extends ContentWithReferences>(
     \* ========================================================================== */
 
     // Highlights the selection of all our phantom text selections using the
-    // ProseMirror decoration feature. We render `phantomSelections` in two
-    // parts:
+    // ProseMirror decoration feature. We render `phantomSelections` in two parts:
     //
     // 1. The phantom text selection (only if the selection is not empty)
     // 2. The text selection cursor head
     //
     // 1 is rendered using the PromiseMirror decoration feature. 2 is rendered as
-    // standard React components since inserting an element into the DOM between
-    // some characters breaks kerning. Which causes some jitter when user quickly
-    // moves their phantom cursor around.
+    // standard React components since inserting an element into the DOM between some
+    // characters breaks kerning. Which causes some jitter when user quickly moves
+    // their phantom cursor around.
     useLayoutEffect(() => {
         if (!phantomSelections || phantomSelections.length === 0) return;
 
@@ -4366,8 +4339,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
             return decorationSet.add(
                 state.doc,
-                // We need to copy the array since it looks like `DecorationSet.add()`
-                // mutates it?
+                // We need to copy the array since it looks like `DecorationSet.add()` mutates it?
                 decorations.flatMap(decoration => decoration(state)),
             );
         };
@@ -4391,21 +4363,20 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                          Scroll press cancelling                           *
     \* ========================================================================== */
 
-    // Watch all parent elements of our content editor for scroll events. When a
-    // scroll event occurs we want to call
-    // `dispatchParentScrollWhenPointerDownAndOverEvent()` on any pressable
-    // elements.
+    // Watch all parent elements of our content editor for scroll events. When a scroll
+    // event occurs we want to call `dispatchParentScrollWhenPointerDownAndOverEvent()`
+    // on any pressable elements.
     //
     // This replicates the behavior in `@react-aria/interactions` where a press is
-    // cancelled when a parent element scrolls. This behavior is important for
-    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // cancelled when a parent element scrolls. This behavior is important for mobile
+    // since the user must press somewhere on the screen to scroll. Normally
     // `pointercancel` should be dispatched when the user scrolls while pressing on
-    // some element but when the CSS `touch-action: manipulation` is set the press
-    // is not cancelled.
+    // some element but when the CSS `touch-action: manipulation` is set the press is
+    // not cancelled.
     //
     // We can't add listeners to parent scroll elements in our link/mark view code
-    // because ProseMirror does not offer us a cleanup hook for mark views! So we
-    // add listeners at this level and call
+    // because ProseMirror does not offer us a cleanup hook for mark views! So we add
+    // listeners at this level and call
     // `dispatchParentScrollWhenPointerDownAndOverEvent()`.
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
@@ -4466,10 +4437,10 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             for (const element of view.dom.querySelectorAll(
                 parentScrollWhenPointerDownAndOverClassNames
-                    // Find all elements with the provided class names and exclude elements that
-                    // are children of a file node. File entities may recursively render content
-                    // (e.g. document file entities). The content within file entities is inert
-                    // so shouldn't get any interactive behaviors.
+                    // Find all elements with the provided class names and exclude elements that are
+                    // children of a file node. File entities may recursively render content (e.g.
+                    // document file entities). The content within file entities is inert so shouldn't
+                    // get any interactive behaviors.
                     .map(className => `.${className}:not(.${fileClassName} .${className})`)
                     .join(", "),
             )) {
@@ -4615,9 +4586,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         readonly isVisible: boolean;
     } | null>(null);
 
-    // Whenever this component renders check that `targetElement` is still in the
-    // DOM. If it's not (maybe `attr`s changed or another user removed it) then
-    // reset our state to null.
+    // Whenever this component renders check that `targetElement` is still in the DOM.
+    // If it's not (maybe `attr`s changed or another user removed it) then reset our
+    // state to null.
     if (
         codeBlockLanguagePickerState &&
         !document.body.contains(codeBlockLanguagePickerState.targetElement)
@@ -4656,9 +4627,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         readonly wasPressed: boolean;
     } | null>(null);
 
-    // Whenever this component renders check that `targetElement` is still in the
-    // DOM. If it's not (maybe `attr`s changed or another user removed it) then
-    // reset our state to null.
+    // Whenever this component renders check that `targetElement` is still in the DOM.
+    // If it's not (maybe `attr`s changed or another user removed it) then reset our
+    // state to null.
     if (
         codeBlockCopyButtonTooltipState &&
         (platform === "mobile" ||
@@ -4682,8 +4653,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             withoutDefaultActions?: boolean;
             withSelectionAlignment?: boolean;
         } => {
-            // You can't undo, redo, or insert if you don't have edit access to the
-            // document.
+            // You can't undo, redo, or insert if you don't have edit access to the document.
             if (!hasEditAccessLevel) return {actions: emptyArray};
 
             const view = assertExists(viewRef.current);
@@ -4693,8 +4663,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             if (lints.length > 0) {
                 const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
 
-                // If the user right clicked into a lint then we want to show suggestions for
-                // that lint.
+                // If the user right clicked into a lint then we want to show suggestions for that
+                // lint.
                 const selectedLint = posResult
                     ? lints.find(lint => {
                           if (lint.from <= posResult.pos && posResult.pos <= lint.to) {
@@ -4853,9 +4823,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                         actions: lintMenuActions,
                         // Don't show standard text input copy/paste actions.
                         withoutDefaultActions: true,
-                        // Align the context menu next to the selection, not precisely next to the
-                        // cursor. The user should be able to read the content and interpret the
-                        // suggestion relative to the content.
+                        // Align the context menu next to the selection, not precisely next to the cursor.
+                        // The user should be able to read the content and interpret the suggestion
+                        // relative to the content.
                         withSelectionAlignment: true,
                     };
                 }
@@ -4895,9 +4865,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         [canRedo, canUndo, clientInfo.isAppleDevice, hasEditAccessLevel, schema],
     );
 
-    // Manually add context menu actions on `contextmenu` event since we can't
-    // render a `<ContextMenu>` component which would break our
-    // `useInsertionEffect()`.
+    // Manually add context menu actions on `contextmenu` event since we can't render a
+    // `<ContextMenu>` component which would break our `useInsertionEffect()`.
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
 
@@ -4967,8 +4936,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 !fileDropTarget &&
                 selectedNodeState &&
                 // Only show the focus ring for selected nodes while editing. Unless we have
-                // comment access and we've selected a file node. Since we still show the
-                // toolbar for selected files with the only option being "Comment".
+                // comment access and we've selected a file node. Since we still show the toolbar
+                // for selected files with the only option being "Comment".
                 (hasEditAccessLevel ||
                     (hasAccessLevel(accessLevel, "Comment") &&
                         unwrappedState.selection instanceof NodeSelection &&
@@ -5012,8 +4981,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 />
             )}
             {mobileLinkModalState && (
-                // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
-                // that when we go inert this is still rendered.
+                // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so that
+                // when we go inert this is still rendered.
                 <MobileFullScreenModal onClose={() => setMobileLinkModalState(null)}>
                     {({onCloseWithAnimation}) => (
                         <ContentEditorMobileLinkModal
@@ -5027,8 +4996,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 </MobileFullScreenModal>
             )}
             {schema.marks.comment && isMobileCommentInputOpen && (
-                // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
-                // that when we go inert this is still rendered.
+                // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so that
+                // when we go inert this is still rendered.
                 <ContentEditorMobileCommentInputBottomBar
                     state={unwrappedState}
                     viewRef={viewRef}
@@ -5042,12 +5011,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     isVisible={codeBlockLanguagePickerState.isVisible}
                     onCloseWithAnimation={() => {
                         // NOTE(calebmer, #mobile-webkit-weirdness): Courtesy blur since WebKit doesn't
-                        // like it when a focused element is removed from the DOM. We've observed
-                        // sometimes that when this combobox closes and we don't call `blur()` WebKit
-                        // will scroll us to the bottom of the parent document! It's unclear to me what
-                        // causes this to happen but it's definitely the browser
-                        // (`register_scroll_event_debugger.ts` doesn't report a scroll from
-                        // JavaScript) and calling `blur()` beforehand helps.
+                        // like it when a focused element is removed from the DOM. We've observed sometimes
+                        // that when this combobox closes and we don't call `blur()` WebKit will scroll us
+                        // to the bottom of the parent document! It's unclear to me what causes this to
+                        // happen but it's definitely the browser (`register_scroll_event_debugger.ts`
+                        // doesn't report a scroll from JavaScript) and calling `blur()` beforehand helps.
                         //
                         // Since the language picker is a blocking overlay, while open the only focused
                         // element could be one inside the overlay.
@@ -5061,12 +5029,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }}
                     onCloseWithoutAnimation={() => {
                         // NOTE(calebmer, #mobile-webkit-weirdness): Courtesy blur since WebKit doesn't
-                        // like it when a focused element is removed from the DOM. We've observed
-                        // sometimes that when this combobox closes and we don't call `blur()` WebKit
-                        // will scroll us to the bottom of the parent document! It's unclear to me what
-                        // causes this to happen but it's definitely the browser
-                        // (`register_scroll_event_debugger.ts` doesn't report a scroll from
-                        // JavaScript) and calling `blur()` beforehand helps.
+                        // like it when a focused element is removed from the DOM. We've observed sometimes
+                        // that when this combobox closes and we don't call `blur()` WebKit will scroll us
+                        // to the bottom of the parent document! It's unclear to me what causes this to
+                        // happen but it's definitely the browser (`register_scroll_event_debugger.ts`
+                        // doesn't report a scroll from JavaScript) and calling `blur()` beforehand helps.
                         //
                         // Since the language picker is a blocking overlay, while open the only focused
                         // element could be one inside the overlay.
@@ -5104,8 +5071,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                         )
                     }
                     onStateChange={state => {
-                        // Once the tooltip completely disappears (after fade out completes) then we
-                        // can remove our tooltip state.
+                        // Once the tooltip completely disappears (after fade out completes) then we can
+                        // remove our tooltip state.
                         if (
                             !state.isHovered &&
                             !state.isFocused &&
@@ -5161,9 +5128,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     />
                 ))}
             {hasSelectionEnteredWhenUnfocused && !unwrappedState.selection.empty && (
-                // When `accessLevel` is `Comment` add a global keydown listener for the
-                // comment keyboard shortcut. Since the content editor won't be focused while
-                // in read-only mode we need to listen to global keydown events.
+                // When `accessLevel` is `Comment` add a global keydown listener for the comment
+                // keyboard shortcut. Since the content editor won't be focused while in read-only
+                // mode we need to listen to global keydown events.
                 <GlobalKeyDownEvent
                     onGlobalKeyDown={event => {
                         const view = assertExists(viewRef.current);
@@ -5209,7 +5176,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
 // Inspired by [React internal keys][1].
 //
-// [1]: https://github.com/facebook/react/blob/80c4dea0d1da0012977c6c4b2ac7a8bd37154d50/packages/react-dom/src/client/ReactDOMComponentTree.js#L34-L41
+// [1]:
+//     https://github.com/facebook/react/blob/80c4dea0d1da0012977c6c4b2ac7a8bd37154d50/packages/react-dom/src/client/ReactDOMComponentTree.js#L34-L41
 const internalEditorViewKey = `__prosemirrorEditorView$${Math.random().toString(36).slice(2)}`;
 
 // We export null outside of Jest to avoid breaking fast refresh for
@@ -5235,10 +5203,10 @@ export const getEditorViewForTest = import.meta.jest
 
 // You shouldn't use `EditorState.selection` or `Transaction.replaceSelection`
 // (which implicitly uses `EditorState.selection`) in this function. If we're
-// performing an asynchronous paste then the selection we're pasting on top of
-// (the `selection` argument) may be different than the user's current
-// selection (what's in `EditorState.selection`). Which is why we decompose
-// `EditorView` here into just the bits we need.
+// performing an asynchronous paste then the selection we're pasting on top of (the
+// `selection` argument) may be different than the user's current selection (what's
+// in `EditorState.selection`). Which is why we decompose `EditorView` here into
+// just the bits we need.
 function handlePasteAfterResolvingReferences(
     doc: Node,
     selection: Selection,
@@ -5250,8 +5218,8 @@ function handlePasteAfterResolvingReferences(
     // Convert any links in text to link marks.
     slice = transformPastedLinks(doc.type.schema, slice, selection);
 
-    // If pasting into a table, transform pasted content to make sure it matches
-    // the expected content type for a table.
+    // If pasting into a table, transform pasted content to make sure it matches the
+    // expected content type for a table.
     {
         // flag to see if any one of the node is not tableBlock, If found, then only do
         // that transformation
@@ -5282,8 +5250,8 @@ function handlePasteAfterResolvingReferences(
         }
     }
 
-    // If the selection is a file node, insert pasted content in a new paragraph after the file
-    // This matches the pattern from handleTextInput in the keymap plugin
+    // If the selection is a file node, insert pasted content in a new paragraph after
+    // the file This matches the pattern from handleTextInput in the keymap plugin
     if (selection instanceof NodeSelection && selection.node.type.name === "file") {
         const insertPosition = selection.$anchor.after();
         const transaction = createTransaction();
@@ -5306,9 +5274,9 @@ function handlePasteAfterResolvingReferences(
 
     if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event)) return;
 
-    // If we're pasting into an empty paragraph at the top level, then paste the
-    // entire slice content with `openStart` 0 to avoid losing our first node's
-    // styling and attempt to replace the paragraph.
+    // If we're pasting into an empty paragraph at the top level, then paste the entire
+    // slice content with `openStart` 0 to avoid losing our first node's styling and
+    // attempt to replace the paragraph.
     //
     // This matters when:
     //
@@ -5335,13 +5303,12 @@ function handlePasteAfterResolvingReferences(
     }
 
     // If we're pasting a code block into a code block then we want to update
-    // `openStart` and `openEnd` to 2 so we don't split the code block we're
-    // pasting into. Instead assimilating the pasted code block into the current
-    // code block.
+    // `openStart` and `openEnd` to 2 so we don't split the code block we're pasting
+    // into. Instead assimilating the pasted code block into the current code block.
     //
-    // We need this since `transformPasted` does the inverse. Making sure pasted
-    // code block content always has `openStart` and `openEnd` of 0 so we don't
-    // merge code content with some other node type.
+    // We need this since `transformPasted` does the inverse. Making sure pasted code
+    // block content always has `openStart` and `openEnd` of 0 so we don't merge code
+    // content with some other node type.
     if (
         selection.$from.parent.type.name === "codeBlockLine" &&
         selection.$to.parent.type.name === "codeBlockLine" &&
@@ -5375,13 +5342,12 @@ function handlePasteAfterResolvingReferences(
         return;
     }
 
-    // If you're pasting a list item (source list item) into another list item
-    // (target list item) then we want to keep the target list item's type and
-    // indentation level instead of overriding it with the source.
+    // If you're pasting a list item (source list item) into another list item (target
+    // list item) then we want to keep the target list item's type and indentation
+    // level instead of overriding it with the source.
     //
     // We accomplish this by "unwrapping" the source list item's contents if we're
-    // pasting into a target list item. ProseMirror will do the right thing
-    // from there.
+    // pasting into a target list item. ProseMirror will do the right thing from there.
     if (slice.openStart > 0 && slice.content.firstChild?.type.isInGroup("listItem")) {
         // Non-null if we're pasting into a list item.
         let indentForTargetListItem: number | null = null;
@@ -5450,12 +5416,12 @@ function handlePasteAfterResolvingReferences(
 /**
  * When pasting a slice that ends in a selectable node, ProseMirror puts the
  * selection into the next text block instead of in the pasted selectable node!
- * This function runs after the ProseMirror `replace()` which performs the
- * paste to detect if the last node of our slice was a selectable node and if
- * so, make sure the selection after the paste has selected the new node.
+ * This function runs after the ProseMirror `replace()` which performs the paste to
+ * detect if the last node of our slice was a selectable node and if so, make sure
+ * the selection after the paste has selected the new node.
  *
- * To reproduce this try selecting a divider, copying, then pasting the
- * divider. The divider should be selected after the paste.
+ * To reproduce this try selecting a divider, copying, then pasting the divider.
+ * The divider should be selected after the paste.
  */
 function fixNodeSelectionAfterPaste(slice: Slice, transaction: Transaction) {
     let lastSelectableChild = slice.content.lastChild;
@@ -5467,12 +5433,12 @@ function fixNodeSelectionAfterPaste(slice: Slice, transaction: Transaction) {
         lastSelectableChild = lastSelectableChild.lastChild;
     }
 
-    // The last selectable child is text content. ProseMirror will correctly place
-    // the selection at the end of the pasted content.
+    // The last selectable child is text content. ProseMirror will correctly place the
+    // selection at the end of the pasted content.
     if (!lastSelectableChild || lastSelectableChild.inlineContent) return;
 
-    // We already have a `NodeSelection`. ProseMirror correctly placed the
-    // selection in the last pasted node.
+    // We already have a `NodeSelection`. ProseMirror correctly placed the selection in
+    // the last pasted node.
     if (
         transaction.selection instanceof NodeSelection &&
         transaction.selection.node.eq(lastSelectableChild)
@@ -5480,8 +5446,8 @@ function fixNodeSelectionAfterPaste(slice: Slice, transaction: Transaction) {
         return;
     }
 
-    // Find a selection moving backwards from before the current selected node.
-    // This should be the last node in the pasted slice.
+    // Find a selection moving backwards from before the current selected node. This
+    // should be the last node in the pasted slice.
     const newSelection = Selection.findFrom(
         transaction.doc.resolve(transaction.selection.$from.before()),
         -1,
@@ -5585,8 +5551,8 @@ function transformPastedLinks(
 }
 
 /**
- * If pasting/dropping content into a table, transform pasted content to make sure it matches
- * the expected content type for a table.
+ * If pasting/dropping content into a table, transform pasted content to make sure
+ * it matches the expected content type for a table.
  */
 function transformPastedForContentTable(
     schema: ProsemirrorSchema,
@@ -5595,9 +5561,9 @@ function transformPastedForContentTable(
     const remainingContent: Array<Node> = []; // paste outside of table in next position
     const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
     slice.content.content.forEach(node => {
-        // NOTE(rohit): It is recommended that once we add one node to remainingContent, all
-        // future nodes in the slice should be remainingContent. The reason being if you paste
-        // content like this:
+        // NOTE(rohit): It is recommended that once we add one node to remainingContent,
+        // all future nodes in the slice should be remainingContent. The reason being if
+        // you paste content like this:
 
         // <p>Text explaining table 1</p>
         // <table><!-- Table 1 --></table>
@@ -5605,14 +5571,18 @@ function transformPastedForContentTable(
         // <table><!-- Table 2 --></table>
 
         // It would be weird to paste this inside the table:
+        //
         // <p>Text explaining table 1</p>
         // <p>Text explaining table 2</p>
         //
         // …and this outside the table:
+        //
         // <table><!-- Table 1 --></table>
         // <table><!-- Table 2 --></table>
         //
-        // I feel like it would make more sense to the user if we paste this inside the table:
+        // I feel like it would make more sense to the user if we paste this inside the
+        // table:
+        //
         // <p>Text explaining table 1</p>
         // …and this outside the table:
 
@@ -5620,8 +5590,8 @@ function transformPastedForContentTable(
         // <p>Text explaining table 2</p>
         // <table><!-- Table 2 --></table>
         //
-        // This doesn't break the user's intent. However reordering their content might break
-        // the user's intent!
+        // This doesn't break the user's intent. However reordering their content might
+        // break the user's intent!
         if (remainingContent.length > 0) {
             remainingContent.push(node);
             return;
@@ -5659,8 +5629,7 @@ function transformPastedForContentTable(
                         fileNodes.push(fileNode);
                     }
                 } else if (node.type.name === "file") {
-                    // very unlikely to happen
-                    // Direct file node
+                    // very unlikely to happen Direct file node
                     fileNodes.push(node);
                 }
 
@@ -5677,8 +5646,8 @@ function transformPastedForContentTable(
             }
 
             default: {
-                // Check if node is allowed in table cell
-                // Allow table block nodes, text nodes, and inline nodes (like mentions)
+                // Check if node is allowed in table cell Allow table block nodes, text nodes, and
+                // inline nodes (like mentions)
                 if (isContentTableBlockNode(node) || node.type.name === "text" || node.isInline) {
                     primaryContent.push(node);
                 } else {
@@ -5706,8 +5675,8 @@ function transformPastedForContentTable(
 }
 
 /**
- * If the user has selected some text and they paste a link then we want to
- * convert the selected text to a link instead of replacing the text.
+ * If the user has selected some text and they paste a link then we want to convert
+ * the selected text to a link instead of replacing the text.
  */
 function handleLinkPasteWithSelection(
     doc: Node,
@@ -5727,8 +5696,8 @@ function handleLinkPasteWithSelection(
         return false;
     }
 
-    // 3. Instead of replacing the selected text with the replaced text we instead
-    // add a link mark to the selection.
+    // 3. Instead of replacing the selected text with the replaced text we instead add
+    //    a link mark to the selection.
     const range = trimSpacesFromProsemirrorRange(doc, selection);
     dispatch(
         createTransaction().addMark(range.from, range.to, doc.type.schema.mark("link", {url})),
@@ -5737,19 +5706,18 @@ function handleLinkPasteWithSelection(
 }
 
 /**
- * Create decorations that carefully recreate browser text selection styles. So
- * far we've only tested this on Chrome for MacOS. May need tweaks to match
- * Windows styles.
+ * Create decorations that carefully recreate browser text selection styles. So far
+ * we've only tested this on Chrome for MacOS. May need tweaks to match Windows
+ * styles.
  *
  * Some things to consider when creating selection styles in Chrome for MacOS:
  *
- * - The height of the selection should match the text's line height. Not
- *   content height. We can't find a CSS property to let us target an inline
- *   element's line height with a background color so we carefully add some
- *   padding.
+ * - The height of the selection should match the text's line height. Not content
+ *   height. We can't find a CSS property to let us target an inline element's line
+ *   height with a background color so we carefully add some padding.
  *
- * - Selection adds some extra space at the end of selected paragraphs to show
- *   that you are selecting a newline.
+ * - Selection adds some extra space at the end of selected paragraphs to show that
+ *   you are selecting a newline.
  */
 function createPhantomSelectionDecorations(doc: Node, selection: Selection, color: ThemeColor) {
     const decorations = [
@@ -5807,13 +5775,13 @@ function createPhantomSelectionDecorations(doc: Node, selection: Selection, colo
 
 /**
  * Add a decoration for every emoji in the editor that wraps the emoji in a
- * `<span>` and changes the font to `emojiFontFamily`. Otherwise we end up
- * using characters from our default font (Inter). For example, Inter has a
- * heart glyph but we don't want to use that glyph.
+ * `<span>` and changes the font to `emojiFontFamily`. Otherwise we end up using
+ * characters from our default font (Inter). For example, Inter has a heart glyph
+ * but we don't want to use that glyph.
  *
  * Since traversing the entire doc can be expensive for large docs we have a
- * caching layer that takes advantage of structural sharing in the immutable
- * doc representation.
+ * caching layer that takes advantage of structural sharing in the immutable doc
+ * representation.
  */
 const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(node => {
     if (!node.isText) return null;
@@ -5993,9 +5961,9 @@ class ContentEditorFileDragState {
             onScroll: this._move,
         });
 
-        // Use the scrollable element as the drag container element if we have it. This
-        // way if while dragging your mouse is over some sticky element in the scroll
-        // view (e.g. the navigation bar) we'll still auto scroll.
+        // Use the scrollable element as the drag container element if we have it. This way
+        // if while dragging your mouse is over some sticky element in the scroll view
+        // (e.g. the navigation bar) we'll still auto scroll.
         this._dragContainerElement = this._autoScroll.getScrollableElement() ?? this._view.dom;
 
         this._dragContainerElement.addEventListener("dragenter", this._onDragEnter);
@@ -6017,9 +5985,9 @@ class ContentEditorFileDragState {
             event.target instanceof Element &&
             view.dom.contains(event.target) &&
             !!event.dataTransfer &&
-            // In Safari, `event.dataTransfer.items` is an empty array during the
-            // `dragenter` event but it exists in Chrome. `event.dataTransfer.types` works
-            // across both browsers.
+            // In Safari, `event.dataTransfer.items` is an empty array during the `dragenter`
+            // event but it exists in Chrome. `event.dataTransfer.types` works across both
+            // browsers.
             iterableSome(
                 event.dataTransfer.types,
                 type => type === "Files" || type === "application/x.alpine.file",
@@ -6058,11 +6026,11 @@ class ContentEditorFileDragState {
     private readonly _onDragEnter = (event: DragEvent) => {
         if (!(event.target instanceof Element) || !this._view.dom.contains(event.target)) return;
 
-        // We don't need to increment on our static `onDragEnter` function that
-        // constructs this class because that function is called in response to a
-        // `dragenter` event on our EditorView's DOM whereas this `dragenter` event is
-        // attached to our scrollable element. So due to event bubbling this method
-        // will be called immediately after the static `onDragEnter` function.
+        // We don't need to increment on our static `onDragEnter` function that constructs
+        // this class because that function is called in response to a `dragenter` event on
+        // our EditorView's DOM whereas this `dragenter` event is attached to our
+        // scrollable element. So due to event bubbling this method will be called
+        // immediately after the static `onDragEnter` function.
         this._dragEnterCount++;
     };
 
@@ -6075,9 +6043,9 @@ class ContentEditorFileDragState {
         // reliably had access to `event.relatedTarget` we'd check:
         // `this._dragContainerElement.contains(event.relatedTarget)`.
         //
-        // Instead we look at `dragenter` event counts. Once we reach 0 that means the
-        // user has fully dragged out of the container. We got the idea for this fix
-        // from [this Gist][2].
+        // Instead we look at `dragenter` event counts. Once we reach 0 that means the user
+        // has fully dragged out of the container. We got the idea for this fix from [this
+        // Gist][2].
         //
         // We use this method in Chrome as well (even though we could use
         // `event.relatedTarget`) to have consistent behavior across all browsers.
@@ -6144,17 +6112,16 @@ class ContentEditorFileDragState {
             };
         }
 
-        // User experience win: Wait 100ms to update the drop target we display. That
-        // way if the user is quickly moving their cursor over the document they don't
-        // see drop indicators flashing in and out everywhere. This is especially
-        // distracting when dragging horizontally across a file row with 2 items since
-        // a drop indicator between the two images flashes in and in doing so hides the
-        // vertical drop indicator that used to be there. This is distracting but by
-        // reusing the last drop target for 100ms we improve the UX in this case.
+        // User experience win: Wait 100ms to update the drop target we display. That way
+        // if the user is quickly moving their cursor over the document they don't see drop
+        // indicators flashing in and out everywhere. This is especially distracting when
+        // dragging horizontally across a file row with 2 items since a drop indicator
+        // between the two images flashes in and in doing so hides the vertical drop
+        // indicator that used to be there. This is distracting but by reusing the last
+        // drop target for 100ms we improve the UX in this case.
         //
-        // This function is called continuously during a drag by the `dragover` event
-        // so we don't need to schedule a timeout to call `setFileDropTarget()` after
-        // 100ms.
+        // This function is called continuously during a drag by the `dragover` event so we
+        // don't need to schedule a timeout to call `setFileDropTarget()` after 100ms.
         if (
             viewWidth === this._lastDropTarget?.viewWidth &&
             viewHeight === this._lastDropTarget.viewHeight &&
@@ -6172,8 +6139,8 @@ class ContentEditorFileDragState {
         } | null = null;
 
         for (const dropTarget of this._lastDropTargets.dropTargets) {
-            // If all our drop targets have the same `offsetParent` then we only need to
-            // call `getBoundingClientRect()` once.
+            // If all our drop targets have the same `offsetParent` then we only need to call
+            // `getBoundingClientRect()` once.
             const offsetParentRect: DOMRect | null =
                 lastOffsetParent !== dropTarget.offsetParent
                     ? (dropTarget.offsetParent?.getBoundingClientRect() ?? null)
@@ -6188,21 +6155,21 @@ class ContentEditorFileDragState {
             // https://stackoverflow.com/a/18157551/1568890
             let dx = Math.max(dropTarget.rect.left - mouseX, 0, mouseX - dropTarget.rect.right);
 
-            // We want our chosen drop target to be the nearest target vertically unless
-            // we're right on top of a horizontal target. This creates the effect of as
-            // you're dragging a file into a document you're only seeing the vertical drop
-            // indicators flash in/out. However, if you drag to the left or right edge of an
-            // existing file (or into the document margins) then you'll see horizontal drop
-            // indicators which will let you create a gallery.
+            // We want our chosen drop target to be the nearest target vertically unless we're
+            // right on top of a horizontal target. This creates the effect of as you're
+            // dragging a file into a document you're only seeing the vertical drop indicators
+            // flash in/out. However, if you drag to the left or right edge of an existing file
+            // (or into the document margins) then you'll see horizontal drop indicators which
+            // will let you create a gallery.
             //
             // What this code is doing is it penalizes horizontal distance (compared to
             // vertical distance) when you're out of a narrow range right on top of the drop
             // target.
             //
             // We choose `spacing["5"]` as the margin in which horizontal drop targets will
-            // apply since that's the smallest size of an `<IconButton>`. Since we consider
-            // an `xs` `<IconButton>` to have a sufficient hit target we consider the hit
-            // target sufficient here too.
+            // apply since that's the smallest size of an `<IconButton>`. Since we consider an
+            // `xs` `<IconButton>` to have a sufficient hit target we consider the hit target
+            // sufficient here too.
             if (dx > convertRemLengthToPx("5", spacingScale)) {
                 dx += viewWidth;
             }
@@ -6233,8 +6200,8 @@ class ContentEditorFileDragState {
 }
 
 // Our auto scroll copies the constants and math used by `@dnd-kit/core`'s
-// `getScrollDirectionAndSpeed()` utility function and `useAutoScroller()`
-// utility hook.
+// `getScrollDirectionAndSpeed()` utility function and `useAutoScroller()` utility
+// hook.
 //
 // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/utilities/scroll/getScrollDirectionAndSpeed.ts#L12-L18
 // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/hooks/utilities/useAutoScroller.ts#L109-L179

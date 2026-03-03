@@ -136,10 +136,10 @@ export function ChannelMobileEditor({
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        //   render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be scrolling
+        //   not the document.
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(
             () => getContentEditorScrollAnchorPosition(descriptionEditorRef),

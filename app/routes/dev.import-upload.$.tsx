@@ -2,27 +2,26 @@ import {ImporterDevelopmentContextModule} from "~/server/importer/importer_devel
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 /**
- * Development-only endpoint for receiving file uploads that would normally go
- * to S3 in production.
+ * Development-only endpoint for receiving file uploads that would normally go to
+ * S3 in production.
  *
- * This endpoint is called by the client when uploading import files (e.g.,
- * Notion exports) in development. The `ImporterDevelopmentContextModule`
- * generates presigned URLs pointing to this endpoint instead of S3.
+ * This endpoint is called by the client when uploading import files (e.g., Notion
+ * exports) in development. The `ImporterDevelopmentContextModule` generates
+ * presigned URLs pointing to this endpoint instead of S3.
  *
  * Files are saved to: `{devEnvPaths.data}/import-uploads/{importKey}`
  *
  * After uploading, the client calls the `finishedNotionImportUpload` RPC to
- * trigger validation. This is the same flow in both dev and production,
- * making it simpler to debug and maintain (no Lambda or S3 event notifications
- * needed).
+ * trigger validation. This is the same flow in both dev and production, making it
+ * simpler to debug and maintain (no Lambda or S3 event notifications needed).
  */
 export async function action({request, params, context}: LoaderArgs) {
     if (process.env.NODE_ENV === "production") {
         return new Response("Not Found", {status: 404});
     }
 
-    // The splat param captures everything after /dev/import-upload/
-    // e.g., /dev/import-upload/spa_123/nim_456 -> "spa_123/nim_456"
+    // The splat param captures everything after /dev/import-upload/ e.g.,
+    // /dev/import-upload/spa_123/nim_456 -> "spa_123/nim_456"
     const importKey = params["*"];
     if (!importKey) {
         return new Response("Missing import key", {status: 400});

@@ -13,10 +13,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Authorizes that the provided `AccountId` is the same account as the actor.
- * If the actor is a session actor then the `AccountId` must be exactly equal
- * to authenticated session. If the actor is a system actor then the
- * `AccountId` must be a member of the system actor's space.
+ * Authorizes that the provided `AccountId` is the same account as the actor. If
+ * the actor is a session actor then the `AccountId` must be exactly equal to
+ * authenticated session. If the actor is a system actor then the `AccountId` must
+ * be a member of the system actor's space.
  */
 export async function authorizeOwnSpaceAccountAccess(
     context: Context<{

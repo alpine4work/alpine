@@ -1,14 +1,13 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * A template string tag that wraps all the interpolated string values in
- * quotes to make sure they don't interfere with the rest of the string.
+ * A template string tag that wraps all the interpolated string values in quotes to
+ * make sure they don't interfere with the rest of the string.
  *
- * This is useful for error messages where you want to include some dynamic
- * data.
+ * This is useful for error messages where you want to include some dynamic data.
  *
- * You can also call the function with a single string like `quote("foo")` to
- * wrap the string in quotes and escape any quotes within the string.
+ * You can also call the function with a single string like `quote("foo")` to wrap
+ * the string in quotes and escape any quotes within the string.
  */
 export function quote(string: string | number | bigint): string;
 export function quote(
@@ -47,8 +46,8 @@ export function quote(
                     : JSON.stringify(value === undefined ? null : value);
 
             // Quote a string with backticks instead of straight quotes. We'd rather use
-            // backticks than curl quotes (given our lint rule disallows the use of
-            // straight quotes elsewhere in strings).
+            // backticks than curl quotes (given our lint rule disallows the use of straight
+            // quotes elsewhere in strings).
             if (typeof value === "string") {
                 quotedString = quotedString.replaceAll("`", "\\`");
                 quotedString = `\`${quotedString.slice(1, -1)}\``;

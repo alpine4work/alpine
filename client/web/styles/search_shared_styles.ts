@@ -13,9 +13,8 @@ export const searchMobileInputFontSize = "100";
 export const searchMobileInputPaddingX = "3";
 export const searchMobileInputPaddingY = "2";
 
-// We add some margin above the search input to make sure the iOS text
-// selection lollipops the cursor doesn't get clipped by the
-// navigation bar.
+// We add some margin above the search input to make sure the iOS text selection
+// lollipops the cursor doesn't get clipped by the navigation bar.
 export const searchMobileInputMarginTop = "1";
 
 export const searchMobileInputMarginBottom = "3";
@@ -40,13 +39,12 @@ export const searchModalMaxHeight = addRemLengths(
 );
 
 /**
- * Minimum height of the body text snippet in a search result. We show at least
- * two lines when there's no title and zero lines when there is a title.
+ * Minimum height of the body text snippet in a search result. We show at least two
+ * lines when there's no title and zero lines when there is a title.
  *
- * The minimum height of our `<SearchEntityView>` determines the size of our
- * search request. More items in our search request means higher search
- * latency. At least 2 lines means we need to load less data to fill the
- * virtualization window.
+ * The minimum height of our `<SearchEntityView>` determines the size of our search
+ * request. More items in our search request means higher search latency. At least
+ * 2 lines means we need to load less data to fill the virtualization window.
  */
 export const searchEntityViewBodyTextSnippetMinLineCount = 1;
 
@@ -87,9 +85,9 @@ export const searchAffinityEntityViewMinHeightPx = createObjectFromKeys(
         convertRemLengthToPx(searchEntityViewPaddingY, spacingScale) * 2,
 );
 
-// Intentionally the same value as the gap between icons and text in
-// `<MenuItem>`. Since in the mention overlay you'll see search entities mixed
-// with regular `<MenuItem>`s and we want their text to be aligned.
+// Intentionally the same value as the gap between icons and text in `<MenuItem>`.
+// Since in the mention overlay you'll see search entities mixed with regular
+// `<MenuItem>`s and we want their text to be aligned.
 export const searchEntityViewTitleTypeDisplayGap = "2";
 
 export const searchEntityHeaderFontSize = "50";

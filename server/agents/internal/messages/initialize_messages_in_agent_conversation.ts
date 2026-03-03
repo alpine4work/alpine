@@ -41,8 +41,8 @@ export async function initializeMessagesInAgentConversation({
                 return request.event.index;
             }
             case "NewPost": {
-                // We don't want to store 0 for the piece of state that represents the last
-                // loaded message index since it wasn't actually loaded yet.
+                // We don't want to store 0 for the piece of state that represents the last loaded
+                // message index since it wasn't actually loaded yet.
                 return -1;
             }
             default:
@@ -79,8 +79,8 @@ export async function loadInitialAgentMessagesContent({
                 return event.index + 1;
             }
             case "NewPost": {
-                // Has to be 1 for a valid api call to get messages from end since it's
-                // range exclusive.
+                // Has to be 1 for a valid api call to get messages from end since it's range
+                // exclusive.
                 return 1;
             }
             default: {

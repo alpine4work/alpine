@@ -60,8 +60,8 @@ export const authorizeDocumentAccess = defineRpc({
 
 export const createDocument = defineRpc({
     name: "createDocument",
-    // Fails if the document already exists (when `documentId` is provided).
-    // Generates a new `documentId` otherwise.
+    // Fails if the document already exists (when `documentId` is provided). Generates
+    // a new `documentId` otherwise.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
@@ -100,14 +100,14 @@ export const getDocument = defineRpc({
 
 // This RPC returns document content with comment marks even if the actor is a
 // viewer! It's a privilege escalation that's only allowed if the collaboration
-// service is calling this RPC. The collaboration service durable object needs
-// the full document content to function. If a viewer initializes the durable
-// object and an editor connects later, the editor still needs to see the
-// document with comment marks.
+// service is calling this RPC. The collaboration service durable object needs the
+// full document content to function. If a viewer initializes the durable object
+// and an editor connects later, the editor still needs to see the document with
+// comment marks.
 //
-// The collaboration service needs to implement additional authorization checks
-// to make sure it doesn't return document content with comment marks to users
-// who only have view access.
+// The collaboration service needs to implement additional authorization checks to
+// make sure it doesn't return document content with comment marks to users who
+// only have view access.
 export const getDocumentContentForCollaborationServiceInitialization = defineRpc({
     name: "getDocumentContentForCollaborationServiceInitialization",
     isIdempotent: true,

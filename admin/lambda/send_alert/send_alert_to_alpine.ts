@@ -461,11 +461,12 @@ export async function sendHoneycombAlertToAlpine(
         ok: "✅",
     };
 
-    // Event alerts are useful for just knowing when events happen.
-    // We don't care when they go back to 'normal'.
+    // Event alerts are useful for just knowing when events happen. We don't care when
+    // they go back to 'normal'.
     const isEvent = data.isEvent?.toLowerCase() === "true" || data.isEvent === "1";
 
-    // When 'event' type alert goes back to 'ok', ignore it. We only care when they trigger.
+    // When 'event' type alert goes back to 'ok', ignore it. We only care when they
+    // trigger.
     if (status === "ok" && isEvent) {
         console.debug("Ignoring Honeycomb event alert with status 'ok'");
         return {ok: true};

@@ -43,8 +43,8 @@ export function serializeDateString(date: Date): DateString {
 /**
  * Deserializes a `DateString` to a JavaScript `Date` object.
  *
- * Fails with an `InternalError` if the provided string is not a valid
- * [ISO 8601][1] date string.
+ * Fails with an `InternalError` if the provided string is not a valid [ISO
+ * 8601][1] date string.
  *
  * [1]: https://en.wikipedia.org/wiki/ISO_8601
  */

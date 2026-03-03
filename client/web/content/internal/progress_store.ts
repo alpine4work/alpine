@@ -16,27 +16,26 @@ export type ProgressValueStoreWithCancel = ProgressValueStore & {
 
 /**
  * Create a progress store composed of multiple smaller progress stores. Each
- * individual progress store contributes to the final progress value we show
- * the user.
+ * individual progress store contributes to the final progress value we show the
+ * user.
  *
- * You provide an array of weights and we return a `ProgressValueStore` for
- * each weight. If you think one progress store will take longer than the
- * others you should give it a larger weight.
+ * You provide an array of weights and we return a `ProgressValueStore` for each
+ * weight. If you think one progress store will take longer than the others you
+ * should give it a larger weight.
  *
- * If you no longer need a progress component you may cancel it. The progress
- * it has already contributed will be frozen but from then on if other progress
- * stores update they won't be weighted down by the cancelled store.
+ * If you no longer need a progress component you may cancel it. The progress it
+ * has already contributed will be frozen but from then on if other progress stores
+ * update they won't be weighted down by the cancelled store.
  */
-// NOTE(calebmer, 2024-10-11): This feels like the wrong abstraction. When I
-// wrote it I thought I'd also be using it on the server and that I'd be
-// manually instrumenting each file processor. But that approach felt like it
-// would be too much maintenance given many of the tools we use don't report
-// progress (e.g. `sharp` and LibreOffice). So instead I decided to create a
-// really dumb model to estimate upload duration on the client. Now that we're
-// only using this progress store file on the client maybe there's a simpler
-// way to implement this code that doesn't create an unnecessary abstraction.
-// After all, I certainly hold to the wisdom: "No abstraction is better than
-// the wrong abstraction".
+// NOTE(calebmer, 2024-10-11): This feels like the wrong abstraction. When I wrote
+// it I thought I'd also be using it on the server and that I'd be manually
+// instrumenting each file processor. But that approach felt like it would be too
+// much maintenance given many of the tools we use don't report progress (e.g.
+// `sharp` and LibreOffice). So instead I decided to create a really dumb model to
+// estimate upload duration on the client. Now that we're only using this progress
+// store file on the client maybe there's a simpler way to implement this code that
+// doesn't create an unnecessary abstraction. After all, I certainly hold to the
+// wisdom: "No abstraction is better than the wrong abstraction".
 export function createProgressCompositeStore<const Weights extends ReadonlyArray<number>>(
     weights: Weights,
 ): [Store<number>, {[Key in keyof Weights]: ProgressValueStoreWithCancel}] {
@@ -151,8 +150,8 @@ export class ProgressValueStore extends Store<number> {
 
     /**
      * Set the current progress value. Can't set to a value less than the current
-     * progress value. The progress value must be between 0 and 1. Setting progress
-     * to 1 finalizes the store.
+     * progress value. The progress value must be between 0 and 1. Setting progress to
+     * 1 finalizes the store.
      */
     public set(progress: number | ((progress: number) => number)) {
         const oldProgress = this._store.getSnapshot();
@@ -173,13 +172,13 @@ export class ProgressValueStore extends Store<number> {
     }
 
     /**
-     * Eases the progress monitor from 0 to ~0.86 over a third of the provided
-     * duration and from 0 to ~0.99 over the full provided duration. Starts by
-     * quickly updating progress then slows down over time.
+     * Eases the progress monitor from 0 to ~0.86 over a third of the provided duration
+     * and from 0 to ~0.99 over the full provided duration. Starts by quickly updating
+     * progress then slows down over time.
      *
-     * Use this when you don't have a way to track progress but you know the p95
-     * time is around `duration`. This function will provide a realistic looking
-     * progress indicator even if it isn't quite anchored in reality.
+     * Use this when you don't have a way to track progress but you know the p95 time
+     * is around `duration`. This function will provide a realistic looking progress
+     * indicator even if it isn't quite anchored in reality.
      *
      * Updates the store every `perceivedAsInstantLimitMs`.
      */

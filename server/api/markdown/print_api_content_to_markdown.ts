@@ -44,8 +44,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 
 declare module "mdast" {
     export interface EmphasisData {
-        // NOTE(calebmer): We have a patch for `mdast-util-to-markdown` that checks
-        // this property and uses it when printing emphasis nodes.
+        // NOTE(calebmer): We have a patch for `mdast-util-to-markdown` that checks this
+        // property and uses it when printing emphasis nodes.
         emphasisMarker?: "*" | "_";
     }
 
@@ -61,14 +61,14 @@ declare module "mdast" {
 
 export type ApiContentMarkdownPrinterOptions = {
     /**
-     * The `SpaceId` of the content we're printing. The `SpaceId` is added to
-     * generated mention links.
+     * The `SpaceId` of the content we're printing. The `SpaceId` is added to generated
+     * mention links.
      */
     readonly spaceId: SpaceId;
 
     /**
-     * If `true` then we don't add the `data-width` and `data-column-widths`
-     * attributes to tables.
+     * If `true` then we don't add the `data-width` and `data-column-widths` attributes
+     * to tables.
      */
     readonly withoutTableWidth?: boolean;
 
@@ -105,17 +105,17 @@ export function printMarkdownTree(root: Root): string {
         rule: "-",
         extensions: [
             gfmStrikethroughToMarkdown(),
-            // Disable `tablePipeAlign` since we can have arbitrarily long content in
-            // tables. We don't want to add a ton of spaces and dashes for one really long
-            // cell. The Markdown we print is optimized for machine (AI or API) readability
-            // not human readability. Extra spaces aren't useful for machines, only humans.
+            // Disable `tablePipeAlign` since we can have arbitrarily long content in tables.
+            // We don't want to add a ton of spaces and dashes for one really long cell. The
+            // Markdown we print is optimized for machine (AI or API) readability not human
+            // readability. Extra spaces aren't useful for machines, only humans.
             //
             // If you want human readable Markdown run Prettier on the Markdown output.
             gfmTableToMarkdown({tablePipeAlign: false}),
             gfmTaskListItemToMarkdown(),
-            // NOTE(calebmer, 2025-08-08): We don't currently support math symbols in
-            // content but we might want to support math in the future. So make sure we
-            // escape `$` and `$$` to reserve them.
+            // NOTE(calebmer, 2025-08-08): We don't currently support math symbols in content
+            // but we might want to support math in the future. So make sure we escape `$` and
+            // `$$` to reserve them.
             mathToMarkdown(),
             // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
             // Markdown but we want to reserve the syntax so we have the ability to use
@@ -132,8 +132,8 @@ function printApiContentToMarkdown(
     return {
         type: "root",
         children:
-            // If the first element in our content is a divider then we serialize it using
-            // the HTML syntax `<hr/>` so the divider isn't confused with frontmatter.
+            // If the first element in our content is a divider then we serialize it using the
+            // HTML syntax `<hr/>` so the divider isn't confused with frontmatter.
             content.elements.length > 0 && content.elements[0]!.type === "Divider"
                 ? Array.from(
                       concatIterables(
@@ -161,7 +161,8 @@ function* printApiContentBlockElementsToMarkdown(
                 pendingContent?.type === "list" &&
                 content.type === "list" &&
                 pendingContent.ordered === content.ordered &&
-                // Only merge ordered lists if the second list does not have an explicit order start.
+                // Only merge ordered lists if the second list does not have an explicit order
+                // start.
                 (content.start === undefined || content.start === null)
             ) {
                 for (const childContent of content.children)
@@ -224,22 +225,27 @@ function* printApiContentBlockElementToMarkdown(
                         concatIterables(
                             printApiContentBlockElementsToMarkdown(
                                 // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
-                                // lists. `CheckList` and `OrderedList` can't support phantom lists in the same way.
+                                // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
+                                // way.
                                 //
                                 // So while unordered phantom lists look like:
+                                //
                                 // ```markdown
-                                // - - - item at 3rd level in a phantom unordered list
+                                // -   -   - item at 3rd level in a phantom unordered list
                                 // ```
                                 //
                                 // Checklists and ordered phantom lists get an empty paragraph and look like:
+                                //
                                 // ```markdown
                                 // 1. <p></p>
-                                //   - Mixed types with phantoms
+                                //
+                                // - Mixed types with phantoms
                                 //
                                 // OR
                                 //
                                 // [ ] <p></p>
-                                //   - Mixed types with phantoms
+                                //
+                                // - Mixed types with phantoms
                                 // ```
                                 item.elements.length > 0 || element.type === "UnorderedList"
                                     ? item.elements
@@ -255,18 +261,18 @@ function* printApiContentBlockElementToMarkdown(
                         ),
                     );
 
-                    // The GFM specification says that a check list item must start with a
-                    // paragraph node.
+                    // The GFM specification says that a check list item must start with a paragraph
+                    // node.
                     //
                     // > A task list item is a list item where the first block in it is a paragraph
                     // > which begins with a task list item marker and at least one whitespace
                     // > character before any other content.
                     //
-                    // So when we print an empty paragraph as `{type: "html", value: "<p></p>"}`
-                    // it's not wrapped in a paragraph node and so not printed as a GFM check list
-                    // item. Replace `{type: "html", value: "<p></p>"}` with `<span></span>` (e.g.
-                    // `{type: "paragraph", children: [{type: "html", value: "<span></span>"}]}`)
-                    // so the GFM check list item is printed properly.
+                    // So when we print an empty paragraph as `{type: "html", value: "<p></p>"}` it's
+                    // not wrapped in a paragraph node and so not printed as a GFM check list item.
+                    // Replace `{type: "html", value: "<p></p>"}` with `<span></span>` (e.g.
+                    // `{type: "paragraph", children: [{type: "html", value: "<span></span>"}]}`) so
+                    // the GFM check list item is printed properly.
                     if (element.type === "CheckList" && children.length > 0) {
                         const firstChild = children[0]!;
 
@@ -547,9 +553,9 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                 return null;
             }
 
-            // For some reason the text `\|` in inline code breaks GFM table parsing. I
-            // haven't investigated why specifically this breaks GFM table parsing but our
-            // generative test has produced a test showing it does.
+            // For some reason the text `\|` in inline code breaks GFM table parsing. I haven't
+            // investigated why specifically this breaks GFM table parsing but our generative
+            // test has produced a test showing it does.
             //
             // Handle this edge case by switching to table HTML syntax.
             if (paragraphElement !== null) {
@@ -570,8 +576,8 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
                     paragraphElement !== null
                         ? printApiContentInlineElementsToMarkdown(paragraphElement.elements, {
                               ...options,
-                              // Can't have a line break character within a table cell. So use HTML syntax
-                              // for breaks.
+                              // Can't have a line break character within a table cell. So use HTML syntax for
+                              // breaks.
                               forceBreakHtml: true,
                           })
                         : [],
@@ -579,9 +585,9 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         }
     }
 
-    // Add a `<span>` to the last cell of the table with information about the
-    // table's width and the table's column widths. This is needed for
-    // reconstructing the input content but unfortunately is not very aesthetic.
+    // Add a `<span>` to the last cell of the table with information about the table's
+    // width and the table's column widths. This is needed for reconstructing the input
+    // content but unfortunately is not very aesthetic.
     if (
         !options.withoutTableWidth &&
         (element.width !== 1 || element.columns.some(column => column.width !== 1))
@@ -716,8 +722,8 @@ function* printApiContentTableBlockElementToMarkdown(
                         element => element.type === "Text" && element.text.length === 0,
                     ))
             ) {
-                // Noop. We'll be able to parse an empty table cell as containing a single
-                // empty paragraph. We don't need to add `<p></p>` too.
+                // Noop. We'll be able to parse an empty table cell as containing a single empty
+                // paragraph. We don't need to add `<p></p>` too.
             } else {
                 yield* printApiContentBlockElementsToMarkdown(cell.elements, options);
             }
@@ -749,10 +755,10 @@ function printApiContentInlineElementsToMarkdown(
 ): Array<PhrasingContent> {
     const contents: Array<PhrasingContent> = [];
 
-    // Drop any empty text elements from the end of the inline elements we're
-    // printing. We have some "last element" special cases (e.g. if we end with a
-    // break we handle that specially) that's broken by empty text at the end of an
-    // inline elements array.
+    // Drop any empty text elements from the end of the inline elements we're printing.
+    // We have some "last element" special cases (e.g. if we end with a break we handle
+    // that specially) that's broken by empty text at the end of an inline elements
+    // array.
     const lastIndexOfNonEmptyTextElement = elements.findLastIndex(
         element => element.type !== "Text" || element.text.length > 0,
     );
@@ -772,9 +778,9 @@ function printApiContentInlineElementsToMarkdown(
 
         let elementOptions = options;
 
-        // `mdast` struggles to parse breaks at the end of block content. So if this
-        // is the last inline element (or all elements afterwards are breaks) then
-        // force breaks to be output as HTML (`<br/>`).
+        // `mdast` struggles to parse breaks at the end of block content. So if this is the
+        // last inline element (or all elements afterwards are breaks) then force breaks to
+        // be output as HTML (`<br/>`).
         if (
             element.type === "Break" &&
             elements.slice(index + 1).every(element => element.type === "Break")
@@ -811,12 +817,12 @@ function printApiContentInlineElementsToMarkdown(
             // If we have content that looks like:
             //
             // ```md
-            // <mark data-comment="abc">123</mark><mark data-comment="abc">*456*</mark>
+            // <mark data-comment="abc">123</mark><mark data-comment="abc">_456_</mark>
             // ```
             //
-            // We want to remove the intermediate `</mark><mark data-comment="abc">` HTML.
-            // We generate the original content because of how marks are represented on
-            // text nodes in our `ApiContent` object.
+            // We want to remove the intermediate `</mark><mark data-comment="abc">` HTML. We
+            // generate the original content because of how marks are represented on text nodes
+            // in our `ApiContent` object.
             if (
                 lastContent.type === "html" &&
                 nextContent.type === "html" &&
@@ -836,9 +842,9 @@ function printApiContentInlineElementsToMarkdown(
                 if (contents.length >= 2) {
                     const lastLastContent = contents[contents.length - 2]!;
 
-                    // If we have an emphasis node immediately adjacent to a strong node then we
-                    // want to use the `_` marker for the emphasis node instead of the `*` marker
-                    // to avoid parsing ambiguities. `emphasisMarker` is added in a patch to
+                    // If we have an emphasis node immediately adjacent to a strong node then we want
+                    // to use the `_` marker for the emphasis node instead of the `*` marker to avoid
+                    // parsing ambiguities. `emphasisMarker` is added in a patch to
                     // `mdast-util-to-markdown`.
                     if (lastLastContent.type === "strong" && lastContent.type === "emphasis") {
                         lastContent.data ??= {};
@@ -852,9 +858,9 @@ function printApiContentInlineElementsToMarkdown(
                     }
                 }
             } else {
-                // If we have an emphasis node immediately adjacent to a strong node then we
-                // want to use the `_` marker for the emphasis node instead of the `*` marker
-                // to avoid parsing ambiguities. `emphasisMarker` is added in a patch to
+                // If we have an emphasis node immediately adjacent to a strong node then we want
+                // to use the `_` marker for the emphasis node instead of the `*` marker to avoid
+                // parsing ambiguities. `emphasisMarker` is added in a patch to
                 // `mdast-util-to-markdown`.
                 if (lastContent.type === "strong" && nextContent.type === "emphasis") {
                     nextContent.data ??= {};
@@ -910,8 +916,8 @@ function mergePhrasingContent(lastContent: PhrasingContent, nextContent: Phrasin
     }
 
     // If we have a link that, inside, has the same marks as adjacent text then try
-    // merging the link with that adjacent text so we don't close the styles
-    // outside the link then open the styles again inside the link.
+    // merging the link with that adjacent text so we don't close the styles outside
+    // the link then open the styles again inside the link.
     {
         if (
             nextContent.type === "link" &&
@@ -1010,8 +1016,8 @@ function* printApiContentInlineElementToMarkdown(
                 );
             } else {
                 // If we have code inside a link and the link includes `]` then use `<code>` to
-                // serialize the link. Since ``[`]:`](http://a.aa)`` is parsed as a definition.
-                // Our markdown parser sees "[`]:" and thinks "that's a definition!" without
+                // serialize the link. Since ``[`]:`](http://a.aa)`` is parsed as a definition. Our
+                // markdown parser sees "[`]:" and thinks "that's a definition!" without
                 // considering that it's in backticks.
                 if (marks?.some(mark => mark.type === "Link") && element.text.includes("]")) {
                     const openHtml = "<code>";
@@ -1061,8 +1067,8 @@ function* printApiContentInlineElementToMarkdown(
             ) {
                 yield {type: "break"};
             } else {
-                // `mdast` behaves oddly when the `break` node has marks. It can't always
-                // perfectly print/parse a break between mark styles. So use HTML instead.
+                // `mdast` behaves oddly when the `break` node has marks. It can't always perfectly
+                // print/parse a break between mark styles. So use HTML instead.
                 yield* printApiContentInlineElementMarksToMarkdown(
                     marks,
                     hasCodeMark
@@ -1355,17 +1361,18 @@ function printApiContentInlineElementHighlightMarkColor(
 }
 
 /**
- * If the list has an orderStart of 1, we inject an empty html `span` element
- * into the list content so that something like
- * `1. ` becomes `1. <span data-start="1"/>`
- * or `1. first item` becomes `1. <span data-start="1"/>first item`.
+ * If the list has an orderStart of 1, we inject an empty html `span` element into
+ * the list content so that something like `1. ` becomes
+ * `1. <span data-start="1"/>` or `1. first item` becomes
+ * `1. <span data-start="1"/>first item`.
  *
- * This ensures that we maintain the orderStart value from the original content
- * and can parse it back into the exact same content later. See the note below
- * for more details.
+ * This ensures that we maintain the orderStart value from the original content and
+ * can parse it back into the exact same content later. See the note below for more
+ * details.
  *
  * **Importantly**, we only need to play this game when `orderStart = 1`. Markdown
  * will parse the following content:
+ *
  * ```
  * doc(
  *   orderedListItem(null, [paragraph("first item")])
@@ -1375,9 +1382,11 @@ function printApiContentInlineElementHighlightMarkColor(
  * ```
  *
  * into the following markdown content:
+ *
  * ```markdown
  * 1. first item
  * 2. second item
+ *
  * 5) skip to 5
  * ```
  *
@@ -1385,15 +1394,16 @@ function printApiContentInlineElementHighlightMarkColor(
  * third item because of the change in punctuation.
  */
 // NOTE(ifitzsimmons, 2026-01-06): Our public API should maintain symmetry such
-// that all content printed into Markdown should be able to be parsed back into
-// the exact same content.
+// that all content printed into Markdown should be able to be parsed back into the
+// exact same content.
 //
 // If an ordered list has an explicit order start of `1`, we inject a span with the
 // data-start attribute into the first item in the list. This is necessary in order
-// to avoid lossiness when going from
-// Prosemirror -> ApiContent -> Markdown -> ApiContent -> Prosemirror.
+// to avoid lossiness when going from Prosemirror -> ApiContent -> Markdown ->
+// ApiContent -> Prosemirror.
 //
 // For example, if we have the following list in prosemirror:
+//
 // ```
 // doc(
 //   orderedListItem({orderStart: 1}, [paragraph("first item")])
@@ -1402,22 +1412,25 @@ function printApiContentInlineElementHighlightMarkColor(
 // ```
 //
 // Should be printed as the following markdown:
+//
 // ```markdown
 // 1. first item
 // 2. second item
 // ```
 //
-// However, when we parse this markdown back into Prosemirror (via ApiContent), how do we
-// know that the ordered list must ALWAYS start with 1?
+// However, when we parse this markdown back into Prosemirror (via ApiContent), how
+// do we know that the ordered list must ALWAYS start with 1?
 //
 // What happens if the user changes that list to the following:
+//
 // ```markdown
 // 1. new first item
 // 1. first item
-// 2. second item
+// 1. second item
 // ```
 //
 // Well, the order start will be lost and this will get stored as
+//
 // ```
 // doc(
 //   orderedListItem(null, [paragraph("new first item")])

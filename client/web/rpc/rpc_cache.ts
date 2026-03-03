@@ -9,12 +9,12 @@ export function getRpcCacheKey<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
     input: Input,
 ) {
-    // NOTE(calebmer): `JSON.stringify()` preserves the order of keys. So if object
-    // key order changes then we re-create the value. However if we checked
-    // `isDeepEqual()` on two objects with different key orders then the key order
-    // wouldn't matter. Given the browser heavily optimizes `JSON.stringify()` this
-    // is an acceptable tradeoff. If we determine key order does matter we can use
-    // a package like `json-stable-stringify`.
+    // NOTE(calebmer): `JSON.stringify()` preserves the order of keys. So if object key
+    // order changes then we re-create the value. However if we checked `isDeepEqual()`
+    // on two objects with different key orders then the key order wouldn't matter.
+    // Given the browser heavily optimizes `JSON.stringify()` this is an acceptable
+    // tradeoff. If we determine key order does matter we can use a package like
+    // `json-stable-stringify`.
     const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
 
     return `${rpc.name}:${inputString}`;

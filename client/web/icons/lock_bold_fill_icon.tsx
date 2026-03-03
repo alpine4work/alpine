@@ -2,8 +2,8 @@ import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
 /**
- * The Phosphor `<Lock>` icon with a fill weight but line thickness from the
- * bold weight. Looks better next to text than fill or bold alone.
+ * The Phosphor `<Lock>` icon with a fill weight but line thickness from the bold
+ * weight. Looks better next to text than fill or bold alone.
  */
 export function LockBoldFillIcon({
     color,
@@ -32,8 +32,8 @@ export function LockBoldFillIcon({
             fill={color ?? contextColor}
             {...context}
             className={className}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: size ?? contextSize,
                 height: size ?? contextSize,

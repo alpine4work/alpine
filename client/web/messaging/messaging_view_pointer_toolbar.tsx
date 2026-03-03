@@ -100,8 +100,8 @@ export function MessagingViewPointerToolbar<
 
     const toolbarRef = useRef<HTMLDivElement>(null);
 
-    // If set to `null` then we hide the toolbar without animation. If `isVisible`
-    // is set to false then we animate out using the location from `coords`.
+    // If set to `null` then we hide the toolbar without animation. If `isVisible` is
+    // set to false then we animate out using the location from `coords`.
     const [state, setState] = useState<MessagingViewPointerToolbarState<RoomKey> | null>(null);
 
     useEffect(() => {
@@ -154,14 +154,12 @@ export function MessagingViewPointerToolbar<
     // NOTE(calebmer): This state is copied from `<ContentEditorPointerToolbar>`.
     {
         // If the pointer has moved while pressing down and the user has some text
-        // selected, the user is probably trying to drag to change their selection. If
-        // they are dragging then we don't want to show the toolbar since it won't have
-        // much use. They can't click anything in the toolbar until they release
-        // anyway.
+        // selected, the user is probably trying to drag to change their selection. If they
+        // are dragging then we don't want to show the toolbar since it won't have much
+        // use. They can't click anything in the toolbar until they release anyway.
         //
         // If we show the toolbar while dragging it jumps around awkwardly and blocks
-        // pointer events from the mouse over content the user is potentially
-        // dragging to.
+        // pointer events from the mouse over content the user is potentially dragging to.
         const [hasPointerMovedWhileDown, setHasPointerMovedWhileDown] = useState(false);
 
         const [
@@ -193,8 +191,7 @@ export function MessagingViewPointerToolbar<
 
                 if (
                     event.pointerType === "mouse" &&
-                    // Ignore clicks inside of our toolbar for triple click detection
-                    // purposes.
+                    // Ignore clicks inside of our toolbar for triple click detection purposes.
                     !(event.target instanceof Node && toolbarRef.current?.contains(event.target))
                 ) {
                     const mouseDownTime = Date.now();
@@ -259,10 +256,10 @@ export function MessagingViewPointerToolbar<
         // Don't show the toolbar if the user's pointer is dragging to select text.
         if (hasPointerMovedWhileDown) return null;
 
-        // If the user has double clicked (to select a word) then we wait to see if
-        // they triple click (to select a paragraph) before showing the pointer
-        // toolbar. Otherwise it looks a little glitchy to see the toolbar appear then
-        // immediately jump to the beginning of the paragraph.
+        // If the user has double clicked (to select a word) then we wait to see if they
+        // triple click (to select a paragraph) before showing the pointer toolbar.
+        // Otherwise it looks a little glitchy to see the toolbar appear then immediately
+        // jump to the beginning of the paragraph.
         if (isWaitingForTripleClickAfterDoubleClick) return null;
     }
 
@@ -272,8 +269,8 @@ export function MessagingViewPointerToolbar<
     if (isContextMenuOpen) return null;
 
     const hideToolbar = () => {
-        // Immediately hide the toolbar without animation after the reply to message
-        // range call finishes.
+        // Immediately hide the toolbar without animation after the reply to message range
+        // call finishes.
         flushSync(() => {
             setState({
                 ...state,
@@ -282,10 +279,10 @@ export function MessagingViewPointerToolbar<
             });
         });
 
-        // Remove the selection immediately in the same frame we close the pointer
-        // toolbar (closing the pointer toolbar will be this frame because we used
-        // `flushSync()` above). Instead of waiting for the message input to be focused
-        // (which may be rendered on another frame).
+        // Remove the selection immediately in the same frame we close the pointer toolbar
+        // (closing the pointer toolbar will be this frame because we used `flushSync()`
+        // above). Instead of waiting for the message input to be focused (which may be
+        // rendered on another frame).
         window.getSelection()?.removeAllRanges();
     };
 
@@ -296,10 +293,10 @@ export function MessagingViewPointerToolbar<
             isVisible={state.isVisible}
             disableAnimationOut={state.disableAnimationOut}
             placement="top-start"
-            // The pointer toolbar needs to flip to the bottom if it would otherwise
-            // conflict with the navigation bar. For example, try opening a post view on
-            // desktop then editing the post, then selecting text at the top of the post.
-            // The toolbar needs to flip down.
+            // The pointer toolbar needs to flip to the bottom if it would otherwise conflict
+            // with the navigation bar. For example, try opening a post view on desktop then
+            // editing the post, then selecting text at the top of the post. The toolbar needs
+            // to flip down.
             fallbackPlacements={["bottom-start"]}
             offset="2.5"
             offsetAlong="-1"
@@ -349,10 +346,10 @@ export function MessagingViewPointerToolbar<
                                     inboxContext,
                                 });
 
-                                // Hide the toolbar after setting/deleting a reaction. Since it's hard to
-                                // preserve selection state after we re-render
-                                // `<ContentViewWithReactionParties>` which splits apart `<ContentView>`s. It's
-                                // easier to change your reaction in the reaction party anyway.
+                                // Hide the toolbar after setting/deleting a reaction. Since it's hard to preserve
+                                // selection state after we re-render `<ContentViewWithReactionParties>` which
+                                // splits apart `<ContentView>`s. It's easier to change your reaction in the
+                                // reaction party anyway.
                                 hideToolbar();
                             }}
                             onDeleteReaction={() => {
@@ -368,10 +365,10 @@ export function MessagingViewPointerToolbar<
                                     onUpdateMessagesOptimistically,
                                 });
 
-                                // Hide the toolbar after setting/deleting a reaction. Since it's hard to
-                                // preserve selection state after we re-render
-                                // `<ContentViewWithReactionParties>` which splits apart `<ContentView>`s. It's
-                                // easier to change your reaction in the reaction party anyway.
+                                // Hide the toolbar after setting/deleting a reaction. Since it's hard to preserve
+                                // selection state after we re-render `<ContentViewWithReactionParties>` which
+                                // splits apart `<ContentView>`s. It's easier to change your reaction in the
+                                // reaction party anyway.
                                 hideToolbar();
                             }}
                         >
@@ -441,8 +438,8 @@ const MessagingViewPointerToolbarButton = forwardRef(function MessagingViewPoint
 
             const result = onPress?.();
 
-            // If `onPress` returns a promise then don't allow another press until the
-            // promise is resolved.
+            // If `onPress` returns a promise then don't allow another press until the promise
+            // is resolved.
             if (isPromiseLike(result)) {
                 setIsPending(true);
                 void result.finally(() => setIsPending(false));
@@ -456,10 +453,10 @@ const MessagingViewPointerToolbarButton = forwardRef(function MessagingViewPoint
 
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
 
-    // Same logic as `<Button>` for rendering a hovered background while a
-    // triggered overlay is open. Since we may use this button component as the
-    // child of `<ReactionButtonBase>` we need to render a hovered background while
-    // the overlay is open.
+    // Same logic as `<Button>` for rendering a hovered background while a triggered
+    // overlay is open. Since we may use this button component as the child of
+    // `<ReactionButtonBase>` we need to render a hovered background while the overlay
+    // is open.
     useEffect(() => {
         const element = assertExists(localRef.current);
 
@@ -481,11 +478,11 @@ const MessagingViewPointerToolbarButton = forwardRef(function MessagingViewPoint
         <div
             {...mergeProps(pressProps, hoverProps)}
             ref={useMergedRefs(ref, localRef)}
-            // Disable the ability to focus this icon button! The icon buttons in the
-            // selection toolbar are only mouse accessible. They are not keyboard
-            // accessible. By being focusable then the button steals focus when you click
-            // on it, so instead make the button not focusable. This also makes it so the
-            // button is not reachable in tab order.
+            // Disable the ability to focus this icon button! The icon buttons in the selection
+            // toolbar are only mouse accessible. They are not keyboard accessible. By being
+            // focusable then the button steals focus when you click on it, so instead make the
+            // button not focusable. This also makes it so the button is not reachable in tab
+            // order.
             tabIndex={undefined}
             className={sprinkles({
                 paddingY: "1",
@@ -496,8 +493,8 @@ const MessagingViewPointerToolbarButton = forwardRef(function MessagingViewPoint
         >
             <Box
                 // We implement dividers in this funky way so that as the mouse scrubs left and
-                // right over our toolbar the tooltips immediately disappear/reappear because
-                // there is no gap in between the hovered elements.
+                // right over our toolbar the tooltips immediately disappear/reappear because there
+                // is no gap in between the hovered elements.
                 paddingRight={dividerRight ? "1" : "0.5"}
                 borderRight={dividerRight ? "grey-5" : undefined}
                 paddingLeft={dividerLeft ? "1" : undefined}
@@ -585,8 +582,8 @@ function getMessagingViewPointerToolbarStateBase(
 
     const startContentElement = start === "Anchor" ? anchorContentElement : focusContentElement;
 
-    // Make sure the element exists and that it's not inside a different messaging
-    // view rendered on the page.
+    // Make sure the element exists and that it's not inside a different messaging view
+    // rendered on the page.
     if (!startContentElement) return null;
     if (!offsetParent.contains(startContentElement)) return null;
 
@@ -595,9 +592,8 @@ function getMessagingViewPointerToolbarStateBase(
     let endNode = actualEndNode;
     let endOffset = actualEndOffset;
 
-    // This case is to support when we right click on a mention and
-    // get a selection where the selection starts at offset 0 in the `<a>` mention
-    // container element.
+    // This case is to support when we right click on a mention and get a selection
+    // where the selection starts at offset 0 in the `<a>` mention container element.
     if (!(startNode instanceof Text) && startOffset === 0) {
         let startFirstChildLeafNode: Node | null = firstChildLeafNode(startNode);
         while (
@@ -613,9 +609,8 @@ function getMessagingViewPointerToolbarStateBase(
         }
     }
 
-    // This case is to support when we right click on a mention and
-    // get a selection where the selection ends at offset 1 in the `<a>` mention
-    // container element.
+    // This case is to support when we right click on a mention and get a selection
+    // where the selection ends at offset 1 in the `<a>` mention container element.
     if (!(endNode instanceof Text) && endOffset > 0) {
         let endLastChildLeafNode: Node | null = lastChildLeafNode(endNode);
         while (
@@ -636,32 +631,31 @@ function getMessagingViewPointerToolbarStateBase(
     if (
         endContentElement &&
         // Only use the current `endNode` if the offset isn't at the very beginning. An
-        // offset at the very beginning of a node isn't really a selection at all.
-        // Chrome does this all the time in its underlying `Selection` format: if you
-        // triple click a paragraph then the selection will end at offset 0 in the NEXT
-        // paragraph. But Chrome renders this selection as if it doesn't extend beyond
-        // the paragraph! `trimSelectionInvisibleExtensionIntoAdjacentNodes()` also has
-        // a good documentation comment explaining this behavior.
+        // offset at the very beginning of a node isn't really a selection at all. Chrome
+        // does this all the time in its underlying `Selection` format: if you triple click
+        // a paragraph then the selection will end at offset 0 in the NEXT paragraph. But
+        // Chrome renders this selection as if it doesn't extend beyond the paragraph!
+        // `trimSelectionInvisibleExtensionIntoAdjacentNodes()` also has a good
+        // documentation comment explaining this behavior.
         //
         // So if we have an `endOffset` of 0 we want to go into the `else` branch below
-        // which searches backwards for a selectable text node and treats the selection
-        // as ending there.
+        // which searches backwards for a selectable text node and treats the selection as
+        // ending there.
         endOffset > 0
     ) {
-        // Make sure the element exists and that it's not inside a different messaging
-        // view rendered on the page.
+        // Make sure the element exists and that it's not inside a different messaging view
+        // rendered on the page.
         if (!offsetParent.contains(endContentElement)) return null;
     }
     // Selection doesn't end in a `<MessageView>`.
     else {
         if (!(endNode instanceof Element)) return null;
 
-        // If `endNode` is an element then that means the selection actually ends
-        // BEFORE the element. (e.g. If you're selecting near the bottom of
-        // `<ChatView>` `endNode` will be the `<MessageInput>`'s `<ContentEditor>`.)
-        // Instead of returning null, try to find the previous selectable text node and
-        // check if that's in a message view. If it is in a message view then we'll use
-        // it as our `endNode`.
+        // If `endNode` is an element then that means the selection actually ends BEFORE
+        // the element. (e.g. If you're selecting near the bottom of `<ChatView>` `endNode`
+        // will be the `<MessageInput>`'s `<ContentEditor>`.) Instead of returning null,
+        // try to find the previous selectable text node and check if that's in a message
+        // view. If it is in a message view then we'll use it as our `endNode`.
 
         let previousNode = previousLeafNode(endNode);
         while (previousNode) {
@@ -686,8 +680,8 @@ function getMessagingViewPointerToolbarStateBase(
             `.${messagingStyles.withPointerToolbarClassName}`,
         );
 
-        // Make sure the element exists and that it's not inside a different messaging
-        // view rendered on the page.
+        // Make sure the element exists and that it's not inside a different messaging view
+        // rendered on the page.
         if (!endContentElement) return null;
         if (!offsetParent.contains(endContentElement)) return null;
     }
@@ -695,16 +689,16 @@ function getMessagingViewPointerToolbarStateBase(
     const range = document.createRange();
 
     if (startNode instanceof Text) {
-        // We select one character so that if we have a selection at the start of a
-        // wrapped line we get the position of the character on that wrapped line. If
-        // our range is zero-width then we get a position that's split between the end
-        // of the previous line and the start of the next line.
+        // We select one character so that if we have a selection at the start of a wrapped
+        // line we get the position of the character on that wrapped line. If our range is
+        // zero-width then we get a position that's split between the end of the previous
+        // line and the start of the next line.
         range.setStart(startNode, startOffset);
         range.setEnd(startNode, startOffset + 1);
     }
-    // If `startNode` is not a text node then find the first selectable text node
-    // after `startNode` for our `range` which we use to compute the pointer
-    // toolbar position.
+    // If `startNode` is not a text node then find the first selectable text node after
+    // `startNode` for our `range` which we use to compute the pointer toolbar
+    // position.
     else {
         let nextNode = nextLeafNode(startNode);
         while (nextNode) {
@@ -735,13 +729,13 @@ function getMessagingViewPointerToolbarStateBase(
         range.setStart(endNode, endOffset - 1);
         range.setEnd(endNode, endOffset);
     }
-    // If `startNode` is not a text node then find the first selectable text node
-    // after `startNode` for our `range` which we use to compute the pointer
-    // toolbar position.
+    // If `startNode` is not a text node then find the first selectable text node after
+    // `startNode` for our `range` which we use to compute the pointer toolbar
+    // position.
     //
-    // This code path runs when the selection is in between paragraphs. Since the
-    // DOM selection will have `endNode` as a `<p>` element instead of a text node
-    // inside a `<p>` element.
+    // This code path runs when the selection is in between paragraphs. Since the DOM
+    // selection will have `endNode` as a `<p>` element instead of a text node inside a
+    // `<p>` element.
     else {
         let previousNode = previousLeafNode(endNode);
         while (previousNode) {
@@ -791,10 +785,9 @@ function getMessagingViewPointerToolbarStateBase(
 
     if (!firstClientRect || !lastClientRect) return null;
 
-    // NOTE(calebmer): We're copying the logic from
-    // `content_editor_cursor_tracker.tsx` for positioning the reply pointer
-    // toolbar. The toolbar needs to look good when rendered above or below the
-    // selection.
+    // NOTE(calebmer): We're copying the logic from `content_editor_cursor_tracker.tsx`
+    // for positioning the reply pointer toolbar. The toolbar needs to look good when
+    // rendered above or below the selection.
     const coords = {
         top: Math.min(firstClientRect.top, lastClientRect.top),
         bottom: Math.max(firstClientRect.bottom, lastClientRect.bottom),
@@ -802,8 +795,8 @@ function getMessagingViewPointerToolbarStateBase(
         right: Math.max(firstClientRect.right, lastClientRect.right),
     };
 
-    // `coords` are relative to the viewport, so get our offset parent's viewport
-    // rect so we can correctly position our selection target in the offset parent.
+    // `coords` are relative to the viewport, so get our offset parent's viewport rect
+    // so we can correctly position our selection target in the offset parent.
     const offsetParentRect = offsetParent.getBoundingClientRect();
 
     return {
@@ -871,7 +864,8 @@ function previousLeafNode(node: Node): Node | null {
 }
 
 /**
- * Traverse to the first leaf node that's a child of the provided node in the DOM tree.
+ * Traverse to the first leaf node that's a child of the provided node in the DOM
+ * tree.
  */
 function firstChildLeafNode(node: Node): Node {
     let childNode = node;
@@ -880,7 +874,8 @@ function firstChildLeafNode(node: Node): Node {
 }
 
 /**
- * Traverse to the last leaf node that's a child of the provided node in the DOM tree.
+ * Traverse to the last leaf node that's a child of the provided node in the DOM
+ * tree.
  */
 function lastChildLeafNode(node: Node): Node {
     let childNode = node;
@@ -997,8 +992,7 @@ function getMessagingViewPointerToolbarState<
         // adjacent messages.
         if (message.payload.parent !== null) return null;
 
-        // The messages in the range are from different authors. Can't reply to
-        // this range.
+        // The messages in the range are from different authors. Can't reply to this range.
         if (message.author.id !== authorId) return null;
 
         // If the messages aren't adjacent then don't allow replying to this range.

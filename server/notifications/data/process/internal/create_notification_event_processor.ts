@@ -31,20 +31,20 @@ import {AccountId, BotId, BotWebhookEventId} from "~/shared/id/types/id_types.js
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * Creates a function that will process a notification event for all
- * subscribers. Some features:
+ * Creates a function that will process a notification event for all subscribers.
+ * Some features:
  *
  * - Makes sure traces are consistent
  * - Reads subscribers with strong consistency so we don't miss new subscribers
  * - Implements notification fan-out
  *
  * This creates a processing function that's (mostly) idempotent as long as
- * `updateInboxEntry` is idempotent. We're mostly idempotent since
- * `getSubscribers` may return different `AccountId`s on each call. However,
- * we find that acceptable. If it returns a new `AccountId` on a second call
- * then we'll update that `AccountId`'s inbox which seems harmless. If it stops
- * returning an `AccountId` on a second call we already update that
- * `AccountId`'s inbox which is fine.
+ * `updateInboxEntry` is idempotent. We're mostly idempotent since `getSubscribers`
+ * may return different `AccountId`s on each call. However, we find that
+ * acceptable. If it returns a new `AccountId` on a second call then we'll update
+ * that `AccountId`'s inbox which seems harmless. If it stops returning an
+ * `AccountId` on a second call we already update that `AccountId`'s inbox which is
+ * fine.
  */
 export function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
     getSubscribers,
@@ -57,8 +57,8 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
      * Get the accounts subscribed to notifications for this event.
      *
      * IMPORTANT: This function needs read-after-write consistency which means you
-     * can't make eventually consistent reads. If reading from DynamoDB, always
-     * make sure to explicitly use `Strong` consistency.
+     * can't make eventually consistent reads. If reading from DynamoDB, always make
+     * sure to explicitly use `Strong` consistency.
      *
      * We need read-after-write consistency since the update which caused a
      * notification event may have just itself added a subscriber.
@@ -74,17 +74,17 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
     /**
      * Authorize that the account actor has access to the notification subject.
      *
-     * This is run for every subscriber returned by `getSubscribers()` that is
-     * a current space member before we call `updateInboxEntry()`.
+     * This is run for every subscriber returned by `getSubscribers()` that is a
+     * current space member before we call `updateInboxEntry()`.
      *
      * You could implement authorization yourself in `getSubscribers()` by only
-     * returning `AccountId`s that have access to the notification subject.
-     * We've chosen to add a required function here to force you to consider
-     * authorization instead of accidentally ignoring it.
+     * returning `AccountId`s that have access to the notification subject. We've
+     * chosen to add a required function here to force you to consider authorization
+     * instead of accidentally ignoring it.
      *
      * IMPORTANT: This function needs read-after-write consistency which means you
-     * can't make eventually consistent reads. If reading from DynamoDB, always
-     * make sure to explicitly use `Strong` consistency.
+     * can't make eventually consistent reads. If reading from DynamoDB, always make
+     * sure to explicitly use `Strong` consistency.
      *
      * We need read-after-write consistency since the update which caused a
      * notification event may have just itself added a subscriber.
@@ -98,8 +98,8 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
     /**
      * Update the inbox entry for each subscriber. Called in parallel.
      *
-     * Make sure this function is idempotent! That way the notification processor
-     * as a whole will be idempotent.
+     * Make sure this function is idempotent! That way the notification processor as a
+     * whole will be idempotent.
      */
     updateInboxEntry: (
         context: ServerSystemActionContext,
@@ -112,10 +112,10 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
     ) => Promise<UpdateInboxEntryResult | null>;
 
     /**
-     * If we have a subscriber that's a bot then instead of updating the bot's
-     * inbox entry, we'll send the bot a webhook request. If you want to send a
-     * bot a webhook request in response to a notification event, then return
-     * an object from this function. Otherwise return null.
+     * If we have a subscriber that's a bot then instead of updating the bot's inbox
+     * entry, we'll send the bot a webhook request. If you want to send a bot a webhook
+     * request in response to a notification event, then return an object from this
+     * function. Otherwise return null.
      */
     getBotWebhookEvent: (
         event: Event,
@@ -123,17 +123,17 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
     ) => ApiBotWebhookEvent | null;
 
     /**
-     * Get the content of a push notification for the action. The notification will
-     * be displayed in different ways on different platforms. [iOS push
-     * notifications][1] appear in a banner on the device's notification feed.
+     * Get the content of a push notification for the action. The notification will be
+     * displayed in different ways on different platforms. [iOS push notifications][1]
+     * appear in a banner on the device's notification feed.
      *
      * A push notification is sent if:
      *
      * - The inbox entry was updated; and
      * - The inbox entry is not archived
      *
-     * The alert will be delivered silently unless `loudNotificationCount` changed.
-     * In which case the alert will be delivered with high priority and a sound.
+     * The alert will be delivered silently unless `loudNotificationCount` changed. In
+     * which case the alert will be delivered with high priority and a sound.
      *
      * # Style guide
      *
@@ -144,16 +144,15 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
      * - `subtitle`: A continuation of `title` detailing critical context for the
      *   notification. The subtitle must be short and fit on a single line.
      *
-     *   The user should be able to read the notification's `title` and `subtitle`
-     *   as one sentence. They are rendered on two lines as operating systems
-     *   truncate notification titles to one line. The subtitle is on its own line
-     *   (and not combined with title) so the critical context it carries can be
-     *   visible.
+     *     The user should be able to read the notification's `title` and `subtitle` as
+     *     one sentence. They are rendered on two lines as operating systems truncate
+     *     notification titles to one line. The subtitle is on its own line (and not
+     *     combined with title) so the critical context it carries can be visible.
      *
-     *   For example, a `title` of "Caleb Meredith" and a `subtitle` of "on their
-     *   post in Welcome" is a good notification. We don't have space to say that
-     *   "Welcome" is a channel. "on" is lower cased so the `title` and `subtitle`
-     *   read like one sentence when put together.
+     *     For example, a `title` of "Caleb Meredith" and a `subtitle` of "on their
+     *     post in Welcome" is a good notification. We don't have space to say that
+     *     "Welcome" is a channel. "on" is lower cased so the `title` and `subtitle`
+     *     read like one sentence when put together.
      *
      * - `body`: The content snippet associated with this notification printed on a
      *   single line of text. `printNotificationEventAlertContentBody()` can handle
@@ -190,8 +189,8 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
 
         const {info, accountIds} = await getSubscribers(
             // This function needs read-after-write consistency! So throw an error (in
-            // development) when a DynamoDB read doesn't use strong consistency to make
-            // sure developers don't accidentally use eventual consistency.
+            // development) when a DynamoDB read doesn't use strong consistency to make sure
+            // developers don't accidentally use eventual consistency.
             //
             // We need read-after-write consistency since the update which caused a
             // notification event may have just itself added a subscriber.
@@ -253,18 +252,16 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
         const botId = await getSpaceAccountBotIdIfExists(context, event.spaceId, accountId);
 
         if (botId !== null) {
-            // If the account is a Bot and that bot has a webhook URL, then we want to
-            // call `processForBot()`, which will eventually notify the bot via its
-            // webhook. If the bot doe snot have a webhook, then we can't send it a
-            // notification, so don't try.
+            // If the account is a Bot and that bot has a webhook URL, then we want to call
+            // `processForBot()`, which will eventually notify the bot via its webhook. If the
+            // bot doe snot have a webhook, then we can't send it a notification, so don't try.
             const {hasWebhookUrl} = await getBot(context, botId);
             if (hasWebhookUrl) await processForBot(context, botId, accountId, options);
 
             return;
         }
 
-        // Make sure the subscriber still has access to the subject of this
-        // notification.
+        // Make sure the subscriber still has access to the subject of this notification.
         const result = await impersonateAccountAsSystemContext(context, accountId, context =>
             authorizeAccess(
                 // We expect strong read consistency here too since we need read-after-write
@@ -300,21 +297,21 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                             maxClientRequestTokenLengthForIds / 2,
                         );
 
-                        // Fill the client request token with half of the event ID and half of the
-                        // account ID. We end up using 16 characters for `AccountId`s and 17 characters
-                        // for `NotificationEventId`s whereas the full length of an ID is 26
-                        // characters. This does increase collision chances!
+                        // Fill the client request token with half of the event ID and half of the account
+                        // ID. We end up using 16 characters for `AccountId`s and 17 characters for
+                        // `NotificationEventId`s whereas the full length of an ID is 26 characters. This
+                        // does increase collision chances!
                         //
                         // However, if we're generating IDs at the rate of 1000 per hour we'll end up
                         // [needing to wait ~18 thousand years][1] for a 1% collision chance of
                         // `AccountId`s and ~101 thousand years for a 1% collision chance of
-                        // `NotificationEventId`s. If we get a random collision that means a
-                        // notification won't be sent which could be pretty bad if it's an urgent
-                        // notification but won't leave the system in a corrupted state.
+                        // `NotificationEventId`s. If we get a random collision that means a notification
+                        // won't be sent which could be pretty bad if it's an urgent notification but won't
+                        // leave the system in a corrupted state.
                         //
                         // We start the token with `i:` (`i` stands for `inbox`) to make sure we don't
-                        // collide with `clientRequestToken`s generated by other parts of our system
-                        // since `clientRequestToken`s need to be globally unique.
+                        // collide with `clientRequestToken`s generated by other parts of our system since
+                        // `clientRequestToken`s need to be globally unique.
                         //
                         // [1]: https://zelark.github.io/nano-id-cc/
                         const clientRequestToken = `i:${event.id.slice(
@@ -353,8 +350,8 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                         getAlertContent(context, event, {
                             info,
                             accountId,
-                            // TODO(calebmer): All notifications are currently in US English. When we
-                            // localize the product this should change.
+                            // TODO(calebmer): All notifications are currently in US English. When we localize
+                            // the product this should change.
                             locale: defaultLocale,
                             entryItem: newInboxEntryItem,
                         }),
@@ -397,20 +394,20 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                     context: {
                         botId,
                         botAccountId,
-                        // Use the account that initiated the bot as `context.accountId` and include
-                        // the bot itself as `context.botAccountId`.
+                        // Use the account that initiated the bot as `context.accountId` and include the
+                        // bot itself as `context.botAccountId`.
                         accountId: event.authorId,
                     },
                 });
 
                 const {bytes: originalBytes, time} = decodeEventId();
 
-                // Ignore the first 48 bytes which are the `ChronologicalId` timestamp so we
-                // just have the random bytes.
+                // Ignore the first 48 bytes which are the `ChronologicalId` timestamp so we just
+                // have the random bytes.
                 const randomBytes = originalBytes.slice(6);
 
-                // Combine the `BotId` bytes and random bytes together. We'll hash this to get
-                // our new random bytes.
+                // Combine the `BotId` bytes and random bytes together. We'll hash this to get our
+                // new random bytes.
                 const hashBytes = new Uint8Array(idByteLength + randomBytes.byteLength);
                 decodeIdInto(botId, hashBytes, 0);
                 hashBytes.set(randomBytes, idByteLength);
@@ -418,17 +415,17 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                 const newRandomBytes = new Uint8Array(hashMd5(hashBytes.buffer));
 
                 // The `BotWebhookEventId` is deterministically generated from the
-                // `NotificationEventId`. Since if the notification job re-runs multiple times,
-                // we need to make sure we're calling the bot webhook with the same
+                // `NotificationEventId`. Since if the notification job re-runs multiple times, we
+                // need to make sure we're calling the bot webhook with the same
                 // `BotWebhookEventId`.
                 //
                 // We use the same time as the `NotificationEventId` and combine the
-                // `NotificationEventId`'s random bytes with the `BotId` to produce the new
-                // random bytes for `BotWebhookEventId`.
+                // `NotificationEventId`'s random bytes with the `BotId` to produce the new random
+                // bytes for `BotWebhookEventId`.
                 const botWebhookEventId = unsafelyConstructChronologicalId<BotWebhookEventId>(
                     time,
-                    // `newRandomBytes` is a 128 bit hash. `unsafelyConstructChronologicalId()`
-                    // will truncate the hash to whatever fits in the `ChronologicalId` (80 bits).
+                    // `newRandomBytes` is a 128 bit hash. `unsafelyConstructChronologicalId()` will
+                    // truncate the hash to whatever fits in the `ChronologicalId` (80 bits).
                     newRandomBytes,
                 );
 

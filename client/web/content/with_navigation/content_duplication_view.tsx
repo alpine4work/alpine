@@ -53,8 +53,8 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 
 /**
- * A generic content duplication view that can be used for both documents and tasks.
- * It renders a form for the user to fill in variable values, then calls the
+ * A generic content duplication view that can be used for both documents and
+ * tasks. It renders a form for the user to fill in variable values, then calls the
  * `onDuplicate` callback to perform the duplication.
  */
 export function ContentDuplicationView({
@@ -334,8 +334,8 @@ const ContentDuplicationViewTextProperty = memo(function ContentDuplicationViewT
             // Disable autocomplete, doesn't make sense for this input.
             autoComplete="off"
             fontStyle={
-                // Don't render the actual font style until the user starts typing. Monospace
-                // code style for the ellipsis character looks funny.
+                // Don't render the actual font style until the user starts typing. Monospace code
+                // style for the ellipsis character looks funny.
                 textValue.length === 0
                     ? "normal"
                     : isCode && isBold

@@ -26,21 +26,20 @@ import {
  *
  * ## Style guide
  *
- * The following is a style guide you should follow when designing the display
- * for an inbox entry. We've put thought into how we can effectively
- * communicate a notification to the user in only a couple words. Such that the
- * user has enough preliminary information to make a decision on which
- * notifications to prioritize. We've written down that thinking in this style
- * guide.
+ * The following is a style guide you should follow when designing the display for
+ * an inbox entry. We've put thought into how we can effectively communicate a
+ * notification to the user in only a couple words. Such that the user has enough
+ * preliminary information to make a decision on which notifications to prioritize.
+ * We've written down that thinking in this style guide.
  *
- * Following this style guide also makes sure inbox entry displays are
- * consistent across different entity types. So even in a full inbox there's
- * order and harmony.
+ * Following this style guide also makes sure inbox entry displays are consistent
+ * across different entity types. So even in a full inbox there's order and
+ * harmony.
  *
  * ### The summary is ordered "what" or "how" then optionally "who"
  *
- * Most inbox entry summaries can be thought of in three parts what, how, and
- * who. You should order these parts as either:
+ * Most inbox entry summaries can be thought of in three parts what, how, and who.
+ * You should order these parts as either:
  *
  * 1. What
  * 2. How
@@ -52,8 +51,7 @@ import {
  * 2. What
  * 3. Who
  *
- * Whether "what" or "how" comes first is to be decided on a case-by-case
- * basis.
+ * Whether "what" or "how" comes first is to be decided on a case-by-case basis.
  *
  * To find the "what", "how", then "who" of any inbox entry ask yourself:
  *
@@ -70,9 +68,8 @@ import {
  *
  * Bob's post (what) changed by receiving a comment (how) from Alice (who).
  *
- * Using the what, how, and who you could phrase an inbox entry summary a
- * couple of ways. Thank about how each of these summaries order the what, how,
- * and who:
+ * Using the what, how, and who you could phrase an inbox entry summary a couple of
+ * ways. Thank about how each of these summaries order the what, how, and who:
  *
  * 1. Alice commented on Bob's post (who → how → what)
  * 2. New comments on Bob's post by Alice (how → what → who)
@@ -80,11 +77,11 @@ import {
  * 4. Bob's post has new comments (what → how)
  *
  * 2, 3, and 4 follows our style guide suggestion of "what" or "how" then
- * optionally "who". We prefer 3 and 4 since in this case the "how" will always
- * be "new comments" which doesn't give the user much information.
+ * optionally "who". We prefer 3 and 4 since in this case the "how" will always be
+ * "new comments" which doesn't give the user much information.
  *
- * Another example. Let's say 3 posts are created in the channel "Engineering
- * Help" by Alice, Bob, and Carol. The what/how/who for this inbox entry is:
+ * Another example. Let's say 3 posts are created in the channel "Engineering Help"
+ * by Alice, Bob, and Carol. The what/how/who for this inbox entry is:
  *
  * - What: Engineering Help channel
  * - How: 3 new posts
@@ -96,37 +93,36 @@ import {
  * 2. 3 new posts in Engineering Help by Alice, Bob, and Carol (how → what → who)
  *
  * We've chosen 2 for this notification because the number of posts (the "how")
- * best prepares users for what they'll see when they open the notification.
- * The "what" could also be long so putting the post count first improves
- * skimmability.
+ * best prepares users for what they'll see when they open the notification. The
+ * "what" could also be long so putting the post count first improves skimmability.
  *
  * **Why?** The "who" of an inbox entry is prominently featured outside of the
  * inbox entry's summary. It's featured in the account avatars displayed on the
- * left of the inbox entry and it's displayed in the latest message snippet
- * below the summary. So we want to focus on other pertinent information in the
- * inbox entry summary.
+ * left of the inbox entry and it's displayed in the latest message snippet below
+ * the summary. So we want to focus on other pertinent information in the inbox
+ * entry summary.
  *
  * Generally, since the "who" is displayed outside an inbox entry's summary, we
- * recommend omitting the "who" from the inbox entry summary entirely! So we
- * get shorter summaries.
+ * recommend omitting the "who" from the inbox entry summary entirely! So we get
+ * shorter summaries.
  *
- * Also, since we batch many notification events into one inbox entry there
- * might be many "who"s for one inbox entry. For example, if Alice and Carol
- * both leave comments on Bob's post both Alice and Carol are "who"s in the
- * inbox entry. For inbox entry avatars we display the last two accounts to
- * make a change and in the inbox entry latest message snippet we name the
- * latest account to make a change. Listing 4+ accounts in an inbox entry may
- * make it harder to quickly interpret.
+ * Also, since we batch many notification events into one inbox entry there might
+ * be many "who"s for one inbox entry. For example, if Alice and Carol both leave
+ * comments on Bob's post both Alice and Carol are "who"s in the inbox entry. For
+ * inbox entry avatars we display the last two accounts to make a change and in the
+ * inbox entry latest message snippet we name the latest account to make a change.
+ * Listing 4+ accounts in an inbox entry may make it harder to quickly interpret.
  *
  * ### If our account is mentioned ignore previous recommendations and put
+ *
  * "who" first in the summary
  *
- * If our account is mentioned then ignore our previous what/how/who ordering
- * and instead order the inbox entry summary who, how, then what. For example
- * if Alice mentions Bob in a comment then the summary for Bob should be:
- * "Alice mentioned you in your post". If Carol is also subscribed to Bob's
- * post then Carol would get the standard what/how/who summary: "Bob's post has
- * a new comment from Alice" or "Bob's post has new comments".
+ * If our account is mentioned then ignore our previous what/how/who ordering and
+ * instead order the inbox entry summary who, how, then what. For example if Alice
+ * mentions Bob in a comment then the summary for Bob should be: "Alice mentioned
+ * you in your post". If Carol is also subscribed to Bob's post then Carol would
+ * get the standard what/how/who summary: "Bob's post has a new comment from Alice"
+ * or "Bob's post has new comments".
  *
  * Always try to use the exact language "`${accountName}` mentioned you" at the
  * start of the summary for consistency.
@@ -136,19 +132,19 @@ import {
  * notification badge, we should immediately explain why there's a loud
  * notification badge by describing that there's a mention.
  *
- * Your social connection to the person mentioning you is often the most
- * important piece for interpreting the mention. Especially since often you'll
- * be mentioned on a piece of content you haven't seen before as someone is
- * trying to bring you into a conversation. For example a Product Manager
- * mentioning their Engineering Lead counterpart on a design specification.
- * Being able to quickly interpret the purpose of a mention through your social
- * connection to the mentioner is why we put the mentioner first.
+ * Your social connection to the person mentioning you is often the most important
+ * piece for interpreting the mention. Especially since often you'll be mentioned
+ * on a piece of content you haven't seen before as someone is trying to bring you
+ * into a conversation. For example a Product Manager mentioning their Engineering
+ * Lead counterpart on a design specification. Being able to quickly interpret the
+ * purpose of a mention through your social connection to the mentioner is why we
+ * put the mentioner first.
  *
  * ### Don't use the comment brand icon variant
  *
  * For products that have a comment brand icon (e.g. `<TaskCommentBrandIcon>`,
- * `<DocumentCommentBrandIcon>`, and `<PostCommentBrandIcon>`) don't use them
- * for the inbox entry brand icon. Instead use the main product brand icon:
+ * `<DocumentCommentBrandIcon>`, and `<PostCommentBrandIcon>`) don't use them for
+ * the inbox entry brand icon. Instead use the main product brand icon:
  *
  * - `<TaskCommentBrandIcon>` → `<TaskBrandIcon>`
  * - `<DocumentCommentBrandIcon>` → `<DocumentBrandIcon>`
@@ -159,9 +155,9 @@ import {
  *
  * **Why?** Most inbox entries are communication related (comments, messages,
  * posts). The purpose of brand icons on inbox entries is to help the user
- * interpret at a glance the content of each inbox entry. However, if a
- * majority of inbox entry brand icons include the comment symbol it makes it
- * harder to differentiate inbox entries.
+ * interpret at a glance the content of each inbox entry. However, if a majority of
+ * inbox entry brand icons include the comment symbol it makes it harder to
+ * differentiate inbox entries.
  */
 export type InboxEntryDisplayContent = {
     readonly time: Date;
@@ -176,8 +172,8 @@ export type InboxEntryDisplayContent = {
 };
 
 /**
- * The summary text of an inbox entry with some rich text or interactive
- * elements. Can be rendered to non-interactive plain text as well if needed.
+ * The summary text of an inbox entry with some rich text or interactive elements.
+ * Can be rendered to non-interactive plain text as well if needed.
  */
 export type InboxEntryDisplayContentSummary = ReadonlyArray<InboxEntryDisplayContentSummaryItem>;
 
@@ -230,8 +226,8 @@ function getInboxChatEntryDisplay({
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     if (entry.latestMessage.clerical?.type === "ShareNotification") {
-        // If this was a clerical share notification then override the
-        // notification summary to directly describe what happened.
+        // If this was a clerical share notification then override the notification summary
+        // to directly describe what happened.
         summary.push(entry.latestMessage.author);
         summary.push(
             ` shared a ${getFileEntityNoun(entry.latestMessage.clerical.entityType)} with you`,
@@ -276,17 +272,15 @@ function getInboxChatEntryDisplay({
         }
     } else if (entry.latestMessage.author.id !== currentAccount?.id) {
         // NOTE(calebmer): Chat message summaries are an exception to the inbox entry
-        // display style guide since the summary is ordered who/what instead of
-        // what/how.
+        // display style guide since the summary is ordered who/what instead of what/how.
         //
-        // "Alice (who) sent you a message (how)" (who/how) vs "Your chat with Alice
-        // (what) has new messages (how)" (what/how).
+        // "Alice (who) sent you a message (how)" (who/how) vs "Your chat with Alice (what)
+        // has new messages (how)" (what/how).
         //
-        // Chat messages are an exception since the who/how ordering just sounds so
-        // much more natural. Also since chats are identified by its members the who
-        // and what are often the same. Also since all messages in a chat are loud
-        // notifications it also makes sense to borrow the structure of mention inbox
-        // summaries.
+        // Chat messages are an exception since the who/how ordering just sounds so much
+        // more natural. Also since chats are identified by its members the who and what
+        // are often the same. Also since all messages in a chat are loud notifications it
+        // also makes sense to borrow the structure of mention inbox summaries.
 
         summary.push(entry.latestMessage.author);
         summary.push(" sent you");
@@ -363,8 +357,8 @@ function getInboxPostCommentsEntryDisplay({
         );
     } else if (!entry.latestComment) {
         // When we archive a post in `ChannelPostsEntry` we create an archived
-        // `PostCommentsEntry` with no `latestComment`. Render this `PostCommentsEntry`
-        // the same as a `ChannelPostsEntry` with one post.
+        // `PostCommentsEntry` with no `latestComment`. Render this `PostCommentsEntry` the
+        // same as a `ChannelPostsEntry` with one post.
         return getInboxChannelPostsEntryDisplay({
             locale,
             entry: {
@@ -501,10 +495,10 @@ function getInboxDocumentCommentThreadEntryDisplay({
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     if (entry.isFromNewCommentThread) {
-        // When we archive a comment thread in `DocumentNewCommentThreadsEntry` we
-        // create an archived `DocumentCommentThreadEntry` with
-        // `isFromNewCommentThread: true`. Render this `DocumentCommentThreadEntry`
-        // the same as a `DocumentNewCommentThreadsEntry` with one comment thread.
+        // When we archive a comment thread in `DocumentNewCommentThreadsEntry` we create
+        // an archived `DocumentCommentThreadEntry` with `isFromNewCommentThread: true`.
+        // Render this `DocumentCommentThreadEntry` the same as a
+        // `DocumentNewCommentThreadsEntry` with one comment thread.
         return getInboxDocumentNewCommentThreadsEntryDisplay({
             locale,
             entry: {

@@ -30,8 +30,8 @@ export function ShareSwitchBase({
         onPress,
     });
 
-    // Disable CSS transitions when `spacingScale` changes so we don't animate a
-    // width change after the browser size changes.
+    // Disable CSS transitions when `spacingScale` changes so we don't animate a width
+    // change after the browser size changes.
     const [previousSpacingScale, setPreviousSpacingScale] = useState(spacingScale);
     useEffect(() => setPreviousSpacingScale(spacingScale), [spacingScale]);
     const disableTransitions = spacingScale !== previousSpacingScale;
@@ -48,8 +48,8 @@ export function ShareSwitchBase({
                 width={shareSwitchWidth}
                 backgroundColor={
                     {
-                        // TODO: If `theme` is green we need a different color for the URL grant. Right
-                        // now the theme color is always indigo so hard coding green is fine.
+                        // TODO: If `theme` is green we need a different color for the URL grant. Right now
+                        // the theme color is always indigo so hard coding green is fine.
                         Globe: {light: "green-30-const", dark: "green-40-const"} as const,
                         Buildings: {light: "theme-40-const", dark: "theme-50-const"} as const,
                         Lock: {light: "grey-10-translucent", dark: "grey-40-translucent"} as const,
@@ -58,15 +58,15 @@ export function ShareSwitchBase({
                 borderRadius="full"
                 overflow="hidden"
                 // We don't normally put cursor pointers on clickable things, but since this UI
-                // pattern is a little novel we want to make it really clear to users that this
-                // is a clickable switch.
+                // pattern is a little novel we want to make it really clear to users that this is
+                // a clickable switch.
                 cursor={!isInert ? "pointer" : undefined}
                 style={{
                     // We want our switch knob to be spacing 6 size (to match the size of a `md`
-                    // `<IconButton>` and fit a size 4 icon). But we also want 2px of color around
-                    // the knob to make it feel like the knob is inset into the switch's well. So
-                    // take 2px of size away from the knob and add 2px of size to the switch well
-                    // so in total the knob is 4px smaller than the well giving us our border.
+                    // `<IconButton>` and fit a size 4 icon). But we also want 2px of color around the
+                    // knob to make it feel like the knob is inset into the switch's well. So take 2px
+                    // of size away from the knob and add 2px of size to the switch well so in total
+                    // the knob is 4px smaller than the well giving us our border.
                     height: `calc(${spacing["6"]} + 2px)`,
                     margin: -1,
                     transition: !disableTransitions ? "background-color 150ms linear" : undefined,

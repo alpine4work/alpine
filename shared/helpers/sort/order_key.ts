@@ -5,23 +5,20 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * Order keys provide a way to sort lists in a collaboratively edited
- * environment. They use a technique called [fractional indexing][1] which
- * allows us to efficiently generate a new `OrderKey` between two existing
- * `OrderKey`s.
+ * Order keys provide a way to sort lists in a collaboratively edited environment.
+ * They use a technique called [fractional indexing][1] which allows us to
+ * efficiently generate a new `OrderKey` between two existing `OrderKey`s.
  *
  * They have a couple advantages over using a list to order your items:
  *
  * - You can put an order key on each individual item. You don't need separate
- *   storage for a list. Useful for ordering items in a database for this
- *   reason.
+ *   storage for a list. Useful for ordering items in a database for this reason.
  * - When the order changes, you don't need to reassign integer indexes.
- * - They allow for collaborative updates. A user may insert an item at the
- *   same time another user moves an item. The items will end up in the right
- *   spot.
+ * - They allow for collaborative updates. A user may insert an item at the same
+ *   time another user moves an item. The items will end up in the right spot.
  *
- * When using order keys, make sure you guarantee the order key for each item
- * is unique.
+ * When using order keys, make sure you guarantee the order key for each item is
+ * unique.
  *
  * [1]: https://observablehq.com/@dgreensp/implementing-fractional-indexing
  */
@@ -69,9 +66,8 @@ function midpoint(a: string, b: string | null): string {
     assert(!b || b.slice(-1) !== "0");
 
     if (b) {
-        // Remove longest common prefix. Pad `a` with 0s as we go. Note that we don't
-        // need to pad `b`, because it can't end before `a` while traversing the common
-        // prefix.
+        // Remove longest common prefix. Pad `a` with 0s as we go. Note that we don't need
+        // to pad `b`, because it can't end before `a` while traversing the common prefix.
         let n = 0;
         while ((a.charAt(n) || "0") === b.charAt(n)) {
             n++;
@@ -95,9 +91,8 @@ function midpoint(a: string, b: string | null): string {
             // `b` is null or has length 1 (a single digit). The first digit of `a` is the
             // previous digit to `b`, or 9 if `b` is null.
             //
-            // Given, for example, `midpoint('49', '5')`, return
-            // `'4' + midpoint('9', null)`, which will become
-            // `'4' + '9' + midpoint('', null)`, which is `'495'`.
+            // Given, for example, `midpoint('49', '5')`, return `'4' + midpoint('9', null)`,
+            // which will become `'4' + '9' + midpoint('', null)`, which is `'495'`.
             return orderKeyDigits.charAt(digitA) + midpoint(a.slice(1), null);
         }
     }
@@ -186,8 +181,8 @@ export const initialOrderKey = zeroOrderKey;
 /**
  * Generate a new order key between two existing keys.
  *
- * If you pass in `null` for `a` that represents the start of the list. If you
- * pass in `null` for `b` that represents the end of the list.
+ * If you pass in `null` for `a` that represents the start of the list. If you pass
+ * in `null` for `b` that represents the end of the list.
  */
 export function generateOrderKeyBetween(a: OrderKey | null, b: OrderKey | null): OrderKey {
     if (a !== null) validateOrderKey(a);
@@ -224,11 +219,11 @@ export function generateOrderKeyBetween(a: OrderKey | null, b: OrderKey | null):
 }
 
 /**
- * Generate multiple order keys between two existing keys. We generate the new
- * keys so that they're balanced.
+ * Generate multiple order keys between two existing keys. We generate the new keys
+ * so that they're balanced.
  *
- * If you pass in `null` for `a` that represents the start of the list. If you
- * pass in `null` for `b` that represents the end of the list.
+ * If you pass in `null` for `a` that represents the start of the list. If you pass
+ * in `null` for `b` that represents the end of the list.
  */
 export function generateOrderKeysBetween(
     a: OrderKey | null,

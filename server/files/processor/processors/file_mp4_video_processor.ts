@@ -75,8 +75,8 @@ export function createFileMp4VideoProcessor(contentType: FileMp4VideoContentType
                 }
             }
 
-            // If we have both a web safe audio codec and a web safe video codec then we
-            // can use the cheaper web safe processor and skip an expensive transcode.
+            // If we have both a web safe audio codec and a web safe video codec then we can
+            // use the cheaper web safe processor and skip an expensive transcode.
             if (!hasWebSafeVideoCodec || !hasWebSafeAudioCodec) {
                 return processFileWebUnsafeVideo(context, inputUrl, {
                     signal,

@@ -152,9 +152,9 @@ test("handles email with generic domain and country code TLD", () => {
 });
 
 test("handles email with multiple @ symbols (invalid format)", () => {
-    // The function only splits on the first @, so "user@domain@invalid.com" becomes "domain@invalid.com"
-    // However, the validation logic may not handle this edge case correctly
-    // The function returns false for this invalid format
+    // The function only splits on the first @, so "user@domain@invalid.com" becomes
+    // "domain@invalid.com" However, the validation logic may not handle this edge case
+    // correctly The function returns false for this invalid format
     const result = validateEmailAddressForAuthentication("user@domain@invalid.com");
     expect(result.isEmailAddressValid).toEqual(false);
     expect(result.isEmailAddressPossiblyGeneric).toEqual(false);

@@ -1,6 +1,6 @@
 /**
- * Count the number of items in the iterable. Same as `Array.length` but
- * with an iterable.
+ * Count the number of items in the iterable. Same as `Array.length` but with an
+ * iterable.
  */
 export function countIterable<Item>(iterable: Iterable<Item>) {
     let count = 0;

@@ -116,9 +116,8 @@ function TaskProjectDetailViewDesktopHeader(
                     />
                     <Box
                         overflow="hidden"
-                        // Same styles that would be on a title in `<NavigationBarContent>` since
-                        // that's where `<TaskProjectDetailViewNavigationBarTitle>` thinks it's
-                        // rendered.
+                        // Same styles that would be on a title in `<NavigationBarContent>` since that's
+                        // where `<TaskProjectDetailViewNavigationBarTitle>` thinks it's rendered.
                         fontSize="200"
                         fontStyle="semi-bold"
                         userSelect="text"

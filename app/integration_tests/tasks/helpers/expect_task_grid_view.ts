@@ -4,8 +4,8 @@ import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 type ExpectTaskGridViewTaskDefinitionAttributes = [
-    // `true` is `OpenInactive`, `false` is `Closed`, and `null` is no status
-    // button (for ghost row).
+    // `true` is `OpenInactive`, `false` is `Closed`, and `null` is no status button
+    // (for ghost row).
     status: TaskDisplayStatus | boolean | null,
     title: string,
     assignee?: string,
@@ -36,8 +36,8 @@ function getExpectTaskGridViewTaskDefinitionChildren(
 }
 
 /**
- * Convenient function for asserting a task grid view has all the tasks you
- * expect with the right data in each position.
+ * Convenient function for asserting a task grid view has all the tasks you expect
+ * with the right data in each position.
  */
 export async function expectTaskGridView(
     page: Page,

@@ -18,12 +18,11 @@ export type ContentCodeBlockHtmlSerializationDecoration = {
 };
 
 /**
- * Generate `codeBlock` node syntax highlighting decorations for
- * `<ContentView>`'s ProseMirror HTML serialization and add them to the
- * `decorations` array.
+ * Generate `codeBlock` node syntax highlighting decorations for `<ContentView>`'s
+ * ProseMirror HTML serialization and add them to the `decorations` array.
  *
- * Performs the same logic as `ContentCodeBlockIncrementalParser` but in one
- * shot. Doesn't save state for future incremental parses.
+ * Performs the same logic as `ContentCodeBlockIncrementalParser` but in one shot.
+ * Doesn't save state for future incremental parses.
  */
 export function createContentCodeBlockHtmlSerializationDecorationsStore(
     doc: Node,
@@ -49,10 +48,10 @@ export function createContentCodeBlockHtmlSerializationDecorationsStore(
             const input = createContentCodeBlockNodeInput(node);
             const tree = parser.parse(input);
 
-            // `length` corresponds to the current position in the input string. It's
-            // different from the ProseMirror position `pos` in that for `pos` each line
-            // adds 2 (the start + end of the node) whereas for `length` each line adds 1
-            // (a `\n` character).
+            // `length` corresponds to the current position in the input string. It's different
+            // from the ProseMirror position `pos` in that for `pos` each line adds 2 (the
+            // start + end of the node) whereas for `length` each line adds 1 (a `\n`
+            // character).
             let length = 0;
             let pos = 0;
 

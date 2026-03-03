@@ -25,15 +25,17 @@ const LoaderSchema = Schema.object({
 });
 
 /**
- * This route is used to handle the OAuth callback from Slack after the user has authorized the
- * Slack Alpine app. It is used to exchange the short-lived OAuth code that Slack puts in the
- * search params for an long-lived access token, which we store in the database and use to
- * authenticate as the Alpine bot when we need to make API calls to Slack.
+ * This route is used to handle the OAuth callback from Slack after the user has
+ * authorized the Slack Alpine app. It is used to exchange the short-lived OAuth
+ * code that Slack puts in the search params for an long-lived access token, which
+ * we store in the database and use to authenticate as the Alpine bot when we need
+ * to make API calls to Slack.
  *
- * We send this route as the `redirect_uri` when we initiate a request for an OAuth code from
- * Slack. It is expected that this route is only opened within a temporary popup window and is
- * closed after the OAuth flow is complete. For more details on the OAuth flow, see the README.md
- * file in the `server/integrations/slack` directory.
+ * We send this route as the `redirect_uri` when we initiate a request for an OAuth
+ * code from Slack. It is expected that this route is only opened within a
+ * temporary popup window and is closed after the OAuth flow is complete. For more
+ * details on the OAuth flow, see the README.md file in the
+ * `server/integrations/slack` directory.
  */
 export async function loader({context, params, request}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
@@ -73,8 +75,8 @@ export async function loader({context, params, request}: LoaderArgs) {
         return response;
     }
 
-    // Exchange the short-lived OAuth code for an access token and connect the Slack workspace and
-    // account if not already connected.
+    // Exchange the short-lived OAuth code for an access token and connect the Slack
+    // workspace and account if not already connected.
     try {
         await exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWorkspaceAndAccount(
             authenticatedContext,
@@ -105,9 +107,9 @@ export default function SpaceSlackOAuthRoute() {
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
     useEffect(() => {
-        // If this page is loaded from the Slack OAuth popup, send a message back to the parent
-        // page to report the authentication status and close the popup. The parent page is
-        // responsible for refetching data and displaying any errors.
+        // If this page is loaded from the Slack OAuth popup, send a message back to the
+        // parent page to report the authentication status and close the popup. The parent
+        // page is responsible for refetching data and displaying any errors.
         if (window.name === slackOAuthWindowName && window.opener) {
             const opener = cast<Window>(window.opener);
             opener.postMessage(

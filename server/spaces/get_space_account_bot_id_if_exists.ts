@@ -17,14 +17,13 @@ import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/s
  *
  * Throws an error if the space account isn't found.
  *
- * If you called `authorizeSpaceAccess()` before this function (as a session
- * actor for the `AccountId` you're passing into this function) then we don't
- * make any database requests. The information we need os be available in
- * cache.
+ * If you called `authorizeSpaceAccess()` before this function (as a session actor
+ * for the `AccountId` you're passing into this function) then we don't make any
+ * database requests. The information we need os be available in cache.
  *
- * This function is strongly consistent. It makes an eventually consistent read
- * to our action cache but since whether an account is or is not a bot is an
- * immutable fact an eventually consistent read is fine.
+ * This function is strongly consistent. It makes an eventually consistent read to
+ * our action cache but since whether an account is or is not a bot is an immutable
+ * fact an eventually consistent read is fine.
  */
 export async function getSpaceAccountBotIdIfExists(
     context: Context<{
@@ -46,13 +45,13 @@ export async function getSpaceAccountBotIdIfExists(
 }
 
 /**
- * Same as `getSpaceAccountBotIdIfExists()` but doesn't authorize that the
- * actor has access to the space. Use only when necessary. Prefer
+ * Same as `getSpaceAccountBotIdIfExists()` but doesn't authorize that the actor
+ * has access to the space. Use only when necessary. Prefer
  * `getSpaceAccountBotIdIfExists()` wherever possible.
  *
- * This function is strongly consistent. It makes an eventually consistent read
- * to our action cache but since whether an account is or is not a bot is an
- * immutable fact an eventually consistent read is fine.
+ * This function is strongly consistent. It makes an eventually consistent read to
+ * our action cache but since whether an account is or is not a bot is an immutable
+ * fact an eventually consistent read is fine.
  */
 export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
     context: Context<{
@@ -81,16 +80,16 @@ export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
     // consistency.
     const item1 = await getSpaceAccountItemIfExists(context, spaceId, accountId, {
         consistency: "Eventual",
-        // It's ok to call this function when expecting strong read consistency.
-        // This authorization check is mostly strongly consistent since we retry with
-        // strong consistency below if our eventually consistent read fails.
+        // It's ok to call this function when expecting strong read consistency. This
+        // authorization check is mostly strongly consistent since we retry with strong
+        // consistency below if our eventually consistent read fails.
         allowsEventualReadConsistency: true,
     });
     if (item1) return item1.botId ?? null;
 
     // If the item wasn't present in any cache and wasn't present when we read with
-    // eventual consistency then try finding the item again one last time with
-    // strong consistency.
+    // eventual consistency then try finding the item again one last time with strong
+    // consistency.
     const item2 = await getSpaceAccountItemIfExists(context, spaceId, accountId, {
         consistency: "Strong",
     });

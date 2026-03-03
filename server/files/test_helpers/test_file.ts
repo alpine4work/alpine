@@ -43,8 +43,8 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
         contentLength: testFileContent.length,
     });
 
-    // If we're not using `TestEmptyCloudflareR2Client` then actually upload a file
-    // to Cloudflare R2 matching the file in DynamoDB.
+    // If we're not using `TestEmptyCloudflareR2Client` then actually upload a file to
+    // Cloudflare R2 matching the file in DynamoDB.
     if (!context.r2.isEmptyForTest()) {
         await context.r2.PutObject({
             Bucket: filesBucketName,

@@ -36,6 +36,8 @@ ROOT_LINT_AND_FORMAT_EXTENSIONS = [
     "jsx",
     "ts",
     "tsx",
+    "cts",
+    "mts",
     "mjs",
     "cjs",
     "json",
@@ -156,10 +158,18 @@ copy_to_bin(
 )
 
 copy_to_bin(
-    name = "prettier_config_files",
+    name = "prettier_config_files_copy_to_bin",
     srcs = [
         ".prettierignore",
         "prettier.config.cjs",
+    ],
+)
+
+filegroup(
+    name = "prettier_config_files",
+    srcs = [
+        ":prettier_config_files_copy_to_bin",
+        "//admin/prettier/plugin:prettier_estree_plugin_with_markdown_comments_copy_to_bin",
     ],
     visibility = ["//visibility:public"],
 )

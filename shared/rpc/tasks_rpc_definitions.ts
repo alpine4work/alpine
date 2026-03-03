@@ -42,8 +42,8 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 export const commitTaskActionTransaction = defineRpc({
     name: "commitTaskActionTransaction",
     // TODO(calebmer): This should be idempotent thanks to CRDTs! But I think
-    // `updateAccessPolicyShareNotification` might make this RPC non-idempotent
-    // since we'll send share notifications twice.
+    // `updateAccessPolicyShareNotification` might make this RPC non-idempotent since
+    // we'll send share notifications twice.
     //
     // Make sure this RPC is idempotent!
     isIdempotent: false,
@@ -151,10 +151,10 @@ export const getTaskNotesContentReferences = defineRpc({
 });
 
 /**
- * Authorizes whether you have view access to a task. Throws an error if you
- * don't have view access. Also authorizes whether you have edit access to a
- * task. Returns an `editResult` with an error if you have view access to a
- * task but not edit access.
+ * Authorizes whether you have view access to a task. Throws an error if you don't
+ * have view access. Also authorizes whether you have edit access to a task.
+ * Returns an `editResult` with an error if you have view access to a task but not
+ * edit access.
  */
 export const authorizeTaskAccess = defineRpc({
     name: "authorizeTaskAccess",

@@ -28,9 +28,8 @@ export const messageViewMarginLeft = addRemLengths(
     messageViewRailGap,
 );
 
-// Ideally, `messageViewAccountNameHeight` is a whole pixel value on all
-// spacing scales so that `<MessageView>` heights will be measured in full
-// pixels.
+// Ideally, `messageViewAccountNameHeight` is a whole pixel value on all spacing
+// scales so that `<MessageView>` heights will be measured in full pixels.
 export const messageViewAccountNameFontSize = "50";
 export const messageViewAccountNameHeight = "4";
 
@@ -175,8 +174,8 @@ export const messageInputPaddingY: Record<Platform, Spacing> = {
 
 // Our objective with `messageInputPaddingY` and
 // `messageInputEditor3IconButtonMargin` is for the message input to have the same
-// X and Y margin with the edge of the screen. Y margin is determined by this
-// value and X margin is determined by `screenPaddingX`.
+// X and Y margin with the edge of the screen. Y margin is determined by this value
+// and X margin is determined by `screenPaddingX`.
 //
 // Check that `screenPaddingX - messageInputEditor3IconButtonMargin` equals
 // `messageInputPaddingY`.
@@ -203,14 +202,14 @@ export const messageInputMinHeightPx = createObjectFromKeys(allPlatforms, platfo
 
 export const messageInputFilesOverflowGradientWidth = "2";
 
-// Extra slop that extends beneath the bottom of the message input. This is
-// always cut off on desktop. However, it matters in our native mobile app.
-// When we animate the message input with the keyboard, their translations
-// aren't perfectly in sync (even though the timing is in sync). So there are
-// moments in the animation where the content may be revealed between the
-// message input and the keyboard. To fix this, we just make them message input
-// bigger so it can cover content below while animating. To debug this turn on
-// slow animations in an iOS emulator and open the keyboard.
+// Extra slop that extends beneath the bottom of the message input. This is always
+// cut off on desktop. However, it matters in our native mobile app. When we
+// animate the message input with the keyboard, their translations aren't perfectly
+// in sync (even though the timing is in sync). So there are moments in the
+// animation where the content may be revealed between the message input and the
+// keyboard. To fix this, we just make them message input bigger so it can cover
+// content below while animating. To debug this turn on slow animations in an iOS
+// emulator and open the keyboard.
 export const messageInputBottomBarBackgroundSlopBottom = spacing["96"];
 
 export const messagingViewMarginBottomCalcExpression =

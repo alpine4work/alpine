@@ -35,7 +35,10 @@ import {
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {hasNotionImportFeature} from "~/shared/spaces/has_notion_import_feature.js";
 
-/** Local UI state for teamspace import choices. Maps teamspaceId to visibility option. */
+/**
+ * Local UI state for teamspace import choices. Maps teamspaceId to visibility
+ * option.
+ */
 type TeamspaceImportOptionsMap = Map<
     string,
     {type: "Private"} | {type: "Public"} | {type: "DoNotImport"}
@@ -106,7 +109,8 @@ export default function SpaceIntegrationsSettingsRoute() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Check if there's an active import from the loader (for imports already in progress)
+    // Check if there's an active import from the loader (for imports already in
+    // progress)
     const activeImportFromLoader = notionImports.find(
         item => item.status.type !== "Success" && item.status.type !== "Failed",
     );
@@ -114,7 +118,8 @@ export default function SpaceIntegrationsSettingsRoute() {
         item => item.status.type === "Success" || item.status.type === "Failed",
     );
 
-    // The active import is either the one we're currently creating or one from the loader
+    // The active import is either the one we're currently creating or one from the
+    // loader
     const activeImport = currentImport ?? activeImportFromLoader;
 
     // Poll for import status updates
@@ -137,8 +142,8 @@ export default function SpaceIntegrationsSettingsRoute() {
                     notionImportId,
                 });
 
-                // When validated, initialize teamspace options from server data
-                // Server already applies smart defaults based on teamspace names
+                // When validated, initialize teamspace options from server data Server already
+                // applies smart defaults based on teamspace names
                 if (
                     notionImport.status.type === "Validated" &&
                     notionImport.teamspaceImportOptions

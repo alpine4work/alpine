@@ -32,9 +32,9 @@ export async function getSpellCheckIgnoredLints(
 }
 
 /**
- * Creates a DynamoGeneralRealtimeQueryResult with an empty result of SpellCheckIgnoredLintModels
- * for the given entity ID. This is useful for ghost entities that have not yet
- * been persisted to the database.
+ * Creates a DynamoGeneralRealtimeQueryResult with an empty result of
+ * SpellCheckIgnoredLintModels for the given entity ID. This is useful for ghost
+ * entities that have not yet been persisted to the database.
  */
 export function createEmptySpellCheckIgnoredLintsForNewEntity(
     spellCheckEntityId: SpellCheckEntityId,

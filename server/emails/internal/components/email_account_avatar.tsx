@@ -26,9 +26,9 @@ export function EmailAccountAvatar({
     accountData: AccountModelDataWithSignedAvatarUrl;
     size?: Spacing;
 }) {
-    // NOTE: This considers an avatar an image only if it has base64 content, even though we will
-    // preferentially use the URL property in email if it is present. If an avatar only has a URL,
-    // but no content, we will use the default avatar design.
+    // NOTE: This considers an avatar an image only if it has base64 content, even
+    // though we will preferentially use the URL property in email if it is present. If
+    // an avatar only has a URL, but no content, we will use the default avatar design.
     const avatarDesign = getAccountAvatarDesign(accountData);
     const avatarSize = spacing[size];
 
@@ -72,9 +72,10 @@ function EmailAccountAvatarInner({
 
     switch (avatarDesign.type) {
         case "Image": {
-            // This places a fallback EmailAccountAvatarWithInitials underneath the image in the
-            // case the image can't be resolved.There will still be a broken image icon if the email
-            // client stylesheet adds one, but the fallback makes it look less broken.
+            // This places a fallback EmailAccountAvatarWithInitials underneath the image in
+            // the case the image can't be resolved.There will still be a broken image icon if
+            // the email client stylesheet adds one, but the fallback makes it look less
+            // broken.
             return (
                 <>
                     <div style={{maxHeight: "0"}}>

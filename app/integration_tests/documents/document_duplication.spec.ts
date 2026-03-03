@@ -31,8 +31,8 @@ test("can duplicate a document without variables", async ({context: browserConte
     // Wait for the duplicate to appear
     await expect(page.getByRole("heading", {name: "Original Document (copy)"})).toBeVisible();
 
-    // On desktop, the duplicate opens in a peek - expand it to navigate, then wait for peek to close
-    // On mobile, navigation goes directly to the new document (no peeks)
+    // On desktop, the duplicate opens in a peek - expand it to navigate, then wait for
+    // peek to close On mobile, navigation goes directly to the new document (no peeks)
     if (project.name !== "webkit_mobile") {
         await page.getByRole("button", {name: "Expand"}).click();
         await expect(page.getByTestId("PeekStackOverlay")).toBeHidden();
@@ -77,7 +77,8 @@ test("can duplicate a document with template variables", async ({context: browse
     // Fill in the variable
     await page.getByLabel("Name").fill("Alice");
 
-    // Click Create - on desktop scope to peek overlay, on mobile there's only one Create
+    // Click Create - on desktop scope to peek overlay, on mobile there's only one
+    // Create
     if (project.name === "webkit_mobile") {
         await page.getByRole("button", {name: "Create"}).click();
     } else {

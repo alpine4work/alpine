@@ -80,7 +80,8 @@ export function ContentEditorFloater({
     >;
     commentFileAttachmentTarget: Memo<FileAttachmentTarget> | undefined;
     mentionFloaterSectionOrder: ContentEditorMentionFloaterSectionOrder;
-    // Optional callback to handle file entities when the content doesn't support file nodes.
+    // Optional callback to handle file entities when the content doesn't support file
+    // nodes.
     onPasteOrDropFiles?: (
         fileInfos: ReadonlyArray<FileInfoWithEntity>,
     ) => SafeFloatingPromise<void>;
@@ -233,8 +234,8 @@ function ContentEditorKeyboardHighlightFloater({
             // input (keyboard shortcut). But we do animate out because closing is less
             // intentional.
             //
-            // Also it looks a little better to not animate when replacing a possibly
-            // existing toolbar.
+            // Also it looks a little better to not animate when replacing a possibly existing
+            // toolbar.
             isVisible={!isClosing}
             disableAnimation={!isClosing}
             placement="top-start"
@@ -251,8 +252,8 @@ function ContentEditorKeyboardHighlightFloater({
                     onBlur={event => {
                         const element = event.currentTarget;
 
-                        // Wait a microtask for the new focused element to be set. In case we are
-                        // switching focus between two children within this element.
+                        // Wait a microtask for the new focused element to be set. In case we are switching
+                        // focus between two children within this element.
                         scheduleMicrotask(() => {
                             if (!element.contains(document.activeElement)) {
                                 onClose();
@@ -266,8 +267,8 @@ function ContentEditorKeyboardHighlightFloater({
                                 event.stopPropagation();
                                 onClose();
                                 break;
-                            // If our keyboard color selector has focus you can't escape. Must hit escape
-                            // or click out to get out.
+                            // If our keyboard color selector has focus you can't escape. Must hit escape or
+                            // click out to get out.
                             case "Tab":
                                 event.preventDefault();
                                 break;
@@ -342,8 +343,8 @@ function ContentEditorKeyboardLinkFloater({
             // input (keyboard shortcut). But we do animate out because closing is less
             // intentional.
             //
-            // Also it looks a little better to not animate when replacing a possibly
-            // existing toolbar.
+            // Also it looks a little better to not animate when replacing a possibly existing
+            // toolbar.
             isVisible={!isClosing}
             disableAnimation={!isClosing}
             placement="top-start"
@@ -359,9 +360,9 @@ function ContentEditorKeyboardLinkFloater({
                     ref={useOutsidePress(onClose)}
                     // It's important the overlay is focusable for `<FocusScope contain>`. That way
                     // when you click into the overlay, focus goes to this element instead of
-                    // `document.body`. If `<FocusScope contain>` sees focus on `document.body` then
-                    // it will move focus right back to the element that was blurred which is not
-                    // what the user wants.
+                    // `document.body`. If `<FocusScope contain>` sees focus on `document.body` then it
+                    // will move focus right back to the element that was blurred which is not what the
+                    // user wants.
                     tabIndex={-1}
                 >
                     {isClosing ? (
@@ -477,12 +478,12 @@ function ContentEditorPointerLinkFloater({
             // input (keyboard shortcut). But we do animate out because closing is less
             // intentional.
             //
-            // Also it looks a little better to not animate when replacing a possibly
-            // existing toolbar.
+            // Also it looks a little better to not animate when replacing a possibly existing
+            // toolbar.
             isVisible={!isClosing}
             placement="top-start"
-            // This floater is closer to the cursor than the others because it doesn't have
-            // a visual text selection indication for what it's targeting.
+            // This floater is closer to the cursor than the others because it doesn't have a
+            // visual text selection indication for what it's targeting.
             offset="1.5"
             offsetAlong="-5"
             // It doesn't make sense for the toolbar to flip. Since if it's over a range of

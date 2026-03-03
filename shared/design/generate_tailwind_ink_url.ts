@@ -4,9 +4,8 @@ import {themeColors} from "~/shared/design/core/theme_colors.js";
 
 /**
  * Generate a link for exploring our color pallete in https://tailwind.ink. A
- * wonderful tool that graphs luminosity, chroma, and hue for our colors.
- * Letting you drag around to make sure colors have a similar luminosity and
- * chroma.
+ * wonderful tool that graphs luminosity, chroma, and hue for our colors. Letting
+ * you drag around to make sure colors have a similar luminosity and chroma.
  *
  * To use this we recommend adding
  * `console.log(generateTailwindInkUrl().toString())` to your `adhoc_local.ts`

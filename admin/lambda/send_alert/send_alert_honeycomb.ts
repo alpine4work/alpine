@@ -9,8 +9,8 @@ export type HoneycombEventPayload = {
     // Custom field from the honeycomb "Create recipient" UI
     channel: string; // channel name to send to
     emoji?: string; // an optional emoji to add to the trigger
-    displayFields?: string; // a comma separated list of fields to display
-    // Custom field: include via {{ toJson .Result.GroupsTriggered }} in webhook template
+    displayFields?: string; // a comma separated list of fields to display Custom field: include via
+    // {{ toJson .Result.GroupsTriggered }} in webhook template
     groupsTriggered?: Array<HoneycombResultGroup>;
     // Standard honeycomb fields
     name: string;

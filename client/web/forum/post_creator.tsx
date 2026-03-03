@@ -83,9 +83,9 @@ export function PostCreator({
     const clearSaveDebounceTimeoutRef = useRef<(() => void) | null>(null);
 
     // Save the draft on a debounced 5s timer. If the draft hasn't updated for 5
-    // seconds then we save it on the server. If the user closes the page (which
-    // emits a `visibilitychange` event) then we also make sure to save the draft
-    // so it's available the next time the user loads the page.
+    // seconds then we save it on the server. If the user closes the page (which emits
+    // a `visibilitychange` event) then we also make sure to save the draft so it's
+    // available the next time the user loads the page.
     useEffect(() => {
         if (lastDocRef.current === doc && lastChannelIdRef.current === channelId) {
             return;
@@ -98,8 +98,8 @@ export function PostCreator({
         lastChannelIdRef.current = channelId;
 
         const run = () => {
-            // In case this runs when the user closes the page (`visibilitychange` event)
-            // we want to use `navigator.sendBeacon()` so the request isn't cancelled.
+            // In case this runs when the user closes the page (`visibilitychange` event) we
+            // want to use `navigator.sendBeacon()` so the request isn't cancelled.
             sendRpcNavigatorBeacon(createOrReplacePostDraft, {
                 spaceId: space.id,
                 draftId,
@@ -176,9 +176,8 @@ export function PostCreator({
                 });
 
                 // While the client should get their new post data through `<ChannelView>`s
-                // WebSocket connection, we emit the realtime event returned by
-                // `createPost()` so `<ChannelView>` can use that too in case the WebSocket
-                // is slow.
+                // WebSocket connection, we emit the realtime event returned by `createPost()` so
+                // `<ChannelView>` can use that too in case the WebSocket is slow.
                 optimisticCreatePostEventEmitter.emit({
                     channelId: channel.id,
                     eventTransaction,
@@ -217,10 +216,10 @@ export function PostCreator({
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        //   render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be scrolling
+        //   not the document.
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
@@ -236,8 +235,8 @@ export function PostCreator({
             flexDirection="column"
         >
             {platform !== "mobile" && (
-                // No safe area cover on mobile since the navigation bar will act as a safe
-                // area cover.
+                // No safe area cover on mobile since the navigation bar will act as a safe area
+                // cover.
                 <Box
                     position="absolute"
                     top="0"
@@ -337,13 +336,13 @@ export function PostCreator({
                             aria-label="New post"
                             state={state}
                             onChange={state => setState(state)}
-                            // On mobile, don't allow interactions when unfocused. We're already in an
-                            // editing modality.
+                            // On mobile, don't allow interactions when unfocused. We're already in an editing
+                            // modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas, press @ to insert…"
                             // Special case for `<ShareOverlay>`'s "Post in channel". If there's an empty
-                            // paragraph followed by a file row then consider the body to be empty so we
-                            // see the placeholder in the first empty paragraph instead of empty space.
+                            // paragraph followed by a file row then consider the body to be empty so we see
+                            // the placeholder in the first empty paragraph instead of empty space.
                             isBodyEmpty={
                                 doc.childCount === 2 &&
                                 doc.firstChild!.type.name === "paragraph" &&
@@ -376,14 +375,14 @@ export function PostCreator({
                                 }),
                             )}
                             onModEnterKeyDown={() => {
-                                // Programmatically press the button instead of calling `createPost()`
-                                // directly to correctly handle loading and error states.
+                                // Programmatically press the button instead of calling `createPost()` directly to
+                                // correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();
                             }}
-                            // Since the post content editor fills the entire screen height, it makes
-                            // sense that if the user `mousedown`s in the bottom margin we should create a
-                            // new paragraph and move selection there if the last item is not already a
-                            // paragraph (e.g. a divider or table or something).
+                            // Since the post content editor fills the entire screen height, it makes sense
+                            // that if the user `mousedown`s in the bottom margin we should create a new
+                            // paragraph and move selection there if the last item is not already a paragraph
+                            // (e.g. a divider or table or something).
                             withMouseDownAtEndCreatesParagraph={true}
                         />
                     </Box>

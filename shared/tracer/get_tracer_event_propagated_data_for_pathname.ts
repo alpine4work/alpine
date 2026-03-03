@@ -12,8 +12,8 @@ import {
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * Parses a path from our app and returns `TracerEventData` with information in
- * the path. We add this as propagated data to all spans created for the path.
+ * Parses a path from our app and returns `TracerEventData` with information in the
+ * path. We add this as propagated data to all spans created for the path.
  */
 export function getTracerEventPropagatedDataForPathname(pathname: string): TracerEventData | null {
     assert(pathname.startsWith("/"));
@@ -26,8 +26,8 @@ export function getTracerEventPropagatedDataForPathname(pathname: string): Trace
     const spaceId = pathnameParts[1]!;
     if (!isId<SpaceId>(spaceId)) return null;
 
-    // Remove `peek` from the path so paths like `/s/:spaceId/peek/tasks/:taskId`
-    // will correctly parse out the `TaskId`.
+    // Remove `peek` from the path so paths like `/s/:spaceId/peek/tasks/:taskId` will
+    // correctly parse out the `TaskId`.
     if (pathnameParts[2] === "peek") pathnameParts.splice(2, 1);
 
     if (pathnameParts.length >= 4) {

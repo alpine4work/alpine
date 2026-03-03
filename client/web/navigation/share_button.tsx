@@ -43,8 +43,8 @@ export function ShareButton({
         explanations: InheritedAccessPolicyExplanations;
     };
     onAccessPolicyChange: (
-        // The `notification` argument comes first to make it harder for the
-        // implementation of this function to ignore the `notification` argument.
+        // The `notification` argument comes first to make it harder for the implementation
+        // of this function to ignore the `notification` argument.
         notification: ShareNotification | null,
         accessPolicy: AccessPolicy,
     ) => MaybePromise<void>;
@@ -57,8 +57,7 @@ export function ShareButton({
 
     const overlayRef = useRef<ShareOverlayRef>(null);
 
-    // We need all accounts when the `<ShareOverlay>` is open so preload
-    // them now.
+    // We need all accounts when the `<ShareOverlay>` is open so preload them now.
     useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const {changeAccessPolicy, isReadOnly, modalOwnerId, modals} = useShareState({
@@ -102,9 +101,9 @@ export function ShareButton({
                     </Box>
                 )}
                 onOverlayEscapeGlobalKeyDown={event => {
-                    // If the focused element is a combobox input, `<MenuButton>`, or menu item
-                    // that's open and the user hits escape then we want the escape keydown to close
-                    // the focused element's overlay.
+                    // If the focused element is a combobox input, `<MenuButton>`, or menu item that's
+                    // open and the user hits escape then we want the escape keydown to close the
+                    // focused element's overlay.
                     if (
                         event.target instanceof HTMLElement &&
                         (event.target.getAttribute("aria-expanded") === "true" ||
@@ -121,9 +120,9 @@ export function ShareButton({
                 onOverlayOutsidePress={() => {
                     const overlay = assertExists(overlayRef.current);
 
-                    // If the share overlay's account grant input combobox is open and the user
-                    // clicks outside of the overlay, instead of closing the entire overlay just
-                    // close the combobox. A second click will close the overlay too.
+                    // If the share overlay's account grant input combobox is open and the user clicks
+                    // outside of the overlay, instead of closing the entire overlay just close the
+                    // combobox. A second click will close the overlay too.
                     if (overlay.isAccountGrantInputComboBoxOpen()) {
                         overlay.closeAccountGrantInputComboBox();
                         return {preventDefault: true};
@@ -133,8 +132,8 @@ export function ShareButton({
                 <Button
                     height="6"
                     paddingX="1.5"
-                    // Don't focus the button on press since pressing will open the overlay and
-                    // should focus the overlay.
+                    // Don't focus the button on press since pressing will open the overlay and should
+                    // focus the overlay.
                     //
                     // TODO(calebmer): Find a way to automate this instead of setting this prop
                     // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.

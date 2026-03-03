@@ -58,10 +58,10 @@ export function SpaceLayoutSideBarInboxButton({
     const overlayTriggerButtonRef = useRef<OverlayTriggerButtonRef>(null);
 
     // On mobile platforms, we expect that this component shouldn't render. Instead
-    // `<SpaceLayoutNativeMobileInboxController>` should render for native mobile
-    // and `<SpaceLayoutWebMobileTabBar>` for web mobile. This assert is a
-    // sanity check since we don't want to maintain two separate inbox realtime
-    // items which would be inefficient.
+    // `<SpaceLayoutNativeMobileInboxController>` should render for native mobile and
+    // `<SpaceLayoutWebMobileTabBar>` for web mobile. This assert is a sanity check
+    // since we don't want to maintain two separate inbox realtime items which would be
+    // inefficient.
     assert(platform !== "mobile" && !isNativeMobile);
 
     const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
@@ -89,8 +89,8 @@ export function SpaceLayoutSideBarInboxButton({
           }
     >({isVisible: false});
 
-    // Fetch enough items to fill the virtualization window with entries. This
-    // gives the user a bit of space to scroll.
+    // Fetch enough items to fill the virtualization window with entries. This gives
+    // the user a bit of space to scroll.
     const initialEntriesLimit = Math.ceil(
         getVirtualizationWindowHeight(
             convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], spacingScale),
@@ -119,8 +119,8 @@ export function SpaceLayoutSideBarInboxButton({
             });
 
             overlayTriggerButton.open({
-                // Don't call `onOpen` which will `preventDefault`. We actually want the
-                // overlay to open now.
+                // Don't call `onOpen` which will `preventDefault`. We actually want the overlay to
+                // open now.
                 stopPropagation: true,
             });
         };
@@ -196,8 +196,8 @@ export function SpaceLayoutSideBarInboxButton({
             offsetAlong="-0.5"
             onOpen={() => {
                 // Don't open the loading indicator immediately. Instead start loading inbox
-                // entries. If we don't successfully load within some timeout we'll open anyway
-                // and display loading indicators.
+                // entries. If we don't successfully load within some timeout we'll open anyway and
+                // display loading indicators.
                 setOverlayState({
                     isVisible: true,
                     isPending: true,
@@ -301,8 +301,8 @@ export function SpaceLayoutSideBarInboxButton({
                 description="Inbox"
                 tooltipPlacement="right"
                 pressErrorTitle="Couldn&#x2019;t open inbox"
-                // Don't focus the button on press since pressing will open the overlay and
-                // should focus the overlay.
+                // Don't focus the button on press since pressing will open the overlay and should
+                // focus the overlay.
                 //
                 // TODO(calebmer): Find a way to automate this instead of setting this prop
                 // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
@@ -353,15 +353,15 @@ function SpaceLayoutSideBarInboxButtonIcon({
             // Extra space above and to the right in the `viewBox` to make space for the
             // notification badge.
             //
-            // NOTE(calebmer): I don't really understand why -128 in `viewBox` works here.
-            // I'd expect -256 to be what we need to give 512 total `viewBox` units of
-            // vertical space with 256 of those units above the icon. -128 seems to put us
-            // in the exact right position *shrug*.
+            // NOTE(calebmer): I don't really understand why -128 in `viewBox` works here. I'd
+            // expect -256 to be what we need to give 512 total `viewBox` units of vertical
+            // space with 256 of those units above the icon. -128 seems to put us in the exact
+            // right position _shrug_.
             viewBox="0 -128 512 256"
             fill={contextColor}
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: `calc(${contextSize} * 2)`,
                 height: `calc(${contextSize} * 2)`,

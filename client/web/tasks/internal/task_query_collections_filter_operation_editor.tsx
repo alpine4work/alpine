@@ -65,8 +65,8 @@ export function TaskQueryCollectionsFilterOperationEditor({
         new Map<TaskCollectionId, TaskClientCollectionSubscription>(),
     );
 
-    // Subscribe to all `TaskCollectionId`s in the filter so they're kept
-    // up-to-date in realtime.
+    // Subscribe to all `TaskCollectionId`s in the filter so they're kept up-to-date in
+    // realtime.
     useEffect(() => {
         const addCollectionIds = new Set(getTaskQueryFilterReferencedIds(filter).collectionIds);
 
@@ -112,8 +112,8 @@ export function TaskQueryCollectionsFilterOperationEditor({
 
     const collectionResults = useStore(collectionResultsStore);
 
-    // Simplify operator label if there is just one collection and the operators do
-    // the same thing.
+    // Simplify operator label if there is just one collection and the operators do the
+    // same thing.
     const includesOneOfOperatorLabel =
         filter.operation.type !== "IsEmpty" && filter.operation.collectionIds.size <= 1
             ? "has"
@@ -405,9 +405,8 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     }
 
     // Remember the initial collections for a search. If the user selects a new
-    // collection then we don't want to immediately move that collection to the top
-    // of the search list and re-execute a search RPC with new
-    // `excludeCollectionIds`.
+    // collection then we don't want to immediately move that collection to the top of
+    // the search list and re-execute a search RPC with new `excludeCollectionIds`.
     const [initialCollectionResults] = useState(collectionResults);
 
     const initialCollectionIds = useMemo(
@@ -456,15 +455,14 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     );
 
     const searchedItems = useMemo(() => {
-        // We use `items.nameQuery` instead of `searchInputValue` in case we are
-        // showing the user stale `items` while we load fresh items.
+        // We use `items.nameQuery` instead of `searchInputValue` in case we are showing
+        // the user stale `items` while we load fresh items.
         const isEmptyNameQuery = !items || items.nameQuery.length === 0;
 
         const searchedItems: Array<TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem> =
             [];
 
-        // If the user is not searching, add the selected collections results to
-        // the top.
+        // If the user is not searching, add the selected collections results to the top.
         if (isEmptyNameQuery) {
             for (const collectionResult of initialCollectionResults) {
                 searchedItems.push({
@@ -478,15 +476,15 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
 
         if (searchedCollectionsForUrlGrant) {
             for (const collection of searchedCollectionsForUrlGrant) {
-                // If the collection also appears in our search items, ignore it since it's
-                // already been included in our selected items above.
+                // If the collection also appears in our search items, ignore it since it's already
+                // been included in our selected items above.
                 if (isEmptyNameQuery && initialCollectionIds.has(collection.id)) {
                     continue;
                 }
 
-                // The collection model doesn't include the open task count. To avoid an
-                // additional network request we decide to not show task count collections
-                // referenced by the query for a URL granted view.
+                // The collection model doesn't include the open task count. To avoid an additional
+                // network request we decide to not show task count collections referenced by the
+                // query for a URL granted view.
                 const collectionResult: TaskCollectionModelSearchResult = {
                     openTaskCount: 0,
                     lastTaskAddedTime: null,
@@ -507,8 +505,8 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
                 // Can't create a collection from our filter editor
                 if (item.type === "CreateCollection") continue;
 
-                // If the collection also appears in our search items, ignore it since it's
-                // already been included in our selected items above.
+                // If the collection also appears in our search items, ignore it since it's already
+                // been included in our selected items above.
                 if (
                     isEmptyNameQuery &&
                     initialCollectionIds.has(item.collectionResult.collection.id)
@@ -525,8 +523,8 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
             }
         }
 
-        // If we are searching then sort collections in our initial collection set at
-        // the top of the search. Regardless of their natural position in the search.
+        // If we are searching then sort collections in our initial collection set at the
+        // top of the search. Regardless of their natural position in the search.
         if (!isEmptyNameQuery) {
             searchedItems.sort((item1, item2) => {
                 const isInitialCollection1 = initialCollectionIds.has(

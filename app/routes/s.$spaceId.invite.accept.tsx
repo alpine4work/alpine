@@ -42,8 +42,8 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
     return jsonWithSchema(LoaderSchema, {});
 }
 
-// We mimic the home page loading state here to optimistically render the
-// feed view.
+// We mimic the home page loading state here to optimistically render the feed
+// view.
 export const meta = createMetaFunction(LoaderSchema, ({getParentData}) => {
     const spaceRouteData = getParentData("routes/s.$spaceId", SpaceRouteLoaderSchema);
 
@@ -61,9 +61,9 @@ export default function InviteAcceptRoute() {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        // Optimization: Preload the `s.$spaceId._index` route so that redirecting to
-        // the space at the end of sign in or sign up isn't blocked by loading a bunch
-        // of JavaScript code.
+        // Optimization: Preload the `s.$spaceId._index` route so that redirecting to the
+        // space at the end of sign in or sign up isn't blocked by loading a bunch of
+        // JavaScript code.
         runPromiseWithoutAwaiting(
             loadRouteModuleWithBlockingLinks(
                 window.__remixManifest.routes["routes/s.$spaceId._index"]!,
@@ -76,12 +76,11 @@ export default function InviteAcceptRoute() {
                 spaceId: context.space.id,
             });
 
-            // We use from=invite to tell remix to revalidate our space loader data
-            // This will re-evalutate permissions and let the user immediately click on resources
+            // We use from=invite to tell remix to revalidate our space loader data This will
+            // re-evalutate permissions and let the user immediately click on resources
             //
-            // Use strong consistency to make sure we don't error saying you're not
-            // authorized because of eventual consistency lag right after accepting the
-            // invite
+            // Use strong consistency to make sure we don't error saying you're not authorized
+            // because of eventual consistency lag right after accepting the invite
             navigate(`/s/${context.space.id}?from=invite`);
         });
     }, [appContext, context.space.id, navigate]);
