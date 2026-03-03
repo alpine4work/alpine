@@ -84,6 +84,7 @@ ts_project(
         "//client/web/content/file_entity",
         "//client/web/content/with_navigation",
         "//client/web/context",
+        "//client/web/databases",
         "//client/web/debug/chat_gpt",
         "//client/web/design",
         "//client/web/documents",
