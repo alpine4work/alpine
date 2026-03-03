@@ -1,4 +1,5 @@
 import {
+    type ActiveTabBroadcastChannel,
     type ActiveTabPort,
     type ActiveTabWorkerHandle,
     DatabaseActiveTabManager,
@@ -81,6 +82,12 @@ export function connectToDatabase(): Promise<DatabaseConnection> {
                 port1: channel.port1 as unknown as ActiveTabPort,
                 port2: channel.port2 as unknown as ActiveTabPort,
             };
+        },
+        createBroadcastChannel(name: string) {
+            return new BroadcastChannel(name) as unknown as ActiveTabBroadcastChannel;
+        },
+        addUnloadListener(callback: () => void) {
+            window.addEventListener("beforeunload", callback);
         },
     });
 

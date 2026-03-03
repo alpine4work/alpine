@@ -1,7 +1,7 @@
 import type {OpfsDirectoryHandle, OpfsSyncAccessHandle} from "~/client/web/databases/opfs.js";
 import type {VfsFile} from "~/shared/databases/install_vfs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const pageSize = 4096;
 
@@ -41,12 +41,9 @@ export class OpfsPageStore implements VfsFile {
         const indexFile = await dir.getFileHandle("index.json", {create: true});
         const indexHandle = await indexFile.createSyncAccessHandle();
 
-        // TODO: Load existing data instead of clearing on
-        // every start.
-        pagesHandle.truncate(0);
-        indexHandle.truncate(0);
-
-        return new OpfsPageStore(pagesHandle, indexHandle);
+        const store = new OpfsPageStore(pagesHandle, indexHandle);
+        store.loadIndex();
+        return store;
     }
 
     read(data: Uint8Array, offset: number): boolean {
@@ -126,6 +123,27 @@ export class OpfsPageStore implements VfsFile {
         this.flushIndex();
         this.pagesHandle.close();
         this.indexHandle.close();
+    }
+
+    private loadIndex(): void {
+        const size = this.indexHandle.getSize();
+        if (size === 0) return;
+
+        const data = new Uint8Array(size);
+        this.indexHandle.read(data, {at: 0});
+        const json = new TextDecoder().decode(data);
+        const parsed = JSON.parse(json) as SchemaSerializedValue;
+        const index = indexSchema.deserialize(parsed);
+
+        for (const [pageIndex, entry] of index) {
+            this.index.set(pageIndex, entry);
+            if (entry.slot >= this.nextSlot) {
+                this.nextSlot = entry.slot + 1;
+            }
+            if (pageIndex > this.maxPageIndex) {
+                this.maxPageIndex = pageIndex;
+            }
+        }
     }
 
     private flushIndex(): void {
