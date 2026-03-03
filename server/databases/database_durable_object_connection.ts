@@ -17,6 +17,7 @@ export interface DatabaseRealtimeEventStub {
 
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
+    private readonly _storage: DurableObjectStorage;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
         event: DatabaseRealtimeEventStub,
@@ -25,14 +26,17 @@ export class DatabaseDurableObjectConnection {
 
     constructor({
         server,
+        storage,
         processContext,
         sendEventToAll,
     }: {
         server: DatabaseServer;
+        storage: DurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
     }) {
         this._server = server;
+        this._storage = storage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
     }
@@ -42,16 +46,21 @@ export class DatabaseDurableObjectConnection {
         typeof DatabaseRealtimeProtocol
     > = {
         query: async (_context, input) => {
-            const {rows} = this._server.query(input.sql);
-            return {rows: rows as Array<SchemaSerializedValue>};
+            return this._storage.transactionSync(() => {
+                const {rows} = this._server.query(input.sql);
+                return {rows: rows as Array<SchemaSerializedValue>};
+            });
         },
         mutate: async (_context, input) => {
-            const {rows, changedPages} = this._server.mutate(input.sql);
+            const {rows, pages} = this._storage.transactionSync(() => {
+                const {rows, changedPages} = this._server.mutate(input.sql);
+                const pages = [...changedPages].map(([pageIndex, {after}]) => ({
+                    pageIndex,
+                    data: after,
+                }));
+                return {rows, pages};
+            });
 
-            const pages = [...changedPages].map(([pageIndex, {after}]) => ({
-                pageIndex,
-                data: after,
-            }));
             this._sendEventToAll(this._processContext, {pages});
 
             return {rows: rows as Array<SchemaSerializedValue>};

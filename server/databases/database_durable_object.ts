@@ -47,15 +47,17 @@ class DatabaseDurableObject {
     }): Promise<DatabaseDurableObject> {
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
         const server = await DatabaseServer.create(durableObjectStorage);
-        return new DatabaseDurableObject({processContext, server});
+        return new DatabaseDurableObject({processContext, server, storage});
     }
 
     private constructor({
         processContext,
         server,
+        storage,
     }: {
         processContext: WorkerProcessContext;
         server: DatabaseServer;
+        storage: DurableObjectStorage;
     }) {
         this._processContext = processContext;
         this._server = server;
@@ -70,6 +72,7 @@ class DatabaseDurableObject {
             return new DatabaseDurableObjectConnection({
                 server: this._server,
                 processContext: this._processContext,
+                storage,
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
