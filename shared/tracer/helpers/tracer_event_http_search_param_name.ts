@@ -48,8 +48,8 @@ type TracerEventHttpSearchParamNameMap = {
     limit: true;
     cursor: true;
     from: true;
-    // We have Framer custom code that adds these search params to `/auth/sign-in`
-    // and `/auth/sign-up` links.
+    // We have Framer custom code that adds these search params to `/auth/sign-in` and
+    // `/auth/sign-up` links.
     www_referrer: true;
     utm_source: true;
     utm_medium: true;
