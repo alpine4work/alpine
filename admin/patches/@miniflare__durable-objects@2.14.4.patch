@@ -1,0 +1,181 @@
+diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
+index 253a2af57112955bb603cc5c616cd9d42580d191..6a394210c33a646aff293cd2e184af6712aec0aa 100644
+--- a/dist/src/index.d.ts
++++ b/dist/src/index.d.ts
+@@ -175,6 +175,8 @@ export declare class DurableObjectStorage implements DurableObjectOperator {
+     setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void>;
+     deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void>;
+     sync(): Promise<void>;
++    get sql(): SqlStorage;
++    transactionSync<T>(closure: () => T): T;
+ }
+ 
+ export declare class DurableObjectStub {
+diff --git a/dist/src/index.js b/dist/src/index.js
+index d385ab85595c932907a2073f64c52b05c74eec3f..c1743f55f9e82fdfa8bf81d4457a0708bb18d180 100644
+--- a/dist/src/index.js
++++ b/dist/src/index.js
+@@ -778,6 +778,117 @@ var DurableObjectTransaction = class {
+     this[kRolledback] = true;
+   }
+ };
++// NOTE(claude): SqlStorage polyfill for sqlite-backed Durable Objects.
++// Wraps a better-sqlite3 database to match Cloudflare's SqlStorage API.
++var SqlStorageCursor = class {
++  #rows;
++  #index = 0;
++  #columnNames;
++  #rowsRead = 0;
++  #rowsWritten = 0;
++  constructor(rows, columnNames, rowsRead, rowsWritten) {
++    this.#rows = rows;
++    this.#columnNames = columnNames;
++    this.#rowsRead = rowsRead;
++    this.#rowsWritten = rowsWritten;
++  }
++  get columnNames() {
++    return this.#columnNames;
++  }
++  get rowsRead() {
++    return this.#rowsRead;
++  }
++  get rowsWritten() {
++    return this.#rowsWritten;
++  }
++  next() {
++    if (this.#index >= this.#rows.length) {
++      return { done: true };
++    }
++    const row = this.#rows[this.#index++];
++    // Convert Buffer values to ArrayBuffer to match Cloudflare's API
++    const converted = {};
++    for (const key of Object.keys(row)) {
++      const val = row[key];
++      if (Buffer.isBuffer(val)) {
++        converted[key] = val.buffer.slice(val.byteOffset, val.byteOffset + val.byteLength);
++      } else {
++        converted[key] = val;
++      }
++    }
++    return { done: false, value: converted };
++  }
++  toArray() {
++    const result = [];
++    while (this.#index < this.#rows.length) {
++      const { value } = this.next();
++      result.push(value);
++    }
++    return result;
++  }
++  one() {
++    if (this.#rows.length === 0) {
++      throw new Error("Expected exactly one result from SQL query, but got 0.");
++    }
++    if (this.#rows.length > 1) {
++      throw new Error(`Expected exactly one result from SQL query, but got ${this.#rows.length}.`);
++    }
++    const { value } = this.next();
++    return value;
++  }
++  *raw() {
++    while (this.#index < this.#rows.length) {
++      const row = this.#rows[this.#index++];
++      yield Object.values(row).map((val) =>
++        Buffer.isBuffer(val)
++          ? val.buffer.slice(val.byteOffset, val.byteOffset + val.byteLength)
++          : val
++      );
++    }
++  }
++  [Symbol.iterator]() {
++    return {
++      next: () => this.next()
++    };
++  }
++};
++
++var MiniflareLocalSqlStorage = class {
++  // Exposed so transactionSync can use the raw better-sqlite3 db.
++  _db;
++  constructor(db) {
++    this._db = db;
++    this._db.pragma("journal_mode = WAL");
++  }
++  exec(query, ...bindings) {
++    const stmt = this._db.prepare(query);
++    // Convert ArrayBuffer bindings to Buffer for better-sqlite3
++    const convertedBindings = bindings.map((b) =>
++      b instanceof ArrayBuffer ? Buffer.from(b) : b
++    );
++    if (stmt.reader) {
++      const rows = stmt.all(...convertedBindings);
++      const columnNames = stmt.columns().map((c) => c.name);
++      return new SqlStorageCursor(rows, columnNames, rows.length, 0);
++    } else {
++      const info = stmt.run(...convertedBindings);
++      return new SqlStorageCursor([], [], 0, info.changes);
++    }
++  }
++  get databaseSize() {
++    const row = this._db.pragma("page_count", { simple: true });
++    const pageSize = this._db.pragma("page_size", { simple: true });
++    return Number(row) * Number(pageSize);
++  }
++  get Cursor() {
++    return SqlStorageCursor;
++  }
++  get Statement() {
++    // Not typically used directly, but included for API completeness
++    return class {};
++  }
++};
++
+ var txnWriteSetsMaxSize = 16;
+ var DurableObjectStorage = class {
+   #mutex = new ReadWriteMutex();
+@@ -789,6 +900,7 @@ var DurableObjectStorage = class {
+   #shadow;
+   #alarmBridge;
+   [kAlarmExists] = true;
++  #sqlStorage;
+   constructor(inner, alarmBridge) {
+     this.#inner = inner;
+     this.#alarmBridge = alarmBridge;
+@@ -1006,6 +1118,37 @@ var DurableObjectStorage = class {
+       return this.#mutex.runWithWrite(this.#flush);
+     }, options);
+   }
++  get sql() {
++    if (!this.#sqlStorage) {
++      // Lazily create a better-sqlite3 database for this DurableObject's
++      // SqlStorage. If the inner storage is file-backed (has a `root`
++      // property), persist the database to disk next to the KV storage.
++      // Otherwise, use an in-memory database.
++      const DatabaseConstructor = require("better-sqlite3");
++      const nativeBinding = (function () {
++        const path = require("node:path");
++        const resolved = require.resolve("better-sqlite3");
++        return path.resolve(path.dirname(resolved), "../build/Release/better_sqlite3.node");
++      })();
++      let dbPath = ":memory:";
++      if (this.#inner.root) {
++        const fs = require("node:fs");
++        const path = require("node:path");
++        fs.mkdirSync(path.dirname(this.#inner.root), { recursive: true });
++        dbPath = this.#inner.root + ".sql.sqlite";
++      }
++      const db = new DatabaseConstructor(dbPath, { nativeBinding });
++      this.#sqlStorage = new MiniflareLocalSqlStorage(db);
++    }
++    return this.#sqlStorage;
++  }
++  transactionSync(closure) {
++    // Wraps the closure in a SQLite transaction using better-sqlite3's
++    // native transaction() support for proper SAVEPOINT nesting.
++    const sqlStorage = this.sql;
++    const wrappedTxn = sqlStorage._db.transaction(closure);
++    return wrappedTxn();
++  }
+   sync() {
+     return this.#noPendingFlushesPromise ?? Promise.resolve();
+   }

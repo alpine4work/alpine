@@ -428,7 +428,8 @@
             "micromark-extension-gfm-strikethrough@2.0.0": "admin/patches/micromark-extension-gfm-strikethrough@2.0.0.patch",
             "@types/react@19.2.6": "admin/patches/@types__react@19.2.6.patch",
             "react-dom@19.2.0": "admin/patches/react-dom@19.2.0.patch",
-            "@miniflare/d1@2.14.4": "admin/patches/@miniflare__d1@2.14.4.patch"
+            "@miniflare/d1@2.14.4": "admin/patches/@miniflare__d1@2.14.4.patch",
+            "@miniflare/durable-objects@2.14.4": "admin/patches/@miniflare__durable-objects@2.14.4.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

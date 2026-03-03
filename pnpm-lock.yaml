@@ -43,6 +43,9 @@ patchedDependencies:
   '@miniflare/d1@2.14.4':
     hash: 6hbhum4lg4oro77z5576345o6a
     path: admin/patches/@miniflare__d1@2.14.4.patch
+  '@miniflare/durable-objects@2.14.4':
+    hash: vxrc5eza6myewzbsg2yiefwfam
+    path: admin/patches/@miniflare__durable-objects@2.14.4.patch
   '@miniflare/shared@2.14.4':
     hash: mkotdi7nyq4frmqbvxak3qytue
     path: admin/patches/@miniflare__shared@2.14.4.patch
@@ -359,7 +362,7 @@ importers:
         version: 2.14.4
       '@miniflare/durable-objects':
         specifier: 2.14.4
-        version: 2.14.4
+        version: 2.14.4(patch_hash=vxrc5eza6myewzbsg2yiefwfam)
       '@miniflare/r2':
         specifier: 2.14.4
         version: 2.14.4
@@ -12033,7 +12036,7 @@ snapshots:
       '@miniflare/core': 2.14.4
       '@miniflare/shared': 2.14.4(patch_hash=mkotdi7nyq4frmqbvxak3qytue)
 
-  '@miniflare/durable-objects@2.14.4':
+  '@miniflare/durable-objects@2.14.4(patch_hash=vxrc5eza6myewzbsg2yiefwfam)':
     dependencies:
       '@miniflare/core': 2.14.4
       '@miniflare/shared': 2.14.4(patch_hash=mkotdi7nyq4frmqbvxak3qytue)
@@ -18342,7 +18345,7 @@ snapshots:
       '@miniflare/cli-parser': 2.14.4
       '@miniflare/core': 2.14.4
       '@miniflare/d1': 2.14.4(patch_hash=6hbhum4lg4oro77z5576345o6a)
-      '@miniflare/durable-objects': 2.14.4
+      '@miniflare/durable-objects': 2.14.4(patch_hash=vxrc5eza6myewzbsg2yiefwfam)
       '@miniflare/html-rewriter': 2.14.4
       '@miniflare/http-server': 2.14.4(bufferutil@4.0.7(supports-color@10.2.2))(utf-8-validate@5.0.10(supports-color@10.2.2))
       '@miniflare/kv': 2.14.4
