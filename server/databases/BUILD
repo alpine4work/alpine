@@ -8,6 +8,7 @@ ts_project(
         "@sqlite",
         "//admin/external_types:sqlite",
         "//server/cloudflare",
+        "//server/web_socket",
         "//shared/databases",
         "//shared/error",
         "//shared/helpers",
