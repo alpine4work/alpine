@@ -19,16 +19,39 @@ diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
 diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 --- a/ext/wasm/api/pre-js.c-pp.js
 +++ b/ext/wasm/api/pre-js.c-pp.js
-@@ -91,12 +91,26 @@
-           ? "" : scriptDirectory)
-     );
-     sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
+@@ -85,18 +85,42 @@
+   */
+   Module['instantiateWasm'] = function callee(imports,onSuccess){
+     const sims = this;
+-    const uri = Module.locateFile(
+-      sims.wasmFilename, (
+-        ('undefined'===typeof scriptDirectory/*var defined by Emscripten glue*/)
+-          ? "" : scriptDirectory)
+-    );
+-    sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
 -    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
-     const finalThen = (arg)=>{
+-    const finalThen = (arg)=>{
++    const finalThen = (arg)=>{
        arg.imports = imports;
        sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
        onSuccess(arg.instance, arg.module);
      };
++    /* Cloudflare Workers (workerd): use pre-compiled WASM module
++    ** since workerd can't fetch file:// URLs or use readFileSync.
++    ** Must check before locateFile() which throws in workerd. */
++    if(Module['wasmModule']){
++      return WebAssembly.instantiate(Module['wasmModule'], imports).then(
++        function(instance){
++          finalThen({instance: instance, module: Module['wasmModule']});
++        }
++      );
++    }
++    const uri = Module.locateFile(
++      sims.wasmFilename, (
++        ('undefined'===typeof scriptDirectory/*var defined by Emscripten glue*/)
++          ? "" : scriptDirectory)
++    );
++    sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
 +    /* Node.js: load WASM from the filesystem. The web/worker builds
 +    ** use fetch() which doesn't support file:// URLs in Node.js.
 +    ** Dynamic import() is used so the node:fs/node:url references
@@ -47,6 +70,47 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
      const loadWasm = WebAssembly.instantiateStreaming
            ? async ()=>
            WebAssembly
+diff --git a/ext/wasm/common/whwasmutil.js b/ext/wasm/common/whwasmutil.js
+--- a/ext/wasm/common/whwasmutil.js
++++ b/ext/wasm/common/whwasmutil.js
+@@ -630,8 +630,32 @@
+       /* (export "f" (func 0 (type 0))): */
+       0x01, 0x01, 0x66, 0x00, 0x00
+     );
+-    return (new WebAssembly.Instance(
+-      new WebAssembly.Module(new Uint8Array(wasmCode)), {
+-        e: { f: func }
+-      })).exports['f'];
++    try{
++      return (new WebAssembly.Instance(
++        new WebAssembly.Module(new Uint8Array(wasmCode)), {
++          e: { f: func }
++        })).exports['f'];
++    }catch(e){
++      if(!(e instanceof WebAssembly.CompileError)) throw e;
++      /* Fallback for environments that block dynamic WASM
++      ** compilation (e.g. Cloudflare Workers / workerd). */
++      if('function'===typeof WebAssembly.Function){
++        /* Type Reflection proposal (V8-based runtimes). */
++        const paramTypes = [];
++        for(const c of sigParams) paramTypes.push(_.letterType(c));
++        const resultTypes = 'v'===sig[0] ? [] : [_.letterType(sig[0])];
++        return new WebAssembly.Function(
++          {parameters: paramTypes, results: resultTypes}, func
++        );
++      }
++      if(globalThis.__unsafeEval){
++        /* Cloudflare Workers unsafe eval binding. */
++        const wasmBytes = new Uint8Array(wasmCode);
++        return (new WebAssembly.Instance(
++          globalThis.__unsafeEval.newWasmModule(wasmBytes), {
++            e: { f: func }
++          })).exports['f'];
++      }
++      throw e;
++    }
+   }/*jsFuncToWasm()*/;
+
 diff --git a/src/pager.h b/src/pager.h
 --- a/src/pager.h
 +++ b/src/pager.h

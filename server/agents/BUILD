@@ -92,7 +92,6 @@ js_binary(
         # https://github.com/cloudflare/miniflare/blob/b536e56ee19803f0c1fbb922394992bbed7e7c96/packages/shared/src/context.ts#L17-L19
         "MINIFLARE_SUBREQUEST_LIMIT": "1000",
     },
-    node_options = ["--experimental-vm-modules"],
     visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 

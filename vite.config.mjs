@@ -1,6 +1,6 @@
+import {vitePlugin as remix} from "@remix-run/dev";
 import {existsSync} from "fs";
 import {dirname, join, relative, resolve} from "path";
-import {vitePlugin as remix} from "@remix-run/dev";
 import {defineConfig} from "vite";
 
 export default defineConfig(({mode}) => {
@@ -93,11 +93,7 @@ export default defineConfig(({mode}) => {
                         if (resolved.startsWith(root)) return null;
                         const rootParent = dirname(root);
                         if (!resolved.startsWith(rootParent)) return null;
-                        const externalPath = join(
-                            root,
-                            "external",
-                            relative(rootParent, resolved),
-                        );
+                        const externalPath = join(root, "external", relative(rootParent, resolved));
                         if (existsSync(externalPath)) return externalPath;
                         return null;
                     },

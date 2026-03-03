@@ -148,9 +148,14 @@ echo "]" >> '{output}'
             extra_optimize_deps = "\\n".join(extra_optimize_deps),
             inputs = " ".join(["'{}'".format(input.path) for input in inputs.to_list()]),
             output = output.path,
-            # We exclude `@vanilla-extract/` packages since that's a build dependency. But
-            # `@vanilla-extract/dynamic` is a runtime package the client imports.
-            vanilla_extract_filter = """grep -v "@vanilla-extract/" | cat - <(echo "@vanilla-extract/dynamic")""",
+            # We exclude `@vanilla-extract/` packages since that's a build
+            # dependency. But `@vanilla-extract/dynamic` is a runtime package
+            # the client imports.
+            # We exclude `node:*` built-in modules since they can't be
+            # optimized by Vite and are invalid as Bazel labels.
+            # We exclude single-character package names since they are false
+            # positives from the import regex scanner.
+            vanilla_extract_filter = """grep -v "@vanilla-extract/" | grep -v "^node:" | grep -v "^.$" | cat - <(echo "@vanilla-extract/dynamic")""",
         ),
         # This action is pretty simple. We trust it to be hermetic. So to improve
         # performance don't use a sandbox.

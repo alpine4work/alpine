@@ -2414,7 +2414,9 @@ export type Sqlite3Static = {
  * intentional. Please do not reintroduce the removed details. See
  * https://github.com/sqlite/sqlite-wasm/pull/129 for details.
  */
-export default function init(): Promise<Sqlite3Static>;
+export default function init(moduleArg?: {
+  wasmModule?: WebAssembly.Module;
+}): Promise<Sqlite3Static>;
 
 export type ListLike<T> = {
   length: number;

@@ -4,8 +4,6 @@ import {Miniflare} from "miniflare";
 import {join as joinPath} from "path";
 import toml from "toml";
 import {parseArgs} from "util";
-// eslint-disable-next-line cyberworlds/sort-imports-by-source
-import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 
 // Make our service easy to find in process managers. We include
 // "cyberworlds" and "node" so you can grep by those strings.
@@ -129,14 +127,15 @@ async function main() {
 
     const miniflare = new Miniflare({
         name: config.name,
-        modules: true,
-        scriptPath: joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js"),
-        wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
+        modules: buildModules(runfilesPath),
+        compatibilityDate: config.compatibility_date,
+        compatibilityFlags: config.compatibility_flags,
+        port,
         upstream: appServiceUrl,
         cachePersist: cacheLocalDataPath,
         durableObjectsPersist: durableObjectsLocalDataPath,
         r2Persist: cloudflareR2LocalDataPath,
-        bindings: {
+        bindings: filterUndefined({
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
@@ -149,13 +148,79 @@ async function main() {
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             COOKIE_NAME_SUFFIX: cookieNameSuffix,
             HONEYCOMB_API_KEY: honeycombApiKey,
-        },
-        globals: {
-            __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
-        },
+        }),
+        durableObjects: buildDurableObjects(config),
+        r2Buckets: buildR2Buckets(config),
+        // SQLite WASM's jsFuncToWasm creates tiny WASM modules at
+        // runtime for function pointer trampolines. workerd blocks
+        // this by default; unsafeEvalBinding unlocks it.
+        unsafeEvalBinding: "UNSAFE_EVAL",
     });
 
-    const server = await miniflare.createServer();
+    await miniflare.ready;
+}
 
-    server.listen(port);
+// Miniflare v4 validates that all binding values are defined. Filter out
+// undefined values for optional bindings (e.g. HONEYCOMB_API_KEY).
+function filterUndefined(obj) {
+    return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
+function buildDurableObjects(config) {
+    const sqliteClasses = new Set();
+    for (const migration of config.migrations ?? []) {
+        for (const cls of migration.new_sqlite_classes ?? []) {
+            sqliteClasses.add(cls);
+        }
+    }
+    const result = {};
+    for (const binding of config.durable_objects?.bindings ?? []) {
+        result[binding.name] = {
+            className: binding.class_name,
+            ...(sqliteClasses.has(binding.class_name) && {useSQLite: true}),
+        };
+    }
+    return result;
+}
+
+function buildR2Buckets(config) {
+    const result = {};
+    for (const bucket of config.r2_buckets ?? []) {
+        result[bucket.binding] = bucket.bucket_name;
+    }
+    return result;
+}
+
+function buildModules(runfilesPath) {
+    const edgeDir = joinPath(runfilesPath, "cyberworlds/server/edge");
+    const bundlePath = joinPath(edgeDir, "edge_service_bundle.js");
+    const wasmBytes = fs.readFileSync(
+        joinPath(runfilesPath, "sqlite/ext/wasm/jswasm/sqlite3.wasm"),
+    );
+
+    // All modules share the same directory so workerd can resolve
+    // relative imports between them.
+    return [
+        {
+            type: "ESModule",
+            path: joinPath(edgeDir, "entry.mjs"),
+            /* eslint-disable cyberworlds/string-quotes -- generated JS code, not UI text */
+            contents: [
+                'import sqliteWasm from "./sqlite3.wasm";',
+                "globalThis.__sqliteWasm = sqliteWasm;",
+                'export { default } from "./edge_service_bundle.js";',
+                'export * from "./edge_service_bundle.js";',
+            ].join("\n"),
+            /* eslint-enable cyberworlds/string-quotes */
+        },
+        {
+            type: "ESModule",
+            path: bundlePath,
+        },
+        {
+            type: "CompiledWasm",
+            path: joinPath(edgeDir, "sqlite3.wasm"),
+            contents: wasmBytes,
+        },
+    ];
 }

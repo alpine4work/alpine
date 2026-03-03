@@ -42,7 +42,7 @@
         "baseUrl": "./admin/typescript/base",
         "paths": {
             "~/*": ["../../../*"],
-            "~/external/*": ["../../../admin/external_types/*"],
+            "~/external/*": ["../../../admin/external_types/*"]
         },
 
         /* ========================================================================== *\
@@ -54,8 +54,8 @@
         "noPropertyAccessFromIndexSignature": false,
         "noImplicitOverride": true,
         "allowJs": true,
-        "skipLibCheck": true,
+        "skipLibCheck": true
     },
     "include": ["**/*.ts", "**/*.tsx", ".vscode/**/*.ts", ".vscode/**/*.tsx"],
-    "exclude": ["node_modules", "bazel-*"],
+    "exclude": ["node_modules", "bazel-*"]
 }
