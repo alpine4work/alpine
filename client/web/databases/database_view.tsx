@@ -3,13 +3,9 @@ import {
     type DatabaseConnection,
     connectToDatabase,
 } from "~/client/web/databases/database_coordinator.js";
-import {databaseWorkerMethods} from "~/client/web/databases/database_worker_methods.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
-import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-
-type DatabaseRpc = WebWorkerRpc<typeof databaseWorkerMethods>;
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 const sampleQueries = [
@@ -29,16 +25,16 @@ const sampleQueries = [
 
 export function DatabaseView() {
     const [query, setQuery] = useState("");
-    const [rpc, setRpc] = useState<DatabaseRpc | null>(null);
+    const [conn, setConn] = useState<DatabaseConnection | null>(null);
     const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let connection: DatabaseConnection | null = null;
 
-        connectToDatabase().then(conn => {
-            connection = conn;
-            setRpc(conn.rpc);
+        connectToDatabase().then(c => {
+            connection = c;
+            setConn(c);
         });
 
         return () => {
@@ -96,10 +92,10 @@ export function DatabaseView() {
                 <Button
                     variant="neutral"
                     onPress={async () => {
-                        if (rpc == null) return;
+                        if (conn == null) return;
                         setError(null);
                         try {
-                            const response = await rpc.call("executeQuery", {sql: query});
+                            const response = await conn.call("executeQuery", {sql: query});
                             setRows(response.rows);
                         } catch (e) {
                             setError(e instanceof Error ? e.message : String(e));
