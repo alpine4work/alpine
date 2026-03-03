@@ -19,6 +19,10 @@ declare const self: ServiceWorkerGlobalScope;
 // The leader tab registers its clientId. Follower tabs
 // send a MessagePort which we relay to the leader so
 // followers can talk directly to the leader's worker.
+//
+// This is an inline copy of `DatabaseActiveTabServiceWorker`
+// to avoid pulling `client/web/databases` (and its heavy
+// SQLite deps) into the service worker bundle.
 
 let dbLeaderClientId: string | null = null;
 

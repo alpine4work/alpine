@@ -1,12 +1,11 @@
-import {databaseWorkerMethods} from "~/client/web/databases/database_worker_methods.js";
-import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
+import {
+    type ActiveTabPort,
+    type ActiveTabWorkerHandle,
+    DatabaseActiveTabManager,
+    type DatabaseConnection,
+} from "~/client/web/databases/database_active_tab_manager.js";
 
-type DatabaseRpc = WebWorkerRpc<typeof databaseWorkerMethods>;
-
-export interface DatabaseConnection {
-    readonly rpc: DatabaseRpc;
-    close(): void;
-}
+export type {DatabaseConnection} from "~/client/web/databases/database_active_tab_manager.js";
 
 /**
  * Connect to the shared client-side SQLite database.
@@ -15,107 +14,75 @@ export interface DatabaseConnection {
  * worker), others proxy queries via MessagePort through
  * the ServiceWorker.
  */
-export async function connectToDatabase(): Promise<DatabaseConnection> {
-    const isLeader = await tryAcquireLeaderLock();
-
-    if (isLeader) {
-        return connectAsLeader();
-    } else {
-        return connectAsFollower();
-    }
-}
-
-/**
- * Try to acquire the exclusive "alpine-db" Web Lock.
- * Returns `true` if this tab is the leader, `false` if
- * another tab already holds the lock.
- */
-function tryAcquireLeaderLock(): Promise<boolean> {
-    return new Promise(resolve => {
-        navigator.locks.request("alpine-db", {ifAvailable: true}, async lock => {
-            if (lock === null) {
-                resolve(false);
-                return;
-            }
-            resolve(true);
-            // Hold the lock forever — released when the tab dies
-            await new Promise(() => {});
-        });
-    });
-}
-
-/**
- * Leader path: spawn the dedicated worker, set up local
- * RPC, register with the ServiceWorker, and forward
- * incoming MessagePorts from followers to the worker.
- */
-async function connectAsLeader(): Promise<DatabaseConnection> {
-    const worker = new Worker(new URL("./database_worker.js", import.meta.url), {
-        type: "module",
-    });
-
-    // Wait for the worker to finish initializing
-    await new Promise<void>(resolve => {
-        worker.onmessage = event => {
-            if (event.data?.type === "ready") {
-                resolve();
-            }
-        };
-    });
-
-    // Set up local RPC for this tab's queries
-    const rpc = new WebWorkerRpc({
-        methods: databaseWorkerMethods,
-        handlers: {} as any,
-        send: message => worker.postMessage(message),
-    });
-    worker.onmessage = event => rpc.handleMessage(event.data);
-
-    // Register as leader with the ServiceWorker and forward
-    // incoming ports from followers to the worker
-    const registration = await navigator.serviceWorker.ready;
-    registration.active!.postMessage({type: "db-register-leader"});
-
-    navigator.serviceWorker.addEventListener("message", event => {
-        if (event.data?.type === "db-port") {
-            const port = event.ports[0];
-            if (port) {
-                worker.postMessage({type: "port"}, [port]);
-            }
-        }
-    });
-
-    return {
-        rpc,
-        close() {
-            worker.terminate();
+export function connectToDatabase(): Promise<DatabaseConnection> {
+    const manager = new DatabaseActiveTabManager({
+        locks: navigator.locks,
+        serviceWorker: {
+            ready: navigator.serviceWorker.ready.then(reg => ({
+                active: reg.active
+                    ? {
+                          postMessage(data: unknown, transfer?: Array<ActiveTabPort>) {
+                              reg.active!.postMessage(data, transfer as Array<Transferable>);
+                          },
+                      }
+                    : null,
+            })),
+            addEventListener(_type, handler) {
+                navigator.serviceWorker.addEventListener("message", event => {
+                    handler({
+                        data: event.data,
+                        ports: [...event.ports] as unknown as Array<ActiveTabPort>,
+                    });
+                });
+            },
         },
-    };
-}
+        createWorker(): ActiveTabWorkerHandle {
+            const worker = new Worker(new URL("./database_worker.js", import.meta.url), {
+                type: "module",
+            });
 
-/**
- * Follower path: ask the ServiceWorker for a MessagePort
- * to the leader's worker, then set up RPC over that port.
- */
-async function connectAsFollower(): Promise<DatabaseConnection> {
-    const registration = await navigator.serviceWorker.ready;
+            const ready = new Promise<void>(resolve => {
+                worker.onmessage = event => {
+                    if (event.data?.type === "ready") {
+                        resolve();
+                    }
+                };
+            });
 
-    const channel = new MessageChannel();
-
-    registration.active!.postMessage({type: "db-connect"}, [channel.port2]);
-
-    const rpc = new WebWorkerRpc({
-        methods: databaseWorkerMethods,
-        handlers: {} as any,
-        send: message => channel.port1.postMessage(message),
-    });
-    channel.port1.onmessage = event => rpc.handleMessage(event.data);
-    channel.port1.start();
-
-    return {
-        rpc,
-        close() {
-            channel.port1.close();
+            return {
+                ready,
+                postMessage(data: unknown, transfer?: Array<ActiveTabPort>) {
+                    worker.postMessage(data, transfer as Array<Transferable>);
+                },
+                get onmessage() {
+                    return null;
+                },
+                set onmessage(
+                    handler: ((event: {data: unknown; ports: Array<ActiveTabPort>}) => void) | null,
+                ) {
+                    worker.onmessage = handler
+                        ? event =>
+                              handler({
+                                  data: event.data,
+                                  ports: [...event.ports] as unknown as Array<ActiveTabPort>,
+                              })
+                        : null;
+                },
+                start() {},
+                close() {},
+                terminate() {
+                    worker.terminate();
+                },
+            };
         },
-    };
+        createMessageChannel() {
+            const channel = new MessageChannel();
+            return {
+                port1: channel.port1 as unknown as ActiveTabPort,
+                port2: channel.port2 as unknown as ActiveTabPort,
+            };
+        },
+    });
+
+    return manager.connect();
 }
