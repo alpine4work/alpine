@@ -8,6 +8,7 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
+import {sqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -142,7 +143,9 @@ export class DatabaseServer {
 
     static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
         if (sqlite3Promise === undefined) {
-            sqlite3Promise = sqlite3InitModule();
+            sqlite3Promise = sqlite3InitModule({
+                instantiateWasm: sqlite3WasmLoader(),
+            });
         }
         const sqlite3 = await sqlite3Promise;
         return new DatabaseServer(sqlite3, storage);

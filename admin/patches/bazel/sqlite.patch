@@ -19,34 +19,44 @@ diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
 diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 --- a/ext/wasm/api/pre-js.c-pp.js
 +++ b/ext/wasm/api/pre-js.c-pp.js
-@@ -91,12 +91,26 @@
+@@ -50,6 +50,11 @@
+   delete globalThis.sqlite3InitModuleState;
+   sIMS.debugModule('pre-js.js sqlite3InitModuleState =',sIMS);
+
++  /* Guard self.location for sandboxed environments (e.g.
++  ** Miniflare) where WorkerGlobalScope exists but location
++  ** is not defined. Prevents crash in Emscripten's
++  ** scriptDirectory = self.location.href. */
++  if(typeof self!=='undefined' && !self.location) self.location={href:''};
+   /**
+      This custom locateFile() tries to figure out where to load `path`
+@@ -91,21 +96,7 @@
            ? "" : scriptDirectory)
      );
      sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
 -    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
-     const finalThen = (arg)=>{
-       arg.imports = imports;
-       sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
-       onSuccess(arg.instance, arg.module);
-     };
-+    /* Node.js: load WASM from the filesystem. The web/worker builds
-+    ** use fetch() which doesn't support file:// URLs in Node.js.
-+    ** Dynamic import() is used so the node:fs/node:url references
-+    ** don't break browser environments. */
-+    if(typeof process!=='undefined' && process.versions && process.versions.node){
-+      return (async ()=>{
-+        const {readFileSync} = await import('node:fs');
-+        const {fileURLToPath} = await import('node:url');
-+        const filePath = uri.startsWith('file://') ? fileURLToPath(uri) : uri;
-+        const bytes = readFileSync(filePath);
-+        return WebAssembly.instantiate(bytes, imports).then(finalThen);
-+      })();
-+    }
-+    /* Browser: use fetch */
-+    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
-     const loadWasm = WebAssembly.instantiateStreaming
-           ? async ()=>
-           WebAssembly
+-    const finalThen = (arg)=>{
+-      arg.imports = imports;
+-      sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
+-      onSuccess(arg.instance, arg.module);
+-    };
+-    const loadWasm = WebAssembly.instantiateStreaming
+-          ? async ()=>
+-          WebAssembly
+-          .instantiateStreaming(wfetch(), imports)
+-          .then(finalThen)
+-          : async ()=>// Safari < v15
+-          wfetch()
+-          .then(response => response.arrayBuffer())
+-          .then(bytes => WebAssembly.instantiate(bytes, imports))
+-          .then(finalThen)
+-    return loadWasm();
++    throw new Error(
++      "sqlite3: instantiateWasm not configured. "
++      + "Pass instantiateWasm via sqlite3InitModule({instantiateWasm: fn})."
++    );
+   }.bind(sIMS);
+
 diff --git a/src/pager.h b/src/pager.h
 --- a/src/pager.h
 +++ b/src/pager.h
