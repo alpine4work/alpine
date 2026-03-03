@@ -1,3 +1,5 @@
+import {existsSync} from "fs";
+import {dirname, join, relative, resolve} from "path";
 import {vitePlugin as remix} from "@remix-run/dev";
 import {defineConfig} from "vite";
 
@@ -70,6 +72,37 @@ export default defineConfig(({mode}) => {
             ),
         },
         plugins: [
+            // SWC resolves `~/external/*` imports relative to the Bazel
+            // execroot where external repos are siblings of the workspace
+            // (e.g. `{execroot}/sqlite/...`). But Vite roots itself at
+            // `bazel-bin/` where externals live under `external/`
+            // (e.g. `{bin}/external/sqlite/...`). This plugin catches
+            // resolved paths that escape Vite's root and redirects them
+            // to `{root}/external/`.
+            (() => {
+                let root;
+                return {
+                    name: "bazel-external-resolver",
+                    configResolved(config) {
+                        root = config.root;
+                    },
+                    resolveId(source, importer) {
+                        if (!root || !importer || !source.startsWith(".")) return null;
+                        const cleanImporter = importer.split("?")[0];
+                        const resolved = resolve(dirname(cleanImporter), source);
+                        if (resolved.startsWith(root)) return null;
+                        const rootParent = dirname(root);
+                        if (!resolved.startsWith(rootParent)) return null;
+                        const externalPath = join(
+                            root,
+                            "external",
+                            relative(rootParent, resolved),
+                        );
+                        if (existsSync(externalPath)) return externalPath;
+                        return null;
+                    },
+                };
+            })(),
             process.env.VITE_CONFIG_WITHOUT_REMIX_PLUGIN !== "true" &&
                 remix({
                     future: {
