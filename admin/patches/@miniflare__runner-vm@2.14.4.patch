@@ -1,65 +1,8 @@
 diff --git a/dist/src/index.js b/dist/src/index.js
-index c00291872e726bff20952668b0846cf936900b7a..63dcc9696577dd02c84e8f6cb70f1166c78aaaba 100644
+index c00291872e726bff20952668b0846cf936900b7a..a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
-@@ -98,6 +98,7 @@ var import_fs = __toModule(require("fs"));
- var import_module = __toModule(require("module"));
- var import_path = __toModule(require("path"));
- var import_vm2 = __toModule(require("vm"));
-+var import_url = __toModule(require("url"));
- var import_shared2 = __toModule(require("@miniflare/shared"));
- var SUGGEST_BUNDLE = "If you're trying to import an npm package, you'll need to bundle your Worker first.";
- var SUGGEST_NODE = "If you're trying to import a Node.js built-in module, or an npm package that uses Node.js built-ins, you'll either need to:\n- Bundle your Worker, configuring your bundler to polyfill Node.js built-ins\n- Configure your bundler to load Workers-compatible builds by changing the main fields/conditions\n- Find an alternative package that doesn't require Node.js built-ins";
-@@ -142,8 +143,24 @@ var ModuleLinker = class {
-       this.#moduleCache.set(identifier, module2);
-       return module2;
-     }
-+    const strippedSpec = spec.startsWith("node:") ? spec.slice(5) : spec;
-+    if (spec.startsWith("node:") || import_module.builtinModules.includes(strippedSpec)) {
-+      const nodeModule = require(spec);
-+      const keys = Object.keys(nodeModule);
-+      const exportNames = keys.includes("default") ? keys : [...keys, "default"];
-+      module2 = new import_vm2.default.SyntheticModule(exportNames, function() {
-+        for (const key of keys) {
-+          this.setExport(key, nodeModule[key]);
-+        }
-+        if (!keys.includes("default")) {
-+          this.setExport("default", nodeModule);
-+        }
-+      }, moduleOptions);
-+      this.#moduleCache.set(identifier, module2);
-+      return module2;
-+    }
-     const rule = this.moduleRules.find((rule2) => rule2.include.test(identifier));
-     if (rule === void 0) {
-       const isBuiltin = import_module.builtinModules.includes(spec);
-       const suggestion = isBuiltin ? SUGGEST_NODE : SUGGEST_BUNDLE;
-       throw new VMScriptRunnerError("ERR_MODULE_RULE", `${errorBase}: no matching module rules.
-@@ -155,7 +172,10 @@ ${suggestion}`);
-       case "ESModule":
-         module2 = new import_vm2.default.SourceTextModule(data.toString("utf8"), {
-           ...moduleOptions,
--          importModuleDynamically: this.importModuleDynamically
-+          importModuleDynamically: this.importModuleDynamically,
-+          initializeImportMeta: (meta) => {
-+            meta.url = import_url.pathToFileURL(identifier).href;
-+          }
-         });
-         break;
-       case "CommonJS":
-@@ -287,7 +307,10 @@ var VMScriptRunner = class {
-     const module2 = new import_vm3.default.SourceTextModule(blueprint.code, {
-       identifier: blueprint.filePath,
-       context,
--      importModuleDynamically: linker.importModuleDynamically
-+      importModuleDynamically: linker.importModuleDynamically,
-+      initializeImportMeta: (meta) => {
-+        meta.url = import_url.pathToFileURL(blueprint.filePath).href;
-+      }
-     });
-     await module2.link(linker.linker);
-     await module2.evaluate();
-@@ -303,7 +326,7 @@ var VMScriptRunner = class {
+@@ -303,7 +303,7 @@ var VMScriptRunner = class {
        Object.assign(context, globalScope);
      } else {
        context = import_vm3.default.createContext(globalScope, {

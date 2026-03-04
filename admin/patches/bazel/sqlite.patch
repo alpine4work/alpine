@@ -30,10 +30,26 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 +  if(typeof self!=='undefined' && !self.location) self.location={href:''};
    /**
       This custom locateFile() tries to figure out where to load `path`
-@@ -91,21 +96,7 @@
-           ? "" : scriptDirectory)
-     );
-     sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
+@@ -79,33 +84,12 @@
+   }.bind(sIMS);
+
+-  /**
+-     Override Module.instantiateWasm().
+-
+-     A custom Module.instantiateWasm() does not work in WASMFS builds:
+-
+-     https://github.com/emscripten-core/emscripten/issues/17951
+-
+-     In such builds we must disable this.
+-  */
+-  Module['instantiateWasm'] = function callee(imports,onSuccess){
+-    const sims = this;
+-    const uri = Module.locateFile(
+-      sims.wasmFilename, (
+-        ('undefined'===typeof scriptDirectory/*var defined by Emscripten glue*/)
+-          ? "" : scriptDirectory)
+-    );
+-    sims.debugModule("instantiateWasm() uri =", uri, "sIMS =",this);
 -    const wfetch = ()=>fetch(uri, {credentials: 'same-origin'});
 -    const finalThen = (arg)=>{
 -      arg.imports = imports;
@@ -51,11 +67,18 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 -          .then(bytes => WebAssembly.instantiate(bytes, imports))
 -          .then(finalThen)
 -    return loadWasm();
-+    throw new Error(
-+      "sqlite3: instantiateWasm not configured. "
-+      + "Pass instantiateWasm via sqlite3InitModule({instantiateWasm: fn})."
-+    );
-   }.bind(sIMS);
+-  }.bind(sIMS);
++  /* If the caller provided instantiateWasm via sqlite3InitModule(),
++  ** use it. Otherwise set a fallback that throws. */
++  if(!Module.instantiateWasm){
++    Module['instantiateWasm'] = function(){
++      throw new Error(
++        "sqlite3: instantiateWasm not configured. "
++        + "Pass instantiateWasm via sqlite3InitModule({instantiateWasm: fn})."
++      );
++    };
++  }
+ })(Module);
 
 diff --git a/src/pager.h b/src/pager.h
 --- a/src/pager.h
