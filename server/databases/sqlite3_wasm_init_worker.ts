@@ -9,21 +9,17 @@
 // './sqlite3.wasm'` once esbuild/Bazel plumbing supports .wasm
 // imports in the bundle.
 
-import {assert} from "~/shared/helpers/control/assert.js";
 import {registerSqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
-const wasmModule = (globalThis as any).__sqlite3WasmModule as
-    | WebAssembly.Module
-    | undefined;
+const wasmModule = (globalThis as any).__sqlite3WasmModule as WebAssembly.Module | undefined;
 
 assert(
     wasmModule !== undefined,
-    "sqlite3 WASM module not found on globalThis.__sqlite3WasmModule. "
-        + "The host must pre-compile and inject the module.",
+    "sqlite3 WASM module not found on globalThis.__sqlite3WasmModule. " +
+        "The host must pre-compile and inject the module.",
 );
 
 registerSqlite3WasmLoader((imports, onSuccess) => {
-    WebAssembly.instantiate(wasmModule, imports).then((instance) =>
-        onSuccess(instance, wasmModule),
-    );
+    WebAssembly.instantiate(wasmModule, imports).then(instance => onSuccess(instance, wasmModule));
 });

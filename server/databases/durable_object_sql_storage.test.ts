@@ -203,20 +203,22 @@ describe("DatabaseDurableObjectStorage integration", () => {
 
         doStorage.writePages(new Map([[0, page]]));
 
-        const read = doStorage.readPage(0);
+        const {data: read, timestamp} = doStorage.readPage(0);
 
         expect(read[0]).toBe(0xab);
         expect(read[sqlitePageSize - 1]).toBe(0xcd);
         expect(read.byteLength).toBe(sqlitePageSize);
+        expect(timestamp).toBeGreaterThan(0);
     });
 
     test("readPage returns zero-filled page for unwritten index", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        const page = doStorage.readPage(99);
+        const {data: page, timestamp} = doStorage.readPage(99);
 
         expect(page.byteLength).toBe(sqlitePageSize);
         expect(page.every(b => b === 0)).toBe(true);
+        expect(timestamp).toBe(0);
     });
 
     test("getFileSize reflects written pages", () => {
@@ -248,8 +250,8 @@ describe("DatabaseDurableObjectStorage integration", () => {
         doStorage.truncate(1 * sqlitePageSize);
 
         // Pages 1 and 2 should be gone; page 0 survives.
-        expect(doStorage.readPage(1).every(b => b === 0)).toBe(true);
-        expect(doStorage.readPage(2).every(b => b === 0)).toBe(true);
+        expect(doStorage.readPage(1).data.every(b => b === 0)).toBe(true);
+        expect(doStorage.readPage(2).data.every(b => b === 0)).toBe(true);
         expect(doStorage.getFileSize()).toBe(1 * sqlitePageSize);
     });
 });
