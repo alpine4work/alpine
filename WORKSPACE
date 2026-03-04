@@ -637,6 +637,8 @@ http_archive(
     name = "emsdk",
     build_file = "@//admin/bazel:third_party/BUILD.emsdk.bazel",
     integrity = "sha256-LTKS1Qi09Ud/SQsICzijSq7+1D6FJYod5yy43eP4868=",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/emsdk_remove_npm.patch"],
     strip_prefix = "emsdk-4.0.6",
     url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/4.0.6.tar.gz",
 )
