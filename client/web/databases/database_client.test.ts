@@ -77,7 +77,7 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        const rows = client.executeQuery("SELECT 1 + 1 AS result");
+        const rows = await client.executeQuery("SELECT 1 + 1 AS result");
 
         expect(rows).toMatchObject([{result: 2}]);
     });
@@ -85,9 +85,11 @@ describe("DatabaseClient", () => {
     test("create table, insert, and select", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        client.executeQuery("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-        client.executeQuery("INSERT INTO items (name) VALUES ('alpha'), ('beta')");
-        const rows = client.executeQuery("SELECT * FROM items ORDER BY id");
+        await client.executeQuery(
+            "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
+        );
+        await client.executeQuery("INSERT INTO items (name) VALUES ('alpha'), ('beta')");
+        const rows = await client.executeQuery("SELECT * FROM items ORDER BY id");
 
         expect(rows).toMatchObject([
             {id: 1, name: "alpha"},
@@ -98,11 +100,13 @@ describe("DatabaseClient", () => {
     test("aggregate query", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        client.executeQuery("CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)");
-        client.executeQuery(
+        await client.executeQuery(
+            "CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)",
+        );
+        await client.executeQuery(
             "INSERT INTO tasks (status) VALUES ('done'), ('todo'), ('todo'), ('done'), ('done')",
         );
-        const rows = client.executeQuery(
+        const rows = await client.executeQuery(
             "SELECT status, count(*) AS count FROM tasks GROUP BY status ORDER BY status",
         );
 
@@ -116,14 +120,14 @@ describe("DatabaseClient", () => {
         const client1 = await DatabaseClient.create(createInMemoryDirectory());
         const client2 = await DatabaseClient.create(createInMemoryDirectory());
 
-        client1.executeQuery("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        client1.executeQuery("INSERT INTO t (id) VALUES (1)");
+        await client1.executeQuery("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client1.executeQuery("INSERT INTO t (id) VALUES (1)");
 
-        client2.executeQuery("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        client2.executeQuery("INSERT INTO t (id) VALUES (99)");
+        await client2.executeQuery("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client2.executeQuery("INSERT INTO t (id) VALUES (99)");
 
-        expect(client1.executeQuery("SELECT * FROM t")).toMatchObject([{id: 1}]);
-        expect(client2.executeQuery("SELECT * FROM t")).toMatchObject([{id: 99}]);
+        expect(await client1.executeQuery("SELECT * FROM t")).toMatchObject([{id: 1}]);
+        expect(await client2.executeQuery("SELECT * FROM t")).toMatchObject([{id: 99}]);
     });
 });
 

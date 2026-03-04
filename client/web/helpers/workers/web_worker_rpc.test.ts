@@ -22,7 +22,8 @@ function createTestRpc(config?: {
 }) {
     const sent: Array<unknown> = [];
     const rpc = new WebWorkerRpc({
-        methods: testMethods,
+        callMethods: testMethods,
+        handleMethods: testMethods,
         handlers: {
             add: config?.handlers?.add ?? (async ({a, b}) => ({sum: a + b})),
             greet: config?.handlers?.greet ?? (async ({name}) => ({message: `Hello, ${name}!`})),
@@ -125,7 +126,8 @@ describe("WebWorkerRpc", () => {
             } = {};
 
             channel.a = new WebWorkerRpc({
-                methods: testMethods,
+                callMethods: testMethods,
+                handleMethods: testMethods,
                 handlers: {
                     add: async ({a, b}) => ({sum: a + b}),
                     greet: async ({name}) => ({message: `Hi, ${name}!`}),
@@ -134,7 +136,8 @@ describe("WebWorkerRpc", () => {
             });
 
             channel.b = new WebWorkerRpc({
-                methods: testMethods,
+                callMethods: testMethods,
+                handleMethods: testMethods,
                 handlers: {
                     add: async ({a, b}) => ({sum: a + b}),
                     greet: async ({name}) => ({message: `Hello, ${name}!`}),
@@ -145,6 +148,53 @@ describe("WebWorkerRpc", () => {
             const result = await channel.a.call("add", {a: 5, b: 7});
 
             expect(result).toEqual({sum: 12});
+        });
+
+        test("asymmetric methods — each side calls different methods", async () => {
+            const sideAMethods = defineWebWorkerRpcMethods({
+                add: {
+                    input: {a: Schema.integer, b: Schema.integer},
+                    output: {sum: Schema.integer},
+                },
+            });
+
+            const sideBMethods = defineWebWorkerRpcMethods({
+                greet: {
+                    input: {name: Schema.string},
+                    output: {message: Schema.string},
+                },
+            });
+
+            const channel: {
+                a?: WebWorkerRpc<typeof sideAMethods, typeof sideBMethods>;
+                b?: WebWorkerRpc<typeof sideBMethods, typeof sideAMethods>;
+            } = {};
+
+            channel.a = new WebWorkerRpc({
+                callMethods: sideAMethods,
+                handleMethods: sideBMethods,
+                handlers: {
+                    greet: async ({name}) => ({message: `Hi, ${name}!`}),
+                },
+                send: msg => channel.b!.handleMessage(msg),
+            });
+
+            channel.b = new WebWorkerRpc({
+                callMethods: sideBMethods,
+                handleMethods: sideAMethods,
+                handlers: {
+                    add: async ({a, b}) => ({sum: a + b}),
+                },
+                send: msg => channel.a!.handleMessage(msg),
+            });
+
+            // A calls B's "add" method
+            const addResult = await channel.a.call("add", {a: 3, b: 4});
+            expect(addResult).toEqual({sum: 7});
+
+            // B calls A's "greet" method
+            const greetResult = await channel.b.call("greet", {name: "Alice"});
+            expect(greetResult).toEqual({message: "Hi, Alice!"});
         });
     });
 });

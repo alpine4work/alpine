@@ -3,21 +3,25 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
 
 class InMemoryStorage implements DatabaseServerStorage {
-    private pages = new Map<number, Uint8Array>();
+    private pages = new Map<number, {data: Uint8Array; timestamp: number}>();
     private _fileSize = 0;
+    private _nextTimestamp = 1;
 
-    readPage(index: number): Uint8Array {
-        return this.pages.get(index) ?? new Uint8Array(sqlitePageSize);
+    readPage(index: number): {data: Uint8Array; timestamp: number} {
+        return this.pages.get(index) ?? {data: new Uint8Array(sqlitePageSize), timestamp: 0};
     }
 
-    writePages(pages: ReadonlyMap<number, Uint8Array>): void {
+    writePages(pages: ReadonlyMap<number, Uint8Array>): number {
+        const timestamp = Math.max(Date.now(), this._nextTimestamp);
+        this._nextTimestamp = timestamp + 1;
         for (const [index, data] of pages) {
-            this.pages.set(index, new Uint8Array(data));
+            this.pages.set(index, {data: new Uint8Array(data), timestamp});
             const end = (index + 1) * sqlitePageSize;
             if (end > this._fileSize) {
                 this._fileSize = end;
             }
         }
+        return timestamp;
     }
 
     getFileSize(): number {
@@ -246,7 +250,7 @@ describe("DatabaseServer", () => {
             const result = server.query("SELECT * FROM items");
 
             for (const [, pageData] of result.pages) {
-                expect(pageData.byteLength).toBe(sqlitePageSize);
+                expect(pageData.data.byteLength).toBe(sqlitePageSize);
             }
 
             server.close();
@@ -263,7 +267,7 @@ describe("DatabaseServer", () => {
             // At least one page should be non-zero.
             let hasNonZeroPage = false;
             for (const [, pageData] of result.pages) {
-                if (pageData.some(b => b !== 0)) {
+                if (pageData.data.some(b => b !== 0)) {
                     hasNonZeroPage = true;
                     break;
                 }
@@ -682,7 +686,7 @@ describe("DatabaseServer", () => {
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
             for (let i = 0; i < storage.getFileSize() / sqlitePageSize; i++) {
-                prePages.set(i, new Uint8Array(storage.readPage(i)));
+                prePages.set(i, new Uint8Array(storage.readPage(i).data));
             }
 
             const result = server.mutate("INSERT INTO items VALUES (2)");
@@ -705,7 +709,7 @@ describe("DatabaseServer", () => {
             const result = server.mutate("INSERT INTO items VALUES (2)");
 
             for (const [pageIndex, change] of result.changedPages) {
-                expect(change.after).toEqual(storage.readPage(pageIndex));
+                expect(change.after).toEqual(storage.readPage(pageIndex).data);
             }
 
             server.close();

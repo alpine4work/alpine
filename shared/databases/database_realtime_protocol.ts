@@ -14,6 +14,13 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             },
             output: {
                 rows: Schema.array(Schema.unknown()),
+                pages: Schema.array(
+                    Schema.object({
+                        pageIndex: Schema.integer,
+                        timestamp: Schema.integer,
+                        data: Schema.bytes,
+                    }),
+                ),
             },
         },
         mutate: {
@@ -31,6 +38,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             pages: Schema.array(
                 Schema.object({
                     pageIndex: Schema.integer,
+                    timestamp: Schema.integer,
                     // TODO: diffs instead of full changed pages
                     data: Schema.bytes,
                 }),

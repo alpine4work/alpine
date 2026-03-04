@@ -1,5 +1,6 @@
 import type {OpfsDirectoryHandle, OpfsSyncAccessHandle} from "~/client/web/databases/opfs.js";
 import type {VfsFile} from "~/shared/databases/install_vfs.js";
+import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -29,6 +30,7 @@ export class OpfsPageStore implements VfsFile {
     private readonly indexHandle: OpfsSyncAccessHandle;
     private nextSlot = 0;
     private maxPageIndex = -1;
+    private knownDatabaseSizeInPages = 0;
 
     private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
         this.pagesHandle = pagesHandle;
@@ -61,9 +63,7 @@ export class OpfsPageStore implements VfsFile {
 
         const entry = this.index.get(pageIndex);
         if (entry === undefined) {
-            // Sparse hole — page not stored, return zeros.
-            data.fill(0);
-            return true;
+            throw new PageMissingError(pageIndex);
         }
 
         const pageOffset = offset % pageSize;
@@ -116,6 +116,9 @@ export class OpfsPageStore implements VfsFile {
     }
 
     fileSize(): number {
+        if (this.knownDatabaseSizeInPages > 0) {
+            return this.knownDatabaseSizeInPages * pageSize;
+        }
         return this.maxPageIndex < 0 ? 0 : (this.maxPageIndex + 1) * pageSize;
     }
 
@@ -144,6 +147,17 @@ export class OpfsPageStore implements VfsFile {
                 this.maxPageIndex = pageIndex;
             }
         }
+
+        // Read the database size from cached page 0's header
+        // (offset 28, 4 bytes big-endian) so fileSize() is
+        // accurate immediately after restart.
+        const page0 = this.index.get(0);
+        if (page0 !== undefined) {
+            const header = new Uint8Array(32);
+            this.pagesHandle.read(header, {at: page0.slot * pageSize});
+            const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
+            this.knownDatabaseSizeInPages = view.getUint32(28, false);
+        }
     }
 
     private flushIndex(): void {
@@ -153,6 +167,38 @@ export class OpfsPageStore implements VfsFile {
         this.indexHandle.truncate(0);
         this.indexHandle.write(encoded, {at: 0});
         this.indexHandle.flush();
+    }
+
+    /**
+     * Writes a page to the store only if the incoming
+     * timestamp is strictly newer than the local copy.
+     * Also updates the known database size from page 1's
+     * header when page 0 is written.
+     */
+    writePageIfNewer(pageIndex: number, timestamp: number, data: Uint8Array): void {
+        const existing = this.index.get(pageIndex);
+        if (existing !== undefined && existing.timestamp >= timestamp) {
+            return;
+        }
+
+        const slot = existing !== undefined ? existing.slot : this.nextSlot++;
+        this.pagesHandle.write(data, {at: slot * pageSize});
+        this.index.set(pageIndex, {slot, timestamp});
+
+        if (pageIndex > this.maxPageIndex) {
+            this.maxPageIndex = pageIndex;
+        }
+
+        // Page 0 (SQLite page 1) contains the database size
+        // in pages at offset 28 (4 bytes, big-endian).
+        if (pageIndex === 0 && data.byteLength >= 32) {
+            const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            this.knownDatabaseSizeInPages = view.getUint32(28, false);
+        }
+    }
+
+    isEmpty(): boolean {
+        return this.index.size === 0;
     }
 
     /**

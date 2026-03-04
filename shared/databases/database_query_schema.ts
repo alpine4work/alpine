@@ -9,6 +9,7 @@ export const DatabaseQueryResponseSchema = Schema.object({
     pages: Schema.array(
         Schema.object({
             pageIndex: Schema.integer,
+            timestamp: Schema.integer,
             data: Schema.bytes,
         }),
     ),

@@ -12,7 +12,7 @@ import {
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export interface DatabaseRealtimeEventStub {
-    pages: Array<{pageIndex: number; data: Uint8Array}>;
+    pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>;
 }
 
 export class DatabaseDurableObjectConnection {
@@ -47,15 +47,21 @@ export class DatabaseDurableObjectConnection {
     > = {
         query: async (_context, input) => {
             return this._storage.transactionSync(() => {
-                const {rows} = this._server.query(input.sql);
-                return {rows: rows as Array<SchemaSerializedValue>};
+                const {rows, pages: pagesMap} = this._server.query(input.sql);
+                const pages = [...pagesMap].map(([pageIndex, {data, timestamp}]) => ({
+                    pageIndex,
+                    timestamp,
+                    data,
+                }));
+                return {rows: rows as Array<SchemaSerializedValue>, pages};
             });
         },
         mutate: async (_context, input) => {
             const {rows, pages} = this._storage.transactionSync(() => {
-                const {rows, changedPages} = this._server.mutate(input.sql);
+                const {rows, changedPages, timestamp} = this._server.mutate(input.sql);
                 const pages = [...changedPages].map(([pageIndex, {after}]) => ({
                     pageIndex,
+                    timestamp,
                     data: after,
                 }));
                 return {rows, pages};

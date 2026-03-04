@@ -1,8 +1,11 @@
+import type {QueryServerResult} from "~/client/web/databases/database_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -12,20 +15,26 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
  * Client-side SQLite database backed by OPFS page
- * storage. Mirrors the {@link DatabaseServer} pattern
- * but allows mutations (no authorizer or rollback
- * isolation).
+ * storage. Handles server fallback transparently:
+ * when a local query hits a missing page, calls the
+ * injected {@link setQueryServer} callback to fetch
+ * pages from the server, stores them locally, and
+ * returns the server's result.
  *
  * Inject the result of `navigator.storage.getDirectory()`
  * to construct. For tests, pass an in-memory mock.
  */
 export class DatabaseClient {
     private readonly db: Database;
+    private readonly vfs: InstalledVfs;
+    private readonly pageStore: OpfsPageStore;
+    private queryServer: ((sql: string) => Promise<QueryServerResult>) | null = null;
 
     private constructor(sqlite3: Sqlite3Static, pageStore: OpfsPageStore) {
+        this.pageStore = pageStore;
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
 
-        installVfs(sqlite3, vfsName, {
+        this.vfs = installVfs(sqlite3, vfsName, {
             open: (_filename, flags) => {
                 if (flags & sqlite3.capi.SQLITE_OPEN_MAIN_DB) {
                     return pageStore;
@@ -53,11 +62,80 @@ export class DatabaseClient {
         return new DatabaseClient(sqlite3, pageStore);
     }
 
-    executeQuery(sql: string): ReadonlyArray<Record<string, unknown>> {
-        return this.db.exec(sql, {
-            returnValue: "resultRows",
-            rowMode: "object",
-        }) as ReadonlyArray<Record<string, unknown>>;
+    /**
+     * Set the callback used to fetch query results + pages
+     * from the server when the local store is missing data.
+     */
+    setQueryServer(fn: (sql: string) => Promise<QueryServerResult>): void {
+        this.queryServer = fn;
+    }
+
+    /**
+     * Execute a query. If the local OPFS store is empty or
+     * missing pages, transparently falls back to the server
+     * (via the injected queryServer callback), stores the
+     * returned pages locally, and returns the server result.
+     */
+    async executeQuery(sql: string): Promise<ReadonlyArray<Record<string, unknown>>> {
+        if (this.isEmpty() && this.queryServer !== null) {
+            try {
+                return await this.executeQueryViaServer(sql);
+            } catch {
+                // Server unavailable — fall through to local
+            }
+        }
+        try {
+            return this.executeQueryLocally(sql);
+        } catch (error) {
+            if (error instanceof PageMissingError && this.queryServer !== null) {
+                return this.executeQueryViaServer(sql);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Write pages received from realtime events into the
+     * local OPFS store, skipping pages that are already at
+     * a newer timestamp.
+     */
+    writePagesFromRealtime(
+        pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
+    ): void {
+        for (const page of pages) {
+            this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, page.data);
+        }
+        this.pageStore.sync();
+    }
+
+    isEmpty(): boolean {
+        return this.pageStore.isEmpty();
+    }
+
+    private executeQueryLocally(sql: string): ReadonlyArray<Record<string, unknown>> {
+        try {
+            return this.db.exec(sql, {
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as ReadonlyArray<Record<string, unknown>>;
+        } catch (error) {
+            const stashed = this.vfs.takeError();
+            if (stashed !== null) {
+                if (stashed instanceof Error) {
+                    stashed.cause = error;
+                }
+                throw stashed;
+            }
+            throw error;
+        }
+    }
+
+    private async executeQueryViaServer(
+        sql: string,
+    ): Promise<ReadonlyArray<Record<string, unknown>>> {
+        const result = await this.queryServer!(sql);
+        this.writePagesFromRealtime(result.pages);
+        return result.rows as ReadonlyArray<Record<string, unknown>>;
     }
 
     /** Exposed for tests only. Do not use in production code. */
