@@ -313,6 +313,8 @@ export class AwsGithubRunners extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
+        // Add the ability to send logs to CloudWatch.
+        // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/prerequisites.html
         testRunnerProviderRole.addManagedPolicy(
             ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
         );
@@ -420,6 +422,12 @@ export class AwsGithubRunners extends Construct {
         // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
         deployRunnerProviderRole.addManagedPolicy(
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+        );
+
+        // Add the ability to send logs to CloudWatch.
+        // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/prerequisites.html
+        deployRunnerProviderRole.addManagedPolicy(
+            ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
         );
 
         // Allow reading/writing to Bazel remote cache bucket.

@@ -1,7 +1,7 @@
 /* eslint-disable no-template-curly-in-string */
 export const cloudwatchAgentConfig = JSON.stringify({
     agent: {
-        metrics_collection_interval: 30,
+        metrics_collection_interval: 10,
     },
     metrics: {
         append_dimensions: {
@@ -16,7 +16,7 @@ export const cloudwatchAgentConfig = JSON.stringify({
             },
             disk: {
                 measurement: ["used_percent", "inodes_free"],
-                metrics_collection_interval: 60,
+                metrics_collection_interval: 20,
                 resources: ["/"],
             },
             swap: {
@@ -32,17 +32,26 @@ export const cloudwatchAgentConfig = JSON.stringify({
                         file_path: "/var/log/messages",
                         log_group_name: "/ec2/instance/messages",
                         timezone: "UTC",
+                        retention_in_days: 14,
+                    },
+                    {
+                        file_path: "/var/log/syslog",
+                        log_group_name: "/ec2/instance/syslog",
+                        timezone: "UTC",
+                        retention_in_days: 14,
                     },
                     {
                         file_path:
                             "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log",
                         log_group_name: "/ec2/instance/amazon-cloudwatch-agent",
                         timezone: "UTC",
+                        retention_in_days: 14,
                     },
                     {
                         file_path: "/var/log/ecs/ecs-init.log",
                         log_group_name: "/ec2/instance/ecs-agent",
                         timezone: "UTC",
+                        retention_in_days: 14,
                     },
                 ],
             },
