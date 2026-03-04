@@ -20,12 +20,12 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 type DatabaseServerAction =
     | {type: "idle"}
-    | {type: "query"; pages: Map<number, Uint8Array>}
+    | {type: "query"; pages: Map<number, {data: Uint8Array; timestamp: number}>}
     | {type: "mutate"; changedPages: Map<number, DatabaseServerPageChange>};
 
 export interface DatabaseServerQueryResult {
     rows: Array<Record<string, unknown>>;
-    pages: Map<number, Uint8Array>;
+    pages: Map<number, {data: Uint8Array; timestamp: number}>;
 }
 
 export interface DatabaseServerPageChange {
@@ -36,6 +36,7 @@ export interface DatabaseServerPageChange {
 export interface DatabaseServerMutateResult {
     rows: Array<Record<string, unknown>>;
     changedPages: Map<number, DatabaseServerPageChange>;
+    timestamp: number;
 }
 
 // Mapping from SQLite authorizer action codes to
@@ -90,6 +91,7 @@ export class DatabaseServer {
     private readonly vfs: InstalledVfs;
     private action: DatabaseServerAction = {type: "idle"};
     private readonly tempFiles = new Map<string, VfsTempFile>();
+    private lastWriteTimestamp = 0;
 
     private constructor(sqlite3: Sqlite3Static, storage: DatabaseServerStorage) {
         this.storage = storage;
@@ -160,10 +162,8 @@ export class DatabaseServer {
                 if (!this.action.pages.has(pageIndex)) {
                     // Page was in SQLite's cache (xRead wasn't
                     // called), so read from storage.
-                    this.action.pages.set(
-                        pageIndex,
-                        new Uint8Array(this.storage.readPage(pageIndex)),
-                    );
+                    const {data, timestamp} = this.storage.readPage(pageIndex);
+                    this.action.pages.set(pageIndex, {data: new Uint8Array(data), timestamp});
                 }
             }
         });
@@ -172,7 +172,12 @@ export class DatabaseServer {
                 returnValue: "resultRows",
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
-            const pages = (this.action as {type: "query"; pages: Map<number, Uint8Array>}).pages;
+            const pages = (
+                this.action as {
+                    type: "query";
+                    pages: Map<number, {data: Uint8Array; timestamp: number}>;
+                }
+            ).pages;
             return {rows, pages};
         } catch (error) {
             const stashed = this.vfs.takeError();
@@ -207,7 +212,7 @@ export class DatabaseServer {
                     changedPages: Map<number, DatabaseServerPageChange>;
                 }
             ).changedPages;
-            return {rows, changedPages};
+            return {rows, changedPages, timestamp: this.lastWriteTimestamp};
         } catch (error) {
             try {
                 this.db.exec("ROLLBACK");
@@ -278,16 +283,19 @@ export class DatabaseServer {
                     return false;
                 }
 
-                const page = this.storage.readPage(pageIndex);
+                const {data: pageData, timestamp} = this.storage.readPage(pageIndex);
 
                 // When in query mode, stash database pages so
                 // the pageAccessHook doesn't double-read them.
                 if (this.action.type === "query" && !this.action.pages.has(pageIndex)) {
-                    this.action.pages.set(pageIndex, new Uint8Array(page));
+                    this.action.pages.set(pageIndex, {
+                        data: new Uint8Array(pageData),
+                        timestamp,
+                    });
                 }
 
                 const pageOffset = offset % sqlitePageSize;
-                data.set(page.subarray(pageOffset, pageOffset + data.byteLength));
+                data.set(pageData.subarray(pageOffset, pageOffset + data.byteLength));
                 return true;
             },
 
@@ -306,7 +314,7 @@ export class DatabaseServer {
                         // writes first in case the page was written
                         // earlier in the same transaction.
                         const before =
-                            pendingWrites.get(pageIndex) ?? this.storage.readPage(pageIndex);
+                            pendingWrites.get(pageIndex) ?? this.storage.readPage(pageIndex).data;
                         this.action.changedPages.set(pageIndex, {
                             before: new Uint8Array(before),
                             after: new Uint8Array(data),
@@ -325,7 +333,7 @@ export class DatabaseServer {
 
             sync: () => {
                 if (pendingWrites.size > 0) {
-                    this.storage.writePages(pendingWrites);
+                    this.lastWriteTimestamp = this.storage.writePages(pendingWrites);
                     pendingWrites.clear();
                 }
             },

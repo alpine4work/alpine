@@ -16,6 +16,7 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
+import {UnavailableError} from "~/shared/error/error.js";
 
 // ---------------------------------------------------------------------------
 // In-memory OPFS mock (same as database_client.test.ts)
@@ -314,6 +315,9 @@ function createTestTab(config: {
         createMessageChannel: createMockMessageChannel,
         createBroadcastChannel: name => config.bc.create(name),
         addUnloadListener: callback => unloadListeners.push(callback),
+        queryServer() {
+            throw new UnavailableError("No server connection in test");
+        },
     });
 
     return {

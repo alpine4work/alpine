@@ -10,14 +10,19 @@
  * pages extend the file.
  */
 export interface DatabaseServerStorage {
-    /** Read a single page by its zero-based index. */
-    readPage(index: number): Uint8Array;
+    /**
+     * Read a single page by its zero-based index. Returns the
+     * page data and the server-authoritative timestamp of the
+     * last write to this page (0 if the page doesn't exist).
+     */
+    readPage(index: number): {data: Uint8Array; timestamp: number};
 
     /**
      * Write a batch of pages. Called from `xSync` with all
-     * pages that were dirtied since the last sync.
+     * pages that were dirtied since the last sync. Returns the
+     * monotonically increasing timestamp assigned to this write.
      */
-    writePages(pages: ReadonlyMap<number, Uint8Array>): void;
+    writePages(pages: ReadonlyMap<number, Uint8Array>): number;
 
     /** Return the current file size in bytes. */
     getFileSize(): number;

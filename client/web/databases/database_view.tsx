@@ -1,11 +1,18 @@
 import {useEffect, useState} from "react";
+import {useParams} from "react-router";
 import {
     type DatabaseConnection,
     connectToDatabase,
 } from "~/client/web/databases/database_coordinator.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
+import {
+    type DatabaseRealtimeEvent,
+    DatabaseRealtimeProtocol,
+} from "~/shared/databases/database_realtime_protocol.js";
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 const sampleQueries = [
@@ -24,23 +31,45 @@ const sampleQueries = [
 /* eslint-enable cyberworlds/string-quotes */
 
 export function DatabaseView() {
+    const {spaceId} = useParams();
     const [query, setQuery] = useState("");
     const [conn, setConn] = useState<DatabaseConnection | null>(null);
     const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const events = useEvents({
+        handleEvent: (event: DatabaseRealtimeEvent) => {
+            if (event.type === "PagesChanged" && conn !== null) {
+                conn.call("writePagesFromRealtime", {pages: event.pages});
+            }
+        },
+    });
+
+    const wsUrl = spaceId ? `/api/durable-objects/databases/${spaceId}` : null;
+
+    const {procedures} = useWebSocket(
+        "DatabaseService",
+        DatabaseRealtimeProtocol,
+        wsUrl,
+        events.handleEvent,
+    );
+
+    const {queryServer} = useEvents({
+        queryServer: async (sql: string) => {
+            return procedures.query({sql});
+        },
+    });
+
     useEffect(() => {
         let connection: DatabaseConnection | null = null;
-
-        connectToDatabase().then(c => {
-            connection = c;
-            setConn(c);
-        });
-
+        (async () => {
+            connection = await connectToDatabase({queryServer});
+            setConn(connection);
+        })();
         return () => {
             connection?.close();
         };
-    }, []);
+    }, [queryServer]);
 
     return (
         <Box

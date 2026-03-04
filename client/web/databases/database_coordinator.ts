@@ -5,6 +5,7 @@ import {
     DatabaseActiveTabManager,
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
+import type {QueryServerResult} from "~/client/web/databases/database_rpc_methods.js";
 
 export type {DatabaseConnection} from "~/client/web/databases/database_active_tab_manager.js";
 
@@ -15,7 +16,9 @@ export type {DatabaseConnection} from "~/client/web/databases/database_active_ta
  * worker), others proxy queries via MessagePort through
  * the ServiceWorker.
  */
-export function connectToDatabase(): Promise<DatabaseConnection> {
+export function connectToDatabase(callbacks: {
+    queryServer(sql: string): Promise<QueryServerResult>;
+}): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
         locks: navigator.locks,
         serviceWorker: {
@@ -89,6 +92,7 @@ export function connectToDatabase(): Promise<DatabaseConnection> {
         addUnloadListener(callback: () => void) {
             window.addEventListener("beforeunload", callback);
         },
+        queryServer: callbacks.queryServer,
     });
 
     return manager.connect();

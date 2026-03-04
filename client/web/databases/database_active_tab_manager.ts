@@ -1,7 +1,11 @@
 import type {DatabaseClient} from "~/client/web/databases/database_client.js";
-import {databaseWorkerMethods} from "~/client/web/databases/database_worker_methods.js";
+import {
+    type QueryServerResult,
+    tabToWorkerDatabaseRpcMethods,
+    workerToTabDatabaseRpcMethods,
+} from "~/client/web/databases/database_rpc_methods.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
-import {CancelledError} from "~/shared/error/error.js";
+import {CancelledError, UnimplementedError} from "~/shared/error/error.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 // ---------------------------------------------------------------------------
@@ -62,10 +66,13 @@ export interface ActiveTabBroadcastChannel {
 // Connection type
 // ---------------------------------------------------------------------------
 
-type DatabaseRpc = WebWorkerRpc<typeof databaseWorkerMethods>;
+type TabToWorkerRpc = WebWorkerRpc<
+    typeof tabToWorkerDatabaseRpcMethods,
+    typeof workerToTabDatabaseRpcMethods
+>;
 
 export interface DatabaseConnection {
-    call: DatabaseRpc["call"];
+    call: TabToWorkerRpc["call"];
     close(): void;
 }
 
@@ -74,7 +81,7 @@ export interface DatabaseConnection {
 // ---------------------------------------------------------------------------
 
 interface RawConnection {
-    readonly rpc: DatabaseRpc;
+    readonly rpc: TabToWorkerRpc;
     readonly isLeader: boolean;
     close(): void;
 }
@@ -138,6 +145,13 @@ export class DatabaseActiveTabWorker {
     ): (data: unknown, ports: Array<ActiveTabPort>) => void {
         const mainRpc = this.createRpc(send);
 
+        // Wire the client's server callback through the
+        // main RPC so queries with missing pages fall back
+        // to the leader tab's WebSocket connection.
+        this.client.setQueryServer(async sql => {
+            return mainRpc.call("queryServer", {sql});
+        });
+
         return (data: unknown, ports: Array<ActiveTabPort>) => {
             const msg = data as {type?: string} | null;
             if (msg?.type === "port") {
@@ -153,13 +167,18 @@ export class DatabaseActiveTabWorker {
 
     private createRpc(send: (message: unknown) => void) {
         return new WebWorkerRpc({
-            methods: databaseWorkerMethods,
+            callMethods: workerToTabDatabaseRpcMethods,
+            handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
                 executeQuery: async input => {
-                    const rows = this.client.executeQuery(
+                    const rows = (await this.client.executeQuery(
                         input.sql,
-                    ) as ReadonlyArray<SchemaSerializedValue>;
+                    )) as ReadonlyArray<SchemaSerializedValue>;
                     return {rows};
+                },
+                writePagesFromRealtime: async input => {
+                    this.client.writePagesFromRealtime(input.pages);
+                    return {};
                 },
             },
             send,
@@ -202,6 +221,7 @@ export class DatabaseActiveTabManager {
             createMessageChannel(): {port1: ActiveTabPort; port2: ActiveTabPort};
             createBroadcastChannel(name: string): ActiveTabBroadcastChannel;
             addUnloadListener(callback: () => void): void;
+            queryServer(sql: string): Promise<QueryServerResult>;
         },
     ) {}
 
@@ -223,7 +243,7 @@ export class DatabaseActiveTabManager {
 
         return {
             call: ((method: string, input: unknown) =>
-                this.callMethod(method, input)) as DatabaseRpc["call"],
+                this.callMethod(method, input)) as TabToWorkerRpc["call"],
             close: () => this.closeConnection(),
         };
     }
@@ -416,13 +436,22 @@ export class DatabaseActiveTabManager {
         });
     }
 
-    private async connectAsLeader(): Promise<{rpc: DatabaseRpc; close(): void}> {
+    private async connectAsLeader(): Promise<{rpc: TabToWorkerRpc; close(): void}> {
         const worker = this.deps.createWorker();
         await worker.ready;
 
         const rpc = new WebWorkerRpc({
-            methods: databaseWorkerMethods,
-            handlers: {} as any,
+            callMethods: tabToWorkerDatabaseRpcMethods,
+            handleMethods: workerToTabDatabaseRpcMethods,
+            handlers: {
+                queryServer: async input => {
+                    const result = await this.deps.queryServer(input.sql);
+                    return {
+                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
+                        pages: result.pages,
+                    };
+                },
+            },
             send: message => worker.postMessage(message),
         });
         worker.onmessage = event => rpc.handleMessage(event.data);
@@ -448,15 +477,22 @@ export class DatabaseActiveTabManager {
         };
     }
 
-    private async connectAsFollower(): Promise<{rpc: DatabaseRpc; close(): void}> {
+    private async connectAsFollower(): Promise<{rpc: TabToWorkerRpc; close(): void}> {
         const reg = await this.deps.serviceWorker.ready;
         const channel = this.deps.createMessageChannel();
 
         reg.active!.postMessage({type: "db-connect"}, [channel.port2]);
 
         const rpc = new WebWorkerRpc({
-            methods: databaseWorkerMethods,
-            handlers: {} as any,
+            callMethods: tabToWorkerDatabaseRpcMethods,
+            handleMethods: workerToTabDatabaseRpcMethods,
+            handlers: {
+                queryServer: () => {
+                    throw new UnimplementedError(
+                        "queryServer should not be called on a follower tab",
+                    );
+                },
+            },
             send: message => channel.port1.postMessage(message),
         });
         channel.port1.onmessage = event => rpc.handleMessage(event.data);

@@ -19,9 +19,10 @@ export type WebWorkerRpcHandlers<Def extends WebWorkerRpcMethodDefinitions> = {
 };
 
 /**
- * Combined caller + callee for web worker RPC. Each side of the
- * connection (main thread and worker) creates one instance with the
- * same method definitions but its own handlers.
+ * Typed RPC for web worker communication. Supports asymmetric
+ * method sets: `CallDef` lists methods this side can invoke on
+ * the remote, `HandleDef` lists methods the remote can invoke
+ * on this side.
  *
  * - Use {@link call} to invoke a method on the remote side.
  * - Use {@link handleMessage} to process incoming messages.
@@ -31,9 +32,16 @@ export type WebWorkerRpcHandlers<Def extends WebWorkerRpcMethodDefinitions> = {
  * `send` callback (e.g. `postMessage`) and feed incoming data
  * (e.g. from `onmessage`) into `handleMessage`.
  */
-export class WebWorkerRpc<Def extends WebWorkerRpcMethodDefinitions> {
+export class WebWorkerRpc<
+    CallDef extends WebWorkerRpcMethodDefinitions,
+    HandleDef extends WebWorkerRpcMethodDefinitions = CallDef,
+> {
     private readonly handlers: Map<string, (input: any) => Promise<any>>;
-    private readonly methodSchemas: Map<
+    private readonly callMethodSchemas: Map<
+        string,
+        {inputSchema: ObjectSchema<any>; outputSchema: ObjectSchema<any>}
+    >;
+    private readonly handleMethodSchemas: Map<
         string,
         {inputSchema: ObjectSchema<any>; outputSchema: ObjectSchema<any>}
     >;
@@ -49,17 +57,27 @@ export class WebWorkerRpc<Def extends WebWorkerRpcMethodDefinitions> {
     private nextCallId = 0;
 
     constructor(config: {
-        methods: Def;
-        handlers: WebWorkerRpcHandlers<Def>;
+        callMethods: CallDef;
+        handleMethods: HandleDef;
+        handlers: WebWorkerRpcHandlers<HandleDef>;
         send: (message: unknown) => void;
     }) {
         this.send = config.send;
 
+        this.callMethodSchemas = new Map();
+        for (const name of Object.keys(config.callMethods)) {
+            const method = config.callMethods[name]!;
+            this.callMethodSchemas.set(name, {
+                inputSchema: method.inputSchema,
+                outputSchema: method.outputSchema,
+            });
+        }
+
         this.handlers = new Map();
-        this.methodSchemas = new Map();
-        for (const name of Object.keys(config.methods)) {
-            const method = config.methods[name]!;
-            this.methodSchemas.set(name, {
+        this.handleMethodSchemas = new Map();
+        for (const name of Object.keys(config.handleMethods)) {
+            const method = config.handleMethods[name]!;
+            this.handleMethodSchemas.set(name, {
                 inputSchema: method.inputSchema,
                 outputSchema: method.outputSchema,
             });
@@ -75,12 +93,12 @@ export class WebWorkerRpc<Def extends WebWorkerRpcMethodDefinitions> {
      * outgoing message, sends it via the `send` callback, and returns
      * a promise that resolves when the remote side responds.
      */
-    call<K extends string & keyof Def>(
+    call<K extends string & keyof CallDef>(
         method: K,
-        input: SchemaType<Def[K]["inputSchema"]>,
-    ): Promise<SchemaType<Def[K]["outputSchema"]>> {
-        const schemas = this.methodSchemas.get(method);
-        assert(schemas !== undefined, `Unknown method: ${method}`);
+        input: SchemaType<CallDef[K]["inputSchema"]>,
+    ): Promise<SchemaType<CallDef[K]["outputSchema"]>> {
+        const schemas = this.callMethodSchemas.get(method);
+        assert(schemas !== undefined, `Unknown call method: ${method}`);
 
         const callId = this.nextCallId++;
         const serializedInput = schemas.inputSchema.serialize(input);
@@ -129,7 +147,7 @@ export class WebWorkerRpc<Def extends WebWorkerRpcMethodDefinitions> {
         method: string;
         input: SchemaSerializedValue;
     }): void {
-        const schemas = this.methodSchemas.get(message.method);
+        const schemas = this.handleMethodSchemas.get(message.method);
         const handler = this.handlers.get(message.method);
 
         if (!schemas || !handler) {

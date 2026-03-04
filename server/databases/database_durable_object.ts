@@ -122,8 +122,9 @@ class DatabaseDurableObject {
             this._server.query(sql),
         );
 
-        const pages = [...pagesMap].map(([pageIndex, data]) => ({
+        const pages = [...pagesMap].map(([pageIndex, {data, timestamp}]) => ({
             pageIndex,
+            timestamp,
             data,
         }));
 
