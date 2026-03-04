@@ -340,7 +340,6 @@ export class AwsJobQueueService extends Construct {
                 "--slackClientId=$SLACK_CLIENT_ID",
                 "--slackClientSecret=$SLACK_CLIENT_SECRET",
                 "--githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY",
-                `--importUploadsBucketName=${importUploads.bucketName}`,
             ],
             healthCheck: {
                 command: [
