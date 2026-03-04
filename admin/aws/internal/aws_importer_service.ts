@@ -176,7 +176,7 @@ export class AwsImporterService extends Construct {
                     runfilesPath,
                     process.env.CDK_LITE === "true"
                         ? "cyberworlds/admin/aws/empty_image_tarball_load/tarball.tar"
-                        : "cyberworlds/server/importer/importer_image_tarball_load/tarball.tar",
+                        : "cyberworlds/server/importer/importer_service/importer_image_tarball_load/tarball.tar",
                 ),
             ),
             // Send logs to AWS. Container logs are short-lived and used for debugging obscure
