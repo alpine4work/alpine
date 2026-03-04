@@ -19,20 +19,25 @@ diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
 diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 --- a/ext/wasm/api/pre-js.c-pp.js
 +++ b/ext/wasm/api/pre-js.c-pp.js
-@@ -50,6 +50,11 @@
+@@ -25,6 +25,12 @@
    delete globalThis.sqlite3InitModuleState;
    sIMS.debugModule('pre-js.js sqlite3InitModuleState =',sIMS);
-
+ 
 +  /* Guard self.location for sandboxed environments (e.g.
 +  ** Miniflare) where WorkerGlobalScope exists but location
 +  ** is not defined. Prevents crash in Emscripten's
 +  ** scriptDirectory = self.location.href. */
 +  if(typeof self!=='undefined' && !self.location) self.location={href:''};
++
    /**
       This custom locateFile() tries to figure out where to load `path`
-@@ -79,33 +84,12 @@
+      from. The intent is to provide a way for foo/bar/X.js loaded from a
+@@ -72,44 +78,15 @@
+ //#endif target:es6-module
    }.bind(sIMS);
-
+ 
+-//#if Module.instantiateWasm
+-//#if not wasmfs
 -  /**
 -     Override Module.instantiateWasm().
 -
@@ -55,7 +60,15 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 -      arg.imports = imports;
 -      sims.instantiateWasm = arg /* used by sqlite3-api-prologue.c-pp.js */;
 -      onSuccess(arg.instance, arg.module);
--    };
++  /* If the caller provided instantiateWasm via sqlite3InitModule(),
++  ** use it. Otherwise set a fallback that throws. */
++  if(!Module.instantiateWasm){
++    Module['instantiateWasm'] = function(){
++      throw new Error(
++        "sqlite3: instantiateWasm not configured. "
++        + "Pass instantiateWasm via sqlite3InitModule({instantiateWasm: fn})."
++      );
+     };
 -    const loadWasm = WebAssembly.instantiateStreaming
 -          ? async ()=>
 -          WebAssembly
@@ -68,17 +81,12 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 -          .then(finalThen)
 -    return loadWasm();
 -  }.bind(sIMS);
-+  /* If the caller provided instantiateWasm via sqlite3InitModule(),
-+  ** use it. Otherwise set a fallback that throws. */
-+  if(!Module.instantiateWasm){
-+    Module['instantiateWasm'] = function(){
-+      throw new Error(
-+        "sqlite3: instantiateWasm not configured. "
-+        + "Pass instantiateWasm via sqlite3InitModule({instantiateWasm: fn})."
-+      );
-+    };
+-//#endif not wasmfs
+-//#endif Module.instantiateWasm
 +  }
  })(Module);
+ /* END FILE: api/pre-js.js. */
+
 
 diff --git a/src/pager.h b/src/pager.h
 --- a/src/pager.h
