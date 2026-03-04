@@ -50,11 +50,10 @@ export function writeTracerEventToFileInDev(event: TracerEvent) {
     assert(process.env.NODE_ENV !== "production");
 
     if (!isNode) {
+        // In miniflare v4 (workerd), we can't inject JS globals so the
+        // tracer function may not exist. Skip logging in that case.
         const globalWriteTracerEventToFileInDev = (globalThis as any).__writeTracerEventToFileInDev;
-        assert(
-            globalWriteTracerEventToFileInDev,
-            "Expected `__writeTracerEventToFileInDev` global in non-Node.js environments",
-        );
+        if (!globalWriteTracerEventToFileInDev) return;
         return globalWriteTracerEventToFileInDev(event);
     }
 
