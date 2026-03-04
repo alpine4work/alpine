@@ -1,11 +1,10 @@
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
-import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
-import {ValidateNotionImportAndExtractMetadataJobDescription} from "~/server/jobs/core/job_description.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
 import {NotionImportTeamspaceOptions} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
@@ -19,11 +18,9 @@ import {NotionImportTeamspaceOptions} from "~/shared/importer/notion/notion_impo
  * If invalid: Sets status to "Failed" and deletes the uploaded file.
  */
 export async function processValidateNotionImportAndExtractMetadataJob(
-    context: ServerSystemActionContext & {importer: ImporterContextModuleBase},
-    job: ValidateNotionImportAndExtractMetadataJobDescription,
+    context: ImporterServiceSystemActionContext,
+    notionImportId: NotionImportId,
 ): Promise<void> {
-    const {notionImportId} = job;
-
     // Update the import item to "Validating" status
     const updatedImportItem = await NotionImporterTable.updateItem(
         context,
@@ -48,7 +45,7 @@ export async function processValidateNotionImportAndExtractMetadataJob(
     const importItem = assertExists(updatedImportItem);
 
     // Read the uploaded file
-    const data = await context.importer.readUploadedFile(importItem.importKey);
+    const data = await context.importerService.readUploadedFile(importItem.importKey);
 
     if (!data) {
         await markImportFailed(context, notionImportId, "Import file not found");
@@ -127,8 +124,8 @@ export async function processValidateNotionImportAndExtractMetadataJob(
 }
 
 async function markImportFailed(
-    context: ServerSystemActionContext,
-    notionImportId: ValidateNotionImportAndExtractMetadataJobDescription["notionImportId"],
+    context: ImporterServiceSystemActionContext,
+    notionImportId: NotionImportId,
     error: string,
 ): Promise<void> {
     await NotionImporterTable.updateItem(

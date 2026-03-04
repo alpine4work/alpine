@@ -26,6 +26,7 @@ export async function ensureServiceKeys(directoryPath: string) {
             "file_processor_service",
             "api_service",
             "resource_service",
+            "importer_service",
         ];
 
         await runAllPromises([

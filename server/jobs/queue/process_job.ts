@@ -4,8 +4,6 @@ import {
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
 } from "~/server/feed/feed_actions.js";
-import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
-import {processValidateNotionImportAndExtractMetadataJob} from "~/server/importer/notion/process_validate_notion_import_and_extract_metadata_job.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
@@ -79,14 +77,6 @@ export async function processJob(
         }
         case "SendPendingSubtleNotificationsForInbox": {
             await processSendPendingSubtleNotificationsForInboxJob(context, job);
-            return;
-        }
-        case "ValidateNotionImportAndExtractMetadata": {
-            await processValidateNotionImportAndExtractMetadataJob(context, job);
-            return;
-        }
-        case "StartNotionImport": {
-            await processStartNotionImportJob(context, job);
             return;
         }
         default:

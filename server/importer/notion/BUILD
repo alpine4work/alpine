@@ -14,6 +14,7 @@ ts_project(
     test_deps = [
         "//server/dynamo/test_helpers",
         "//server/importer/notion/test_helpers",
+        "//server/importer/test_helpers",
     ],
     visibility = [
         "//admin:__subpackages__",
@@ -40,6 +41,7 @@ ts_project(
         "//shared/feed",
         "//shared/helpers",
         "//shared/id",
+        "//shared/importer",
         "//shared/importer/notion",
         "//shared/schema",
     ],

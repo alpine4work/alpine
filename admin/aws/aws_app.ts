@@ -11,6 +11,7 @@ import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsFileProcessorService} from "~/admin/aws/internal/aws_file_processor_service.js";
 import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data.js";
+import {AwsImporterService} from "~/admin/aws/internal/aws_importer_service.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
@@ -91,6 +92,16 @@ async function addAwsResources(
         observability,
     });
 
+    const importerService = new AwsImporterService(stack, {
+        vpc,
+        ecsCluster,
+        cloudflareAccountId,
+        dynamo,
+        sqs,
+        importUploads,
+        observability,
+    });
+
     new AwsAppService(stack, {
         vpc,
         ecsCluster,
@@ -102,6 +113,7 @@ async function addAwsResources(
         taskRealtimeService,
         observability,
         importUploads,
+        importerService,
     });
 
     new AwsApiService(stack, {

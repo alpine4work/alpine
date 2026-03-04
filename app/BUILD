@@ -121,6 +121,7 @@ ts_project(
         "//server/feed",
         "//server/forum/data",
         "//server/importer",
+        "//server/importer/development",
         "//server/importer/notion",
         "//server/node",
         "//server/notifications/data",

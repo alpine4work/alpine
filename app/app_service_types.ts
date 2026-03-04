@@ -43,6 +43,10 @@ export type AppServiceConstants = {
             readonly logoDevPublishableKey?: string;
             readonly cookieNameSuffix?: string;
             readonly importUploadsBucketName?: string;
+            readonly importerServiceEcsTaskDefinition?: string;
+            readonly importerServiceSubnets?: string;
+            readonly importerServiceSecurityGroups?: string;
+            readonly importerServiceEbsVolumeRoleArn?: string;
         };
 };
 

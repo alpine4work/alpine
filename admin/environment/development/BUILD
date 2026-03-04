@@ -11,6 +11,7 @@ ts_project(
         "//server/chat/data",
         "//server/context",
         "//server/documents/data",
+        "//server/importer/development",
         "//server/node",
         "//server/notifications/data",
         "//server/search/data/index",

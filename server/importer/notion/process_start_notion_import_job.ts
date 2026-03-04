@@ -1,11 +1,12 @@
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
-import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {convertExtractedNotionDataToEntities} from "~/server/importer/notion/internal/convert_extracted_notion_data_to_entities.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {unzipNotionImportAndMapReferences} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
-import {StartNotionImportJobDescription} from "~/server/jobs/core/job_description.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
+// TODO: Re-enable when file attachments are implemented import {runAllPromises}
+// from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
 
 /**
  * Processes the actual Notion import. Fetches the uploaded zip file and imports
@@ -13,11 +14,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
  * has confirmed import options.
  */
 export async function processStartNotionImportJob(
-    context: ServerSystemActionContext & {importer: ImporterContextModuleBase},
-    job: StartNotionImportJobDescription,
+    context: ImporterServiceSystemActionContext,
+    notionImportId: NotionImportId,
 ): Promise<void> {
-    const {notionImportId} = job;
-
     // Transition from ProcessQueued to Processing
     const importItem = assertExists(
         await NotionImporterTable.updateItem(
@@ -41,7 +40,7 @@ export async function processStartNotionImportJob(
         ),
     );
 
-    const data = await context.importer.readUploadedFile(importItem.importKey);
+    const data = await context.importerService.readUploadedFile(importItem.importKey);
 
     if (!data) {
         await NotionImporterTable.updateItem(
@@ -66,6 +65,16 @@ export async function processStartNotionImportJob(
     }
 
     try {
+        // Create documents for the import. TODO: File uploads are disabled until file
+        // attachment logic is added. The uploadNotionImportFiles function uploads files to
+        // R2 and creates file records, but files must also be attached to their parent
+        // documents for users to access them. Without attachments, getFileSignedUrl throws
+        // "File isn't attached to target". Once attachment logic is added, enable:
+        //
+        // await runAllPromises([ uploadNotionImportFiles( context, importItem.spaceId,
+        // importItem.startedByAccountId, parsedNotionImport, ),
+        // convertExtractedNotionDataToEntities( context, notionImportId, importItem,
+        // parsedNotionImport, ), ]);
         await convertExtractedNotionDataToEntities(
             context,
             notionImportId,

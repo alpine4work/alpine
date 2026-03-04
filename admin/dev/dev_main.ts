@@ -161,6 +161,8 @@ const resourceServicePublicKeyPath = joinPath(keysDirectoryPath, "resource_servi
 const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
 const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
 
+const importerServicePublicKeyPath = joinPath(keysDirectoryPath, "importer_service_rsa.pub");
+
 const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 const chatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_unscoped_api_key");
 const chatGptScopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_scoped_api_key");
@@ -370,6 +372,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
@@ -441,6 +444,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
@@ -475,6 +479,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--resourceServicePrivateKey=${resourceServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "files")}`,
@@ -504,6 +509,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -535,6 +541,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -582,6 +589,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -620,6 +628,7 @@ async function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${apiServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,

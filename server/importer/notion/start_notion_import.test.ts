@@ -1,12 +1,16 @@
-import {TestLocalJobSender} from "~/admin/environment/test/unit/test_local_job_sender.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createNotionImport} from "~/server/importer/notion/create_notion_import.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {startNotionImport} from "~/server/importer/notion/start_notion_import.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const context = createTestContext();
+
+function getTestImporter(): TestImporterContextModule {
+    return context.importer as unknown as TestImporterContextModule;
+}
 
 test("createNotionImport creates an import record with UploadPending status", async () => {
     const space = await TestSpace.create(context);
@@ -89,7 +93,7 @@ test("startNotionImport transitions from Validated to ProcessQueued", async () =
     });
 });
 
-test("startNotionImport sends a StartNotionImport job", async () => {
+test("startNotionImport triggers import via importer context module", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -111,22 +115,19 @@ test("startNotionImport sends a StartNotionImport job", async () => {
         }),
     );
 
-    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
-        await startNotionImport(session.action(), {
-            spaceId: space.id,
-            notionImportId,
-            teamspaceImportOptions: [],
-        });
+    const importer = getTestImporter();
+    const callsBeforeCount = importer.startNotionImportCalls.length;
+
+    await startNotionImport(session.action(), {
+        spaceId: space.id,
+        notionImportId,
+        teamspaceImportOptions: [],
     });
 
-    expect(sentJobs).toHaveLength(1);
-    expect(sentJobs[0]).toMatchObject({
-        job: {
-            type: "StartNotionImport",
-            spaceId: space.id,
-            notionImportId,
-        },
-        delaySeconds: 0,
+    expect(importer.startNotionImportCalls.length - callsBeforeCount).toBe(1);
+    expect(importer.startNotionImportCalls.at(-1)).toMatchObject({
+        spaceId: space.id,
+        notionImportId,
     });
 });
 

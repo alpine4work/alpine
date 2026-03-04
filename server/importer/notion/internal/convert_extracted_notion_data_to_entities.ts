@@ -3,8 +3,8 @@ import {strFromU8} from "fflate";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/internal/create_notion_import_csv_database_document.js";
 import {createNotionImportTeamspaceRootDocument} from "~/server/importer/notion/internal/create_notion_import_teamspace_root_document.js";
 import {findNotionImportUnzippedFileKey} from "~/server/importer/notion/internal/find_notion_import_unzipped_file_key.js";
@@ -52,15 +52,13 @@ import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
  *   <child link document>\n- <child link document>\n- ..."
  * - Update all references of the markdown files to the new Alpine fileIds.
  * - Update the status of the import item as we go
- * - TODO: Upload all files of filesToUpload to the space
- *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9v5j2e2jrpm2xz419k1q11v02w
  * - TODO: Batch document creation
  *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
  * - TODO: Run teamspace uploaded in parrallel
  *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qytsx10ph8ba5z05gfdafya9r4
  */
 export async function convertExtractedNotionDataToEntities(
-    context: ServerSystemActionContext,
+    context: ImporterServiceSystemActionContext,
     notionImportId: NotionImportId,
     importItem: NotionImportItem,
     mappedReferencesResult: NotionImportMappedReferencesResult,

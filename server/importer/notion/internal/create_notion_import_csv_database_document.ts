@@ -1,8 +1,8 @@
 import {strFromU8} from "fflate";
 
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {findNotionImportUnzippedFileKey} from "~/server/importer/notion/internal/find_notion_import_unzipped_file_key.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
@@ -41,7 +41,7 @@ export interface CreateNotionImportCsvDatabaseDocumentOptions {
  * Linking" section for how cell content is converted to links.
  */
 export async function createNotionImportCsvDatabaseDocument(
-    context: ServerSystemActionContext,
+    context: ImporterServiceSystemActionContext,
     options: CreateNotionImportCsvDatabaseDocumentOptions,
 ): Promise<void> {
     const {

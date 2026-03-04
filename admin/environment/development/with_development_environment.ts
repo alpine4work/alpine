@@ -41,7 +41,8 @@ import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/development/importer_service_development_context_module.js";
 import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
@@ -163,6 +164,7 @@ export async function withDevelopmentEnvironment<Value>(
             fileProcessorServicePublicKey: keyDirectoryPath("file_processor_service_rsa.pub"),
             apiServicePublicKey: keyDirectoryPath("api_service_rsa.pub"),
             resourceServicePublicKey: keyDirectoryPath("resource_service_rsa.pub"),
+            importerServicePublicKey: keyDirectoryPath("importer_service_rsa.pub"),
             servicePrivateKey: keyDirectoryPath("app_service_rsa"),
             tokenAgentSecret: keyDirectoryPath("token_agent_secret"),
         },
@@ -253,7 +255,33 @@ export async function withDevelopmentEnvironment<Value>(
             resourceServiceUrl: `http://localhost:${resourcesDevPort}`,
         }),
         billing: new BillingNoopDevelopmentContextModule(),
-        importer: new ImporterDevelopmentContextModule(),
+        importer: new ImporterDevelopmentContextModule({
+            waitUntilAndEscalateToSystemContext: (spanName, spaceId, action) => {
+                processContext.process.waitUntil(
+                    processContext.tracer.withSpan(spanName, async context => {
+                        // Use "ImporterService" as the actor service name to match production where
+                        // imports run in a separate ImporterService ECS task.
+                        //
+                        // We add `importerService` module for file reading. This is separate from the
+                        // `importer` module (which handles presigned URLs and spawning) because in dev
+                        // mode we run imports in-process while in production they run in a separate ECS
+                        // task.
+                        const actionContext = processContext.clone({
+                            tracer: new TracerContextModule(context.tracer.getTracer()),
+                            cache: CacheContextModule.new(),
+                            batch: BatchContextModule.new(),
+                            actor: SystemActorContextModule.dangerouslyNew(
+                                "ImporterService",
+                                spaceId,
+                            ),
+                            importerService: new ImporterServiceDevelopmentContextModule(),
+                        });
+
+                        await action(actionContext);
+                    }),
+                );
+            },
+        }),
         slack:
             env.SLACK_CLIENT_ID && env.SLACK_CLIENT_SECRET
                 ? new SlackContextModule({
@@ -262,6 +290,7 @@ export async function withDevelopmentEnvironment<Value>(
                       authRedirectOrigin: env.SLACK_AUTH_REDIRECT_ORIGIN ?? "",
                   })
                 : new NoopSlackContextModule(),
+        importerService: new ImporterServiceDevelopmentContextModule(),
         r2: new CloudflareR2ContextModule(cloudflareClient),
         logoDev:
             env.LOGO_DEV_SECRET_KEY && env.LOGO_DEV_PUBLISHABLE_KEY

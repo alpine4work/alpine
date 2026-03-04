@@ -1,4 +1,3 @@
-import {S3Client} from "@aws-sdk/client-s3";
 import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
@@ -45,8 +44,6 @@ import {
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
-import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
@@ -116,7 +113,6 @@ export const options = {
     githubAppClientId: {type: "string"},
     githubAppClientSecret: {type: "string"},
     githubAppInstallationId: {type: "string"},
-    importUploadsBucketName: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
@@ -379,16 +375,6 @@ export async function run({
         botWebhook: new BotWebhookContextModule(tokenAgent),
         webPush: webPushContextModule,
         slack: slackContextModule,
-        importer:
-            process.env.NODE_ENV === "production"
-                ? new ImporterContextModule({
-                      s3Client: new S3Client({}),
-                      bucketName: assertExists(
-                          options.importUploadsBucketName,
-                          "`importUploadsBucketName` option is required in production",
-                      ),
-                  })
-                : new ImporterDevelopmentContextModule(),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

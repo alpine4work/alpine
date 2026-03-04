@@ -1,4 +1,4 @@
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 /**

@@ -1,7 +1,7 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
@@ -47,7 +47,7 @@ export interface CreateNotionImportTeamspaceRootDocumentOptions {
  * of these synthetic documents.
  */
 export async function createNotionImportTeamspaceRootDocument(
-    context: ServerSystemActionContext,
+    context: ImporterServiceSystemActionContext,
     options: CreateNotionImportTeamspaceRootDocumentOptions,
 ): Promise<void> {
     const {

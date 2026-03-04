@@ -38,6 +38,7 @@ export async function createNotionImport(
         notionImportId,
         spaceId,
         importKey,
+        importZipSize: contentLength,
         startedByAccountId: context.actor.getAccountId(),
         createdTime: currentTime,
         updatedTime: currentTime,

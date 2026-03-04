@@ -28,6 +28,7 @@ ts_project(
         "//shared/error",
         "//shared/files",
         "//shared/helpers",
+        "//shared/importer",
         "//shared/schema",
     ],
 )
@@ -48,6 +49,7 @@ filegroup(
         "//server/files/processor/process_file:process_file_lambda_production",
         "//server/files/processor/resize_avatar:resize_avatar_lambda_production",
         "//server/files/processor/resize_file:resize_file_lambda_production",
+        "//server/importer/importer_service:importer_image_tarball_production",
         "//server/jobs/queue:queue_image_tarball_production",
         "//server/migration:migration_image_tarball_production",
         "//server/tasks/realtime:realtime_image_tarball_production",

@@ -4,7 +4,6 @@ import {join} from "path";
 import {getDocument, getDocumentsTableForTest} from "~/server/documents/data/documents_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {
@@ -13,6 +12,7 @@ import {
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -50,6 +50,7 @@ function createSystemActionWithFile(
         batch: BatchContextModule.new(),
         actor: SystemActorContextModule.dangerouslyNew("Test", space.id),
         importer,
+        importerService: importer.createServiceModule(),
     });
 }
 
@@ -133,13 +134,13 @@ async function importedFixtureSpaceItemsToString(
         teamspaceImportOptions: null,
         status: {type: "ProcessQueued"},
         importedCount: 0,
+        importZipSize: 1024,
     });
 
-    await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-        type: "StartNotionImport",
-        spaceId: space.id,
+    await processStartNotionImportJob(
+        createSystemActionWithFile(space, importKey, zip),
         notionImportId,
-    });
+    );
 
     // Get all documents
     const allDocs = await findDocumentsInSpace(space.id);
@@ -294,14 +295,14 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
             // Process the import
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             // Verify the import succeeded
             const importItem = await NotionImporterTable.getItem(context, {
@@ -349,13 +350,13 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -414,13 +415,13 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -637,13 +638,13 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -938,13 +939,13 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -1059,13 +1060,13 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -1184,13 +1185,13 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             // Find the documents
             const allDocs = await findDocumentsInSpace(space.id);
@@ -1262,13 +1263,13 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             // Find the parent and child documents
             const allDocuments = await findDocumentsInSpace(space.id);
@@ -1372,13 +1373,13 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -1606,13 +1607,13 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -1738,13 +1739,13 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -1818,13 +1819,13 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -1898,15 +1899,15 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 status: {type: "ProcessQueued"},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
             // Don't set up the file - it should fail
             await expect(
-                processStartNotionImportJob(createSystemActionWithFile(space, importKey), {
-                    type: "StartNotionImport",
-                    spaceId: space.id,
+                processStartNotionImportJob(
+                    createSystemActionWithFile(space, importKey),
                     notionImportId,
-                }),
+                ),
             ).rejects.toThrow("Notion import file not found");
 
             const importItem = await NotionImporterTable.getItem(context, {

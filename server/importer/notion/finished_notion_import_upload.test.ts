@@ -1,9 +1,8 @@
-import {TestLocalJobSender} from "~/admin/environment/test/unit/test_local_job_sender.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
 import {createNotionImport} from "~/server/importer/notion/create_notion_import.js";
 import {finishedNotionImportUpload} from "~/server/importer/notion/finished_notion_import_upload.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -11,9 +10,12 @@ import {NotionImportId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
+function getTestImporter(): TestImporterContextModule {
+    return context.importer as unknown as TestImporterContextModule;
+}
+
 function simulateFileUpload(importKey: string): void {
-    const importer = context.importer as unknown as TestImporterContextModule;
-    importer.setUploadedFile(importKey, new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+    getTestImporter().setUploadedFile(importKey, new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
 }
 
 test("transitions status from UploadPending to ValidateQueued", async () => {
@@ -44,7 +46,7 @@ test("transitions status from UploadPending to ValidateQueued", async () => {
     });
 });
 
-test("queues ValidateNotionImportAndExtractMetadata job", async () => {
+test("triggers validation via importer context module", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -56,20 +58,18 @@ test("queues ValidateNotionImportAndExtractMetadata job", async () => {
 
     simulateFileUpload(importKey);
 
-    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
-        await finishedNotionImportUpload(session.action(), {
-            spaceId: space.id,
-            notionImportId,
-        });
+    const importer = getTestImporter();
+    const callsBeforeCount = importer.startValidateNotionImportCalls.length;
+
+    await finishedNotionImportUpload(session.action(), {
+        spaceId: space.id,
+        notionImportId,
     });
 
-    expect(sentJobs).toHaveLength(1);
-    expect(sentJobs[0]).toMatchObject({
-        job: {
-            type: "ValidateNotionImportAndExtractMetadata",
-            spaceId: space.id,
-            notionImportId,
-        },
+    expect(importer.startValidateNotionImportCalls.length - callsBeforeCount).toBe(1);
+    expect(importer.startValidateNotionImportCalls.at(-1)).toMatchObject({
+        spaceId: space.id,
+        notionImportId,
     });
 });
 

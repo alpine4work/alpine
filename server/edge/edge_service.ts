@@ -513,6 +513,10 @@ async function actuallyHandleFetch(
             if (!resourceServicePublicKey)
                 throw new InternalError("Missing `RESOURCE_SERVICE_PUBLIC_KEY` env variable");
 
+            const importerServicePublicKey = env.IMPORTER_SERVICE_PUBLIC_KEY;
+            if (!importerServicePublicKey)
+                throw new InternalError("Missing `IMPORTER_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
@@ -531,6 +535,7 @@ async function actuallyHandleFetch(
                     fileProcessorServicePublicKey,
                     apiServicePublicKey,
                     resourceServicePublicKey,
+                    importerServicePublicKey,
                     secret: tokenAgentSecret,
                 }),
                 TokenAgentPrivateSide.new({

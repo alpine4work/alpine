@@ -418,6 +418,11 @@ export function actuallyCreateIntegrationTestEnvironment(
         const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
         const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
 
+        const importerServicePublicKeyPath = joinPath(
+            keysDirectoryPath,
+            "importer_service_rsa.pub",
+        );
+
         const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 
         mockChatGptUnscopedApiKeyPath = joinPath(
@@ -452,6 +457,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                         fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
                         apiServicePublicKey: apiServicePublicKeyPath,
                         resourceServicePublicKey: resourceServicePublicKeyPath,
+                        importerServicePublicKey: importerServicePublicKeyPath,
                         servicePrivateKey: appServicePrivateKeyPath,
                         tokenAgentSecret: tokenAgentSecretPath,
                     },
@@ -507,6 +513,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -581,6 +588,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
@@ -611,6 +619,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -647,6 +656,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -691,6 +701,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -728,6 +739,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${apiServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,

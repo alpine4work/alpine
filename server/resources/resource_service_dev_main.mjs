@@ -36,6 +36,7 @@ async function main() {
             fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
             apiServicePublicKey: apiServicePublicKeyPath,
             resourceServicePublicKey: resourceServicePublicKeyPath,
+            importerServicePublicKey: importerServicePublicKeyPath,
             resourceServicePrivateKey: resourceServicePrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
             fileProcessorServiceUrl,
@@ -57,6 +58,7 @@ async function main() {
             fileProcessorServicePublicKey: {type: "string"},
             apiServicePublicKey: {type: "string"},
             resourceServicePublicKey: {type: "string"},
+            importerServicePublicKey: {type: "string"},
             resourceServicePrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
             fileProcessorServiceUrl: {type: "string"},
@@ -87,6 +89,8 @@ async function main() {
     if (!apiServicePublicKeyPath) throw new Error("Missing `apiServicePublicKeyPath` arg");
     if (!resourceServicePublicKeyPath)
         throw new Error("Missing `resourceServicePublicKeyPath` arg");
+    if (!importerServicePublicKeyPath)
+        throw new Error("Missing `importerServicePublicKeyPath` arg");
     if (!resourceServicePrivateKeyPath)
         throw new Error("Missing `resourceServicePrivateKeyPath` arg");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
@@ -102,6 +106,7 @@ async function main() {
         fileProcessorServicePublicKey,
         apiServicePublicKey,
         resourceServicePublicKey,
+        importerServicePublicKey,
         resourceServicePrivateKey,
         tokenAgentSecret,
     ] = await Promise.all([
@@ -112,6 +117,7 @@ async function main() {
         fs.readFile(fileProcessorServicePublicKeyPath, "utf8"),
         fs.readFile(apiServicePublicKeyPath, "utf8"),
         fs.readFile(resourceServicePublicKeyPath, "utf8"),
+        fs.readFile(importerServicePublicKeyPath, "utf8"),
         fs.readFile(resourceServicePrivateKeyPath, "utf8"),
         fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
@@ -147,6 +153,7 @@ async function main() {
             FILE_PROCESSOR_SERVICE_PUBLIC_KEY: fileProcessorServicePublicKey,
             API_SERVICE_PUBLIC_KEY: apiServicePublicKey,
             RESOURCE_SERVICE_PUBLIC_KEY: resourceServicePublicKey,
+            IMPORTER_SERVICE_PUBLIC_KEY: importerServicePublicKey,
             RESOURCE_SERVICE_PRIVATE_KEY: resourceServicePrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,

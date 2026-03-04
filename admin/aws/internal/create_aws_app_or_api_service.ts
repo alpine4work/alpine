@@ -80,6 +80,7 @@ export function createAwsAppOrApiService(
         withLogoDevSecrets,
         withCookieNameSuffixOption,
         importUploadsBucketName,
+        importerService,
     }: {
         serviceName: string;
         secretsName: string;
@@ -103,6 +104,12 @@ export function createAwsAppOrApiService(
         withLogoDevSecrets?: boolean;
         withCookieNameSuffixOption?: boolean;
         importUploadsBucketName?: string;
+        importerService?: {
+            taskDefinitionArn: string;
+            subnetIds: Array<string>;
+            securityGroupId: string;
+            ebsVolumeRoleArn: string;
+        };
     },
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
@@ -276,6 +283,10 @@ export function createAwsAppOrApiService(
                 secrets,
                 "resourceServicePublicKey",
             ),
+            IMPORTER_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                secrets,
+                "importerServicePublicKey",
+            ),
             TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
             HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
             COHERE_API_KEY: EcsSecret.fromSecretsManager(secrets, "cohereApiKey"),
@@ -369,6 +380,7 @@ export function createAwsAppOrApiService(
             "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
             "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
             "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+            "--importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY",
             `--servicePrivateKey=$${secretKeyEnvironmentVariableName}`,
             "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
             "--apnsCertificate=$APNS_CERTIFICATE",
@@ -397,6 +409,14 @@ export function createAwsAppOrApiService(
                 : []),
             ...(importUploadsBucketName
                 ? [`--importUploadsBucketName=${importUploadsBucketName}`]
+                : []),
+            ...(importerService
+                ? [
+                      `--importerServiceEcsTaskDefinition=${importerService.taskDefinitionArn}`,
+                      `--importerServiceSubnets=${importerService.subnetIds.join(",")}`,
+                      `--importerServiceSecurityGroups=${importerService.securityGroupId}`,
+                      `--importerServiceEbsVolumeRoleArn=${importerService.ebsVolumeRoleArn}`,
+                  ]
                 : []),
         ],
         healthCheck: {

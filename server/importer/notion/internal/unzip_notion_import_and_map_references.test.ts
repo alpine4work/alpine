@@ -24,6 +24,7 @@ function createTestNotionImportItem(
         spaceId: generateId<SpaceId>(),
         workspaceName: null,
         importKey: `${generateId<SpaceId>()}/${generateId()}`,
+        importZipSize: 1024,
         startedByAccountId: generateId<AccountId>(),
         createdTime: new Date(),
         updatedTime: new Date(),

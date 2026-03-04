@@ -74,6 +74,7 @@ export type TracerServiceName =
     | "MockAgentService"
     | "ResourceService"
     | "LocalRedirectService"
+    | "ImporterService"
     | DurableObjectServiceName;
 
 /**

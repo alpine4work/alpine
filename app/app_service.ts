@@ -1,3 +1,4 @@
+import {ECSClient} from "@aws-sdk/client-ecs";
 import {S3Client} from "@aws-sdk/client-s3";
 import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {createRequestHandler} from "@remix-run/node";
@@ -56,9 +57,10 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
+import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/development/importer_service_development_context_module.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
@@ -363,19 +365,6 @@ async function createAppService({
         apnsContextModule = new ApnsContextModule(apnsConnectionPool);
     }
 
-    let importerContextModule: ImporterContextModuleBase;
-    if (process.env.NODE_ENV === "production") {
-        importerContextModule = new ImporterContextModule({
-            s3Client: new S3Client({}),
-            bucketName: assertExists(
-                options.importUploadsBucketName,
-                "`importUploadsBucketName` option is required in production",
-            ),
-        });
-    } else {
-        importerContextModule = new ImporterDevelopmentContextModule();
-    }
-
     let logoDevContextModule: LogoDevContextModuleBase;
     if (process.env.NODE_ENV === "production") {
         logoDevContextModule = new LogoDevContextModule({
@@ -439,6 +428,81 @@ async function createAppService({
             action,
         );
     };
+
+    let importerContextModule: ImporterContextModuleBase;
+
+    // Create the importer context module. In development, we use a runner that calls
+    // the process functions directly. The runner captures `processContext` by
+    // reference (like `dangerouslyEscalateToSystemContext` does) so it will work even
+    // though `processContext` isn't assigned yet.
+    if (process.env.NODE_ENV === "production") {
+        importerContextModule = new ImporterContextModule({
+            s3Client: new S3Client({}),
+            bucketName: assertExists(
+                options.importUploadsBucketName,
+                "`importUploadsBucketName` option is required in production",
+            ),
+            ecsClient: new ECSClient({}),
+            ecsConfig: {
+                cluster: assertExists(
+                    options.ecsCluster,
+                    "`ecsCluster` option is required in production",
+                ),
+                taskDefinition: assertExists(
+                    options.importerServiceEcsTaskDefinition,
+                    "`importerServiceEcsTaskDefinition` option is required in production",
+                ),
+                subnets: assertExists(
+                    options.importerServiceSubnets,
+                    "`importerServiceSubnets` option is required in production",
+                )
+                    .split(",")
+                    .filter(s => s.length > 0),
+                securityGroups: assertExists(
+                    options.importerServiceSecurityGroups,
+                    "`importerServiceSecurityGroups` option is required in production",
+                )
+                    .split(",")
+                    .filter(s => s.length > 0),
+                ebsVolumeRoleArn: assertExists(
+                    options.importerServiceEbsVolumeRoleArn,
+                    "`importerServiceEbsVolumeRoleArn` option is required in production",
+                ),
+            },
+        });
+    } else {
+        // In development/test, imports are processed directly in the current process. We
+        // pass a callback that handles running the import in the background with the
+        // appropriate context.
+        importerContextModule = new ImporterDevelopmentContextModule({
+            waitUntilAndEscalateToSystemContext: (spanName, spaceId, action) => {
+                processContext.process.waitUntil(
+                    processContext.tracer.withSpan(spanName, async context => {
+                        // Create an action context with fresh cache and batch for this task. Use
+                        // "ImporterService" as the actor service name to match production where imports
+                        // run in a separate ImporterService ECS task.
+                        //
+                        // We add `importerService` module for file reading. This is separate from the
+                        // `importer` module (which handles presigned URLs and spawning) because in dev
+                        // mode we run imports in-process while in production they run in a separate ECS
+                        // task.
+                        const actionContext = processContext.clone({
+                            tracer: new TracerContextModule(context.tracer.getTracer()),
+                            cache: CacheContextModule.new(),
+                            batch: BatchContextModule.new(),
+                            actor: SystemActorContextModule.dangerouslyNew(
+                                "ImporterService",
+                                spaceId,
+                            ),
+                            importerService: new ImporterServiceDevelopmentContextModule(),
+                        });
+
+                        await action(actionContext);
+                    }),
+                );
+            },
+        });
+    }
 
     const processContext: AppServiceProcessContext = basicProcessContext.clone({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),

@@ -74,6 +74,17 @@ export const NotionImportItemSchema = Schema.object({
     importKey: Schema.string,
 
     /**
+     * Size of the uploaded zip file in bytes.
+     *
+     * Used to provision appropriate ephemeral storage for the ECS task that processes
+     * the import.
+     *
+     * Defaults to 0 for backwards compatibility with existing records (which will use
+     * minimum storage).
+     */
+    importZipSize: Schema.integer.min(0).default(0),
+
+    /**
      * The account that started this import.
      */
     startedByAccountId: Schema.id<AccountId>(),

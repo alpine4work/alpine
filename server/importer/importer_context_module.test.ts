@@ -1,3 +1,4 @@
+import {ECSClient, RunTaskCommand} from "@aws-sdk/client-ecs";
 import {
     DeleteObjectCommand,
     GetObjectCommand,
@@ -7,14 +8,31 @@ import {
 import {SdkStreamMixin} from "@smithy/types";
 import {existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "fs";
 import {join as joinPath} from "path";
+import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+/** Creates a no-op callback for testing ImporterDevelopmentContextModule */
+function createNoOpWaitUntilCallback() {
+    return () => {};
+}
+
+/** Creates a mock ECS config for testing ImporterContextModule */
+function createMockEcsConfig() {
+    return {
+        cluster: "test-cluster",
+        taskDefinition: "test-task-definition",
+        subnets: ["subnet-123"],
+        securityGroups: ["sg-456"],
+        ebsVolumeRoleArn: "arn:aws:iam::123456789012:role/test-ebs-role",
+    };
+}
 
 /**
  * Creates a mock body with the transformToByteArray method that the S3 SDK uses.
@@ -55,6 +73,21 @@ function createMockS3Client(): S3Client & {
     return mock as unknown as S3Client & typeof mock;
 }
 
+type MockEcsClient = ECSClient & {
+    sentCommands: Array<RunTaskCommand>;
+};
+
+function createMockEcsClient(): MockEcsClient {
+    const mock = {
+        sentCommands: [] as Array<RunTaskCommand>,
+        async send(command: RunTaskCommand) {
+            mock.sentCommands.push(command);
+            return {tasks: [{taskArn: "arn:aws:ecs:us-east-1:123456789012:task/test-task"}]};
+        },
+    };
+    return mock as unknown as MockEcsClient;
+}
+
 describe("ImporterContextModule", () => {
     const testBucketName = "test-import-uploads-bucket";
 
@@ -71,6 +104,8 @@ describe("ImporterContextModule", () => {
             const module = new ImporterContextModule({
                 s3Client: mockS3,
                 bucketName: testBucketName,
+                ecsClient: createMockEcsClient(),
+                ecsConfig: createMockEcsConfig(),
             });
 
             const result = await module.readUploadedFile("spa_123/nim_456");
@@ -87,6 +122,8 @@ describe("ImporterContextModule", () => {
             const module = new ImporterContextModule({
                 s3Client: mockS3,
                 bucketName: "custom-bucket-name",
+                ecsClient: createMockEcsClient(),
+                ecsConfig: createMockEcsConfig(),
             });
 
             await module.readUploadedFile("test/key");
@@ -103,6 +140,8 @@ describe("ImporterContextModule", () => {
             const module = new ImporterContextModule({
                 s3Client: mockS3,
                 bucketName: testBucketName,
+                ecsClient: createMockEcsClient(),
+                ecsConfig: createMockEcsConfig(),
             });
 
             const result = await module.readUploadedFile("nonexistent/key");
@@ -117,6 +156,8 @@ describe("ImporterContextModule", () => {
             const module = new ImporterContextModule({
                 s3Client: mockS3,
                 bucketName: testBucketName,
+                ecsClient: createMockEcsClient(),
+                ecsConfig: createMockEcsConfig(),
             });
 
             const result = await module.readUploadedFile("spa_123/nim_456");
@@ -131,12 +172,157 @@ describe("ImporterContextModule", () => {
             const module = new ImporterContextModule({
                 s3Client: mockS3,
                 bucketName: testBucketName,
+                ecsClient: createMockEcsClient(),
+                ecsConfig: createMockEcsConfig(),
             });
 
             const forked = module.fork();
 
             expect(forked).toBeInstanceOf(ImporterContextModule);
             expect(forked).not.toBe(module);
+        });
+    });
+
+    describe("ECS task volume sizing", () => {
+        const bytesPerGiB = 1024 * 1024 * 1024;
+
+        function createModuleWithMockEcs(mockEcs: MockEcsClient) {
+            return new ImporterContextModule({
+                s3Client: createMockS3Client(),
+                bucketName: testBucketName,
+                ecsClient: mockEcs,
+                ecsConfig: createMockEcsConfig(),
+            });
+        }
+
+        function getVolumeSizeFromCommand(command: RunTaskCommand): number {
+            const volumeConfig = command.input.volumeConfigurations?.[0];
+            return volumeConfig?.managedEBSVolume?.sizeInGiB ?? 0;
+        }
+
+        test("uses minimum 1 GiB volume for small files", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            await module.startValidateNotionImport({
+                spaceId: "spa_test123" as SpaceId,
+                notionImportId: "nim_test456" as NotionImportId,
+                importZipSize: 1024, // 1 KB - very small
+            });
+
+            expect(mockEcs.sentCommands).toHaveLength(1);
+            expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(1);
+        });
+
+        test("uses minimum 1 GiB volume for files under 1/3 GiB", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            // 300 MB = 0.29 GiB, which at 3x = 0.88 GiB, rounds up to 1 GiB
+            const importZipSize = 300 * 1024 * 1024;
+            await module.startNotionImport({
+                spaceId: "spa_test123" as SpaceId,
+                notionImportId: "nim_test456" as NotionImportId,
+                importZipSize,
+            });
+
+            expect(mockEcs.sentCommands).toHaveLength(1);
+            expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(1);
+        });
+
+        test("calculates 3x volume size for 1 GiB file", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            await module.startValidateNotionImport({
+                spaceId: "spa_test123" as SpaceId,
+                notionImportId: "nim_test456" as NotionImportId,
+                importZipSize: bytesPerGiB, // 1 GiB
+            });
+
+            expect(mockEcs.sentCommands).toHaveLength(1);
+            // 1 GiB \* 3 = 3 GiB
+            expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(3);
+        });
+
+        test("calculates 3x volume size for 10 GiB file", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            await module.startNotionImport({
+                spaceId: "spa_test123" as SpaceId,
+                notionImportId: "nim_test456" as NotionImportId,
+                importZipSize: 10 * bytesPerGiB, // 10 GiB
+            });
+
+            expect(mockEcs.sentCommands).toHaveLength(1);
+            // 10 GiB \* 3 = 30 GiB
+            expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(30);
+        });
+
+        test("rounds up partial GiB to next whole number", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            // 500 MB = 0.49 GiB, which at 3x = 1.46 GiB, should round up to 2 GiB
+            const importZipSize = 500 * 1024 * 1024;
+            await module.startValidateNotionImport({
+                spaceId: "spa_test123" as SpaceId,
+                notionImportId: "nim_test456" as NotionImportId,
+                importZipSize,
+            });
+
+            expect(mockEcs.sentCommands).toHaveLength(1);
+            expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(2);
+        });
+
+        test("passes correct environment variables to ECS task", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            await module.startValidateNotionImport({
+                spaceId: "spa_myspace" as SpaceId,
+                notionImportId: "nim_myimport" as NotionImportId,
+                importZipSize: 1024,
+            });
+
+            const command = mockEcs.sentCommands[0]!;
+            const containerOverrides = command.input.overrides?.containerOverrides?.[0];
+            const envVars = containerOverrides?.environment;
+
+            expect(envVars).toEqual(
+                expect.arrayContaining([
+                    {name: "IMPORTER_ACTION", value: "ValidateNotionImport"},
+                    {name: "SPACE_ID", value: "spa_myspace"},
+                    {name: "NOTION_IMPORT_ID", value: "nim_myimport"},
+                ]),
+            );
+        });
+
+        test("uses correct ECS config values", async () => {
+            const mockEcs = createMockEcsClient();
+            const module = createModuleWithMockEcs(mockEcs);
+
+            await module.startNotionImport({
+                spaceId: "spa_test" as SpaceId,
+                notionImportId: "nim_test" as NotionImportId,
+                importZipSize: 1024,
+            });
+
+            const command = mockEcs.sentCommands[0]!;
+            expect(command.input.cluster).toBe("test-cluster");
+            expect(command.input.taskDefinition).toBe("test-task-definition");
+            expect(command.input.networkConfiguration?.awsvpcConfiguration?.subnets).toEqual([
+                "subnet-123",
+            ]);
+            expect(command.input.networkConfiguration?.awsvpcConfiguration?.securityGroups).toEqual(
+                ["sg-456"],
+            );
+
+            const volumeConfig = command.input.volumeConfigurations?.[0];
+            expect(volumeConfig?.managedEBSVolume?.roleArn).toBe(
+                "arn:aws:iam::123456789012:role/test-ebs-role",
+            );
         });
     });
 });
@@ -163,7 +349,10 @@ describe("ImporterContextModuleDevelopment", () => {
 
     describe("createPresignedUploadUrl", () => {
         test("returns local dev endpoint URL", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
 
             const result = await Context.with(
                 {
@@ -190,7 +379,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("includes full import key in URL path", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
 
             const result = await Context.with(
                 {
@@ -216,7 +408,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("uses edge service URL from constants context", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
 
             const result = await Context.with(
                 {
@@ -244,7 +439,10 @@ describe("ImporterContextModuleDevelopment", () => {
 
     describe("writeUploadedFile", () => {
         test("writes file to dev-data directory", () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const testData = new Uint8Array([10, 20, 30, 40, 50]);
 
             module.writeUploadedFile("spa_123/nim_456", testData);
@@ -257,7 +455,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("creates nested directories if needed", () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const testData = new Uint8Array([1, 2, 3]);
 
             module.writeUploadedFile("deep/nested/path/file", testData);
@@ -267,7 +468,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("overwrites existing file", () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const importKey = "overwrite/test";
             const filePath = joinPath(uploadDir, importKey);
 
@@ -284,7 +488,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("handles empty file", () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const testData = new Uint8Array([]);
 
             module.writeUploadedFile("empty/file", testData);
@@ -297,7 +504,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("handles large file", () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             // 1MB file
             const testData = new Uint8Array(1024 * 1024);
             for (let i = 0; i < testData.length; i++) {
@@ -317,7 +527,10 @@ describe("ImporterContextModuleDevelopment", () => {
 
     describe("readUploadedFile", () => {
         test("returns file contents from dev-data directory", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const testData = new Uint8Array([100, 200, 150, 75]);
             const importKey = "spa_abc/nim_xyz";
 
@@ -332,7 +545,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("returns null when file does not exist", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
 
             const result = await module.readUploadedFile("nonexistent/file");
 
@@ -340,7 +556,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("returns null when path is a directory", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const dirPath = joinPath(uploadDir, "some-dir");
             mkdirSync(dirPath, {recursive: true});
 
@@ -350,7 +569,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("handles empty file", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const importKey = "empty/read-test";
 
             const filePath = joinPath(uploadDir, importKey);
@@ -365,7 +587,10 @@ describe("ImporterContextModuleDevelopment", () => {
 
     describe("fork", () => {
         test("returns a new instance with same workspace path", () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const forked = module.fork();
 
             expect(forked).toBeInstanceOf(ImporterDevelopmentContextModule);
@@ -384,7 +609,10 @@ describe("ImporterContextModuleDevelopment", () => {
 
     describe("round-trip", () => {
         test("write then read returns same data", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
             const importKey = "roundtrip/test";
 
@@ -395,7 +623,10 @@ describe("ImporterContextModuleDevelopment", () => {
         });
 
         test("write with binary data preserves all bytes", async () => {
-            const module = new ImporterDevelopmentContextModule(workspacePath);
+            const module = new ImporterDevelopmentContextModule({
+                localUploadPath: workspacePath,
+                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+            });
             // Include all possible byte values
             const testData = new Uint8Array(256);
             for (let i = 0; i < 256; i++) {

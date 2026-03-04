@@ -7,7 +7,6 @@ import {WebPushContextModule} from "~/server/context/web_push_context_module.js"
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {SchedulerContextModuleBase} from "~/server/deploy/data/scheduler_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {Context} from "~/shared/context/context.js";
 
@@ -20,7 +19,6 @@ type JobQueueServiceExtraContextModules = {
     botWebhook: BotWebhookContextModule;
     webPush: WebPushContextModule;
     slack: SlackContextModuleBase;
-    importer: ImporterContextModuleBase;
 };
 
 export type JobQueueServiceProcessContextModules = ServerProcessContextModules &

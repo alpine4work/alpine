@@ -56,6 +56,7 @@ async function createTestNotionImportItemInDatabase(
         startedByAccountId: accountId as any,
         workspaceName: "Test Workspace",
         importKey: "test-import-key",
+        importZipSize: 1024,
         createdTime: new Date(),
         updatedTime: new Date(),
         teamspaceImportOptions: null,

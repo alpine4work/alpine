@@ -5,12 +5,14 @@ import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data.js";
+import {AwsImporterService} from "~/admin/aws/internal/aws_importer_service.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {createAwsAppOrApiService} from "~/admin/aws/internal/create_aws_app_or_api_service.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export class AwsAppService extends Construct {
     constructor(
@@ -26,6 +28,7 @@ export class AwsAppService extends Construct {
             taskRealtimeService: AwsTaskRealtimeService;
             observability: AwsObservability;
             importUploads: AwsImportUploadsData;
+            importerService: AwsImporterService;
         },
     ) {
         super(parentConstruct, "AppService");
@@ -66,6 +69,12 @@ export class AwsAppService extends Construct {
             withLogoDevSecrets: true,
             withCookieNameSuffixOption: true,
             importUploadsBucketName: options.importUploads.bucketName,
+            importerService: {
+                taskDefinitionArn: options.importerService.taskDefinition.taskDefinitionArn,
+                subnetIds: options.importerService.subnetIds,
+                securityGroupId: options.importerService.securityGroup.securityGroupId,
+                ebsVolumeRoleArn: options.importerService.ebsVolumeRole.roleArn,
+            },
         });
 
         options.ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
@@ -73,6 +82,45 @@ export class AwsAppService extends Construct {
         // Grant upload access to the import uploads bucket for creating presigned
         // PutObject URLs for Notion imports.
         options.importUploads.grantUpload(taskDefinition.taskRole);
+
+        // Grant permission to run importer tasks.
+        //
+        // When the App service programmatically starts a Fargate task via `ecs:RunTask`,
+        // it must also have `iam:PassRole` permission for each IAM role that the new task
+        // will assume. This is an AWS security mechanism that prevents privilege
+        // escalation—without it, a service could start tasks with more permissions than it
+        // has itself.
+        //
+        // See: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html
+        //
+        // We need to pass three roles:
+        //
+        // - taskRole: The role the importer container uses at runtime to access AWS
+        //   resources (DynamoDB, S3, etc.)
+        // - executionRole: The role ECS uses to pull container images from ECR and write
+        //   logs to CloudWatch
+        // - ebsVolumeRole: The role that allows ECS to attach EBS volumes to the task
+        //   (used for large file imports that need more disk space than ephemeral storage)
+        //
+        // Note: CDK provides `taskDefinition.grantRun()` which handles `ecs:RunTask` and
+        // `iam:PassRole` for standard roles automatically. We use explicit grants here
+        // because we also need to pass the custom `ebsVolumeRole`.
+        taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: ["ecs:RunTask"],
+                resources: [options.importerService.taskDefinition.taskDefinitionArn],
+            }),
+        );
+        taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: ["iam:PassRole"],
+                resources: [
+                    options.importerService.taskDefinition.taskRole.roleArn,
+                    assertExists(options.importerService.taskDefinition.executionRole?.roleArn),
+                    options.importerService.ebsVolumeRole.roleArn,
+                ],
+            }),
+        );
 
         // TODO(ifitzsimmons, 2025-12-18): This is a temporary workaround to allow the App
         // service to read the Bots table for the `internal/bots` page. One day, we should

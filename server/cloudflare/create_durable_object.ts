@@ -65,6 +65,7 @@ export type DurableObjectEnv = {
     FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
     RESOURCE_SERVICE_PUBLIC_KEY?: string;
     API_SERVICE_PUBLIC_KEY?: string;
+    IMPORTER_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
     HONEYCOMB_API_KEY?: string;
@@ -184,6 +185,10 @@ export function createDurableObject<
             if (!apiServicePublicKey)
                 throw new InternalError("Missing `API_SERVICE_PUBLIC_KEY` env variable");
 
+            const importerServicePublicKey = env.IMPORTER_SERVICE_PUBLIC_KEY;
+            if (!importerServicePublicKey)
+                throw new InternalError("Missing `IMPORTER_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
@@ -206,6 +211,7 @@ export function createDurableObject<
                     fileProcessorServicePublicKey,
                     resourceServicePublicKey,
                     apiServicePublicKey,
+                    importerServicePublicKey,
                     secret: tokenAgentSecret,
                 }),
                 TokenAgentPrivateSide.new({

@@ -30,7 +30,7 @@ import {
     InternalDocumentStepCountByAccountId,
     InternalFileDocumentAuthorizer,
 } from "~/server/documents/data/internal/documents_table.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {
     DynamoCacheReadConsistency,
@@ -45,6 +45,8 @@ import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/server/files/data/files_actions.js";
+import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -93,6 +95,8 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     DocumentCommentThreadReference,
@@ -362,6 +366,18 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
     return documentIndexSearchEntityJobRegularDelaySeconds;
 }
 
+/**
+ * Minimal context type for creating documents from importers. This is a subset of
+ * ServerSystemActionContext with only the modules needed.
+ */
+type CreateDocumentSystemContext = Context<
+    DynamoContextModules & {
+        actor: SystemActorContextModule;
+        jobs: JobsContextModule;
+        cache: CacheContextModule;
+    }
+>;
+
 /*
  * Creates a new document with no history using the initial content provided.
  *
@@ -372,7 +388,7 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
  * useful for bulk operations like imports.
  */
 export async function createDocument(
-    context: ServerSystemActionContext,
+    context: CreateDocumentSystemContext,
     options: {
         id?: DocumentId;
         spaceId: SpaceId;
@@ -406,7 +422,7 @@ export async function createDocument(
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
 }>;
 export async function createDocument(
-    context: ServerAccountActionContext | ServerSystemActionContext,
+    context: ServerAccountActionContext | ServerSystemActionContext | CreateDocumentSystemContext,
     {
         id: documentId = generateId<DocumentId>(),
         spaceId,
@@ -431,7 +447,10 @@ export async function createDocument(
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
 }> {
     if (context.actor.type !== "System") {
-        const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
+        const accountContext = context as Exclude<
+            typeof context,
+            ServerSystemActionContext | CreateDocumentSystemContext
+        >;
 
         if (from != null) {
             throw new PermissionDeniedError(
@@ -465,7 +484,7 @@ export async function createDocument(
 
         content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
 
-        await authorizeSpaceAccess(context, spaceId);
+        await authorizeSpaceAccess(accountContext, spaceId);
 
         await validateAccessPolicyUpdateForServer(
             accountContext,
@@ -590,9 +609,12 @@ export async function createDocument(
     );
 
     if (context.actor.type !== "System") {
-        const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
+        const accountContext = context as Exclude<
+            typeof context,
+            ServerSystemActionContext | CreateDocumentSystemContext
+        >;
 
-        context.process.waitUntil(
+        accountContext.process.waitUntil(
             // Special interaction that adds a bunch more points then normal interactions. So
             // newly created documents are always easily accessible in the search affinity
             // list.

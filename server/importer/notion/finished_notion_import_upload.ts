@@ -82,9 +82,11 @@ export async function finishedNotionImportUpload(
         }),
     );
 
-    context.jobs.send({
-        type: "ValidateNotionImportAndExtractMetadata",
+    // Start the validation process. In development, this runs directly in the current
+    // process. In production, this spawns an ECS task.
+    await context.importer.startValidateNotionImport({
         spaceId,
         notionImportId,
+        importZipSize: importItem.importZipSize,
     });
 }

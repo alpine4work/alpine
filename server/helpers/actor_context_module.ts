@@ -23,7 +23,8 @@ export type ActorServiceName =
     | "AppClient"
     | TokenServiceName
     | "JobQueueService"
-    | "MigrationService";
+    | "MigrationService"
+    | "ImporterService";
 
 assertAssignableTypes<ActorServiceName, TracerServiceName>();
 

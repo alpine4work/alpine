@@ -5,11 +5,30 @@ import {
     ImporterContextModuleBase,
     PresignedUploadUrlResult,
 } from "~/server/importer/importer_context_module_base.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
+import {processValidateNotionImportAndExtractMetadataJob} from "~/server/importer/notion/process_validate_notion_import_and_extract_metadata_job.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
+
+/**
+ * Callback that handles running an action in the background with system context.
+ * The caller is responsible for:
+ *
+ * 1. Running the action in the background (e.g., via `process.waitUntil`)
+ * 2. Creating a tracer span
+ * 3. Escalating to system context for the given space
+ * 4. Adding the importer module to the context
+ */
+export type WaitUntilAndEscalateToSystemContext = (
+    spanName: string,
+    spaceId: SpaceId,
+    action: (context: ImporterServiceSystemActionContext) => Promise<void>,
+) => void;
 
 /**
  * Development importer context module that uses the local filesystem.
@@ -27,6 +46,12 @@ const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
  *    file to `{devEnvPaths.data}/import-uploads/{importKey}`
  * 4. `readUploadedFile` reads directly from the filesystem
  *
+ * ## Import processing
+ *
+ * In development, imports are processed directly in the current process. The
+ * `waitUntilAndEscalateToSystemContext` callback handles running the import in the
+ * background with the appropriate context.
+ *
  * ## File location
  *
  * Files are stored at: `{devEnvPaths.data}/import-uploads/{importKey}`
@@ -37,16 +62,27 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
     tracer: TracerContextModule;
     constants: ConstantsContextModule;
 }> {
-    constructor(private localUploadPath?: string) {
+    private readonly _localUploadPath?: string;
+    private readonly _waitUntilAndEscalateToSystemContext: WaitUntilAndEscalateToSystemContext;
+
+    constructor({
+        localUploadPath,
+        waitUntilAndEscalateToSystemContext,
+    }: {
+        localUploadPath?: string;
+        waitUntilAndEscalateToSystemContext: WaitUntilAndEscalateToSystemContext;
+    }) {
         super();
         assert(
             process.env.NODE_ENV !== "production",
-            "ImporterContextModuleDevelopment should not be used in production",
+            "ImporterDevelopmentContextModule should not be used in production",
         );
+        this._localUploadPath = localUploadPath;
+        this._waitUntilAndEscalateToSystemContext = waitUntilAndEscalateToSystemContext;
     }
 
     private _getUploadPath(importKey: string): string {
-        return joinPath(this.localUploadPath ?? devDataPath, "import-uploads", importKey);
+        return joinPath(this._localUploadPath ?? devDataPath, "import-uploads", importKey);
     }
 
     async createPresignedUploadUrl({
@@ -101,7 +137,40 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
         }
     }
 
+    async startValidateNotionImport({
+        spaceId,
+        notionImportId,
+    }: {
+        spaceId: SpaceId;
+        notionImportId: NotionImportId;
+        importZipSize: number;
+    }): Promise<void> {
+        this._waitUntilAndEscalateToSystemContext(
+            "Run Notion import validation",
+            spaceId,
+            async ctx => {
+                await processValidateNotionImportAndExtractMetadataJob(ctx, notionImportId);
+            },
+        );
+    }
+
+    async startNotionImport({
+        spaceId,
+        notionImportId,
+    }: {
+        spaceId: SpaceId;
+        notionImportId: NotionImportId;
+        importZipSize: number;
+    }): Promise<void> {
+        this._waitUntilAndEscalateToSystemContext("Run Notion import", spaceId, async ctx => {
+            await processStartNotionImportJob(ctx, notionImportId);
+        });
+    }
+
     fork(): ImporterDevelopmentContextModule {
-        return new ImporterDevelopmentContextModule(this.localUploadPath);
+        return new ImporterDevelopmentContextModule({
+            localUploadPath: this._localUploadPath,
+            waitUntilAndEscalateToSystemContext: this._waitUntilAndEscalateToSystemContext,
+        });
     }
 }

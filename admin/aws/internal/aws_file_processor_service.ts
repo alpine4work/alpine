@@ -367,6 +367,10 @@ export class AwsFileProcessorService extends Construct {
                     secret,
                     "resourceServicePublicKey",
                 ),
+                IMPORTER_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secret,
+                    "importerServicePublicKey",
+                ),
                 FILE_PROCESSOR_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secret,
                     "fileProcessorServicePrivateKey",
@@ -413,6 +417,7 @@ export class AwsFileProcessorService extends Construct {
                 "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                 "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
                 "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+                "--importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY",
                 "--servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY",
                 "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
             ],

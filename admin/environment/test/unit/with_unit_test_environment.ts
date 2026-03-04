@@ -51,7 +51,8 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
-import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/development/importer_service_development_context_module.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
@@ -650,7 +651,16 @@ export function actuallyCreateUnitTestEnvironment(
             dangerouslyEscalateToSystemContext: escalateToSystemContext,
         }),
         billing: new BillingNoopDevelopmentContextModule(),
+        // Tests that just want to track calls to startValidateNotionImport and
+        // startNotionImport use TestImporterContextModule without a callback. Only tests
+        // that actually want to run import processing should pass a callback. See
+        // TestImporterContextModule for details.
         importer: new TestImporterContextModule(),
+        // Importer service module for tests that need to read uploaded files. Uses
+        // TEST_TMPDIR provided by Bazel for test isolation.
+        importerService: new ImporterServiceDevelopmentContextModule({
+            localUploadPath: assertExists(process.env.TEST_TMPDIR),
+        }),
         slack: new NoopSlackContextModule(),
     });
 

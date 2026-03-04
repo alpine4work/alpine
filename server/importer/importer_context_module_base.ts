@@ -1,6 +1,7 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Presigned upload URL result containing the URL to upload to and the key that
@@ -82,6 +83,38 @@ export abstract class ImporterContextModuleBase<
      * @param importKey - The key of the file to delete
      */
     abstract deleteUploadedFile(importKey: string): Promise<void>;
+
+    /**
+     * Starts the validation process for a Notion import.
+     *
+     * In development: Runs the validation directly in the current process. In
+     * production: Spawns an ECS task to handle the validation.
+     *
+     * @param spaceId - The space ID the import belongs to @param notionImportId - The
+     * ID of the import to validate @param importZipSize - Size of the zip file in
+     * bytes, used to provision ephemeral storage for the ECS task
+     */
+    abstract startValidateNotionImport(options: {
+        spaceId: SpaceId;
+        notionImportId: NotionImportId;
+        importZipSize: number;
+    }): Promise<void>;
+
+    /**
+     * Starts processing a Notion import.
+     *
+     * In development: Runs the import processing directly in the current process. In
+     * production: Spawns an ECS task to handle the import.
+     *
+     * @param spaceId - The space ID the import belongs to @param notionImportId - The
+     * ID of the import to process @param importZipSize - Size of the zip file in
+     * bytes, used to provision ephemeral storage for the ECS task
+     */
+    abstract startNotionImport(options: {
+        spaceId: SpaceId;
+        notionImportId: NotionImportId;
+        importZipSize: number;
+    }): Promise<void>;
 
     abstract fork(): ForkableContextModuleBase;
 }

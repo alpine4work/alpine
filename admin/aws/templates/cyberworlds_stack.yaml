@@ -2694,6 +2694,7 @@ Resources:
                       - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$TASK_REALTIME_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                   Cpu: 2008
@@ -2794,6 +2795,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:TaskRealtimeServiceSecrets:importerServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -3062,6 +3070,566 @@ Resources:
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition4Of4/Service/Service
+    ImporterServiceEbsVolumeRoleE8334632:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs.amazonaws.com
+                Version: 2012-10-17
+            Description: Allows ECS to manage EBS volumes for importer tasks
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/EbsVolumeRole/Resource
+    ImporterServiceEbsVolumeRoleDefaultPolicy93C63B38:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ec2:AttachVolume
+                          - ec2:CreateVolume
+                          - ec2:DeleteVolume
+                          - ec2:DescribeAvailabilityZones
+                          - ec2:DescribeVolumeStatus
+                          - ec2:DescribeVolumes
+                          - ec2:DetachVolume
+                      Effect: Allow
+                      Resource: "*"
+                    - Action: ec2:CreateTags
+                      Condition:
+                          StringEquals:
+                              ec2:CreateAction: CreateVolume
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ec2:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :volume/*
+                Version: 2012-10-17
+            PolicyName: ImporterServiceEbsVolumeRoleDefaultPolicy93C63B38
+            Roles:
+                - Ref: ImporterServiceEbsVolumeRoleE8334632
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/EbsVolumeRole/DefaultPolicy/Resource
+    ImporterServiceTaskDefinitionTaskRoleA1F1F597:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/TaskRole/Resource
+    ImporterServiceTaskDefinitionTaskRoleDefaultPolicyD3141FF5:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:Query
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AccountsTable81C15AE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - AlphaAccessTable823F6A12
+                                - Arn
+                          - Fn::GetAtt:
+                                - BotWebhookEventsTable9E64D99B
+                                - Arn
+                          - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
+                                - ChatTable7A2D1C24
+                                - Arn
+                          - Fn::GetAtt:
+                                - DeployTableF6562626
+                                - Arn
+                          - Fn::GetAtt:
+                                - DocumentsTable7E808EE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::GetAtt:
+                                - ForumRealtimeTableFB7C25E5
+                                - Arn
+                          - Fn::GetAtt:
+                                - ForumTable1FBA2B20
+                                - Arn
+                          - Fn::GetAtt:
+                                - InboxTableE3C19927
+                                - Arn
+                          - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
+                                - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpacesTable8A997355
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
+                                - TaskActionsTableFC756837
+                                - Arn
+                          - Fn::GetAtt:
+                                - TasksTable88911DC5
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AccountsTable81C15AE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotWebhookEventsTable9E64D99B
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DeployTableF6562626
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ForumRealtimeTableFB7C25E5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ForumTable1FBA2B20
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - TaskActionsTableFC756837
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - TasksTable88911DC5
+                                        - Arn
+                                  - /index/*
+                    - Action:
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImportUploadsBucketECD42D88
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ImportUploadsBucketECD42D88
+                                        - Arn
+                                  - /*
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
+                Version: 2012-10-17
+            PolicyName: ImporterServiceTaskDefinitionTaskRoleDefaultPolicyD3141FF5
+            Roles:
+                - Ref: ImporterServiceTaskDefinitionTaskRoleA1F1F597
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    ImporterServiceTaskDefinition04939494:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                - Command:
+                      - /var/www/server/importer/importer_binary
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
+                      - --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                      - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                      - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$IMPORTER_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                      - Fn::Join:
+                            - ""
+                            - - --ecsCluster=
+                              - Ref: EcsClusterFB9B21B5
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --kinesisTracerStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
+                      - Fn::Join:
+                            - ""
+                            - - --importUploadsBucketName=
+                              - Ref: ImportUploadsBucketECD42D88
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueUrl=
+                              - Ref: SqsJobQueue62388F96
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
+                              - Ref: SqsFileProcessorJobQueue551DBCF8
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
+                      - --importerAction=$IMPORTER_ACTION
+                      - --spaceId=$SPACE_ID
+                      - --notionImportId=$NOTION_IMPORT_ID
+                  Environment:
+                      - Name: NODE_ENV
+                        Value: production
+                  Essential: true
+                  Image:
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group:
+                              Ref: ImporterServiceTaskDefinitionContainerLogGroupD91C9A24
+                          awslogs-stream-prefix: CyberworldsStack
+                          awslogs-region: us-east-1
+                  MountPoints:
+                      - ContainerPath: /data/importer
+                        ReadOnly: false
+                        SourceVolume: importer-data
+                  Name: Container
+                  Secrets:
+                      - Name: APP_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:appServicePublicKey::"
+                      - Name: EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:edgeServiceFamilyPublicKey::"
+                      - Name: TASK_REALTIME_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:taskRealtimeServicePublicKey::"
+                      - Name: JOB_QUEUE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:jobQueueServicePublicKey::"
+                      - Name: FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:fileProcessorServicePublicKey::"
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:apiServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:importerServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:importerServicePrivateKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:tokenAgentSecret::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:cloudflareR2SecretAccessKey::"
+                      - Name: HONEYCOMB_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:honeycombApiKey::"
+                  User: www-data
+            Cpu: "4096"
+            ExecutionRoleArn:
+                Fn::GetAtt:
+                    - ImporterServiceTaskDefinitionExecutionRole1B9BCF70
+                    - Arn
+            Family: CyberworldsStackImporterServiceTaskDefinition878133C9
+            Memory: "30720"
+            NetworkMode: awsvpc
+            RequiresCompatibilities:
+                - FARGATE
+            RuntimePlatform:
+                CpuArchitecture: ARM64
+                OperatingSystemFamily: LINUX
+            TaskRoleArn:
+                Fn::GetAtt:
+                    - ImporterServiceTaskDefinitionTaskRoleA1F1F597
+                    - Arn
+            Volumes:
+                - ConfiguredAtLaunch: true
+                  Name: importer-data
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/Resource
+    ImporterServiceTaskDefinitionContainerLogGroupD91C9A24:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 14
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/Container/LogGroup/Resource
+    ImporterServiceTaskDefinitionExecutionRole1B9BCF70:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/ExecutionRole/Resource
+    ImporterServiceTaskDefinitionExecutionRoleDefaultPolicyCCC4360B:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecr:BatchCheckLayerAvailability
+                          - ecr:BatchGetImage
+                          - ecr:GetDownloadUrlForLayer
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ecr:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :repository/
+                                - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                    - Action: ecr:GetAuthorizationToken
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - ImporterServiceTaskDefinitionContainerLogGroupD91C9A24
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:ImporterServiceSecrets-??????
+                Version: 2012-10-17
+            PolicyName: ImporterServiceTaskDefinitionExecutionRoleDefaultPolicyCCC4360B
+            Roles:
+                - Ref: ImporterServiceTaskDefinitionExecutionRole1B9BCF70
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    ImporterServiceInstanceSecurityGroup104C7A59:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/ImporterService/InstanceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/InstanceSecurityGroup/Resource
     AppServiceLaunchTemplateRole07DED169:
         Type: AWS::IAM::Role
         Properties:
@@ -3603,6 +4171,22 @@ Resources:
                                       - ImportUploadsBucketECD42D88
                                       - Arn
                                 - /*
+                    - Action: ecs:RunTask
+                      Effect: Allow
+                      Resource:
+                          Ref: ImporterServiceTaskDefinition04939494
+                    - Action: iam:PassRole
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImporterServiceEbsVolumeRoleE8334632
+                                - Arn
+                          - Fn::GetAtt:
+                                - ImporterServiceTaskDefinitionExecutionRole1B9BCF70
+                                - Arn
+                          - Fn::GetAtt:
+                                - ImporterServiceTaskDefinitionTaskRoleA1F1F597
+                                - Arn
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:ConditionCheckItem
@@ -3685,6 +4269,7 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$APP_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                       - --apnsCertificate=$APNS_CERTIFICATE
@@ -3702,6 +4287,28 @@ Resources:
                             - ""
                             - - --importUploadsBucketName=
                               - Ref: ImportUploadsBucketECD42D88
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceEcsTaskDefinition=
+                              - Ref: ImporterServiceTaskDefinition04939494
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceSubnets=
+                              - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                              - ","
+                              - Ref: VpcPublicSubnet2Subnet691E08A3
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceSecurityGroups=
+                              - Fn::GetAtt:
+                                    - ImporterServiceInstanceSecurityGroup104C7A59
+                                    - GroupId
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceEbsVolumeRoleArn=
+                              - Fn::GetAtt:
+                                    - ImporterServiceEbsVolumeRoleE8334632
+                                    - Arn
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -3789,6 +4396,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:importerServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -4786,6 +5400,7 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$API_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                       - --apnsCertificate=$APNS_CERTIFICATE
@@ -4879,6 +5494,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:ApiServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:importerServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -5884,6 +6506,7 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$JOB_QUEUE_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                       - --apnsCertificate=$APNS_CERTIFICATE
@@ -5973,6 +6596,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:importerServicePublicKey::"
                       - Name: JOB_QUEUE_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:
@@ -8029,6 +8659,7 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                   Cpu: 2048
@@ -8114,6 +8745,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:FileProcessorServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:importerServicePublicKey::"
                       - Name: FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:

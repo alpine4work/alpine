@@ -16,7 +16,6 @@ import {
     BotWebhookEventId,
     BrowserId,
     FileId,
-    NotionImportId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {
@@ -197,26 +196,6 @@ export type SendPendingSubtleNotificationsForInboxJobDescription = SchemaType<
     typeof SendPendingSubtleNotificationsForInboxJobDescriptionSchema
 >;
 
-const ValidateNotionImportAndExtractMetadataJobDescriptionSchema = Schema.object({
-    type: Schema.value("ValidateNotionImportAndExtractMetadata"),
-    spaceId: Schema.id<SpaceId>(),
-    notionImportId: Schema.id<NotionImportId>(),
-});
-
-export type ValidateNotionImportAndExtractMetadataJobDescription = SchemaType<
-    typeof ValidateNotionImportAndExtractMetadataJobDescriptionSchema
->;
-
-const StartNotionImportJobDescriptionSchema = Schema.object({
-    type: Schema.value("StartNotionImport"),
-    spaceId: Schema.id<SpaceId>(),
-    notionImportId: Schema.id<NotionImportId>(),
-});
-
-export type StartNotionImportJobDescription = SchemaType<
-    typeof StartNotionImportJobDescriptionSchema
->;
-
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -234,7 +213,4 @@ export const JobDescriptionSchema = Schema.union({
     SendWebPushNotification: SendWebPushNotificationJobDescriptionSchema,
     SendPendingSubtleNotificationsForInbox:
         SendPendingSubtleNotificationsForInboxJobDescriptionSchema,
-    ValidateNotionImportAndExtractMetadata:
-        ValidateNotionImportAndExtractMetadataJobDescriptionSchema,
-    StartNotionImport: StartNotionImportJobDescriptionSchema,
 });

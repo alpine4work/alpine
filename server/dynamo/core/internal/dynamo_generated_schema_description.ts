@@ -11421,6 +11421,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "importZipSize": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
                                     "startedByAccountId": {
                                         "valueSchema": {
                                             "type": "Id"

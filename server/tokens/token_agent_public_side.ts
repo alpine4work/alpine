@@ -43,6 +43,8 @@ export class TokenAgentPublicSide {
     private readonly _apiServicePublicKeyForRsaOaep: KeyLike;
     private readonly _resourceServicePublicKeyForRs256: KeyLike;
     private readonly _resourceServicePublicKeyForRsaOaep: KeyLike;
+    private readonly _importerServicePublicKeyForRs256: KeyLike;
+    private readonly _importerServicePublicKeyForRsaOaep: KeyLike;
     private readonly _secretForHs256: Uint8Array;
 
     private constructor({
@@ -61,6 +63,8 @@ export class TokenAgentPublicSide {
         apiServicePublicKeyForRsaOaep,
         resourceServicePublicKeyForRs256,
         resourceServicePublicKeyForRsaOaep,
+        importerServicePublicKeyForRs256,
+        importerServicePublicKeyForRsaOaep,
         secretForHs256,
     }: {
         serviceName: TokenServiceName;
@@ -78,6 +82,8 @@ export class TokenAgentPublicSide {
         apiServicePublicKeyForRsaOaep: KeyLike;
         resourceServicePublicKeyForRs256: KeyLike;
         resourceServicePublicKeyForRsaOaep: KeyLike;
+        importerServicePublicKeyForRs256: KeyLike;
+        importerServicePublicKeyForRsaOaep: KeyLike;
         secretForHs256: Uint8Array;
     }) {
         this._serviceName = serviceName;
@@ -95,6 +101,8 @@ export class TokenAgentPublicSide {
         this._apiServicePublicKeyForRsaOaep = apiServicePublicKeyForRsaOaep;
         this._resourceServicePublicKeyForRs256 = resourceServicePublicKeyForRs256;
         this._resourceServicePublicKeyForRsaOaep = resourceServicePublicKeyForRsaOaep;
+        this._importerServicePublicKeyForRs256 = importerServicePublicKeyForRs256;
+        this._importerServicePublicKeyForRsaOaep = importerServicePublicKeyForRsaOaep;
         this._secretForHs256 = secretForHs256;
     }
 
@@ -107,6 +115,7 @@ export class TokenAgentPublicSide {
         fileProcessorServicePublicKey: fileProcessorServicePublicKeyString,
         apiServicePublicKey: apiServicePublicKeyString,
         resourceServicePublicKey: resourceServicePublicKeyString,
+        importerServicePublicKey: importerServicePublicKeyString,
         secret: secretString,
     }: {
         serviceName: TokenServiceName;
@@ -117,6 +126,7 @@ export class TokenAgentPublicSide {
         fileProcessorServicePublicKey: string;
         apiServicePublicKey: string;
         resourceServicePublicKey: string;
+        importerServicePublicKey: string;
         secret: string;
     }) {
         const [
@@ -134,6 +144,8 @@ export class TokenAgentPublicSide {
             apiServicePublicKeyForRsaOaep,
             resourceServicePublicKeyForRs256,
             resourceServicePublicKeyForRsaOaep,
+            importerServicePublicKeyForRs256,
+            importerServicePublicKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
             importSPKI(appServicePublicKeyString, "RSA-OAEP"),
@@ -149,6 +161,8 @@ export class TokenAgentPublicSide {
             importSPKI(apiServicePublicKeyString, "RSA-OAEP"),
             importSPKI(resourceServicePublicKeyString, "RS256"),
             importSPKI(resourceServicePublicKeyString, "RSA-OAEP"),
+            importSPKI(importerServicePublicKeyString, "RS256"),
+            importSPKI(importerServicePublicKeyString, "RSA-OAEP"),
         ]);
 
         const secretForHs256 = decodeBase64(secretString.trim());
@@ -170,6 +184,8 @@ export class TokenAgentPublicSide {
             apiServicePublicKeyForRsaOaep,
             resourceServicePublicKeyForRs256,
             resourceServicePublicKeyForRsaOaep,
+            importerServicePublicKeyForRs256,
+            importerServicePublicKeyForRsaOaep,
             secretForHs256,
         });
     }
@@ -196,6 +212,8 @@ export class TokenAgentPublicSide {
                 return this._apiServicePublicKeyForRs256;
             case "ResourceService":
                 return this._resourceServicePublicKeyForRs256;
+            case "ImporterService":
+                return this._importerServicePublicKeyForRs256;
             default:
                 throw exhaustive(serviceName);
         }
@@ -223,6 +241,8 @@ export class TokenAgentPublicSide {
                 return this._apiServicePublicKeyForRsaOaep;
             case "ResourceService":
                 return this._resourceServicePublicKeyForRsaOaep;
+            case "ImporterService":
+                return this._importerServicePublicKeyForRsaOaep;
             default:
                 throw exhaustive(serviceName);
         }
