@@ -642,14 +642,16 @@ function* printApiContentTableBlockElementToMarkdown(
 
     /* eslint-disable cyberworlds/string-quotes */
 
-    if (element.width !== 1) {
-        tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
-    }
+    if (!options.withoutTableWidth) {
+        if (element.width !== 1) {
+            tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
+        }
 
-    if (element.columns.some(column => column.width !== 1)) {
-        tableTagHtml += ` data-column-widths="${JSON.stringify(
-            element.columns.map(column => column.width),
-        ).slice(1, -1)}"`;
+        if (element.columns.some(column => column.width !== 1)) {
+            tableTagHtml += ` data-column-widths="${JSON.stringify(
+                element.columns.map(column => column.width),
+            ).slice(1, -1)}"`;
+        }
     }
 
     /* eslint-enable cyberworlds/string-quotes */
