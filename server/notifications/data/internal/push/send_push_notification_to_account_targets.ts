@@ -27,9 +27,8 @@ export function shouldSendApnsPushNotification() {
 
 /**
  * Send push notifications to registered account devices. Only sends a notification
- * if the new inbox entry is not archived or deleted. Sends loud notifications
- * immediately, otherwise queues a subtle notification to be batched and sent later
- * to avoid overwhelming the user.
+ * if the new inbox entry is not archived or deleted. Will batch notifications and
+ * send them later in a single combined notification if `sendImmediately` is false.
  *
  * Web push and Apple push notifications are idempotent and respect the
  * `deduplicationTag` so the user will only see one notification on their device.
@@ -44,6 +43,8 @@ export async function sendPushNotificationToAccountTargets(
         accountId,
         deduplicationTag,
         newInboxEntryItem,
+        sendImmediately,
+        isLoud,
         loudNotificationCountDifference,
         notificationEvent,
         getAlertContent,
@@ -51,6 +52,8 @@ export async function sendPushNotificationToAccountTargets(
         accountId: AccountId;
         deduplicationTag: string;
         newInboxEntryItem: InboxEntryItem | "Delete";
+        sendImmediately: boolean;
+        isLoud: boolean;
         loudNotificationCountDifference: number;
         notificationEvent: NotificationEvent;
         getAlertContent: (newInboxEntryItem: InboxEntryItem) => Promise<{
@@ -133,12 +136,9 @@ export async function sendPushNotificationToAccountTargets(
             loudNotificationCountDifference !== 0 ? getLoudNotificationCount() : null,
         ]);
 
-        // Interrupt the user if the loud notification count increased.
-        const isLoud = loudNotificationCountDifference > 0;
-
-        // If the notification is not loud, queue a subtle notification to be batched and
-        // sent later to avoid overwhelming the user.
-        if (!isLoud) {
+        // If the notification doesn't need to be sent immediately, queue a subtle
+        // notification to be sent later as part of a digest notification.
+        if (!sendImmediately) {
             await queuePendingSubtleNotification(context, {
                 accountId,
                 spaceId: newInboxEntryItem.spaceId,
@@ -168,7 +168,7 @@ export async function sendPushNotificationToAccountTargets(
             // is different from native 'silent' push notifications where the notification is
             // used for updates and not displayed - `silent` web push notifications are always
             // displayed.
-            silent: false,
+            silent: !isLoud,
             // The tag is used to identify a specific notification. Sending the same
             // notification with the same tag will replace the previous notification.
             tag: deduplicationTag,

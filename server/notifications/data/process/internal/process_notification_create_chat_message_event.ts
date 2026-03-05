@@ -26,6 +26,12 @@ import {
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
 
+/**
+ * Process a `NotificationCreateChatMessageEvent` which occurs when a user sends a
+ * message to a chat, direct or room.
+ *
+ * All chat message notifications are sent immediately to push targets as is.
+ */
 export const processNotificationCreateChatMessageEvent = createNotificationEventProcessor<
     NotificationCreateChatMessageEvent,
     {spaceId: SpaceId; definition: ChatDefinitionForNotificationEvent}
@@ -80,16 +86,16 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                         : oldItem.isArchived;
 
                 let isMention;
-                let shouldIncrementLoudNotificationCount;
+                let isLoud;
                 let loudNotificationCount;
                 if (isArchived) {
                     isMention = false;
-                    shouldIncrementLoudNotificationCount = false;
+                    isLoud = false;
                     loudNotificationCount = 0;
                 } else {
                     isMention = event.mentionedAccountIds.has(accountId);
 
-                    // We increment the loud notification count if:
+                    // A chat notification is loud if:
                     //
                     // - This account was mentioned in the message
                     // - We are adding an entry for this chat to this account's inbox (either we are
@@ -112,7 +118,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     // scale of work involved in answering entries in the user's inbox and our bet is
                     // the work involved to resolve your inbox entries is proportional to number of
                     // entries (vs number of messages within an entry).
-                    shouldIncrementLoudNotificationCount = (() => {
+                    isLoud = (() => {
                         if (isMention) return true;
 
                         // Don't increment the loud notification count if this is a clerical message unless
@@ -120,6 +126,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                         if (event.clerical) return false;
 
                         if (oldItem?.isArchived) return true;
+
                         if (!oldItem?.lastLoudNotificationCountTime) return true;
 
                         return (
@@ -131,8 +138,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     })();
 
                     loudNotificationCount =
-                        (oldItem?.loudNotificationCount ?? 0) +
-                        (shouldIncrementLoudNotificationCount ? 1 : 0);
+                        (oldItem?.loudNotificationCount ?? 0) + (isLoud ? 1 : 0);
                 }
 
                 let latestMessage: {
@@ -209,7 +215,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                 return {
                     isArchived,
                     loudNotificationCount,
-                    lastLoudNotificationCountTime: shouldIncrementLoudNotificationCount
+                    lastLoudNotificationCountTime: isLoud
                         ? event.createdTime
                         : (oldItem?.lastLoudNotificationCountTime ?? null),
                     latestMessage:
@@ -304,6 +310,9 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         }
 
         return {title, subtitle, body};
+    },
+    shouldSendImmediately: () => {
+        return true;
     },
 });
 

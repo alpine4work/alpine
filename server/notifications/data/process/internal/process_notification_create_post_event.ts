@@ -19,6 +19,14 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 
+/**
+ * Process a `NotificationCreatePostEvent` which occurs when a user creates a new
+ * post in a channel.
+ *
+ * If the post includes a mention, the notification is sent immediately to the
+ * mentioned account's push targets, otherwise it may be queued for a later
+ * delivery as part of a digest notification.
+ */
 export const processNotificationCreatePostEvent = createNotificationEventProcessor<
     NotificationCreatePostEvent,
     {}
@@ -216,5 +224,8 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
             subtitle,
             body,
         };
+    },
+    shouldSendImmediately: (context, event, {accountId}) => {
+        return event.mentionedAccountIds.has(accountId);
     },
 });

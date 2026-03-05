@@ -11,6 +11,14 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
+/**
+ * Process a `NotificationCreatePostCommentEvent` which occurs when a user comments
+ * on a post.
+ *
+ * If the comment includes a mention, the notification is sent immediately to the
+ * mentioned account's push targets, otherwise it may be queued for a later
+ * delivery as part of a digest notification.
+ */
 export const processNotificationCreatePostCommentEvent = createNotificationEventProcessor<
     NotificationCreatePostCommentEvent,
     {postCreatedTime: Date}
@@ -199,5 +207,8 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
             subtitle,
             body,
         };
+    },
+    shouldSendImmediately: (context, event, {accountId}) => {
+        return event.mentionedAccountIds.has(accountId);
     },
 });

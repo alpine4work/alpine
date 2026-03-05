@@ -105,7 +105,7 @@ export async function sendPendingSubtleNotificationsForInbox(
         },
         // This ensures if we send this notification multiple times, the push service will
         // replace the previous notification with the new one.
-        tag: `quiet-notification-${spaceId}-${accountId}-${sendTime.getTime()}`,
+        tag: `subtle-notification-${spaceId}-${accountId}-${sendTime.getTime()}`,
     };
 
     const pushNotificationTargets = getAllPushNotificationTargetsWithoutAuthorization(context, {

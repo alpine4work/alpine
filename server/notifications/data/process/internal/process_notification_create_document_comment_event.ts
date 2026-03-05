@@ -27,6 +27,14 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 
+/**
+ * Process a `NotificationCreateDocumentCommentEvent` which occurs when a user
+ * comments on a document comment thread.
+ *
+ * If the comment includes a mention, the notification is sent immediately to the
+ * mentioned account's push targets, otherwise it may be queued for a later
+ * delivery as part of a digest notification.
+ */
 export const processNotificationCreateDocumentCommentEvent = createNotificationEventProcessor<
     NotificationCreateDocumentCommentEvent,
     {}
@@ -355,5 +363,8 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
             subtitle,
             body,
         };
+    },
+    shouldSendImmediately: (context, event, {accountId}) => {
+        return event.mentionedAccountIds.has(accountId);
     },
 });

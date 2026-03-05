@@ -15,6 +15,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
+/**
+ * Process a `NotificationCreateTaskCommentEvent` which occurs when a user comments
+ * on a task.
+ *
+ * If the comment includes a mention, the notification is sent immediately to the
+ * mentioned account's push targets, otherwise it may be queued for a later
+ * delivery as part of a digest notification.
+ */
 export const processNotificationCreateTaskCommentEvent = createNotificationEventProcessor<
     NotificationCreateTaskCommentEvent,
     {}
@@ -192,5 +200,8 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
             subtitle,
             body,
         };
+    },
+    shouldSendImmediately: (context, event, {accountId}) => {
+        return event.mentionedAccountIds.has(accountId);
     },
 });

@@ -52,6 +52,7 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
     updateInboxEntry,
     getBotWebhookEvent,
     getAlertContent,
+    shouldSendImmediately,
 }: {
     /**
      * Get the accounts subscribed to notifications for this event.
@@ -174,6 +175,24 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
         subtitle?: string;
         body: string;
     }>;
+
+    /**
+     * Determine if the notification should be sent immediately to target push devices.
+     *
+     * This is separate from whether a notification is `loud`, as a notification may
+     * not increment the loud notification count in the user's inbox but still should
+     * be sent immediately if it's time sensitive or likely to require immediate
+     * attention from the recipient (e.g. chat messages).
+     *
+     * If this this function returns `false`, the notification may be queued for later
+     * delivery and/or grouped with other notifications into a single digest
+     * notification.
+     */
+    shouldSendImmediately: (
+        context: ServerSystemActionContext,
+        event: Event,
+        options: {info: Info; accountId: AccountId},
+    ) => boolean;
 }): (
     context: Context<ServerSystemActionContextModules & PushContextModules>,
     event: Event,
@@ -346,6 +365,8 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                     notificationEvent: event,
                     newInboxEntryItem: result.newInboxEntryItem,
                     loudNotificationCountDifference: result.loudNotificationCountDifference,
+                    isLoud: result.loudNotificationCountDifference > 0,
+                    sendImmediately: shouldSendImmediately(context, event, {info, accountId}),
                     getAlertContent: newInboxEntryItem =>
                         getAlertContent(context, event, {
                             info,
