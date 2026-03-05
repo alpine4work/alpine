@@ -36,7 +36,7 @@ import {createDisplayTaskCollectionsStore} from "~/client/web/tasks/internal/cre
 import {TaskCollectionChip} from "~/client/web/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/web/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/web/tasks/internal/task_row_view.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
@@ -70,6 +70,34 @@ const Box = null;
 
 const TaskRowCollectionsCellForwardRefMemo = memo(forwardRef(TaskRowCollectionsCell));
 export {TaskRowCollectionsCellForwardRefMemo as TaskRowCollectionsCell};
+
+function TaskCollectionChipWithNavigation({
+    collection,
+    nameMaxWidth,
+}: {
+    collection: TaskCollectionModel;
+    nameMaxWidth?: Spacing;
+}) {
+    const {space} = useSpaceContext();
+    const navigate = useNavigate();
+    const [isPendingNavigation, setIsPendingNavigation] = useState(false);
+
+    return (
+        <TaskCollectionChip
+            collection={collection}
+            nameMaxWidth={nameMaxWidth}
+            onPress={() => {
+                if (isPendingNavigation) return;
+
+                setIsPendingNavigation(true);
+
+                navigate(`/s/${space.id}/tasks/collections/${collection.id}`).finally(() => {
+                    setIsPendingNavigation(false);
+                });
+            }}
+        />
+    );
+}
 
 const cellRowGap = "3";
 
@@ -151,8 +179,7 @@ function TaskRowCollectionsCell(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const {currentAccount, space} = useSpaceContext();
-    const navigate = useNavigate();
+    const {currentAccount} = useSpaceContext();
     const cellId = useId();
 
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
@@ -393,17 +420,12 @@ function TaskRowCollectionsCell(
                                     ),
                                 }}
                             >
-                                <TaskCollectionChip
+                                <TaskCollectionChipWithNavigation
                                     collection={collection}
                                     // We need to set a max width for the name or else really really long names will
                                     // cause flex items with a ridiculously large `flex-basis` (given `flex-basis` is
                                     // the default, `auto`).
                                     nameMaxWidth={maxTaskRowViewCollectionsColumnWidth}
-                                    onPress={() => {
-                                        navigate(
-                                            `/s/${space.id}/tasks/collections/${collection.id}`,
-                                        );
-                                    }}
                                 />
                             </div>
                         ))}

@@ -81,6 +81,7 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {emptyArrayStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 
 type TaskDetailCollectionsFieldInputState =
@@ -101,6 +102,37 @@ export type TaskCollectionsInputRef = {
 
 const TaskCollectionsInputForwardRef = forwardRef(TaskCollectionsInput);
 export {TaskCollectionsInputForwardRef as TaskCollectionsInput};
+
+function TaskCollectionChipWithNavigation({
+    collection,
+    tabIndex,
+    onRemove,
+}: {
+    collection: TaskCollectionModel;
+    tabIndex?: number;
+    onRemove?: () => void;
+}) {
+    const {space} = useSpaceContext();
+    const navigate = useNavigate();
+    const [isPendingNavigation, setIsPendingNavigation] = useState(false);
+
+    return (
+        <TaskCollectionChip
+            collection={collection}
+            tabIndex={tabIndex}
+            onPress={() => {
+                if (isPendingNavigation) return;
+
+                setIsPendingNavigation(true);
+
+                navigate(`/s/${space.id}/tasks/collections/${collection.id}`).finally(() => {
+                    setIsPendingNavigation(false);
+                });
+            }}
+            onRemove={onRemove}
+        />
+    );
+}
 
 function TaskCollectionsInput(
     {
@@ -143,8 +175,7 @@ function TaskCollectionsInput(
 ) {
     const platform = usePlatform();
     const {isAppleDevice} = useClientInfo();
-    const navigate = useNavigate();
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -941,14 +972,11 @@ function TaskCollectionsInput(
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                     onKeyDown={handleKeyDown}
                 >
-                    <TaskCollectionChip
+                    <TaskCollectionChipWithNavigation
                         collection={collection}
                         // The first selected account is focusable via tab and you can use arrow keys to
                         // focus the others.
                         tabIndex={isReadOnly ? undefined : index === 0 && isTabbable ? 0 : -1}
-                        onPress={() => {
-                            navigate(`/s/${space.id}/tasks/collections/${collection.id}`);
-                        }}
                         onRemove={
                             !isReadOnly
                                 ? () => {
