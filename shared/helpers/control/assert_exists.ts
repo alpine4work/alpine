@@ -47,7 +47,7 @@ import {InternalError} from "~/shared/error/error.js";
 // function call for how much this gets used.
 //
 // Error message should be the stringified expression. For example
-// `assert(x === 2)` should be transformed to `assert(x === 2, "x === 2")`.
+// `assert(x === 2)` should be transformed to `assert(x === 2, "\\`x === 2\\`")`.
 export function assertExists<T>(value: T | null | undefined, message?: string): T {
     if (value === null || value === undefined) {
         const error = new InternalError(

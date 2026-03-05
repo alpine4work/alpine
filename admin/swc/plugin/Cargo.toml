@@ -1,0 +1,12 @@
+[package]
+name = "plugin"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+swc_core = { version = "=56.0.0", features = ["common", "ecma_ast", "ecma_codegen", "ecma_plugin_transform", "ecma_visit"] }
+tracing = { version="0.1", features = ["release_max_level_info"] }

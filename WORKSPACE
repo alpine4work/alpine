@@ -55,6 +55,21 @@ aspect_bazel_lib_dependencies()
 aspect_bazel_lib_register_toolchains()
 
 # =========================================================================== #
+#                                     C++                                     #
+# =========================================================================== #
+
+http_archive(
+    name = "rules_cc",
+    sha256 = "458b658277ba51b4730ea7a2020efdf1c6dcadf7d30de72e37f4308277fa8c01",
+    strip_prefix = "rules_cc-0.2.16",
+    url = "https://github.com/bazelbuild/rules_cc/releases/download/0.2.16/rules_cc-0.2.16.tar.gz",
+)
+
+load("@rules_cc//cc:extensions.bzl", "compatibility_proxy_repo")
+
+compatibility_proxy_repo()
+
+# =========================================================================== #
 #                                   Python                                    #
 # =========================================================================== #
 
@@ -621,3 +636,42 @@ http_archive(
     strip_prefix = "zig-linux-aarch64-0.14.0",
     url = "https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz",
 )
+
+# =========================================================================== #
+#                                    Rust                                     #
+# =========================================================================== #
+
+http_archive(
+    name = "rules_rust",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.68.1/rules_rust-0.68.1.tar.gz"],
+    integrity = "sha256-yKqAbPYGZnmsI0YyQe6ArWkiZdrQRl9RERy74wuJA1I=",
+)
+
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+
+rules_rust_dependencies()
+
+rust_register_toolchains(
+    versions = ["1.90.0"],
+)
+
+load(
+    "@rules_rust//crate_universe:repositories.bzl",
+    "crate_universe_dependencies",
+)
+
+crate_universe_dependencies()
+
+load("@rules_rust//crate_universe:defs.bzl", "crates_repository")
+
+crates_repository(
+    name = "swc_plugin_crates",
+    cargo_lockfile = "//admin/swc/plugin:Cargo.lock",
+    lockfile = "//admin/swc/plugin:cargo-bazel-lock.json",
+    manifests = ["//admin/swc/plugin:Cargo.toml"],
+    rust_version = "1.90.0",
+)
+
+load("@swc_plugin_crates//:defs.bzl", "crate_repositories")
+
+crate_repositories()

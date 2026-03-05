@@ -220,6 +220,11 @@ def swc(module = "es6", **kwargs):
     else:
         kwargs.update(**_SWC_ES6_KWARGS)
 
+    plugins = kwargs.pop("plugins", default = [])
+    kwargs["plugins"] = list(_dedupe_labels(
+        plugins + ["//admin/swc/plugin:plugin"],
+    ))
+
     # Always generate source maps
     kwargs["source_maps"] = True
 
@@ -240,6 +245,11 @@ def swc_compile(**kwargs):
     """
 
     kwargs.update(**_SWC_ES6_KWARGS)
+
+    plugins = kwargs.pop("plugins", default = [])
+    kwargs["plugins"] = list(_dedupe_labels(
+        plugins + ["//admin/swc/plugin:plugin"],
+    ))
 
     # Needs to be a string before passing into `swc_compile()`
     kwargs["source_maps"] = "true"

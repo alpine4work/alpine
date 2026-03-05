@@ -1808,7 +1808,7 @@ function assert(condition, message) {
 // client/web/blobs/helpers/blobs_settings.js
 var maxPossibleCanvasSize = 1e4;
 function getBlobsCanvasSize() {
-    assert(typeof window !== "undefined");
+    assert(typeof window !== "undefined", '`typeof window !== "undefined"`');
     const blobsCanvasWidthPx = Math.max(window.screen.width, 3e3);
     const blobsCanvasHeightPx = 800;
     return {
@@ -1817,7 +1817,7 @@ function getBlobsCanvasSize() {
     };
 }
 function getBlobsCanvasScale() {
-    assert(typeof window !== "undefined");
+    assert(typeof window !== "undefined", '`typeof window !== "undefined"`');
     return Math.min(
         Math.floor(maxPossibleCanvasSize / window.devicePixelRatio),
         window.devicePixelRatio,
@@ -3217,7 +3217,7 @@ var GlProgram = class {
         this.fragmentShader = fragmentShader;
         this.gl = _gl;
         const {gl} = _gl;
-        const program = assertExists(gl.createProgram());
+        const program = assertExists(gl.createProgram(), "`gl.createProgram()`");
         gl.attachShader(program, vertexShader.shader);
         gl.attachShader(program, fragmentShader.shader);
         gl.linkProgram(program);
@@ -3291,7 +3291,10 @@ var GlShader = class {
         this.type = type;
         this.gl = _gl;
         const {gl} = _gl;
-        const shader = assertExists(gl.createShader(glEnum(type)));
+        const shader = assertExists(
+            gl.createShader(glEnum(type)),
+            "`gl.createShader(glEnum(type))`",
+        );
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
         const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
@@ -3317,7 +3320,7 @@ var GlTexture2d = class {
         this.textureUnit = textureUnit;
         this.format = format;
         this.level = level ?? 0;
-        this.texture = assertExists(gl.gl.createTexture());
+        this.texture = assertExists(gl.gl.createTexture(), "`gl.gl.createTexture()`");
     }
     set(data) {
         this.data = data;
@@ -3392,11 +3395,11 @@ var Gl = class {
         program => this.gl.deleteProgram(program.program),
     );
     buffers = new GlResources(
-        () => assertExists(this.gl.createBuffer()),
+        () => assertExists(this.gl.createBuffer(), "`this.gl.createBuffer()`"),
         buffer => this.gl.deleteBuffer(buffer),
     );
     vertexArrays = new GlResources(
-        () => assertExists(this.gl.createVertexArray()),
+        () => assertExists(this.gl.createVertexArray(), "`this.gl.createVertexArray()`"),
         vertexArray => this.gl.deleteVertexArray(vertexArray),
     );
     textures = new GlResources(
@@ -4083,7 +4086,7 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
         ...settings,
         smoothness: settings.smoothness * effectiveScale,
     };
-    const container = assertExists(canvas.parentElement);
+    const container = assertExists(canvas.parentElement, "`canvas.parentElement`");
     container.setAttribute(
         "style",
         [
@@ -4119,6 +4122,7 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
                     : _a.getElementsByClassName(blobsArtGradientClassName)) == null
                 ? void 0
                 : _b[0],
+            "`canvas.parentElement?.getElementsByClassName(blobsArtGradientClassName)?.[0]`",
         );
         let backgroundColor = colors[settings.backgroundColor];
         let parent = canvas.parentElement;
@@ -4158,7 +4162,10 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
     }
 }
 function actuallyDrawBlobsForIntegrationTest() {
-    assert(globalThis.__isIntegrationTest);
+    assert(
+        globalThis.__isIntegrationTest,
+        '`process.env.NODE_ENV !== "production" && (globalThis).__isIntegrationTest`',
+    );
     for (const element of document.querySelectorAll("canvas[data-blob-id]")) {
         const draw =
             actuallyDrawBlobsForIntegrationTestMap == null
@@ -4352,6 +4359,7 @@ function generateBlobsForContent({
             );
             const color2 = assertExists(
                 themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length),
+                "`themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length)`",
             );
             return new BlobFactoryBlob(
                 position,
@@ -4373,7 +4381,9 @@ function drawBlobs(blobCanvasId, settings, scale) {
             colorScheme === "dark" ? settings.colorLevelInsideDark : settings.colorLevelInsideLight,
             settings.themeColor,
         );
-        const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
+        const hueBias =
+            360 -
+            assertExists(baseThemeColor.lch().object().h, "`baseThemeColor.lch().object().h`");
         const blobsCanvasSize = getBlobsCanvasSize();
         const blobs = generateBlobsForContent({
             contentWidthPx: blobsContentWidthPx,
