@@ -125,7 +125,7 @@ export type TextInputProps = {
     /**
      * Override the right padding of the text input.
      */
-    paddingRight?: Spacing;
+    paddingRight?: Spacing | number;
 
     /**
      * Are we forcing the focus ring to be visible? See the `isVisible` prop on
@@ -269,13 +269,15 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                     width: "full",
                     height: ({"75": "7", "100": "9"} as const)[fontSize],
                     paddingX: ({"75": "2", "100": "2.5"} as const)[fontSize],
-                    paddingRight,
+                    paddingRight: typeof paddingRight !== "number" ? paddingRight : undefined,
                     fontSize,
                     fontStyle,
                     backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
                     color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
                 })}
                 style={{
+                    paddingRight: typeof paddingRight === "number" ? paddingRight : undefined,
+
                     fontStyle: isFontItalic ? "italic" : undefined,
                     // Italics in our code font is controlled by a variable font setting instead of
                     // `font-style: italic`.
@@ -305,7 +307,11 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 // If this is a password input and we've set `autoComplete` to `off`, then also
                 // tell 1Password to ignore this field.
                 // https://developer.1password.com/docs/web/compatible-website-design/#ignore-offers-to-save-or-fill-specific-fields
-                data-1p-ignore={inputType === "password" && autoComplete === "off" ? "" : undefined}
+                data-1p-ignore={
+                    (inputType === "email" || inputType === "password") && autoComplete === "off"
+                        ? ""
+                        : undefined
+                }
                 name={formName}
                 enterKeyHint={onEnter ? "done" : undefined}
                 maxLength={maxLength}

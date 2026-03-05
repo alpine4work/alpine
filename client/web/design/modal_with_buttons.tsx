@@ -27,6 +27,7 @@ function ModalWithButtons(
         "aria-labelledby": ariaLabelledBy,
         children,
         primaryButtonLabel,
+        primaryButtonVariant = "accent",
         isPrimaryButtonDisabled,
         primaryButtonPressErrorTitle,
         onPrimaryButtonPress,
@@ -52,6 +53,7 @@ function ModalWithButtons(
             | ReactNode
             | ((props: {isPending: boolean; pressPrimaryButton: () => void}) => ReactNode);
         primaryButtonLabel: string;
+        primaryButtonVariant?: "accent" | "quiet";
         isPrimaryButtonDisabled?: boolean;
         primaryButtonPressErrorTitle?: string;
         onPrimaryButtonPress?: () => MaybePromise<void>;
@@ -215,7 +217,11 @@ function ModalWithButtons(
                             )}
                             <Button
                                 ref={primaryButtonRef}
-                                variant="accent"
+                                variant={
+                                    primaryButtonVariant === "quiet"
+                                        ? "quieter"
+                                        : primaryButtonVariant
+                                }
                                 isDisabled={isPrimaryButtonDisabled}
                                 isPending={isPrimaryButtonPending}
                                 pressErrorTitle={primaryButtonPressErrorTitle}

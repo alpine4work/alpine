@@ -16,7 +16,9 @@ import {
 } from "~/client/web/auth/internal/authentication_shared_styles.js";
 import {AuthenticationSignInOrSignUpOneTimePasswordView} from "~/client/web/auth/internal/authentication_sign_in_or_sign_up_one_time_password_view.js";
 import {AuthenticationSignInOrSignUpView} from "~/client/web/auth/internal/authentication_sign_in_or_sign_up_view.js";
+import {AuthenticationSignUpInviteView} from "~/client/web/auth/internal/authentication_sign_up_invite_view.js";
 import {AuthenticationSignUpProfileView} from "~/client/web/auth/internal/authentication_sign_up_profile_view.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
@@ -28,8 +30,10 @@ import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {routeNotFoundError} from "~/shared/remix/route_not_found_error.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationView() {
+    const context = useAppContext();
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -138,13 +142,18 @@ export function AuthenticationView() {
                     // Fully remount the component whenever the state changes type.
                     key={state.type}
                     state={state}
-                    onStateChange={newState => {
+                    onStateChange={(newState, {spanData}) => {
                         assert(
                             stateVariant === getAuthenticationStateVariant(newState),
                             "To change `AuthorizationVariant` you must use `navigate()`",
                         );
 
                         setState(newState);
+
+                        context.tracer.log(
+                            `<AuthenticationView> navigation from ${state.type} to ${newState.type}`,
+                            spanData,
+                        );
                     }}
                 />
             </main>
@@ -157,7 +166,7 @@ function AuthenticationViewOutlet({
     onStateChange,
 }: {
     state: AuthenticationState;
-    onStateChange: (state: AuthenticationState) => void;
+    onStateChange: (state: AuthenticationState, options: {spanData: TracerEventData}) => void;
 }) {
     switch (state.type) {
         case "SignIn":
@@ -166,6 +175,9 @@ function AuthenticationViewOutlet({
         }
         case "SignUpProfile": {
             return <AuthenticationSignUpProfileView state={state} onStateChange={onStateChange} />;
+        }
+        case "SignUpInvite": {
+            return <AuthenticationSignUpInviteView state={state} onStateChange={onStateChange} />;
         }
         case "SignInOneTimePassword":
         case "SignUpOneTimePassword": {

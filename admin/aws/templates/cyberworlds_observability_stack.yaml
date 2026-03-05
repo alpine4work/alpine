@@ -1570,6 +1570,8 @@ Resources:
                           Type: int
                         - Name: space__members__invite__already_member_email_address_count
                           Type: int
+                        - Name: space__members__invite__requires_admin_access_email_address_count
+                          Type: int
                         - Name: space__members__invite__invited_email_address_count
                           Type: int
                         - Name: space__members__invite__unexpected_failure_email_address_count
@@ -1666,6 +1668,12 @@ Resources:
                           Type: int
                         - Name: auth__sign_up__auto_add_accounts_from_email_domain
                           Type: string
+                        - Name: auth__sign_up__is_email_address_possibly_generic
+                          Type: boolean
+                        - Name: auth__sign_up__has_changed_reaction_character
+                          Type: boolean
+                        - Name: auth__sign_up__invite_email_address_count
+                          Type: int
                         - Name: reaction__character__type
                           Type: string
                         - Name: reaction__character__variant

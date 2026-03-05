@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -28,6 +29,18 @@ export function useLocalStorage<Value>(
 }
 
 /**
+ * Deletes our state for the provided key. Any components listening for this key
+ * will be re-rendered.
+ *
+ * Prefer this to directly calling `localStorage.deleteItem()` because this will
+ * automatically re-render any components which depend on the state.
+ */
+export function removeLocalStorage(key: string) {
+    assert(typeof window !== "undefined");
+    removeStorageBase(localStorage, key);
+}
+
+/**
  * Use some data saved to [session storage][1]. Keeps our component up-to-date as
  * the data changes. Other tabs don't typically share the same session storage, but
  * in case they do we'll keep date in other tabs updated with a [broadcast
@@ -50,6 +63,18 @@ export function useSessionStorage<Value>(
         schema,
         defaultValue,
     );
+}
+
+/**
+ * Deletes our state for the provided key. Any components listening for this key
+ * will be re-rendered.
+ *
+ * Prefer this to directly calling `sessionStorage.deleteItem()` because this will
+ * automatically re-render any components which depend on the state.
+ */
+export function removeSessionStorage(key: string) {
+    assert(typeof window !== "undefined");
+    removeStorageBase(sessionStorage, key);
 }
 
 function useStorageBase<Value>(
@@ -124,4 +149,13 @@ function useStorageBase<Value>(
     };
 
     return [value, setValue, isLoading];
+}
+
+function removeStorageBase(storage: Storage, key: string) {
+    storage.removeItem(key);
+
+    // Update all hooks depending on this key.
+    const broadcastChannel = new BroadcastChannel(key);
+    broadcastChannel.postMessage({});
+    broadcastChannel.close();
 }

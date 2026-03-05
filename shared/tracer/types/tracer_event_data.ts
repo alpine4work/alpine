@@ -1607,6 +1607,7 @@ export type TracerEventData = {
                 readonly invalidEmailAddressCount?: number;
                 readonly rejectedAsSpamEmailAddressCount?: number;
                 readonly alreadyMemberEmailAddressCount?: number;
+                readonly requiresAdminAccessEmailAddressCount?: number;
                 readonly invitedEmailAddressCount?: number;
                 readonly unexpectedFailureEmailAddressCount?: number;
             };
@@ -1834,6 +1835,23 @@ export type TracerEventData = {
              * Email domain we use for auto-adding accounts to a space.
              */
             readonly autoAddAccountsFromEmailDomain?: string;
+
+            /**
+             * Is the email address possibly generic? If true that means we showed the user the
+             * "Hint: use a company email..." message.
+             */
+            readonly isEmailAddressPossiblyGeneric?: boolean;
+
+            /**
+             * When on the profile sign up step did the user change the default reaction
+             * character we picked for them?
+             */
+            readonly hasChangedReactionCharacter?: boolean;
+
+            /**
+             * How many email domains we invited during sign up?
+             */
+            readonly inviteEmailAddressCount?: number;
         };
     };
 

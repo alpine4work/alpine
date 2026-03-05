@@ -16,6 +16,7 @@ import {
     OneTimePasswordInput,
     OneTimePasswordInputRef,
 } from "~/client/web/auth/internal/one_time_password_input.js";
+import {removeAuthenticationSignUpInviteEmailAddresses} from "~/client/web/auth/internal/use_authentication_sign_up_invite_email_addresses.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -26,20 +27,23 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
-    AuthSignInOrSignUpInputSchema,
+    AuthSignInInputSchema,
     AuthSignInOrSignUpOutputSchema,
+    AuthSignUpInputSchema,
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationSignInOrSignUpOneTimePasswordView({
     state,
     onStateChange,
 }: {
     state: AuthenticationSignInOneTimePasswordState | AuthenticationSignUpOneTimePasswordState;
-    onStateChange: (state: AuthenticationState) => void;
+    onStateChange: (state: AuthenticationState, options: {spanData: TracerEventData}) => void;
 }) {
     const context = useAppContext();
     const platform = usePlatform();
@@ -100,14 +104,24 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
 
                 try {
                     let route: string;
+                    let body: SchemaSerializedValue;
 
                     switch (state.type) {
                         case "SignInOneTimePassword": {
                             route = "/api/auth/sign-in";
+                            body = AuthSignInInputSchema.serialize({
+                                emailAddress: state.emailAddress,
+                                oneTimePassword,
+                            });
                             break;
                         }
                         case "SignUpOneTimePassword": {
                             route = "/api/auth/sign-up";
+                            body = AuthSignUpInputSchema.serialize({
+                                emailAddress: state.emailAddress,
+                                oneTimePassword,
+                                inviteEmailAddresses: state.inviteEmailAddresses,
+                            });
                             break;
                         }
                         default:
@@ -121,12 +135,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                             serviceName: "AppService",
                             route,
                             method: "POST",
-                            body: JSON.stringify(
-                                AuthSignInOrSignUpInputSchema.serialize({
-                                    emailAddress: state.emailAddress,
-                                    oneTimePassword,
-                                }),
-                            ),
+                            body: JSON.stringify(body),
                         },
                         async response => {
                             const output = AuthSignInOrSignUpOutputSchema.deserialize(
@@ -140,6 +149,11 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                             return output;
                         },
                     ));
+
+                    // Don't leave around state in `localStorage` we'll never use again after sign up.
+                    // We technically only need this when `state.type === "SignUpOneTimePassword"` but
+                    // it doesn't hurt to call after sign in too.
+                    removeAuthenticationSignUpInviteEmailAddresses(state.emailAddress);
                 } catch (error) {
                     // Clear the one time password input
                     setOneTimePassword("");
@@ -149,11 +163,14 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                 }
 
                 if (platform === "mobile" && state.type === "SignUpOneTimePassword") {
-                    onStateChange({
-                        type: "AfterSignUpMobileInterstitial",
-                        emailAddress: state.emailAddress,
-                        openSpaceId,
-                    });
+                    onStateChange(
+                        {
+                            type: "AfterSignUpMobileInterstitial",
+                            emailAddress: state.emailAddress,
+                            openSpaceId,
+                        },
+                        {spanData: {}},
+                    );
                     return;
                 }
 
@@ -184,11 +201,19 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                         style={{lineHeight: 1.5}}
                     >
                         By signing up, you agree to our{" "}
-                        <Link url="https://www.alpine.inc/legal/terms-of-service" newTab>
+                        <Link
+                            color="inherit"
+                            url="https://www.alpine.inc/legal/terms-of-service"
+                            newTab
+                        >
                             Terms&nbsp;of&nbsp;Service
                         </Link>{" "}
                         and{" "}
-                        <Link url="https://www.alpine.inc/legal/privacy-policy" newTab>
+                        <Link
+                            color="inherit"
+                            url="https://www.alpine.inc/legal/privacy-policy"
+                            newTab
+                        >
                             Privacy&nbsp;Policy
                         </Link>
                         .
@@ -210,6 +235,10 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                     {state.emailAddress}
                 </span>
                 . Type the code here to {subheadingEnd}.
+            </Box>
+            <Spacer space="3" />
+            <Box fontSize="100" color="grey-60" userSelect="text">
+                If you can&#x2019;t find the email, check your spam folder.
             </Box>
             <Spacer space="8" />
             <OneTimePasswordInput

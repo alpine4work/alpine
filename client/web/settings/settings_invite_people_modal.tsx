@@ -1,12 +1,12 @@
 import {X} from "phosphor-react";
-import {useId, useMemo, useState} from "react";
+import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ErrorDisplayMessageRenderer} from "~/client/web/design/error_display_message_renderer.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {defaultModalMaxWidth} from "~/client/web/design/modal.js";
-import {ModalWithButtons} from "~/client/web/design/modal_with_buttons.js";
+import {ModalWithButtons, ModalWithButtonsRef} from "~/client/web/design/modal_with_buttons.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
@@ -18,6 +18,7 @@ import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {inviteEmailAddressesToSpace} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -42,7 +43,10 @@ export function SettingsInvitePeopleModal({
     const [hadSuccessfulInvites, setHadSuccessfulInvites] = useState(false);
     const appContext = useAppContext();
     const accountRegistry = useAccountRegistry();
-    const {locale} = useClientInfo();
+    const {locale, isAppleDevice} = useClientInfo();
+
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const modalRef = useRef<ModalWithButtonsRef>(null);
 
     useDevConsoleTool("spaceInvite", () => ({
         generateEmailAddress: (baseEmailAddress?: string) => {
@@ -126,6 +130,7 @@ export function SettingsInvitePeopleModal({
                     errors.invalidEmailAddresses.includes(email) ||
                     errors.rejectedAsSpamEmailAddresses.includes(email) ||
                     errors.alreadyMemberEmailAddresses.includes(email) ||
+                    errors.requiresAdminAccessEmailAddresses.includes(email) ||
                     errors.unexpectedFailureEmailAddresses.has(email),
             );
 
@@ -150,8 +155,18 @@ export function SettingsInvitePeopleModal({
         onClose();
     };
 
+    const hasInitiallyMountedRef = useRef(false);
+
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        assertExists(inputRef.current).focus();
+    }, []);
+
     return (
         <ModalWithButtons
+            ref={modalRef}
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
             onClose={onCloseAndCheckSuccess}
@@ -206,6 +221,7 @@ export function SettingsInvitePeopleModal({
                             }}
                         >
                             <TextAreaWithAutoGrowingHeight
+                                ref={inputRef}
                                 aria-label="Emails"
                                 value={batchEmailString}
                                 onChange={event => setBatchEmailString(event.currentTarget.value)}
@@ -228,6 +244,21 @@ export function SettingsInvitePeopleModal({
                                     // the right "@" for emails.
                                     // eslint-disable-next-line cyberworlds/string-quotes
                                     fontFeatureSettings: '"calt" on',
+                                }}
+                                onKeyDown={event => {
+                                    if (
+                                        event.key === "Enter" &&
+                                        !event.altKey &&
+                                        !event.shiftKey &&
+                                        // Cmd+Enter on MacOS platforms should trigger the callback Ctrl+Enter on non-MacOS
+                                        // platforms should trigger the callback
+                                        (isAppleDevice ? event.metaKey : event.ctrlKey)
+                                    ) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        assertExists(modalRef.current).pressPrimaryButton();
+                                        return;
+                                    }
                                 }}
                             />
                         </Box>

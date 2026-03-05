@@ -532,6 +532,7 @@ const TracerEventDataSchema = {
                 invalidEmailAddressCount: Schema.integer,
                 rejectedAsSpamEmailAddressCount: Schema.integer,
                 alreadyMemberEmailAddressCount: Schema.integer,
+                requiresAdminAccessEmailAddressCount: Schema.integer,
                 invitedEmailAddressCount: Schema.integer,
                 unexpectedFailureEmailAddressCount: Schema.integer,
             },
@@ -619,6 +620,9 @@ const TracerEventDataSchema = {
         },
         signUp: {
             autoAddAccountsFromEmailDomain: Schema.string,
+            isEmailAddressPossiblyGeneric: Schema.boolean,
+            hasChangedReactionCharacter: Schema.boolean,
+            inviteEmailAddressCount: Schema.integer,
         },
     },
     reaction: {

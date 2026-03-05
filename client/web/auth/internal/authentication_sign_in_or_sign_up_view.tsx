@@ -27,13 +27,14 @@ import {
     regenerateOneTimePasswordSignIn,
     signUpAccountWithEmailAddress,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationSignInOrSignUpView({
     state,
     onStateChange,
 }: {
     state: AuthenticationSignInState | AuthenticationSignUpState;
-    onStateChange: (state: AuthenticationState) => void;
+    onStateChange: (state: AuthenticationState, options: {spanData: TracerEventData}) => void;
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
@@ -139,11 +140,14 @@ export function AuthenticationSignInOrSignUpView({
                                     return;
                                 }
 
-                                onStateChange({
-                                    type: "SignInOneTimePassword",
-                                    accountId,
-                                    emailAddress: validatedEmailAddress,
-                                });
+                                onStateChange(
+                                    {
+                                        type: "SignInOneTimePassword",
+                                        accountId,
+                                        emailAddress: validatedEmailAddress,
+                                    },
+                                    {spanData: {}},
+                                );
                                 break;
                             }
                             case "SignUp": {
@@ -152,11 +156,14 @@ export function AuthenticationSignInOrSignUpView({
                                     toSearchParam: searchParams.get("to"),
                                 });
 
-                                onStateChange({
-                                    type: "SignUpProfile",
-                                    accountId,
-                                    emailAddress: validatedEmailAddress,
-                                });
+                                onStateChange(
+                                    {
+                                        type: "SignUpProfile",
+                                        accountId,
+                                        emailAddress: validatedEmailAddress,
+                                    },
+                                    {spanData: {auth: {signUp: {isEmailAddressPossiblyGeneric}}}},
+                                );
                                 break;
                             }
                             default:

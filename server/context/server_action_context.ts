@@ -1,4 +1,5 @@
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {
     ActorContextModule,
@@ -12,6 +13,8 @@ import {
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 
 /**
@@ -118,7 +121,12 @@ export type ServerUnknownActionContext = Context<ServerUnknownActionContextModul
 
 export type ServerUnknownActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: UnknownActorContextModule;
+        actor: UnknownActorContextModule<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            cache: CacheContextModule;
+            dynamo: DynamoContextModule;
+        }>;
     }
 >;
 

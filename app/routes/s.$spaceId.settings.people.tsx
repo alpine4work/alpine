@@ -96,7 +96,7 @@ export default function SpacePeopleSettingsRoute() {
                     </Box>
                     {enabledAutoAddAccountsFromEmailDomains.map(emailDomain => (
                         <Box key={emailDomain} fontSize="75" color="grey-60" userSelect="text">
-                            Automatically add anyone who signs up with{" "}
+                            We&#x2019;ll automatically add anyone who signs up with{" "}
                             {/^[aeiou]/i.test(emailDomain) ? "an" : "a"}{" "}
                             <strong
                                 className={sprinkles({fontStyle: "bold", color: "grey-100"})}
@@ -110,15 +110,20 @@ export default function SpacePeopleSettingsRoute() {
                     ))}
                 </Box>
             )}
-            <SpacePeopleSettingsRouteAccounts allAccounts={allAccounts} />
+            <SpacePeopleSettingsRouteAccounts
+                allAccounts={allAccounts}
+                enabledAutoAddAccountsFromEmailDomains={enabledAutoAddAccountsFromEmailDomains}
+            />
         </Box>
     );
 }
 
 function SpacePeopleSettingsRouteAccounts({
     allAccounts,
+    enabledAutoAddAccountsFromEmailDomains,
 }: {
     allAccounts: ReadonlyArray<AccountModel>;
+    enabledAutoAddAccountsFromEmailDomains: ReadonlyArray<string>;
 }) {
     const {currentAccount, space} = useSpaceContextAndRequireSpaceAccess();
     const currentAccountData = useAccountModel(currentAccount);
@@ -306,24 +311,26 @@ function SpacePeopleSettingsRouteAccounts({
                     flexDirection="row"
                     justifyContent="space-between"
                     alignItems="flex-start"
+                    gap="10"
                 >
                     <Box display="flex" flexDirection="column" gap="1">
                         <Box fontSize="200" fontStyle="bold" userSelect="text">
                             Members
                         </Box>
                         <Box fontSize="75" color="grey-60" userSelect="text">
-                            Everyone with access to your space. Only admins can invite people.
+                            Everyone with access to your space. Only admins can invite people
+                            {enabledAutoAddAccountsFromEmailDomains.length > 0
+                                ? " who don\u2019t have a linked email domain"
+                                : ""}
+                            .
                         </Box>
                     </Box>
-                    {hasAdminAccess && (
+                    {(hasAdminAccess || enabledAutoAddAccountsFromEmailDomains.length > 0) && (
+                        // Members are allowed to invite people with the auto-add email domain but no one
+                        // else.
                         <Button
-                            onPress={() => {
-                                setModalState({
-                                    type: "SendInvites",
-                                });
-                            }}
-                            pressErrorTitle="Failed to invite email"
                             variant="accent"
+                            onPress={() => setModalState({type: "SendInvites"})}
                         >
                             Invite
                         </Button>

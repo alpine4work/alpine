@@ -21,7 +21,7 @@ export const spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole: Recor
     ErrorDisplayMessage
 > = {
     Member: spaceAccessPermissionDeniedErrorDisplayMessage,
-    Admin: errorDisplayMessage`You aren\u2019t an admin for this space. Ask an admin in this space to give you admin access too.`,
+    Admin: errorDisplayMessage`You aren\u2019t an admin for this space. Ask an admin in this space to give you admin access.`,
     Owner: errorDisplayMessage`This action is restricted to the owner. You aren\u2019t an owner for this space.`,
 };
 

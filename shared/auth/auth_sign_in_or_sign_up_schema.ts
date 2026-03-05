@@ -1,4 +1,5 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -13,9 +14,15 @@ import {Schema} from "~/shared/schema/schema.js";
 //    available to the RPC framework.
 //
 // So we have custom `/api/auth/sign-in` and `/api/auth/sign-up` endpoints.
-export const AuthSignInOrSignUpInputSchema = Schema.object({
+export const AuthSignInInputSchema = Schema.object({
     emailAddress: EmailAddressSchema,
     oneTimePassword: Schema.string,
+});
+
+export const AuthSignUpInputSchema = Schema.object({
+    emailAddress: EmailAddressSchema,
+    oneTimePassword: Schema.string,
+    inviteEmailAddresses: Schema.array(EmailAddressSchema).default(emptyArray),
 });
 
 export const AuthSignInOrSignUpOutputSchema = Schema.result(

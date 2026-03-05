@@ -2,18 +2,14 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from "cookie";
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
-import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {UnknownActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {RpcServerActionContextModules} from "~/server/rpc/rpc_server_action_context.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
@@ -31,14 +27,7 @@ export type LoaderContext = Context<LoaderContextModules>;
 
 export type LoaderContextModules = Replace<
     RpcServerActionContextModules,
-    {
-        actor: UnknownActorContextModule<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            cache: CacheContextModule;
-            dynamo: DynamoContextModule;
-        }>;
-    }
+    {actor: ServerUnknownActionContextModules["actor"]}
 > & {
     rpc: LocalRpcContextModule;
     loader: LoaderContextModule;

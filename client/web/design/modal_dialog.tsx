@@ -52,6 +52,7 @@ function ModalDialog({
     withTextInput,
     textInputPlaceholder,
     primaryButtonLabel,
+    primaryButtonVariant,
     isPrimaryButtonDisabled,
     primaryButtonPressErrorTitle,
     onPrimaryButtonPress,
@@ -110,6 +111,7 @@ function ModalDialog({
             data-ownedby={dataOwnedBy}
             onClose={onClose}
             primaryButtonLabel={primaryButtonLabel}
+            primaryButtonVariant={primaryButtonVariant}
             isPrimaryButtonDisabled={
                 isPrimaryButtonDisabled || (withTextInput && trimmedTextInputValue.length === 0)
             }

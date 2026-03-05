@@ -1,9 +1,112 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {generateId} from "~/shared/id/id.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const {services} = createTestServices();
+
+async function startSignUp(page: Page, emailAddress: string) {
+    await page.getByPlaceholder("name@company.com").click();
+    await page.getByPlaceholder("name@company.com").fill(emailAddress);
+    await page.getByRole("button", {name: "Sign up"}).click();
+}
+
+async function submitSignUpProfile(page: Page, name: string) {
+    await page.getByPlaceholder("Anthony Mose").click();
+    await page.getByPlaceholder("Anthony Mose").fill(name);
+    await page.getByRole("button", {name: "Sign up"}).click();
+
+    await expect(page.getByRole("button", {name: "Invite"})).toBeVisible();
+}
+
+async function openSkipInviteModal(page: Page) {
+    await page.getByRole("link", {name: "Skip for now"}).click();
+}
+
+async function skipSignUpInvites(page: Page) {
+    await openSkipInviteModal(page);
+    await page.getByRole("button", {name: "Skip for now"}).click();
+}
+
+async function fillInviteEmailAddress(page: Page, index: number, emailAddress: string) {
+    await page.getByLabel("Invite email address").nth(index).click();
+    await page.getByLabel("Invite email address").nth(index).fill(emailAddress);
+}
+
+async function continueSignUpWithInvites(page: Page, inviteEmailAddresses: ReadonlyArray<string>) {
+    for (const [index, inviteEmailAddress] of inviteEmailAddresses.entries()) {
+        await fillInviteEmailAddress(page, index, inviteEmailAddress);
+    }
+
+    await page.getByRole("button", {name: "Invite"}).click();
+}
+
+async function waitForOneTimePassword(index: number) {
+    return waitForExpect(() => {
+        expect(services.getOneTimePasswords().length).toBeGreaterThan(index);
+        return services.getOneTimePasswords()[index]!;
+    });
+}
+
+async function waitForInviteUrl(index: number) {
+    return waitForExpect(() => {
+        expect(services.getInviteUrls().length).toBeGreaterThan(index);
+        return services.getInviteUrls()[index]!;
+    });
+}
+
+async function submitSignUpOneTimePassword({
+    page,
+    isMobile,
+    oneTimePasswordIndex,
+}: {
+    page: Page;
+    isMobile: boolean;
+    oneTimePasswordIndex: number;
+}) {
+    const {oneTimePassword} = await waitForOneTimePassword(oneTimePasswordIndex);
+
+    await expect(page.getByText("We sent a passcode to")).toBeVisible();
+    await page.getByLabel("Passcode").click();
+    await page.getByLabel("Passcode").fill(oneTimePassword);
+
+    if (isMobile) {
+        await expect(page.getByText("Also try Alpine on a computer")).toBeVisible();
+        await page.getByRole("button", {name: "Continue"}).click();
+        await expect(page.getByText("Also try Alpine on a computer")).toBeHidden();
+    }
+}
+
+async function signUpWithSkippedInvites({
+    page,
+    emailAddress,
+    name,
+    oneTimePasswordIndex,
+    isMobile,
+}: {
+    page: Page;
+    emailAddress: string;
+    name: string;
+    oneTimePasswordIndex: number;
+    isMobile: boolean;
+}) {
+    await page.goto("/auth/sign-up");
+    await startSignUp(page, emailAddress);
+    await submitSignUpProfile(page, name);
+    await skipSignUpInvites(page);
+    await submitSignUpOneTimePassword({page, isMobile, oneTimePasswordIndex});
+}
+
+async function goToPeopleSettings(page: Page, isMobile: boolean) {
+    if (isMobile) {
+        await page.getByLabel("More").click();
+        await page.getByText("Settings").click();
+        await page.getByText("People").click();
+    } else {
+        await page.getByLabel("Space").click();
+        await page.getByRole("menuitem", {name: "People"}).click();
+    }
+}
 
 test("can switch between sign in and sign up page", async ({page}) => {
     await page.goto("/auth/sign-up");
@@ -23,6 +126,7 @@ test("can sign up with personal email", async ({page, isMobile}) => {
     await page.goto("/auth/sign-up");
 
     const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
 
     await page.getByPlaceholder("name@company.com").click();
     await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail`);
@@ -37,7 +141,7 @@ test("can sign up with personal email", async ({page, isMobile}) => {
     await expect(page.getByText("Tip: Using your work email")).toBeVisible();
 
     await page.getByPlaceholder("name@company.com").click();
-    await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await page.getByPlaceholder("name@company.com").fill(emailAddress);
 
     expect(services.getOneTimePasswords().length).toBe(0);
 
@@ -45,28 +149,20 @@ test("can sign up with personal email", async ({page, isMobile}) => {
     await page.getByRole("button", {name: "Sign up"}).click();
     await expect(page.getByRole("img", {name: "Green tree"})).toBeVisible();
 
-    const {oneTimePassword} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
-    });
+    await submitSignUpProfile(page, "Test Testerson");
 
-    await page.getByPlaceholder("Anthony Mose").click();
-    await page.getByPlaceholder("Anthony Mose").fill("Test Testerson");
+    await expect(page.getByRole("button", {name: "Invite"})).toBeDisabled();
 
-    await expect(page.getByRole("img", {name: "Green tree"})).toBeVisible();
-    await expect(page.getByText("We sent a passcode to")).toBeHidden();
-    await page.getByRole("button", {name: "Sign up"}).click();
-    await expect(page.getByRole("img", {name: "Green tree"})).toBeHidden();
-    await expect(page.getByText("We sent a passcode to")).toBeVisible();
+    await openSkipInviteModal(page);
+    await expect(page.getByText("Your team will thank you")).toBeVisible();
+    await page.getByRole("button", {name: "Go back"}).click();
+    await expect(page.getByText("Your team will thank you")).toBeHidden();
 
-    await page.getByLabel("Passcode").click();
-    await page.getByLabel("Passcode").fill(oneTimePassword);
+    await skipSignUpInvites(page);
 
-    if (isMobile) {
-        await expect(page.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page.getByRole("button", {name: "Continue"}).click();
-        await expect(page.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    expect(services.getInviteUrls().length).toBe(0);
+
+    await submitSignUpOneTimePassword({page, isMobile, oneTimePasswordIndex: 0});
 
     await expect(page.getByText("We sent a passcode to")).toBeHidden();
     await expect(page.getByText("Welcome to Alpine")).toBeVisible();
@@ -77,6 +173,7 @@ test("can sign up with work email", async ({page, isMobile}) => {
     await page.goto("/auth/sign-up");
 
     const emailId = generateId();
+    const emailAddress = `test@company-${emailId}.com`;
 
     await page.getByPlaceholder("name@company.com").click();
     await page.getByPlaceholder("name@company.com").fill(`test@company-${emailId}`);
@@ -91,7 +188,7 @@ test("can sign up with work email", async ({page, isMobile}) => {
     await expect(page.getByText("Tip: Using your work email")).toBeHidden();
 
     await page.getByPlaceholder("name@company.com").click();
-    await page.getByPlaceholder("name@company.com").fill(`test@company-${emailId}.com`);
+    await page.getByPlaceholder("name@company.com").fill(emailAddress);
 
     expect(services.getOneTimePasswords().length).toBe(0);
 
@@ -99,32 +196,141 @@ test("can sign up with work email", async ({page, isMobile}) => {
     await page.getByRole("button", {name: "Sign up"}).click();
     await expect(page.getByRole("img", {name: "Green tree"})).toBeVisible();
 
-    const {oneTimePassword} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
-    });
+    await submitSignUpProfile(page, "Test Testerson");
+    await skipSignUpInvites(page);
 
-    await page.getByPlaceholder("Anthony Mose").click();
-    await page.getByPlaceholder("Anthony Mose").fill("Test Testerson");
-
-    await expect(page.getByRole("img", {name: "Green tree"})).toBeVisible();
-    await expect(page.getByText("We sent a passcode to")).toBeHidden();
-    await page.getByRole("button", {name: "Sign up"}).click();
-    await expect(page.getByRole("img", {name: "Green tree"})).toBeHidden();
-    await expect(page.getByText("We sent a passcode to")).toBeVisible();
-
-    await page.getByLabel("Passcode").click();
-    await page.getByLabel("Passcode").fill(oneTimePassword);
-
-    if (isMobile) {
-        await expect(page.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page.getByRole("button", {name: "Continue"}).click();
-        await expect(page.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await submitSignUpOneTimePassword({page, isMobile, oneTimePasswordIndex: 0});
 
     await expect(page.getByText("We sent a passcode to")).toBeHidden();
     await expect(page.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page.getByText("added to this space with you")).toBeVisible();
+});
+
+test("can sign up with work email and invite coworker with inferred domain", async ({
+    browser,
+    page: page1,
+    isMobile,
+}) => {
+    await page1.goto("/auth/sign-up");
+
+    const emailId = generateId();
+    const emailAddress = `test.1@company-${emailId}.com`;
+    const coworkerAlias = `test.2.${generateId()}`;
+
+    await startSignUp(page1, emailAddress);
+    await submitSignUpProfile(page1, "Test 1");
+
+    await expect(page1.getByLabel("Invite email address")).toHaveCount(3);
+    await expect(page1.getByLabel("Invite email address").nth(0)).toHaveAttribute(
+        "placeholder",
+        "name",
+    );
+    await expect(page1.getByLabel("Invite email address").nth(1)).toHaveAttribute(
+        "placeholder",
+        "name",
+    );
+    await expect(page1.getByLabel("Invite email address").nth(2)).toHaveAttribute(
+        "placeholder",
+        "name",
+    );
+
+    await continueSignUpWithInvites(page1, [coworkerAlias]);
+    await submitSignUpOneTimePassword({page: page1, isMobile, oneTimePasswordIndex: 0});
+
+    await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
+    await expect(page1.getByText("added to this space with you")).toBeVisible();
+
+    const expectedCoworkerEmailAddress = `${coworkerAlias}@company-${emailId}.com`;
+
+    const {emailAddress: inviteEmailAddress, inviteUrl} = await waitForInviteUrl(0);
+    expect(inviteEmailAddress).toBe(expectedCoworkerEmailAddress);
+
+    const browserContext2 = await browser.newContext();
+    const page2 = await browserContext2.newPage();
+    await page2.goto(inviteUrl);
+
+    await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(
+        expectedCoworkerEmailAddress,
+    );
+
+    await page2.getByRole("button", {name: "Sign in"}).click();
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
+
+    await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
+    await expect(page2.getByText("Test 1")).toBeVisible();
+
+    await page2.close();
+});
+
+test("company sign up can invite outside domain and opens personal space", async ({
+    browser,
+    page: page1,
+    isMobile,
+}) => {
+    await page1.goto("/auth/sign-up");
+
+    const emailId = generateId();
+    const emailAddress = `test.1@company-${emailId}.com`;
+    const invitedEmailAlias = `test.2.${generateId()}`;
+    const invitedEmailAddress = `${invitedEmailAlias}@gmail.com`;
+    const inferredDomain = `@company-${emailId}.com`;
+
+    await startSignUp(page1, emailAddress);
+    await submitSignUpProfile(page1, "Test 1");
+
+    await expect(page1.getByText(inferredDomain)).toHaveCount(3);
+
+    await fillInviteEmailAddress(page1, 0, invitedEmailAlias);
+    await expect(page1.getByText(inferredDomain)).toHaveCount(3);
+
+    await fillInviteEmailAddress(page1, 0, `${invitedEmailAlias}@`);
+    await expect(page1.getByLabel("Invite email address").nth(0)).toHaveValue(
+        `${invitedEmailAlias}@`,
+    );
+    await expect(page1.getByText(inferredDomain)).toHaveCount(2);
+
+    await fillInviteEmailAddress(page1, 0, invitedEmailAddress);
+    await page1.getByRole("button", {name: "Invite"}).click();
+    await submitSignUpOneTimePassword({page: page1, isMobile, oneTimePasswordIndex: 0});
+
+    await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
+    await expect(page1.getByText("added to this space with you")).toBeHidden();
+
+    const {emailAddress: inviteEmailAddress, inviteUrl} = await waitForInviteUrl(0);
+    expect(inviteEmailAddress).toBe(invitedEmailAddress);
+
+    const browserContext2 = await browser.newContext();
+    const page2 = await browserContext2.newPage();
+    await page2.goto(inviteUrl);
+
+    await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(invitedEmailAddress);
+
+    await page2.close();
+});
+
+test("invite email addresses persist after reload", async ({page}) => {
+    await page.goto("/auth/sign-up");
+
+    const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
+    const invitedEmailAddress1 = `test.1.${generateId()}@gmail.com`;
+    const invitedEmailAddress2 = `test.2.${generateId()}@gmail.com`;
+
+    await startSignUp(page, emailAddress);
+    await submitSignUpProfile(page, "Test 1");
+
+    await fillInviteEmailAddress(page, 0, invitedEmailAddress1);
+    await fillInviteEmailAddress(page, 1, invitedEmailAddress2);
+
+    await page.reload();
+
+    await startSignUp(page, emailAddress);
+    await submitSignUpProfile(page, "Test 2");
+
+    await expect(page.getByLabel("Invite email address").nth(0)).toHaveValue(invitedEmailAddress1);
+    await expect(page.getByLabel("Invite email address").nth(1)).toHaveValue(invitedEmailAddress2);
 });
 
 test("can sign up with work email to space that already has accounts", async ({
@@ -136,26 +342,10 @@ test("can sign up with work email to space that already has accounts", async ({
 
     const emailId = generateId();
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.1@company-${emailId}.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
-    });
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test 1");
-    await page1.getByRole("button", {name: "Sign up"}).click();
-    await page1.getByLabel("Passcode").click();
-    await page1.getByLabel("Passcode").fill(oneTimePassword1);
-
-    if (isMobile) {
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page1.getByRole("button", {name: "Continue"}).click();
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await startSignUp(page1, `test.1@company-${emailId}.com`);
+    await submitSignUpProfile(page1, "Test 1");
+    await skipSignUpInvites(page1);
+    await submitSignUpOneTimePassword({page: page1, isMobile, oneTimePasswordIndex: 0});
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page1.getByText("added to this space with you")).toBeVisible();
@@ -166,26 +356,10 @@ test("can sign up with work email to space that already has accounts", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto("/auth/sign-up");
 
-    await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.2@company-${emailId}.com`);
-    await page2.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword2} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(2);
-        return services.getOneTimePasswords()[1]!;
-    });
-
-    await page2.getByPlaceholder("Anthony Mose").click();
-    await page2.getByPlaceholder("Anthony Mose").fill("Test 2");
-    await page2.getByRole("button", {name: "Sign up"}).click();
-    await page2.getByLabel("Passcode").click();
-    await page2.getByLabel("Passcode").fill(oneTimePassword2);
-
-    if (isMobile) {
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page2.getByRole("button", {name: "Continue"}).click();
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await startSignUp(page2, `test.2@company-${emailId}.com`);
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
 
     await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page2.getByText("added to this space with you")).toBeVisible();
@@ -198,26 +372,10 @@ test("can sign up with work email to space that already has accounts", async ({
     const page3 = await browserContext3.newPage();
     await page3.goto("/auth/sign-up");
 
-    await page3.getByPlaceholder("name@company.com").click();
-    await page3.getByPlaceholder("name@company.com").fill(`test.3@company-${emailId}.com`);
-    await page3.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword3} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(3);
-        return services.getOneTimePasswords()[2]!;
-    });
-
-    await page3.getByPlaceholder("Anthony Mose").click();
-    await page3.getByPlaceholder("Anthony Mose").fill("Test 3");
-    await page3.getByRole("button", {name: "Sign up"}).click();
-    await page3.getByLabel("Passcode").click();
-    await page3.getByLabel("Passcode").fill(oneTimePassword3);
-
-    if (isMobile) {
-        await expect(page3.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page3.getByRole("button", {name: "Continue"}).click();
-        await expect(page3.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await startSignUp(page3, `test.3@company-${emailId}.com`);
+    await submitSignUpProfile(page3, "Test 3");
+    await skipSignUpInvites(page3);
+    await submitSignUpOneTimePassword({page: page3, isMobile, oneTimePasswordIndex: 2});
 
     await expect(page3.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page3.getByText("added to this space with you")).toBeVisible();
@@ -227,32 +385,16 @@ test("can sign up with work email to space that already has accounts", async ({
     await page3.close();
 });
 
-test("can sign up from invite link", async ({browser, page: page1, isMobile}) => {
+test("can sign up from invite link from settings", async ({browser, page: page1, isMobile}) => {
     await page1.goto("/auth/sign-up");
 
     const emailId1 = generateId();
     const emailId2 = generateId();
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId1}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
-    });
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test 1");
-    await page1.getByRole("button", {name: "Sign up"}).click();
-    await page1.getByLabel("Passcode").click();
-    await page1.getByLabel("Passcode").fill(oneTimePassword1);
-
-    if (isMobile) {
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page1.getByRole("button", {name: "Continue"}).click();
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await startSignUp(page1, `test.${emailId1}@gmail.com`);
+    await submitSignUpProfile(page1, "Test 1");
+    await skipSignUpInvites(page1);
+    await submitSignUpOneTimePassword({page: page1, isMobile, oneTimePasswordIndex: 0});
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page1.getByText("Test 1")).toBeHidden();
@@ -268,15 +410,9 @@ test("can sign up from invite link", async ({browser, page: page1, isMobile}) =>
     await page1.getByRole("button", {name: "Invite"}).click();
     await page1.getByPlaceholder("jane@company.com").click();
     await page1.getByPlaceholder("jane@company.com").fill(`test.${emailId2}@gmail.com`);
-
-    expect(services.getInviteUrls().length).toBe(0);
-
     await page1.getByRole("button", {name: "Send"}).click();
 
-    const {inviteUrl} = await waitForExpect(() => {
-        expect(services.getInviteUrls().length).toBe(1);
-        return services.getInviteUrls()[0]!;
-    });
+    const {inviteUrl} = await waitForInviteUrl(0);
 
     const browserContext2 = await browser.newContext();
     const page2 = await browserContext2.newPage();
@@ -287,23 +423,9 @@ test("can sign up from invite link", async ({browser, page: page1, isMobile}) =>
     );
 
     await page2.getByRole("button", {name: "Sign in"}).click();
-
-    const {oneTimePassword: oneTimePassword2} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(2);
-        return services.getOneTimePasswords()[1]!;
-    });
-
-    await page2.getByPlaceholder("Anthony Mose").click();
-    await page2.getByPlaceholder("Anthony Mose").fill("Test 2");
-    await page2.getByRole("button", {name: "Sign up"}).click();
-    await page2.getByLabel("Passcode").click();
-    await page2.getByLabel("Passcode").fill(oneTimePassword2);
-
-    if (isMobile) {
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page2.getByRole("button", {name: "Continue"}).click();
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
 
     await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page2.getByText("Test 1")).toBeVisible();
@@ -312,30 +434,16 @@ test("can sign up from invite link", async ({browser, page: page1, isMobile}) =>
 });
 
 test("can sign in", async ({browser, page: page1, isMobile}) => {
-    await page1.goto("/auth/sign-up");
-
     const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
+    await signUpWithSkippedInvites({
+        page: page1,
+        emailAddress,
+        name: "Test Testerson",
+        oneTimePasswordIndex: 0,
+        isMobile,
     });
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test Testerson");
-    await page1.getByRole("button", {name: "Sign up"}).click();
-    await page1.getByLabel("Passcode").click();
-    await page1.getByLabel("Passcode").fill(oneTimePassword1);
-
-    if (isMobile) {
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page1.getByRole("button", {name: "Continue"}).click();
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
 
@@ -344,13 +452,10 @@ test("can sign in", async ({browser, page: page1, isMobile}) => {
     await page2.goto("/auth/sign-in");
 
     await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await page2.getByPlaceholder("name@company.com").fill(emailAddress);
     await page2.getByRole("button", {name: "Sign in"}).click();
 
-    const {oneTimePassword: oneTimePassword2} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(2);
-        return services.getOneTimePasswords()[1]!;
-    });
+    const {oneTimePassword: oneTimePassword2} = await waitForOneTimePassword(1);
 
     await page2.getByLabel("Passcode").click();
     await page2.getByLabel("Passcode").fill(oneTimePassword2);
@@ -366,38 +471,15 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
     const emailId1 = generateId();
     const emailId2 = generateId();
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId1}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
-    });
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test 1");
-    await page1.getByRole("button", {name: "Sign up"}).click();
-    await page1.getByLabel("Passcode").click();
-    await page1.getByLabel("Passcode").fill(oneTimePassword1);
-
-    if (isMobile) {
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page1.getByRole("button", {name: "Continue"}).click();
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await startSignUp(page1, `test.${emailId1}@gmail.com`);
+    await submitSignUpProfile(page1, "Test 1");
+    await skipSignUpInvites(page1);
+    await submitSignUpOneTimePassword({page: page1, isMobile, oneTimePasswordIndex: 0});
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page1.getByText("Test 1")).toBeHidden();
 
-    if (isMobile) {
-        await page1.getByLabel("More").click();
-        await page1.getByText("Settings").click();
-        await page1.getByText("People").click();
-    } else {
-        await page1.getByLabel("Space").click();
-        await page1.getByRole("menuitem", {name: "People"}).click();
-    }
+    await goToPeopleSettings(page1, isMobile);
     await page1.getByRole("button", {name: "Invite"}).click();
     await page1.getByPlaceholder("jane@company.com").click();
     await page1.getByPlaceholder("jane@company.com").fill(`test.${emailId2}@gmail.com`);
@@ -406,35 +488,16 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
 
     await page1.getByRole("button", {name: "Send"}).click();
 
-    const {inviteUrl} = await waitForExpect(() => {
-        expect(services.getInviteUrls().length).toBe(1);
-        return services.getInviteUrls()[0]!;
-    });
+    const {inviteUrl} = await waitForInviteUrl(0);
 
     const browserContext2 = await browser.newContext();
     const page2 = await browserContext2.newPage();
     await page2.goto("/auth/sign-up");
 
-    await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId2}@gmail.com`);
-    await page2.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword2} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(2);
-        return services.getOneTimePasswords()[1]!;
-    });
-
-    await page2.getByPlaceholder("Anthony Mose").click();
-    await page2.getByPlaceholder("Anthony Mose").fill("Test 2");
-    await page2.getByRole("button", {name: "Sign up"}).click();
-    await page2.getByLabel("Passcode").click();
-    await page2.getByLabel("Passcode").fill(oneTimePassword2);
-
-    if (isMobile) {
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page2.getByRole("button", {name: "Continue"}).click();
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await startSignUp(page2, `test.${emailId2}@gmail.com`);
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
 
     await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
     await expect(page2.getByText("Test 1")).toBeHidden();
@@ -451,10 +514,7 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
 
     await page3.getByRole("button", {name: "Sign in"}).click();
 
-    const {oneTimePassword: oneTimePassword3} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(3);
-        return services.getOneTimePasswords()[2]!;
-    });
+    const {oneTimePassword: oneTimePassword3} = await waitForOneTimePassword(2);
 
     await page3.getByLabel("Passcode").click();
     await page3.getByLabel("Passcode").fill(oneTimePassword3);
@@ -465,7 +525,7 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
     await page3.close();
 });
 
-test("can\u2019t sign in with email that doesn\u2019t have an account", async ({page}) => {
+test("can’t sign in with email that doesn’t have an account", async ({page}) => {
     await page.goto("/auth/sign-in");
 
     const emailId = generateId();
@@ -473,11 +533,11 @@ test("can\u2019t sign in with email that doesn\u2019t have an account", async ({
     await page.getByPlaceholder("name@company.com").click();
     await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
 
-    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
 
     await page.getByRole("button", {name: "Sign in"}).click();
 
-    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeVisible();
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeVisible();
     await expect(page.getByPlaceholder("name@company.com")).toHaveValue(
         `test.${emailId}@gmail.com`,
     );
@@ -490,41 +550,27 @@ test("can\u2019t sign in with email that doesn\u2019t have an account", async ({
     await expect(page.getByRole("button", {name: "Sign in"})).toBeHidden();
     await expect(page.getByRole("button", {name: "Sign up"})).toBeVisible();
 
-    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
     await expect(page.getByPlaceholder("name@company.com")).toHaveValue(
         `test.${emailId}@gmail.com`,
     );
 });
 
-test("can\u2019t sign up with email that already has an account", async ({
+test("can’t sign up with email that already has an account", async ({
     browser,
     page: page1,
     isMobile,
 }) => {
-    await page1.goto("/auth/sign-up");
-
     const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
+    await signUpWithSkippedInvites({
+        page: page1,
+        emailAddress,
+        name: "Test Testerson",
+        oneTimePasswordIndex: 0,
+        isMobile,
     });
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test Testerson");
-    await page1.getByRole("button", {name: "Sign up"}).click();
-    await page1.getByLabel("Passcode").click();
-    await page1.getByLabel("Passcode").fill(oneTimePassword1);
-
-    if (isMobile) {
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page1.getByRole("button", {name: "Continue"}).click();
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
 
@@ -533,16 +579,14 @@ test("can\u2019t sign up with email that already has an account", async ({
     await page2.goto("/auth/sign-up");
 
     await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await page2.getByPlaceholder("name@company.com").fill(emailAddress);
 
-    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
 
     await page2.getByRole("button", {name: "Sign up"}).click();
 
-    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeVisible();
-    await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(
-        `test.${emailId}@gmail.com`,
-    );
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeVisible();
+    await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(emailAddress);
 
     await expect(page2.getByRole("button", {name: "Sign up"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Sign in"})).toBeHidden();
@@ -552,30 +596,21 @@ test("can\u2019t sign up with email that already has an account", async ({
     await expect(page2.getByRole("button", {name: "Sign up"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Sign in"})).toBeVisible();
 
-    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
-    await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(
-        `test.${emailId}@gmail.com`,
-    );
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+    await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(emailAddress);
 
     await page2.close();
 });
 
-test("can restart sign up if sign up hasn\u2019t finished", async ({
-    browser,
-    page: page1,
-    isMobile,
-}) => {
+test("can restart sign up if sign up hasn’t finished", async ({browser, page: page1, isMobile}) => {
     await page1.goto("/auth/sign-up");
 
     const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test 1");
-    await page1.getByRole("button", {name: "Sign up"}).click();
+    await startSignUp(page1, emailAddress);
+    await submitSignUpProfile(page1, "Test 1");
+    await skipSignUpInvites(page1);
 
     await expect(page1.getByText("We sent a passcode to")).toBeVisible();
 
@@ -583,34 +618,18 @@ test("can restart sign up if sign up hasn\u2019t finished", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto("/auth/sign-up");
 
-    await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await startSignUp(page2, emailAddress);
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
 
-    await page2.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(2);
-        return services.getOneTimePasswords()[1]!;
-    });
-
-    await page2.getByPlaceholder("Anthony Mose").click();
-    await page2.getByPlaceholder("Anthony Mose").fill("Test 2");
-    await page2.getByRole("button", {name: "Sign up"}).click();
-    await page2.getByLabel("Passcode").click();
-    await page2.getByLabel("Passcode").fill(oneTimePassword);
-
-    if (isMobile) {
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page2.getByRole("button", {name: "Continue"}).click();
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
 
     await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
 
     await page2.close();
 });
 
-test("sign in will redirect to sign up if if sign up hasn\u2019t finished", async ({
+test("sign in will redirect to sign up if if sign up hasn’t finished", async ({
     browser,
     page: page1,
     isMobile,
@@ -618,14 +637,11 @@ test("sign in will redirect to sign up if if sign up hasn\u2019t finished", asyn
     await page1.goto("/auth/sign-up");
 
     const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test 1");
-    await page1.getByRole("button", {name: "Sign up"}).click();
+    await startSignUp(page1, emailAddress);
+    await submitSignUpProfile(page1, "Test 1");
+    await skipSignUpInvites(page1);
 
     await expect(page1.getByText("We sent a passcode to")).toBeVisible();
 
@@ -634,33 +650,20 @@ test("sign in will redirect to sign up if if sign up hasn\u2019t finished", asyn
     await page2.goto("/auth/sign-in");
 
     await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await page2.getByPlaceholder("name@company.com").fill(emailAddress);
 
     await page2.getByRole("button", {name: "Sign in"}).click();
 
-    const {oneTimePassword} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(2);
-        return services.getOneTimePasswords()[1]!;
-    });
-
-    await page2.getByPlaceholder("Anthony Mose").click();
-    await page2.getByPlaceholder("Anthony Mose").fill("Test 2");
-    await page2.getByRole("button", {name: "Sign up"}).click();
-    await page2.getByLabel("Passcode").click();
-    await page2.getByLabel("Passcode").fill(oneTimePassword);
-
-    if (isMobile) {
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page2.getByRole("button", {name: "Continue"}).click();
-        await expect(page2.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
+    await submitSignUpProfile(page2, "Test 2");
+    await skipSignUpInvites(page2);
+    await submitSignUpOneTimePassword({page: page2, isMobile, oneTimePasswordIndex: 1});
 
     await expect(page2.getByText("Welcome to Alpine")).toBeVisible();
 
     await page2.close();
 });
 
-test("can\u2019t sign in with email that doesn\u2019t have an account and preserve `to` search param", async ({
+test("can’t sign in with email that doesn’t have an account and preserve `to` search param", async ({
     page,
 }) => {
     await page.goto(`/auth/sign-in?to=${encodeURIComponent("/create-space")}`);
@@ -670,50 +673,36 @@ test("can\u2019t sign in with email that doesn\u2019t have an account and preser
     await page.getByPlaceholder("name@company.com").click();
     await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
 
-    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
 
     await page.getByRole("button", {name: "Sign in"}).click();
 
-    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeVisible();
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeVisible();
 
     await page.getByRole("link", {name: "sign up", exact: true}).click();
 
-    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
     await expect(page.getByRole("button", {name: "Sign up"})).toBeVisible();
 
     await expect(page).toHaveURL(/\/auth\/sign-up(?:\?|$)/);
     await expect(page).toHaveURL(/(?:\?|&)to=%2Fcreate-space(?:&|$)/);
 });
 
-test("can\u2019t sign up with email that already has an account and preserve `to` search param", async ({
+test("can’t sign up with email that already has an account and preserve `to` search param", async ({
     browser,
     page: page1,
     isMobile,
 }) => {
-    await page1.goto("/auth/sign-up");
-
     const emailId = generateId();
+    const emailAddress = `test.${emailId}@gmail.com`;
 
-    await page1.getByPlaceholder("name@company.com").click();
-    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
-    await page1.getByRole("button", {name: "Sign up"}).click();
-
-    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
-        expect(services.getOneTimePasswords().length).toBe(1);
-        return services.getOneTimePasswords()[0]!;
+    await signUpWithSkippedInvites({
+        page: page1,
+        emailAddress,
+        name: "Test Testerson",
+        oneTimePasswordIndex: 0,
+        isMobile,
     });
-
-    await page1.getByPlaceholder("Anthony Mose").click();
-    await page1.getByPlaceholder("Anthony Mose").fill("Test Testerson");
-    await page1.getByRole("button", {name: "Sign up"}).click();
-    await page1.getByLabel("Passcode").click();
-    await page1.getByLabel("Passcode").fill(oneTimePassword1);
-
-    if (isMobile) {
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
-        await page1.getByRole("button", {name: "Continue"}).click();
-        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
-    }
 
     await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
 
@@ -722,17 +711,17 @@ test("can\u2019t sign up with email that already has an account and preserve `to
     await page2.goto(`/auth/sign-up?to=${encodeURIComponent("/create-space")}`);
 
     await page2.getByPlaceholder("name@company.com").click();
-    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await page2.getByPlaceholder("name@company.com").fill(emailAddress);
 
-    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
 
     await page2.getByRole("button", {name: "Sign up"}).click();
 
-    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeVisible();
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeVisible();
 
     await page2.getByRole("link", {name: "signing in", exact: true}).click();
 
-    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
     await expect(page2.getByRole("button", {name: "Sign in"})).toBeVisible();
 
     await expect(page2).toHaveURL(/\/auth\/sign-in(?:\?|$)/);

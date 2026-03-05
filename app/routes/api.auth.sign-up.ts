@@ -2,32 +2,28 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {attemptOneTimePasswordSignUpThenCreateSpace} from "~/server/spaces/create/attempt_one_time_password_sign_up_then_create_space.js";
 import {getRequestIpAddress} from "~/server/tracer/trace_server_response.js";
 import {
-    AuthSignInOrSignUpInputSchema,
     AuthSignInOrSignUpOutputSchema,
+    AuthSignUpInputSchema,
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-export async function action({request, context: loaderContext, span}: LoaderArgs) {
+export async function action({request, context, span}: LoaderArgs) {
     try {
         if (request.method !== "POST")
             throw new InvalidArgumentError(quote`Invalid HTTP method: ${request.method}`);
 
-        const context = await loaderContext.actor.authenticate();
-
-        const input = AuthSignInOrSignUpInputSchema.deserialize(await request.json());
+        const input = AuthSignUpInputSchema.deserialize(await request.json());
 
         const {sessionId, sessionAccountId, openSpaceId} =
-            await attemptOneTimePasswordSignUpThenCreateSpace(
-                context,
-                input.emailAddress,
-                input.oneTimePassword,
-                {
-                    ipAddress: getRequestIpAddress(request),
-                    userAgent: request.headers.get("user-agent"),
-                },
-            );
+            await attemptOneTimePasswordSignUpThenCreateSpace(context, {
+                emailAddress: input.emailAddress,
+                oneTimePassword: input.oneTimePassword,
+                inviteEmailAddresses: input.inviteEmailAddresses,
+                ipAddress: getRequestIpAddress(request),
+                userAgent: request.headers.get("user-agent"),
+            });
 
         // This is what actually signs the account in!
         context.loader.sessionCookie.dangerouslySet({

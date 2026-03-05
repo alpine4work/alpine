@@ -244,6 +244,15 @@ function Button(
         flexShrink?: "0" | "1";
 
         /**
+         * Choose how to offset the focus ring around this button. Default is based on the
+         * button `variant`.
+         *
+         * The underlying `<FocusRing>` default is `0.5`. (But sometimes we choose `0`
+         * based on the variant.)
+         */
+        focusRingOffset?: "border" | "0" | "0.5";
+
+        /**
          * Disable focusing this button through sequential keyboard navigation using the
          * `Tab` button. This sets `tabindex="-1"` on the element. The element will still
          * be programmatically focusable.
@@ -302,6 +311,7 @@ function Button(
         borderRadius = "1",
         borderRightRadius,
         flexShrink = "0",
+        focusRingOffset,
         isTabbable = true,
         isFocusable = true,
     } = props;
@@ -709,7 +719,10 @@ function Button(
     }, [isFocusable]);
 
     let node = (
-        <FocusRing offset={isQuietVariant ? "0" : "0.5"} insetY={touchSlop.slop}>
+        <FocusRing
+            offset={focusRingOffset ?? (isQuietVariant ? "0" : "0.5")}
+            insetY={touchSlop.slop}
+        >
             {createElement(
                 isFocusable ? "button" : "div",
                 // eslint-disable-next-line react-compiler/react-compiler

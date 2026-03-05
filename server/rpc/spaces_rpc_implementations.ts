@@ -201,6 +201,7 @@ export default implementRpcs(definitions, {
                 invalidEmailAddresses,
                 rejectedAsSpamEmailAddresses,
                 alreadyMemberEmailAddresses,
+                requiresAdminAccessEmailAddresses,
                 unexpectedFailureEmailAddresses,
             } = await inviteEmailAddressesToSpace(context.actor.authorizeSession(), {
                 emailAddresses: input.emailAddresses,
@@ -213,6 +214,7 @@ export default implementRpcs(definitions, {
                     rejectedAsSpamEmailAddresses,
                     alreadyMemberEmailAddresses,
                     unexpectedFailureEmailAddresses,
+                    requiresAdminAccessEmailAddresses,
                 },
             };
         },

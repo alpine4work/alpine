@@ -113,6 +113,8 @@ export function Form({
 
     return (
         <form
+            // Disable browser validation. We handle validation ourselves.
+            noValidate={true}
             onKeyDown={event => {
                 switch (event.key) {
                     // Automatically submit the form when the user presses the enter key in an input.

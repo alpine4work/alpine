@@ -195,19 +195,21 @@ export class TestSpace {
             result.accounts[0],
             `Expected an account to be created from the email invite, got ${
                 result.alreadyMemberEmailAddresses.length
-                    ? "alreadyMember"
+                    ? "already member error"
                     : result.invalidEmailAddresses.length
-                      ? "invalidEmail"
+                      ? "invalid email address error"
                       : result.rejectedAsSpamEmailAddresses.length
-                        ? "rejectedAsSpam"
-                        : result.unexpectedFailureEmailAddresses.size
-                          ? `unexpectedFailure:\n${
-                                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
-                                // fixing for now.
-                                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                                result.unexpectedFailureEmailAddresses.values().next().value
-                            }`
-                          : "none"
+                        ? "rejected as spam error"
+                        : result.requiresAdminAccessEmailAddresses.length
+                          ? "requires admin access error"
+                          : result.unexpectedFailureEmailAddresses.size
+                            ? `unexpected failure:\n${
+                                  // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                                  // fixing for now.
+                                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                                  result.unexpectedFailureEmailAddresses.values().next().value
+                              }`
+                            : "none"
             }`,
         );
 

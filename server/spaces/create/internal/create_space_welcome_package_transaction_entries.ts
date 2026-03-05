@@ -1,16 +1,17 @@
 import {chatGptKnownBotId} from "~/server/bots/settings_default_known_bot_account_model_data.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_channel_transaction_entries.js";
 import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} from "~/server/spaces/instantiate_bot_space_account.js";
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
+import {Context} from "~/shared/context/context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function createSpaceWelcomePackageTransactionEntries(
-    context: ServerActionContext,
+    context: Context<Omit<ServerActionContextModules, "actor">>,
     {
         currentTime,
         ownerAccountId,

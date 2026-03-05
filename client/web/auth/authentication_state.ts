@@ -1,11 +1,13 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 export type AuthenticationState =
     | AuthenticationSignInState
     | AuthenticationSignUpState
     | AuthenticationSignUpProfileState
+    | AuthenticationSignUpInviteState
     | AuthenticationSignInOneTimePasswordState
     | AuthenticationSignUpOneTimePasswordState
     | AuthenticationAfterSignUpMobileInterstitialState;
@@ -24,6 +26,13 @@ export type AuthenticationSignUpProfileState = {
     readonly emailAddress: EmailAddress;
 };
 
+export type AuthenticationSignUpInviteState = {
+    readonly type: "SignUpInvite";
+    readonly accountId: AccountId;
+    readonly emailAddress: EmailAddress;
+    readonly reactionCharacter: ReactionCharacter;
+};
+
 export type AuthenticationSignInOneTimePasswordState = {
     readonly type: "SignInOneTimePassword";
     readonly accountId: AccountId;
@@ -34,6 +43,7 @@ export type AuthenticationSignUpOneTimePasswordState = {
     readonly type: "SignUpOneTimePassword";
     readonly accountId: AccountId;
     readonly emailAddress: EmailAddress;
+    readonly inviteEmailAddresses: ReadonlyArray<EmailAddress>;
 };
 
 export type AuthenticationAfterSignUpMobileInterstitialState = {
@@ -67,6 +77,7 @@ export function getAuthenticationStateVariant(state: AuthenticationState): Authe
             return "sign-in";
         case "SignUp":
         case "SignUpProfile":
+        case "SignUpInvite":
         case "SignUpOneTimePassword":
         case "AfterSignUpMobileInterstitial":
             return "sign-up";

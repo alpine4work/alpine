@@ -6,10 +6,12 @@ import {
     ServerSessionActionContext,
     ServerSessionActionContextWithEmail,
 } from "~/server/context/server_action_context.js";
-import {maxLabelStringForDynamoKeyAttribute} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    authorizeSpaceAccess,
+    authorizeSpaceAccessIfPossible,
+} from "~/server/spaces/authorize_space_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
@@ -19,18 +21,19 @@ import {
 } from "~/server/spaces/internal/spaces_table.js";
 import {genericEmailAddressDomains} from "~/shared/accounts/generic_email_address_domains.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {getEmailDomainForAutoAddSpaceAccounts} from "~/shared/accounts/get_email_domain_for_auto_add_space_accounts.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {EmailAddress, isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
@@ -74,9 +77,10 @@ export async function inviteEmailAddressesToSpace(
     invalidEmailAddresses: Array<string>;
     rejectedAsSpamEmailAddresses: Array<string>;
     alreadyMemberEmailAddresses: Array<string>;
+    requiresAdminAccessEmailAddresses: Array<string>;
     unexpectedFailureEmailAddresses: Map<string, unknown>;
 }> {
-    await authorizeSpaceAccess(context, spaceId, "Admin");
+    await authorizeSpaceAccess(context, spaceId, "Member");
 
     return context.tracer.withSpan("Invite email addresses to space", async (context, span) => {
         const accounts: Array<AccountModel> = [];
@@ -84,8 +88,10 @@ export async function inviteEmailAddressesToSpace(
         const invalidEmailAddresses = new Set<string>();
         const rejectedAsSpamEmailAddresses = new Set<string>();
         const alreadyMemberEmailAddresses = new Set<string>();
+        const requiresAdminAccessEmailAddresses = new Set<string>();
 
-        await validateEmailAddressInvitesAreNotRateLimited(context, spaceId, emailAddresses);
+        const {autoAddAccountsFromEmailDomains} =
+            await validateEmailAddressInvitesAreNotRateLimited(context, spaceId, emailAddresses);
 
         // NOTE(imjoshin): We don't do any transaction or validation here because it would
         // be too difficult to rollback at this point in time. If we do want to invest into
@@ -97,6 +103,7 @@ export async function inviteEmailAddressesToSpace(
                 const result = await validateInviteEmailAddressToSpace(context, {
                     spaceId,
                     emailAddress,
+                    autoAddAccountsFromEmailDomains,
                 });
 
                 if (!result.ok) {
@@ -110,6 +117,11 @@ export async function inviteEmailAddressesToSpace(
                         case "AlreadyMember":
                             alreadyMemberEmailAddresses.add(emailAddress);
                             return;
+                        case "RequiresAdminAccess":
+                            requiresAdminAccessEmailAddresses.add(emailAddress);
+                            return;
+                        default:
+                            throw exhaustive(result.reason);
                     }
                 }
 
@@ -132,6 +144,8 @@ export async function inviteEmailAddressesToSpace(
                         invalidEmailAddressCount: invalidEmailAddresses.size,
                         rejectedAsSpamEmailAddressCount: rejectedAsSpamEmailAddresses.size,
                         alreadyMemberEmailAddressCount: alreadyMemberEmailAddresses.size,
+                        requiresAdminAccessEmailAddressCount:
+                            requiresAdminAccessEmailAddresses.size,
                         invitedEmailAddressCount: accounts.length,
                         unexpectedFailureEmailAddressCount: unexpectedFailureEmailAddresses.size,
                     },
@@ -144,6 +158,7 @@ export async function inviteEmailAddressesToSpace(
             invalidEmailAddresses: Array.from(invalidEmailAddresses),
             rejectedAsSpamEmailAddresses: Array.from(rejectedAsSpamEmailAddresses),
             alreadyMemberEmailAddresses: Array.from(alreadyMemberEmailAddresses),
+            requiresAdminAccessEmailAddresses: Array.from(requiresAdminAccessEmailAddresses),
             unexpectedFailureEmailAddresses,
         };
     });
@@ -169,8 +184,6 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
     },
 ): Promise<AccountModel> {
     return context.tracer.withSpan("Invite email address to space", async (context, span) => {
-        await authorizeSpaceAccess(context, spaceId, "Admin");
-
         const accountId = existingAccountId ?? generateId<AccountId>();
         span.addData({
             space: {
@@ -251,12 +264,19 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
 async function validateEmailAddressForInviteInSpace(
     context: ServerActionContext,
-    spaceId: SpaceId,
-    emailAddress: string,
+    {
+        spaceId,
+        emailAddress,
+        autoAddAccountsFromEmailDomains,
+    }: {
+        spaceId: SpaceId;
+        emailAddress: string;
+        autoAddAccountsFromEmailDomains: ReadonlySet<string>;
+    },
 ): Promise<
     | {
           ok: false;
-          reason: "Invalid" | "InviteRejectedAsSpam" | "AlreadyMember";
+          reason: "Invalid" | "InviteRejectedAsSpam" | "AlreadyMember" | "RequiresAdminAccess";
       }
     | {
           ok: true;
@@ -270,7 +290,22 @@ async function validateEmailAddressForInviteInSpace(
         return {ok: false, reason: "Invalid"};
     }
 
-    const accountId = await getAccountIdByEmailAddressIfExists(context, emailAddress);
+    const emailDomainForAutoAddSpaceAccounts = getEmailDomainForAutoAddSpaceAccounts(emailAddress);
+
+    const [accountId, adminAuthorizationResult] = await runAllPromises([
+        getAccountIdByEmailAddressIfExists(context, emailAddress),
+
+        // If auto-add domains are enabled for the space then non-admins are allowed to
+        // invite people from the enabled auto-add domains.
+        emailDomainForAutoAddSpaceAccounts &&
+        autoAddAccountsFromEmailDomains.has(emailDomainForAutoAddSpaceAccounts)
+            ? {ok: true as const}
+            : authorizeSpaceAccessIfPossible(context, spaceId, "Admin"),
+    ]);
+
+    if (!adminAuthorizationResult.ok) {
+        return {ok: false, reason: "RequiresAdminAccess"};
+    }
 
     const spaceAccountItem = accountId
         ? await getSpaceAccountItemIfExists(context, spaceId, accountId, {
@@ -294,15 +329,17 @@ async function validateInviteEmailAddressToSpace(
     {
         spaceId,
         emailAddress,
+        autoAddAccountsFromEmailDomains,
     }: {
         spaceId: SpaceId;
         emailAddress: string;
+        autoAddAccountsFromEmailDomains: ReadonlySet<string>;
     },
 ): Promise<
     | {
           ok: false;
           emailAddress: string;
-          reason: "Invalid" | "InviteRejectedAsSpam" | "AlreadyMember";
+          reason: "Invalid" | "InviteRejectedAsSpam" | "AlreadyMember" | "RequiresAdminAccess";
       }
     | {
           ok: true;
@@ -312,7 +349,11 @@ async function validateInviteEmailAddressToSpace(
           ) => Promise<AccountModel>;
       }
 > {
-    const result = await validateEmailAddressForInviteInSpace(context, spaceId, emailAddress);
+    const result = await validateEmailAddressForInviteInSpace(context, {
+        spaceId,
+        emailAddress,
+        autoAddAccountsFromEmailDomains,
+    });
 
     if (!result.ok) {
         return {
@@ -338,11 +379,11 @@ async function validateInviteEmailAddressToSpace(
 
                 if (!isInitialAttempt) {
                     // Run the EXACT SAME validations as a sanity check. This time we'll throw.
-                    const result = await validateEmailAddressForInviteInSpace(
-                        context,
+                    const result = await validateEmailAddressForInviteInSpace(context, {
                         spaceId,
                         emailAddress,
-                    );
+                        autoAddAccountsFromEmailDomains,
+                    });
 
                     if (!result.ok) {
                         throw new FailedPreconditionError(
@@ -369,48 +410,67 @@ async function validateEmailAddressInvitesAreNotRateLimited(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     emailAddresses: ReadonlyArray<string>,
-): Promise<void> {
+): Promise<{autoAddAccountsFromEmailDomains: ReadonlySet<string>}> {
     const consistency = "StrongWithinCache" as const;
 
-    const [spaceAutoAddAccountsFromEmailDomains, currentSpaceInviteRateLimitBucket] =
+    const possibleEmailDomainsForAutoAddSpaceAccounts = new Set(
+        filterMapIterable(
+            emailAddresses,
+            emailAddress => getEmailDomainForAutoAddSpaceAccounts(emailAddress) ?? undefined,
+        ),
+    );
+
+    const [autoAddAccountsFromEmailDomainItems, currentSpaceInviteRateLimitBucket] =
         await runAllPromises([
-            arrayFromAsyncIterable(
-                mapAsyncIterableIterator(
-                    SpacesTable.query(context, {
-                        limit: "All",
-                        consistency,
-                        partitionKey: {
-                            partitionType: "Space",
-                            spaceId,
+            runAllPromises(
+                mapIterable(possibleEmailDomainsForAutoAddSpaceAccounts, emailDomain =>
+                    SpacesTable.getItemIfExists(
+                        context,
+                        {
+                            partitionType: "AutoAddAccountsFromEmailDomain",
+                            sortRangeType: "Space",
+                            emailDomain,
                         },
-                        startSortKey: {
-                            sortRangeType: "AutoAddAccountsFromEmailDomain",
-                            emailDomain: minLabelString,
-                        },
-                        endSortKey: {
-                            sortRangeType: "AutoAddAccountsFromEmailDomain",
-                            emailDomain: maxLabelStringForDynamoKeyAttribute,
-                        },
-                    }),
-                    item => item.emailDomain,
+                        {consistency},
+                    ),
                 ),
-            ),
+            ).then(items => {
+                return filterMapArray(items, item => {
+                    if (!item) return;
+                    if (item.spaceId !== spaceId) return;
+                    return item;
+                });
+            }),
             getCurrentSpaceInviteRateLimitBucket(context, spaceId, {consistency}),
         ]);
 
-    const spaceAutoAddDomainsSet = new Set(spaceAutoAddAccountsFromEmailDomains);
+    const autoAddAccountsFromEmailDomainsWithDisabledEmailDomains = new Set(
+        mapIterable(autoAddAccountsFromEmailDomainItems, ({emailDomain}) => {
+            return emailDomain;
+        }),
+    );
+
+    const autoAddAccountsFromEmailDomains = new Set(
+        filterMapIterable(autoAddAccountsFromEmailDomainItems, ({isEnabled, emailDomain}) => {
+            if (!isEnabled) return;
+            return emailDomain;
+        }),
+    );
 
     const emailAddressInvitesOutsideOfOrganizationDomain = filterMapArray(
         emailAddresses,
         emailAddress =>
-            isEmailAddressOutsideOfOrganizationDomain(emailAddress, spaceAutoAddDomainsSet)
+            isEmailAddressOutsideOfOrganizationDomain(
+                emailAddress,
+                autoAddAccountsFromEmailDomainsWithDisabledEmailDomains,
+            )
                 ? emailAddress
                 : undefined,
     );
 
     // If all email address in the batch are domain invites, do not rate limit.
     if (emailAddressInvitesOutsideOfOrganizationDomain.length === 0) {
-        return;
+        return {autoAddAccountsFromEmailDomains};
     }
 
     const consumedInviteCountForCurrentRequest =
@@ -428,8 +488,8 @@ async function validateEmailAddressInvitesAreNotRateLimited(
     if (remainingInviteCountAfterRequest < 0) {
         throw new FailedPreconditionError("Invite email rate limit exceeded", {
             displayMessage: errorDisplayMessage`You have reached the maximum number of invites \
-            for accounts outside of your organization. Please try again later. \
-            You can continue inviting people within your organization. To raise the invite limit, contact ${errorDisplayMessage.supportLink}.`,
+for accounts outside of your organization. Please try again later. \
+You can continue inviting people within your organization. To raise the invite limit, contact ${errorDisplayMessage.supportLink}.`,
         });
     }
 
@@ -444,6 +504,8 @@ async function validateEmailAddressInvitesAreNotRateLimited(
     // This will throw an exception if the `updateLockVersion` has changed since we
     // last read the item.
     await SpacesTable.directlyUpdateItem(context, newItem);
+
+    return {autoAddAccountsFromEmailDomains};
 }
 
 async function getCurrentSpaceInviteRateLimitBucket(

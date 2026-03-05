@@ -8,6 +8,7 @@ function createEmptyErrors() {
         invalidEmailAddresses: [] as ReadonlyArray<string>,
         rejectedAsSpamEmailAddresses: [] as ReadonlyArray<string>,
         alreadyMemberEmailAddresses: [] as ReadonlyArray<string>,
+        requiresAdminAccessEmailAddresses: [] as ReadonlyArray<string>,
     };
 }
 
@@ -64,7 +65,9 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("fail@example.com failed due to an unexpected error.");
+        expect(result).toBe(
+            "fail@example.com couldn\u2019t be invited due to an unexpected error.",
+        );
     });
 
     test("shows message for multiple unexpected failures", () => {
@@ -78,7 +81,9 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             errors,
         );
 
-        expect(result).toBe("a@example.com and b@example.com failed due to an unexpected error.");
+        expect(result).toBe(
+            "a@example.com and b@example.com couldn\u2019t be invited due to an unexpected error.",
+        );
     });
 
     test("uses singular grammar for one invalid email", () => {
@@ -219,7 +224,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         );
 
         expect(result).toBe(
-            "Successfully invited 1 person. fail@example.com failed due to an unexpected error. " +
+            "Successfully invited 1 person. fail@example.com couldn\u2019t be invited due to an unexpected error. " +
                 "invalid@ isn\u2019t a valid email address. spam@example.com rejected a previous invite. " +
                 "member@example.com is already a member of the space.",
         );
@@ -257,7 +262,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
 
         expect(result).toBe(
             "Successfully invited 3 people. fail1@example.com, fail2@example.com, fail3@example.com, " +
-                "and 2 others failed due to an unexpected error. inv1@, inv2@, inv3@, and 1 other " +
+                "and 2 others couldn\u2019t be invited due to an unexpected error. inv1@, inv2@, inv3@, and 1 other " +
                 "aren\u2019t valid email addresses. spam1@example.com, spam2@example.com, spam3@example.com, " +
                 "and 3 others rejected a previous invite. member1@example.com, member2@example.com, " +
                 "member3@example.com, and 2 others are already members of the space.",

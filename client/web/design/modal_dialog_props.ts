@@ -16,6 +16,7 @@ export type ModalDialogProps = {
     readonly withTextInput?: boolean;
     readonly textInputPlaceholder?: string;
     readonly primaryButtonLabel: string;
+    readonly primaryButtonVariant?: "accent" | "quiet";
     readonly isPrimaryButtonDisabled?: boolean;
     readonly primaryButtonPressErrorTitle?: string;
     readonly onPrimaryButtonPress?: (textInputValue: string) => MaybePromise<void>;

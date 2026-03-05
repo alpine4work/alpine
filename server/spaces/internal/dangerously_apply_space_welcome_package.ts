@@ -1,7 +1,8 @@
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {suggestedSpaceAccountMaxCount} from "~/server/spaces/dangerously_expensively_get_suggested_space_account_ids_without_authorization.js";
 import {SpaceWelcomePackageItem} from "~/server/spaces/internal/spaces_table.js";
 import {searchAffinityEntityHighIntentUpdateInteractionPoints} from "~/server/spaces/search_affinity_entity_interaction_points.js";
+import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -16,7 +17,7 @@ export const internalSpaceWelcomePackageSearchEntityMaxCount =
  * Add affinity points for an `AccountId` based on a space's welcome package.
  */
 export async function dangerouslyApplySpaceWelcomePackage(
-    context: ServerActionContext,
+    context: Context<Omit<ServerActionContextModules, "actor">>,
     {
         accountId,
         welcomePackageItem: {spaceId, generalChannelId, randomChannelId, chatGptBotAccountId},

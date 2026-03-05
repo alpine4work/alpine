@@ -11,6 +11,7 @@ export function getErrorDisplayMessageForPartialInvitePeopleFailure(
         readonly invalidEmailAddresses: ReadonlyArray<string>;
         readonly rejectedAsSpamEmailAddresses: ReadonlyArray<string>;
         readonly alreadyMemberEmailAddresses: ReadonlyArray<string>;
+        readonly requiresAdminAccessEmailAddresses: ReadonlyArray<string>;
     },
 ) {
     const unexpectedFailureEmailAddressArray = Array.from(
@@ -21,7 +22,8 @@ export function getErrorDisplayMessageForPartialInvitePeopleFailure(
         unexpectedFailureEmailAddressArray.length > 0 ||
             errors.invalidEmailAddresses.length > 0 ||
             errors.rejectedAsSpamEmailAddresses.length > 0 ||
-            errors.alreadyMemberEmailAddresses.length > 0,
+            errors.alreadyMemberEmailAddresses.length > 0 ||
+            errors.requiresAdminAccessEmailAddresses.length > 0,
         "Tried rendering an error message for people invite with no errors",
     );
 
@@ -40,7 +42,13 @@ export function getErrorDisplayMessageForPartialInvitePeopleFailure(
             `${intoErrorDisplayMessage(
                 locale,
                 unexpectedFailureEmailAddressArray,
-            )} failed due to an unexpected error`,
+            )} couldn\u2019t be invited due to an unexpected error`,
+        );
+    }
+
+    if (errors.requiresAdminAccessEmailAddresses.length > 0) {
+        errorMessages.push(
+            `${intoErrorDisplayMessage(locale, errors.requiresAdminAccessEmailAddresses)} can only be invited by an admin`,
         );
     }
 
