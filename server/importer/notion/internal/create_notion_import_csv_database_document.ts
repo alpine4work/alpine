@@ -1,20 +1,17 @@
 import {strFromU8} from "fflate";
 
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {ApiContentBlockElementWithFileRow} from "~/server/api/content/api_content_block_element_with_file_row.js";
+import {ApiContentExtended, fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {AccountId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export interface CreateNotionImportCsvDatabaseDocumentOptions {
     spaceId: SpaceId;
@@ -25,6 +22,7 @@ export interface CreateNotionImportCsvDatabaseDocumentOptions {
     diskPathToUnzippedFiles: string;
     isPublic: boolean;
     inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
+    filesToUpload: Record<string, {id: FileId}>;
 }
 
 /**
@@ -52,6 +50,7 @@ export async function createNotionImportCsvDatabaseDocument(
         diskPathToUnzippedFiles,
         isPublic,
         inlineDatabaseChildren,
+        filesToUpload,
     } = options;
 
     // Read the CSV file from disk
@@ -66,8 +65,11 @@ export async function createNotionImportCsvDatabaseDocument(
     // Extract title from CSV path
     const title = parseNotionImportFileName(csvPath.split("/").pop() ?? "")?.title ?? "Untitled";
 
+    // Get the directory of the CSV file for resolving relative paths
+    const csvDir = csvPath.includes("/") ? csvPath.slice(0, csvPath.lastIndexOf("/")) : "";
+
     // Build API content directly
-    const elements: Array<ApiContentBlockElement> = [];
+    const elements: Array<ApiContentBlockElementWithFileRow> = [];
 
     // Add parent document link as a paragraph with mention
     elements.push({
@@ -78,18 +80,24 @@ export async function createNotionImportCsvDatabaseDocument(
         ],
     });
 
-    // Convert CSV to API table with cell mentions
+    // Convert CSV to API table with cell mentions The table may contain FileRowTable
+    // elements for file paths
     const childTitleToDocumentId =
         inlineDatabaseChildren.get(csvPath) ?? new Map<string, DocumentId>();
-    const tableContent = notionImportCsvToApiContent(csvContent, childTitleToDocumentId);
+    const tableContent = notionImportCsvToApiContent(csvContent, childTitleToDocumentId, {
+        filesToUpload,
+        csvDir,
+    });
     if (tableContent) {
-        elements.push(tableContent);
+        // Cast the extended table to the base block element type fromApiContent handles
+        // the extended types during conversion
+        elements.push(tableContent as unknown as ApiContentBlockElementWithFileRow);
     }
 
     // Note: We don't add a "Child documents" section for databases. The children are
     // database rows and they already appear as cell mentions in the table.
 
-    const apiContent: ApiContent = {elements};
+    const apiContent: ApiContentExtended = {elements};
 
     // Convert API content to ProseMirror document
     const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, apiContent);

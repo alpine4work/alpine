@@ -1,8 +1,8 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {ApiContentBlockElementWithFileRow} from "~/server/api/content/api_content_block_element_with_file_row.js";
 import {intoApiContentParagraphBlockElement} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiContent,
-    ApiContentBlockElement,
     ApiContentCheckListBlockElementItem,
     ApiContentInlineElement,
     ApiContentInlineElementHighlightMarkColor,
@@ -22,9 +22,24 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
- * Convert content from the API back into ProseMirror nodes.
+ * Extended content type that includes FileRow elements.
  */
-export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): Node {
+export interface ApiContentExtended {
+    elements: Array<ApiContentBlockElementWithFileRow>;
+}
+
+/**
+ * Convert content from the API back into ProseMirror nodes.
+ *
+ * We pass a generic in order to support the extended content type for imports.
+ * This allows us to use the extended content type for certain cases (like imports)
+ * without having to support this for the base content type. TODO(#public-api):
+ * Remove this generic once we support files in the public API
+ */
+export function fromApiContent<ApiContentType extends ApiContent | ApiContentExtended = ApiContent>(
+    schema: ProsemirrorSchema,
+    content: ApiContentType,
+): Node {
     const blockNodes = Array.from(fromApiContentBlockElements(schema, content.elements));
     return schema.nodes.doc!.create(
         null,
@@ -34,7 +49,7 @@ export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): 
 
 export function* fromApiContentBlockElements(
     schema: ProsemirrorSchema,
-    elements: Iterable<ApiContentBlockElement>,
+    elements: Iterable<ApiContentBlockElementWithFileRow>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
@@ -194,6 +209,27 @@ export function* fromApiContentBlockElements(
                         );
                     }),
                 );
+                break;
+            }
+            case "FileRow": {
+                // TODO(#public-api): Remove this assertion once we support files in the public API
+                // and decide if we want to automatically split rows into multiple rows if there
+                // are more than 3 files.
+                assert(element.files.length <= 3, "FileRow must have at most 3 files");
+
+                // Create file nodes for each file in the row (max 3)
+                const fileNodes = element.files.map(file =>
+                    schema.nodes.file!.create({fileId: file.fileId}),
+                );
+
+                yield schema.nodes.fileRow!.create(null, fileNodes);
+                break;
+            }
+            case "FileRowTable": {
+                // FileRowTable is for files in table cells - uses fileRowTable node type
+                yield schema.nodes.fileRowTable!.create(null, [
+                    schema.nodes.file!.create({fileId: element.fileId}),
+                ]);
                 break;
             }
             default:

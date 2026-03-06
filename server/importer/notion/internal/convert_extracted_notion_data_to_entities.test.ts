@@ -15,6 +15,7 @@ import {
 import {
     ExportedNotionDatabase,
     ExportedNotionDocument,
+    ExportedNotionFile,
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
@@ -3922,6 +3923,1379 @@ Sprint completed successfully.`,
             // Level)
             const topLevelCount = docs.filter(([, doc]) => doc.parent === null).length;
             expect(topLevelCount).toBe(2);
+        });
+    });
+
+    describe("file row handling", () => {
+        test("image link is converted to fileRow with file node", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with an attached image
+            const image = new ExportedNotionFile("screenshot.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Document with Image",
+                `Here is an image:\n\n${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Document with Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Document with Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Here is an image:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("video link is converted to fileRow with file node", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with an attached video
+            const video = new ExportedNotionFile("demo.mp4", "video");
+            const doc = new ExportedNotionDocument(
+                "Document with Video",
+                `Check out this video:\n\n${video.toReference()}`,
+            );
+            doc.addFiles([video]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Document with Video"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Document with Video"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Check out this video:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("multiple adjacent files are combined into single fileRow (max 3)", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with three images
+            const image1 = new ExportedNotionFile("img1.png", "image");
+            const image2 = new ExportedNotionFile("img2.png", "image");
+            const image3 = new ExportedNotionFile("img3.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Gallery",
+                `Gallery:\n\n${image1.toReference()}\n${image2.toReference()}\n${image3.toReference()}`,
+            );
+            doc.addFiles([image1, image2, image3]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Gallery"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Gallery"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Gallery:"}]},
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("more than 3 adjacent files create multiple fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with five images
+            const image1 = new ExportedNotionFile("img1.png", "image");
+            const image2 = new ExportedNotionFile("img2.png", "image");
+            const image3 = new ExportedNotionFile("img3.png", "image");
+            const image4 = new ExportedNotionFile("img4.png", "image");
+            const image5 = new ExportedNotionFile("img5.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Large Gallery",
+                `Gallery:\n\n${image1.toReference()}\n${image2.toReference()}\n${image3.toReference()}\n${image4.toReference()}\n${image5.toReference()}`,
+            );
+            doc.addFiles([image1, image2, image3, image4, image5]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Large Gallery"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            // 5 images should create 2 fileRows: first with 3, second with 2
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Large Gallery"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Gallery:"}]},
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("files separated by text create separate fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with images separated by text
+            const image1 = new ExportedNotionFile("before.png", "image");
+            const image2 = new ExportedNotionFile("after.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Before and After",
+                `Before:\n\n${image1.toReference()}\n\nSome text in between.\n\nAfter:\n\n${image2.toReference()}`,
+            );
+            doc.addFiles([image1, image2]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Before and After"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Before and After"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Before:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Some text in between."}]},
+                    {type: "paragraph", content: [{type: "text", text: "After:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("deterministic file IDs are generated consistently", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with an image
+            const image = new ExportedNotionFile("consistent.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Consistent Doc",
+                `Image:\n\n${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+
+            // Import twice and verify the file IDs are the same
+            const mappedResult1 = await unzipAndMapReferencesForTest(zipData, importItem);
+            const fileIds1 = Object.values(mappedResult1.filesToUpload).map(f => f.id);
+
+            const mappedResult2 = await unzipAndMapReferencesForTest(zipData, importItem);
+            const fileIds2 = Object.values(mappedResult2.filesToUpload).map(f => f.id);
+
+            // File IDs should be consistent across imports of the same content
+            expect(fileIds1).toEqual(fileIds2);
+        });
+
+        test("mixed media types in single document", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with different media types
+            const image = new ExportedNotionFile("photo.png", "image");
+            const video = new ExportedNotionFile("clip.mp4", "video");
+            const audio = new ExportedNotionFile("song.mp3", "audio");
+            const doc = new ExportedNotionDocument(
+                "Mixed Media",
+                `Image:\n\n${image.toReference()}\n\nVideo:\n\n${video.toReference()}\n\nAudio:\n\n${audio.toReference()}`,
+            );
+            doc.addFiles([image, video, audio]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Mixed Media"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Mixed Media"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Image:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Video:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Audio:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("multiple media files in a table cell get their own fileRowTable elements", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create files that will be placed alongside the database in nested mode
+            const image1 = new ExportedNotionFile("image1.png", "image");
+            const image2 = new ExportedNotionFile("image2.png", "image");
+            const image3 = new ExportedNotionFile("image3.png", "image");
+
+            // Create a database with a "Files & media" column containing file paths In Notion
+            // exports, file paths in CSVs are relative to the grandparent directory and
+            // include the parent folder name. So for files in Parent Doc/, paths are
+            // "Parent%20Doc/filename" (URL-encoded).
+            const database = new ExportedNotionDatabase("Media Database", [
+                ["Name", "Files & media"],
+                [
+                    "Item 1",
+                    "Parent%20Doc/image1.png, Parent%20Doc/image2.png, Parent%20Doc/image3.png",
+                ],
+            ]);
+
+            // Create a parent document that holds both the database and files In nested mode,
+            // files are placed in the document's folder alongside child items
+            const parentDoc = new ExportedNotionDocument("Parent Doc", "", [database]);
+            parentDoc.addFiles([image1, image2, image3]);
+
+            // Use nested mode so the database and files are in the same directory
+            const zipData = createTestNotionImportZip([parentDoc], {
+                createFoldersForSubpages: true,
+            });
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            // Find the database document (the one with a table)
+            const docEntry = Array.from(mappedResult.pathToDocumentId.entries()).find(([path]) =>
+                path.includes("Media Database"),
+            );
+            expect(docEntry).toBeDefined();
+
+            const document = await getDocument(space.systemAction(), docEntry![1]);
+
+            // The document should contain a table with fileRowTable elements in the data cell
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Media Database"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "table",
+                        content: [
+                            // Header row
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Name"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Files & media"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            // Data row with fileRowTable elements
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Item 1"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("database with file paths in any column converts them to fileRowTable elements", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create files that will be placed alongside the database in nested mode
+            const sunset = new ExportedNotionFile("sunset.png", "image");
+            const beach = new ExportedNotionFile("beach.png", "image");
+            const mountain = new ExportedNotionFile("mountain.png", "image");
+
+            // Create a database with file paths in a column that is NOT "Files & media" to
+            // verify that file detection works for any column name. In Notion exports, file
+            // paths in CSVs are relative to the grandparent directory and include the parent
+            // folder name. So for files in Parent Doc/, paths are "Parent%20Doc/filename"
+            // (URL-encoded).
+            const database = new ExportedNotionDatabase("Project Files", [
+                ["Title", "Attachments", "Status"],
+                ["Doc A", "Parent%20Doc/sunset.png", "Active"],
+                ["Doc B", "Parent%20Doc/beach.png, Parent%20Doc/mountain.png", "Pending"],
+            ]);
+
+            // Create a parent document that holds both the database and files In nested mode,
+            // files are placed in the document's folder alongside child items
+            const parentDoc = new ExportedNotionDocument("Parent Doc", "", [database]);
+            parentDoc.addFiles([sunset, beach, mountain]);
+
+            // Use nested mode so the database and files are in the same directory
+            const zipData = createTestNotionImportZip([parentDoc], {
+                createFoldersForSubpages: true,
+            });
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            // Find the database document
+            const docEntry = Array.from(mappedResult.pathToDocumentId.entries()).find(([path]) =>
+                path.includes("Project Files"),
+            );
+            expect(docEntry).toBeDefined();
+
+            const document = await getDocument(space.systemAction(), docEntry![1]);
+
+            // The document should contain a table with fileRowTable elements in data cells
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Project Files"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "table",
+                        content: [
+                            // Header row
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Title"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Attachments"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Status"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            // Data row 1 (Doc A) - single file
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Doc A"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Active"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            // Data row 2 (Doc B) - two files
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Doc B"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Pending"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("image in a paragraph is extracted as fileRow", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const image = new ExportedNotionFile("photo.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Paragraph Image",
+                `some text\n\n${image.toReference()}\n\nmore text`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Paragraph Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Paragraph Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "some text"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "more text"}]},
+                ],
+            });
+        });
+
+        test("image inside a blockquote is extracted as fileRow", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const image = new ExportedNotionFile("screenshot.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Quote with Image",
+                `> a note about the image\n>\n> ${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Quote with Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Quote with Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "quoteBlock",
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "a note about the image"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("images inside ordered lists, unordered lists, and checklists are extracted as fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const ulImage = new ExportedNotionFile("bullet.png", "image");
+            const olImage = new ExportedNotionFile("numbered.png", "image");
+            const clImage = new ExportedNotionFile("task.png", "image");
+            const doc = new ExportedNotionDocument(
+                "All List Types",
+                [
+                    `- bullet item`,
+                    ``,
+                    `    ${ulImage.toReference()}`,
+                    ``,
+                    `1. numbered item`,
+                    ``,
+                    `    ${olImage.toReference()}`,
+                    ``,
+                    `- [ ] task item`,
+                    ``,
+                    `    ${clImage.toReference()}`,
+                ].join("\n"),
+            );
+            doc.addFiles([ulImage, olImage, clImage]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("All List Types"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "All List Types"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "bullet item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 0, orderStart: null},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "numbered item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {
+                        type: "checkListItem",
+                        attrs: {indent: 0, checked: false},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "task item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("image inside list item is extracted as fileRow", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document where an image is nested inside a list item. In Notion exports
+            // this is common: a bullet with a prompt followed by an indented image result. The
+            // 4-space indent puts the image inside the list item when parsed by the markdown
+            // parser.
+            const image = new ExportedNotionFile("result.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Prompts with Images",
+                `- a prompt describing an image\n\n    ${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Prompts with Images"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Prompts with Images"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "a prompt describing an image"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("multiple images inside list items are extracted as fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Simulates a Notion page with prompts and image results, like:
+            //
+            // - prompt one ![img1](img1.png)
+            // - prompt two ![img2](img2.png) ![img3](img3.png)
+            const image1 = new ExportedNotionFile("img1.png", "image");
+            const image2 = new ExportedNotionFile("img2.png", "image");
+            const image3 = new ExportedNotionFile("img3.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Multiple Prompt Results",
+                [
+                    `- first prompt`,
+                    ``,
+                    `    ${image1.toReference()}`,
+                    ``,
+                    `- second prompt`,
+                    ``,
+                    `    ${image2.toReference()}`,
+                    ``,
+                    `    ${image3.toReference()}`,
+                ].join("\n"),
+            );
+            doc.addFiles([image1, image2, image3]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Multiple Prompt Results"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {
+                        type: "title",
+                        content: [{type: "text", text: "Multiple Prompt Results"}],
+                    },
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "first prompt"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "second prompt"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("image inside list item with text-only items keeps list structure", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // A list where only some items have images. The list should be preserved with its
+            // text items, and the images extracted.
+            const image = new ExportedNotionFile("photo.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Partial Image List",
+                [
+                    `- text only item`,
+                    `- item with image`,
+                    ``,
+                    `    ${image.toReference()}`,
+                    ``,
+                    `- another text item`,
+                ].join("\n"),
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Partial Image List"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Partial Image List"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "text only item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "item with image"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "another text item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("image inside a markdown table cell becomes a fileRowTable in the cell", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const image = new ExportedNotionFile("chart.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Table with Image",
+                [`| Name | Preview |`, `| --- | --- |`, `| Chart | ${image.toReference()} |`].join(
+                    "\n",
+                ),
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Table with Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Table with Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "table",
+                        content: [
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Name"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Preview"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Chart"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
         });
     });
 });

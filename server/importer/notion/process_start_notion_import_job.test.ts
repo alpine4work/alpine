@@ -240,6 +240,16 @@ async function importedFixtureSpaceItemsToString(
         },
     );
 
+    // Normalize file IDs for comparison. File IDs are generated from file paths which
+    // differ between flat and nested exports. We replace them with a placeholder based
+    // on their position in the document.
+    let fileIdCounter = 0;
+    contentString = contentString.replace(/"fileId":\s*"[a-z0-9]+"/gi, () => {
+        fileIdCounter++;
+        // eslint-disable-next-line cyberworlds/string-quotes -- JSON format requires straight quotes
+        return `"fileId": "<FILE_ID:${fileIdCounter}>"`;
+    });
+
     return contentString;
 }
 
@@ -1145,6 +1155,28 @@ describe("processStartNotionImportJob", () => {
                 space2,
                 session2,
                 "JJ-Test-Nested.zip",
+            );
+
+            expect(flat).toBe(nested);
+        });
+
+        // Only snap one since we're asserting they're the same below
+        test("Media-Export-Flat.zip snapshot", testFixtureSnapshot("Media-Export-Flat.zip"));
+        test("Media-Export-Flat.zip and Media-Export-Nested.zip produce the same results", async () => {
+            const space1 = await TestSpace.create(context);
+            const session1 = await space1.createSession({role: "Admin"});
+            const flat = await importedFixtureSpaceItemsToString(
+                space1,
+                session1,
+                "Media-Export-Flat.zip",
+            );
+
+            const space2 = await TestSpace.create(context);
+            const session2 = await space2.createSession({role: "Admin"});
+            const nested = await importedFixtureSpaceItemsToString(
+                space2,
+                session2,
+                "Media-Export-Nested.zip",
             );
 
             expect(flat).toBe(nested);

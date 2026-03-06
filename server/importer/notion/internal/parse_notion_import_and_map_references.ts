@@ -1,14 +1,12 @@
 import {strFromU8} from "fflate";
-
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
-import {generateDeterministicNotionDocumentIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_document_id.js";
+import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
@@ -224,7 +222,7 @@ export async function parseNotionImportAndMapReferences(
             // Generate deterministic document ID based on space ID, workspace ID, and notion
             // ID. This ensures re-importing the same workspace into the same space produces
             // the same document IDs, while different spaces get unique IDs.
-            const documentId = generateDeterministicNotionDocumentIdSync(
+            const documentId = generateDeterministicNotionIdSync<DocumentId>(
                 notionImportItem.spaceId,
                 metadata.workspaceId,
                 parsed.notionId,
@@ -241,7 +239,13 @@ export async function parseNotionImportAndMapReferences(
                 hasChildrenHeader: false,
             };
         } else {
-            const id = generateChronologicalId<FileId>();
+            // Generate deterministic file ID based on the file path. Using "file:" prefix to
+            // differentiate from document IDs.
+            const id = generateDeterministicNotionIdSync<FileId>(
+                notionImportItem.spaceId,
+                metadata.workspaceId,
+                `file:${path}`,
+            );
             pathToFileId.set(path, id);
             filesToUpload[path] = {id};
         }

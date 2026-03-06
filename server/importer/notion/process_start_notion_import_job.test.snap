@@ -42,7 +42,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:1>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -62,7 +70,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:2>"
+            }
+          }
+        ]
       }
     ]
   },
@@ -270,7 +286,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:3>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -282,7 +306,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:4>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -294,7 +326,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:5>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -467,7 +507,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:6>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -492,7 +540,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:7>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -504,7 +560,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:8>"
+            }
+          }
+        ]
       }
     ]
   },
@@ -1683,19 +1747,13 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         "type": "divider"
       },
       {
-        "type": "paragraph",
+        "type": "fileRow",
         "content": [
           {
-            "type": "text",
-            "marks": [
-              {
-                "type": "link",
-                "attrs": {
-                  "url": "21p.mp4"
-                }
-              }
-            ],
-            "text": "21p.mp4"
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:9>"
+            }
           }
         ]
       }
@@ -4381,7 +4439,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:10>"
+            }
+          }
+        ]
       },
       {
         "type": "heading",
@@ -5424,7 +5490,15 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:11>"
+            }
+          }
+        ]
       }
     ]
   },
@@ -6559,6 +6633,2760 @@ exports[`processStartNotionImportJob with test framework zips JJ-Test-Flat.zip s
 }"
 `;
 
+exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.zip snapshot 1`] = `
+"{
+  "Export | Media Space": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Export | Media Space"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "This teamspace was imported from the Export workspace in Notion by "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "Account",
+                "accountId": "<ACCOUNT_ID>",
+                "isShort": false
+              }
+            },
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": " on January 28, 2026."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Documents"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "mention": {
+                    "type": "SearchEntity",
+                    "entityId": "Document:<DOC_ID:Media>"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "mention": {
+                    "type": "SearchEntity",
+                    "entityId": "Document:<DOC_ID:People>"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Image": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Image"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Various Content>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Files & media:"
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:1>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Text: a"
+          }
+        ]
+      }
+    ]
+  },
+  "Image and Video": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Image and Video"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Media>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:2>"
+            }
+          },
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:3>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "Josh Johnson": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Josh Johnson"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:People>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Email: josh@imjosh.in"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Membership Type: Workspace owner"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Person: Josh Johnson"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      }
+    ]
+  },
+  "Media": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Media"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Export | Media Space>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Child documents"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "mention": {
+                    "type": "SearchEntity",
+                    "entityId": "Document:<DOC_ID:Single Image>"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "mention": {
+                    "type": "SearchEntity",
+                    "entityId": "Document:<DOC_ID:Image and Video>"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "mention": {
+                    "type": "SearchEntity",
+                    "entityId": "Document:<DOC_ID:Various Content>"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Multiple": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Multiple"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Various Content>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Files & media:"
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:4>"
+            }
+          },
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:5>"
+            }
+          },
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:6>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Text: d"
+          }
+        ]
+      }
+    ]
+  },
+  "People": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "People"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Export | Media Space>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "attrs": {
+          "columnWidths": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "tableWidth": 1,
+          "hasHeaderRow": true,
+          "hasHeaderColumn": false
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Name"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Email"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "About"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Membership Type"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "mention": {
+                            "type": "SearchEntity",
+                            "entityId": "Document:<DOC_ID:Josh Johnson>"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "josh@imjosh.in"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Workspace owner"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Single Image": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Single Image"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Media>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "I’m some content before the image."
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:7>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "I’m more content after the image."
+          }
+        ]
+      }
+    ]
+  },
+  "Various Content": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Various Content"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Media>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "The Upper Peninsula of Michigan (The “UP”)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "url": "https://images.openai.com/static-rsc-3/nzKugy7jmO5C5znuy3GX855bKLu8UNxHm4VQ6u6Rnow_1DFtc4vasqVXDlGk-qV6cJ5XBmQKJysQQ2oy3BqTYK8rz5sjjoBQHJHgkOahL7k?purpose=fullsize&v=1"
+                }
+              }
+            ],
+            "text": "Image"
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:8>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "url": "https://images.openai.com/static-rsc-3/II2xLF2ppLgCXjP80MpniTyJ9vCJB0yk46PZ0o3cOevxk_Qo0J4C4cJ6eGbl9VEbBiDEKDkLfhOUouHucjDcoZ2xYAcc5Tkp1GxFGQi75Kc?purpose=fullsize&v=1"
+                }
+              }
+            ],
+            "text": "Image"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "url": "https://images.openai.com/static-rsc-3/eKj1FjmSy_p-oO85vuW9L5NZqUsJhs0JrtkqW8p-iyQhAHapJFFXTKoca0Ov1dn6B8wk5XYFd9wWxXJX3QLiuuHQST2K8Wz5CCEVclf_ZI4?purpose=fullsize&v=1"
+                }
+              }
+            ],
+            "text": "Image"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "url": "https://images.openai.com/static-rsc-3/V6t7VtXNk0f4Aq7HnCAKf-MFD2sOWvICIVg5aYAzhiNYoptEEBjBwLjD0PQajIROWhF2Yk0bpJuPP963VhU4qXhYNRVQOc0omk-FZxPcnu0?purpose=fullsize&v=1"
+                }
+              }
+            ],
+            "text": "Image"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Overview"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "The "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Upper Peninsula of Michigan"
+          },
+          {
+            "type": "text",
+            "text": "—often simply called the "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "UP"
+          },
+          {
+            "type": "text",
+            "text": "—is a vast, sparsely populated region defined by:"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Rugged "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "shorelines"
+              },
+              {
+                "type": "text",
+                "text": " along "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ],
+                "text": "Lake Superior"
+              },
+              {
+                "type": "text",
+                "text": ", "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ],
+                "text": "Lake Michigan"
+              },
+              {
+                "type": "text",
+                "text": ", and "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ],
+                "text": "Lake Huron"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Endless "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "forests"
+              },
+              {
+                "type": "text",
+                "text": ", waterfalls, and wilderness"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A culture that blends "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Midwestern warmth"
+              },
+              {
+                "type": "text",
+                "text": ", "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Nordic heritage"
+              },
+              {
+                "type": "text",
+                "text": ", and "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "deep outdoor tradition"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "quoteBlock",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Locals are known as "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Yoopers"
+              },
+              {
+                "type": "text",
+                "text": ", and yes… they "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ],
+                "text": "really"
+              },
+              {
+                "type": "text",
+                "text": " do embrace winter."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Quick Facts"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "attrs": {
+          "columnWidths": [
+            1,
+            1
+          ],
+          "tableWidth": 1,
+          "hasHeaderRow": true,
+          "hasHeaderColumn": false
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Category"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Details"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Land area"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "~16,000 sq mi (about 29% of Michigan’s land)"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Population"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "~300,000 people"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Largest city"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Marquette"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Nickname"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "“The UP”"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Known for"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Snow, mining history, waterfalls, pasties"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Geography & Nature"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Lakes"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Lake Superior"
+              },
+              {
+                "type": "text",
+                "text": " – cold, powerful, "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ],
+                "text": "almost ocean-like"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Lake Michigan"
+              },
+              {
+                "type": "text",
+                "text": " – sandy shores and dunes"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Lake Huron"
+              },
+              {
+                "type": "text",
+                "text": " – calmer waters and island views"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Landscapes"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Cliffs"
+              },
+              {
+                "type": "text",
+                "text": " of Pictured Rocks"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Old-growth forests"
+              },
+              {
+                "type": "text",
+                "text": " in the Porcupine Mountains"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Hundreds of waterfalls"
+              },
+              {
+                "type": "text",
+                "text": " hidden in the woods"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "text"
+        },
+        "content": [
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "If you love:"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "  silence"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "  stars"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "  snow"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "  shoreline"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "then the UP will feel like home."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Climate"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "The UP has a "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "true northern climate"
+          },
+          {
+            "type": "text",
+            "text": ":"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Winters are "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "long, snowy, and legendary"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Summers are "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "short, cool, and stunning"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Fall colors are "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "ridiculously vibrant"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Average snowfall:"
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "text"
+        },
+        "content": [
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "Some towns exceed 200 inches per year."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:9>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Culture"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Food"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Pasties"
+              },
+              {
+                "type": "text",
+                "text": " – handheld meat-and-potato pies from Cornish miners"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Fresh "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "whitefish"
+              },
+              {
+                "type": "text",
+                "text": " from Lake Superior"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Maple syrup, berries, and comfort food built for winter"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Lifestyle"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Slow pace"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Strong community"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Deep connection to "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "outdoors + seasons"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "It’s less about convenience… more about presence."
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Why People Love the UP"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Top reasons:"
+          }
+        ]
+      },
+      {
+        "type": "orderedListItem",
+        "attrs": {
+          "indent": 0,
+          "orderStart": null
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Quiet wilderness you can’t find elsewhere in the Midwest"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "orderedListItem",
+        "attrs": {
+          "indent": 0,
+          "orderStart": null
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Dark skies filled with "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Milky Way"
+              },
+              {
+                "type": "text",
+                "text": " and "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "northern lights"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "orderedListItem",
+        "attrs": {
+          "indent": 0,
+          "orderStart": null
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A feeling of stepping into a simpler, older America"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "A Simple Way to Picture It"
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "text"
+        },
+        "content": [
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "UP = forests"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "   + water"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "   + snow"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "   + silence"
+              }
+            ]
+          },
+          {
+            "type": "codeBlockLine",
+            "content": [
+              {
+                "type": "text",
+                "text": "   + friendly strangers"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Result:"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "A place that feels both wild and deeply peaceful."
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:10>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "If you'd like, I can also write:"
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "a "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "travel guide itinerary"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "a "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Yooper slang cheat sheet"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "unorderedListItem",
+        "attrs": {
+          "indent": 0
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "or a "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "poetic description"
+              },
+              {
+                "type": "text",
+                "text": " of the UP in winter or summer"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Just tell me which direction you want to explore."
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "attrs": {
+          "columnWidths": [
+            1,
+            1,
+            1
+          ],
+          "tableWidth": 1,
+          "hasHeaderRow": true,
+          "hasHeaderColumn": false
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Name"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Text"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Files & media"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "mention": {
+                            "type": "SearchEntity",
+                            "entityId": "Document:<DOC_ID:Image>"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "fileRowTable",
+                    "content": [
+                      {
+                        "type": "file",
+                        "attrs": {
+                          "fileId": "<FILE_ID:11>"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "mention": {
+                            "type": "SearchEntity",
+                            "entityId": "Document:<DOC_ID:Video>"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "b"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "fileRowTable",
+                    "content": [
+                      {
+                        "type": "file",
+                        "attrs": {
+                          "fileId": "<FILE_ID:12>"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "mention": {
+                            "type": "SearchEntity",
+                            "entityId": "Document:<DOC_ID:Zip>"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "c"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "fileRowTable",
+                    "content": [
+                      {
+                        "type": "file",
+                        "attrs": {
+                          "fileId": "<FILE_ID:13>"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "mention": {
+                            "type": "SearchEntity",
+                            "entityId": "Document:<DOC_ID:Multiple>"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "d"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "fileRowTable",
+                    "content": [
+                      {
+                        "type": "file",
+                        "attrs": {
+                          "fileId": "<FILE_ID:14>"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "fileRowTable",
+                    "content": [
+                      {
+                        "type": "file",
+                        "attrs": {
+                          "fileId": "<FILE_ID:15>"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "fileRowTable",
+                    "content": [
+                      {
+                        "type": "file",
+                        "attrs": {
+                          "fileId": "<FILE_ID:16>"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Video": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Video"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Various Content>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Files & media:"
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:17>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Text: b"
+          }
+        ]
+      }
+    ]
+  },
+  "Zip": {
+    "type": "doc",
+    "attrs": {
+      "accessPolicy": {
+        "accountGrantById": {},
+        "defaultGrant": null,
+        "urlGrant": null
+      },
+      "hasPresentShortcut": false,
+      "cover": null
+    },
+    "content": [
+      {
+        "type": "title",
+        "content": [
+          {
+            "type": "text",
+            "text": "Zip"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Parent document: "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "mention": {
+                "type": "SearchEntity",
+                "entityId": "Document:<DOC_ID:Various Content>"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Files & media:"
+          }
+        ]
+      },
+      {
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:18>"
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Text: c"
+          }
+        ]
+      }
+    ]
+  }
+}"
+`;
+
 exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip snapshot 1`] = `
 "{
   "1:1 notes": {
@@ -7084,7 +9912,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:1>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -7096,7 +9932,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:2>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -7108,7 +9952,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:3>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -7281,7 +10133,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:4>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -7306,7 +10166,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:5>"
+            }
+          }
+        ]
       },
       {
         "type": "paragraph",
@@ -7318,7 +10186,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:6>"
+            }
+          }
+        ]
       }
     ]
   },
@@ -9001,7 +11877,15 @@ exports[`processStartNotionImportJob with test framework zips Workspace-Flat.zip
         ]
       },
       {
-        "type": "paragraph"
+        "type": "fileRow",
+        "content": [
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:7>"
+            }
+          }
+        ]
       }
     ]
   },

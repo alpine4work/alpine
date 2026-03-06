@@ -1,11 +1,42 @@
 /* eslint-disable cyberworlds/string-quotes -- CSV parser needs ASCII straight quotes for proper parsing */
 
 import {
-    ApiContentInlineElement,
-    ApiContentTableBlockElement,
-    ApiContentTableBlockElementCell,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+    ApiContentBlockElementWithFileRow,
+    ApiContentFileRowTableBlockElement,
+} from "~/server/api/content/api_content_block_element_with_file_row.js";
+import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
+import {ApiContentInlineElement} from "~/shared/api/types/api_specification_convenience_types.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+
+/**
+ * Options for converting CSV to API content with file resolution.
+ */
+export interface NotionImportCsvToApiContentOptions {
+    /** Map of file paths to file info including FileId */
+    filesToUpload?: Record<string, {id: FileId}>;
+    /** Directory of the CSV file for resolving relative paths */
+    csvDir?: string;
+}
+
+/**
+ * Extended table cell type that can contain FileRowTable elements. This is used
+ * internally by the importer to represent files in table cells.
+ */
+export interface ApiContentTableBlockElementCellExtended {
+    elements: Array<ApiContentBlockElementWithFileRow>;
+}
+
+/**
+ * Extended table block element that uses extended cells.
+ */
+export interface ApiContentTableBlockElementExtended {
+    type: "Table";
+    width: number;
+    hasHeaderRow?: boolean;
+    hasHeaderColumn?: boolean;
+    columns: Array<{width: number}>;
+    rows: Array<{cells: Array<ApiContentTableBlockElementCellExtended>}>;
+}
 
 /**
  * Normalizes a row to have exactly the expected number of columns. If there are
@@ -61,51 +92,164 @@ function escapeCell(cell: string): string {
 }
 
 /**
- * Create an inline element for a cell, either as a mention or as text. Returns
- * null for empty cells (ProseMirror doesn't allow empty text nodes).
+ * Check if a string looks like a file path. Must be careful not to match:
+ *
+ * - Dates (e.g., "02/20/2025")
+ * - Email addresses (e.g., "user@example.com")
  */
-function createCellInlineElement(
+function looksLikeFilePath(value: string): boolean {
+    // Email addresses are not file paths
+    if (value.includes("@")) return false;
+
+    // Contains URL-encoded characters (like %20) - strong indicator of a file path
+    if (/%[0-9A-Fa-f]{2}/.test(value)) return true;
+
+    // Has a file extension at the end (e.g., .jpg, .png, .pdf) This is the primary
+    // indicator of a file path
+    if (/\.[a-zA-Z0-9]{2,4}$/.test(value)) return true;
+
+    return false;
+}
+
+/**
+ * Extract file paths from a cell value. Returns an array of file paths, or null if
+ * the cell doesn't contain file paths.
+ */
+function extractFilePaths(cell: string): Array<string> | null {
+    if (!looksLikeFilePath(cell)) return null;
+
+    const parts = cell.split(",").map(p => p.trim());
+    const filePaths = parts.filter(part => looksLikeFilePath(part));
+
+    return filePaths.length > 0 ? filePaths : null;
+}
+
+/**
+ * Create a FileRowTable element for a file in a table cell.
+ */
+function createFileRowTableElement(fileId: FileId): ApiContentFileRowTableBlockElement {
+    return {
+        type: "FileRowTable",
+        fileId,
+    };
+}
+
+/**
+ * Resolve a file path from a CSV cell to an actual FileId. Returns null if the
+ * file is not found in filesToUpload.
+ *
+ * Note: CSV file paths from Notion exports are URL-encoded (e.g., spaces become
+ * %20). We decode them before resolution since filesToUpload uses decoded paths.
+ *
+ * Notion exports file paths in CSVs relative to the parent of the CSV directory
+ * (i.e., the grandparent of the CSV file). For example, if the CSV is at
+ * `Media/Database/Data.csv` and references `Database/image.jpg`, the actual file
+ * is at `Media/Database/image.jpg`.
+ */
+function resolveFilePathToId(
+    filePath: string,
+    csvDir: string,
+    filesToUpload: Record<string, {id: FileId}>,
+): FileId | null {
+    // Decode URL-encoded path (Notion exports use %20 for spaces, etc.)
+    const decodedPath = decodeURIComponent(filePath);
+
+    // Notion exports file paths relative to the parent of the CSV directory. So we
+    // need to resolve from the grandparent (parent of csvDir).
+    const parentDir = csvDir.includes("/") ? csvDir.slice(0, csvDir.lastIndexOf("/")) : "";
+    const resolvedPath = resolveNotionImportRelativePath(parentDir, decodedPath);
+    if (!resolvedPath) return null;
+
+    // Look up the file in filesToUpload
+    const fileInfo = filesToUpload[resolvedPath];
+    if (!fileInfo) return null;
+
+    return fileInfo.id;
+}
+
+/**
+ * Create inline elements for a cell. Returns an array of inline elements.
+ */
+function createCellInlineElements(
     cell: string,
     isHeader: boolean,
     childTitleToDocumentId: Map<string, DocumentId>,
-): ApiContentInlineElement | null {
-    // Don't convert header cells to mentions
+): Array<ApiContentInlineElement> {
+    // Don't convert header cells to mentions or file links
     if (!isHeader) {
         const documentId = childTitleToDocumentId.get(cell);
         if (documentId) {
-            return {
-                type: "Mention",
-                target: {type: "Document", id: documentId},
-            };
+            return [
+                {
+                    type: "Mention",
+                    target: {type: "Document", id: documentId},
+                },
+            ];
         }
     }
 
     const escapedCell = escapeCell(cell);
     // Empty text nodes are not allowed in ProseMirror
     if (escapedCell === "") {
-        return null;
+        return [];
     }
 
-    return {
-        type: "Text",
-        text: escapedCell,
-    };
+    return [
+        {
+            type: "Text",
+            text: escapedCell,
+        },
+    ];
 }
 
 /**
- * Create a table cell with a paragraph containing the inline element. If
- * inlineElement is null (empty cell), creates a paragraph with no content.
+ * Create a table cell with a paragraph containing the inline elements.
  */
 function createTableCell(
-    inlineElement: ApiContentInlineElement | null,
-): ApiContentTableBlockElementCell {
+    inlineElements: Array<ApiContentInlineElement>,
+): ApiContentTableBlockElementCellExtended {
     return {
         elements: [
             {
                 type: "Paragraph",
-                elements: inlineElement ? [inlineElement] : [],
+                elements: inlineElements,
             },
         ],
+    };
+}
+
+/**
+ * Create a table cell with FileRowTable elements for each resolved file. Only
+ * includes files that can be resolved to actual FileIds.
+ */
+function createFilesTableCell(
+    filePaths: Array<string>,
+    csvDir: string,
+    filesToUpload: Record<string, {id: FileId}>,
+): ApiContentTableBlockElementCellExtended {
+    const fileElements: Array<ApiContentBlockElementWithFileRow> = [];
+
+    for (const filePath of filePaths) {
+        const fileId = resolveFilePathToId(filePath, csvDir, filesToUpload);
+        if (fileId) {
+            fileElements.push(createFileRowTableElement(fileId));
+        }
+    }
+
+    // If no files were resolved, return an empty paragraph
+    if (fileElements.length === 0) {
+        return {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [],
+                },
+            ],
+        };
+    }
+
+    return {
+        elements: fileElements,
     };
 }
 
@@ -113,6 +257,9 @@ function createTableCell(
  * Convert CSV content to an API content table block element. If
  * childTitleToDocumentId is provided, cells that exactly match a child title will
  * be converted to document mentions.
+ *
+ * File paths in cells are converted to FileRowTable elements if filesToUpload and
+ * csvDir are provided. Otherwise, file paths remain as text.
  *
  * Note on handling malformed CSV with unquoted commas: If a data row has more
  * fields than the header row (due to unquoted commas in cell content), we cannot
@@ -133,7 +280,9 @@ function createTableCell(
 export function notionImportCsvToApiContent(
     csvContent: string,
     childTitleToDocumentId: Map<string, DocumentId> = new Map(),
-): ApiContentTableBlockElement | null {
+    options: NotionImportCsvToApiContentOptions = {},
+): ApiContentTableBlockElementExtended | null {
+    const {filesToUpload, csvDir} = options;
     const lines = csvContent.trim().split("\n");
     if (lines.length === 0) return null;
 
@@ -149,16 +298,17 @@ export function notionImportCsvToApiContent(
     const dataRows = parsedRows.slice(1).map(row => normalizeRowToColumnCount(row, columnCount));
 
     // Build the table structure
-    const rows: Array<{cells: Array<ApiContentTableBlockElementCell>}> = [];
+    const rows: Array<{cells: Array<ApiContentTableBlockElementCellExtended>}> = [];
 
     // Header row
     rows.push({
         cells: headerRow.map(cell =>
-            createTableCell(createCellInlineElement(cell, true, new Map())),
+            createTableCell(createCellInlineElements(cell, true, new Map())),
         ),
     });
 
-    // Data rows
+    // Data rows - file paths in cells become FileRowTable elements if file resolution
+    // is available
     for (const row of dataRows) {
         // Pad the row with empty cells if it has fewer fields than headers
         const paddedRow = [...row];
@@ -167,9 +317,26 @@ export function notionImportCsvToApiContent(
         }
 
         rows.push({
-            cells: paddedRow.map(cell =>
-                createTableCell(createCellInlineElement(cell, false, childTitleToDocumentId)),
-            ),
+            cells: paddedRow.map(cell => {
+                const filePaths = extractFilePaths(cell);
+
+                // Only convert to FileRowTable if we have file resolution options Note: csvDir can
+                // be empty string for root-level CSVs, so use explicit undefined check
+                if (
+                    filePaths &&
+                    filePaths.length > 0 &&
+                    filesToUpload !== undefined &&
+                    csvDir !== undefined
+                ) {
+                    // This cell contains file paths - create FileRowTable elements
+                    return createFilesTableCell(filePaths, csvDir, filesToUpload);
+                } else {
+                    // Regular cell content (or file paths without resolution)
+                    return createTableCell(
+                        createCellInlineElements(cell, false, childTitleToDocumentId),
+                    );
+                }
+            }),
         });
     }
 
