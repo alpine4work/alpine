@@ -5,16 +5,14 @@ import {ApiContentExtended, fromApiContent} from "~/server/api/content/from_api_
 import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {doesDocumentExist} from "~/server/documents/data/does_document_exist.js";
 import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/internal/create_notion_import_csv_database_document.js";
 import {createNotionImportTeamspaceRootDocument} from "~/server/importer/notion/internal/create_notion_import_teamspace_root_document.js";
 import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
-import {
-    ApiContentTableBlockElementExtended,
-    notionImportCsvToApiContent,
-} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
+import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
@@ -24,6 +22,7 @@ import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentInlineElement,
+    ApiContentQuoteBlockElement,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -32,6 +31,7 @@ import {
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DocumentId, FileId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
@@ -162,11 +162,8 @@ export async function convertExtractedNotionDataToEntities(
         // Process each document in the teamspace
         for (const [filePath, documentInfo] of Object.entries(teamspace.documents)) {
             // Read the file content using the context module
-            const fileContent = await readUnzippedFile(filePath);
-            if (!fileContent) continue;
-
+            const fileContent = assertExists(await readUnzippedFile(filePath));
             const rawContent = strFromU8(fileContent);
-
             // ============================================================ Preprocess markdown
             // for database properties
             // ============================================================ Notion exports
@@ -209,7 +206,10 @@ export async function convertExtractedNotionDataToEntities(
                 });
 
             // Convert API content to ProseMirror document
-            const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, finalApiContent);
+            const bodyContent = fromApiContent<ApiContentExtended>(
+                DocumentContentProsemirrorSchema,
+                finalApiContent,
+            );
 
             // Create access policy based on teamspace import option
             const accessPolicy: AccessPolicy = {
@@ -233,6 +233,12 @@ export async function convertExtractedNotionDataToEntities(
                 ]),
             );
 
+            // Skip duplicate documents. Deterministic IDs mean re-importing the same Notion
+            // workspace produces the same document IDs.
+            if (await doesDocumentExist(context, documentInfo.id)) {
+                continue;
+            }
+
             // Create the document
             await createDocument(context, {
                 id: documentInfo.id,
@@ -243,10 +249,14 @@ export async function convertExtractedNotionDataToEntities(
                 from: {type: "Importer", source: {type: "Notion"}},
             });
 
-            // Attach files to the document so they can be accessed via the document.
-            const fileIds = extractFileIdsFromApiContent(finalApiContent);
+            // Attach files to the document so they can be accessed via the document. Files are
+            // uploaded separately, but they need attachment records to be viewable when the
+            // document is loaded. We extract file IDs from the final content because
+            // additional files may have been added during content transformation (e.g., from
+            // CSV tables).
+            const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
             await runAllPromises(
-                [...fileIds].map(fileId =>
+                [...fileIdsInContent].map(fileId =>
                     attachFileToDocumentAsSystem(context, spaceId, fileId, documentInfo.id),
                 ),
             );
@@ -277,6 +287,11 @@ export async function convertExtractedNotionDataToEntities(
         // Create documents for root-level CSV-only databases
         for (const [csvPath, csvDatabaseInfo] of csvDatabaseDocuments) {
             if (csvDatabaseInfo.teamspaceId !== teamspace.id) continue;
+
+            // Skip duplicate CSV database documents
+            if (await doesDocumentExist(context, csvDatabaseInfo.id)) {
+                continue;
+            }
 
             // Create a document for this CSV database
             await createNotionImportCsvDatabaseDocument(context, {
@@ -312,6 +327,11 @@ export async function convertExtractedNotionDataToEntities(
                     };
                 },
             );
+        }
+
+        // Skip duplicate teamspace root documents
+        if (await doesDocumentExist(context, teamspaceRootDocumentId)) {
+            continue;
         }
 
         // Create a teamspace root document with list of first-layer children
@@ -380,14 +400,14 @@ function preprocessNotionDatabaseProperties(
 
     // Pattern to match property lines: "Property Name: value"
     //
-    // - One or more words (letters, ampersand, or other common chars) as the key
+    // - One or more words (any non-whitespace, non-colon chars) as the key
     // - Followed by colon
     // - Followed by the value
-    const propertyLinePattern = /^[A-Za-z&]+(?:\s[A-Za-z&]+)*:\s*.+$/;
+    const propertyLinePattern = /^[^\s:]+(?:\s[^\s:]+)*:\s*.+$/;
 
     // Pattern to capture the property name and value from a property line. Used to
     // check any property's value for file paths.
-    const propertyPartsPattern = /^([A-Za-z&]+(?:\s[A-Za-z&]+)*):\s*(.+)$/;
+    const propertyPartsPattern = /^([^\s:]+(?:\s[^\s:]+)*):\s*(.+)$/;
 
     // Find the title line (# Heading) - properties come after it
     let titleIndex = -1;
@@ -496,8 +516,8 @@ function convertFilePathsToMarkdownImageLines(
                 return null;
             }
 
-            // Extract filename from path (decode URL encoding for display)
-            const fileName = decodeURIComponent(part.split("/").pop() ?? part);
+            // Extract filename from path
+            const fileName = decodeRelativePathUrl(part.split("/").pop() ?? part);
 
             // Convert to markdown image syntax: ![filename](path)
             return `![${fileName}](${part})`;
@@ -520,8 +540,8 @@ function convertFilePathsToMarkdownImageLines(
  * section removed
  */
 function removeChildLinksSectionFromApiContent(
-    elements: Array<ApiContentBlockElement>,
-): Array<ApiContentBlockElement> {
+    elements: Array<ApiContentBlockElementWithFileRow>,
+): Array<ApiContentBlockElementWithFileRow> {
     const firstDividerIndex = elements.findIndex(element => element.type === "Divider");
     if (firstDividerIndex === -1) {
         // No divider found - return as-is
@@ -542,15 +562,15 @@ function removeChildLinksSectionFromApiContent(
  * properties
  */
 function formatDatabasePropertiesInApiContent(
-    elements: Array<ApiContentBlockElement>,
-): Array<ApiContentBlockElement> {
+    elements: Array<ApiContentBlockElementWithFileRow>,
+): Array<ApiContentBlockElementWithFileRow> {
     if (elements.length === 0) return elements;
 
     // Pattern to match property lines: "Property Name: value"
     const propertyPattern = /^[A-Za-z]+(?:\s[A-Za-z]+)*:\s*.+$/;
 
     // Check if a paragraph contains only a property line
-    function isPropertyParagraph(element: ApiContentBlockElement): string | null {
+    function isPropertyParagraph(element: ApiContentBlockElementWithFileRow): string | null {
         if (element.type !== "Paragraph") return null;
         if (element.elements.length !== 1) return null;
 
@@ -582,7 +602,7 @@ function formatDatabasePropertiesInApiContent(
     if (propertyLines.length === 0) return elements;
 
     // Build the formatted output: Divider, UnorderedList, Divider
-    const formattedElements: Array<ApiContentBlockElement> = [];
+    const formattedElements: Array<ApiContentBlockElementWithFileRow> = [];
 
     formattedElements.push({type: "Divider"});
     formattedElements.push({
@@ -664,7 +684,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         filesToUpload,
     } = options;
 
-    let elements = [...apiContent.elements];
+    let elements: Array<ApiContentBlockElementWithFileRow> = [...apiContent.elements];
 
     // ----------------------------------------------------------------
     // Extract title from first H1 heading
@@ -753,11 +773,15 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         inlineDatabaseChildren,
         filesToUpload,
     });
-    elements = csvTransformedElements as unknown as Array<ApiContentBlockElement>;
+    elements = csvTransformedElements;
 
     // Transform .md links to document mentions using visitor pattern
     const transformedContent = transformMdLinksToMentions(
-        {elements},
+        // In order to avoid traversing the entire stack of visitors, we cast to the base
+        // type. This is safe because the only inline elements that are visited are text
+        // elements with link marks. We should not use this as a sample pattern for other
+        // visitors.
+        {elements: elements as Array<ApiContentBlockElement>},
         {pathToDocumentId, currentDir},
     );
     elements = [...transformedContent.elements];
@@ -780,7 +804,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
     // Adjacent file references are combined into single rows (max 3 files per row).
     //
     // ---
-    const extendedElements = transformFileLinksToFileRows(elements, {
+    const extendedElements = transformFileLinksToFileRowsIfPossible(elements, {
         currentDir,
         filesToUpload,
     });
@@ -855,7 +879,7 @@ function extractTextFromInlineElements(elements: ReadonlyArray<ApiContentInlineE
  * structured "Child documents" section at the end anyway.
  */
 function isApiContentOnlyChildMentions(
-    elements: Array<ApiContentBlockElement>,
+    elements: Array<ApiContentBlockElementWithFileRow>,
     childIds: Set<DocumentId>,
 ): boolean {
     if (childIds.size === 0) return false;
@@ -924,22 +948,20 @@ function resolveFileLinkPath(
         return null;
     }
 
-    // Strip leading ./ (flat exports use relative paths)
-    let rawPath = url;
-    if (rawPath.startsWith("./")) {
-        rawPath = rawPath.slice(2);
+    // Decode URL-encoded characters in the markdown link path (e.g. `%20` → space) to
+    // match filesystem paths.
+    let path = decodeRelativePathUrl(url);
+    if (path.startsWith("./")) {
+        path = path.slice(2);
     }
 
-    // Decode URL-encoded path segments
-    const decoded = rawPath.split("/").map(decodeURIComponent).join("/");
-
     // Try direct match first (for absolute or root-relative paths)
-    if (filesToUpload[decoded]) {
-        return decoded;
+    if (filesToUpload[path]) {
+        return path;
     }
 
     // Resolve relative path against current document's directory
-    const resolved = resolveNotionImportRelativePath(currentDir, decoded);
+    const resolved = resolveNotionImportRelativePath(currentDir, path);
     if (resolved && filesToUpload[resolved]) {
         return resolved;
     }
@@ -951,8 +973,8 @@ function resolveFileLinkPath(
  * Extract file paths from a paragraph element. Returns an array of file paths if
  * the paragraph contains only file links, or null if it contains other content.
  */
-function extractFilesFromParagraph(
-    element: ApiContentBlockElement,
+function convertParagraphToFileRowsIfNeeded(
+    element: ApiContentBlockElementWithFileRow,
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
 ): Array<{path: string; fileId: FileId}> | null {
@@ -994,24 +1016,165 @@ function extractFilesFromParagraph(
 }
 
 /**
+ * Extract file-link paragraphs from inside a container block element (lists,
+ * blockquotes) and hoist them out as top-level FileRow elements.
+ *
+ * Our content schema doesn't support file nodes inside list items or blockquotes,
+ * so the only option is to pull them out to the top level. When all paragraphs in
+ * a container are file-only the container is dropped entirely (remainingElement is
+ * null) and only the FileRows are emitted.
+ *
+ * Notion does NOT support files in lists today, but does support them in
+ * blockquotes. We handle this here in case they ever do suppport it.
+ *
+ * Tables are handled separately by {@link transformTableFileLinksToFileRowTables}
+ * because our schema DOES support files in table cells via `FileRowTable`
+ * elements.
+ */
+function extractFilesFromContainerElement(
+    element: ApiContentBlockElement & {
+        type: "UnorderedList" | "OrderedList" | "CheckList" | "Quote";
+    },
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): {
+    files: Array<{path: string; fileId: FileId}>;
+    remainingElement: ApiContentBlockElement | null;
+} {
+    const allFiles: Array<{path: string; fileId: FileId}> = [];
+
+    // Splits a list of paragraphs into file-only paragraphs (whose file references are
+    // collected into `allFiles`) and everything else (returned as the kept array).
+    const partitionParagraphs = <T extends ApiContentBlockElement>(
+        paragraphs: ReadonlyArray<T>,
+    ): Array<T> => {
+        const kept: Array<T> = [];
+
+        for (const paragraph of paragraphs) {
+            const files = convertParagraphToFileRowsIfNeeded(paragraph, currentDir, filesToUpload);
+            if (files) {
+                allFiles.push(...files);
+            } else {
+                kept.push(paragraph);
+            }
+        }
+
+        return kept;
+    };
+
+    switch (element.type) {
+        case "UnorderedList":
+        case "OrderedList": {
+            const remainingItems = element.items
+                .map(item => ({...item, elements: partitionParagraphs(item.elements)}))
+                .filter(item => item.elements.length > 0);
+
+            if (allFiles.length === 0) {
+                return {files: [], remainingElement: element};
+            }
+
+            return {
+                files: allFiles,
+                remainingElement:
+                    remainingItems.length > 0 ? {...element, items: remainingItems} : null,
+            };
+        }
+        case "CheckList": {
+            const remainingItems = element.items
+                .map(item => ({...item, elements: partitionParagraphs(item.elements)}))
+                .filter(item => item.elements.length > 0);
+
+            if (allFiles.length === 0) {
+                return {files: [], remainingElement: element};
+            }
+
+            return {
+                files: allFiles,
+                remainingElement:
+                    remainingItems.length > 0 ? {...element, items: remainingItems} : null,
+            };
+        }
+        case "Quote": {
+            const remainingElements = partitionParagraphs(element.elements);
+
+            if (allFiles.length === 0) {
+                return {files: [], remainingElement: element};
+            }
+
+            return {
+                files: allFiles,
+                remainingElement:
+                    remainingElements.length > 0 ? {...element, elements: remainingElements} : null,
+            };
+        }
+        default:
+            throw exhaustive(element);
+    }
+}
+
+/**
+ * Convert file-link paragraphs inside table cells to FileRowTable elements
+ * in-place.
+ *
+ * Unlike lists and blockquotes, our content schema supports files inside table
+ * cells via `FileRowTable` elements. So instead of hoisting files out, we replace
+ * file-only paragraphs with FileRowTable elements within the cell.
+ *
+ * NOTE: Notion doesn't currently export files inside markdown tables, but they
+ * might someday. Since table cells can contain paragraphs with file links, we
+ * handle it now so it works automatically if Notion adds this.
+ */
+function transformTableFileLinksToFileRowTables(
+    element: ApiContentBlockElementWithFileRow & {type: "Table"},
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): ApiContentBlockElementWithFileRow {
+    let changed = false;
+
+    const rows = element.rows.map(row => ({
+        ...row,
+        cells: row.cells.map(cell => {
+            const newElements: Array<ApiContentBlockElementWithFileRow> = [];
+
+            for (const cellElement of cell.elements) {
+                const files = convertParagraphToFileRowsIfNeeded(
+                    cellElement,
+                    currentDir,
+                    filesToUpload,
+                );
+                if (files) {
+                    changed = true;
+                    for (const file of files) {
+                        newElements.push({type: "FileRowTable", fileId: file.fileId});
+                    }
+                } else {
+                    newElements.push(cellElement);
+                }
+            }
+
+            return {...cell, elements: newElements};
+        }),
+    }));
+
+    if (!changed) {
+        return element;
+    }
+
+    return {...element, rows};
+}
+
+/**
  * Transform file links to FileRow elements.
  *
  * Paragraphs containing links to uploaded files (images, PDFs, etc.) are replaced
  * with FileRow elements. Adjacent FileRow elements are combined into single rows
  * (max 3 files per row).
  *
- * This also recurses into blockquotes, lists, and tables:
- *
- * - **Blockquotes/Lists**: File paragraphs are extracted out and placed as sibling
- *   FileRow elements after the containing block.
- * - **Tables**: File paragraphs in table cells are converted to FileRowTable
- *   elements in-place.
- *
  * @param elements - Block elements to process @param options - Configuration
  * including file mappings @returns Extended elements with FileRow blocks
  */
-function transformFileLinksToFileRows(
-    elements: Array<ApiContentBlockElement>,
+function transformFileLinksToFileRowsIfPossible(
+    elements: Array<ApiContentBlockElementWithFileRow>,
     options: {
         currentDir: string;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
@@ -1036,100 +1199,71 @@ function transformFileLinksToFileRows(
     };
 
     for (const element of elements) {
-        const files = extractFilesFromParagraph(element, currentDir, filesToUpload);
+        switch (element.type) {
+            case "Paragraph": {
+                const files = convertParagraphToFileRowsIfNeeded(
+                    element,
+                    currentDir,
+                    filesToUpload,
+                );
 
-        if (files) {
-            // This paragraph contains file links - add to pending files
-            for (const file of files) {
-                pendingFiles.push({fileId: file.fileId});
-            }
-        } else if (element.type === "Quote") {
-            // Recurse into blockquotes: extract file paragraphs and place them as siblings
-            // after the quote.
-            const innerElements: Array<ApiContentBlockElement> = [];
-            const extractedFiles: Array<{fileId: FileId}> = [];
-            for (const child of element.elements) {
-                const childFiles = extractFilesFromParagraph(child, currentDir, filesToUpload);
-                if (childFiles) {
-                    for (const f of childFiles) {
-                        extractedFiles.push({fileId: f.fileId});
+                if (files) {
+                    for (const file of files) {
+                        pendingFiles.push({fileId: file.fileId});
                     }
                 } else {
-                    innerElements.push(child);
+                    flushPendingFiles();
+                    result.push(element);
                 }
+
+                break;
             }
-            flushPendingFiles();
-            if (innerElements.length > 0) {
-                result.push({
-                    ...element,
-                    elements: innerElements as typeof element.elements,
-                });
-            }
-            for (const f of extractedFiles) {
-                pendingFiles.push(f);
-            }
-        } else if (
-            element.type === "UnorderedList" ||
-            element.type === "OrderedList" ||
-            element.type === "CheckList"
-        ) {
-            // Recurse into list items: extract file paragraphs from item content and place
-            // them as siblings after the list item.
-            flushPendingFiles();
-            for (const item of element.items) {
-                const keptElements: Array<ApiContentBlockElement> = [];
-                const itemFiles: Array<{fileId: FileId}> = [];
-                for (const child of item.elements) {
-                    const childFiles = extractFilesFromParagraph(child, currentDir, filesToUpload);
-                    if (childFiles) {
-                        for (const f of childFiles) {
-                            itemFiles.push({fileId: f.fileId});
-                        }
-                    } else {
-                        keptElements.push(child);
+
+            case "UnorderedList":
+            case "OrderedList":
+            case "CheckList":
+            case "Quote": {
+                const extracted = extractFilesFromContainerElement(
+                    element,
+                    currentDir,
+                    filesToUpload,
+                );
+                if (extracted.files.length > 0) {
+                    flushPendingFiles();
+                    if (extracted.remainingElement) {
+                        result.push(extracted.remainingElement);
                     }
-                }
-                if (keptElements.length > 0) {
-                    result.push({
-                        ...element,
-                        items: [{...item, elements: keptElements}],
-                    } as ApiContentBlockElement);
-                }
-                for (const f of itemFiles) {
-                    pendingFiles.push(f);
-                }
-            }
-        } else if (element.type === "Table") {
-            // Recurse into table cells: convert file paragraphs to FileRowTable elements
-            // in-place.
-            flushPendingFiles();
-            const transformedRows = element.rows.map(row => ({
-                ...row,
-                cells: row.cells.map(cell => {
-                    const cellElements: Array<ApiContentBlockElementWithFileRow> = [];
-                    for (const child of cell.elements) {
-                        const childFiles = extractFilesFromParagraph(
-                            child,
-                            currentDir,
-                            filesToUpload,
-                        );
-                        if (childFiles && childFiles.length > 0) {
-                            cellElements.push({
-                                type: "FileRowTable" as const,
-                                fileId: childFiles[0]!.fileId,
-                            });
-                        } else {
-                            cellElements.push(child);
-                        }
+                    for (const file of extracted.files) {
+                        pendingFiles.push({fileId: file.fileId});
                     }
-                    return {...cell, elements: cellElements};
-                }),
-            }));
-            result.push({...element, rows: transformedRows} as ApiContentBlockElementWithFileRow);
-        } else {
-            // Not a file paragraph - flush pending files first, then add this element
-            flushPendingFiles();
-            result.push(element);
+                } else {
+                    flushPendingFiles();
+                    result.push(element);
+                }
+                break;
+            }
+
+            case "Table": {
+                flushPendingFiles();
+                result.push(
+                    transformTableFileLinksToFileRowTables(element, currentDir, filesToUpload),
+                );
+                break;
+            }
+
+            // These elements won't hold file text links so we can flush pending files and add
+            // the element
+            case "FileRow":
+            case "FileRowTable":
+            case "Heading":
+            case "Divider":
+            case "Code": {
+                flushPendingFiles();
+                result.push(element);
+                break;
+            }
+            default:
+                throw exhaustive(element);
         }
     }
 
@@ -1147,7 +1281,7 @@ function transformFileLinksToFileRows(
  */
 async function transformCsvLinksToTables(
     context: {importerService: ImporterServiceContextModuleBase},
-    elements: Array<ApiContentBlockElement>,
+    elements: Array<ApiContentBlockElementWithFileRow>,
     options: {
         currentDir: string;
         diskPathToUnzippedFiles: string;
@@ -1161,7 +1295,7 @@ async function transformCsvLinksToTables(
     for (const element of elements) {
         if (element.type === "Paragraph") {
             // Check if this paragraph contains a CSV link
-            let csvTable: ApiContentTableBlockElementExtended | null = null;
+            let csvTable: ApiContentBlockElementWithFileRow | null = null;
 
             for (const inlineElement of element.elements) {
                 if (inlineElement.type === "Text" && inlineElement.marks) {
@@ -1169,36 +1303,40 @@ async function transformCsvLinksToTables(
                     if (linkMark && "url" in linkMark) {
                         const url = linkMark.url;
                         if (url.endsWith(".csv")) {
-                            const decodedPath = decodeURIComponent(url);
-                            const normalizedPath = decodedPath.startsWith("./")
-                                ? decodedPath.slice(2)
-                                : decodedPath;
+                            const decodedUrl = decodeRelativePathUrl(url);
+                            const normalizedPath = decodedUrl.startsWith("./")
+                                ? decodedUrl.slice(2)
+                                : decodedUrl;
                             const resolvedPath =
                                 resolveNotionImportRelativePath(currentDir, normalizedPath) ??
                                 normalizedPath;
 
                             // Read the CSV content from disk
-                            const csvData = await context.importerService.readUnzippedFile({
-                                diskPathToUnzippedFiles,
-                                relativeFilePath: resolvedPath,
-                            });
-                            if (csvData) {
-                                const csvContent = strFromU8(csvData);
-                                const childTitleToDocumentId =
-                                    inlineDatabaseChildren.get(resolvedPath) ?? new Map();
-                                // Get the directory of the CSV file for resolving relative paths
-                                const csvDir = resolvedPath.includes("/")
-                                    ? resolvedPath.slice(0, resolvedPath.lastIndexOf("/"))
-                                    : "";
-                                const tableContent = notionImportCsvToApiContent(
-                                    csvContent,
-                                    childTitleToDocumentId,
-                                    {filesToUpload, csvDir},
-                                );
-                                if (tableContent) {
-                                    csvTable = tableContent;
-                                    break;
-                                }
+                            const csvData = assertExists(
+                                await context.importerService.readUnzippedFile({
+                                    diskPathToUnzippedFiles,
+                                    relativeFilePath: resolvedPath,
+                                }),
+                            );
+
+                            const csvContent = strFromU8(csvData);
+                            const childTitleToDocumentId =
+                                inlineDatabaseChildren.get(resolvedPath) ?? new Map();
+
+                            // Get the directory of the CSV file for resolving relative paths
+                            const csvDir = resolvedPath.includes("/")
+                                ? resolvedPath.slice(0, resolvedPath.lastIndexOf("/"))
+                                : "";
+
+                            const tableContent = notionImportCsvToApiContent(
+                                csvContent,
+                                childTitleToDocumentId,
+                                {filesToUpload, csvDir},
+                            );
+
+                            if (tableContent) {
+                                csvTable = tableContent;
+                                break;
                             }
                         }
                     }
@@ -1208,7 +1346,7 @@ async function transformCsvLinksToTables(
             if (csvTable) {
                 // Cast the extended table to the base type since fromApiContentBlockElements
                 // accepts ApiContentBlockElementWithFileRow and handles the extended types
-                result.push(csvTable as unknown as ApiContentBlockElementWithFileRow);
+                result.push(csvTable);
             } else {
                 result.push(element);
             }
@@ -1220,10 +1358,7 @@ async function transformCsvLinksToTables(
                     context,
                     [...element.elements],
                     options,
-                )) as Array<{
-                    type: "Paragraph";
-                    elements: ReadonlyArray<ApiContentInlineElement>;
-                }>,
+                )) as ApiContentQuoteBlockElement["elements"],
             });
         } else {
             result.push(element);
@@ -1260,10 +1395,8 @@ function transformMdLinksToMentions(
             if (!url.endsWith(".md")) return;
 
             // Convert .md link to document mention
-            const decodedPath = decodeURIComponent(url);
-            const normalizedPath = decodedPath.startsWith("./")
-                ? decodedPath.slice(2)
-                : decodedPath;
+            const decodedUrl = decodeRelativePathUrl(url);
+            const normalizedPath = decodedUrl.startsWith("./") ? decodedUrl.slice(2) : decodedUrl;
 
             let documentId = pathToDocumentId.get(normalizedPath);
 
@@ -1294,11 +1427,27 @@ function transformMdLinksToMentions(
 
             if (documentId) {
                 // Replace the element in the parent array using context
-                (context.elements as Array<ApiContentInlineElement>)[context.index] = {
+                context.elements[context.index] = {
                     type: "Mention",
                     target: {type: "Document", id: documentId},
                 };
             }
         },
     });
+}
+
+/**
+ * Decode a URL-encoded relative path from a Notion markdown link into a filesystem
+ * path. Notion exports URL-encode special characters in link targets (e.g. spaces
+ * become `%20`), but the actual filenames in the zip are not encoded.
+ *
+ * Handles lone `%` characters that aren't valid percent-encoded sequences by
+ * escaping them as `%25` before decoding, so a filename like `100% Done.md`
+ * decodes correctly instead of throwing.
+ */
+function decodeRelativePathUrl(url: string): string {
+    // Replace lone `%` (not followed by two hex digits) with `%25` so
+    // `decodeURIComponent` treats them as literal `%`.
+    const sanitized = url.replace(/%(?![0-9A-Fa-f]{2})/g, "%25");
+    return decodeURIComponent(sanitized);
 }

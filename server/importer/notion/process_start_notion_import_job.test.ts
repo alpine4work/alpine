@@ -48,7 +48,7 @@ async function createSystemActionWithFile(
         tracer: new TracerContextModule(context.tracer.getTracer()),
         cache: CacheContextModule.new(),
         batch: BatchContextModule.new(),
-        actor: SystemActorContextModule.dangerouslyNew("Test", space.id),
+        actor: SystemActorContextModule.dangerouslyNew("ImporterService", space.id),
         importer,
         importerService: importer.createServiceModule(),
     });
@@ -1260,6 +1260,196 @@ describe("processStartNotionImportJob", () => {
                 c.marks?.some((m: any) => m.type === "link" && m.attrs?.url?.endsWith(".md")),
             );
             expect(hasMdLink).toBe(false);
+        });
+
+        test("re-importing the same space twice does not error or create duplicates", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            // Create a simple document hierarchy
+            const childDoc = new ExportedNotionDocument("Child Page", "Child content");
+            const parentDoc = new ExportedNotionDocument(
+                "Parent Page",
+                `Some content here.\n\n${childDoc.toReference()}`,
+                [childDoc],
+            );
+            const zip = createTestNotionImportZip([parentDoc]);
+
+            const notionImportId = generateId<NotionImportId>();
+            const importKey = `${space.id}/Notion/${notionImportId}`;
+
+            // Set up the import record for first import
+            await NotionImporterTable.createItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId: space.id,
+                startedByAccountId: session.account.id,
+                workspaceName: "Test Workspace",
+                importKey,
+                createdTime: new Date(),
+                updatedTime: new Date(),
+                teamspaceImportOptions: null,
+                status: {type: "ProcessQueued"},
+                importedCount: 0,
+                importZipSize: 1024,
+            });
+
+            // First import
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            // Verify first import succeeded
+            const firstImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            expect(firstImportItem.status).toEqual({type: "Success"});
+            expect(firstImportItem.importedCount).toBe(2); // Parent + Child
+
+            // Get documents after first import
+            const docsAfterFirstImport = await findDocumentsInSpace(space.id);
+            const docCountAfterFirstImport = docsAfterFirstImport.length;
+
+            // Reset the import status to allow re-import
+            await NotionImporterTable.updateItem(
+                context,
+                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
+                item => ({
+                    ...item!,
+                    status: {type: "ProcessQueued"},
+                    importedCount: 0,
+                }),
+            );
+
+            // Second import of the same data - should not error
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            // Verify second import also succeeded
+            const secondImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            expect(secondImportItem.status).toEqual({type: "Success"});
+            // importedCount should be 0 since all documents were skipped
+            expect(secondImportItem.importedCount).toBe(0);
+
+            // Get documents after second import
+            const docsAfterSecondImport = await findDocumentsInSpace(space.id);
+
+            // Verify no duplicates were created
+            expect(docsAfterSecondImport.length).toBe(docCountAfterFirstImport);
+
+            // Verify same documents exist
+            const titlesAfterFirst = docsAfterFirstImport.map(d => d.title).sort();
+            const titlesAfterSecond = docsAfterSecondImport.map(d => d.title).sort();
+            expect(titlesAfterSecond).toEqual(titlesAfterFirst);
+        });
+
+        test("re-importing with nested children does not create duplicate documents", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            // Create a deeper hierarchy: grandparent -> parent -> child
+            const grandchild = new ExportedNotionDocument("Grandchild", "Grandchild content");
+            const child = new ExportedNotionDocument(
+                "Child",
+                `Child content.\n\n${grandchild.toReference()}`,
+                [grandchild],
+            );
+            const parent = new ExportedNotionDocument(
+                "Parent",
+                `Parent content.\n\n${child.toReference()}`,
+                [child],
+            );
+
+            const zip = createTestNotionImportZip([parent]);
+
+            const notionImportId = generateId<NotionImportId>();
+            const importKey = `${space.id}/Notion/${notionImportId}`;
+
+            await NotionImporterTable.createItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId: space.id,
+                startedByAccountId: session.account.id,
+                workspaceName: "Test Workspace",
+                importKey,
+                createdTime: new Date(),
+                updatedTime: new Date(),
+                teamspaceImportOptions: null,
+                status: {type: "ProcessQueued"},
+                importedCount: 0,
+                importZipSize: 1024,
+            });
+
+            // First import
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            const firstImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            expect(firstImportItem.status).toEqual({type: "Success"});
+            expect(firstImportItem.importedCount).toBe(3); // Parent + Child + Grandchild
+
+            // Get documents after first import
+            const docsAfterFirstImport = await findDocumentsInSpace(space.id);
+            const docCountAfterFirstImport = docsAfterFirstImport.length;
+
+            // Should have created Parent, Child, Grandchild, and teamspace root
+            expect(docsAfterFirstImport.map(d => d.title)).toContain("Parent");
+            expect(docsAfterFirstImport.map(d => d.title)).toContain("Child");
+            expect(docsAfterFirstImport.map(d => d.title)).toContain("Grandchild");
+
+            // Reset import status for second import
+            await NotionImporterTable.updateItem(
+                context,
+                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
+                item => ({
+                    ...item!,
+                    status: {type: "ProcessQueued"},
+                    importedCount: 0,
+                }),
+            );
+
+            // Second import - should skip all existing documents
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            const secondImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            expect(secondImportItem.status).toEqual({type: "Success"});
+            // All documents should be skipped
+            expect(secondImportItem.importedCount).toBe(0);
+
+            // Get documents after second import
+            const docsAfterSecondImport = await findDocumentsInSpace(space.id);
+
+            // Verify no duplicates were created
+            expect(docsAfterSecondImport.length).toBe(docCountAfterFirstImport);
+
+            // Verify same documents exist
+            const titlesAfterFirst = docsAfterFirstImport.map(d => d.title).sort();
+            const titlesAfterSecond = docsAfterSecondImport.map(d => d.title).sort();
+            expect(titlesAfterSecond).toEqual(titlesAfterFirst);
         });
 
         test("document with only child links has empty body content", async () => {

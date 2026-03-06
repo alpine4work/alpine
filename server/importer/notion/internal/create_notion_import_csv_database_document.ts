@@ -13,6 +13,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export interface CreateNotionImportCsvDatabaseDocumentOptions {
@@ -135,7 +136,9 @@ export async function createNotionImportCsvDatabaseDocument(
     // Attach files to the document so they can be accessed via the document. Files in
     // CSV tables (FileRowTable elements) need attachment records.
     const fileIds = extractFileIdsFromApiContent(apiContent);
-    for (const fileId of fileIds) {
-        await attachFileToDocumentAsSystem(context, spaceId, fileId, documentId);
-    }
+    await runAllPromises(
+        [...fileIds].map(fileId =>
+            attachFileToDocumentAsSystem(context, spaceId, fileId, documentId),
+        ),
+    );
 }
