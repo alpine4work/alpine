@@ -1,11 +1,13 @@
-import {Unzipped, strFromU8} from "fflate";
-import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
+import {strFromU8} from "fflate";
+
+import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {generateDeterministicNotionDocumentIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_document_id.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
@@ -61,10 +63,9 @@ export type NotionImportMappedReferencesResult = {
         };
     };
     /**
-     * The full unzipped files from fflate. TODO: Remove this once we are unzipping on
-     * disk with fargate.
+     * The path to the unzipped files on disk.
      */
-    unzippedFiles: Unzipped;
+    diskPathToUnzippedFiles: string;
     /**
      * Children of inline databases, keyed by CSV path.
      *
@@ -108,49 +109,40 @@ export type NotionImportMappedReferencesResult = {
 const markdownLinkPattern = /!?\[[^\]]*\]\(([^)]+)\)/g;
 
 /**
- * Unzips a Notion export and maps references between the files. Rules:
+ * Parses a Notion export and maps references between the files.
  *
- * - Documents are markdown files named `<title> <notionId>.md`
- * - Full page databases turn into Documents named by their title in their file
- *   name
- * - Inline databases are ignored as they will be turned into inline tables
- * - Attached files are any other files that are referenced and need to be uploaded
+ * This function reads files on-demand from disk to avoid loading the entire export
+ * into memory. Only index.html and individual markdown files are read as needed.
  *
- * @see README.md "Import Pipeline" section 3 "Parse and Map References" for the
- * full parsing algorithm (four phases). @see README.md "How Notion Exports Work"
- * for the export structure. @see README.md "Inline vs Full-Page Databases" for
- * database detection logic.
- *
- * @returns The parsed result, or null if the zip structure is invalid or workspace
- * metadata cannot be extracted.
+ * @param context - Context containing the importer module @param
+ * diskPathToUnzippedFiles - Path to the unzipped files (or lookup key in dev/test)
+ * @param notionImportItem - The import item containing space ID and options
+ * @returns The parsed result, or null if the export is invalid
  */
-export function unzipNotionImportAndMapReferences(
-    data: Uint8Array,
+export async function parseNotionImportAndMapReferences(
+    context: {importerService: ImporterServiceContextModuleBase},
+    diskPathToUnzippedFiles: string,
     notionImportItem: NotionImportItem,
-): NotionImportMappedReferencesResult | null {
-    const unzippedFiles = findNotionImportRoot(data);
-    if (!unzippedFiles) {
-        return null;
-    }
+): Promise<NotionImportMappedReferencesResult | null> {
+    // List all files using the context module
+    const filePaths = await context.importerService.listUnzippedFiles({diskPathToUnzippedFiles});
 
-    // Build a map from stripped path to content for processing
-    const relativePathToContent = new Map<string, Uint8Array>();
+    // Build set of all paths (excluding index.html and \_all.csv files) and map notion
+    // IDs to paths - no content reading needed here
+    const allPaths = new Set<string>();
     const notionIdToPath = new Map<string, string>();
 
-    for (const path of Object.keys(unzippedFiles)) {
+    for (const path of filePaths) {
         if (isIndexHtml(path)) continue;
         // Skip "\_all.csv" files (Notion exports multiple views, we only need the default)
         if (path.endsWith("_all.csv")) continue;
 
-        relativePathToContent.set(path, unzippedFiles[path]!);
+        allPaths.add(path);
 
         const fileName = path.split("/").pop()!;
         const parsed = parseNotionImportFileName(fileName);
         if (parsed) {
             const notionId = parsed.notionId;
-            // For databases, both .md and .csv files share the same notion ID. The .md file is
-            // the document, so it should take precedence in the map. Only set if not already
-            // present, or if this is an .md file (prefer .md over .csv).
             const existing = notionIdToPath.get(notionId);
             if (!existing || path.endsWith(".md")) {
                 notionIdToPath.set(notionId, path);
@@ -158,26 +150,32 @@ export function unzipNotionImportAndMapReferences(
         }
     }
 
-    // Get workspace metadata for teamspace detection and deterministic ID generation.
-    // This is required - without the workspace ID we can't generate consistent
-    // document IDs.
-    const metadata = getNotionImportMetadata(unzippedFiles);
+    // Find and read index.html - it's the only file we need upfront
+    const indexHtmlPath = assertExists(
+        filePaths.find(path => path === "index.html" || path.endsWith("/index.html")),
+    );
+
+    const indexHtmlContent = assertExists(
+        await context.importerService.readUnzippedFile({
+            diskPathToUnzippedFiles,
+            relativeFilePath: indexHtmlPath,
+        }),
+    );
+
+    // Get workspace metadata from index.html
+    const metadata = getNotionImportMetadata(indexHtmlContent);
     if (!metadata) {
         return null;
     }
 
-    // Parse index.html to determine parent-child hierarchy. Pass workspaceId as
-    // fallback teamspace for exports without real teamspaces. When there are no
-    // teamspaces, all documents belong to an implicit teamspace using the workspace ID
-    // and name (set up in getNotionImportMetadata).
+    // Parse index.html to determine parent-child hierarchy
     const hierarchy = parseNotionImportHierarchyFromIndexHtml(
-        unzippedFiles,
+        indexHtmlContent,
         notionIdToPath,
         metadata.workspaceId,
     );
 
-    // Build a Map for O(1) teamspace option lookups instead of using .find() for each
-    // document
+    // Build teamspace option lookup map
     const teamspaceOptionById = new Map<
         string,
         {type: "Public"} | {type: "Private"} | {type: "DoNotImport"}
@@ -204,10 +202,9 @@ export function unzipNotionImportAndMapReferences(
         }
     > = {};
     const filesToUpload: NotionImportMappedReferencesResult["filesToUpload"] = {};
-    // Track which CSVs are referenced inline in document body content
     const inlineReferencedCsvs = new Set<string>();
 
-    for (const path of relativePathToContent.keys()) {
+    for (const path of allPaths) {
         const fileName = path.split("/").pop()!;
         const parsed = parseNotionImportFileName(fileName);
 
@@ -232,6 +229,7 @@ export function unzipNotionImportAndMapReferences(
                 metadata.workspaceId,
                 parsed.notionId,
             );
+
             pathToDocumentId.set(path, documentId);
             documentIdToPath.set(documentId, path);
             documents[path] = {
@@ -243,14 +241,15 @@ export function unzipNotionImportAndMapReferences(
                 hasChildrenHeader: false,
             };
         } else {
-            // Attached file
             const id = generateChronologicalId<FileId>();
             pathToFileId.set(path, id);
             filesToUpload[path] = {id};
         }
     }
 
-    // Apply hierarchy relationships
+    // Apply parent-only relationships (for children of inline databases). These set
+    // the parent reference but don't add to the parent's children list, so they won't
+    // appear in the "Child documents" section.
     for (const {parentPath, childPath} of hierarchy.relationships) {
         const parentDocumentId = pathToDocumentId.get(parentPath);
         const childDocumentId = pathToDocumentId.get(childPath);
@@ -263,9 +262,7 @@ export function unzipNotionImportAndMapReferences(
         }
     }
 
-    // Apply parent-only relationships (for children of inline databases). These set
-    // the parent reference but don't add to the parent's children list, so they won't
-    // appear in the "Child documents" section.
+    // Apply parent-only relationships
     for (const {parentPath, childPath} of hierarchy.parentOnlyRelationships) {
         const parentDocumentId = pathToDocumentId.get(parentPath);
         const childDocumentId = pathToDocumentId.get(childPath);
@@ -282,12 +279,19 @@ export function unzipNotionImportAndMapReferences(
     // "Home views") that don't map to Alpine concepts. If the Home file only contains
     // CSV links (no other content), skip it. This only applies to Home files at the
     // teamspace root (no parent).
-    for (const [path, content] of relativePathToContent) {
+    for (const path of allPaths) {
         if (!path.endsWith(".md")) continue;
         if (!documents[path]) continue;
 
         // Only filter Home files at the root level (no parent in the hierarchy)
         if (documents[path].parent !== null) continue;
+
+        const content = await context.importerService.readUnzippedFile({
+            diskPathToUnzippedFiles,
+            relativeFilePath: path,
+        });
+
+        if (!content) continue;
 
         const markdown = strFromU8(content);
         if (isHomeFileWithOnlyCsvLinks(markdown)) {
@@ -298,11 +302,18 @@ export function unzipNotionImportAndMapReferences(
         }
     }
 
-    // Parse markdown content for references and file attachments
-    const allPaths = new Set(relativePathToContent.keys());
-    for (const [path, content] of relativePathToContent) {
+    // Parse markdown content for references and file attachments Read each markdown
+    // file on-demand
+    for (const path of allPaths) {
         if (!path.endsWith(".md")) continue;
         if (!documents[path]) continue;
+
+        const content = await context.importerService.readUnzippedFile({
+            diskPathToUnzippedFiles,
+            relativeFilePath: path,
+        });
+
+        if (!content) continue;
 
         const markdown = strFromU8(content);
         const linkedPaths = findMarkdownLinks(markdown, allPaths, path);
@@ -319,20 +330,15 @@ export function unzipNotionImportAndMapReferences(
             }
         }
 
-        // Detect if this document has a Notion-generated children header. This is the
-        // section between the title and the first `---` divider that contains only links
-        // to child documents.
         documents[path].hasChildrenHeader = detectChildrenHeader(
             markdown,
             documents[path].children,
             pathToDocumentId,
         );
 
-        // Track CSV references that appear in the body content (after ---) These are
-        // inline databases and should not create separate documents. Skip references from
-        // a database's own .md file to its .csv file. If there's no --- divider and the
-        // document has children, the content is a children header (not body content), so
-        // don't track those CSVs.
+        // Detect if this document has a Notion-generated children header. This is the
+        // section between the title and the first `---` divider that contains only links
+        // to child documents.
         const hasChildren = documents[path].children.size > 0;
         const bodyContent = getBodyContent(markdown, hasChildren);
         const bodyLinkedPaths = findMarkdownLinks(bodyContent, allPaths, path);
@@ -377,21 +383,19 @@ export function unzipNotionImportAndMapReferences(
         // 1. They won't appear as top-level documents in the teamspace root
         // 2. They won't get a "Parent document:" link (parent ID not in documentIdToPath)
         //    They'll still be accessible via the inline table's cell links.
-        if (mdDocument.children.size > 0) {
-            const childTitleToId = new Map<string, DocumentId>();
-            for (const childId of mdDocument.children) {
-                const childPath = documentIdToPath.get(childId);
-                if (childPath) {
-                    const childTitle =
-                        parseNotionImportFileName(childPath.split("/").pop() ?? "")?.title ??
-                        "Untitled";
-                    childTitleToId.set(childTitle, childId);
-                }
-            }
-            if (childTitleToId.size > 0) {
-                inlineDatabaseChildren.set(csvPath, childTitleToId);
+        const childTitleToId = new Map<string, DocumentId>();
+        for (const childId of mdDocument.children) {
+            const childPath = documentIdToPath.get(childId);
+            if (childPath) {
+                const childTitle =
+                    parseNotionImportFileName(childPath.split("/").pop() ?? "")?.title ??
+                    "Untitled";
+                childTitleToId.set(childTitle, childId);
             }
         }
+
+        // Always add the entry (even with empty children map) so CSV gets pre-read
+        inlineDatabaseChildren.set(csvPath, childTitleToId);
 
         // Remove the .md document from parent's children list Only the parent document
         // needs to be updated (found via parent.relativeFilePath)
@@ -462,9 +466,8 @@ export function unzipNotionImportAndMapReferences(
             }
         }
 
-        if (childTitleToId.size > 0) {
-            inlineDatabaseChildren.set(csvPath, childTitleToId);
-        }
+        // Always add the entry (even with empty children map) so CSV gets pre-read
+        inlineDatabaseChildren.set(csvPath, childTitleToId);
     }
 
     // Group documents by teamspace
@@ -479,8 +482,6 @@ export function unzipNotionImportAndMapReferences(
         tsDocuments[path] = document;
     }
 
-    // Build result teamspaces array (DoNotImport teamspaces won't have entries since
-    // we skip their documents early, so no filtering needed here)
     const teamspaces: NotionImportMappedReferencesResult["teamspaces"] = [];
     for (const [teamspaceId, tsDocuments] of teamspaceDocuments) {
         const importOption = teamspaceOptionById.get(teamspaceId) ?? {type: "Private"};
@@ -493,7 +494,6 @@ export function unzipNotionImportAndMapReferences(
             documents: tsDocuments,
         });
     }
-
     // Add children of root-level CSV databases to inlineDatabaseChildren for cell
     // linking. These databases aren't inline (not referenced in body content), but
     // their children should still appear as links in table cells.
@@ -517,7 +517,7 @@ export function unzipNotionImportAndMapReferences(
         notionWorkspaceId: metadata.workspaceId,
         teamspaces,
         filesToUpload,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren,
         rootLevelCsvDatabases: hierarchy.rootLevelCsvDatabases,
         pathToDocumentId,

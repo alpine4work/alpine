@@ -18,6 +18,7 @@ import {
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TraceOnlyEmailContextModule} from "~/server/emails/trace_only_email_context_module.js";
@@ -41,8 +42,11 @@ import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
-import {ImporterServiceDevelopmentContextModule} from "~/server/importer/development/importer_service_development_context_module.js";
+import {
+    ImporterDevelopmentContextModule,
+    createDevelopmentEscalateToImporterServiceContext,
+} from "~/server/importer/development/importer_development_context_module.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
 import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
@@ -79,7 +83,7 @@ import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_trace
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
-import {Context} from "~/shared/context/context.js";
+import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -215,7 +219,7 @@ export async function withDevelopmentEnvironment<Value>(
         );
     };
 
-    const processContext = Context.new<TestContextModules>({
+    const processContext: ContextWithDestroy<TestContextModules> = Context.new<TestContextModules>({
         process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil}),
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
@@ -256,31 +260,8 @@ export async function withDevelopmentEnvironment<Value>(
         }),
         billing: new BillingNoopDevelopmentContextModule(),
         importer: new ImporterDevelopmentContextModule({
-            waitUntilAndEscalateToSystemContext: (spanName, spaceId, action) => {
-                processContext.process.waitUntil(
-                    processContext.tracer.withSpan(spanName, async context => {
-                        // Use "ImporterService" as the actor service name to match production where
-                        // imports run in a separate ImporterService ECS task.
-                        //
-                        // We add `importerService` module for file reading. This is separate from the
-                        // `importer` module (which handles presigned URLs and spawning) because in dev
-                        // mode we run imports in-process while in production they run in a separate ECS
-                        // task.
-                        const actionContext = processContext.clone({
-                            tracer: new TracerContextModule(context.tracer.getTracer()),
-                            cache: CacheContextModule.new(),
-                            batch: BatchContextModule.new(),
-                            actor: SystemActorContextModule.dangerouslyNew(
-                                "ImporterService",
-                                spaceId,
-                            ),
-                            importerService: new ImporterServiceDevelopmentContextModule(),
-                        });
-
-                        await action(actionContext);
-                    }),
-                );
-            },
+            getProcessContext: (): ServerProcessContext => processContext,
+            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext(),
         }),
         slack:
             env.SLACK_CLIENT_ID && env.SLACK_CLIENT_SECRET

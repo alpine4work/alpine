@@ -1,11 +1,8 @@
-import {strFromU8} from "fflate";
-import {DomUtils, parseDocument} from "htmlparser2";
 import {
     NotionIndexHtmlElement,
-    findAnchorElement,
     findChildUnorderedListElements,
-    isUnorderedListWithNotionId,
     normalizeNotionId,
+    parseNotionImportIndexHtml,
 } from "~/server/importer/notion/internal/notion_import_index_html_parsing.js";
 
 // We don't know the max depth someone will upload, but we want to have some limit
@@ -55,7 +52,7 @@ export interface NotionImportParsedHierarchy {
  * with teamspaces.
  */
 export function parseNotionImportHierarchyFromIndexHtml(
-    rawFiles: Record<string, Uint8Array>,
+    indexHtmlContent: Uint8Array,
     notionIdToPath: Map<string, string>,
     fallbackTeamspaceId?: string,
 ): NotionImportParsedHierarchy {
@@ -67,34 +64,11 @@ export function parseNotionImportHierarchyFromIndexHtml(
         rootLevelCsvDatabases: new Map(),
     };
 
-    // Find index.html in the raw files
-    const indexHtmlKey = Object.keys(rawFiles).find(
-        k => k.endsWith("/index.html") || k === "index.html",
-    );
-    if (!indexHtmlKey) return result;
+    // Parse the index.html
+    const parsed = parseNotionImportIndexHtml(indexHtmlContent);
+    if (!parsed) return result;
 
-    const html = strFromU8(rawFiles[indexHtmlKey]!);
-    const document = parseDocument(html);
-
-    // Find the workspace root element (first <ul id="id::...">)
-    const workspaceRootElement = DomUtils.findOne(
-        isUnorderedListWithNotionId,
-        document.children,
-        true,
-    );
-    if (!workspaceRootElement) return result;
-
-    // Get top-level children of the workspace root
-    const topLevelChildren = findChildUnorderedListElements(workspaceRootElement);
-
-    // Determine if this export has teamspaces: all top-level items must have <a>
-    // without href.
-    const hasTeamspaces =
-        topLevelChildren.length > 0 &&
-        topLevelChildren.every(child => {
-            const anchor = findAnchorElement(child);
-            return anchor != null && !anchor.attribs.href;
-        });
+    const {topLevelChildren, hasTeamspaces} = parsed;
 
     function visitChild(args: {
         child: NotionIndexHtmlElement;

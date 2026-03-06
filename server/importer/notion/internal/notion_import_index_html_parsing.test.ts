@@ -35,10 +35,9 @@ function parseHtmlAndFind(
 describe("parseNotionImportIndexHtml", () => {
     describe("valid exports", () => {
         test("parses export without teamspaces", () => {
-            const html = readFixture("sample_index_without_teamspaces.html");
-            const rawFiles = {"index.html": html};
+            const indexHtml = readFixture("sample_index_without_teamspaces.html");
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result).not.toBeNull();
             expect(result!.workspaceName).toBe("Export");
@@ -48,10 +47,9 @@ describe("parseNotionImportIndexHtml", () => {
         });
 
         test("parses export with teamspaces", () => {
-            const html = readFixture("sample_index_with_teamspaces.html");
-            const rawFiles = {"index.html": html};
+            const indexHtml = readFixture("sample_index_with_teamspaces.html");
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result).not.toBeNull();
             expect(result!.workspaceName).toBe("Alpine Test Space");
@@ -60,32 +58,29 @@ describe("parseNotionImportIndexHtml", () => {
             expect(result!.topLevelChildren.length).toBe(2);
         });
 
-        test("finds index.html in subdirectory", () => {
-            const html = strToU8(`
+        test("parses index.html content directly", () => {
+            const indexHtml = strToU8(`
                 <html><body>
                     <p>Workspace name: Nested Workspace</p>
                     <ul id="id::abc123"></ul>
                 </body></html>
             `);
-            const rawFiles = {"Export-uuid/index.html": html};
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result).not.toBeNull();
             expect(result!.workspaceName).toBe("Nested Workspace");
         });
 
         test("handles empty workspace with no pages", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name: Empty Workspace</p>
-                        <ul id="id::abc123"></ul>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name: Empty Workspace</p>
+                    <ul id="id::abc123"></ul>
+                </body></html>
+            `);
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result).not.toBeNull();
             expect(result!.workspaceName).toBe("Empty Workspace");
@@ -95,43 +90,23 @@ describe("parseNotionImportIndexHtml", () => {
     });
 
     describe("invalid exports", () => {
-        test("returns null when no index.html exists", () => {
-            const rawFiles = {
-                "readme.txt": strToU8("Not a Notion export"),
-            };
-
-            const result = parseNotionImportIndexHtml(rawFiles);
-
-            expect(result).toBeNull();
-        });
-
         test("returns null when no workspace name found", () => {
-            const rawFiles = {
-                "index.html": strToU8("<html><body><p>No workspace info</p></body></html>"),
-            };
+            const indexHtml = strToU8("<html><body><p>No workspace info</p></body></html>");
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result).toBeNull();
         });
 
         test("returns null when no root ul element found", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name: My Workspace</p>
-                        <div>No ul element here</div>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name: My Workspace</p>
+                    <div>No ul element here</div>
+                </body></html>
+            `);
 
-            const result = parseNotionImportIndexHtml(rawFiles);
-
-            expect(result).toBeNull();
-        });
-
-        test("returns null for empty files map", () => {
-            const result = parseNotionImportIndexHtml({});
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result).toBeNull();
         });
@@ -139,31 +114,27 @@ describe("parseNotionImportIndexHtml", () => {
 
     describe("workspace name extraction", () => {
         test("trims whitespace from workspace name", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name:    Trimmed Name   </p>
-                        <ul id="id::abc123"></ul>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name:    Trimmed Name   </p>
+                    <ul id="id::abc123"></ul>
+                </body></html>
+            `);
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result?.workspaceName).toBe("Trimmed Name");
         });
 
         test("handles special characters in workspace name", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name: Josh's & Mary's Workspace</p>
-                        <ul id="id::abc123"></ul>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name: Josh's & Mary's Workspace</p>
+                    <ul id="id::abc123"></ul>
+                </body></html>
+            `);
 
-            const result = parseNotionImportIndexHtml(rawFiles);
+            const result = parseNotionImportIndexHtml(indexHtml);
 
             expect(result?.workspaceName).toBe("Josh's & Mary's Workspace");
         });

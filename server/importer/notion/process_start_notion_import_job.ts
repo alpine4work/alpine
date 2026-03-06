@@ -1,7 +1,8 @@
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {convertExtractedNotionDataToEntities} from "~/server/importer/notion/internal/convert_extracted_notion_data_to_entities.js";
+import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
-import {unzipNotionImportAndMapReferences} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
+import {parseNotionImportAndMapReferences} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
 // TODO: Re-enable when file attachments are implemented import {runAllPromises}
 // from "~/shared/helpers/async/run_all_promises.js";
@@ -40,9 +41,18 @@ export async function processStartNotionImportJob(
         ),
     );
 
-    const data = await context.importerService.readUploadedFile(importItem.importKey);
+    // Download and unzip the import file to disk
+    let diskPathToUnzippedFiles: string;
+    try {
+        const result = await context.importerService.downloadAndUnzipImportToDisk({
+            importKey: importItem.importKey,
+        });
+        diskPathToUnzippedFiles = result.diskPathToUnzippedFiles;
 
-    if (!data) {
+        // Normalize Notion's export structure (extract nested zips, flatten Export-xxx
+        // dirs)
+        await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
+    } catch {
         await NotionImporterTable.updateItem(
             context,
             {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
@@ -56,7 +66,11 @@ export async function processStartNotionImportJob(
         throw new DataLossError("Notion import file not found in S3");
     }
 
-    const parsedNotionImport = unzipNotionImportAndMapReferences(data, importItem);
+    const parsedNotionImport = await parseNotionImportAndMapReferences(
+        context,
+        diskPathToUnzippedFiles,
+        importItem,
+    );
 
     if (!parsedNotionImport) {
         throw new DataLossError(

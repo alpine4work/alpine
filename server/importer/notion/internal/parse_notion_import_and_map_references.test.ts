@@ -2,10 +2,11 @@
 import {readFileSync} from "fs";
 import {join} from "path";
 
+import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
 import {
     NotionImportMappedReferencesResult,
-    unzipNotionImportAndMapReferences,
-} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
+    parseNotionImportAndMapReferences,
+} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {
     ExportedNotionDatabase,
     ExportedNotionDocument,
@@ -13,9 +14,33 @@ import {
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
+
+/**
+ * Helper to parse a Notion import zip using the test importer context. This wraps
+ * parseNotionImportAndMapReferences with a TestImporterContextModule that stores
+ * files in memory.
+ */
+async function parseNotionImportWithTestContext(
+    zip: Uint8Array,
+    notionImportItem: NotionImportItem,
+): Promise<NotionImportMappedReferencesResult | null> {
+    const importKey = notionImportItem.importKey;
+    const importer = new TestImporterContextModule();
+    await importer.setUploadedFile(importKey, zip);
+
+    const {diskPathToUnzippedFiles} = await importer.downloadAndUnzipImportToDisk({importKey});
+    await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
+
+    return parseNotionImportAndMapReferences(
+        {importerService: importer},
+        diskPathToUnzippedFiles,
+        notionImportItem,
+    );
+}
 
 function createTestNotionImportItem(
     teamspaceImportOptions?: NotionImportItem["teamspaceImportOptions"],
@@ -99,12 +124,12 @@ describe.each([false, true])("with nested=%p", nested => {
     }
 
     describe("documents", () => {
-        test("single document gets a DocumentId and empty relationships", () => {
+        test("single document gets a DocumentId and empty relationships", async () => {
             const doc = new ExportedNotionDocument("My Page", "Hello world");
             const zip = createZip([doc]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -120,13 +145,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(entry.children.size).toBe(0);
         });
 
-        test("multiple documents each get unique IDs", () => {
+        test("multiple documents each get unique IDs", async () => {
             const doc1 = new ExportedNotionDocument("First", "");
             const doc2 = new ExportedNotionDocument("Second", "");
             const zip = createZip([doc1, doc2]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -137,7 +162,7 @@ describe.each([false, true])("with nested=%p", nested => {
     });
 
     describe("databases", () => {
-        test("full-page database is treated as a document", () => {
+        test("full-page database is treated as a document", async () => {
             const database = new ExportedNotionDatabase("Tasks", [
                 ["Name", "Status"],
                 ["Task 1", "Done"],
@@ -145,7 +170,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([database]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -154,13 +179,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(isId(docs[path]!.id)).toBe(true);
         });
 
-        test("database child of a document is a child document", () => {
+        test("database child of a document is a child document", async () => {
             const database = new ExportedNotionDatabase("Tracker", [["Col"], ["Val"]]);
             const page = new ExportedNotionDocument("Page", "", [database]);
             const zip = createZip([page]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -174,12 +199,12 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(databaseEntry.parent?.documentId).toBe(pageEntry.id);
         });
 
-        test("_all.csv duplicate is excluded", () => {
+        test("_all.csv duplicate is excluded", async () => {
             const database = new ExportedNotionDatabase("Data", [["A"], ["B"]]);
             const zip = createZip([database]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -188,7 +213,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(result.filesToUpload[allCsvPath]).toBeUndefined();
         });
 
-        test("inline database referenced in body content is excluded", () => {
+        test("inline database referenced in body content is excluded", async () => {
             // Create a database that will be referenced inline (via toCsvReference)
             const inlineDatabase = new ExportedNotionDatabase("Inline Tasks", [
                 ["Task"],
@@ -202,7 +227,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([page, inlineDatabase]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -213,13 +238,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(docs[`Inline Tasks ${inlineDatabase.notionId}.md`]).toBeUndefined();
         });
 
-        test("top-level database not referenced inline is included", () => {
+        test("top-level database not referenced inline is included", async () => {
             // A database at the top level with no inline references should create a document
             const database = new ExportedNotionDatabase("Standalone", [["Col"], ["Val"]]);
             const zip = createZip([database]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -227,7 +252,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(docs[`Standalone ${database.notionId}.md`]).toBeDefined();
         });
 
-        test("child database mentioned inline in parent body is excluded", () => {
+        test("child database mentioned inline in parent body is excluded", async () => {
             // A database that is a child AND mentioned in parent's body content should be
             // treated as inline (excluded)
             const childDatabase = new ExportedNotionDatabase("Child DB", [["Col"], ["Val"]]);
@@ -240,7 +265,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -253,7 +278,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(parentDocument.children.size).toBe(0);
         });
 
-        test("child database not mentioned inline in parent body is included", () => {
+        test("child database not mentioned inline in parent body is included", async () => {
             // A database that is a child but NOT mentioned in parent's body should create a
             // document
             const childDatabase = new ExportedNotionDatabase("Child DB", [["Col"], ["Val"]]);
@@ -261,7 +286,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -274,7 +299,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(docs[databasePath]).toBeDefined();
         });
 
-        test("inline database children are tracked for cell linking", () => {
+        test("inline database children are tracked for cell linking", async () => {
             // Create child documents that will be children of the database
             const aliceDocument = new ExportedNotionDocument("Alice", "Alice's profile");
             const bobDocument = new ExportedNotionDocument("Bob", "Bob's profile");
@@ -295,7 +320,7 @@ describe.each([false, true])("with nested=%p", nested => {
 
             const zip = createZip([parent, aliceDocument, bobDocument]);
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const documents = getAllDocuments(result);
 
@@ -316,7 +341,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(bobDocumentEntry).toBeDefined();
         });
 
-        test("inline database children have parent=grandparent but not in grandparent children", () => {
+        test("inline database children have parent=grandparent but not in grandparent children", async () => {
             // Create child documents for the database
             const aliceDocument = new ExportedNotionDocument("Alice", "Alice's profile");
             const bobDocument = new ExportedNotionDocument("Bob", "Bob's profile");
@@ -342,7 +367,7 @@ describe.each([false, true])("with nested=%p", nested => {
 
             const zip = createZip([parent]);
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -384,7 +409,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(result.inlineDatabaseChildren.size).toBeGreaterThan(0);
         });
 
-        test("root-level CSV-only database is tracked in rootLevelCsvDatabases", () => {
+        test("root-level CSV-only database is tracked in rootLevelCsvDatabases", async () => {
             // Create child documents for a root-level inline database
             const meetingNote1 = new ExportedNotionDocument(
                 "Weekly Meeting 1",
@@ -408,7 +433,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const teamspace = new ExportedNotionTeamspace("Engineering", [meetingDatabase]);
             const zip = createTestNotionImportZip([teamspace], {createFoldersForSubpages: nested});
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
 
             // Root-level CSV-only database should be tracked
@@ -422,7 +447,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(databaseInfo!.teamspaceId).toBe(teamspace.notionId);
         });
 
-        test("root-level CSV-only database WITHOUT teamspaces uses implicit workspace teamspace", () => {
+        test("root-level CSV-only database WITHOUT teamspaces uses implicit workspace teamspace", async () => {
             // This tests the fix for the bug where CSV-only databases at the root level of an
             // export WITHOUT teamspaces would have orphaned children. Previously, teamspaceId
             // was null in this case, so children wouldn't be tracked in rootLevelCsvDatabases.
@@ -449,7 +474,7 @@ describe.each([false, true])("with nested=%p", nested => {
                 workspaceName: "My Workspace",
             });
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
 
             // Root-level CSV-only database should be tracked even without explicit teamspaces
@@ -478,7 +503,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(childTitleToId!.has("Bob")).toBe(true);
         });
 
-        test("nested full-page database children have correct parent", () => {
+        test("nested full-page database children have correct parent", async () => {
             // Create child documents for a full-page database
             const task1 = new ExportedNotionDocument("Task 1", "Do this");
             const task2 = new ExportedNotionDocument("Task 2", "Do that");
@@ -502,7 +527,7 @@ describe.each([false, true])("with nested=%p", nested => {
 
             const zip = createZip([project]);
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -538,7 +563,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(taskDatabaseEntry!.children.has(task2Entry!.id)).toBe(true);
         });
 
-        test("root-level CSV database children are tracked in inlineDatabaseChildren for cell linking", () => {
+        test("root-level CSV database children are tracked in inlineDatabaseChildren for cell linking", async () => {
             // Create child documents that will become database rows
             const meeting1 = new ExportedNotionDocument("Weekly - July 6, 2025", "Meeting notes");
             const meeting2 = new ExportedNotionDocument("Standup - July 7, 2025", "Daily standup");
@@ -559,7 +584,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const teamspace = new ExportedNotionTeamspace("Engineering", [meetingDatabase]);
             const zip = createTestNotionImportZip([teamspace], {createFoldersForSubpages: nested});
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
 
             // The children should be tracked in inlineDatabaseChildren
@@ -580,7 +605,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(childTitleToId!.get("Standup - July 7, 2025")).toBe(docs[meeting2Path]?.id);
         });
 
-        test("deeply nested database (3 levels) maintains correct hierarchy", () => {
+        test("deeply nested database (3 levels) maintains correct hierarchy", async () => {
             // Create a deeply nested structure: Workspace > Project > Sprint > Tasks
             // (database) > Task items
             const taskItem = new ExportedNotionDocument("Fix Bug", "Fix the bug");
@@ -603,7 +628,7 @@ describe.each([false, true])("with nested=%p", nested => {
 
             const zip = createZip([project]);
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -642,14 +667,14 @@ describe.each([false, true])("with nested=%p", nested => {
     });
 
     describe("files", () => {
-        test("attached file gets a FileId in the files section", () => {
+        test("attached file gets a FileId in the files section", async () => {
             const image = new ExportedNotionFile("photo.png", "image");
             const page = new ExportedNotionDocument("Gallery", image.toReference());
             page.addFiles([image]);
             const zip = createZip([page]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
 
             const filePath = nested ? "Gallery/photo.png" : "photo.png";
@@ -657,28 +682,28 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(isId(result.filesToUpload[filePath]!.id)).toBe(true);
         });
 
-        test("file path includes document directory in nested mode", () => {
+        test("file path includes document directory in nested mode", async () => {
             const image = new ExportedNotionFile("photo.png", "image");
             const page = new ExportedNotionDocument("Gallery", image.toReference());
             page.addFiles([image]);
             const zip = createZip([page]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
 
             const expectedPath = nested ? "Gallery/photo.png" : "photo.png";
             expect(result.filesToUpload[expectedPath]).toBeDefined();
         });
 
-        test("document references file via markdown link", () => {
+        test("document references file via markdown link", async () => {
             const image = new ExportedNotionFile("photo.png", "image");
             const page = new ExportedNotionDocument("Gallery", image.toReference());
             page.addFiles([image]);
             const zip = createZip([page]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -688,7 +713,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(pageEntry.files.has(fileEntry.id)).toBe(true);
         });
 
-        test("multiple files attached to same document", () => {
+        test("multiple files attached to same document", async () => {
             const img = new ExportedNotionFile("a.png", "image");
             const vid = new ExportedNotionFile("b.mp4", "video");
             const page = new ExportedNotionDocument(
@@ -699,7 +724,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([page]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -713,13 +738,13 @@ describe.each([false, true])("with nested=%p", nested => {
     });
 
     describe("hierarchy", () => {
-        test("parent-child relationship", () => {
+        test("parent-child relationship", async () => {
             const child = new ExportedNotionDocument("Child", "child content");
             const parent = new ExportedNotionDocument("Parent", "parent content", [child]);
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -734,14 +759,14 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(parentEntry.parent).toBeNull();
         });
 
-        test("deep nesting: grandchild's parent is child, not grandparent", () => {
+        test("deep nesting: grandchild's parent is child, not grandparent", async () => {
             const grandchild = new ExportedNotionDocument("Grandchild", "");
             const child = new ExportedNotionDocument("Child", "", [grandchild]);
             const parent = new ExportedNotionDocument("Parent", "", [child]);
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -758,14 +783,14 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(childEntry.children.has(grandchildEntry.id)).toBe(true);
         });
 
-        test("multiple children of same parent", () => {
+        test("multiple children of same parent", async () => {
             const child1 = new ExportedNotionDocument("Alpha", "");
             const child2 = new ExportedNotionDocument("Beta", "");
             const parent = new ExportedNotionDocument("Parent", "", [child1, child2]);
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -780,13 +805,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(child2Entry.parent?.documentId).toBe(parentEntry.id);
         });
 
-        test("multiple top-level documents have no parent", () => {
+        test("multiple top-level documents have no parent", async () => {
             const doc1 = new ExportedNotionDocument("First", "");
             const doc2 = new ExportedNotionDocument("Second", "");
             const zip = createZip([doc1, doc2]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -796,13 +821,13 @@ describe.each([false, true])("with nested=%p", nested => {
     });
 
     describe("hasChildrenHeader", () => {
-        test("document with children has hasChildrenHeader true", () => {
+        test("document with children has hasChildrenHeader true", async () => {
             const child = new ExportedNotionDocument("Child", "child content");
             const parent = new ExportedNotionDocument("Parent", "parent content", [child]);
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -810,12 +835,12 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(parentEntry.hasChildrenHeader).toBe(true);
         });
 
-        test("document without children has hasChildrenHeader false", () => {
+        test("document without children has hasChildrenHeader false", async () => {
             const doc = new ExportedNotionDocument("Page", "content");
             const zip = createZip([doc]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -823,13 +848,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(entry.hasChildrenHeader).toBe(false);
         });
 
-        test("child document has hasChildrenHeader false", () => {
+        test("child document has hasChildrenHeader false", async () => {
             const child = new ExportedNotionDocument("Child", "child content");
             const parent = new ExportedNotionDocument("Parent", "parent content", [child]);
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -837,14 +862,14 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(childEntry.hasChildrenHeader).toBe(false);
         });
 
-        test("document with multiple children has hasChildrenHeader true", () => {
+        test("document with multiple children has hasChildrenHeader true", async () => {
             const child1 = new ExportedNotionDocument("Alpha", "");
             const child2 = new ExportedNotionDocument("Beta", "");
             const parent = new ExportedNotionDocument("Parent", "content", [child1, child2]);
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -852,7 +877,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(parentEntry.hasChildrenHeader).toBe(true);
         });
 
-        test("deep nesting without content: hasChildrenHeader is false for all", () => {
+        test("deep nesting without content: hasChildrenHeader is false for all", async () => {
             // Documents without content don't get a --- divider, so no children header to
             // remove
             const grandchild = new ExportedNotionDocument("Grandchild", "");
@@ -861,7 +886,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -874,7 +899,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(grandchildEntry.hasChildrenHeader).toBe(false);
         });
 
-        test("deep nesting with content: parents have hasChildrenHeader true", () => {
+        test("deep nesting with content: parents have hasChildrenHeader true", async () => {
             // Documents with content AND children get a --- divider, so children header should
             // be removed
             const grandchild = new ExportedNotionDocument("Grandchild", "grandchild content");
@@ -883,7 +908,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -898,7 +923,7 @@ describe.each([false, true])("with nested=%p", nested => {
     });
 
     describe("references", () => {
-        test("document referencing child in content", () => {
+        test("document referencing child in content", async () => {
             const child = new ExportedNotionDocument("Sub Page", "");
             const parent = new ExportedNotionDocument(
                 "Parent",
@@ -908,7 +933,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -918,7 +943,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(referencesHasDocumentId(parentEntry.references, childEntry.id)).toBe(true);
         });
 
-        test("circular references: A references B and B references A", () => {
+        test("circular references: A references B and B references A", async () => {
             const a = new ExportedNotionDocument("Doc A", "");
             const b = new ExportedNotionDocument("Doc B", "");
             a.content = `Link to ${b.toReference()}`;
@@ -928,7 +953,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -939,7 +964,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(referencesHasDocumentId(bEntry.references, aEntry.id)).toBe(true);
         });
 
-        test("three-way circular: A→B, B→C, C→A", () => {
+        test("three-way circular: A→B, B→C, C→A", async () => {
             const a = new ExportedNotionDocument("Doc A", "");
             const b = new ExportedNotionDocument("Doc B", "");
             const c = new ExportedNotionDocument("Doc C", "");
@@ -951,7 +976,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -964,7 +989,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(referencesHasDocumentId(cEntry.references, aEntry.id)).toBe(true);
         });
 
-        test("three siblings all referencing each other", () => {
+        test("three siblings all referencing each other", async () => {
             const a = new ExportedNotionDocument("Doc A", "");
             const b = new ExportedNotionDocument("Doc B", "");
             const c = new ExportedNotionDocument("Doc C", "");
@@ -976,7 +1001,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -997,7 +1022,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(referencesHasDocumentId(cEntry.references, bEntry.id)).toBe(true);
         });
 
-        test("backward reference: child references grandparent", () => {
+        test("backward reference: child references grandparent", async () => {
             const root = new ExportedNotionDocument("Root", "root content");
             const grandchild = new ExportedNotionDocument("Leaf", "");
             grandchild.content = `Back to ${root.toReference()}`;
@@ -1007,7 +1032,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([root]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -1017,13 +1042,13 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(referencesHasDocumentId(grandchildEntry.references, rootEntry.id)).toBe(true);
         });
 
-        test("reference to full-page database", () => {
+        test("reference to full-page database", async () => {
             const database = new ExportedNotionDatabase("Tasks", [["Name"], ["Task 1"]]);
             const document = new ExportedNotionDocument("Page", `See ${database.toReference()}`);
             const zip = createZip([document, database]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -1033,7 +1058,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(referencesHasDocumentId(documentEntry.references, databaseEntry.id)).toBe(true);
         });
 
-        test("external URLs are not treated as references", () => {
+        test("external URLs are not treated as references", async () => {
             const doc = new ExportedNotionDocument(
                 "Page",
                 "Visit [Google](https://google.com) and [Docs](http://docs.example.com)",
@@ -1041,7 +1066,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([doc]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -1049,7 +1074,7 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(entry.references.size).toBe(0);
         });
 
-        test("references use correct paths", () => {
+        test("references use correct paths", async () => {
             const child = new ExportedNotionDocument("Sub", "");
             const parent = new ExportedNotionDocument("Parent", `See ${child.toReference()}`, [
                 child,
@@ -1057,7 +1082,7 @@ describe.each([false, true])("with nested=%p", nested => {
             const zip = createZip([parent]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -1072,12 +1097,12 @@ describe.each([false, true])("with nested=%p", nested => {
     });
 
     describe("exclusions", () => {
-        test("index.html is not in the result", () => {
+        test("index.html is not in the result", async () => {
             const doc = new ExportedNotionDocument("Page", "content");
             const zip = createZip([doc]);
 
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -1096,7 +1121,7 @@ describe.each([false, true])("with nested=%p", nested => {
         const fileTypes: Array<"image" | "video" | "audio"> = ["image", "video", "audio"];
         const fileExtensions = {image: ".png", video: ".mp4", audio: ".mp3"};
 
-        test("5 layers deep, 25+ children per root, 25 files and 25 references", () => {
+        test("5 layers deep, 25+ children per root, 25 files and 25 references", async () => {
             // --- Build tree A (5 layers deep) --- Layer 5 (deepest leaves under A)
             const a0000 = new ExportedNotionDocument("A-0-0-0-0", "");
             const a0001 = new ExportedNotionDocument("A-0-0-0-1", "");
@@ -1190,7 +1215,7 @@ describe.each([false, true])("with nested=%p", nested => {
             // --- Create zip and process ---
             const zip = createZip([rootA, rootB]);
             const result = assertResult(
-                unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
             );
             const docs = getAllDocuments(result);
 
@@ -1547,7 +1572,7 @@ describe("real notion export fixtures", () => {
     };
 
     function assertResultWithAssertions(
-        result: ReturnType<typeof unzipNotionImportAndMapReferences>,
+        result: NotionImportMappedReferencesResult | null,
         expectedDocPaths: Array<string>,
         expectedFilePaths: Array<string>,
         docAssertions: Record<string, DocAssertions>,
@@ -1658,10 +1683,10 @@ describe("real notion export fixtures", () => {
         exampleSubPage: "2e780a22fe378089a86ec895bd3e7f5a",
     };
 
-    test("flat export (JJ-Test-Flat.zip) - real export from Notion", () => {
+    test("flat export (JJ-Test-Flat.zip) - real export from Notion", async () => {
         const zip = readFixture("JJ-Test-Flat.zip");
         const result = assertResult(
-            unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+            await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
         );
 
         // Note: Home file is excluded because it only contains CSV links
@@ -1824,10 +1849,10 @@ describe("real notion export fixtures", () => {
         });
     });
 
-    test("nested export (JJ-Test-Nested.zip) - real export from Notion", () => {
+    test("nested export (JJ-Test-Nested.zip) - real export from Notion", async () => {
         const zip = readFixture("JJ-Test-Nested.zip");
         const result = assertResult(
-            unzipNotionImportAndMapReferences(zip, createTestNotionImportItem()),
+            await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
         );
 
         const pp = "Page Parent";
@@ -2068,10 +2093,10 @@ describe("real notion export fixtures", () => {
         `I’m a workspace page! ${wsIds.workspacePage}.md`,
     ];
 
-    test("Workspace-Flat.zip with Private&Shared as Private", () => {
+    test("Workspace-Flat.zip with Private&Shared as Private", async () => {
         const zip = readFixture("Workspace-Flat.zip");
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2104,10 +2129,10 @@ describe("real notion export fixtures", () => {
         }
     });
 
-    test("Workspace-Flat.zip with Private&Shared as DoNotImport", () => {
+    test("Workspace-Flat.zip with Private&Shared as DoNotImport", async () => {
         const zip = readFixture("Workspace-Flat.zip");
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2138,7 +2163,7 @@ describe("real notion export fixtures", () => {
         }
     });
 
-    test("Workspace-Nested.zip with Private&Shared as Private", () => {
+    test("Workspace-Nested.zip with Private&Shared as Private", async () => {
         const zip = readFixture("Workspace-Nested.zip");
 
         const ps = "Private & Shared";
@@ -2169,7 +2194,7 @@ describe("real notion export fixtures", () => {
         ];
 
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2204,7 +2229,7 @@ describe("real notion export fixtures", () => {
 });
 
 describe("teamspace filtering", () => {
-    test("Private teamspace documents are grouped under Private teamspace", () => {
+    test("Private teamspace documents are grouped under Private teamspace", async () => {
         const page1 = new ExportedNotionDocument("Home", "welcome");
         const page2 = new ExportedNotionDocument("Notes", "notes content");
         const page3 = new ExportedNotionDocument("Projects", "project list");
@@ -2214,7 +2239,7 @@ describe("teamspace filtering", () => {
 
         const zip = createTestNotionImportZip([privateTs, publicTs]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2237,7 +2262,7 @@ describe("teamspace filtering", () => {
         expect(privateTsResult.documents[`Notes ${page2.notionId}.md`]).toBeDefined();
     });
 
-    test("Public teamspace documents are grouped under Public teamspace", () => {
+    test("Public teamspace documents are grouped under Public teamspace", async () => {
         const page1 = new ExportedNotionDocument("Home", "");
         const page2 = new ExportedNotionDocument("Projects", "");
 
@@ -2246,7 +2271,7 @@ describe("teamspace filtering", () => {
 
         const zip = createTestNotionImportZip([privateTs, publicTs]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2268,7 +2293,7 @@ describe("teamspace filtering", () => {
         expect(publicTsResult.documents[`Projects ${page2.notionId}.md`]).toBeDefined();
     });
 
-    test("DoNotImport teamspace documents are excluded from result", () => {
+    test("DoNotImport teamspace documents are excluded from result", async () => {
         const page1 = new ExportedNotionDocument("Secret", "secret content");
         const page2 = new ExportedNotionDocument("Public Page", "visible");
 
@@ -2277,7 +2302,7 @@ describe("teamspace filtering", () => {
 
         const zip = createTestNotionImportZip([doNotImportTs, publicTs]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2302,7 +2327,7 @@ describe("teamspace filtering", () => {
         expect(excludedTsResult).toBeUndefined();
     });
 
-    test("nested documents are grouped under same teamspace as parent", () => {
+    test("nested documents are grouped under same teamspace as parent", async () => {
         const child = new ExportedNotionDocument("Child", "child content");
         const parent = new ExportedNotionDocument("Parent", "parent content", [child]);
         const publicPage = new ExportedNotionDocument("Open", "open content");
@@ -2312,7 +2337,7 @@ describe("teamspace filtering", () => {
 
         const zip = createTestNotionImportZip([privateTs, publicTs]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2337,7 +2362,7 @@ describe("teamspace filtering", () => {
         expect(publicTsResult.documents[`Open ${publicPage.notionId}.md`]).toBeDefined();
     });
 
-    test("DoNotImport excludes nested documents too", () => {
+    test("DoNotImport excludes nested documents too", async () => {
         const child = new ExportedNotionDocument("Nested Secret", "");
         const parent = new ExportedNotionDocument("Secret Parent", "", [child]);
         const publicPage = new ExportedNotionDocument("Visible", "");
@@ -2347,7 +2372,7 @@ describe("teamspace filtering", () => {
 
         const zip = createTestNotionImportZip([excludedTs, publicTs]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2372,7 +2397,7 @@ describe("teamspace filtering", () => {
 });
 
 describe("Home file filtering", () => {
-    test("Home file with only CSV links at teamspace root is excluded", () => {
+    test("Home file with only CSV links at teamspace root is excluded", async () => {
         // Create a Home file that only has CSV links (should be filtered). Use raw CSV
         // link syntax since we don't need real CSV files in the zip.
         const homeWithCsvOnly = new ExportedNotionDocument(
@@ -2384,7 +2409,7 @@ describe("Home file filtering", () => {
         const teamspace = new ExportedNotionTeamspace("Private", [homeWithCsvOnly, otherPage]);
         const zip = createTestNotionImportZip([teamspace]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2401,7 +2426,7 @@ describe("Home file filtering", () => {
         expect(docs[`Notes ${otherPage.notionId}.md`]).toBeDefined();
     });
 
-    test("Home file with real content at teamspace root is NOT excluded", () => {
+    test("Home file with real content at teamspace root is NOT excluded", async () => {
         // Create a Home file with real content (should NOT be filtered)
         const homeWithContent = new ExportedNotionDocument(
             "Home",
@@ -2412,7 +2437,7 @@ describe("Home file filtering", () => {
         const teamspace = new ExportedNotionTeamspace("Private", [homeWithContent, otherPage]);
         const zip = createTestNotionImportZip([teamspace]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2429,7 +2454,7 @@ describe("Home file filtering", () => {
         expect(docs[`Notes ${otherPage.notionId}.md`]).toBeDefined();
     });
 
-    test("nested Home document is NOT excluded even if it only has CSV links", () => {
+    test("nested Home document is NOT excluded even if it only has CSV links", async () => {
         // Create a nested Home file (should NOT be filtered, even if CSV-only)
         const nestedHome = new ExportedNotionDocument(
             "Home",
@@ -2441,7 +2466,7 @@ describe("Home file filtering", () => {
         const teamspace = new ExportedNotionTeamspace("Private", [parent, otherPage]);
         const zip = createTestNotionImportZip([teamspace]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {
@@ -2460,7 +2485,7 @@ describe("Home file filtering", () => {
         expect(docs[`Notes ${otherPage.notionId}.md`]).toBeDefined();
     });
 
-    test("Home file with mixed content (CSV and real text) is NOT excluded", () => {
+    test("Home file with mixed content (CSV and real text) is NOT excluded", async () => {
         // Create a Home file with both CSV links and real content (should NOT be filtered)
         const homeWithMixedContent = new ExportedNotionDocument(
             "Home",
@@ -2471,7 +2496,7 @@ describe("Home file filtering", () => {
         const teamspace = new ExportedNotionTeamspace("Private", [homeWithMixedContent, otherPage]);
         const zip = createTestNotionImportZip([teamspace]);
         const result = assertResult(
-            unzipNotionImportAndMapReferences(
+            await parseNotionImportWithTestContext(
                 zip,
                 createTestNotionImportItem([
                     {

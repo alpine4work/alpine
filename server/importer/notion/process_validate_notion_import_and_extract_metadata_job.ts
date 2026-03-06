@@ -63,8 +63,22 @@ export async function processValidateNotionImportAndExtractMetadataJob(
         return;
     }
 
+    // Find and extract index.html content
+    const indexHtmlKey = Object.keys(rawFiles).find(
+        key => key.endsWith("/index.html") || key === "index.html",
+    );
+    if (!indexHtmlKey) {
+        await markImportFailed(
+            context,
+            notionImportId,
+            "Invalid Notion export: no index.html found",
+        );
+        return;
+    }
+    const indexHtmlContent = rawFiles[indexHtmlKey]!;
+
     // Extract metadata (workspace name & teamspaces)
-    const metadata = getNotionImportMetadata(rawFiles);
+    const metadata = getNotionImportMetadata(indexHtmlContent);
     if (!metadata) {
         await markImportFailed(
             context,

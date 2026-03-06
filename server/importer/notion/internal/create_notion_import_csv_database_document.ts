@@ -3,7 +3,6 @@ import {strFromU8} from "fflate";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
-import {findNotionImportUnzippedFileKey} from "~/server/importer/notion/internal/find_notion_import_unzipped_file_key.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
@@ -23,7 +22,7 @@ export interface CreateNotionImportCsvDatabaseDocumentOptions {
     documentId: DocumentId;
     parentId: DocumentId;
     csvPath: string;
-    unzippedFiles: Record<string, Uint8Array>;
+    diskPathToUnzippedFiles: string;
     isPublic: boolean;
     inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
 }
@@ -50,16 +49,16 @@ export async function createNotionImportCsvDatabaseDocument(
         documentId,
         parentId,
         csvPath,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         isPublic,
         inlineDatabaseChildren,
     } = options;
 
-    // Find the CSV file in the unzipped files
-    const fileKey = findNotionImportUnzippedFileKey(unzippedFiles, csvPath);
-    if (!fileKey) return;
-
-    const fileContent = unzippedFiles[fileKey];
+    // Read the CSV file from disk
+    const fileContent = await context.importerService.readUnzippedFile({
+        diskPathToUnzippedFiles,
+        relativeFilePath: csvPath,
+    });
     if (!fileContent) return;
 
     const csvContent = strFromU8(fileContent);

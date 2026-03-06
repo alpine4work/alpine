@@ -57,8 +57,10 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
-import {ImporterServiceDevelopmentContextModule} from "~/server/importer/development/importer_service_development_context_module.js";
+import {
+    ImporterDevelopmentContextModule,
+    createDevelopmentEscalateToImporterServiceContext,
+} from "~/server/importer/development/importer_development_context_module.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
@@ -471,36 +473,12 @@ async function createAppService({
             },
         });
     } else {
-        // In development/test, imports are processed directly in the current process. We
-        // pass a callback that handles running the import in the background with the
-        // appropriate context.
+        // In development/test, imports are processed directly in the current process using
+        // process.waitUntil. The getter captures `processContext` by reference so it works
+        // even though processContext isn't assigned yet at this point.
         importerContextModule = new ImporterDevelopmentContextModule({
-            waitUntilAndEscalateToSystemContext: (spanName, spaceId, action) => {
-                processContext.process.waitUntil(
-                    processContext.tracer.withSpan(spanName, async context => {
-                        // Create an action context with fresh cache and batch for this task. Use
-                        // "ImporterService" as the actor service name to match production where imports
-                        // run in a separate ImporterService ECS task.
-                        //
-                        // We add `importerService` module for file reading. This is separate from the
-                        // `importer` module (which handles presigned URLs and spawning) because in dev
-                        // mode we run imports in-process while in production they run in a separate ECS
-                        // task.
-                        const actionContext = processContext.clone({
-                            tracer: new TracerContextModule(context.tracer.getTracer()),
-                            cache: CacheContextModule.new(),
-                            batch: BatchContextModule.new(),
-                            actor: SystemActorContextModule.dangerouslyNew(
-                                "ImporterService",
-                                spaceId,
-                            ),
-                            importerService: new ImporterServiceDevelopmentContextModule(),
-                        });
-
-                        await action(actionContext);
-                    }),
-                );
-            },
+            getProcessContext: () => processContext,
+            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext(),
         });
     }
 

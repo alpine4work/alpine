@@ -38,7 +38,7 @@ export async function action({request, params, context}: LoaderArgs) {
     // which has the writeUploadedFile method. Given this route is only available in
     // development, we can safely cast to ImporterDevelopmentContextModule.
     const importer = context.importer as unknown as ImporterDevelopmentContextModule;
-    importer.writeUploadedFile(importKey, data);
+    await importer.writeUploadedFile(importKey, data);
 
     // The client will call the finishedNotionImportUpload RPC after this upload
     // completes to trigger validation. No need to trigger the job here.

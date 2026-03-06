@@ -14,8 +14,8 @@ function getTestImporter(): TestImporterContextModule {
     return context.importer as unknown as TestImporterContextModule;
 }
 
-function simulateFileUpload(importKey: string): void {
-    getTestImporter().setUploadedFile(importKey, new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+async function simulateFileUpload(importKey: string): Promise<void> {
+    await getTestImporter().setUploadedFile(importKey, new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
 }
 
 test("transitions status from UploadPending to ValidateQueued", async () => {
@@ -28,7 +28,7 @@ test("transitions status from UploadPending to ValidateQueued", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     await finishedNotionImportUpload(session.action(), {
         spaceId: space.id,
@@ -56,7 +56,7 @@ test("triggers validation via importer context module", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     const importer = getTestImporter();
     const callsBeforeCount = importer.startValidateNotionImportCalls.length;
@@ -83,7 +83,7 @@ test("throws if called when status is not UploadPending", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     // First call transitions to ValidateQueued
     await finishedNotionImportUpload(session.action(), {
@@ -110,7 +110,7 @@ test("throws if status is already Validated", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     // Manually set status to Validated (simulating completed validation)
     await NotionImporterTable.updateItem(
@@ -155,7 +155,7 @@ test("throws if import belongs to different space", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     await expect(
         finishedNotionImportUpload(session2.action(), {

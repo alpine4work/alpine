@@ -10,9 +10,12 @@ ts_project(
     deps = [
         "//:node_modules/env-paths",
         "//server/context",
+        "//server/helpers",
         "//server/importer",
+        "//server/importer/importer_service",
         "//server/importer/notion",
         "//shared/context",
+        "//shared/error",
         "//shared/helpers",
         "//shared/id",
     ],

@@ -18,9 +18,21 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-/** Creates a no-op callback for testing ImporterDevelopmentContextModule */
-function createNoOpWaitUntilCallback() {
-    return () => {};
+/**
+ * Creates no-op dev module options for testing ImporterDevelopmentContextModule
+ */
+function createNoOpDevModuleOptions() {
+    return {
+        getProcessContext: () => {
+            throw new InternalError("Not expected to be called in this test");
+        },
+        escalateToImporterServiceContext: () => {
+            throw new InternalError("Not expected to be called in this test");
+        },
+    } as {
+        getProcessContext: () => never;
+        escalateToImporterServiceContext: () => never;
+    };
 }
 
 /** Creates a mock ECS config for testing ImporterContextModule */
@@ -351,7 +363,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("returns local dev endpoint URL", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
 
             const result = await Context.with(
@@ -381,7 +393,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("includes full import key in URL path", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
 
             const result = await Context.with(
@@ -410,7 +422,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("uses edge service URL from constants context", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
 
             const result = await Context.with(
@@ -438,14 +450,14 @@ describe("ImporterContextModuleDevelopment", () => {
     });
 
     describe("writeUploadedFile", () => {
-        test("writes file to dev-data directory", () => {
+        test("writes file to dev-data directory", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const testData = new Uint8Array([10, 20, 30, 40, 50]);
 
-            module.writeUploadedFile("spa_123/nim_456", testData);
+            await module.writeUploadedFile("spa_123/nim_456", testData);
 
             const filePath = joinPath(uploadDir, "spa_123/nim_456");
             expect(existsSync(filePath)).toBe(true);
@@ -454,23 +466,23 @@ describe("ImporterContextModuleDevelopment", () => {
             expect(new Uint8Array(written)).toEqual(testData);
         });
 
-        test("creates nested directories if needed", () => {
+        test("creates nested directories if needed", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const testData = new Uint8Array([1, 2, 3]);
 
-            module.writeUploadedFile("deep/nested/path/file", testData);
+            await module.writeUploadedFile("deep/nested/path/file", testData);
 
             const filePath = joinPath(uploadDir, "deep/nested/path/file");
             expect(existsSync(filePath)).toBe(true);
         });
 
-        test("overwrites existing file", () => {
+        test("overwrites existing file", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const importKey = "overwrite/test";
             const filePath = joinPath(uploadDir, importKey);
@@ -481,20 +493,20 @@ describe("ImporterContextModuleDevelopment", () => {
 
             // Overwrite
             const newData = new Uint8Array([2, 2, 2, 2]);
-            module.writeUploadedFile(importKey, newData);
+            await module.writeUploadedFile(importKey, newData);
 
             const written = readFileSync(filePath);
             expect(new Uint8Array(written)).toEqual(newData);
         });
 
-        test("handles empty file", () => {
+        test("handles empty file", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const testData = new Uint8Array([]);
 
-            module.writeUploadedFile("empty/file", testData);
+            await module.writeUploadedFile("empty/file", testData);
 
             const filePath = joinPath(uploadDir, "empty/file");
             expect(existsSync(filePath)).toBe(true);
@@ -503,10 +515,10 @@ describe("ImporterContextModuleDevelopment", () => {
             expect(written.length).toBe(0);
         });
 
-        test("handles large file", () => {
+        test("handles large file", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             // 1MB file
             const testData = new Uint8Array(1024 * 1024);
@@ -514,7 +526,7 @@ describe("ImporterContextModuleDevelopment", () => {
                 testData[i] = i % 256;
             }
 
-            module.writeUploadedFile("large/file", testData);
+            await module.writeUploadedFile("large/file", testData);
 
             const filePath = joinPath(uploadDir, "large/file");
             expect(existsSync(filePath)).toBe(true);
@@ -529,7 +541,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("returns file contents from dev-data directory", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const testData = new Uint8Array([100, 200, 150, 75]);
             const importKey = "spa_abc/nim_xyz";
@@ -547,7 +559,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("returns null when file does not exist", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
 
             const result = await module.readUploadedFile("nonexistent/file");
@@ -558,7 +570,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("returns null when path is a directory", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const dirPath = joinPath(uploadDir, "some-dir");
             mkdirSync(dirPath, {recursive: true});
@@ -571,7 +583,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("handles empty file", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const importKey = "empty/read-test";
 
@@ -586,10 +598,10 @@ describe("ImporterContextModuleDevelopment", () => {
     });
 
     describe("fork", () => {
-        test("returns a new instance with same workspace path", () => {
+        test("returns a new instance with same workspace path", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const forked = module.fork();
 
@@ -599,7 +611,7 @@ describe("ImporterContextModuleDevelopment", () => {
             // Verify they share the same workspace by writing through one and reading through
             // other
             const testData = new Uint8Array([1, 2, 3]);
-            module.writeUploadedFile("fork-test", testData);
+            await module.writeUploadedFile("fork-test", testData);
 
             // The forked module should see the same file
             const filePath = joinPath(uploadDir, "fork-test");
@@ -611,12 +623,12 @@ describe("ImporterContextModuleDevelopment", () => {
         test("write then read returns same data", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
             const importKey = "roundtrip/test";
 
-            module.writeUploadedFile(importKey, testData);
+            await module.writeUploadedFile(importKey, testData);
             const result = await module.readUploadedFile(importKey);
 
             expect(result).toEqual(testData);
@@ -625,7 +637,7 @@ describe("ImporterContextModuleDevelopment", () => {
         test("write with binary data preserves all bytes", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
-                waitUntilAndEscalateToSystemContext: createNoOpWaitUntilCallback(),
+                ...createNoOpDevModuleOptions(),
             });
             // Include all possible byte values
             const testData = new Uint8Array(256);
@@ -634,7 +646,7 @@ describe("ImporterContextModuleDevelopment", () => {
             }
             const importKey = "binary/test";
 
-            module.writeUploadedFile(importKey, testData);
+            await module.writeUploadedFile(importKey, testData);
             const result = await module.readUploadedFile(importKey);
 
             expect(result).toEqual(testData);

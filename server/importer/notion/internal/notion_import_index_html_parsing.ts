@@ -35,23 +35,14 @@ export interface NotionImportParsedIndexHtml {
  * @see README.md "index.html Structure" section for the HTML DOM structure. @see
  * test_fixtures/sample_index_without_teamspaces.html for an example without
  * teamspaces. @see test_fixtures/sample_index_with_teamspaces.html for an example
- * with teamspaces.
- *
- * @param rawFiles - The unzipped file contents keyed by path @returns Parsed
- * index.html structure, or null if invalid
+ * with teamspaces. @param indexHtmlContent - The raw bytes of the index.html file
+ * @returns Parsed index.html structure, or null if invalid
  */
 export function parseNotionImportIndexHtml(
-    rawFiles: Record<string, Uint8Array>,
+    indexHtmlContent: Uint8Array,
 ): NotionImportParsedIndexHtml | null {
-    // Find index.html - it may be at the root or inside a directory like
-    // "Export-uuid/"
-    const indexHtmlKey = Object.keys(rawFiles).find(
-        key => key.endsWith("/index.html") || key === "index.html",
-    );
-    if (!indexHtmlKey) return null;
-
     // Parse the HTML into a DOM tree we can query
-    const html = strFromU8(rawFiles[indexHtmlKey]!);
+    const html = strFromU8(indexHtmlContent);
     const document = parseDocument(html);
 
     // Extract workspace name from "<p>Workspace name: ...</p>" in the header

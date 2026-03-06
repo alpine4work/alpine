@@ -1,13 +1,19 @@
 import envPaths from "env-paths";
-import {existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync} from "fs";
+import {mkdir, readFile, stat, unlink, writeFile} from "fs/promises";
 import {dirname, join as joinPath} from "path";
+
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {
     ImporterContextModuleBase,
     PresignedUploadUrlResult,
 } from "~/server/importer/importer_context_module_base.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {processValidateNotionImportAndExtractMetadataJob} from "~/server/importer/notion/process_validate_notion_import_and_extract_metadata_job.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,19 +22,20 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
 
 /**
- * Callback that handles running an action in the background with system context.
- * The caller is responsible for:
+ * Callback that escalates to importer service context for running import jobs.
  *
- * 1. Running the action in the background (e.g., via `process.waitUntil`)
- * 2. Creating a tracer span
- * 3. Escalating to system context for the given space
- * 4. Adding the importer module to the context
+ * Takes the process context and space ID, and returns a new context with the
+ * importer module set to `ImporterServiceDevelopmentContextModule`.
  */
-export type WaitUntilAndEscalateToSystemContext = (
-    spanName: string,
+export type EscalateToImporterServiceContext = (
+    processContext: ServerProcessContext,
     spaceId: SpaceId,
-    action: (context: ImporterServiceSystemActionContext) => Promise<void>,
-) => void;
+) => ImporterServiceSystemActionContext;
+
+async function doesFilePathExist(filePath: string) {
+    const result = await stat(filePath).catch(() => null);
+    return !!result?.isFile();
+}
 
 /**
  * Development importer context module that uses the local filesystem.
@@ -48,9 +55,9 @@ export type WaitUntilAndEscalateToSystemContext = (
  *
  * ## Import processing
  *
- * In development, imports are processed directly in the current process. The
- * `waitUntilAndEscalateToSystemContext` callback handles running the import in the
- * background with the appropriate context.
+ * In development, imports are processed directly in the current process using
+ * `process.waitUntil`. The `escalateToImporterServiceContext` callback constructs
+ * a context with `ImporterServiceDevelopmentContextModule`.
  *
  * ## File location
  *
@@ -63,14 +70,29 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
     constants: ConstantsContextModule;
 }> {
     private readonly _localUploadPath?: string;
-    private readonly _waitUntilAndEscalateToSystemContext: WaitUntilAndEscalateToSystemContext;
+    private readonly _getProcessContext: () => ServerProcessContext;
+    private readonly _escalateToImporterServiceContext: EscalateToImporterServiceContext;
 
+    /**
+     * Creates a development importer context module.
+     *
+     * @param localUploadPath - Optional path for local file storage (defaults to dev
+     * data path) @param getProcessContext - Getter that returns the process context.
+     * This is a getter instead of a direct value because of circular dependencies: the
+     * importer module is created before the process context, but the process context
+     * includes the importer module. The getter is only called when methods like
+     * `startValidateNotionImport` are invoked, by which time the process context
+     * exists. @param escalateToImporterServiceContext - Callback to create an importer
+     * service context
+     */
     constructor({
         localUploadPath,
-        waitUntilAndEscalateToSystemContext,
+        getProcessContext,
+        escalateToImporterServiceContext,
     }: {
         localUploadPath?: string;
-        waitUntilAndEscalateToSystemContext: WaitUntilAndEscalateToSystemContext;
+        getProcessContext: () => ServerProcessContext;
+        escalateToImporterServiceContext: EscalateToImporterServiceContext;
     }) {
         super();
         assert(
@@ -78,11 +100,16 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
             "ImporterDevelopmentContextModule should not be used in production",
         );
         this._localUploadPath = localUploadPath;
-        this._waitUntilAndEscalateToSystemContext = waitUntilAndEscalateToSystemContext;
+        this._getProcessContext = getProcessContext;
+        this._escalateToImporterServiceContext = escalateToImporterServiceContext;
+    }
+
+    private _getBasePath(): string {
+        return this._localUploadPath ?? devDataPath;
     }
 
     private _getUploadPath(importKey: string): string {
-        return joinPath(this._localUploadPath ?? devDataPath, "import-uploads", importKey);
+        return joinPath(this._getBasePath(), "import-uploads", importKey);
     }
 
     async createPresignedUploadUrl({
@@ -101,17 +128,18 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
 
     async hasUploadedFile(importKey: string): Promise<boolean> {
         const filePath = this._getUploadPath(importKey);
-        return existsSync(filePath) && statSync(filePath).isFile();
+        return doesFilePathExist(filePath);
     }
 
     async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
         const filePath = this._getUploadPath(importKey);
 
-        if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+        const isFile = await doesFilePathExist(filePath);
+        if (!isFile) {
             return null;
         }
 
-        const buffer = readFileSync(filePath);
+        const buffer = await readFile(filePath);
         return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
@@ -119,21 +147,19 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
      * Writes a file to the dev upload directory. Called by the dev upload endpoint to
      * save files that would normally go to S3.
      */
-    public writeUploadedFile(importKey: string, data: Uint8Array): void {
+    public async writeUploadedFile(importKey: string, data: Uint8Array): Promise<void> {
         const filePath = this._getUploadPath(importKey);
         const dir = dirname(filePath);
 
-        if (!existsSync(dir)) {
-            mkdirSync(dir, {recursive: true});
-        }
-
-        writeFileSync(filePath, data);
+        await mkdir(dir, {recursive: true});
+        await writeFile(filePath, data);
     }
 
     async deleteUploadedFile(importKey: string): Promise<void> {
         const filePath = this._getUploadPath(importKey);
-        if (existsSync(filePath) && statSync(filePath).isFile()) {
-            unlinkSync(filePath);
+        const isFile = await doesFilePathExist(filePath);
+        if (isFile) {
+            await unlink(filePath);
         }
     }
 
@@ -145,12 +171,19 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
         notionImportId: NotionImportId;
         importZipSize: number;
     }): Promise<void> {
-        this._waitUntilAndEscalateToSystemContext(
-            "Run Notion import validation",
-            spaceId,
-            async ctx => {
-                await processValidateNotionImportAndExtractMetadataJob(ctx, notionImportId);
-            },
+        const processContext = this._getProcessContext();
+        processContext.process.waitUntil(
+            processContext.tracer.withSpan("Run Notion import validation", async () => {
+                const serviceContext = this._escalateToImporterServiceContext(
+                    processContext,
+                    spaceId,
+                );
+
+                await processValidateNotionImportAndExtractMetadataJob(
+                    serviceContext,
+                    notionImportId,
+                );
+            }),
         );
     }
 
@@ -162,15 +195,48 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
         notionImportId: NotionImportId;
         importZipSize: number;
     }): Promise<void> {
-        this._waitUntilAndEscalateToSystemContext("Run Notion import", spaceId, async ctx => {
-            await processStartNotionImportJob(ctx, notionImportId);
-        });
+        const processContext = this._getProcessContext();
+        processContext.process.waitUntil(
+            processContext.tracer.withSpan("Run Notion import", async () => {
+                const serviceContext = this._escalateToImporterServiceContext(
+                    processContext,
+                    spaceId,
+                );
+
+                await processStartNotionImportJob(serviceContext, notionImportId);
+            }),
+        );
     }
 
     fork(): ImporterDevelopmentContextModule {
         return new ImporterDevelopmentContextModule({
             localUploadPath: this._localUploadPath,
-            waitUntilAndEscalateToSystemContext: this._waitUntilAndEscalateToSystemContext,
+            getProcessContext: this._getProcessContext,
+            escalateToImporterServiceContext: this._escalateToImporterServiceContext,
         });
     }
+}
+
+/**
+ * Creates the default escalation function for development.
+ *
+ * This constructs a new context with:
+ *
+ * - System actor for the given space
+ * - ImporterServiceDevelopmentContextModule as the importer
+ */
+export function createDevelopmentEscalateToImporterServiceContext({
+    localUploadPath,
+}: {
+    localUploadPath?: string;
+} = {}): EscalateToImporterServiceContext {
+    return (processContext, spaceId) => {
+        return processContext.clone({
+            tracer: new TracerContextModule(processContext.tracer.getTracer()),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
+            actor: SystemActorContextModule.dangerouslyNew("ImporterService", spaceId),
+            importerService: new ImporterServiceDevelopmentContextModule({localUploadPath}),
+        });
+    };
 }

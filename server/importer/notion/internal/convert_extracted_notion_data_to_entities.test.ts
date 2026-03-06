@@ -1,34 +1,53 @@
-import {strToU8} from "fflate";
+import {Unzipped, strToU8} from "fflate";
 import {readFileSync} from "fs";
 import {join} from "path";
 
 import {getDocument} from "~/server/documents/data/documents_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {convertExtractedNotionDataToEntities} from "~/server/importer/notion/internal/convert_extracted_notion_data_to_entities.js";
+import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {
     NotionImportMappedReferencesResult,
     NotionImportTeamspaceOption,
-    unzipNotionImportAndMapReferences,
-} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
+    parseNotionImportAndMapReferences,
+} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {
     ExportedNotionDatabase,
     ExportedNotionDocument,
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, FileId, NotionImportId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
- * Helper to assert unzip result is not null and return it with proper type.
+ * Helper to properly unzip and map references from a test zip file. This uses the
+ * disk-based flow (via test importer's in-memory storage) so that CSV files can be
+ * read during conversion.
  */
-function assertResult(
-    result: NotionImportMappedReferencesResult | null,
-): NotionImportMappedReferencesResult {
+async function unzipAndMapReferencesForTest(
+    zipData: Uint8Array,
+    importItem: NotionImportItem,
+): Promise<NotionImportMappedReferencesResult> {
+    const importKey = `test-${generateChronologicalId()}`;
+    const importer = context.importer as unknown as TestImporterContextModule;
+    await importer.setUploadedFile(importKey, zipData);
+
+    const {diskPathToUnzippedFiles} = await importer.downloadAndUnzipImportToDisk({importKey});
+    await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
+
+    const result = await parseNotionImportAndMapReferences(
+        {importerService: importer},
+        diskPathToUnzippedFiles,
+        importItem,
+    );
+
     expect(result).not.toBeNull();
     return result!;
 }
@@ -76,9 +95,10 @@ async function createTestNotionImportItemInDatabase(
 }
 
 /**
- * Create a mapped references result for testing.
+ * Create a mapped references result for testing. Sets up the unzipped files in the
+ * test importer so they can be read during conversion.
  */
-function createTestMappedReferencesResult(config: {
+async function createTestMappedReferencesResult(config: {
     teamspaces: Array<{
         id: string;
         name: string;
@@ -94,8 +114,8 @@ function createTestMappedReferencesResult(config: {
             files?: Set<FileId>;
         }>;
     }>;
-}): NotionImportMappedReferencesResult {
-    const unzippedFiles: Record<string, Uint8Array> = {};
+}): Promise<NotionImportMappedReferencesResult> {
+    const unzippedFiles: Unzipped = {};
     const teamspaces: NotionImportMappedReferencesResult["teamspaces"] = [];
     const pathToDocumentId = new Map<string, DocumentId>();
     const documentIdToPath = new Map<DocumentId, string>();
@@ -104,8 +124,8 @@ function createTestMappedReferencesResult(config: {
         const documents: NotionImportMappedReferencesResult["teamspaces"][0]["documents"] = {};
 
         for (const doc of ts.documents) {
-            // Add file to unzippedFiles with root prefix
-            unzippedFiles[`Export/${doc.filePath}`] = strToU8(doc.markdown);
+            // Add file to unzippedFiles (paths are already stripped of root prefix)
+            unzippedFiles[doc.filePath] = strToU8(doc.markdown);
 
             documents[doc.filePath] = {
                 id: doc.id,
@@ -128,6 +148,12 @@ function createTestMappedReferencesResult(config: {
         });
     }
 
+    // Generate a unique disk path key and set up the files in the test importer
+    const diskPathKey = `test-import-${generateChronologicalId()}`;
+    const importer = context.importer as unknown as TestImporterContextModule;
+    await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+    const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
     return {
         // Use a unique workspace ID per call to avoid deterministic ID collisions between
         // tests. Each test gets its own "workspace" so teamspace root documents have
@@ -135,7 +161,7 @@ function createTestMappedReferencesResult(config: {
         notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
         teamspaces,
         filesToUpload: {},
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren: new Map(),
         rootLevelCsvDatabases: new Map(),
         pathToDocumentId,
@@ -155,7 +181,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -196,7 +222,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -244,7 +270,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -300,7 +326,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -338,7 +364,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -376,7 +402,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -418,7 +444,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts-public",
@@ -473,7 +499,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -513,7 +539,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -551,7 +577,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -592,7 +618,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -661,7 +687,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -767,7 +793,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -840,7 +866,7 @@ describe("convertExtractedNotionDataToEntities", () => {
 
             // Simulate nested export structure: Parent/ ParentDoc abc123.md Subdir/ NestedDoc
             // def456.md (links to ../SiblingDoc.md) SiblingDoc ghi789.md
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -917,7 +943,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Simulate nested export where parent links to child in subdirectory
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -994,7 +1020,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             // Test that .md links with parentheses in the filename are properly converted. The
             // regex needs to handle URLs like "File%20(info)%20abc.md" where the URL-encoded
             // parentheses should not break the match.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1071,7 +1097,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test multiple parentheses sets in a single filename.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1143,7 +1169,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test parentheses at the start of the filename.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1211,7 +1237,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test nested parentheses like "(see (note) here)".
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1279,7 +1305,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test filename with only closing paren (unbalanced).
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1346,7 +1372,7 @@ describe("convertExtractedNotionDataToEntities", () => {
 
             // Test that a document whose title (# heading) contains parentheses is parsed
             // correctly.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1393,7 +1419,7 @@ describe("convertExtractedNotionDataToEntities", () => {
 
             // A document that has ONLY child links (no other content) should have empty body
             // content - the Child documents section provides the structure.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1513,7 +1539,7 @@ describe("convertExtractedNotionDataToEntities", () => {
 
             // A document with real content AND inline child links should keep the inline
             // links. Only documents with ONLY child links have the inline content removed.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1634,7 +1660,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [],
             });
 
@@ -1656,7 +1682,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1686,7 +1712,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1725,7 +1751,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1775,7 +1801,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1823,7 +1849,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [],
             });
 
@@ -1855,7 +1881,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1906,7 +1932,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1977,7 +2003,7 @@ Content under subsection.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2068,7 +2094,7 @@ This is the actual content.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2140,7 +2166,7 @@ This is the actual content.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2257,7 +2283,7 @@ This is the actual content.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2317,15 +2343,15 @@ This is the actual content.`,
             );
 
             // Create mapped result with CSV file in unzippedFiles
-            const unzippedFiles: Record<string, Uint8Array> = {
-                "Export/Doc abc12345678901234567890abcdef123.md": strToU8(`# Document with Database
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Document with Database
 
 Here is an inline database:
 
 [Tasks](Tasks%20def12345678901234567890abcdef123.csv)
 
 And some content after.`),
-                "Export/Tasks def12345678901234567890abcdef123.csv": strToU8(
+                "Tasks def12345678901234567890abcdef123.csv": strToU8(
                     `Name,Status,Priority
 Task 1,Done,High
 Task 2,In Progress,Medium`,
@@ -2333,6 +2359,12 @@ Task 2,In Progress,Medium`,
             };
 
             const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
+            const csvPath = "Tasks def12345678901234567890abcdef123.csv";
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
                 teamspaces: [
@@ -2353,8 +2385,9 @@ Task 2,In Progress,Medium`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // Include the CSV path so the conversion function reads it
+                inlineDatabaseChildren: new Map([[csvPath, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
@@ -2433,8 +2466,8 @@ Task 2,In Progress,Medium`,
             );
 
             // Create mapped result with two CSV files in unzippedFiles
-            const unzippedFiles: Record<string, Uint8Array> = {
-                "Export/Doc abc12345678901234567890abcdef123.md":
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md":
                     strToU8(`# Document with Multiple Databases
 
 Here is the first database:
@@ -2446,12 +2479,12 @@ And here is the second database:
 [People](People%20ghi12345678901234567890abcdef123.csv)
 
 Content after both databases.`),
-                "Export/Tasks def12345678901234567890abcdef123.csv": strToU8(
+                "Tasks def12345678901234567890abcdef123.csv": strToU8(
                     `Task,Status
 Task 1,Done
 Task 2,Pending`,
                 ),
-                "Export/People ghi12345678901234567890abcdef123.csv": strToU8(
+                "People ghi12345678901234567890abcdef123.csv": strToU8(
                     `Name,Role
 Alice,Engineer
 Bob,Designer`,
@@ -2459,6 +2492,13 @@ Bob,Designer`,
             };
 
             const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const tasksCsvPath = "Tasks def12345678901234567890abcdef123.csv";
+            const peopleCsvPath = "People ghi12345678901234567890abcdef123.csv";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
                 teamspaces: [
@@ -2479,8 +2519,12 @@ Bob,Designer`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // Include both CSV paths so the conversion function reads them
+                inlineDatabaseChildren: new Map([
+                    [tasksCsvPath, new Map()],
+                    [peopleCsvPath, new Map()],
+                ]),
                 rootLevelCsvDatabases: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
@@ -2560,17 +2604,23 @@ Bob,Designer`,
             );
 
             // Create a CSV with 4 columns to verify column width calculation
-            const unzippedFiles: Record<string, Uint8Array> = {
-                "Export/Doc abc12345678901234567890abcdef123.md": strToU8(`# Document
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Document
 
 [Data](Data%20def12345678901234567890abcdef123.csv)`),
-                "Export/Data def12345678901234567890abcdef123.csv": strToU8(
+                "Data def12345678901234567890abcdef123.csv": strToU8(
                     `A,B,C,D
 1,2,3,4`,
                 ),
             };
 
             const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const dataCsvPath = "Data def12345678901234567890abcdef123.csv";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
                 teamspaces: [
@@ -2591,8 +2641,9 @@ Bob,Designer`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // Include the CSV path so the conversion function reads it
+                inlineDatabaseChildren: new Map([[dataCsvPath, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
@@ -2651,16 +2702,21 @@ Bob,Designer`,
             // the CSV link gets converted to a table
             const csvFileName = "Project Tasks abc12345678901234567890abcdef123.csv";
             const mdFileName = "Project Tasks abc12345678901234567890abcdef123.md";
-            const unzippedFiles: Record<string, Uint8Array> = {
-                [`Export/${csvFileName}`]: strToU8(
+            const unzippedFiles: Unzipped = {
+                [csvFileName]: strToU8(
                     `Task,Assignee,Due Date
 Build feature,Alice,2024-01-15
 Write tests,Bob,2024-01-20`,
                 ),
-                [`Export/${mdFileName}`]: strToU8(
+                [mdFileName]: strToU8(
                     `# Project Tasks\n\n[Project Tasks](${encodeURIComponent(csvFileName)})\n`,
                 ),
             };
+
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
 
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
@@ -2682,8 +2738,10 @@ Write tests,Bob,2024-01-20`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // For full-page databases, the CSV is referenced by the .md file and needs to be
+                // in inlineDatabaseChildren so the conversion reads it
+                inlineDatabaseChildren: new Map([[csvFileName, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
                 pathToDocumentId: new Map([[mdFileName, databaseDocId]]),
                 documentIdToPath: new Map([[databaseDocId, mdFileName]]),
@@ -2744,7 +2802,7 @@ Write tests,Bob,2024-01-20`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2893,9 +2951,7 @@ Here are some details.`,
 
             // Export both items separately - the database is not a child of the doc
             const zipData = createTestNotionImportZip([doc, database]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -2987,9 +3043,7 @@ Here are some details.`,
             );
 
             const zipData = createTestNotionImportZip([doc]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3082,9 +3136,7 @@ Here are some details.`,
             ]);
 
             const zipData = createTestNotionImportZip([database]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3171,9 +3223,7 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([mainDoc]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3295,9 +3345,7 @@ Sprint completed successfully.`,
             // createTestMappedReferencesResult helper to set up this relationship manually
 
             const zipData = createTestNotionImportZip([parentDoc, aliceDoc, bobDoc]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             // Manually set up the database-child relationship in mappedResult Find the
             // database .md document and child document IDs
@@ -3398,9 +3446,7 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([parent]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3474,9 +3520,7 @@ Sprint completed successfully.`,
             );
 
             const zipData = readFixture("JJ-Test-Flat.zip");
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3530,9 +3574,7 @@ Sprint completed successfully.`,
             );
 
             const zipData = readFixture("Workspace-Flat.zip");
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3588,7 +3630,7 @@ Sprint completed successfully.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -3655,9 +3697,7 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([teamspace]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3748,9 +3788,7 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([teamspace]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
@@ -3840,8 +3878,8 @@ Sprint completed successfully.`,
         });
 
         test("hierarchy from real unzip function results in correct parent fields", async () => {
-            // This test uses the REAL unzipNotionImportAndMapReferences function to verify
-            // that the parent field is correctly set
+            // This test uses the real reference mapping flow to verify that the parent field
+            // is correctly set
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -3859,9 +3897,7 @@ Sprint completed successfully.`,
             const topLevel = new ExportedNotionDocument("Top Level", "Top level content.");
 
             const zipData = createTestNotionImportZip([parent, topLevel]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             // Verify the parent field is set correctly in the mapped result
             const docs = Object.entries(mappedResult.teamspaces[0]!.documents);

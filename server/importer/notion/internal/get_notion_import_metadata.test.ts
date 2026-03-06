@@ -19,7 +19,7 @@ function readFixture(name: string): Uint8Array {
 }
 
 /**
- * Helper to get raw files from a test zip for use with getNotionImportMetadata.
+ * Helper to get raw files from a test zip.
  */
 function getRawFiles(zip: Uint8Array): Record<string, Uint8Array> {
     const result = findNotionImportRoot(zip);
@@ -27,14 +27,26 @@ function getRawFiles(zip: Uint8Array): Record<string, Uint8Array> {
     return result;
 }
 
+/**
+ * Helper to extract index.html content from raw files. Returns null if index.html
+ * is not found.
+ */
+function getIndexHtmlContent(rawFiles: Record<string, Uint8Array>): Uint8Array | null {
+    const indexHtmlKey = Object.keys(rawFiles).find(
+        key => key.endsWith("/index.html") || key === "index.html",
+    );
+    if (!indexHtmlKey) return null;
+    return rawFiles[indexHtmlKey]!;
+}
+
 describe("getNotionImportMetadata", () => {
     describe("workspace name extraction", () => {
         test("extracts workspace name from generated export", () => {
             const doc = new ExportedNotionDocument("Test Page", "content");
             const zip = createTestNotionImportZip([doc], {workspaceName: "My Workspace"});
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("My Workspace");
@@ -45,9 +57,9 @@ describe("getNotionImportMetadata", () => {
             const zip = createTestNotionImportZip([doc], {
                 workspaceName: "Josh's & Mary's Workspace",
             });
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Josh's & Mary's Workspace");
@@ -56,14 +68,14 @@ describe("getNotionImportMetadata", () => {
         test("extracts workspace name with unicode characters", () => {
             const doc = new ExportedNotionDocument("Page", "");
             const zip = createTestNotionImportZip([doc], {
-                workspaceName: "Workspace ’s Space",
+                workspaceName: "Workspace 's Space",
             });
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
-            expect(metadata!.workspaceName).toBe("Workspace ’s Space");
+            expect(metadata!.workspaceName).toBe("Workspace 's Space");
         });
     });
 
@@ -71,9 +83,9 @@ describe("getNotionImportMetadata", () => {
         test("returns implicit teamspace for export without teamspaces", () => {
             const doc = new ExportedNotionDocument("Home", "welcome");
             const zip = createTestNotionImportZip([doc], {workspaceName: "My Workspace"});
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             // When there are no teamspaces, the workspace itself is used as an implicit
@@ -87,9 +99,9 @@ describe("getNotionImportMetadata", () => {
             const page2 = new ExportedNotionDocument("Page 2", "");
             const page3 = new ExportedNotionDocument("Page 3", "");
             const zip = createTestNotionImportZip([page1, page2, page3], {workspaceName: "Multi"});
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.teamspaceNameById.size).toBe(1);
@@ -101,9 +113,9 @@ describe("getNotionImportMetadata", () => {
             const child = new ExportedNotionDocument("Child", "", [grandchild]);
             const parent = new ExportedNotionDocument("Parent", "", [child]);
             const zip = createTestNotionImportZip([parent], {workspaceName: "Nested"});
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.teamspaceNameById.size).toBe(1);
@@ -116,9 +128,9 @@ describe("getNotionImportMetadata", () => {
             const page = new ExportedNotionDocument("Home", "welcome");
             const teamspace = new ExportedNotionTeamspace("My Team", [page]);
             const zip = createTestNotionImportZip([teamspace]);
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.teamspaceNameById.size).toBe(1);
@@ -132,9 +144,9 @@ describe("getNotionImportMetadata", () => {
             const privateTs = new ExportedNotionTeamspace("Private & Shared", [page1]);
             const publicTs = new ExportedNotionTeamspace("Public Space", [page2]);
             const zip = createTestNotionImportZip([privateTs, publicTs]);
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.teamspaceNameById.size).toBe(2);
@@ -149,9 +161,9 @@ describe("getNotionImportMetadata", () => {
             const ts1 = new ExportedNotionTeamspace("Team A", [page1]);
             const ts2 = new ExportedNotionTeamspace("Team B", [page2]);
             const zip = createTestNotionImportZip([ts1, ts2]);
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             // Map keys are inherently unique, so size == number of unique IDs
@@ -162,9 +174,9 @@ describe("getNotionImportMetadata", () => {
             const page = new ExportedNotionDocument("Page", "");
             const teamspace = new ExportedNotionTeamspace("Josh's Space HQ", [page]);
             const zip = createTestNotionImportZip([teamspace]);
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect([...metadata!.teamspaceNameById.values()][0]).toBe("Josh's Space HQ");
@@ -175,9 +187,9 @@ describe("getNotionImportMetadata", () => {
             const parent = new ExportedNotionDocument("Parent", "", [child]);
             const teamspace = new ExportedNotionTeamspace("My Team", [parent]);
             const zip = createTestNotionImportZip([teamspace]);
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.teamspaceNameById.size).toBe(1);
@@ -186,31 +198,20 @@ describe("getNotionImportMetadata", () => {
     });
 
     describe("invalid exports", () => {
-        test("returns null for files without index.html", () => {
+        test("returns null when index.html content is missing", () => {
             const rawFiles = {
                 "readme.txt": strToU8("This is not a Notion export"),
                 "data.json": strToU8('{"key": "value"}'),
             };
+            const indexHtml = getIndexHtmlContent(rawFiles);
 
-            const metadata = getNotionImportMetadata(rawFiles);
-
-            expect(metadata).toBeNull();
+            expect(indexHtml).toBeNull();
         });
 
         test("returns null for index.html without workspace name", () => {
-            const rawFiles = {
-                "Export/index.html": strToU8("<html><body><p>No workspace info</p></body></html>"),
-            };
+            const indexHtml = strToU8("<html><body><p>No workspace info</p></body></html>");
 
-            const metadata = getNotionImportMetadata(rawFiles);
-
-            expect(metadata).toBeNull();
-        });
-
-        test("returns null for empty files map", () => {
-            const rawFiles: Record<string, Uint8Array> = {};
-
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).toBeNull();
         });
@@ -219,9 +220,9 @@ describe("getNotionImportMetadata", () => {
     describe("real Notion export fixtures", () => {
         test("JJ-Test-Flat.zip - implicit teamspace from workspace", () => {
             const zip = readFixture("JJ-Test-Flat.zip");
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Export");
@@ -232,9 +233,9 @@ describe("getNotionImportMetadata", () => {
 
         test("JJ-Test-Nested.zip - implicit teamspace from workspace", () => {
             const zip = readFixture("JJ-Test-Nested.zip");
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Export");
@@ -245,9 +246,9 @@ describe("getNotionImportMetadata", () => {
 
         test("Workspace-Flat.zip - with teamspaces", () => {
             const zip = readFixture("Workspace-Flat.zip");
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Alpine Test Space");
@@ -260,9 +261,9 @@ describe("getNotionImportMetadata", () => {
 
         test("Workspace-Nested.zip - with teamspaces", () => {
             const zip = readFixture("Workspace-Nested.zip");
-            const rawFiles = getRawFiles(zip);
+            const indexHtml = getIndexHtmlContent(getRawFiles(zip))!;
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBeDefined();
@@ -276,9 +277,11 @@ describe("getNotionImportMetadata", () => {
         test("Workspace fixtures have consistent teamspace IDs between flat and nested", () => {
             const flatZip = readFixture("Workspace-Flat.zip");
             const nestedZip = readFixture("Workspace-Nested.zip");
+            const flatIndexHtml = getIndexHtmlContent(getRawFiles(flatZip))!;
+            const nestedIndexHtml = getIndexHtmlContent(getRawFiles(nestedZip))!;
 
-            const flatMetadata = getNotionImportMetadata(getRawFiles(flatZip));
-            const nestedMetadata = getNotionImportMetadata(getRawFiles(nestedZip));
+            const flatMetadata = getNotionImportMetadata(flatIndexHtml);
+            const nestedMetadata = getNotionImportMetadata(nestedIndexHtml);
 
             expect(flatMetadata).not.toBeNull();
             expect(nestedMetadata).not.toBeNull();
@@ -297,68 +300,46 @@ describe("getNotionImportMetadata", () => {
 
     describe("edge cases", () => {
         test("handles index.html at root level", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name: Root Level Workspace</p>
-                        <ul id="id::abc123">
-                            <li><ul id="id::def456">
-                                <a href="./Page def456.md">Page def456.md</a>
-                            </ul></li>
-                        </ul>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name: Root Level Workspace</p>
+                    <ul id="id::abc123">
+                        <li><ul id="id::def456">
+                            <a href="./Page def456.md">Page def456.md</a>
+                        </ul></li>
+                    </ul>
+                </body></html>
+            `);
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Root Level Workspace");
         });
 
-        test("handles index.html in subdirectory", () => {
-            const rawFiles = {
-                "Export-123/index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name: Subdirectory Workspace</p>
-                        <ul id="id::abc123"></ul>
-                    </body></html>
-                `),
-            };
-
-            const metadata = getNotionImportMetadata(rawFiles);
-
-            expect(metadata).not.toBeNull();
-            expect(metadata!.workspaceName).toBe("Subdirectory Workspace");
-        });
-
         test("handles workspace name with leading/trailing whitespace", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name:    Trimmed Name   </p>
-                        <ul id="id::abc123"></ul>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name:    Trimmed Name   </p>
+                    <ul id="id::abc123"></ul>
+                </body></html>
+            `);
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Trimmed Name");
         });
 
         test("handles empty workspace root (no pages)", () => {
-            const rawFiles = {
-                "index.html": strToU8(`
-                    <html><body>
-                        <p>Workspace name: Empty Workspace</p>
-                        <ul id="id::abc123"></ul>
-                    </body></html>
-                `),
-            };
+            const indexHtml = strToU8(`
+                <html><body>
+                    <p>Workspace name: Empty Workspace</p>
+                    <ul id="id::abc123"></ul>
+                </body></html>
+            `);
 
-            const metadata = getNotionImportMetadata(rawFiles);
+            const metadata = getNotionImportMetadata(indexHtml);
 
             expect(metadata).not.toBeNull();
             expect(metadata!.workspaceName).toBe("Empty Workspace");

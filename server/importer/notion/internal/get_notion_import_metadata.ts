@@ -18,9 +18,9 @@ export type NotionImportMetadata = {
 };
 
 /**
- * Extracts metadata from a Notion export's raw file map (the output of
- * `findNotionImportRoot`). Returns the workspace name and detected teamspaces, or
- * null if the export is invalid (no index.html or no workspace name found).
+ * Extracts metadata from a Notion export's index.html file. Returns the workspace
+ * name and detected teamspaces, or null if the export is invalid (no workspace
+ * name found).
  *
  * If the export has teamspaces (all top-level items have `<a>` without `href`),
  * returns one entry per teamspace. If the export has no teamspaces (top-level
@@ -34,11 +34,9 @@ export type NotionImportMetadata = {
  * teamspaces. @see test_fixtures/sample_index_with_teamspaces.html for an example
  * with teamspaces.
  */
-export function getNotionImportMetadata(
-    rawFiles: Record<string, Uint8Array>,
-): NotionImportMetadata | null {
+export function getNotionImportMetadata(indexHtmlContent: Uint8Array): NotionImportMetadata | null {
     // Parse the index.html to extract workspace info and top-level children
-    const parsed = parseNotionImportIndexHtml(rawFiles);
+    const parsed = parseNotionImportIndexHtml(indexHtmlContent);
     if (!parsed) return null;
 
     const {workspaceName, workspaceId, topLevelChildren, hasTeamspaces} = parsed;

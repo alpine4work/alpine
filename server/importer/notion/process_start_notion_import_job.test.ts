@@ -34,14 +34,14 @@ const context = createTestContext({
  * Create a system action context with a fresh importer module containing the given
  * file.
  */
-function createSystemActionWithFile(
+async function createSystemActionWithFile(
     space: Awaited<ReturnType<typeof TestSpace.create>>,
     importKey: string,
     fileData?: Uint8Array,
 ) {
     const importer = new TestImporterContextModule();
     if (fileData) {
-        importer.setUploadedFile(importKey, fileData);
+        await importer.setUploadedFile(importKey, fileData);
     }
 
     return context.cloneWithHelpers({
@@ -138,7 +138,7 @@ async function importedFixtureSpaceItemsToString(
     });
 
     await processStartNotionImportJob(
-        createSystemActionWithFile(space, importKey, zip),
+        await createSystemActionWithFile(space, importKey, zip),
         notionImportId,
     );
 
@@ -261,7 +261,10 @@ function documentMentionNode(documentId: DocumentId) {
 
 describe("processStartNotionImportJob", () => {
     beforeEach(() => {
-        import.meta.jest.useFakeTimers();
+        // NOTE: We use doNotFake: ['setImmediate'] because yauzl (used for unzipping)
+        // relies on setImmediate internally. Mocking setImmediate would block the unzip
+        // operation from completing.
+        import.meta.jest.useFakeTimers({doNotFake: ["setImmediate"]});
         // Set a fixed date for consistent snapshot testing
         import.meta.jest.setSystemTime(new Date("2026-01-28T12:00:00.000Z"));
     });
@@ -300,7 +303,7 @@ describe("processStartNotionImportJob", () => {
 
             // Process the import
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -354,7 +357,7 @@ describe("processStartNotionImportJob", () => {
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -419,7 +422,7 @@ describe("processStartNotionImportJob", () => {
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -642,7 +645,7 @@ describe("processStartNotionImportJob", () => {
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -943,7 +946,7 @@ describe("processStartNotionImportJob", () => {
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1064,7 +1067,7 @@ describe("processStartNotionImportJob", () => {
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1189,7 +1192,7 @@ describe("processStartNotionImportJob", () => {
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1267,7 +1270,7 @@ ${child2.toReference()}`,
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1377,7 +1380,7 @@ ${child2.toReference()}`,
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1611,7 +1614,7 @@ ${child2.toReference()}`,
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1743,7 +1746,7 @@ ${child2.toReference()}`,
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1823,7 +1826,7 @@ ${child2.toReference()}`,
             });
 
             await processStartNotionImportJob(
-                createSystemActionWithFile(space, importKey, zip),
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
             );
 
@@ -1905,7 +1908,7 @@ ${child2.toReference()}`,
             // Don't set up the file - it should fail
             await expect(
                 processStartNotionImportJob(
-                    createSystemActionWithFile(space, importKey),
+                    await createSystemActionWithFile(space, importKey),
                     notionImportId,
                 ),
             ).rejects.toThrow("Notion import file not found");

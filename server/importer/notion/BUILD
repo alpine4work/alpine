@@ -4,6 +4,7 @@ exports_files([
     "test_fixtures/audio.mp3",
     "test_fixtures/image.png",
     "test_fixtures/video.mp4",
+    "test_fixtures/Workspace-Flat.zip",
 ])
 
 ts_project(

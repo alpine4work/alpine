@@ -1,8 +1,9 @@
 import envPaths from "env-paths";
-import {unzipSync} from "fflate";
-import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from "fs";
-import {dirname, join as joinPath} from "path";
+import {mkdir, readFile, stat} from "fs/promises";
+import {join as joinPath} from "path";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
+
+import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
 import {DataLossError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -12,16 +13,9 @@ const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
  * Development importer service context module that reads files from the local
  * filesystem.
  *
- * This is the `importerService` module used in dev mode when imports are processed
- * in-process. It shares the same file storage location as
- * `ImporterDevelopmentContextModule` (the `importer` module that handles presigned
- * URLs and spawning).
- *
- * In production, `ImporterServiceContextModule` reads from S3 instead.
- *
- * ## File location
- *
- * Files are stored at: `{devEnvPaths.data}/import-uploads/{importKey}`
+ * This module is used when running the importer service locally in development. It
+ * reads from the same directory that `ImporterDevelopmentContextModule` writes to:
+ * `{devEnvPaths.data}/import-uploads/{importKey}`
  *
  * Run `dev path data` to see the data directory path on your machine.
  */
@@ -37,29 +31,36 @@ export class ImporterServiceDevelopmentContextModule extends ImporterServiceCont
         this._localUploadPath = localUploadPath;
     }
 
+    private _getBasePath(): string {
+        return this._localUploadPath ?? devDataPath;
+    }
+
     private _getUploadPath(importKey: string): string {
-        return joinPath(this._localUploadPath ?? devDataPath, "import-uploads", importKey);
+        return joinPath(this._getBasePath(), "import-uploads", importKey);
     }
 
     private _getUnzipPath(importKey: string): string {
-        return joinPath(
-            this._localUploadPath ?? devDataPath,
-            "import-unzipped",
-            importKey.replace(/\//g, "_"),
-        );
+        return joinPath(this._getBasePath(), "import-unzipped", importKey.replace(/\//g, "_"));
     }
 
+    /**
+     * Reads an uploaded file from local storage.
+     */
     async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
         const filePath = this._getUploadPath(importKey);
 
-        if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+        const fileStat = await stat(filePath).catch(() => null);
+        if (!fileStat?.isFile()) {
             return null;
         }
 
-        const buffer = readFileSync(filePath);
+        const buffer = await readFile(filePath);
         return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
+    /**
+     * Reads the import file from local storage and unzips it to disk.
+     */
     async downloadAndUnzipImportToDisk(options: {
         importKey: string;
     }): Promise<{diskPathToUnzippedFiles: string}> {
@@ -67,28 +68,17 @@ export class ImporterServiceDevelopmentContextModule extends ImporterServiceCont
 
         // Get the zip file path (already on disk from the upload)
         const zipFilePath = this._getUploadPath(importKey);
-        if (!existsSync(zipFilePath)) {
+        const zipStat = await stat(zipFilePath).catch(() => null);
+        if (!zipStat) {
             throw new DataLossError(`Import file not found: ${importKey}`);
         }
 
         // Create the unzip directory
         const unzipDir = this._getUnzipPath(importKey);
-        if (!existsSync(unzipDir)) {
-            mkdirSync(unzipDir, {recursive: true});
-        }
+        await mkdir(unzipDir, {recursive: true});
 
-        // Extract the zip file to disk
-        const zipData = readFileSync(zipFilePath);
-        const unzipped = unzipSync(new Uint8Array(zipData));
-
-        for (const [relativePath, data] of Object.entries(unzipped)) {
-            const fullPath = joinPath(unzipDir, relativePath);
-            const dir = dirname(fullPath);
-            if (!existsSync(dir)) {
-                mkdirSync(dir, {recursive: true});
-            }
-            writeFileSync(fullPath, data);
-        }
+        // Extract the zip file
+        await unzipToDisk(zipFilePath, unzipDir);
 
         return {diskPathToUnzippedFiles: unzipDir};
     }

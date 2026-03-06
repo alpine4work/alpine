@@ -1,67 +1,75 @@
-import {ImporterServiceDevelopmentContextModule} from "~/server/importer/development/importer_service_development_context_module.js";
-import {
-    ImporterContextModuleBase,
-    PresignedUploadUrlResult,
-} from "~/server/importer/importer_context_module_base.js";
+import {mkdir, readFile, stat, unlink, writeFile} from "fs/promises";
+import {join as joinPath} from "path";
+
+import {PresignedUploadUrlResult} from "~/server/importer/importer_context_module_base.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
+import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
+import {DataLossError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Shared file storage for test importer modules. This allows
- * TestImporterContextModule and TestImporterServiceContextModule to share the same
- * file data in tests.
- */
-export class TestImporterFileStorage {
-    private readonly _files = new Map<string, Uint8Array>();
-
-    has(importKey: string): boolean {
-        return this._files.has(importKey);
-    }
-
-    get(importKey: string): Uint8Array | null {
-        return this._files.get(importKey) ?? null;
-    }
-
-    set(importKey: string, data: Uint8Array): void {
-        this._files.set(importKey, data);
-    }
-
-    delete(importKey: string): void {
-        this._files.delete(importKey);
-    }
-
-    clone(): TestImporterFileStorage {
-        const storage = new TestImporterFileStorage();
-        for (const [key, value] of this._files) {
-            storage._files.set(key, value);
-        }
-        return storage;
-    }
-}
-
-/**
- * Test importer service context module that reads files from shared storage. Use
- * this as the `importerService` module in tests.
+ * Test importer service context module that reads files from a shared disk
+ * location. Use this as the `importerService` module in tests.
  *
  * Extends ImporterServiceDevelopmentContextModule so it can replace that module in
  * cloned contexts (Context.clone requires replacement modules to be subclasses).
  */
 export class TestImporterServiceContextModule extends ImporterServiceDevelopmentContextModule {
-    private readonly _storage: TestImporterFileStorage;
+    private readonly _testBasePath: string;
 
-    constructor(storage: TestImporterFileStorage) {
+    constructor(basePath: string) {
         super();
         assert(process.env.NODE_ENV === "test");
-        this._storage = storage;
+        this._testBasePath = basePath;
+    }
+
+    private _testGetUploadPath(importKey: string): string {
+        return joinPath(this._testBasePath, "import-uploads", importKey);
+    }
+
+    private _testGetUnzipPath(importKey: string): string {
+        return joinPath(this._testBasePath, "import-unzipped", importKey);
     }
 
     override async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        return this._storage.get(importKey);
+        const filePath = this._testGetUploadPath(importKey);
+
+        const fileStat = await stat(filePath).catch(() => null);
+        if (!fileStat?.isFile()) {
+            return null;
+        }
+
+        const buffer = await readFile(filePath);
+        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    }
+
+    override async downloadAndUnzipImportToDisk(options: {
+        importKey: string;
+    }): Promise<{diskPathToUnzippedFiles: string}> {
+        const {importKey} = options;
+
+        // Get the zip file path
+        const zipFilePath = this._testGetUploadPath(importKey);
+        const zipStat = await stat(zipFilePath).catch(() => null);
+        if (!zipStat) {
+            throw new DataLossError(`Import file not found: ${importKey}`);
+        }
+
+        // Create the unzip directory
+        const unzipDir = this._testGetUnzipPath(importKey);
+        await mkdir(unzipDir, {recursive: true});
+
+        // Extract the zip file
+        await unzipToDisk(zipFilePath, unzipDir);
+
+        return {diskPathToUnzippedFiles: unzipDir};
     }
 
     override fork(): TestImporterServiceContextModule {
-        return new TestImporterServiceContextModule(this._storage.clone());
+        return new TestImporterServiceContextModule(this._testBasePath);
     }
 }
 
@@ -81,21 +89,24 @@ export type WaitUntilAndEscalateToSystemContext = (
 ) => void;
 
 /**
- * Test importer context module that stores files in memory.
+ * Test importer context module that uses disk storage via TEST_TMPDIR.
  *
- * This module is used in unit tests where filesystem access isn't available (e.g.,
- * in Bazel sandboxed tests).
+ * This module is used in unit tests running in Bazel, which provides the
+ * TEST_TMPDIR environment variable pointing to a writable temp directory.
+ *
+ * Uses the same disk-based unzip logic as production/development, ensuring tests
+ * exercise the real code paths.
  *
  * The `waitUntilAndEscalateToSystemContext` callback is optional:
  *
- * - If provided: Used to run actual import processing in memory
+ * - If provided: Used to run actual import processing
  * - If not provided: The module just tracks calls without running anything
  *
  * The module tracks calls to `startValidateNotionImport` and `startNotionImport`
  * in arrays that tests can inspect to verify imports were triggered.
  */
-export class TestImporterContextModule extends ImporterContextModuleBase {
-    private readonly _storage: TestImporterFileStorage;
+export class TestImporterContextModule extends ImporterServiceContextModuleBase {
+    private readonly _basePath: string;
     private readonly _waitUntilCallback: WaitUntilAndEscalateToSystemContext | null;
 
     /**
@@ -119,24 +130,23 @@ export class TestImporterContextModule extends ImporterContextModuleBase {
     /**
      * Creates a test importer context module.
      *
-     * @param options.storage - Optional shared file storage. If not provided, creates
-     * new storage. @param options.waitUntilAndEscalateToSystemContext - Optional
-     * callback to run actual import processing, or a factory function that returns the
-     * callback (for lazy initialization). If not provided, the module just tracks
-     * calls without running anything.
+     * @param waitUntilAndEscalateToSystemContext - Optional callback to run actual
+     * import processing, or a factory function that returns the callback (for lazy
+     * initialization). If not provided, the module just tracks calls without running
+     * anything.
      */
-    constructor(options?: {
-        storage?: TestImporterFileStorage;
+    constructor(
         waitUntilAndEscalateToSystemContext?:
             | WaitUntilAndEscalateToSystemContext
-            | (() => WaitUntilAndEscalateToSystemContext);
-    }) {
+            | (() => WaitUntilAndEscalateToSystemContext),
+    ) {
         super();
         assert(process.env.NODE_ENV === "test");
 
-        this._storage = options?.storage ?? new TestImporterFileStorage();
-
-        const waitUntilAndEscalateToSystemContext = options?.waitUntilAndEscalateToSystemContext;
+        // Use TEST_TMPDIR provided by Bazel for disk operations
+        const testTmpDir = process.env.TEST_TMPDIR;
+        assert(testTmpDir, "TEST_TMPDIR must be set in test environment");
+        this._basePath = testTmpDir;
 
         // Resolve the callback eagerly since the context module is frozen after
         // construction.
@@ -157,11 +167,12 @@ export class TestImporterContextModule extends ImporterContextModuleBase {
         }
     }
 
-    /**
-     * Gets the shared file storage for use with TestImporterServiceContextModule.
-     */
-    get storage(): TestImporterFileStorage {
-        return this._storage;
+    private _getUploadPath(importKey: string): string {
+        return joinPath(this._basePath, "import-uploads", importKey);
+    }
+
+    private _getUnzipPath(importKey: string): string {
+        return joinPath(this._basePath, "import-unzipped", importKey);
     }
 
     async createPresignedUploadUrl({
@@ -176,15 +187,54 @@ export class TestImporterContextModule extends ImporterContextModuleBase {
     }
 
     async hasUploadedFile(importKey: string): Promise<boolean> {
-        return this._storage.has(importKey);
+        const filePath = this._getUploadPath(importKey);
+        const fileStat = await stat(filePath).catch(() => null);
+        return fileStat?.isFile() ?? false;
     }
 
     async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        return this._storage.get(importKey);
+        const filePath = this._getUploadPath(importKey);
+
+        const fileStat = await stat(filePath).catch(() => null);
+        if (!fileStat?.isFile()) {
+            return null;
+        }
+
+        const buffer = await readFile(filePath);
+        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
     async deleteUploadedFile(importKey: string): Promise<void> {
-        this._storage.delete(importKey);
+        const filePath = this._getUploadPath(importKey);
+        const fileStat = await stat(filePath).catch(() => null);
+        if (fileStat?.isFile()) {
+            await unlink(filePath);
+        }
+    }
+
+    /**
+     * Downloads the import file and unzips it to disk.
+     */
+    async downloadAndUnzipImportToDisk(options: {
+        importKey: string;
+    }): Promise<{diskPathToUnzippedFiles: string}> {
+        const {importKey} = options;
+
+        // Get the zip file path
+        const zipFilePath = this._getUploadPath(importKey);
+        const zipStat = await stat(zipFilePath).catch(() => null);
+        if (!zipStat) {
+            throw new DataLossError(`Import file not found: ${importKey}`);
+        }
+
+        // Create the unzip directory
+        const unzipDir = this._getUnzipPath(importKey);
+        await mkdir(unzipDir, {recursive: true});
+
+        // Extract the zip file
+        await unzipToDisk(zipFilePath, unzipDir);
+
+        return {diskPathToUnzippedFiles: unzipDir};
     }
 
     async startValidateNotionImport(options: {
@@ -228,24 +278,58 @@ export class TestImporterContextModule extends ImporterContextModuleBase {
     }
 
     /**
-     * Test helper to simulate a file being uploaded.
+     * Test helper to simulate a file being uploaded. Writes the file to disk at the
+     * upload path.
      */
-    public setUploadedFile(importKey: string, data: Uint8Array): void {
-        this._storage.set(importKey, data);
+    public async setUploadedFile(importKey: string, data: Uint8Array): Promise<void> {
+        const filePath = this._getUploadPath(importKey);
+        const dir = joinPath(filePath, "..");
+
+        await mkdir(dir, {recursive: true});
+        await writeFile(filePath, data);
     }
 
     /**
-     * Creates a TestImporterServiceContextModule that shares this module's storage.
+     * Test helper to set unzipped files directly for a given disk path. This bypasses
+     * the actual unzip step and allows tests to directly provide file contents that
+     * will be returned by readUnzippedFile.
+     *
+     * @param diskPath - The disk path to use (will be created under TEST_TMPDIR)
+     * @param files - Object mapping relative file paths to their contents
+     */
+    public async setUnzippedFiles(
+        diskPath: string,
+        files: Record<string, Uint8Array>,
+    ): Promise<void> {
+        const fullPath = joinPath(this._basePath, "import-unzipped", diskPath);
+
+        for (const [relativePath, content] of Object.entries(files)) {
+            const filePath = joinPath(fullPath, relativePath);
+            const dir = joinPath(filePath, "..");
+
+            await mkdir(dir, {recursive: true});
+            await writeFile(filePath, content);
+        }
+    }
+
+    /**
+     * Returns the actual disk path for a given lookup key. Used by tests that call
+     * setUnzippedFiles with a key and need the real path.
+     */
+    public getUnzippedFilesPath(diskPath: string): string {
+        return joinPath(this._basePath, "import-unzipped", diskPath);
+    }
+
+    /**
+     * Creates a TestImporterServiceContextModule that shares this module's disk
+     * location.
      */
     public createServiceModule(): TestImporterServiceContextModule {
-        return new TestImporterServiceContextModule(this._storage);
+        return new TestImporterServiceContextModule(this._basePath);
     }
 
     fork(): TestImporterContextModule {
         // Pass the already-resolved callback directly, not a factory.
-        return new TestImporterContextModule({
-            storage: this._storage.clone(),
-            waitUntilAndEscalateToSystemContext: this._waitUntilCallback ?? undefined,
-        });
+        return new TestImporterContextModule(this._waitUntilCallback ?? undefined);
     }
 }

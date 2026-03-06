@@ -5,15 +5,15 @@ import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/internal/create_notion_import_csv_database_document.js";
 import {createNotionImportTeamspaceRootDocument} from "~/server/importer/notion/internal/create_notion_import_teamspace_root_document.js";
-import {findNotionImportUnzippedFileKey} from "~/server/importer/notion/internal/find_notion_import_unzipped_file_key.js";
 import {generateDeterministicNotionDocumentIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_document_id.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
+import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
-import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     ApiContent,
@@ -67,12 +67,22 @@ export async function convertExtractedNotionDataToEntities(
     const {
         notionWorkspaceId,
         teamspaces,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren,
         rootLevelCsvDatabases,
         pathToDocumentId,
         documentIdToPath,
     } = mappedReferencesResult;
+
+    /**
+     * Helper to read a file from the unzipped import.
+     */
+    async function readUnzippedFile(relativeFilePath: string): Promise<Uint8Array | null> {
+        return context.importerService.readUnzippedFile({
+            diskPathToUnzippedFiles,
+            relativeFilePath,
+        });
+    }
 
     // Generate teamspace root document IDs upfront so we can set parent links. Also
     // add them to documentIdToPath so child documents can resolve their parent title.
@@ -144,15 +154,9 @@ export async function convertExtractedNotionDataToEntities(
 
         // Process each document in the teamspace
         for (const [filePath, documentInfo] of Object.entries(teamspace.documents)) {
-            // Find the file content in the unzipped files
-            const fileKey = findNotionImportUnzippedFileKey(unzippedFiles, filePath);
-            if (!fileKey) continue;
-
-            const fileContent = unzippedFiles[fileKey];
-            if (!fileContent) continue;
-
+            // Read the file content using the context module
+            const fileContent = assertExists(await readUnzippedFile(filePath));
             const rawContent = strFromU8(fileContent);
-
             // ============================================================ Preprocess markdown
             // for database properties
             // ============================================================ Notion exports
@@ -170,9 +174,8 @@ export async function convertExtractedNotionDataToEntities(
             // ============================================================ Transform API
             // content for Alpine's format
             // ============================================================
-            const {title, content: finalApiContent} = reformatNotionApiContentIntoOurDesiredFormat(
-                rawApiContent,
-                {
+            const {title, content: finalApiContent} =
+                await reformatNotionApiContentIntoOurDesiredFormat(context, rawApiContent, {
                     spaceId,
                     pathToDocumentId,
                     documentIdToPath,
@@ -180,10 +183,9 @@ export async function convertExtractedNotionDataToEntities(
                     childIds: documentInfo.children,
                     hasChildrenHeader: documentInfo.hasChildrenHeader,
                     filePath,
-                    unzippedFiles,
+                    diskPathToUnzippedFiles,
                     inlineDatabaseChildren,
-                },
-            );
+                });
 
             // Convert API content to ProseMirror document
             const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, finalApiContent);
@@ -254,7 +256,7 @@ export async function convertExtractedNotionDataToEntities(
                 documentId: csvDatabaseInfo.id,
                 parentId: teamspaceRootDocumentId,
                 csvPath,
-                unzippedFiles,
+                diskPathToUnzippedFiles,
                 isPublic,
                 inlineDatabaseChildren,
             });
@@ -539,7 +541,8 @@ function formatDatabasePropertiesInApiContent(
  * Configuration including document mappings and files @returns Object with
  * extracted title and transformed content
  */
-function reformatNotionApiContentIntoOurDesiredFormat(
+async function reformatNotionApiContentIntoOurDesiredFormat(
+    context: {importerService: ImporterServiceContextModuleBase},
     apiContent: ApiContent,
     options: {
         spaceId: SpaceId;
@@ -549,10 +552,10 @@ function reformatNotionApiContentIntoOurDesiredFormat(
         childIds: Set<DocumentId>;
         hasChildrenHeader: boolean;
         filePath: string;
-        unzippedFiles: Record<string, Uint8Array>;
+        diskPathToUnzippedFiles: string;
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
     },
-): {title: string; content: ApiContent} {
+): Promise<{title: string; content: ApiContent}> {
     const {
         pathToDocumentId,
         documentIdToPath,
@@ -560,7 +563,7 @@ function reformatNotionApiContentIntoOurDesiredFormat(
         childIds,
         hasChildrenHeader,
         filePath,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren,
     } = options;
 
@@ -644,9 +647,9 @@ function reformatNotionApiContentIntoOurDesiredFormat(
     const currentDir = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/")) : "";
 
     // Transform .csv links to tables (must happen before link transformation)
-    elements = transformCsvLinksToTables(elements, {
+    elements = await transformCsvLinksToTables(context, elements, {
         currentDir,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren,
     });
 
@@ -793,15 +796,16 @@ function isApiContentOnlyChildMentions(
  * Paragraphs containing a link to a .csv file are replaced with a Table block
  * containing the parsed CSV data.
  */
-function transformCsvLinksToTables(
+async function transformCsvLinksToTables(
+    context: {importerService: ImporterServiceContextModuleBase},
     elements: Array<ApiContentBlockElement>,
     options: {
         currentDir: string;
-        unzippedFiles: Record<string, Uint8Array>;
+        diskPathToUnzippedFiles: string;
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
     },
-): Array<ApiContentBlockElement> {
-    const {currentDir, unzippedFiles, inlineDatabaseChildren} = options;
+): Promise<Array<ApiContentBlockElement>> {
+    const {currentDir, diskPathToUnzippedFiles, inlineDatabaseChildren} = options;
     const result: Array<ApiContentBlockElement> = [];
 
     for (const element of elements) {
@@ -823,22 +827,25 @@ function transformCsvLinksToTables(
                                 resolveNotionImportRelativePath(currentDir, normalizedPath) ??
                                 normalizedPath;
 
-                            const csvKey = findNotionImportUnzippedFileKey(
-                                unzippedFiles,
-                                resolvedPath,
+                            // Read the CSV content from disk
+                            const csvData = assertExists(
+                                await context.importerService.readUnzippedFile({
+                                    diskPathToUnzippedFiles,
+                                    relativeFilePath: resolvedPath,
+                                }),
                             );
-                            if (csvKey && unzippedFiles[csvKey]) {
-                                const csvContent = strFromU8(unzippedFiles[csvKey]);
-                                const childTitleToDocumentId =
-                                    inlineDatabaseChildren.get(resolvedPath) ?? new Map();
-                                const tableContent = notionImportCsvToApiContent(
-                                    csvContent,
-                                    childTitleToDocumentId,
-                                );
-                                if (tableContent) {
-                                    csvTable = tableContent;
-                                    break;
-                                }
+
+                            const csvContent = strFromU8(csvData);
+                            const childTitleToDocumentId =
+                                inlineDatabaseChildren.get(resolvedPath) ?? new Map();
+                            const tableContent = notionImportCsvToApiContent(
+                                csvContent,
+                                childTitleToDocumentId,
+                            );
+
+                            if (tableContent) {
+                                csvTable = tableContent;
+                                break;
                             }
                         }
                     }
@@ -854,7 +861,11 @@ function transformCsvLinksToTables(
             // Recursively handle quotes (spread to convert readonly to mutable)
             result.push({
                 ...element,
-                elements: transformCsvLinksToTables([...element.elements], options) as Array<{
+                elements: (await transformCsvLinksToTables(
+                    context,
+                    [...element.elements],
+                    options,
+                )) as Array<{
                     type: "Paragraph";
                     elements: ReadonlyArray<ApiContentInlineElement>;
                 }>,

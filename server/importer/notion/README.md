@@ -292,7 +292,7 @@ const notionId = uuid.replace(/-/g, ""); // Remove dashes to get 32-char hex
 
 This normalization happens in:
 
-- `unzip_notion_import_and_map_references.ts` when parsing index.html hierarchy
+- `parse_notion_import_and_map_references.ts` when parsing index.html hierarchy
 - `get_notion_import_teamspaces.ts` when extracting teamspace IDs
 
 Both locations use the same pattern to ensure consistent ID format across the codebase.
@@ -503,11 +503,11 @@ space ID and file ID. This:
 The job worker picks up the import job and:
 
 - Fetches the uploaded zip from R2 storage
-- Calls `unzipNotionImportAndMapReferences` to parse the export
+- Calls `parseNotionImportAndMapReferences` to parse the export
 - Creates Alpine documents from the parsed result (TODO: in progress)
 - Updates the import status to `Success` or `Failed`
 
-### 3. Parse and Map References (`unzip_notion_import_and_map_references.ts`)
+### 3. Parse and Map References (`parse_notion_import_and_map_references.ts`)
 
 This is the core parsing logic. It takes the raw zip bytes and returns a
 `NotionImportMappedReferencesResult`:
@@ -672,7 +672,7 @@ const zip = createTestNotionImportZip([page, db], {
     createFoldersForSubpages: true,
     workspaceName: "My Workspace",
 });
-const result = unzipNotionImportAndMapReferences(zip);
+const result = await parseNotionImportWithTestContext(zip, notionImportItem);
 ```
 
 #### Cross-references
@@ -739,7 +739,7 @@ cross-references.
 
 ```bash
 # Run just the parser tests
-bazel test //server/importer/notion:internal/unzip_notion_import_and_map_references_test
+bazel test //server/importer/notion:internal/parse_notion_import_and_map_references_test
 
 # Run all tests in the notion importer
 bazel test //server/importer/notion/...

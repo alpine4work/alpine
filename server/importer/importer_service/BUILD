@@ -7,6 +7,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # This depends on //server/importer/notion, so it's separate from the base importer.
 ts_project(
     name = "importer_service",
+    test_deps = [
+        "//:node_modules/fflate",
+    ],
     visibility = [
         "//admin/crawl:__pkg__",
         "//server/importer:__subpackages__",

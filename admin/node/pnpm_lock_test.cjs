@@ -282,6 +282,10 @@ const allowedDuplicatePackageVersionsByName = new Map([
 
     // Duplicate packages after adding drizzle for agent limits.
     ["strip-json-comments", ["2.0.1", "3.1.1"]],
+
+    // NOTE(imjoshin, 2026-02-20): Duplicate packages after adding `yauzl` for notion
+    // import unzipping. yauzl requires 0.2.13, archiver (via aws-cdk) requires 1.0.0.
+    ["buffer-crc32", ["0.2.13", "1.0.0"]],
 ]);
 
 async function main() {
