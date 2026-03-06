@@ -8,6 +8,7 @@ ts_project(
         "//server/importer/notion:test_fixtures/Workspace-Flat.zip",
     ],
     test_deps = [
+        "//:node_modules/@smithy/types",
         "//:node_modules/fflate",
         "//server/importer/development",
         "//server/importer/notion/test_helpers",

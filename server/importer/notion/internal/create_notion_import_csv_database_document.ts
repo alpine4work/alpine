@@ -1,8 +1,10 @@
 import {strFromU8} from "fflate";
 
 import {ApiContentBlockElementWithFileRow} from "~/server/api/content/api_content_block_element_with_file_row.js";
+import {extractFileIdsFromApiContent} from "~/server/api/content/extract_file_ids_from_api_content.js";
 import {ApiContentExtended, fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
@@ -129,4 +131,11 @@ export async function createNotionImportCsvDatabaseDocument(
         createFeedEntry: false,
         from: {type: "Importer", source: {type: "Notion"}},
     });
+
+    // Attach files to the document so they can be accessed via the document. Files in
+    // CSV tables (FileRowTable elements) need attachment records.
+    const fileIds = extractFileIdsFromApiContent(apiContent);
+    for (const fileId of fileIds) {
+        await attachFileToDocumentAsSystem(context, spaceId, fileId, documentId);
+    }
 }

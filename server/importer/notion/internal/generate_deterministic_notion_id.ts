@@ -1,3 +1,4 @@
+import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
 import {encodeId} from "~/shared/id/id.js";
 import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -56,4 +57,55 @@ function fnv1aHash32(str: string): number {
 
     // Return as unsigned 32-bit integer
     return hash >>> 0;
+}
+
+/**
+ * Generates deterministic random bytes using the FNV-1a hash.
+ */
+function generateDeterministicBytes(input: string, count: number): Uint8Array {
+    const bytes = new Uint8Array(count);
+    const hashesNeeded = Math.ceil(count / 4);
+
+    for (let i = 0; i < hashesNeeded; i++) {
+        const hash = fnv1aHash32(`${input}:${i}`);
+        const baseIndex = i * 4;
+        if (baseIndex < count) bytes[baseIndex] = (hash >>> 24) & 0xff;
+        if (baseIndex + 1 < count) bytes[baseIndex + 1] = (hash >>> 16) & 0xff;
+        if (baseIndex + 2 < count) bytes[baseIndex + 2] = (hash >>> 8) & 0xff;
+        if (baseIndex + 3 < count) bytes[baseIndex + 3] = hash & 0xff;
+    }
+
+    return bytes;
+}
+
+/**
+ * Generates a deterministic chronological file ID. The ID includes the provided
+ * timestamp in its first 48 bits, making the IDs lexicographically sortable by
+ * time. The remaining 80 bits are deterministically generated from the input
+ * parameters.
+ *
+ * This ensures:
+ *
+ * 1. File IDs are chronologically ordered based on the import time.
+ * 2. Re-importing produces the same file IDs (deterministic).
+ * 3. Different spaces produce different IDs (no cross-space collisions).
+ *
+ * @param spaceId - The Alpine space ID where the file will be created @param
+ * workspaceId - The Notion workspace ID (from index.html) @param uniqueId - A
+ * unique identifier for the file (e.g., file path) @param time - The timestamp to
+ * encode in the ID (milliseconds since epoch)
+ */
+export function generateDeterministicNotionFileIdSync(
+    spaceId: SpaceId,
+    workspaceId: string,
+    uniqueId: string,
+    time: number,
+): FileId {
+    const input = `notion:${spaceId}:${workspaceId}:${uniqueId}`;
+
+    // Generate 10 deterministic random bytes for the chronological ID. ChronologicalId
+    // format: 48 bits time + 80 bits random = 128 bits.
+    const randomBytes = generateDeterministicBytes(input, 10);
+
+    return unsafelyConstructChronologicalId<FileId>(time, randomBytes);
 }

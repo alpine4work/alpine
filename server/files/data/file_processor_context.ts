@@ -1,14 +1,18 @@
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
-    ServerSessionActionContext,
+    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
     ActorContextModule,
+    BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
+    SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -44,11 +48,34 @@ export type FileProcessorActionContextModules = FileProcessorProcessContextModul
     actor: ActorContextModule;
 };
 
-export type FileProcessorSessionActionContext = Context<FileProcessorSessionActionContextModules>;
+/**
+ * Minimal context type for system actions that work with files. This is a subset
+ * of ServerSystemActionContext with only the modules needed.
+ */
+export type FileProcessorSystemActionContext = Context<FileProcessorSystemActionContextModules>;
 
-assertAssignableTypes<ServerSessionActionContext, FileProcessorSessionActionContext>();
+assertAssignableTypes<ServerSystemActionContext, FileProcessorSystemActionContext>();
 
-export type FileProcessorSessionActionContextModules = Replace<
+export type FileProcessorSystemActionContextModules = Replace<
     FileProcessorActionContextModules,
-    {actor: SessionActorContextModule}
+    {actor: SystemActorContextModule}
+>;
+
+/**
+ * Minimal context type for account actions that work with files (upload, etc.).
+ * This is a subset of ServerAccountActionContext with only the modules needed.
+ * Supports Session, ImpersonatedAccount, and Bot actors.
+ */
+export type FileProcessorAccountActionContext = Context<FileProcessorAccountActionContextModules>;
+
+assertAssignableTypes<ServerAccountActionContext, FileProcessorAccountActionContext>();
+
+export type FileProcessorAccountActionContextModules = Replace<
+    FileProcessorActionContextModules,
+    {
+        actor:
+            | SessionActorContextModule
+            | ImpersonatedAccountActorContextModule
+            | BotActorContextModule;
+    }
 >;

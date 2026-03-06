@@ -2,7 +2,6 @@ import prettyBytes from "pretty-bytes";
 import {
     ServerAccountActionContext,
     ServerActionContext,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -13,7 +12,11 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer, FileAuthorizerUnbound} from "~/server/files/data/file_authorizer.js";
-import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {
+    FileProcessorAccountActionContext,
+    FileProcessorActionContext,
+    FileProcessorSystemActionContext,
+} from "~/server/files/data/file_processor_context.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {
     FilesTable,
@@ -50,7 +53,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {AccountId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
@@ -160,6 +163,14 @@ function getFileAttachmentTargetItemKey(
 const maxFileTotalContentLengthForSpace = 5e9;
 
 /**
+ * Which services are allowed to upload files.
+ *
+ * We only allow file uploads from EdgeService (client uploads) and ImporterService
+ * (Notion imports, etc.).
+ */
+const allowedUploadServices = new Set(["EdgeService", "ImporterService"]);
+
+/**
  * Called by `EdgeService` before writing our file to Cloudflare R2. Makes sure the
  * space has enough storage for the file and creates a file item in DynamoDB
  * containing information about the file.
@@ -175,8 +186,30 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * If there's an error and we don't complete one of those three steps the resulting
  * file item in DynamoDB won't be very useful.
  */
+// ServerAccountActionContext with optional attachTargetAuthorizer
 export async function startUploadingFile(
     context: ServerAccountActionContext,
+    options: {
+        spaceId: SpaceId;
+        fileId?: FileId | null;
+        contentType: FileContentType;
+        contentLength: number;
+        attachTargetAuthorizer?: FileAuthorizer | null;
+    },
+): Promise<{fileId: FileId}>;
+// FileProcessorAccountActionContext (minimal context type), no
+// attachTargetAuthorizer allowed
+export async function startUploadingFile(
+    context: FileProcessorAccountActionContext,
+    options: {
+        spaceId: SpaceId;
+        fileId?: FileId | null;
+        contentType: FileContentType;
+        contentLength: number;
+    },
+): Promise<{fileId: FileId}>;
+export async function startUploadingFile(
+    context: ServerAccountActionContext | FileProcessorAccountActionContext,
     {
         spaceId,
         fileId: providedFileId = null,
@@ -194,11 +227,26 @@ export async function startUploadingFile(
     await authorizeSpaceAccess(context, spaceId);
 
     // If we're attaching the file to a target as a part of the upload, verify we have
-    // edit access to the target.
-    await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
+    // edit access to the target. When attachTargetAuthorizer is provided, the overload
+    // signature guarantees context is ServerAccountActionContext.
+    if (attachTargetAuthorizer) {
+        // Runtime check: Our types should not allow this case, but let's add another check
+        // to make sure we have the right context type for authorizeTargetAccess. The
+        // authorizer calls functions like authorizeDocumentAccess which require entity
+        // injections. This function can be called by importers which do not have a full
+        // action context.
+        assert(
+            "documentsInjection" in context,
+            "attachTargetAuthorizer requires ServerAccountActionContext",
+        );
 
-    if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
-        throw new PermissionDeniedError("Only `EdgeService` can upload files");
+        await attachTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit");
+    }
+
+    // Only allow file uploads from EdgeService (client uploads) and ImporterService
+    // (Notion imports, etc.).
+    if (!import.meta.jest && !allowedUploadServices.has(context.actor.serviceName)) {
+        throw new PermissionDeniedError("Only allowed services can upload files");
     }
 
     if (!(0 < contentLength && contentLength <= maxFileContentLength)) {
@@ -213,15 +261,21 @@ export async function startUploadingFile(
     if (providedFileId === null) {
         fileId = generateChronologicalId();
     } else {
-        const time = getChronologicalIdTime(providedFileId);
-        const currentTime = Date.now();
+        // ImporterService uses pre-generated deterministic file IDs that may not have
+        // valid timestamps. Skip the time check for imports.
+        const isImportService = context.actor.serviceName === "ImporterService";
 
-        // Make sure the time provided by the client is reasonable so our files table is
-        // still roughly sorted by creation time.
-        if (Math.abs(time - currentTime) > 1000 * 60 * 2) {
-            throw new FailedPreconditionError(
-                "Provided `FileId` must be within a 4 minute window of the current time",
-            );
+        if (!isImportService) {
+            const time = getChronologicalIdTime(providedFileId);
+            const currentTime = Date.now();
+
+            // Make sure the time provided by the client is reasonable so our files table is
+            // still roughly sorted by creation time.
+            if (Math.abs(time - currentTime) > 1000 * 60 * 2) {
+                throw new FailedPreconditionError(
+                    "Provided `FileId` must be within a 4 minute window of the current time",
+                );
+            }
         }
 
         fileId = providedFileId;
@@ -355,21 +409,27 @@ export async function startUploadingFile(
  * `startUploadingFile()` for more information.
  */
 export async function finishUploadingAndStartProcessingFile(
-    context: ServerAccountActionContext,
+    context: FileProcessorAccountActionContext,
     {
         spaceId,
         fileId,
         validateContentLength,
         withoutProcessJobForTest,
+        withoutProcessJob,
     }: {
         spaceId: SpaceId;
         fileId: FileId;
         validateContentLength?: number;
         withoutProcessJobForTest?: boolean;
+        /**
+         * Skip scheduling a file processor job. Use this when the caller will handle file
+         * processing inline (e.g. during imports).
+         */
+        withoutProcessJob?: boolean;
     },
 ): Promise<FileModel> {
-    if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
-        throw new PermissionDeniedError("Only `EdgeService` can upload files");
+    if (!import.meta.jest && !allowedUploadServices.has(context.actor.serviceName)) {
+        throw new PermissionDeniedError("Only allowed services can upload files");
     }
 
     if (withoutProcessJobForTest) {
@@ -415,7 +475,7 @@ export async function finishUploadingAndStartProcessingFile(
         const {hasAlternative, hasPreview} =
             fileProcessorDeclarationByContentType[item.contentType];
 
-        if (!withoutProcessJobForTest && (hasAlternative || hasPreview)) {
+        if (!withoutProcessJobForTest && !withoutProcessJob && (hasAlternative || hasPreview)) {
             // Now that the file has finished uploading we can start processing it. Wait for
             // the message to be added to our queue. If sending the process file message fails
             // we want to fail the entire upload.
@@ -1368,7 +1428,7 @@ export async function getFileAsUploader(
 }
 
 export function getFileIfExistsAsSystem(
-    context: ServerSystemActionContext,
+    context: FileProcessorSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1380,7 +1440,7 @@ export function getFileIfExistsAsSystem(
 }
 
 export function getFileAsSystem(
-    context: ServerSystemActionContext,
+    context: FileProcessorSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1535,6 +1595,31 @@ export async function attachFileAsUploader(
     });
 
     return file;
+}
+
+/**
+ * Attach a file to a document as a system actor, bypassing authorization.
+ *
+ * This is used by the importer service to attach files to documents during import.
+ * The importer uploads files and creates documents, but the file attachment
+ * records need to be created separately.
+ *
+ * WARNING: This bypasses all authorization checks. Only use for trusted system
+ * operations where the caller has already verified that the file exists and the
+ * attachment is valid.
+ */
+export async function attachFileToDocumentAsSystem(
+    context: FileProcessorSystemActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    documentId: DocumentId,
+): Promise<void> {
+    context.actor.authorizeSystem();
+
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, {type: "Document", documentId}),
+        createdTime: new Date(),
+    });
 }
 
 /**

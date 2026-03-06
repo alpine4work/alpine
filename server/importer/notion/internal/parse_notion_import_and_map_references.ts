@@ -1,6 +1,9 @@
 import {strFromU8} from "fflate";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
-import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
+import {
+    generateDeterministicNotionFileIdSync,
+    generateDeterministicNotionIdSync,
+} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
@@ -240,11 +243,13 @@ export async function parseNotionImportAndMapReferences(
             };
         } else {
             // Generate deterministic file ID based on the file path. Using "file:" prefix to
-            // differentiate from document IDs.
-            const id = generateDeterministicNotionIdSync<FileId>(
+            // differentiate from document IDs. Uses the chronological variant so the ID embeds
+            // the current timestamp, which is required by startUploadingFile.
+            const id = generateDeterministicNotionFileIdSync(
                 notionImportItem.spaceId,
                 metadata.workspaceId,
                 `file:${path}`,
+                notionImportItem.createdTime.getTime(),
             );
             pathToFileId.set(path, id);
             filesToUpload[path] = {id};

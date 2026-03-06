@@ -3,9 +3,9 @@ import {convertExtractedNotionDataToEntities} from "~/server/importer/notion/int
 import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {parseNotionImportAndMapReferences} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
+import {uploadNotionImportFiles} from "~/server/importer/notion/internal/upload_notion_import_files.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
-// TODO: Re-enable when file attachments are implemented import {runAllPromises}
-// from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId} from "~/shared/id/types/id_types.js";
 
@@ -79,22 +79,21 @@ export async function processStartNotionImportJob(
     }
 
     try {
-        // Create documents for the import. TODO: File uploads are disabled until file
-        // attachment logic is added. The uploadNotionImportFiles function uploads files to
-        // R2 and creates file records, but files must also be attached to their parent
-        // documents for users to access them. Without attachments, getFileSignedUrl throws
-        // "File isn't attached to target". Once attachment logic is added, enable:
-        //
-        // await runAllPromises([ uploadNotionImportFiles( context, importItem.spaceId,
-        // importItem.startedByAccountId, parsedNotionImport, ),
-        // convertExtractedNotionDataToEntities( context, notionImportId, importItem,
-        // parsedNotionImport, ), ]);
-        await convertExtractedNotionDataToEntities(
-            context,
-            notionImportId,
-            importItem,
-            parsedNotionImport,
-        );
+        // Upload files and create documents
+        await runAllPromises([
+            uploadNotionImportFiles(
+                context,
+                importItem.spaceId,
+                importItem.startedByAccountId,
+                parsedNotionImport,
+            ),
+            convertExtractedNotionDataToEntities(
+                context,
+                notionImportId,
+                importItem,
+                parsedNotionImport,
+            ),
+        ]);
 
         await NotionImporterTable.updateItem(
             context,

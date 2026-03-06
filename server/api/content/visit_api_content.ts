@@ -1,6 +1,10 @@
-import {ApiContentBlockElementWithFileRow} from "~/server/api/content/api_content_block_element_with_file_row.js";
 import {
-    ApiContent,
+    ApiContentBlockElementWithFileRow,
+    ApiContentFileRowBlockElement,
+    ApiContentFileRowTableBlockElement,
+} from "~/server/api/content/api_content_block_element_with_file_row.js";
+import {ApiContentExtended} from "~/server/api/content/from_api_content.js";
+import {
     ApiContentInlineElement,
     ApiContentInlineElementMark,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -9,6 +13,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 export type ApiContentVisitor = {
     readonly visitBlockElement?: (
         element: ApiContentBlockElementWithFileRow,
+        context: {elements: ReadonlyArray<ApiContentBlockElementWithFileRow>; index: number},
+    ) => void;
+    readonly visitFileRow?: (
+        element: ApiContentFileRowBlockElement | ApiContentFileRowTableBlockElement,
         context: {elements: ReadonlyArray<ApiContentBlockElementWithFileRow>; index: number},
     ) => void;
     readonly visitInlineElement?: (
@@ -21,7 +29,7 @@ export type ApiContentVisitor = {
     ) => void;
 };
 
-export function visitApiContent(content: ApiContent, visitor: ApiContentVisitor) {
+export function visitApiContent(content: ApiContentExtended, visitor: ApiContentVisitor) {
     visitApiContentBlockElements(content.elements, visitor);
 }
 
@@ -32,6 +40,9 @@ function visitApiContentBlockElements(
     for (let index = 0; index < elements.length; index++) {
         const element = elements[index]!;
         visitor.visitBlockElement?.(element, {elements, index});
+        if (element.type === "FileRow" || element.type === "FileRowTable") {
+            visitor.visitFileRow?.(element, {elements, index});
+        }
         visitApiContentBlockElement(element, visitor);
     }
 }
@@ -88,7 +99,7 @@ function visitApiContentBlockElement(
             // Handle extended block element types used internally by the importer. FileRow and
             // FileRowTable are not part of the public API - they're internal types used during
             // Notion import to represent file attachments. These types don't contain any
-            // inline elements that need visiting, so we can skip them.
+            // inline elements that need visiting, so we can skip them. TODO(#public-api)
             break;
         }
         default:

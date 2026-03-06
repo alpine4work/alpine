@@ -25,7 +25,7 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  * Extended content type that includes FileRow elements.
  */
 export interface ApiContentExtended {
-    elements: Array<ApiContentBlockElementWithFileRow>;
+    readonly elements: ReadonlyArray<ApiContentBlockElementWithFileRow>;
 }
 
 /**

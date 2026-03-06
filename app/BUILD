@@ -259,6 +259,7 @@ js_binary(
     data = [
         ":app_client_optimize_deps",
         ":app_wrapper_lib",
+        "@ffmpeg",
     ],
     entry_point = "app_service_main.js",
 )

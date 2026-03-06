@@ -9,13 +9,18 @@ exports_files([
 
 ts_project(
     name = "notion",
+    data = ["@ffmpeg"],
     test_data = glob(
         ["test_fixtures/**"],
     ),
     test_deps = [
+        "//:node_modules/@miniflare/r2",
+        "//:node_modules/@miniflare/storage-file",
+        "//:node_modules/get-port",
         "//server/dynamo/test_helpers",
         "//server/importer/notion/test_helpers",
         "//server/importer/test_helpers",
+        "//shared/tracer/dev",
     ],
     visibility = [
         "//admin:__subpackages__",
@@ -31,7 +36,10 @@ ts_project(
         "//server/context",
         "//server/documents/data",
         "//server/dynamo/core",
+        "//server/files/data",
+        "//server/files/processor:processor_lib",
         "//server/helpers",
+        "//server/helpers/node",
         "//server/importer",
         "//server/jobs/core",
         "//server/spaces",
@@ -40,10 +48,12 @@ ts_project(
         "//shared/documents",
         "//shared/error",
         "//shared/feed",
+        "//shared/files",
         "//shared/helpers",
         "//shared/id",
         "//shared/importer",
         "//shared/importer/notion",
         "//shared/schema",
+        "//shared/tracer",
     ],
 )

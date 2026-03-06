@@ -6,6 +6,7 @@ import {ImporterServiceContextModuleBase} from "~/server/importer/importer_servi
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -22,6 +23,7 @@ type ImporterServiceProcessContextModules = {
     jobs: JobsContextModule;
     r2: CloudflareR2ContextModule;
     files: FilesContextModuleBase;
+    constants: ConstantsContextModule;
 };
 
 /**

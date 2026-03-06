@@ -1,5 +1,9 @@
-import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
-import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    generateDeterministicNotionFileIdSync,
+    generateDeterministicNotionIdSync,
+} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
+import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 describe("generateDeterministicNotionIdSync", () => {
     const spaceId1 = "space1" as SpaceId;
@@ -171,65 +175,74 @@ describe("generateDeterministicNotionIdSync", () => {
         });
     });
 
-    describe("FileId generation", () => {
+    describe("FileId generation with generateDeterministicNotionFileIdSync", () => {
         const filePath1 = "attachments/image1.png";
         const filePath2 = "attachments/image2.jpg";
+        const importTime = Date.now();
 
-        test("returns consistent ID for same file path", () => {
-            const id1 = generateDeterministicNotionIdSync<FileId>(
+        test("returns consistent ID for same inputs including time", () => {
+            const id1 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${filePath1}`,
+                importTime,
             );
-            const id2 = generateDeterministicNotionIdSync<FileId>(
+            const id2 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${filePath1}`,
+                importTime,
             );
 
             expect(id1).toBe(id2);
         });
 
         test("different file paths produce different file IDs", () => {
-            const id1 = generateDeterministicNotionIdSync<FileId>(
+            const id1 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${filePath1}`,
+                importTime,
             );
-            const id2 = generateDeterministicNotionIdSync<FileId>(
+            const id2 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${filePath2}`,
+                importTime,
             );
 
             expect(id1).not.toBe(id2);
         });
 
         test("same file in different workspaces produces different IDs", () => {
-            const id1 = generateDeterministicNotionIdSync<FileId>(
+            const id1 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${filePath1}`,
+                importTime,
             );
-            const id2 = generateDeterministicNotionIdSync<FileId>(
+            const id2 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId2,
                 `file:${filePath1}`,
+                importTime,
             );
 
             expect(id1).not.toBe(id2);
         });
 
         test("same file imported to different spaces produces different IDs", () => {
-            const id1 = generateDeterministicNotionIdSync<FileId>(
+            const id1 = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${filePath1}`,
+                importTime,
             );
-            const id2 = generateDeterministicNotionIdSync<FileId>(
+            const id2 = generateDeterministicNotionFileIdSync(
                 spaceId2,
                 workspaceId1,
                 `file:${filePath1}`,
+                importTime,
             );
 
             expect(id1).not.toBe(id2);
@@ -237,10 +250,11 @@ describe("generateDeterministicNotionIdSync", () => {
 
         test("file ID is different from document ID for same unique string", () => {
             // Even though both use the same input string, the prefix differentiates them
-            const fileId = generateDeterministicNotionIdSync<FileId>(
+            const fileId = generateDeterministicNotionFileIdSync(
                 spaceId1,
                 workspaceId1,
                 `file:${notionId1}`,
+                importTime,
             );
             const docId = generateDeterministicNotionIdSync<DocumentId>(
                 spaceId1,
@@ -250,6 +264,57 @@ describe("generateDeterministicNotionIdSync", () => {
 
             // They should be different because the input strings are different
             expect(fileId).not.toBe(docId);
+        });
+
+        test("encodes the time in the file ID", () => {
+            const id = generateDeterministicNotionFileIdSync(
+                spaceId1,
+                workspaceId1,
+                `file:${filePath1}`,
+                importTime,
+            );
+
+            expect(getChronologicalIdTime(id)).toBe(importTime);
+        });
+
+        test("file IDs with earlier times sort before those with later times", () => {
+            const earlierTime = 1000000000000;
+            const laterTime = 2000000000000;
+
+            const earlierId = generateDeterministicNotionFileIdSync(
+                spaceId1,
+                workspaceId1,
+                `file:${filePath1}`,
+                earlierTime,
+            );
+            const laterId = generateDeterministicNotionFileIdSync(
+                spaceId1,
+                workspaceId1,
+                `file:${filePath1}`,
+                laterTime,
+            );
+
+            expect(earlierId < laterId).toBe(true);
+        });
+
+        test("different times with same inputs produce different IDs", () => {
+            const time1 = 1000000000000;
+            const time2 = 1000000000001;
+
+            const id1 = generateDeterministicNotionFileIdSync(
+                spaceId1,
+                workspaceId1,
+                `file:${filePath1}`,
+                time1,
+            );
+            const id2 = generateDeterministicNotionFileIdSync(
+                spaceId1,
+                workspaceId1,
+                `file:${filePath1}`,
+                time2,
+            );
+
+            expect(id1).not.toBe(id2);
         });
     });
 });

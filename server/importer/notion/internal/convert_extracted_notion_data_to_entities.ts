@@ -1,10 +1,11 @@
 import {strFromU8} from "fflate";
 import {ApiContentBlockElementWithFileRow} from "~/server/api/content/api_content_block_element_with_file_row.js";
-
+import {extractFileIdsFromApiContent} from "~/server/api/content/extract_file_ids_from_api_content.js";
 import {ApiContentExtended, fromApiContent} from "~/server/api/content/from_api_content.js";
 import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/internal/create_notion_import_csv_database_document.js";
@@ -29,6 +30,7 @@ import {
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentId, FileId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
@@ -240,6 +242,14 @@ export async function convertExtractedNotionDataToEntities(
                 createFeedEntry: false,
                 from: {type: "Importer", source: {type: "Notion"}},
             });
+
+            // Attach files to the document so they can be accessed via the document.
+            const fileIds = extractFileIdsFromApiContent(finalApiContent);
+            await runAllPromises(
+                [...fileIds].map(fileId =>
+                    attachFileToDocumentAsSystem(context, spaceId, fileId, documentInfo.id),
+                ),
+            );
 
             // Increment the imported count TODO: batch this:
             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
@@ -898,7 +908,7 @@ function isApiContentOnlyChildMentions(
 }
 
 // Maximum number of files per FileRow
-const MAX_FILES_PER_ROW = 3;
+const maxFilesPerRow = 3;
 
 /**
  * Check if a link URL points to a file that should be uploaded. Returns the file
@@ -1016,8 +1026,8 @@ function transformFileLinksToFileRows(
     // Flush pending files as FileRow(s)
     const flushPendingFiles = (): void => {
         while (pendingFiles.length > 0) {
-            const batch = pendingFiles.slice(0, MAX_FILES_PER_ROW);
-            pendingFiles = pendingFiles.slice(MAX_FILES_PER_ROW);
+            const batch = pendingFiles.slice(0, maxFilesPerRow);
+            pendingFiles = pendingFiles.slice(maxFilesPerRow);
             result.push({
                 type: "FileRow",
                 files: batch,
