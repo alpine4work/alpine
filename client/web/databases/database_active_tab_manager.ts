@@ -1,11 +1,14 @@
-import type {DatabaseClient} from "~/client/web/databases/database_client.js";
+import type {
+    DatabaseClient,
+    DatabaseClientConnection,
+} from "~/client/web/databases/database_client.js";
 import {
     type QueryServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
 } from "~/client/web/databases/database_rpc_methods.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
-import {CancelledError, UnimplementedError} from "~/shared/error/error.js";
+import {CancelledError} from "~/shared/error/error.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +72,11 @@ export interface ActiveTabBroadcastChannel {
 type TabToWorkerRpc = WebWorkerRpc<
     typeof tabToWorkerDatabaseRpcMethods,
     typeof workerToTabDatabaseRpcMethods
+>;
+
+type WorkerToTabRpc = WebWorkerRpc<
+    typeof workerToTabDatabaseRpcMethods,
+    typeof tabToWorkerDatabaseRpcMethods
 >;
 
 export interface DatabaseConnection {
@@ -143,35 +151,38 @@ export class DatabaseActiveTabWorker {
     createMessageHandler(
         send: (message: unknown) => void,
     ): (data: unknown, ports: Array<ActiveTabPort>) => void {
-        const mainRpc = this.createRpc(send);
-
-        // Wire the client's server callback through the
-        // main RPC so queries with missing pages fall back
-        // to the leader tab's WebSocket connection.
-        this.client.setQueryServer(async sql => {
-            return mainRpc.call("queryServer", {sql});
-        });
+        const main = this.createConnection(send);
 
         return (data: unknown, ports: Array<ActiveTabPort>) => {
             const msg = data as {type?: string} | null;
             if (msg?.type === "port") {
                 const port = ports[0]!;
-                const remoteRpc = this.createRpc(m => port.postMessage(m));
-                port.onmessage = e => remoteRpc.handleMessage(e.data);
+                const remote = this.createConnection(m => port.postMessage(m));
+                port.onmessage = e => remote.rpc.handleMessage(e.data);
                 port.start();
             } else {
-                mainRpc.handleMessage(data);
+                main.rpc.handleMessage(data);
             }
         };
     }
 
-    private createRpc(send: (message: unknown) => void) {
-        return new WebWorkerRpc({
+    /**
+     * Creates an RPC + connection pair for a single
+     * connected tab. The connection's `queryServer`
+     * routes back through this RPC to the tab's own
+     * WebSocket.
+     */
+    private createConnection(send: (message: unknown) => void) {
+        // conn is defined after rpc but handlers only run
+        // asynchronously, so conn is always initialized by
+        // the time a handler executes.
+        const rpc: WorkerToTabRpc = new WebWorkerRpc({
             callMethods: workerToTabDatabaseRpcMethods,
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
                 executeQuery: async input => {
                     const rows = (await this.client.executeQuery(
+                        conn,
                         input.sql,
                     )) as ReadonlyArray<SchemaSerializedValue>;
                     return {rows};
@@ -183,6 +194,10 @@ export class DatabaseActiveTabWorker {
             },
             send,
         });
+        const conn: DatabaseClientConnection = {
+            queryServer: async sql => rpc.call("queryServer", {sql}),
+        };
+        return {rpc, conn};
     }
 }
 
@@ -487,10 +502,12 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                queryServer: () => {
-                    throw new UnimplementedError(
-                        "queryServer should not be called on a follower tab",
-                    );
+                queryServer: async input => {
+                    const result = await this.deps.queryServer(input.sql);
+                    return {
+                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
+                        pages: result.pages,
+                    };
                 },
             },
             send: message => channel.port1.postMessage(message),
