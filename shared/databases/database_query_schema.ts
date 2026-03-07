@@ -6,9 +6,9 @@ export const DatabaseQueryRequestSchema = Schema.object({
 
 export const DatabaseQueryResponseSchema = Schema.object({
     rows: Schema.array(Schema.unknown()),
-    pages: Schema.array(
+    readPages: Schema.map(
+        Schema.integer,
         Schema.object({
-            pageIndex: Schema.integer,
             timestamp: Schema.integer,
             data: Schema.bytes,
         }),

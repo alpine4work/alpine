@@ -354,12 +354,12 @@ export class DatabaseClient {
     }
 
     private applyServerPages(
-        pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
+        readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>,
     ): void {
         let anyWritten = false;
-        for (const page of pages) {
-            if (this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, page.data)) {
-                this.pagesToInvalidate.add(page.pageIndex);
+        for (const [pageIndex, {timestamp, data}] of readPages) {
+            if (this.pageStore.writePageIfNewer(pageIndex, timestamp, data)) {
+                this.pagesToInvalidate.add(pageIndex);
                 anyWritten = true;
             }
         }
@@ -453,7 +453,7 @@ export class DatabaseClient {
         const mutationId = generateId<DatabaseMutationId>();
         const result = await conn.executeServer(sql, {allowWrites: false, mutationId});
         this.pageStore.clearOptimisticPages();
-        this.applyServerPages(result.pages);
+        this.applyServerPages(result.readPages);
         this.replayOptimisticQueue();
         return result.rows as ReadonlyArray<Record<string, unknown>>;
     }

@@ -154,6 +154,12 @@ async function prepopulatePages(
     indexHandle.flush();
 }
 
+function pagesToMap(
+    pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>,
+): Map<number, {timestamp: number; data: Uint8Array}> {
+    return new Map(pages.map(p => [p.pageIndex, {timestamp: p.timestamp, data: p.data}]));
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -247,7 +253,7 @@ describe("execute — mutations", () => {
                 // Simulate realtime confirmation arriving
                 // before server response (same as production).
                 client.writePagesFromRealtime([], options.mutationId);
-                return {rows: [], pages: []};
+                return {rows: [], readPages: new Map()};
             },
             reportError() {},
         };
@@ -277,7 +283,7 @@ describe("execute — mutations", () => {
         const serverConn: DatabaseClientConnection = {
             async executeServer() {
                 serverCalled = true;
-                return {rows: [{inserted: true}], pages: []};
+                return {rows: [{inserted: true}], readPages: new Map()};
             },
             reportError() {},
         };
@@ -425,7 +431,7 @@ describe("optimistic mutations", () => {
             async executeServer() {
                 // Return without calling writePagesFromRealtime
                 // — the mutation is still in the queue.
-                return {rows: [], pages: []};
+                return {rows: [], readPages: new Map()};
             },
             reportError(error) {
                 reportedError = error;
@@ -467,7 +473,7 @@ describe("server fallback", () => {
             async executeServer(sql) {
                 serverCalled = true;
                 const rows = await server.execute(testConn, sql);
-                return {rows, pages: allPages} as ExecuteServerResult;
+                return {rows, readPages: pagesToMap(allPages)} as ExecuteServerResult;
             },
             reportError() {},
         };
@@ -497,7 +503,7 @@ describe("server fallback", () => {
         const serverConn: DatabaseClientConnection = {
             async executeServer(sql) {
                 const rows = await server.execute(testConn, sql);
-                return {rows, pages: allPages} as ExecuteServerResult;
+                return {rows, readPages: pagesToMap(allPages)} as ExecuteServerResult;
             },
             reportError() {},
         };
@@ -585,7 +591,7 @@ describe("executeWithTracking", () => {
         const serverConn: DatabaseClientConnection = {
             async executeServer(sql) {
                 const rows = await server.execute(testConn, sql);
-                return {rows, pages: allPages} as ExecuteServerResult;
+                return {rows, readPages: pagesToMap(allPages)} as ExecuteServerResult;
             },
             reportError() {},
         };

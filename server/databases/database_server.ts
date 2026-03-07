@@ -26,7 +26,7 @@ type DatabaseServerAction =
     | {
           type: "execute";
           allowWrites: boolean;
-          pages: Map<number, {data: Uint8Array; timestamp: number}>;
+          readPages: Map<number, {data: Uint8Array; timestamp: number}>;
           changedPages: Map<number, DatabaseServerPageChange>;
           timestamp: number;
       };
@@ -38,7 +38,7 @@ export interface DatabaseServerPageChange {
 
 export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
-    pages: Map<number, {data: Uint8Array; timestamp: number}>;
+    readPages: Map<number, {data: Uint8Array; timestamp: number}>;
     changedPages: Map<number, DatabaseServerPageChange>;
 }
 
@@ -158,7 +158,7 @@ export class DatabaseServer {
         this.action = {
             type: "execute",
             allowWrites: options.allowWrites,
-            pages: new Map(),
+            readPages: new Map(),
             changedPages: new Map(),
             timestamp: 0,
         };
@@ -166,11 +166,11 @@ export class DatabaseServer {
         this.db.pageAccessHook((_pArg, pgno, flags) => {
             if (flags === pageAccessFlagRead && this.action.type === "execute") {
                 const pageIndex = pgno - 1;
-                if (!this.action.pages.has(pageIndex)) {
+                if (!this.action.readPages.has(pageIndex)) {
                     // Page was in SQLite's cache (xRead wasn't
                     // called), so read from storage.
                     const {data, timestamp} = this.storage.readPage(pageIndex);
-                    this.action.pages.set(pageIndex, {data: new Uint8Array(data), timestamp});
+                    this.action.readPages.set(pageIndex, {data: new Uint8Array(data), timestamp});
                 }
             }
         });
@@ -187,7 +187,7 @@ export class DatabaseServer {
                 // Update read pages with post-write data for
                 // changed pages so callers see the latest state.
                 for (const [pageIndex, change] of this.action.changedPages) {
-                    this.action.pages.set(pageIndex, {
+                    this.action.readPages.set(pageIndex, {
                         data: change.after,
                         timestamp: this.action.timestamp,
                     });
@@ -197,7 +197,7 @@ export class DatabaseServer {
             assert(this.action.type === "execute");
             return {
                 rows,
-                pages: this.action.pages,
+                readPages: this.action.readPages,
                 changedPages: this.action.changedPages,
             };
         } catch (error) {
@@ -278,8 +278,8 @@ export class DatabaseServer {
 
                 // Stash database pages so the pageAccessHook
                 // doesn't double-read them.
-                if (this.action.type === "execute" && !this.action.pages.has(pageIndex)) {
-                    this.action.pages.set(pageIndex, {
+                if (this.action.type === "execute" && !this.action.readPages.has(pageIndex)) {
+                    this.action.readPages.set(pageIndex, {
                         data: new Uint8Array(pageData),
                         timestamp,
                     });

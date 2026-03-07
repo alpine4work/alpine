@@ -683,7 +683,7 @@ describe("DatabaseActiveTabManager mutations", () => {
                     throw new UnavailableError("No server for reads in test");
                 }
                 capturedSql = sql;
-                return {rows: [], pages: []} as ExecuteServerResult;
+                return {rows: [], readPages: new Map()};
             },
         });
         const connB = await managerB.connect();

@@ -246,7 +246,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("SELECT * FROM items", {allowWrites: false});
 
-            expect(result.pages.size).toBeGreaterThan(0);
+            expect(result.readPages.size).toBeGreaterThan(0);
 
             server.close();
         });
@@ -260,7 +260,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("SELECT * FROM items", {allowWrites: false});
 
-            for (const [, pageData] of result.pages) {
+            for (const [, pageData] of result.readPages) {
                 expect(pageData.data.byteLength).toBe(sqlitePageSize);
             }
 
@@ -277,7 +277,7 @@ describe("DatabaseServer", () => {
 
             // At least one page should be non-zero.
             let hasNonZeroPage = false;
-            for (const [, pageData] of result.pages) {
+            for (const [, pageData] of result.readPages) {
                 if (pageData.data.some(b => b !== 0)) {
                     hasNonZeroPage = true;
                     break;
@@ -297,10 +297,10 @@ describe("DatabaseServer", () => {
             const result1 = server.execute("SELECT * FROM items", {allowWrites: false});
             const result2 = server.execute("SELECT * FROM items", {allowWrites: false});
 
-            expect(result1.pages.size).toBe(result2.pages.size);
-            for (const [pageIndex, pageData] of result1.pages) {
-                expect(result2.pages.has(pageIndex)).toBe(true);
-                expect(pageData).toEqual(result2.pages.get(pageIndex));
+            expect(result1.readPages.size).toBe(result2.readPages.size);
+            for (const [pageIndex, pageData] of result1.readPages) {
+                expect(result2.readPages.has(pageIndex)).toBe(true);
+                expect(pageData).toEqual(result2.readPages.get(pageIndex));
             }
 
             server.close();
@@ -329,7 +329,7 @@ describe("DatabaseServer", () => {
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(`SELECT * FROM ${name}`, {allowWrites: false});
-                const pageIndices = [...result.pages.keys()];
+                const pageIndices = [...result.readPages.keys()];
 
                 // Page 0 (the schema page) is always accessed.
                 expect(pageIndices).toContain(0);
@@ -589,7 +589,7 @@ describe("DatabaseServer", () => {
 
             // Each page in the result should match what storage
             // returns for that page index.
-            for (const [pageIndex, pageData] of result.pages) {
+            for (const [pageIndex, pageData] of result.readPages) {
                 expect(pageData).toEqual(storage.readPage(pageIndex));
             }
 

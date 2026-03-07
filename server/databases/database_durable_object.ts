@@ -118,21 +118,15 @@ class DatabaseDurableObject {
             (await request.json()) as SchemaSerializedValue,
         );
 
-        const {rows, pages: pagesMap} = this._storage.transactionSync(() =>
+        const result = this._storage.transactionSync(() =>
             this._server.execute(sql, {allowWrites: false}),
         );
-
-        const pages = [...pagesMap].map(([pageIndex, {data, timestamp}]) => ({
-            pageIndex,
-            timestamp,
-            data,
-        }));
 
         return new Response(
             JSON.stringify(
                 DatabaseQueryResponseSchema.serialize({
-                    rows: rows as Array<SchemaSerializedValue>,
-                    pages,
+                    rows: result.rows as Array<SchemaSerializedValue>,
+                    readPages: result.readPages,
                 }),
             ),
             {

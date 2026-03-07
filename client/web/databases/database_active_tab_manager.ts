@@ -578,7 +578,7 @@ export class DatabaseActiveTabManager {
                     });
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
-                        pages: result.pages,
+                        readPages: result.readPages,
                     };
                 },
                 reportError: async input => {
@@ -652,7 +652,7 @@ export class DatabaseActiveTabManager {
                     });
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
-                        pages: result.pages,
+                        readPages: result.readPages,
                     };
                 },
                 reportError: async input => {

@@ -58,7 +58,7 @@ export class DatabaseDurableObjectConnection {
                     const diffPages = [...result.changedPages].map(
                         ([pageIndex, {before, after}]) => ({
                             pageIndex,
-                            timestamp: result.pages.get(pageIndex)!.timestamp,
+                            timestamp: result.readPages.get(pageIndex)!.timestamp,
                             diff: diffPage(before, after),
                         }),
                     );
@@ -68,12 +68,10 @@ export class DatabaseDurableObjectConnection {
                     });
                 }
 
-                const pages = [...result.pages].map(([pageIndex, {data, timestamp}]) => ({
-                    pageIndex,
-                    timestamp,
-                    data,
-                }));
-                return {rows: result.rows as Array<SchemaSerializedValue>, pages};
+                return {
+                    rows: result.rows as Array<SchemaSerializedValue>,
+                    readPages: result.readPages,
+                };
             });
         },
     };

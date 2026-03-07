@@ -18,9 +18,9 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             },
             output: {
                 rows: Schema.array(Schema.unknown()),
-                pages: Schema.array(
+                readPages: Schema.map(
+                    Schema.integer,
                     Schema.object({
-                        pageIndex: Schema.integer,
                         timestamp: Schema.integer,
                         data: Schema.bytes,
                     }),

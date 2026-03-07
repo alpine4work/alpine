@@ -15,9 +15,9 @@ const LoaderSchema = Schema.object({
             name: Schema.string,
         }),
     ),
-    pages: Schema.array(
+    readPages: Schema.map(
+        Schema.integer,
         Schema.object({
-            pageIndex: Schema.integer,
             timestamp: Schema.integer,
             data: Schema.bytes,
         }),
@@ -42,11 +42,11 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
             }),
         },
     );
-    const {rows, pages} = DatabaseQueryResponseSchema.deserialize(result);
+    const {rows, readPages} = DatabaseQueryResponseSchema.deserialize(result);
 
     return jsonWithSchema(LoaderSchema, {
         tables: rows as Array<{name: string}>,
-        pages,
+        readPages,
     });
 }
 

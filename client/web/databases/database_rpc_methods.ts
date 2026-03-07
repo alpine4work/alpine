@@ -3,8 +3,7 @@ import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
-const pageSchema = Schema.object({
-    pageIndex: Schema.integer,
+const pageValueSchema = Schema.object({
     timestamp: Schema.integer,
     data: Schema.bytes,
 });
@@ -48,7 +47,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: {
             rows: Schema.array(Schema.unknown()),
-            pages: Schema.array(pageSchema),
+            readPages: Schema.map(Schema.integer, pageValueSchema),
         },
     },
     reportError: {
