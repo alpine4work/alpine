@@ -1,3 +1,4 @@
+import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -34,8 +35,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
                 Schema.object({
                     pageIndex: Schema.integer,
                     timestamp: Schema.integer,
-                    // TODO: diffs instead of full changed pages
-                    data: Schema.bytes,
+                    diff: pageDiffSchema,
                 }),
             ),
             mutationId: Schema.id<DatabaseMutationId>(),

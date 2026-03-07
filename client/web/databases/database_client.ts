@@ -5,6 +5,12 @@ import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sq
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {
+    type PageDiff,
+    applyPageDiff,
+    diffPage,
+    shouldIgnorePageInvalidation,
+} from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -108,9 +114,12 @@ export class DatabaseClient {
             }
         }
 
-        let rows: ReadonlyArray<Record<string, unknown>>;
+        let rows!: ReadonlyArray<Record<string, unknown>>;
+        let writtenPages: ReadonlySet<number>;
         try {
-            rows = this.pageStore.optimistic(() => this.executeLocally(sql));
+            writtenPages = this.pageStore.optimistic(() => {
+                rows = this.executeLocally(sql);
+            });
         } catch (error) {
             if (error instanceof PageMissingError) {
                 // Try read-only first so pages get cached
@@ -129,12 +138,13 @@ export class DatabaseClient {
             throw error;
         }
 
-        if (!this.pageStore.didLastOptimisticWrite()) {
+        if (writtenPages.size === 0) {
             // Pure read — no server round-trip needed.
             return rows;
         }
 
         this.optimisticQueue.push({mutationId, sql});
+        this.invalidateForWrittenPages(writtenPages);
 
         // Send to server in the background.
         void (async () => {
@@ -305,7 +315,7 @@ export class DatabaseClient {
      * written pages.
      */
     writePagesFromRealtime(
-        pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
+        pages: ReadonlyArray<{pageIndex: number; timestamp: number; diff: PageDiff}>,
         mutationId: DatabaseMutationId,
     ): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
@@ -319,7 +329,24 @@ export class DatabaseClient {
         }
 
         this.pageStore.clearOptimisticPages();
-        this.applyServerPages(pages);
+
+        let anyWritten = false;
+        for (const page of pages) {
+            const base = this.pageStore.readPage(page.pageIndex);
+            if (base === null) continue;
+            const full = applyPageDiff(base, page.diff);
+            if (this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, full)) {
+                if (!shouldIgnorePageInvalidation(page.pageIndex, page.diff)) {
+                    this.pagesToInvalidate.add(page.pageIndex);
+                    anyWritten = true;
+                }
+            }
+        }
+        this.pageStore.sync();
+        if (anyWritten) {
+            this.scheduleInvalidation();
+        }
+
         this.replayOptimisticQueue();
     }
 
@@ -346,14 +373,52 @@ export class DatabaseClient {
     }
 
     private replayOptimisticQueue(): void {
+        let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                this.pageStore.optimistic(() => this.executeLocally(mutation.sql));
+                const writtenPages = this.pageStore.optimistic(() => {
+                    this.executeLocally(mutation.sql);
+                });
+                if (this.markWrittenPages(writtenPages)) {
+                    anyInvalidated = true;
+                }
                 return true;
             } catch {
                 return false;
             }
         });
+        if (anyInvalidated) {
+            this.scheduleInvalidation();
+        }
+    }
+
+    /**
+     * Adds optimistically written pages to
+     * {@link pagesToInvalidate}, filtering out noise-only
+     * changes on page 0. Returns true if any pages were
+     * marked.
+     */
+    private markWrittenPages(writtenPages: ReadonlySet<number>): boolean {
+        let anyMarked = false;
+        for (const pageIndex of writtenPages) {
+            if (pageIndex === 0) {
+                const base = this.pageStore.readPage(0);
+                const overlay = this.pageStore.getOptimisticPage(0);
+                if (base !== null && overlay !== undefined) {
+                    const diff = diffPage(base, overlay);
+                    if (shouldIgnorePageInvalidation(0, diff)) continue;
+                }
+            }
+            this.pagesToInvalidate.add(pageIndex);
+            anyMarked = true;
+        }
+        return anyMarked;
+    }
+
+    private invalidateForWrittenPages(writtenPages: ReadonlySet<number>): void {
+        if (this.markWrittenPages(writtenPages)) {
+            this.scheduleInvalidation();
+        }
     }
 
     isEmpty(): boolean {

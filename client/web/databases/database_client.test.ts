@@ -620,6 +620,36 @@ describe("registerReactiveQuery", () => {
         expect(rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
+    test("optimistic mutation invalidates overlapping reactive query", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.execute(testConn, "INSERT INTO t (val) VALUES ('v1')");
+
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t ORDER BY id",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        // Optimistic mutation — should trigger invalidation
+        await client.execute(testConn, "INSERT INTO t (val) VALUES ('v2')");
+
+        // Wait for microtask-based invalidation
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(1);
+        expect(notifications[0]).toMatchObject([
+            {id: 1, val: "v1"},
+            {id: 2, val: "v2"},
+        ]);
+    });
+
     test("notify fires when overlapping pages are written", async () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
@@ -644,10 +674,15 @@ describe("registerReactiveQuery", () => {
         // Insert another row directly to OPFS base store
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
 
-        // Extract pages and write as realtime with newer
-        // timestamps to trigger invalidation.
+        // Write as realtime with newer timestamps to
+        // trigger invalidation. Empty diffs since OPFS
+        // already has the current content.
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
         client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
 
         // Wait for microtask-based invalidation
@@ -664,10 +699,14 @@ describe("registerReactiveQuery", () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
-        await client.execute(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
-        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
+        // Use executeLocallyForTests so data goes to OPFS
+        // base store. This lets markWrittenPages filter
+        // page-0 noise correctly (readPage(0) must return
+        // non-null for the noise check to work).
+        client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("INSERT INTO t1 (id) VALUES (1)");
+        client.executeLocallyForTests("INSERT INTO t2 (id) VALUES (2)");
 
         // Watch only t1
         const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
@@ -698,7 +737,11 @@ describe("registerReactiveQuery", () => {
                 const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
                 return before === undefined || before.timestamp !== after.timestamp;
             })
-            .map(p => ({...p, timestamp: p.timestamp + 1000}));
+            .map(({pageIndex, timestamp}) => ({
+                pageIndex,
+                timestamp: timestamp + 1000,
+                diff: [],
+            }));
 
         client.writePagesFromRealtime(changedPages, generateId<DatabaseMutationId>());
 
@@ -729,7 +772,11 @@ describe("registerReactiveQuery", () => {
 
         // Write pages — should not trigger notification
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
         client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
 
         await new Promise(resolve => setTimeout(resolve, 50));

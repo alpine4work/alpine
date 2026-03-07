@@ -1,4 +1,5 @@
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
@@ -8,6 +9,12 @@ const pageSchema = Schema.object({
     data: Schema.bytes,
 });
 
+const pageDiffEntrySchema = Schema.object({
+    pageIndex: Schema.integer,
+    timestamp: Schema.integer,
+    diff: pageDiffSchema,
+});
+
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     execute: {
@@ -15,7 +22,10 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
         output: {rows: Schema.array(Schema.unknown())},
     },
     writePagesFromRealtime: {
-        input: {pages: Schema.array(pageSchema), mutationId: Schema.id<DatabaseMutationId>()},
+        input: {
+            pages: Schema.array(pageDiffEntrySchema),
+            mutationId: Schema.id<DatabaseMutationId>(),
+        },
         output: {},
     },
     registerReactiveQuery: {

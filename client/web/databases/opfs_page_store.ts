@@ -33,7 +33,7 @@ export class OpfsPageStore implements VfsFile {
     private knownDatabaseSizeInPages = 0;
     private readonly optimisticPages = new Map<number, Uint8Array>();
     private inOptimistic = false;
-    private lastOptimisticWriteCount = 0;
+    private activeWriteSet: Set<number> | null = null;
 
     private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
         this.pagesHandle = pagesHandle;
@@ -51,18 +51,29 @@ export class OpfsPageStore implements VfsFile {
         return store;
     }
 
-    optimistic<T>(cb: () => T): T {
+    /**
+     * Runs `cb` with writes directed to the optimistic
+     * overlay. Returns the set of page indices written.
+     */
+    optimistic(cb: () => void): ReadonlySet<number> {
         this.inOptimistic = true;
-        this.lastOptimisticWriteCount = 0;
+        const writtenPages = new Set<number>();
+        this.activeWriteSet = writtenPages;
         try {
-            return cb();
+            cb();
         } finally {
             this.inOptimistic = false;
+            this.activeWriteSet = null;
         }
+        return writtenPages;
     }
 
-    didLastOptimisticWrite(): boolean {
-        return this.lastOptimisticWriteCount > 0;
+    /**
+     * Returns the overlay data for a page, or undefined
+     * if it's not in the optimistic overlay.
+     */
+    getOptimisticPage(pageIndex: number): Uint8Array | undefined {
+        return this.optimisticPages.get(pageIndex);
     }
 
     clearOptimisticPages(): void {
@@ -111,7 +122,7 @@ export class OpfsPageStore implements VfsFile {
 
         if (this.inOptimistic) {
             this.optimisticPages.set(pageIndex, new Uint8Array(data));
-            this.lastOptimisticWriteCount++;
+            this.activeWriteSet?.add(pageIndex);
             if (pageIndex > this.maxPageIndex) {
                 this.maxPageIndex = pageIndex;
             }
@@ -251,6 +262,18 @@ export class OpfsPageStore implements VfsFile {
         }
 
         return true;
+    }
+
+    /**
+     * Reads the full page data for a given page index.
+     * Returns null if the page is not in the store.
+     */
+    readPage(pageIndex: number): Uint8Array | null {
+        const entry = this.index.get(pageIndex);
+        if (entry === undefined) return null;
+        const data = new Uint8Array(pageSize);
+        this.pagesHandle.read(data, {at: entry.slot * pageSize});
+        return data;
     }
 
     isEmpty(): boolean {

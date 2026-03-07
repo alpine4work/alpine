@@ -17,6 +17,7 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
+import {diffPage} from "~/shared/databases/page_diff.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
@@ -770,10 +771,14 @@ describe("Reactive queries", () => {
             sql: "INSERT INTO t (val) VALUES ('v2')",
         });
 
-        // Extract the updated pages and write them as
-        // realtime updates.
+        // Write as realtime with newer timestamps.
+        // Empty diffs since OPFS already has the content.
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
         await conn.call("writePagesFromRealtime", {
             pages: newerPages,
             mutationId: generateId<DatabaseMutationId>(),
@@ -823,10 +828,16 @@ describe("Reactive queries", () => {
 
         // Find pages that changed (new or different
         // timestamp) — these are the t2 mutation pages.
-        const changedPages = pagesAfter.filter(after => {
-            const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
-            return before === undefined || before.timestamp !== after.timestamp;
-        });
+        const changedPages = pagesAfter
+            .filter(after => {
+                const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
+                return before === undefined || before.timestamp !== after.timestamp;
+            })
+            .map(({pageIndex, timestamp}) => ({
+                pageIndex,
+                timestamp: timestamp + 1000,
+                diff: [],
+            }));
 
         // Write only the changed pages as realtime updates
         await conn.call("writePagesFromRealtime", {
@@ -870,7 +881,11 @@ describe("Reactive queries", () => {
         // though the query is gone.
         const pages = await extractPages(dir);
         await conn.call("writePagesFromRealtime", {
-            pages,
+            pages: pages.map(({pageIndex, timestamp}) => ({
+                pageIndex,
+                timestamp,
+                diff: [],
+            })),
             mutationId: generateId<DatabaseMutationId>(),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -925,19 +940,29 @@ describe("watchQuery", () => {
         const initial = handle.store.getSnapshot();
         expect(initial.rows).toMatchObject([{id: 1, val: "v1"}]);
 
-        // Build pages from a separate "server" database
-        // that has both rows — simulates a realtime update
-        // from another client inserting v2.
+        // Extract the seed state as the "before" snapshot.
+        const seedPages = await extractPages(dir);
+
+        // Build "after" state in a separate database that
+        // has both rows — simulates a server-side mutation.
         const serverDir = createInMemoryDirectory();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
         const serverPages = await extractPages(serverDir);
-        const newerPages = serverPages.map(p => ({
-            ...p,
-            timestamp: Date.now() + 10000,
-        }));
+
+        // Compute actual diffs between seed and server
+        // so writePagesFromRealtime applies real changes.
+        const newerPages = serverPages.map(sp => {
+            const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
+            const base = seedPage?.data ?? new Uint8Array(pageSize);
+            return {
+                pageIndex: sp.pageIndex,
+                timestamp: sp.timestamp + 10000,
+                diff: diffPage(base, sp.data),
+            };
+        });
 
         await conn.call("writePagesFromRealtime", {
             pages: newerPages,
