@@ -8,7 +8,11 @@ import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sq
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {type PageDiff, applyPageDiff} from "~/shared/databases/page_diff.js";
+import {
+    type PageDiff,
+    applyPageDiff,
+    shouldIgnorePageInvalidation,
+} from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -329,8 +333,10 @@ export class DatabaseClient {
             if (base === null) continue;
             const full = applyPageDiff(base, page.diff);
             if (this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, full)) {
-                this.pagesToInvalidate.add(page.pageIndex);
-                anyWritten = true;
+                if (!shouldIgnorePageInvalidation(page.pageIndex, page.diff)) {
+                    this.pagesToInvalidate.add(page.pageIndex);
+                    anyWritten = true;
+                }
             }
         }
         this.pageStore.sync();

@@ -86,3 +86,37 @@ export function applyPageDiff(base: Uint8Array, diff: PageDiff): Uint8Array {
     }
     return result;
 }
+
+// Byte ranges in SQLite page 1 (0-indexed page 0) that
+// change on every write transaction but carry no
+// user-visible data:
+//   offset 24: file change counter (4 bytes)
+//   offset 92: version-valid-for number (4 bytes)
+const noiseRegions: ReadonlyArray<{start: number; end: number}> = [
+    {start: 24, end: 28},
+    {start: 92, end: 96},
+];
+
+/**
+ * Returns true if the diff for this page only touches
+ * regions that change on every write but carry no
+ * user-visible data (SQLite change counters on page 0).
+ * Used to suppress reactive query invalidation for
+ * noise-only changes.
+ */
+export function shouldIgnorePageInvalidation(
+    pageIndex: number,
+    diff: PageDiff,
+): boolean {
+    if (pageIndex !== 0) return false;
+
+    for (const span of diff) {
+        const spanEnd = span.offset + span.data.byteLength;
+        const inNoise = noiseRegions.some(
+            r => span.offset >= r.start && spanEnd <= r.end,
+        );
+        if (!inNoise) return false;
+    }
+
+    return true;
+}

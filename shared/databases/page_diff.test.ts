@@ -1,4 +1,8 @@
-import {applyPageDiff, diffPage} from "~/shared/databases/page_diff.js";
+import {
+    applyPageDiff,
+    diffPage,
+    shouldIgnorePageInvalidation,
+} from "~/shared/databases/page_diff.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 
 function makePage(size: number, fill = 0): Uint8Array {
@@ -130,6 +134,60 @@ describe("applyPageDiff", () => {
         expect(result[6]).toBe(2);
         expect(result[7]).toBe(3);
         expect(result[8]).toBe(0);
+    });
+});
+
+describe("shouldIgnorePageInvalidation", () => {
+    test("non-page-0 is never ignored", () => {
+        expect(shouldIgnorePageInvalidation(1, [])).toBe(false);
+        expect(shouldIgnorePageInvalidation(5, [])).toBe(false);
+    });
+
+    test("page 0 with empty diff is ignored", () => {
+        expect(shouldIgnorePageInvalidation(0, [])).toBe(true);
+    });
+
+    test("page 0 with only change counter at offset 24 is ignored", () => {
+        const diff = [{offset: 24, data: new Uint8Array([1, 2, 3, 4])}];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(true);
+    });
+
+    test("page 0 with only change counter at offset 92 is ignored", () => {
+        const diff = [{offset: 92, data: new Uint8Array([5, 6, 7, 8])}];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(true);
+    });
+
+    test("page 0 with both change counters is ignored", () => {
+        const diff = [
+            {offset: 24, data: new Uint8Array([1, 2, 3, 4])},
+            {offset: 92, data: new Uint8Array([5, 6, 7, 8])},
+        ];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(true);
+    });
+
+    test("page 0 with partial change counter is ignored", () => {
+        // Only 2 of the 4 bytes changed at offset 24
+        const diff = [{offset: 24, data: new Uint8Array([1, 2])}];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(true);
+    });
+
+    test("page 0 with change counter + other data is not ignored", () => {
+        const diff = [
+            {offset: 24, data: new Uint8Array([1, 2, 3, 4])},
+            {offset: 200, data: new Uint8Array([0xff])},
+        ];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(false);
+    });
+
+    test("page 0 with span extending past change counter is not ignored", () => {
+        // 5 bytes starting at 24 extends past the 4-byte region
+        const diff = [{offset: 24, data: new Uint8Array([1, 2, 3, 4, 5])}];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(false);
+    });
+
+    test("page 0 with span starting before change counter is not ignored", () => {
+        const diff = [{offset: 23, data: new Uint8Array([1, 2, 3, 4])}];
+        expect(shouldIgnorePageInvalidation(0, diff)).toBe(false);
     });
 });
 
