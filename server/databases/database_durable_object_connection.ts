@@ -9,10 +9,12 @@ import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export interface DatabaseRealtimeEventStub {
     pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>;
+    mutationId: DatabaseMutationId;
 }
 
 export class DatabaseDurableObjectConnection {
@@ -67,7 +69,10 @@ export class DatabaseDurableObjectConnection {
                 return {rows, pages};
             });
 
-            this._sendEventToAll(this._processContext, {pages});
+            this._sendEventToAll(this._processContext, {
+                pages,
+                mutationId: input.mutationId,
+            });
 
             return {rows: rows as Array<SchemaSerializedValue>};
         },
@@ -82,6 +87,10 @@ export class DatabaseDurableObjectConnection {
         _context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): DatabaseRealtimeEvent {
-        return {type: "PagesChanged", pages: eventStub.pages};
+        return {
+            type: "PagesChanged",
+            pages: eventStub.pages,
+            mutationId: eventStub.mutationId,
+        };
     }
 }

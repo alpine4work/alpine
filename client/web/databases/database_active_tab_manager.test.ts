@@ -17,7 +17,8 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
-import {InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
+import {UnavailableError} from "~/shared/error/error.js";
+import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 // ---------------------------------------------------------------------------
 // In-memory OPFS mock (same as database_client.test.ts)
@@ -310,7 +311,7 @@ function createTestTab(config: {
     bc: MockBroadcastChannelBus;
     clientId: string;
     dir: OpfsDirectoryHandle;
-    mutateServer?: (sql: string) => Promise<MutateServerResult>;
+    mutateServer?: (sql: string, mutationId: DatabaseMutationId) => Promise<MutateServerResult>;
 }): {manager: DatabaseActiveTabManager; fireUnload: () => void} {
     const unloadListeners: Array<() => void> = [];
 
@@ -571,26 +572,40 @@ describe("DatabaseActiveTabManager resilience", () => {
 });
 
 describe("DatabaseActiveTabManager mutations", () => {
-    test("leader can execute mutations", async () => {
+    test("leader can execute mutations optimistically", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
+        let capturedMutationId: DatabaseMutationId | null = null;
         const {manager} = createTestTab({
             locks,
             sw,
             bc,
             clientId: "tab-a",
             dir,
-            mutateServer: async () => ({rows: [{id: 1, title: "hello"}]}) as MutateServerResult,
+            mutateServer: async (_sql, mutationId) => {
+                capturedMutationId = mutationId;
+                return {rows: []} as MutateServerResult;
+            },
         });
         const conn = await manager.connect();
 
+        // Create table first, then mutate
+        await conn.call("executeQuery", {
+            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
+        });
         const result = await conn.call("executeMutation", {
             sql: "INSERT INTO t (title) VALUES ('hello') RETURNING *",
         });
+
+        // Result comes from local optimistic execution
         expect(result.rows).toMatchObject([{id: 1, title: "hello"}]);
+
+        // Background server call fires
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(capturedMutationId).not.toBeNull();
     });
 
     test("follower mutations route through follower's mutateServer", async () => {
@@ -599,7 +614,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
-        // Tab A — leader (mutateServer throws)
+        // Tab A — leader
         const {manager: managerA} = createTestTab({
             locks,
             sw,
@@ -607,7 +622,13 @@ describe("DatabaseActiveTabManager mutations", () => {
             clientId: "tab-a",
             dir,
         });
-        await managerA.connect();
+        const connA = await managerA.connect();
+
+        // Create table via leader
+        await connA.call("executeQuery", {
+            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
+        });
+        await connA.call("executeQuery", {sql: "INSERT INTO t (id) VALUES (1)"});
 
         // Tab B — follower with working mutateServer
         let capturedSql: string | null = null;
@@ -619,16 +640,15 @@ describe("DatabaseActiveTabManager mutations", () => {
             dir,
             mutateServer: async sql => {
                 capturedSql = sql;
-                return {rows: [{changed: true}]} as MutateServerResult;
+                return {rows: []} as MutateServerResult;
             },
         });
         const connB = await managerB.connect();
 
-        const result = await connB.call("executeMutation", {
-            sql: "UPDATE t SET done = 1",
-        });
+        await connB.call("executeMutation", {sql: "UPDATE t SET done = 1"});
 
-        expect(result.rows).toMatchObject([{changed: true}]);
+        // Background server call routes through follower's mutateServer
+        await new Promise(resolve => setTimeout(resolve, 0));
         expect(capturedSql).toBe("UPDATE t SET done = 1");
     });
 
@@ -644,14 +664,12 @@ describe("DatabaseActiveTabManager mutations", () => {
             bc,
             clientId: "tab-a",
             dir,
-            mutateServer: async () => {
-                throw new InvalidArgumentError("constraint violation");
-            },
         });
         const conn = await manager.connect();
 
+        // No table exists — local execution fails
         await expect(
-            conn.call("executeMutation", {sql: "INSERT INTO t VALUES (1)"}),
+            conn.call("executeMutation", {sql: "INSERT INTO nonexistent VALUES (1)"}),
         ).rejects.toThrow();
     });
 });

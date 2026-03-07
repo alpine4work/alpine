@@ -9,6 +9,7 @@ import type {
     MutateServerResult,
     QueryServerResult,
 } from "~/client/web/databases/database_rpc_methods.js";
+import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {DatabaseConnection} from "~/client/web/databases/database_active_tab_manager.js";
 
@@ -21,7 +22,8 @@ export type {DatabaseConnection} from "~/client/web/databases/database_active_ta
  */
 export function connectToDatabase(callbacks: {
     queryServer(sql: string): Promise<QueryServerResult>;
-    mutateServer(sql: string): Promise<MutateServerResult>;
+    mutateServer(sql: string, mutationId: DatabaseMutationId): Promise<MutateServerResult>;
+    reportMutationError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
         locks: navigator.locks,
@@ -98,6 +100,7 @@ export function connectToDatabase(callbacks: {
         },
         queryServer: callbacks.queryServer,
         mutateServer: callbacks.mutateServer,
+        reportMutationError: callbacks.reportMutationError,
     });
 
     return manager.connect();

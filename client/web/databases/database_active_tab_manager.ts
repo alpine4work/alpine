@@ -10,6 +10,7 @@ import {
 } from "~/client/web/databases/database_rpc_methods.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {CancelledError} from "~/shared/error/error.js";
+import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 // ---------------------------------------------------------------------------
@@ -196,7 +197,7 @@ export class DatabaseActiveTabWorker {
                     return {rows};
                 },
                 writePagesFromRealtime: async input => {
-                    this.client.writePagesFromRealtime(input.pages);
+                    this.client.writePagesFromRealtime(input.pages, input.mutationId);
                     return {};
                 },
             },
@@ -204,7 +205,12 @@ export class DatabaseActiveTabWorker {
         });
         const conn: DatabaseClientConnection = {
             queryServer: async sql => rpc.call("queryServer", {sql}),
-            mutateServer: async sql => rpc.call("mutateServer", {sql}),
+            mutateServer: async (sql, mutationId) => rpc.call("mutateServer", {sql, mutationId}),
+            reportError: error => {
+                void rpc.call("reportMutationError", {
+                    message: error instanceof Error ? error.message : String(error),
+                });
+            },
         };
         return {rpc, conn};
     }
@@ -246,7 +252,8 @@ export class DatabaseActiveTabManager {
             createBroadcastChannel(name: string): ActiveTabBroadcastChannel;
             addUnloadListener(callback: () => void): void;
             queryServer(sql: string): Promise<QueryServerResult>;
-            mutateServer(sql: string): Promise<MutateServerResult>;
+            mutateServer(sql: string, mutationId: DatabaseMutationId): Promise<MutateServerResult>;
+            reportMutationError?(message: string): void;
         },
     ) {}
 
@@ -477,10 +484,14 @@ export class DatabaseActiveTabManager {
                     };
                 },
                 mutateServer: async input => {
-                    const result = await this.deps.mutateServer(input.sql);
+                    const result = await this.deps.mutateServer(input.sql, input.mutationId);
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
                     };
+                },
+                reportMutationError: async input => {
+                    this.deps.reportMutationError?.(input.message);
+                    return {};
                 },
             },
             send: message => worker.postMessage(message),
@@ -526,10 +537,14 @@ export class DatabaseActiveTabManager {
                     };
                 },
                 mutateServer: async input => {
-                    const result = await this.deps.mutateServer(input.sql);
+                    const result = await this.deps.mutateServer(input.sql, input.mutationId);
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
                     };
+                },
+                reportMutationError: async input => {
+                    this.deps.reportMutationError?.(input.message);
+                    return {};
                 },
             },
             send: message => channel.port1.postMessage(message),

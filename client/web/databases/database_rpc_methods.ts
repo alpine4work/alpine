@@ -1,4 +1,5 @@
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 const pageSchema = Schema.object({
@@ -18,7 +19,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
         output: {rows: Schema.array(Schema.unknown())},
     },
     writePagesFromRealtime: {
-        input: {pages: Schema.array(pageSchema)},
+        input: {pages: Schema.array(pageSchema), mutationId: Schema.id<DatabaseMutationId>()},
         output: {},
     },
 });
@@ -33,8 +34,12 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
     },
     mutateServer: {
-        input: {sql: Schema.string},
+        input: {sql: Schema.string, mutationId: Schema.id<DatabaseMutationId>()},
         output: {rows: Schema.array(Schema.unknown())},
+    },
+    reportMutationError: {
+        input: {message: Schema.string},
+        output: {},
     },
 });
 

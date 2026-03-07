@@ -31,6 +31,8 @@ export class OpfsPageStore implements VfsFile {
     private nextSlot = 0;
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
+    private readonly optimisticPages = new Map<number, Uint8Array>();
+    private inOptimistic = false;
 
     private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
         this.pagesHandle = pagesHandle;
@@ -48,6 +50,23 @@ export class OpfsPageStore implements VfsFile {
         return store;
     }
 
+    optimistic<T>(cb: () => T): T {
+        this.inOptimistic = true;
+        try {
+            return cb();
+        } finally {
+            this.inOptimistic = false;
+        }
+    }
+
+    clearOptimisticPages(): void {
+        this.optimisticPages.clear();
+    }
+
+    hasOptimisticPages(): boolean {
+        return this.optimisticPages.size > 0;
+    }
+
     read(data: Uint8Array, offset: number): boolean {
         const currentSize = this.fileSize();
         if (offset >= currentSize) {
@@ -60,6 +79,13 @@ export class OpfsPageStore implements VfsFile {
             Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
             `read spans pages: offset=${offset} amount=${data.byteLength}`,
         );
+
+        const overlay = this.optimisticPages.get(pageIndex);
+        if (overlay !== undefined) {
+            const pageOffset = offset % pageSize;
+            data.set(overlay.subarray(pageOffset, pageOffset + data.byteLength));
+            return true;
+        }
 
         const entry = this.index.get(pageIndex);
         if (entry === undefined) {
@@ -76,6 +102,17 @@ export class OpfsPageStore implements VfsFile {
         assert(data.byteLength === pageSize, `write amount ${data.byteLength} !== ${pageSize}`);
 
         const pageIndex = offset / pageSize;
+
+        if (this.inOptimistic) {
+            this.optimisticPages.set(pageIndex, new Uint8Array(data));
+            if (pageIndex > this.maxPageIndex) {
+                this.maxPageIndex = pageIndex;
+            }
+            return;
+        }
+
+        assert(!this.hasOptimisticPages(), "cannot write to OPFS while optimistic pages exist");
+
         const existing = this.index.get(pageIndex);
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
 
@@ -111,15 +148,24 @@ export class OpfsPageStore implements VfsFile {
     }
 
     sync(): void {
+        if (this.inOptimistic) return;
+        assert(!this.hasOptimisticPages(), "cannot sync OPFS while optimistic pages exist");
         this.pagesHandle.flush();
         this.flushIndex();
     }
 
     fileSize(): number {
+        let size: number;
         if (this.knownDatabaseSizeInPages > 0) {
-            return this.knownDatabaseSizeInPages * pageSize;
+            size = this.knownDatabaseSizeInPages * pageSize;
+        } else {
+            size = this.maxPageIndex < 0 ? 0 : (this.maxPageIndex + 1) * pageSize;
         }
-        return this.maxPageIndex < 0 ? 0 : (this.maxPageIndex + 1) * pageSize;
+        for (const pageIndex of this.optimisticPages.keys()) {
+            const end = (pageIndex + 1) * pageSize;
+            if (end > size) size = end;
+        }
+        return size;
     }
 
     close(): void {
@@ -176,6 +222,7 @@ export class OpfsPageStore implements VfsFile {
      * header when page 0 is written.
      */
     writePageIfNewer(pageIndex: number, timestamp: number, data: Uint8Array): void {
+        assert(!this.hasOptimisticPages(), "cannot write to OPFS while optimistic pages exist");
         const existing = this.index.get(pageIndex);
         if (existing !== undefined && existing.timestamp >= timestamp) {
             return;

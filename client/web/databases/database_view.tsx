@@ -6,6 +6,7 @@ import {
 } from "~/client/web/databases/database_coordinator.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
@@ -13,6 +14,7 @@ import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import {InternalError} from "~/shared/error/error.js";
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 const sampleQueries = [
@@ -92,9 +94,7 @@ function TableView({rows}: {rows: ReadonlyArray<unknown>}) {
                                             whiteSpace: "nowrap",
                                         }}
                                     >
-                                        {record[col] == null
-                                            ? "NULL"
-                                            : String(record[col])}
+                                        {record[col] == null ? "NULL" : String(record[col])}
                                     </td>
                                 ))}
                             </tr>
@@ -108,6 +108,7 @@ function TableView({rows}: {rows: ReadonlyArray<unknown>}) {
 
 export function DatabaseView() {
     const {spaceId} = useParams();
+    const reporter = useReporter();
     const [query, setQuery] = useState("");
     const [conn, setConn] = useState<DatabaseConnection | null>(null);
     const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
@@ -116,7 +117,10 @@ export function DatabaseView() {
     const events = useEvents({
         handleEvent: (event: DatabaseRealtimeEvent) => {
             if (event.type === "PagesChanged" && conn !== null) {
-                conn.call("writePagesFromRealtime", {pages: event.pages});
+                conn.call("writePagesFromRealtime", {
+                    pages: event.pages,
+                    mutationId: event.mutationId,
+                });
             }
         },
     });
@@ -130,25 +134,28 @@ export function DatabaseView() {
         events.handleEvent,
     );
 
-    const {queryServer, mutateServer} = useEvents({
+    const {queryServer, mutateServer, reportMutationError} = useEvents({
         queryServer: async (sql: string) => {
             return procedures.query({sql});
         },
-        mutateServer: async (sql: string) => {
-            return procedures.mutate({sql});
+        mutateServer: async (sql, mutationId) => {
+            return procedures.mutate({sql, mutationId});
+        },
+        reportMutationError: (message: string) => {
+            reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
         },
     });
 
     useEffect(() => {
         let connection: DatabaseConnection | null = null;
         (async () => {
-            connection = await connectToDatabase({queryServer, mutateServer});
+            connection = await connectToDatabase({queryServer, mutateServer, reportMutationError});
             setConn(connection);
         })();
         return () => {
             connection?.close();
         };
-    }, [queryServer, mutateServer]);
+    }, [queryServer, mutateServer, reportMutationError]);
 
     return (
         <Box

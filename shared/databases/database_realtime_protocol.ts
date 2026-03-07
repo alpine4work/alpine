@@ -1,3 +1,4 @@
+import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
@@ -26,6 +27,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
         mutate: {
             input: {
                 sql: Schema.string,
+                mutationId: Schema.id<DatabaseMutationId>(),
             },
             output: {
                 rows: Schema.array(Schema.unknown()),
@@ -43,6 +45,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
                     data: Schema.bytes,
                 }),
             ),
+            mutationId: Schema.id<DatabaseMutationId>(),
         }),
     },
 });

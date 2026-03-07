@@ -8,6 +8,7 @@ ts_project(
         "//admin/external_types:sqlite",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
         "//shared/schema",
         "//shared/web_socket",
     ],
