@@ -18,6 +18,8 @@ ts_project(
         "//shared/databases",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
         "//shared/schema",
+        "//shared/store",
     ],
 )

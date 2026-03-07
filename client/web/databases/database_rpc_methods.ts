@@ -1,4 +1,5 @@
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import type {DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 const pageSchema = Schema.object({
@@ -21,6 +22,14 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
         input: {pages: Schema.array(pageSchema)},
         output: {},
     },
+    registerReactiveQuery: {
+        input: {queryId: Schema.id<DatabaseReactiveQueryId>(), sql: Schema.string},
+        output: {rows: Schema.array(Schema.unknown())},
+    },
+    unregisterReactiveQuery: {
+        input: {queryId: Schema.id<DatabaseReactiveQueryId>()},
+        output: {},
+    },
 });
 
 /** Methods the worker can call on the tab. */
@@ -35,6 +44,20 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
     mutateServer: {
         input: {sql: Schema.string},
         output: {rows: Schema.array(Schema.unknown())},
+    },
+    reactiveQueryUpdated: {
+        input: {
+            queryId: Schema.id<DatabaseReactiveQueryId>(),
+            rows: Schema.array(Schema.unknown()),
+        },
+        output: {},
+    },
+    reactiveQueryError: {
+        input: {
+            queryId: Schema.id<DatabaseReactiveQueryId>(),
+            message: Schema.string,
+        },
+        output: {},
     },
 });
 

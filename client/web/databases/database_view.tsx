@@ -1,18 +1,22 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {
     type DatabaseConnection,
+    type ReactiveQueryHandle,
     connectToDatabase,
 } from "~/client/web/databases/database_coordinator.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import {generateId} from "~/shared/id/id.js";
+import type {DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 const sampleQueries = [
@@ -92,9 +96,7 @@ function TableView({rows}: {rows: ReadonlyArray<unknown>}) {
                                             whiteSpace: "nowrap",
                                         }}
                                     >
-                                        {record[col] == null
-                                            ? "NULL"
-                                            : String(record[col])}
+                                        {record[col] == null ? "NULL" : String(record[col])}
                                     </td>
                                 ))}
                             </tr>
@@ -106,12 +108,129 @@ function TableView({rows}: {rows: ReadonlyArray<unknown>}) {
     );
 }
 
+interface WatchEntry {
+    readonly id: DatabaseReactiveQueryId;
+    readonly sql: string;
+}
+
+function WatchedQueryResults(props: {
+    sql: string;
+    handle: ReactiveQueryHandle;
+    onClose: () => void;
+}) {
+    const result = useStore(props.handle.store);
+    const [flashing, setFlashing] = useState(false);
+    const prevCountRef = useRef(result.invalidationCount);
+
+    useEffect(() => {
+        if (result.invalidationCount > prevCountRef.current) {
+            prevCountRef.current = result.invalidationCount;
+            setFlashing(true);
+            const timer = setTimeout(() => setFlashing(false), 500);
+            return () => clearTimeout(timer);
+        }
+    }, [result.invalidationCount]);
+
+    return (
+        <Box
+            borderRadius="1"
+            boxShadow="elevation-5-with-grey-10-border"
+            padding="2"
+            style={{
+                backgroundColor: flashing ? "#fef9c3" : undefined,
+                transition: "background-color 500ms ease-out",
+            }}
+        >
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+                <pre
+                    className={sprinkles({
+                        fontSize: "75",
+                        fontStyle: "code",
+                        color: "grey-60",
+                    })}
+                >
+                    {props.sql}
+                </pre>
+                <Button
+                    variant="quieter"
+                    onPress={props.onClose}
+                    pressErrorTitle="Failed to unwatch"
+                >
+                    Close
+                </Button>
+            </Box>
+            {result.error != null ? (
+                <pre
+                    className={sprinkles({
+                        fontSize: "75",
+                        fontStyle: "code",
+                        color: "red-60",
+                        padding: "2",
+                    })}
+                >
+                    {result.error}
+                </pre>
+            ) : (
+                <TableView rows={result.rows} />
+            )}
+        </Box>
+    );
+}
+
+function WatchedQueryEntry(props: {conn: DatabaseConnection; sql: string; onClose: () => void}) {
+    const [handle, setHandle] = useState<ReactiveQueryHandle | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        let h: ReactiveQueryHandle | null = null;
+        (async () => {
+            h = await props.conn.watchQuery(props.sql);
+            if (!cancelled) setHandle(h);
+        })();
+        return () => {
+            cancelled = true;
+            h?.unwatch();
+        };
+    }, [props.conn, props.sql]);
+
+    if (handle === null) {
+        return (
+            <Box borderRadius="1" boxShadow="elevation-5-with-grey-10-border" padding="2">
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <pre
+                        className={sprinkles({
+                            fontSize: "75",
+                            fontStyle: "code",
+                            color: "grey-60",
+                        })}
+                    >
+                        {props.sql}
+                    </pre>
+                    <Button
+                        variant="quieter"
+                        onPress={props.onClose}
+                        pressErrorTitle="Failed to unwatch"
+                    >
+                        Close
+                    </Button>
+                </Box>
+                <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
+                    Loading...
+                </Box>
+            </Box>
+        );
+    }
+
+    return <WatchedQueryResults sql={props.sql} handle={handle} onClose={props.onClose} />;
+}
+
 export function DatabaseView() {
     const {spaceId} = useParams();
     const [query, setQuery] = useState("");
     const [conn, setConn] = useState<DatabaseConnection | null>(null);
     const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [watches, setWatches] = useState<ReadonlyArray<WatchEntry>>([]);
 
     const events = useEvents({
         handleEvent: (event: DatabaseRealtimeEvent) => {
@@ -231,6 +350,19 @@ export function DatabaseView() {
                 >
                     Mutate
                 </Button>
+                <Button
+                    variant="quieter"
+                    onPress={() => {
+                        if (conn == null || query.trim() === "") return;
+                        setWatches(prev => [
+                            ...prev,
+                            {id: generateId<DatabaseReactiveQueryId>(), sql: query},
+                        ]);
+                    }}
+                    pressErrorTitle="Failed to watch query"
+                >
+                    Watch
+                </Button>
             </Box>
             {error != null && (
                 <pre
@@ -245,6 +377,23 @@ export function DatabaseView() {
                 </pre>
             )}
             {rows != null && <TableView rows={rows} />}
+            {watches.length > 0 && conn != null && (
+                <Box display="flex" flexDirection="column" gap="2">
+                    <Box fontSize="100" fontStyle="semi-bold">
+                        Watched Queries
+                    </Box>
+                    {watches.map(watch => (
+                        <WatchedQueryEntry
+                            key={watch.id}
+                            conn={conn}
+                            sql={watch.sql}
+                            onClose={() => {
+                                setWatches(prev => prev.filter(w => w.id !== watch.id));
+                            }}
+                        />
+                    ))}
+                </Box>
+            )}
         </Box>
     );
 }
