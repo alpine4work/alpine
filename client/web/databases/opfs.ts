@@ -10,6 +10,7 @@
 export interface OpfsDirectoryHandle {
     getDirectoryHandle(name: string, options?: {create?: boolean}): Promise<OpfsDirectoryHandle>;
     getFileHandle(name: string, options?: {create?: boolean}): Promise<OpfsFileHandle>;
+    removeEntry(name: string, options?: {recursive?: boolean}): Promise<void>;
 }
 
 export interface OpfsFileHandle {
