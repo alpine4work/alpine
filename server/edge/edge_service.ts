@@ -1,3 +1,5 @@
+import "~/server/databases/sqlite3_wasm_init_worker.js";
+
 import {parse as parseCookieHeader} from "cookie";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {

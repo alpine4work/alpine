@@ -7,6 +7,7 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -16,36 +17,6 @@ const vfsNamePrefix = "alpine-server";
 let vfsCounter = 0;
 
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
-
-/**
- * Starts sqlite3 initialization if not already started.
- * Called lazily from {@link DatabaseServer.create} so that
- * the DO constructor has already set `globalThis.__unsafeEval`
- * (needed by the patched `jsFuncToWasm` in workerd).
- */
-function ensureSqlite3Init(): void {
-    if (sqlite3Promise !== undefined) return;
-
-    // In workerd, `self.location` is undefined which crashes
-    // the Emscripten environment detection. Polyfill it so
-    // code falls through to the `_scriptName` fallback.
-    if (
-        typeof self !== "undefined" &&
-        typeof (self as unknown as Record<string, unknown>).location === "undefined"
-    ) {
-        Object.defineProperty(self, "location", {
-            value: {href: ""},
-            writable: true,
-            configurable: true,
-        });
-    }
-
-    const wasmModule =
-        DatabaseServer.wasmModule ??
-        ((globalThis as Record<string, unknown>).__sqliteWasm as WebAssembly.Module | undefined);
-
-    sqlite3Promise = sqlite3InitModule(wasmModule ? {wasmModule} : {});
-}
 
 type DatabaseServerAction =
     | {type: "idle"}
@@ -172,16 +143,12 @@ export class DatabaseServer {
         this.db.exec("PRAGMA journal_mode = OFF");
     }
 
-    /**
-     * Pre-compiled WASM module for workerd environments where
-     * the Emscripten loader can't fetch file:// URLs. Set this
-     * before the first call to {@link create}.
-     */
-    static wasmModule: WebAssembly.Module | undefined;
-
     static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
-        ensureSqlite3Init();
-        const sqlite3 = await sqlite3Promise!;
+        if (sqlite3Promise === undefined) {
+            const instantiateWasm = trySqlite3WasmLoader();
+            sqlite3Promise = sqlite3InitModule(instantiateWasm ? {instantiateWasm} : undefined);
+        }
+        const sqlite3 = await sqlite3Promise;
         return new DatabaseServer(sqlite3, storage);
     }
 

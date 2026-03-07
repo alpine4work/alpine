@@ -73,16 +73,6 @@ export type DurableObjectEnv = {
     KINESIS_TRACER_STREAM_NAME?: string;
     KINESIS_AWS_ACCESS_KEY_ID?: string;
     KINESIS_AWS_SECRET_ACCESS_KEY?: string;
-
-    // Pre-compiled SQLite WASM module for dev (miniflare).
-    // In workerd, the Emscripten loader can't fetch file:// URLs
-    // so we provide the WASM module via a binding instead.
-    SQLITE_WASM?: WebAssembly.Module;
-
-    // workerd blocks `new WebAssembly.Module()`. The unsafe eval
-    // binding provides `newWebAssemblyModule()` as a workaround.
-    // Needed by sqlite3's jsFuncToWasm for callback trampolines.
-    UNSAFE_EVAL?: {newWasmModule(src: BufferSource): WebAssembly.Module};
 };
 
 /**
@@ -166,20 +156,6 @@ export function createDurableObject<
 
         constructor(state: DurableObjectState, env: DurableObjectEnv) {
             this._state = state;
-
-            // Store SQLite WASM module on globalThis for
-            // DatabaseServer to pick up. This binding is only
-            // present in dev (miniflare) where workerd can't
-            // load WASM via fetch/readFileSync.
-            if (env.SQLITE_WASM) {
-                (globalThis as Record<string, unknown>).__sqliteWasm = env.SQLITE_WASM;
-            }
-
-            // Expose the unsafe eval binding so sqlite3's
-            // jsFuncToWasm can compile WASM trampolines.
-            if (env.UNSAFE_EVAL) {
-                (globalThis as Record<string, unknown>).__unsafeEval = env.UNSAFE_EVAL;
-            }
 
             const appServicePublicKey = env.APP_SERVICE_PUBLIC_KEY;
             if (!appServicePublicKey)

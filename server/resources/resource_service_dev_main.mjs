@@ -4,6 +4,8 @@ import {Miniflare} from "miniflare";
 import {join as joinPath} from "path";
 import toml from "toml";
 import {parseArgs} from "util";
+// eslint-disable-next-line cyberworlds/sort-imports-by-source
+import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 
 // Make our service easy to find in process managers. We include
 // "cyberworlds" and "node" so you can grep by those strings.
@@ -128,21 +130,15 @@ async function main() {
 
     const miniflare = new Miniflare({
         name: config.name,
-        modules: [
-            {
-                type: "ESModule",
-                path: joinPath(
-                    runfilesPath,
-                    "cyberworlds/server/resources/resource_service_bundle.js",
-                ),
-            },
-        ],
-        compatibilityDate: config.compatibility_date,
-        compatibilityFlags: config.compatibility_flags,
-        port,
+        modules: true,
+        scriptPath: joinPath(
+            runfilesPath,
+            "cyberworlds/server/resources/resource_service_bundle.js",
+        ),
+        wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.toml"),
         cachePersist: cacheLocalDataPath,
         r2Persist: cloudflareR2LocalDataPath,
-        bindings: filterUndefined({
+        bindings: {
             APP_SERVICE_URL: appServiceUrl,
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
@@ -156,23 +152,13 @@ async function main() {
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,
             CORS_TRUSTED_ORIGINS: corsTrustedOriginsArray,
-        }),
-        r2Buckets: buildR2Buckets(config),
+        },
+        globals: {
+            __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
+        },
     });
 
-    await miniflare.ready;
-}
+    const server = await miniflare.createServer();
 
-// Miniflare v4 validates that all binding values are defined. Filter out
-// undefined values for optional bindings (e.g. HONEYCOMB_API_KEY).
-function filterUndefined(obj) {
-    return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
-}
-
-function buildR2Buckets(config) {
-    const result = {};
-    for (const bucket of config.r2_buckets ?? []) {
-        result[bucket.binding] = bucket.bucket_name;
-    }
-    return result;
+    server.listen(port);
 }

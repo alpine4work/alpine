@@ -254,7 +254,7 @@
         "micromark-extension-gfm-table": "^2.1.1",
         "micromark-extension-gfm-task-list-item": "^2.1.0",
         "micromark-extension-math": "^3.1.0",
-        "miniflare": "4.20260305.0",
+        "miniflare": "2.14.4",
         "motion": "^12.23.18",
         "murmurhash": "^2.0.1",
         "mustache": "^4.2.0",
@@ -427,7 +427,10 @@
             "@miniflare/storage-file@2.14.4": "admin/patches/@miniflare__storage-file@2.14.4.patch",
             "micromark-extension-gfm-strikethrough@2.0.0": "admin/patches/micromark-extension-gfm-strikethrough@2.0.0.patch",
             "@types/react@19.2.6": "admin/patches/@types__react@19.2.6.patch",
-            "react-dom@19.2.0": "admin/patches/react-dom@19.2.0.patch"
+            "react-dom@19.2.0": "admin/patches/react-dom@19.2.0.patch",
+            "@miniflare/d1@2.14.4": "admin/patches/@miniflare__d1@2.14.4.patch",
+            "@miniflare/durable-objects@2.14.4": "admin/patches/@miniflare__durable-objects@2.14.4.patch",
+            "@miniflare/runner-vm@2.14.4": "admin/patches/@miniflare__runner-vm@2.14.4.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

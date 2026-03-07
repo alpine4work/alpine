@@ -97,10 +97,10 @@ js_binary(
         "//:node_modules/toml",
         "//:package_light_json_file",
         "//server/helpers",
-        "@sqlite//:sqlite",
     ],
     entry_point = "edge_service_dev_main.mjs",
     env = {"NODE_ENV": "development"},
+    node_options = ["--experimental-vm-modules"],
     visibility = ["//admin/environment/test/integration:__pkg__"],
 )
 

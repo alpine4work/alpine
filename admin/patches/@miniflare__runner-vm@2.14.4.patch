@@ -1,0 +1,13 @@
+diff --git a/dist/src/index.js b/dist/src/index.js
+index c00291872e726bff20952668b0846cf936900b7a..a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 100644
+--- a/dist/src/index.js
++++ b/dist/src/index.js
+@@ -303,7 +303,7 @@ var VMScriptRunner = class {
+       Object.assign(context, globalScope);
+     } else {
+       context = import_vm3.default.createContext(globalScope, {
+-        codeGeneration: { strings: false, wasm: false }
++        codeGeneration: { strings: false, wasm: true }
+       });
+     }
+     defineHasInstances(context);

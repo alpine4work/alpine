@@ -4,6 +4,8 @@ import {Miniflare} from "miniflare";
 import {join as joinPath} from "path";
 import toml from "toml";
 import {parseArgs} from "util";
+// eslint-disable-next-line cyberworlds/sort-imports-by-source
+import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 import {
     runDevAgentsD1ApplyCommand,
     runDevAgentsD1StatusCommand,
@@ -107,19 +109,13 @@ async function main() {
 
     const miniflare = new Miniflare({
         name: config.name,
-        modules: [
-            {
-                type: "ESModule",
-                path: joinPath(runfilesPath, "cyberworlds/server/agents/agent_service_bundle.js"),
-            },
-        ],
-        compatibilityDate: config.compatibility_date,
-        compatibilityFlags: config.compatibility_flags,
-        port,
+        modules: true,
+        scriptPath: joinPath(runfilesPath, "cyberworlds/server/agents/agent_service_bundle.js"),
+        wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.toml"),
         cachePersist: cacheLocalDataPath,
         durableObjectsPersist: durableObjectsLocalDataPath,
         d1Persist: d1LocalDataPath,
-        bindings: filterUndefined({
+        bindings: {
             API_SERVICE_URL: apiServiceUrl,
             EDGE_SERVICE_URL: edgeServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
@@ -128,41 +124,13 @@ async function main() {
             OPEN_AI_API_KEY: openAiDevApiKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
             CURSOR_AGENT_SMEE_WEBHOOK_URL: cursorAgentSmeeWebhookUrl,
-        }),
-        durableObjects: buildDurableObjects(config),
-        d1Databases: buildD1Databases(config),
+        },
+        globals: {
+            __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
+        },
     });
 
-    await miniflare.ready;
-}
+    const server = await miniflare.createServer();
 
-// Miniflare v4 validates that all binding values are defined. Filter out
-// undefined values for optional bindings (e.g. HONEYCOMB_API_KEY).
-function filterUndefined(obj) {
-    return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
-}
-
-function buildDurableObjects(config) {
-    const sqliteClasses = new Set();
-    for (const migration of config.migrations ?? []) {
-        for (const cls of migration.new_sqlite_classes ?? []) {
-            sqliteClasses.add(cls);
-        }
-    }
-    const result = {};
-    for (const binding of config.durable_objects?.bindings ?? []) {
-        result[binding.name] = {
-            className: binding.class_name,
-            ...(sqliteClasses.has(binding.class_name) && {useSQLite: true}),
-        };
-    }
-    return result;
-}
-
-function buildD1Databases(config) {
-    const result = {};
-    for (const db of config.d1_databases ?? []) {
-        result[db.binding] = db.database_id;
-    }
-    return result;
+    server.listen(port);
 }

@@ -66,6 +66,10 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
     const dirs = new Map<string, OpfsDirectoryHandle>();
     const files = new Map<string, OpfsSyncAccessHandle>();
     return {
+        async removeEntry(name: string) {
+            dirs.delete(name);
+            files.delete(name);
+        },
         async getDirectoryHandle(name: string) {
             let dir = dirs.get(name);
             if (dir === undefined) {
