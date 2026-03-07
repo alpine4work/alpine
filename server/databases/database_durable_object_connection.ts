@@ -49,37 +49,31 @@ export class DatabaseDurableObjectConnection {
         typeof DatabaseRealtimeProtocol
     > = {
         execute: async (_context, input) => {
-            if (input.allowWrites) {
-                const {rows, pages} = this._storage.transactionSync(() => {
-                    const {rows, changedPages, timestamp} = this._server.execute(input.sql, {
-                        allowWrites: true,
-                    });
-                    const pages = [...changedPages].map(([pageIndex, {before, after}]) => ({
-                        pageIndex,
-                        timestamp,
-                        diff: diffPage(before, after),
-                    }));
-                    return {rows, pages};
-                });
-
-                this._sendEventToAll(this._processContext, {
-                    pages,
-                    mutationId: input.mutationId,
-                });
-
-                return {rows: rows as Array<SchemaSerializedValue>, pages: []};
-            }
-
             return this._storage.transactionSync(() => {
-                const {rows, pages: pagesMap} = this._server.execute(input.sql, {
-                    allowWrites: false,
+                const result = this._server.execute(input.sql, {
+                    allowWrites: input.allowWrites,
                 });
-                const pages = [...pagesMap].map(([pageIndex, {data, timestamp}]) => ({
+
+                if (result.changedPages.size > 0) {
+                    const diffPages = [...result.changedPages].map(
+                        ([pageIndex, {before, after}]) => ({
+                            pageIndex,
+                            timestamp: result.pages.get(pageIndex)!.timestamp,
+                            diff: diffPage(before, after),
+                        }),
+                    );
+                    this._sendEventToAll(this._processContext, {
+                        pages: diffPages,
+                        mutationId: input.mutationId,
+                    });
+                }
+
+                const pages = [...result.pages].map(([pageIndex, {data, timestamp}]) => ({
                     pageIndex,
                     timestamp,
                     data,
                 }));
-                return {rows: rows as Array<SchemaSerializedValue>, pages};
+                return {rows: result.rows as Array<SchemaSerializedValue>, pages};
             });
         },
     };

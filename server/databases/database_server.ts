@@ -21,22 +21,22 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 type DatabaseServerAction =
     | {type: "idle"}
     | {type: "query"; pages: Map<number, {data: Uint8Array; timestamp: number}>}
-    | {type: "mutate"; changedPages: Map<number, DatabaseServerPageChange>; timestamp: number};
-
-export interface DatabaseServerQueryResult {
-    rows: Array<Record<string, unknown>>;
-    pages: Map<number, {data: Uint8Array; timestamp: number}>;
-}
+    | {
+          type: "mutate";
+          pages: Map<number, {data: Uint8Array; timestamp: number}>;
+          changedPages: Map<number, DatabaseServerPageChange>;
+          timestamp: number;
+      };
 
 export interface DatabaseServerPageChange {
     before: Uint8Array;
     after: Uint8Array;
 }
 
-export interface DatabaseServerMutateResult {
+export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
+    pages: Map<number, {data: Uint8Array; timestamp: number}>;
     changedPages: Map<number, DatabaseServerPageChange>;
-    timestamp: number;
 }
 
 // Mapping from SQLite authorizer action codes to
@@ -151,19 +151,14 @@ export class DatabaseServer {
         return new DatabaseServer(sqlite3, storage);
     }
 
-    execute(sql: string, options: {allowWrites: true}): DatabaseServerMutateResult;
-    execute(sql: string, options: {allowWrites: false}): DatabaseServerQueryResult;
-    execute(
-        sql: string,
-        options: {allowWrites: boolean},
-    ): DatabaseServerQueryResult | DatabaseServerMutateResult {
+    execute(sql: string, options: {allowWrites: boolean}): DatabaseServerResult {
         if (options.allowWrites) {
             return this.executeWithWrites(sql);
         }
         return this.executeReadOnly(sql);
     }
 
-    private executeReadOnly(sql: string): DatabaseServerQueryResult {
+    private executeReadOnly(sql: string): DatabaseServerResult {
         this.db.exec("BEGIN");
         this.action = {type: "query", pages: new Map()};
         this.db.pageAccessHook((_pArg, pgno, flags) => {
@@ -183,7 +178,7 @@ export class DatabaseServer {
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
             assert(this.action.type === "query");
-            return {rows, pages: this.action.pages};
+            return {rows, pages: this.action.pages, changedPages: new Map()};
         } catch (error) {
             const stashed = this.vfs.takeError();
             if (stashed !== null) {
@@ -202,9 +197,18 @@ export class DatabaseServer {
         }
     }
 
-    private executeWithWrites(sql: string): DatabaseServerMutateResult {
-        this.action = {type: "mutate", changedPages: new Map(), timestamp: 0};
+    private executeWithWrites(sql: string): DatabaseServerResult {
+        this.action = {type: "mutate", pages: new Map(), changedPages: new Map(), timestamp: 0};
         this.db.exec("BEGIN");
+        this.db.pageAccessHook((_pArg, pgno, flags) => {
+            if (flags === 1 && this.action.type === "mutate") {
+                const pageIndex = pgno - 1;
+                if (!this.action.pages.has(pageIndex)) {
+                    const {data, timestamp} = this.storage.readPage(pageIndex);
+                    this.action.pages.set(pageIndex, {data: new Uint8Array(data), timestamp});
+                }
+            }
+        });
         try {
             const rows = this.db.exec(sql, {
                 returnValue: "resultRows",
@@ -212,10 +216,20 @@ export class DatabaseServer {
             }) as Array<Record<string, unknown>>;
             this.db.exec("COMMIT");
             assert(this.action.type === "mutate");
+
+            // Update read pages with post-write data for
+            // changed pages so callers see the latest state.
+            for (const [pageIndex, change] of this.action.changedPages) {
+                this.action.pages.set(pageIndex, {
+                    data: change.after,
+                    timestamp: this.action.timestamp,
+                });
+            }
+
             return {
                 rows,
+                pages: this.action.pages,
                 changedPages: this.action.changedPages,
-                timestamp: this.action.timestamp,
             };
         } catch (error) {
             try {
@@ -234,6 +248,7 @@ export class DatabaseServer {
             throw error;
         } finally {
             this.action = {type: "idle"};
+            this.db.pageAccessHook(null);
             this.vfs.takeError();
             this.tempFiles.clear();
         }
@@ -289,9 +304,12 @@ export class DatabaseServer {
 
                 const {data: pageData, timestamp} = this.storage.readPage(pageIndex);
 
-                // When in query mode, stash database pages so
-                // the pageAccessHook doesn't double-read them.
-                if (this.action.type === "query" && !this.action.pages.has(pageIndex)) {
+                // Stash database pages so the pageAccessHook
+                // doesn't double-read them.
+                if (
+                    (this.action.type === "query" || this.action.type === "mutate") &&
+                    !this.action.pages.has(pageIndex)
+                ) {
                     this.action.pages.set(pageIndex, {
                         data: new Uint8Array(pageData),
                         timestamp,
