@@ -14,12 +14,22 @@ let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
+ * Represents a connected tab's route to the server.
+ * Passed into {@link DatabaseClient.executeQuery} so
+ * server fallbacks route through the correct tab's
+ * WebSocket connection.
+ */
+export interface DatabaseClientConnection {
+    queryServer(sql: string): Promise<QueryServerResult>;
+}
+
+/**
  * Client-side SQLite database backed by OPFS page
  * storage. Handles server fallback transparently:
- * when a local query hits a missing page, calls the
- * injected {@link setQueryServer} callback to fetch
- * pages from the server, stores them locally, and
- * returns the server's result.
+ * when a local query hits a missing page, calls
+ * {@link DatabaseClientConnection.queryServer} to
+ * fetch pages from the server, stores them locally,
+ * and returns the server's result.
  *
  * Inject the result of `navigator.storage.getDirectory()`
  * to construct. For tests, pass an in-memory mock.
@@ -28,7 +38,6 @@ export class DatabaseClient {
     private readonly db: Database;
     private readonly vfs: InstalledVfs;
     private readonly pageStore: OpfsPageStore;
-    private queryServer: ((sql: string) => Promise<QueryServerResult>) | null = null;
 
     private constructor(sqlite3: Sqlite3Static, pageStore: OpfsPageStore) {
         this.pageStore = pageStore;
@@ -63,23 +72,19 @@ export class DatabaseClient {
     }
 
     /**
-     * Set the callback used to fetch query results + pages
-     * from the server when the local store is missing data.
-     */
-    setQueryServer(fn: (sql: string) => Promise<QueryServerResult>): void {
-        this.queryServer = fn;
-    }
-
-    /**
      * Execute a query. If the local OPFS store is empty or
      * missing pages, transparently falls back to the server
-     * (via the injected queryServer callback), stores the
-     * returned pages locally, and returns the server result.
+     * via the connection's {@link DatabaseClientConnection.queryServer},
+     * stores the returned pages locally, and returns the
+     * server result.
      */
-    async executeQuery(sql: string): Promise<ReadonlyArray<Record<string, unknown>>> {
-        if (this.isEmpty() && this.queryServer !== null) {
+    async executeQuery(
+        conn: DatabaseClientConnection,
+        sql: string,
+    ): Promise<ReadonlyArray<Record<string, unknown>>> {
+        if (this.isEmpty()) {
             try {
-                return await this.executeQueryViaServer(sql);
+                return await this.executeQueryViaServer(conn, sql);
             } catch {
                 // Server unavailable — fall through to local
             }
@@ -87,8 +92,8 @@ export class DatabaseClient {
         try {
             return this.executeQueryLocally(sql);
         } catch (error) {
-            if (error instanceof PageMissingError && this.queryServer !== null) {
-                return this.executeQueryViaServer(sql);
+            if (error instanceof PageMissingError) {
+                return this.executeQueryViaServer(conn, sql);
             }
             throw error;
         }
@@ -131,9 +136,10 @@ export class DatabaseClient {
     }
 
     private async executeQueryViaServer(
+        conn: DatabaseClientConnection,
         sql: string,
     ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const result = await this.queryServer!(sql);
+        const result = await conn.queryServer(sql);
         this.writePagesFromRealtime(result.pages);
         return result.rows as ReadonlyArray<Record<string, unknown>>;
     }
