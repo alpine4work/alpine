@@ -11,6 +11,7 @@ import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
     type PageDiff,
     applyPageDiff,
+    diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
@@ -130,9 +131,12 @@ export class DatabaseClient {
     ): Promise<ReadonlyArray<Record<string, unknown>>> {
         const mutationId = generateId<DatabaseMutationId>();
 
-        let rows: ReadonlyArray<Record<string, unknown>>;
+        let rows!: ReadonlyArray<Record<string, unknown>>;
+        let writtenPages: ReadonlySet<number>;
         try {
-            rows = this.pageStore.optimistic(() => this.executeQueryLocally(sql));
+            writtenPages = this.pageStore.optimistic(() => {
+                rows = this.executeQueryLocally(sql);
+            });
         } catch (error) {
             if (error instanceof PageMissingError) {
                 const result = await conn.mutateServer(sql, mutationId);
@@ -142,6 +146,7 @@ export class DatabaseClient {
         }
 
         this.optimisticQueue.push({mutationId, sql});
+        this.invalidateForWrittenPages(writtenPages);
 
         // Send to server in the background.
         void (async () => {
@@ -370,14 +375,52 @@ export class DatabaseClient {
     }
 
     private replayOptimisticQueue(): void {
+        let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                this.pageStore.optimistic(() => this.executeQueryLocally(mutation.sql));
+                const writtenPages = this.pageStore.optimistic(() => {
+                    this.executeQueryLocally(mutation.sql);
+                });
+                if (this.markWrittenPages(writtenPages)) {
+                    anyInvalidated = true;
+                }
                 return true;
             } catch {
                 return false;
             }
         });
+        if (anyInvalidated) {
+            this.scheduleInvalidation();
+        }
+    }
+
+    /**
+     * Adds optimistically written pages to
+     * {@link pagesToInvalidate}, filtering out noise-only
+     * changes on page 0. Returns true if any pages were
+     * marked.
+     */
+    private markWrittenPages(writtenPages: ReadonlySet<number>): boolean {
+        let anyMarked = false;
+        for (const pageIndex of writtenPages) {
+            if (pageIndex === 0) {
+                const base = this.pageStore.readPage(0);
+                const overlay = this.pageStore.getOptimisticPage(0);
+                if (base !== null && overlay !== undefined) {
+                    const diff = diffPage(base, overlay);
+                    if (shouldIgnorePageInvalidation(0, diff)) continue;
+                }
+            }
+            this.pagesToInvalidate.add(pageIndex);
+            anyMarked = true;
+        }
+        return anyMarked;
+    }
+
+    private invalidateForWrittenPages(writtenPages: ReadonlySet<number>): void {
+        if (this.markWrittenPages(writtenPages)) {
+            this.scheduleInvalidation();
+        }
     }
 
     isEmpty(): boolean {

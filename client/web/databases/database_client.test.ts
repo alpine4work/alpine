@@ -678,6 +678,45 @@ describe("registerReactiveQuery", () => {
         expect(rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
+    test("optimistic mutation invalidates overlapping reactive query", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('v1')");
+
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t ORDER BY id",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        // Optimistic mutation — should trigger invalidation
+        const conn: DatabaseClientConnection = {
+            queryServer() {
+                throw new UnavailableError("No server in test");
+            },
+            mutateServer() {
+                return new Promise(() => {});
+            },
+            reportError() {},
+        };
+        await client.executeMutation(conn, "INSERT INTO t (val) VALUES ('v2')");
+
+        // Wait for microtask-based invalidation
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(1);
+        expect(notifications[0]).toMatchObject([
+            {id: 1, val: "v1"},
+            {id: 2, val: "v2"},
+        ]);
+    });
+
     test("notify fires when overlapping pages are written", async () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);

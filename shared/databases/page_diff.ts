@@ -104,17 +104,12 @@ const noiseRegions: ReadonlyArray<{start: number; end: number}> = [
  * Used to suppress reactive query invalidation for
  * noise-only changes.
  */
-export function shouldIgnorePageInvalidation(
-    pageIndex: number,
-    diff: PageDiff,
-): boolean {
+export function shouldIgnorePageInvalidation(pageIndex: number, diff: PageDiff): boolean {
     if (pageIndex !== 0) return false;
 
     for (const span of diff) {
         const spanEnd = span.offset + span.data.byteLength;
-        const inNoise = noiseRegions.some(
-            r => span.offset >= r.start && spanEnd <= r.end,
-        );
+        const inNoise = noiseRegions.some(r => span.offset >= r.start && spanEnd <= r.end);
         if (!inNoise) return false;
     }
 

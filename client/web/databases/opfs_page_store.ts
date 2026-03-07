@@ -33,6 +33,7 @@ export class OpfsPageStore implements VfsFile {
     private knownDatabaseSizeInPages = 0;
     private readonly optimisticPages = new Map<number, Uint8Array>();
     private inOptimistic = false;
+    private activeWriteSet: Set<number> | null = null;
 
     private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
         this.pagesHandle = pagesHandle;
@@ -50,13 +51,29 @@ export class OpfsPageStore implements VfsFile {
         return store;
     }
 
-    optimistic<T>(cb: () => T): T {
+    /**
+     * Runs `cb` with writes directed to the optimistic
+     * overlay. Returns the set of page indices written.
+     */
+    optimistic(cb: () => void): ReadonlySet<number> {
         this.inOptimistic = true;
+        const writtenPages = new Set<number>();
+        this.activeWriteSet = writtenPages;
         try {
-            return cb();
+            cb();
         } finally {
             this.inOptimistic = false;
+            this.activeWriteSet = null;
         }
+        return writtenPages;
+    }
+
+    /**
+     * Returns the overlay data for a page, or undefined
+     * if it's not in the optimistic overlay.
+     */
+    getOptimisticPage(pageIndex: number): Uint8Array | undefined {
+        return this.optimisticPages.get(pageIndex);
     }
 
     clearOptimisticPages(): void {
@@ -105,6 +122,7 @@ export class OpfsPageStore implements VfsFile {
 
         if (this.inOptimistic) {
             this.optimisticPages.set(pageIndex, new Uint8Array(data));
+            this.activeWriteSet?.add(pageIndex);
             if (pageIndex > this.maxPageIndex) {
                 this.maxPageIndex = pageIndex;
             }
