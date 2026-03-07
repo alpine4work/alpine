@@ -5,10 +5,7 @@ import {
     DatabaseActiveTabManager,
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import type {
-    MutateServerResult,
-    QueryServerResult,
-} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {
@@ -25,9 +22,11 @@ export type {
  * the ServiceWorker.
  */
 export function connectToDatabase(callbacks: {
-    queryServer(sql: string): Promise<QueryServerResult>;
-    mutateServer(sql: string, mutationId: DatabaseMutationId): Promise<MutateServerResult>;
-    reportMutationError?(message: string): void;
+    executeServer(
+        sql: string,
+        options: {allowWrites: boolean; mutationId: DatabaseMutationId},
+    ): Promise<ExecuteServerResult>;
+    reportError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
         locks: navigator.locks,
@@ -102,9 +101,8 @@ export function connectToDatabase(callbacks: {
         addUnloadListener(callback: () => void) {
             window.addEventListener("beforeunload", callback);
         },
-        queryServer: callbacks.queryServer,
-        mutateServer: callbacks.mutateServer,
-        reportMutationError: callbacks.reportMutationError,
+        executeServer: callbacks.executeServer,
+        reportError: callbacks.reportError,
     });
 
     return manager.connect();

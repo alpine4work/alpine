@@ -18,7 +18,7 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
+import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 const sampleQueries = [
@@ -255,14 +255,18 @@ export function DatabaseView() {
         events.handleEvent,
     );
 
-    const {queryServer, mutateServer, reportMutationError} = useEvents({
-        queryServer: async (sql: string) => {
-            return procedures.query({sql});
+    const {executeServer, reportError} = useEvents({
+        executeServer: async (
+            sql: string,
+            options: {allowWrites: boolean; mutationId: DatabaseMutationId},
+        ) => {
+            return procedures.execute({
+                sql,
+                allowWrites: options.allowWrites,
+                mutationId: options.mutationId,
+            });
         },
-        mutateServer: async (sql, mutationId) => {
-            return procedures.mutate({sql, mutationId});
-        },
-        reportMutationError: (message: string) => {
+        reportError: (message: string) => {
             reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
         },
     });
@@ -270,13 +274,13 @@ export function DatabaseView() {
     useEffect(() => {
         let connection: DatabaseConnection | null = null;
         (async () => {
-            connection = await connectToDatabase({queryServer, mutateServer, reportMutationError});
+            connection = await connectToDatabase({executeServer, reportError});
             setConn(connection);
         })();
         return () => {
             connection?.close();
         };
-    }, [queryServer, mutateServer, reportMutationError]);
+    }, [executeServer, reportError]);
 
     return (
         <Box
@@ -331,33 +335,16 @@ export function DatabaseView() {
                         if (conn == null) return;
                         setError(null);
                         try {
-                            const response = await conn.call("executeQuery", {sql: query});
+                            const response = await conn.call("execute", {sql: query});
                             setRows(response.rows);
                         } catch (e) {
                             setError(e instanceof Error ? e.message : String(e));
                             setRows(null);
                         }
                     }}
-                    pressErrorTitle="Failed to run query"
+                    pressErrorTitle="Failed to execute"
                 >
-                    Query
-                </Button>
-                <Button
-                    variant="neutral"
-                    onPress={async () => {
-                        if (conn == null) return;
-                        setError(null);
-                        try {
-                            const response = await conn.call("executeMutation", {sql: query});
-                            setRows(response.rows);
-                        } catch (e) {
-                            setError(e instanceof Error ? e.message : String(e));
-                            setRows(null);
-                        }
-                    }}
-                    pressErrorTitle="Failed to run mutation"
-                >
-                    Mutate
+                    Execute
                 </Button>
                 <Button
                     variant="quieter"

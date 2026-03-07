@@ -9,9 +9,11 @@ export type DatabaseRealtimeEvent = WebSocketProtocolEventType<typeof DatabaseRe
 
 export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
     procedures: {
-        query: {
+        execute: {
             input: {
                 sql: Schema.string,
+                mutationId: Schema.id<DatabaseMutationId>(),
+                allowWrites: Schema.boolean,
             },
             output: {
                 rows: Schema.array(Schema.unknown()),
@@ -22,15 +24,6 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
                         data: Schema.bytes,
                     }),
                 ),
-            },
-        },
-        mutate: {
-            input: {
-                sql: Schema.string,
-                mutationId: Schema.id<DatabaseMutationId>(),
-            },
-            output: {
-                rows: Schema.array(Schema.unknown()),
             },
         },
     },

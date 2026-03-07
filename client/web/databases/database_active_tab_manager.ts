@@ -3,8 +3,7 @@ import type {
     DatabaseClientConnection,
 } from "~/client/web/databases/database_client.js";
 import {
-    type MutateServerResult,
-    type QueryServerResult,
+    type ExecuteServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
 } from "~/client/web/databases/database_rpc_methods.js";
@@ -188,7 +187,7 @@ export class DatabaseActiveTabWorker {
 
     /**
      * Creates an RPC + connection pair for a single
-     * connected tab. The connection's `queryServer`
+     * connected tab. The connection's `executeServer`
      * routes back through this RPC to the tab's own
      * WebSocket.
      */
@@ -200,15 +199,8 @@ export class DatabaseActiveTabWorker {
             callMethods: workerToTabDatabaseRpcMethods,
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
-                executeQuery: async input => {
-                    const rows = (await this.client.executeQuery(
-                        conn,
-                        input.sql,
-                    )) as ReadonlyArray<SchemaSerializedValue>;
-                    return {rows};
-                },
-                executeMutation: async input => {
-                    const rows = (await this.client.executeMutation(
+                execute: async input => {
+                    const rows = (await this.client.execute(
                         conn,
                         input.sql,
                     )) as ReadonlyArray<SchemaSerializedValue>;
@@ -246,10 +238,14 @@ export class DatabaseActiveTabWorker {
             send,
         });
         const conn: DatabaseClientConnection = {
-            queryServer: async sql => rpc.call("queryServer", {sql}),
-            mutateServer: async (sql, mutationId) => rpc.call("mutateServer", {sql, mutationId}),
+            executeServer: async (sql, options) =>
+                rpc.call("executeServer", {
+                    sql,
+                    allowWrites: options.allowWrites,
+                    mutationId: options.mutationId,
+                }),
             reportError: error => {
-                void rpc.call("reportMutationError", {
+                void rpc.call("reportError", {
                     message: error instanceof Error ? error.message : String(error),
                 });
             },
@@ -297,9 +293,11 @@ export class DatabaseActiveTabManager {
             createMessageChannel(): {port1: ActiveTabPort; port2: ActiveTabPort};
             createBroadcastChannel(name: string): ActiveTabBroadcastChannel;
             addUnloadListener(callback: () => void): void;
-            queryServer(sql: string): Promise<QueryServerResult>;
-            mutateServer(sql: string, mutationId: DatabaseMutationId): Promise<MutateServerResult>;
-            reportMutationError?(message: string): void;
+            executeServer(
+                sql: string,
+                options: {allowWrites: boolean; mutationId: DatabaseMutationId},
+            ): Promise<ExecuteServerResult>;
+            reportError?(message: string): void;
         },
     ) {}
 
@@ -573,21 +571,18 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                queryServer: async input => {
-                    const result = await this.deps.queryServer(input.sql);
+                executeServer: async input => {
+                    const result = await this.deps.executeServer(input.sql, {
+                        allowWrites: input.allowWrites,
+                        mutationId: input.mutationId,
+                    });
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
                         pages: result.pages,
                     };
                 },
-                mutateServer: async input => {
-                    const result = await this.deps.mutateServer(input.sql, input.mutationId);
-                    return {
-                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
-                    };
-                },
-                reportMutationError: async input => {
-                    this.deps.reportMutationError?.(input.message);
+                reportError: async input => {
+                    this.deps.reportError?.(input.message);
                     return {};
                 },
                 reactiveQueryUpdated: async input => {
@@ -650,21 +645,18 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                queryServer: async input => {
-                    const result = await this.deps.queryServer(input.sql);
+                executeServer: async input => {
+                    const result = await this.deps.executeServer(input.sql, {
+                        allowWrites: input.allowWrites,
+                        mutationId: input.mutationId,
+                    });
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
                         pages: result.pages,
                     };
                 },
-                mutateServer: async input => {
-                    const result = await this.deps.mutateServer(input.sql, input.mutationId);
-                    return {
-                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
-                    };
-                },
-                reportMutationError: async input => {
-                    this.deps.reportMutationError?.(input.message);
+                reportError: async input => {
+                    this.deps.reportError?.(input.message);
                     return {};
                 },
                 reactiveQueryUpdated: async input => {

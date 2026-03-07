@@ -10,11 +10,7 @@ const pageSchema = Schema.object({
 
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
-    executeQuery: {
-        input: {sql: Schema.string},
-        output: {rows: Schema.array(Schema.unknown())},
-    },
-    executeMutation: {
+    execute: {
         input: {sql: Schema.string},
         output: {rows: Schema.array(Schema.unknown())},
     },
@@ -34,18 +30,18 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
 
 /** Methods the worker can call on the tab. */
 export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
-    queryServer: {
-        input: {sql: Schema.string},
+    executeServer: {
+        input: {
+            sql: Schema.string,
+            allowWrites: Schema.boolean,
+            mutationId: Schema.id<DatabaseMutationId>(),
+        },
         output: {
             rows: Schema.array(Schema.unknown()),
             pages: Schema.array(pageSchema),
         },
     },
-    mutateServer: {
-        input: {sql: Schema.string, mutationId: Schema.id<DatabaseMutationId>()},
-        output: {rows: Schema.array(Schema.unknown())},
-    },
-    reportMutationError: {
+    reportError: {
         input: {message: Schema.string},
         output: {},
     },
@@ -65,12 +61,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
     },
 });
 
-/** Result of a server query: rows plus any pages needed locally. */
-export type QueryServerResult = SchemaType<
-    (typeof workerToTabDatabaseRpcMethods)["queryServer"]["outputSchema"]
->;
-
-/** Result of a server mutation: rows only (pages arrive via broadcast). */
-export type MutateServerResult = SchemaType<
-    (typeof workerToTabDatabaseRpcMethods)["mutateServer"]["outputSchema"]
+/** Result of a server execute: rows plus any pages needed locally. */
+export type ExecuteServerResult = SchemaType<
+    (typeof workerToTabDatabaseRpcMethods)["executeServer"]["outputSchema"]
 >;

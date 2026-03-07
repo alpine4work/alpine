@@ -119,7 +119,7 @@ class DatabaseDurableObject {
         );
 
         const {rows, pages: pagesMap} = this._storage.transactionSync(() =>
-            this._server.query(sql),
+            this._server.execute(sql, {allowWrites: false}),
         );
 
         const pages = [...pagesMap].map(([pageIndex, {data, timestamp}]) => ({

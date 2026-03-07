@@ -1,6 +1,6 @@
 import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {QueryServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
@@ -11,11 +11,13 @@ import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 const testConn: DatabaseClientConnection = {
-    queryServer() {
-        throw new UnavailableError("No server in test");
-    },
-    mutateServer() {
-        throw new UnavailableError("No server in test");
+    executeServer(_sql, options) {
+        if (!options.allowWrites) {
+            throw new UnavailableError("No server in test");
+        }
+        // Writes: return a never-resolving promise so
+        // optimistic pages are preserved during tests.
+        return new Promise(() => {});
     },
     reportError() {},
 };
@@ -161,7 +163,7 @@ async function prepopulatePages(
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        const rows = await client.executeQuery(testConn, "SELECT 1 + 1 AS result");
+        const rows = await client.execute(testConn, "SELECT 1 + 1 AS result");
 
         expect(rows).toMatchObject([{result: 2}]);
     });
@@ -169,12 +171,12 @@ describe("DatabaseClient", () => {
     test("create table, insert, and select", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.executeQuery(
+        await client.execute(
             testConn,
             "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
         );
-        await client.executeQuery(testConn, "INSERT INTO items (name) VALUES ('alpha'), ('beta')");
-        const rows = await client.executeQuery(testConn, "SELECT * FROM items ORDER BY id");
+        await client.execute(testConn, "INSERT INTO items (name) VALUES ('alpha'), ('beta')");
+        const rows = await client.execute(testConn, "SELECT * FROM items ORDER BY id");
 
         expect(rows).toMatchObject([
             {id: 1, name: "alpha"},
@@ -185,15 +187,15 @@ describe("DatabaseClient", () => {
     test("aggregate query", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.executeQuery(
+        await client.execute(
             testConn,
             "CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)",
         );
-        await client.executeQuery(
+        await client.execute(
             testConn,
             "INSERT INTO tasks (status) VALUES ('done'), ('todo'), ('todo'), ('done'), ('done')",
         );
-        const rows = await client.executeQuery(
+        const rows = await client.execute(
             testConn,
             "SELECT status, count(*) AS count FROM tasks GROUP BY status ORDER BY status",
         );
@@ -208,23 +210,23 @@ describe("DatabaseClient", () => {
         const client1 = await DatabaseClient.create(createInMemoryDirectory());
         const client2 = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client1.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client1.executeQuery(testConn, "INSERT INTO t (id) VALUES (1)");
+        await client1.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client1.execute(testConn, "INSERT INTO t (id) VALUES (1)");
 
-        await client2.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client2.executeQuery(testConn, "INSERT INTO t (id) VALUES (99)");
+        await client2.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client2.execute(testConn, "INSERT INTO t (id) VALUES (99)");
 
-        expect(await client1.executeQuery(testConn, "SELECT * FROM t")).toMatchObject([{id: 1}]);
-        expect(await client2.executeQuery(testConn, "SELECT * FROM t")).toMatchObject([{id: 99}]);
+        expect(await client1.execute(testConn, "SELECT * FROM t")).toMatchObject([{id: 1}]);
+        expect(await client2.execute(testConn, "SELECT * FROM t")).toMatchObject([{id: 99}]);
     });
 });
 
-describe("executeMutation", () => {
+describe("execute — mutations", () => {
     test("executes mutation locally and returns rows", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
 
-        const rows = await client.executeMutation(
+        const rows = await client.execute(
             testConn,
             "INSERT INTO t (name) VALUES ('test') RETURNING *",
         );
@@ -234,26 +236,23 @@ describe("executeMutation", () => {
 
     test("sends mutation to server in background", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let capturedSql: string | null = null;
         let capturedMutationId: DatabaseMutationId | null = null;
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            async mutateServer(sql, mutationId) {
+            async executeServer(sql, options) {
                 capturedSql = sql;
-                capturedMutationId = mutationId;
+                capturedMutationId = options.mutationId;
                 // Simulate realtime confirmation arriving
                 // before server response (same as production).
-                client.writePagesFromRealtime([], mutationId);
-                return {rows: []};
+                client.writePagesFromRealtime([], options.mutationId);
+                return {rows: [], pages: []};
             },
             reportError() {},
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(capturedSql).toBe("INSERT INTO t (id) VALUES (1)");
@@ -263,12 +262,9 @@ describe("executeMutation", () => {
     test("falls back to server on PageMissingError", async () => {
         const serverDir = createInMemoryDirectory();
         const server = await DatabaseClient.create(serverDir);
-        await server.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
-            await server.executeQuery(
-                testConn,
-                `INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`,
-            );
+            server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
 
         const allPages = await extractPages(serverDir);
@@ -279,17 +275,14 @@ describe("executeMutation", () => {
 
         let serverCalled = false;
         const serverConn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            async mutateServer() {
+            async executeServer() {
                 serverCalled = true;
-                return {rows: [{inserted: true}]};
+                return {rows: [{inserted: true}], pages: []};
             },
             reportError() {},
         };
 
-        const rows = await local.executeMutation(serverConn, "INSERT INTO t (data) VALUES ('new')");
+        const rows = await local.execute(serverConn, "INSERT INTO t (data) VALUES ('new')");
 
         expect(serverCalled).toBe(true);
         expect(rows).toMatchObject([{inserted: true}]);
@@ -299,7 +292,7 @@ describe("executeMutation", () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
         await expect(
-            client.executeMutation(testConn, "INSERT INTO nonexistent VALUES (1)"),
+            client.execute(testConn, "INSERT INTO nonexistent VALUES (1)"),
         ).rejects.toThrow();
     });
 });
@@ -307,21 +300,18 @@ describe("executeMutation", () => {
 describe("optimistic mutations", () => {
     test("writePagesFromRealtime dequeues confirmed mutation", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let capturedMutationId: DatabaseMutationId | null = null;
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            mutateServer(_sql, mutationId) {
-                capturedMutationId = mutationId;
+            executeServer(_sql, options) {
+                capturedMutationId = options.mutationId;
                 return new Promise(() => {});
             },
             reportError() {},
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
@@ -330,49 +320,43 @@ describe("optimistic mutations", () => {
 
     test("replays remaining mutations after confirmation", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            mutateServer(_sql, mutationId) {
-                mutationIds.push(mutationId);
+            executeServer(_sql, options) {
+                mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
             reportError() {},
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (val) VALUES ('first')");
-        await client.executeMutation(conn, "INSERT INTO t (val) VALUES ('second')");
+        await client.execute(conn, "INSERT INTO t (val) VALUES ('first')");
+        await client.execute(conn, "INSERT INTO t (val) VALUES ('second')");
 
         // Confirm first mutation
         client.writePagesFromRealtime([], mutationIds[0]!);
 
         // Second mutation should still be visible via replay
-        const rows = await client.executeQuery(testConn, "SELECT val FROM t ORDER BY id");
+        const rows = await client.execute(testConn, "SELECT val FROM t ORDER BY id");
         expect(rows).toMatchObject([{val: "second"}]);
     });
 
     test("asserts on out-of-order confirmation", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            mutateServer(_sql, mutationId) {
-                mutationIds.push(mutationId);
+            executeServer(_sql, options) {
+                mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
             reportError() {},
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (2)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (2)");
 
         expect(() => client.writePagesFromRealtime([], mutationIds[1]!)).toThrow(
             "unexpected mutation confirmation order",
@@ -381,26 +365,23 @@ describe("optimistic mutations", () => {
 
     test("external mutation applies pages without dequeue", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         // No optimistic mutations queued — just apply pages
         client.writePagesFromRealtime([], "unknown-mutation-id" as DatabaseMutationId);
 
         // Should succeed without assertion error
-        const rows = await client.executeQuery(testConn, "SELECT count(*) AS n FROM t");
+        const rows = await client.execute(testConn, "SELECT count(*) AS n FROM t");
         expect(rows).toMatchObject([{n: 0}]);
     });
 
     test("reports error when server mutation fails", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            async mutateServer() {
+            async executeServer() {
                 throw new InternalError("server rejected mutation");
             },
             reportError(error) {
@@ -408,7 +389,7 @@ describe("optimistic mutations", () => {
             },
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(reportedError).toBeInstanceOf(Error);
@@ -417,47 +398,41 @@ describe("optimistic mutations", () => {
 
     test("removes optimistic mutation on server error", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            async mutateServer() {
+            async executeServer() {
                 throw new InternalError("server rejected mutation");
             },
             reportError() {},
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         // Optimistic mutation should be removed — query sees
         // the base state (empty table).
-        const rows = await client.executeQuery(testConn, "SELECT count(*) AS n FROM t");
+        const rows = await client.execute(testConn, "SELECT count(*) AS n FROM t");
         expect(rows).toMatchObject([{n: 0}]);
     });
 
     test("asserts mutation confirmed before server responds", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
         const conn: DatabaseClientConnection = {
-            queryServer() {
-                throw new UnavailableError("No server in test");
-            },
-            async mutateServer() {
+            async executeServer() {
                 // Return without calling writePagesFromRealtime
                 // — the mutation is still in the queue.
-                return {rows: []};
+                return {rows: [], pages: []};
             },
             reportError(error) {
                 reportedError = error;
             },
         };
 
-        await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(reportedError).toBeInstanceOf(Error);
@@ -473,12 +448,9 @@ describe("server fallback", () => {
         // multiple pages (4096 bytes each).
         const serverDir = createInMemoryDirectory();
         const server = await DatabaseClient.create(serverDir);
-        await server.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
-            await server.executeQuery(
-                testConn,
-                `INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`,
-            );
+            server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
 
         const allPages = await extractPages(serverDir);
@@ -492,18 +464,15 @@ describe("server fallback", () => {
 
         let serverCalled = false;
         const serverConn: DatabaseClientConnection = {
-            async queryServer(sql) {
+            async executeServer(sql) {
                 serverCalled = true;
-                const rows = await server.executeQuery(testConn, sql);
-                return {rows, pages: allPages} as QueryServerResult;
-            },
-            mutateServer() {
-                throw new UnavailableError("No server in test");
+                const rows = await server.execute(testConn, sql);
+                return {rows, pages: allPages} as ExecuteServerResult;
             },
             reportError() {},
         };
 
-        const rows = await local.executeQuery(serverConn, "SELECT count(*) AS n FROM t");
+        const rows = await local.execute(serverConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
         expect(serverCalled).toBe(true);
@@ -512,12 +481,9 @@ describe("server fallback", () => {
     test("server fallback caches pages for subsequent local queries", async () => {
         const serverDir = createInMemoryDirectory();
         const server = await DatabaseClient.create(serverDir);
-        await server.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
-            await server.executeQuery(
-                testConn,
-                `INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`,
-            );
+            server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
 
         const allPages = await extractPages(serverDir);
@@ -529,36 +495,30 @@ describe("server fallback", () => {
 
         // First query: server fallback writes missing pages
         const serverConn: DatabaseClientConnection = {
-            async queryServer(sql) {
-                const rows = await server.executeQuery(testConn, sql);
-                return {rows, pages: allPages} as QueryServerResult;
-            },
-            mutateServer() {
-                throw new UnavailableError("No server in test");
+            async executeServer(sql) {
+                const rows = await server.execute(testConn, sql);
+                return {rows, pages: allPages} as ExecuteServerResult;
             },
             reportError() {},
         };
-        await local.executeQuery(serverConn, "SELECT count(*) AS n FROM t");
+        await local.execute(serverConn, "SELECT count(*) AS n FROM t");
 
         // Second query with a throwing connection — should
         // succeed locally since all pages are now cached.
-        const rows = await local.executeQuery(testConn, "SELECT count(*) AS n FROM t");
+        const rows = await local.execute(testConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
     });
 });
 
-describe("executeQueryWithTracking", () => {
+describe("executeWithTracking", () => {
     test("returns rows and read page set", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('hello')");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const {rows, readPages} = await client.executeQueryWithTracking(
-            testConn,
-            "SELECT * FROM t",
-        );
+        const {rows, readPages} = await client.executeWithTracking(testConn, "SELECT * FROM t");
 
         expect(rows).toMatchObject([{id: 1, val: "hello"}]);
         expect(readPages.size).toBeGreaterThan(0);
@@ -568,10 +528,10 @@ describe("executeQueryWithTracking", () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
         const db = client.unsafeGetDbForTests();
 
-        await client.executeQuery(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "INSERT INTO t1 (id) VALUES (1)");
-        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (2)");
+        await client.execute(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
 
         const schema = db.exec("SELECT name, rootpage FROM sqlite_schema ORDER BY name", {
             returnValue: "resultRows",
@@ -581,14 +541,8 @@ describe("executeQueryWithTracking", () => {
         const t1Root = schema.find(s => s.name === "t1")!.rootpage;
         const t2Root = schema.find(s => s.name === "t2")!.rootpage;
 
-        const {readPages: pagesT1} = await client.executeQueryWithTracking(
-            testConn,
-            "SELECT * FROM t1",
-        );
-        const {readPages: pagesT2} = await client.executeQueryWithTracking(
-            testConn,
-            "SELECT * FROM t2",
-        );
+        const {readPages: pagesT1} = await client.executeWithTracking(testConn, "SELECT * FROM t1");
+        const {readPages: pagesT2} = await client.executeWithTracking(testConn, "SELECT * FROM t2");
 
         // 0-based page indices (SQLite rootpage is 1-based)
         expect(pagesT1.has(t1Root - 1)).toBe(true);
@@ -598,19 +552,13 @@ describe("executeQueryWithTracking", () => {
     test("different tables have different read sets", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.executeQuery(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "INSERT INTO t1 (id) VALUES (1)");
-        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (2)");
+        await client.execute(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
 
-        const {readPages: pagesT1} = await client.executeQueryWithTracking(
-            testConn,
-            "SELECT * FROM t1",
-        );
-        const {readPages: pagesT2} = await client.executeQueryWithTracking(
-            testConn,
-            "SELECT * FROM t2",
-        );
+        const {readPages: pagesT1} = await client.executeWithTracking(testConn, "SELECT * FROM t1");
+        const {readPages: pagesT2} = await client.executeWithTracking(testConn, "SELECT * FROM t2");
 
         // Both include page 0 (schema page), but differ
         // on at least one page (each table's root page).
@@ -623,12 +571,9 @@ describe("executeQueryWithTracking", () => {
         // Create a "server" DB
         const serverDir = createInMemoryDirectory();
         const server = await DatabaseClient.create(serverDir);
-        await server.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
-            await server.executeQuery(
-                testConn,
-                `INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`,
-            );
+            server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
         const allPages = await extractPages(serverDir);
 
@@ -638,17 +583,14 @@ describe("executeQueryWithTracking", () => {
         const local = await DatabaseClient.create(localDir);
 
         const serverConn: DatabaseClientConnection = {
-            async queryServer(sql) {
-                const rows = await server.executeQuery(testConn, sql);
-                return {rows, pages: allPages} as QueryServerResult;
-            },
-            mutateServer() {
-                throw new UnavailableError("No server in test");
+            async executeServer(sql) {
+                const rows = await server.execute(testConn, sql);
+                return {rows, pages: allPages} as ExecuteServerResult;
             },
             reportError() {},
         };
 
-        const {rows, readPages} = await local.executeQueryWithTracking(
+        const {rows, readPages} = await local.executeWithTracking(
             serverConn,
             "SELECT count(*) AS n FROM t",
         );
@@ -664,8 +606,8 @@ describe("registerReactiveQuery", () => {
     test("returns initial rows", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('hello')");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
 
         const rows = await client.registerReactiveQuery(
             "q1",
@@ -682,8 +624,11 @@ describe("registerReactiveQuery", () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('v1')");
+        // Use executeLocallyForTests so data goes to OPFS
+        // base store (not optimistic pages) — extractPages
+        // reads from the base store.
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
 
         const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
         await client.registerReactiveQuery(
@@ -696,8 +641,8 @@ describe("registerReactiveQuery", () => {
             () => {},
         );
 
-        // Insert another row locally
-        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('v2')");
+        // Insert another row directly to OPFS base store
+        client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
 
         // Extract pages and write as realtime with newer
         // timestamps to trigger invalidation.
@@ -719,10 +664,10 @@ describe("registerReactiveQuery", () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
-        await client.executeQuery(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "INSERT INTO t1 (id) VALUES (1)");
-        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (2)");
+        await client.execute(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
 
         // Watch only t1
         const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
@@ -740,7 +685,7 @@ describe("registerReactiveQuery", () => {
         const pagesBefore = await extractPages(dir);
 
         // Mutate t2 only
-        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (3)");
+        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (3)");
 
         const pagesAfter = await extractPages(dir);
         const changedPages = pagesAfter
@@ -766,8 +711,8 @@ describe("registerReactiveQuery", () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
-        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client.executeQuery(testConn, "INSERT INTO t (id) VALUES (1)");
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
 
         const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
         await client.registerReactiveQuery(

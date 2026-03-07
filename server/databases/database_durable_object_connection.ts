@@ -47,9 +47,32 @@ export class DatabaseDurableObjectConnection {
         WorkerSessionActionContextModules,
         typeof DatabaseRealtimeProtocol
     > = {
-        query: async (_context, input) => {
+        execute: async (_context, input) => {
+            if (input.allowWrites) {
+                const {rows, pages} = this._storage.transactionSync(() => {
+                    const {rows, changedPages, timestamp} = this._server.execute(input.sql, {
+                        allowWrites: true,
+                    });
+                    const pages = [...changedPages].map(([pageIndex, {after}]) => ({
+                        pageIndex,
+                        timestamp,
+                        data: after,
+                    }));
+                    return {rows, pages};
+                });
+
+                this._sendEventToAll(this._processContext, {
+                    pages,
+                    mutationId: input.mutationId,
+                });
+
+                return {rows: rows as Array<SchemaSerializedValue>, pages: []};
+            }
+
             return this._storage.transactionSync(() => {
-                const {rows, pages: pagesMap} = this._server.query(input.sql);
+                const {rows, pages: pagesMap} = this._server.execute(input.sql, {
+                    allowWrites: false,
+                });
                 const pages = [...pagesMap].map(([pageIndex, {data, timestamp}]) => ({
                     pageIndex,
                     timestamp,
@@ -57,24 +80,6 @@ export class DatabaseDurableObjectConnection {
                 }));
                 return {rows: rows as Array<SchemaSerializedValue>, pages};
             });
-        },
-        mutate: async (_context, input) => {
-            const {rows, pages} = this._storage.transactionSync(() => {
-                const {rows, changedPages, timestamp} = this._server.mutate(input.sql);
-                const pages = [...changedPages].map(([pageIndex, {after}]) => ({
-                    pageIndex,
-                    timestamp,
-                    data: after,
-                }));
-                return {rows, pages};
-            });
-
-            this._sendEventToAll(this._processContext, {
-                pages,
-                mutationId: input.mutationId,
-            });
-
-            return {rows: rows as Array<SchemaSerializedValue>};
         },
     };
 

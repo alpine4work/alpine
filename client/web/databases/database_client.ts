@@ -1,7 +1,4 @@
-import type {
-    MutateServerResult,
-    QueryServerResult,
-} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
@@ -25,13 +22,15 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
  * Represents a connected tab's route to the server.
- * Passed into {@link DatabaseClient.executeQuery} so
- * server fallbacks route through the correct tab's
- * WebSocket connection.
+ * Passed into {@link DatabaseClient.execute} so server
+ * fallbacks route through the correct tab's WebSocket
+ * connection.
  */
 export interface DatabaseClientConnection {
-    queryServer(sql: string): Promise<QueryServerResult>;
-    mutateServer(sql: string, mutationId: DatabaseMutationId): Promise<MutateServerResult>;
+    executeServer(
+        sql: string,
+        options: {allowWrites: boolean; mutationId: DatabaseMutationId},
+    ): Promise<ExecuteServerResult>;
     reportError(error: unknown): void;
 }
 
@@ -39,7 +38,7 @@ export interface DatabaseClientConnection {
  * Client-side SQLite database backed by OPFS page
  * storage. Handles server fallback transparently:
  * when a local query hits a missing page, calls
- * {@link DatabaseClientConnection.queryServer} to
+ * {@link DatabaseClientConnection.executeServer} to
  * fetch pages from the server, stores them locally,
  * and returns the server's result.
  *
@@ -85,55 +84,54 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute a query. If the local OPFS store is empty or
-     * missing pages, transparently falls back to the server
-     * via the connection's {@link DatabaseClientConnection.queryServer},
-     * stores the returned pages locally, and returns the
-     * server result.
+     * Execute SQL. Detects reads vs writes via the
+     * optimistic page store: if the local execution
+     * writes no pages, it's a read and returns
+     * immediately. If pages are written, it's treated
+     * as a mutation with optimistic local execution
+     * and background server confirmation.
+     *
+     * Falls back to the server when the local store
+     * is empty or missing pages.
      */
-    async executeQuery(
-        conn: DatabaseClientConnection,
-        sql: string,
-    ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        if (this.isEmpty()) {
-            try {
-                return await this.executeQueryViaServer(conn, sql);
-            } catch {
-                // Server unavailable — fall through to local
-            }
-        }
-        try {
-            return this.executeQueryLocally(sql);
-        } catch (error) {
-            if (error instanceof PageMissingError) {
-                return this.executeQueryViaServer(conn, sql);
-            }
-            throw error;
-        }
-    }
-
-    /**
-     * Execute a mutation optimistically: run it locally
-     * first for instant UI feedback, then send to the
-     * server in the background. If local execution hits
-     * a missing page, falls back to non-optimistic
-     * server execution.
-     */
-    async executeMutation(
+    async execute(
         conn: DatabaseClientConnection,
         sql: string,
     ): Promise<ReadonlyArray<Record<string, unknown>>> {
         const mutationId = generateId<DatabaseMutationId>();
 
+        if (this.isEmpty()) {
+            try {
+                return await this.executeReadOnlyViaServer(conn, sql);
+            } catch {
+                // Server unavailable — fall through to local
+            }
+        }
+
         let rows: ReadonlyArray<Record<string, unknown>>;
         try {
-            rows = this.pageStore.optimistic(() => this.executeQueryLocally(sql));
+            rows = this.pageStore.optimistic(() => this.executeLocally(sql));
         } catch (error) {
             if (error instanceof PageMissingError) {
-                const result = await conn.mutateServer(sql, mutationId);
-                return result.rows as ReadonlyArray<Record<string, unknown>>;
+                // Try read-only first so pages get cached
+                // locally. Falls back to a write-capable
+                // server call if the SQL is a mutation.
+                try {
+                    return await this.executeReadOnlyViaServer(conn, sql);
+                } catch {
+                    const result = await conn.executeServer(sql, {
+                        allowWrites: true,
+                        mutationId,
+                    });
+                    return result.rows as ReadonlyArray<Record<string, unknown>>;
+                }
             }
             throw error;
+        }
+
+        if (!this.pageStore.didLastOptimisticWrite()) {
+            // Pure read — no server round-trip needed.
+            return rows;
         }
 
         this.optimisticQueue.push({mutationId, sql});
@@ -141,7 +139,7 @@ export class DatabaseClient {
         // Send to server in the background.
         void (async () => {
             try {
-                await conn.mutateServer(sql, mutationId);
+                await conn.executeServer(sql, {allowWrites: true, mutationId});
                 assert(
                     !this.optimisticQueue.some(m => m.mutationId === mutationId),
                     "mutation not confirmed via realtime before server responded",
@@ -163,17 +161,17 @@ export class DatabaseClient {
      * accurate read-set.
      *
      * The hook is only active during synchronous
-     * `executeQueryLocally` calls — never across an
+     * `executeLocally` calls — never across an
      * `await` — so concurrent tracking calls cannot
      * interfere with each other.
      */
-    async executeQueryWithTracking(
+    async executeWithTracking(
         conn: DatabaseClientConnection,
         sql: string,
     ): Promise<{rows: ReadonlyArray<Record<string, unknown>>; readPages: ReadonlySet<number>}> {
         if (this.isEmpty()) {
             try {
-                await this.executeQueryViaServer(conn, sql);
+                await this.executeReadOnlyViaServer(conn, sql);
             } catch {
                 // Server unavailable — fall through to local
             }
@@ -189,17 +187,17 @@ export class DatabaseClient {
         try {
             setHook();
             try {
-                return {rows: this.executeQueryLocally(sql), readPages};
+                return {rows: this.executeLocally(sql), readPages};
             } finally {
                 this.db.pageAccessHook(null);
             }
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
             readPages.clear();
-            await this.executeQueryViaServer(conn, sql);
+            await this.executeReadOnlyViaServer(conn, sql);
             setHook();
             try {
-                return {rows: this.executeQueryLocally(sql), readPages};
+                return {rows: this.executeLocally(sql), readPages};
             } finally {
                 this.db.pageAccessHook(null);
             }
@@ -237,7 +235,7 @@ export class DatabaseClient {
         notify: (rows: ReadonlyArray<Record<string, unknown>>) => void,
         reportError: (error: unknown) => void,
     ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const {rows, readPages} = await this.executeQueryWithTracking(conn, sql);
+        const {rows, readPages} = await this.executeWithTracking(conn, sql);
         this.reactiveQueries.set(queryId, {
             sql,
             readPages,
@@ -283,7 +281,7 @@ export class DatabaseClient {
 
             reg.reExecuting = true;
             try {
-                const {rows, readPages} = await this.executeQueryWithTracking(reg.conn, reg.sql);
+                const {rows, readPages} = await this.executeWithTracking(reg.conn, reg.sql);
                 reg.readPages = readPages;
                 reg.notify(rows);
             } catch (error) {
@@ -350,7 +348,7 @@ export class DatabaseClient {
     private replayOptimisticQueue(): void {
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                this.pageStore.optimistic(() => this.executeQueryLocally(mutation.sql));
+                this.pageStore.optimistic(() => this.executeLocally(mutation.sql));
                 return true;
             } catch {
                 return false;
@@ -362,7 +360,7 @@ export class DatabaseClient {
         return this.pageStore.isEmpty();
     }
 
-    private executeQueryLocally(sql: string): ReadonlyArray<Record<string, unknown>> {
+    private executeLocally(sql: string): ReadonlyArray<Record<string, unknown>> {
         try {
             return this.db.exec(sql, {
                 returnValue: "resultRows",
@@ -380,15 +378,26 @@ export class DatabaseClient {
         }
     }
 
-    private async executeQueryViaServer(
+    private async executeReadOnlyViaServer(
         conn: DatabaseClientConnection,
         sql: string,
     ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const result = await conn.queryServer(sql);
+        const mutationId = generateId<DatabaseMutationId>();
+        const result = await conn.executeServer(sql, {allowWrites: false, mutationId});
         this.pageStore.clearOptimisticPages();
         this.applyServerPages(result.pages);
         this.replayOptimisticQueue();
         return result.rows as ReadonlyArray<Record<string, unknown>>;
+    }
+
+    /**
+     * Execute SQL locally without server interaction.
+     * Writes go directly to the base OPFS store (not
+     * optimistic pages). Use for test setup only.
+     */
+    executeLocallyForTests(sql: string): ReadonlyArray<Record<string, unknown>> {
+        assert(import.meta.jest, "executeLocallyForTests is test-only");
+        return this.executeLocally(sql);
     }
 
     /** Exposed for tests only. Do not use in production code. */

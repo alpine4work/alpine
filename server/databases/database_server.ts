@@ -151,7 +151,19 @@ export class DatabaseServer {
         return new DatabaseServer(sqlite3, storage);
     }
 
-    query(sql: string): DatabaseServerQueryResult {
+    execute(sql: string, options: {allowWrites: true}): DatabaseServerMutateResult;
+    execute(sql: string, options: {allowWrites: false}): DatabaseServerQueryResult;
+    execute(
+        sql: string,
+        options: {allowWrites: boolean},
+    ): DatabaseServerQueryResult | DatabaseServerMutateResult {
+        if (options.allowWrites) {
+            return this.executeWithWrites(sql);
+        }
+        return this.executeReadOnly(sql);
+    }
+
+    private executeReadOnly(sql: string): DatabaseServerQueryResult {
         this.db.exec("BEGIN");
         this.action = {type: "query", pages: new Map()};
         this.db.pageAccessHook((_pArg, pgno, flags) => {
@@ -190,7 +202,7 @@ export class DatabaseServer {
         }
     }
 
-    mutate(sql: string): DatabaseServerMutateResult {
+    private executeWithWrites(sql: string): DatabaseServerMutateResult {
         this.action = {type: "mutate", changedPages: new Map(), timestamp: 0};
         this.db.exec("BEGIN");
         try {

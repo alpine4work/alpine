@@ -33,6 +33,7 @@ export class OpfsPageStore implements VfsFile {
     private knownDatabaseSizeInPages = 0;
     private readonly optimisticPages = new Map<number, Uint8Array>();
     private inOptimistic = false;
+    private lastOptimisticWriteCount = 0;
 
     private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
         this.pagesHandle = pagesHandle;
@@ -52,11 +53,16 @@ export class OpfsPageStore implements VfsFile {
 
     optimistic<T>(cb: () => T): T {
         this.inOptimistic = true;
+        this.lastOptimisticWriteCount = 0;
         try {
             return cb();
         } finally {
             this.inOptimistic = false;
         }
+    }
+
+    didLastOptimisticWrite(): boolean {
+        return this.lastOptimisticWriteCount > 0;
     }
 
     clearOptimisticPages(): void {
@@ -105,6 +111,7 @@ export class OpfsPageStore implements VfsFile {
 
         if (this.inOptimistic) {
             this.optimisticPages.set(pageIndex, new Uint8Array(data));
+            this.lastOptimisticWriteCount++;
             if (pageIndex > this.maxPageIndex) {
                 this.maxPageIndex = pageIndex;
             }
@@ -247,7 +254,7 @@ export class OpfsPageStore implements VfsFile {
     }
 
     isEmpty(): boolean {
-        return this.index.size === 0;
+        return this.index.size === 0 && this.optimisticPages.size === 0;
     }
 
     /**
