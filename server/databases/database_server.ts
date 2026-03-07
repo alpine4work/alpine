@@ -21,7 +21,7 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 type DatabaseServerAction =
     | {type: "idle"}
     | {type: "query"; pages: Map<number, {data: Uint8Array; timestamp: number}>}
-    | {type: "mutate"; changedPages: Map<number, DatabaseServerPageChange>};
+    | {type: "mutate"; changedPages: Map<number, DatabaseServerPageChange>; timestamp: number};
 
 export interface DatabaseServerQueryResult {
     rows: Array<Record<string, unknown>>;
@@ -91,7 +91,6 @@ export class DatabaseServer {
     private readonly vfs: InstalledVfs;
     private action: DatabaseServerAction = {type: "idle"};
     private readonly tempFiles = new Map<string, VfsTempFile>();
-    private lastWriteTimestamp = 0;
 
     private constructor(sqlite3: Sqlite3Static, storage: DatabaseServerStorage) {
         this.storage = storage;
@@ -171,13 +170,8 @@ export class DatabaseServer {
                 returnValue: "resultRows",
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
-            const pages = (
-                this.action as {
-                    type: "query";
-                    pages: Map<number, {data: Uint8Array; timestamp: number}>;
-                }
-            ).pages;
-            return {rows, pages};
+            assert(this.action.type === "query");
+            return {rows, pages: this.action.pages};
         } catch (error) {
             const stashed = this.vfs.takeError();
             if (stashed !== null) {
@@ -197,7 +191,7 @@ export class DatabaseServer {
     }
 
     mutate(sql: string): DatabaseServerMutateResult {
-        this.action = {type: "mutate", changedPages: new Map()};
+        this.action = {type: "mutate", changedPages: new Map(), timestamp: 0};
         this.db.exec("BEGIN");
         try {
             const rows = this.db.exec(sql, {
@@ -205,13 +199,12 @@ export class DatabaseServer {
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
             this.db.exec("COMMIT");
-            const changedPages = (
-                this.action as {
-                    type: "mutate";
-                    changedPages: Map<number, DatabaseServerPageChange>;
-                }
-            ).changedPages;
-            return {rows, changedPages, timestamp: this.lastWriteTimestamp};
+            assert(this.action.type === "mutate");
+            return {
+                rows,
+                changedPages: this.action.changedPages,
+                timestamp: this.action.timestamp,
+            };
         } catch (error) {
             try {
                 this.db.exec("ROLLBACK");
@@ -332,8 +325,11 @@ export class DatabaseServer {
 
             sync: () => {
                 if (pendingWrites.size > 0) {
-                    this.lastWriteTimestamp = this.storage.writePages(pendingWrites);
+                    const timestamp = this.storage.writePages(pendingWrites);
                     pendingWrites.clear();
+                    if (this.action.type === "mutate") {
+                        this.action.timestamp = timestamp;
+                    }
                 }
             },
 

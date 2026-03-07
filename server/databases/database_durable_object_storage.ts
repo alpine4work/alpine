@@ -10,7 +10,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  */
 export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     private readonly sql: SqlStorage;
-    private _nextTimestamp: number;
+    private lastWriteTimestamp: number | null = null;
 
     constructor(sql: SqlStorage) {
         this.sql = sql;
@@ -22,12 +22,6 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
                 PRIMARY KEY (page_index, timestamp)
             ) WITHOUT ROWID`,
         );
-
-        const maxResult = this.sql.exec<{ts: number | null}>(
-            "SELECT MAX(timestamp) AS ts FROM pages",
-        );
-        const maxRow = maxResult.next();
-        this._nextTimestamp = (maxRow.done || maxRow.value.ts === null ? 0 : maxRow.value.ts) + 1;
     }
 
     readPage(index: number): {data: Uint8Array; timestamp: number} {
@@ -48,8 +42,9 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     writePages(pages: ReadonlyMap<number, Uint8Array>): number {
-        const timestamp = Math.max(Date.now(), this._nextTimestamp);
-        this._nextTimestamp = timestamp + 1;
+        const prev = this.getLastWriteTimestamp();
+        const timestamp = Math.max(Date.now(), prev + 1);
+        this.lastWriteTimestamp = timestamp;
         for (const [index, data] of pages) {
             this.sql.exec(
                 "INSERT INTO pages (page_index, timestamp, data) VALUES (?, ?, ?)",
@@ -59,6 +54,17 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             );
         }
         return timestamp;
+    }
+
+    private getLastWriteTimestamp(): number {
+        if (this.lastWriteTimestamp !== null) {
+            return this.lastWriteTimestamp;
+        }
+        const result = this.sql.exec<{ts: number | null}>("SELECT MAX(timestamp) AS ts FROM pages");
+        const row = result.next();
+        const ts = row.done || row.value.ts === null ? 0 : row.value.ts;
+        this.lastWriteTimestamp = ts;
+        return ts;
     }
 
     getFileSize(): number {

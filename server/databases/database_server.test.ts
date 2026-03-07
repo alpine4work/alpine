@@ -5,15 +5,15 @@ import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
 class InMemoryStorage implements DatabaseServerStorage {
     private pages = new Map<number, {data: Uint8Array; timestamp: number}>();
     private _fileSize = 0;
-    private _nextTimestamp = 1;
+    private lastWriteTimestamp = 0;
 
     readPage(index: number): {data: Uint8Array; timestamp: number} {
         return this.pages.get(index) ?? {data: new Uint8Array(sqlitePageSize), timestamp: 0};
     }
 
     writePages(pages: ReadonlyMap<number, Uint8Array>): number {
-        const timestamp = Math.max(Date.now(), this._nextTimestamp);
-        this._nextTimestamp = timestamp + 1;
+        const timestamp = Math.max(Date.now(), this.lastWriteTimestamp + 1);
+        this.lastWriteTimestamp = timestamp;
         for (const [index, data] of pages) {
             this.pages.set(index, {data: new Uint8Array(data), timestamp});
             const end = (index + 1) * sqlitePageSize;
