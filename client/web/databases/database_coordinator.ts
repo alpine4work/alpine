@@ -5,7 +5,10 @@ import {
     DatabaseActiveTabManager,
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import type {QueryServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {
+    MutateServerResult,
+    QueryServerResult,
+} from "~/client/web/databases/database_rpc_methods.js";
 
 export type {DatabaseConnection} from "~/client/web/databases/database_active_tab_manager.js";
 
@@ -18,6 +21,7 @@ export type {DatabaseConnection} from "~/client/web/databases/database_active_ta
  */
 export function connectToDatabase(callbacks: {
     queryServer(sql: string): Promise<QueryServerResult>;
+    mutateServer(sql: string): Promise<MutateServerResult>;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
         locks: navigator.locks,
@@ -93,6 +97,7 @@ export function connectToDatabase(callbacks: {
             window.addEventListener("beforeunload", callback);
         },
         queryServer: callbacks.queryServer,
+        mutateServer: callbacks.mutateServer,
     });
 
     return manager.connect();

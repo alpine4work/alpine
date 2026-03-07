@@ -3,6 +3,7 @@ import type {
     DatabaseClientConnection,
 } from "~/client/web/databases/database_client.js";
 import {
+    type MutateServerResult,
     type QueryServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
@@ -187,6 +188,13 @@ export class DatabaseActiveTabWorker {
                     )) as ReadonlyArray<SchemaSerializedValue>;
                     return {rows};
                 },
+                executeMutation: async input => {
+                    const rows = (await this.client.executeMutation(
+                        conn,
+                        input.sql,
+                    )) as ReadonlyArray<SchemaSerializedValue>;
+                    return {rows};
+                },
                 writePagesFromRealtime: async input => {
                     this.client.writePagesFromRealtime(input.pages);
                     return {};
@@ -196,6 +204,7 @@ export class DatabaseActiveTabWorker {
         });
         const conn: DatabaseClientConnection = {
             queryServer: async sql => rpc.call("queryServer", {sql}),
+            mutateServer: async sql => rpc.call("mutateServer", {sql}),
         };
         return {rpc, conn};
     }
@@ -237,6 +246,7 @@ export class DatabaseActiveTabManager {
             createBroadcastChannel(name: string): ActiveTabBroadcastChannel;
             addUnloadListener(callback: () => void): void;
             queryServer(sql: string): Promise<QueryServerResult>;
+            mutateServer(sql: string): Promise<MutateServerResult>;
         },
     ) {}
 
@@ -466,6 +476,12 @@ export class DatabaseActiveTabManager {
                         pages: result.pages,
                     };
                 },
+                mutateServer: async input => {
+                    const result = await this.deps.mutateServer(input.sql);
+                    return {
+                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
+                    };
+                },
             },
             send: message => worker.postMessage(message),
         });
@@ -507,6 +523,12 @@ export class DatabaseActiveTabManager {
                     return {
                         rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
                         pages: result.pages,
+                    };
+                },
+                mutateServer: async input => {
+                    const result = await this.deps.mutateServer(input.sql);
+                    return {
+                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
                     };
                 },
             },

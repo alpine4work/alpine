@@ -1,4 +1,7 @@
-import type {QueryServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {
+    MutateServerResult,
+    QueryServerResult,
+} from "~/client/web/databases/database_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
@@ -21,6 +24,7 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
  */
 export interface DatabaseClientConnection {
     queryServer(sql: string): Promise<QueryServerResult>;
+    mutateServer(sql: string): Promise<MutateServerResult>;
 }
 
 /**
@@ -97,6 +101,20 @@ export class DatabaseClient {
             }
             throw error;
         }
+    }
+
+    /**
+     * Execute a mutation by sending it to the server.
+     * No local execution — the server handles everything
+     * and broadcasts changed pages to all clients via
+     * the `PagesChanged` event.
+     */
+    async executeMutation(
+        conn: DatabaseClientConnection,
+        sql: string,
+    ): Promise<ReadonlyArray<Record<string, unknown>>> {
+        const result = await conn.mutateServer(sql);
+        return result.rows as ReadonlyArray<Record<string, unknown>>;
     }
 
     /**

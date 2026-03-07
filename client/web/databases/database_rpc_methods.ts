@@ -13,6 +13,10 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
         input: {sql: Schema.string},
         output: {rows: Schema.array(Schema.unknown())},
     },
+    executeMutation: {
+        input: {sql: Schema.string},
+        output: {rows: Schema.array(Schema.unknown())},
+    },
     writePagesFromRealtime: {
         input: {pages: Schema.array(pageSchema)},
         output: {},
@@ -28,9 +32,18 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
             pages: Schema.array(pageSchema),
         },
     },
+    mutateServer: {
+        input: {sql: Schema.string},
+        output: {rows: Schema.array(Schema.unknown())},
+    },
 });
 
 /** Result of a server query: rows plus any pages needed locally. */
 export type QueryServerResult = SchemaType<
     (typeof workerToTabDatabaseRpcMethods)["queryServer"]["outputSchema"]
+>;
+
+/** Result of a server mutation: rows only (pages arrive via broadcast). */
+export type MutateServerResult = SchemaType<
+    (typeof workerToTabDatabaseRpcMethods)["mutateServer"]["outputSchema"]
 >;

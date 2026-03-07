@@ -54,22 +54,25 @@ export function DatabaseView() {
         events.handleEvent,
     );
 
-    const {queryServer} = useEvents({
+    const {queryServer, mutateServer} = useEvents({
         queryServer: async (sql: string) => {
             return procedures.query({sql});
+        },
+        mutateServer: async (sql: string) => {
+            return procedures.mutate({sql});
         },
     });
 
     useEffect(() => {
         let connection: DatabaseConnection | null = null;
         (async () => {
-            connection = await connectToDatabase({queryServer});
+            connection = await connectToDatabase({queryServer, mutateServer});
             setConn(connection);
         })();
         return () => {
             connection?.close();
         };
-    }, [queryServer]);
+    }, [queryServer, mutateServer]);
 
     return (
         <Box
@@ -117,7 +120,7 @@ export function DatabaseView() {
                     </Button>
                 ))}
             </Box>
-            <Box display="flex">
+            <Box display="flex" gap="2">
                 <Button
                     variant="neutral"
                     onPress={async () => {
@@ -133,7 +136,24 @@ export function DatabaseView() {
                     }}
                     pressErrorTitle="Failed to run query"
                 >
-                    Run
+                    Query
+                </Button>
+                <Button
+                    variant="neutral"
+                    onPress={async () => {
+                        if (conn == null) return;
+                        setError(null);
+                        try {
+                            const response = await conn.call("executeMutation", {sql: query});
+                            setRows(response.rows);
+                        } catch (e) {
+                            setError(e instanceof Error ? e.message : String(e));
+                            setRows(null);
+                        }
+                    }}
+                    pressErrorTitle="Failed to run mutation"
+                >
+                    Mutate
                 </Button>
             </Box>
             {error != null && (

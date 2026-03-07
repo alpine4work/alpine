@@ -11,12 +11,13 @@ import {
     DatabaseActiveTabWorker,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
+import type {MutateServerResult} from "~/client/web/databases/database_rpc_methods.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
-import {UnavailableError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 
 // ---------------------------------------------------------------------------
 // In-memory OPFS mock (same as database_client.test.ts)
@@ -309,6 +310,7 @@ function createTestTab(config: {
     bc: MockBroadcastChannelBus;
     clientId: string;
     dir: OpfsDirectoryHandle;
+    mutateServer?: (sql: string) => Promise<MutateServerResult>;
 }): {manager: DatabaseActiveTabManager; fireUnload: () => void} {
     const unloadListeners: Array<() => void> = [];
 
@@ -322,6 +324,11 @@ function createTestTab(config: {
         queryServer() {
             throw new UnavailableError("No server connection in test");
         },
+        mutateServer:
+            config.mutateServer ??
+            (() => {
+                throw new UnavailableError("No server connection in test");
+            }),
     });
 
     return {
@@ -560,6 +567,92 @@ describe("DatabaseActiveTabManager resilience", () => {
 
         expect(resultB.rows).toMatchObject([{id: 1, val: "data"}]);
         expect(resultC.rows).toMatchObject([{id: 1, val: "data"}]);
+    });
+});
+
+describe("DatabaseActiveTabManager mutations", () => {
+    test("leader can execute mutations", async () => {
+        const locks = new MockLockManager();
+        const sw = new MockServiceWorkerBridge();
+        const bc = new MockBroadcastChannelBus();
+        const dir = createInMemoryDirectory();
+
+        const {manager} = createTestTab({
+            locks,
+            sw,
+            bc,
+            clientId: "tab-a",
+            dir,
+            mutateServer: async () => ({rows: [{id: 1, title: "hello"}]}) as MutateServerResult,
+        });
+        const conn = await manager.connect();
+
+        const result = await conn.call("executeMutation", {
+            sql: "INSERT INTO t (title) VALUES ('hello') RETURNING *",
+        });
+        expect(result.rows).toMatchObject([{id: 1, title: "hello"}]);
+    });
+
+    test("follower mutations route through follower's mutateServer", async () => {
+        const locks = new MockLockManager();
+        const sw = new MockServiceWorkerBridge();
+        const bc = new MockBroadcastChannelBus();
+        const dir = createInMemoryDirectory();
+
+        // Tab A — leader (mutateServer throws)
+        const {manager: managerA} = createTestTab({
+            locks,
+            sw,
+            bc,
+            clientId: "tab-a",
+            dir,
+        });
+        await managerA.connect();
+
+        // Tab B — follower with working mutateServer
+        let capturedSql: string | null = null;
+        const {manager: managerB} = createTestTab({
+            locks,
+            sw,
+            bc,
+            clientId: "tab-b",
+            dir,
+            mutateServer: async sql => {
+                capturedSql = sql;
+                return {rows: [{changed: true}]} as MutateServerResult;
+            },
+        });
+        const connB = await managerB.connect();
+
+        const result = await connB.call("executeMutation", {
+            sql: "UPDATE t SET done = 1",
+        });
+
+        expect(result.rows).toMatchObject([{changed: true}]);
+        expect(capturedSql).toBe("UPDATE t SET done = 1");
+    });
+
+    test("mutation errors propagate to caller", async () => {
+        const locks = new MockLockManager();
+        const sw = new MockServiceWorkerBridge();
+        const bc = new MockBroadcastChannelBus();
+        const dir = createInMemoryDirectory();
+
+        const {manager} = createTestTab({
+            locks,
+            sw,
+            bc,
+            clientId: "tab-a",
+            dir,
+            mutateServer: async () => {
+                throw new InvalidArgumentError("constraint violation");
+            },
+        });
+        const conn = await manager.connect();
+
+        await expect(
+            conn.call("executeMutation", {sql: "INSERT INTO t VALUES (1)"}),
+        ).rejects.toThrow();
     });
 });
 

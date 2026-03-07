@@ -6,10 +6,13 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
-import {UnavailableError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 
 const testConn: DatabaseClientConnection = {
     queryServer() {
+        throw new UnavailableError("No server in test");
+    },
+    mutateServer() {
         throw new UnavailableError("No server in test");
     },
 };
@@ -213,6 +216,62 @@ describe("DatabaseClient", () => {
     });
 });
 
+describe("executeMutation", () => {
+    test("forwards SQL to mutateServer and returns rows", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+        let capturedSql: string | null = null;
+        const conn: DatabaseClientConnection = {
+            queryServer() {
+                throw new UnavailableError("No server in test");
+            },
+            async mutateServer(sql) {
+                capturedSql = sql;
+                return {rows: [{id: 1, name: "test"}]};
+            },
+        };
+
+        const rows = await client.executeMutation(
+            conn,
+            "INSERT INTO t (name) VALUES ('test') RETURNING id, name",
+        );
+
+        expect(rows).toMatchObject([{id: 1, name: "test"}]);
+        expect(capturedSql).toBe("INSERT INTO t (name) VALUES ('test') RETURNING id, name");
+    });
+
+    test("returns empty rows for mutations without RETURNING", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const conn: DatabaseClientConnection = {
+            queryServer() {
+                throw new UnavailableError("No server in test");
+            },
+            async mutateServer() {
+                return {rows: []};
+            },
+        };
+
+        const rows = await client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)");
+
+        expect(rows).toEqual([]);
+    });
+
+    test("propagates server errors", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const conn: DatabaseClientConnection = {
+            queryServer() {
+                throw new UnavailableError("No server in test");
+            },
+            mutateServer() {
+                throw new InvalidArgumentError("constraint violation");
+            },
+        };
+
+        await expect(client.executeMutation(conn, "INSERT INTO t (id) VALUES (1)")).rejects.toThrow(
+            "constraint violation",
+        );
+    });
+});
+
 describe("server fallback", () => {
     test("missing page triggers server fallback", async () => {
         // Create a "server" DB with enough data to span
@@ -242,6 +301,9 @@ describe("server fallback", () => {
                 serverCalled = true;
                 const rows = await server.executeQuery(testConn, sql);
                 return {rows, pages: allPages} as QueryServerResult;
+            },
+            mutateServer() {
+                throw new UnavailableError("No server in test");
             },
         };
 
@@ -274,6 +336,9 @@ describe("server fallback", () => {
             async queryServer(sql) {
                 const rows = await server.executeQuery(testConn, sql);
                 return {rows, pages: allPages} as QueryServerResult;
+            },
+            mutateServer() {
+                throw new UnavailableError("No server in test");
             },
         };
         await local.executeQuery(serverConn, "SELECT count(*) AS n FROM t");
