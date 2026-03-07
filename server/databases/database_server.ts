@@ -18,11 +18,14 @@ let vfsCounter = 0;
 
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
+/** Flag passed to `pageAccessHook` for page reads. */
+const pageAccessFlagRead = 1;
+
 type DatabaseServerAction =
     | {type: "idle"}
-    | {type: "query"; pages: Map<number, {data: Uint8Array; timestamp: number}>}
     | {
-          type: "mutate";
+          type: "execute";
+          allowWrites: boolean;
           pages: Map<number, {data: Uint8Array; timestamp: number}>;
           changedPages: Map<number, DatabaseServerPageChange>;
           timestamp: number;
@@ -152,17 +155,16 @@ export class DatabaseServer {
     }
 
     execute(sql: string, options: {allowWrites: boolean}): DatabaseServerResult {
-        if (options.allowWrites) {
-            return this.executeWithWrites(sql);
-        }
-        return this.executeReadOnly(sql);
-    }
-
-    private executeReadOnly(sql: string): DatabaseServerResult {
+        this.action = {
+            type: "execute",
+            allowWrites: options.allowWrites,
+            pages: new Map(),
+            changedPages: new Map(),
+            timestamp: 0,
+        };
         this.db.exec("BEGIN");
-        this.action = {type: "query", pages: new Map()};
         this.db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1 && this.action.type === "query") {
+            if (flags === pageAccessFlagRead && this.action.type === "execute") {
                 const pageIndex = pgno - 1;
                 if (!this.action.pages.has(pageIndex)) {
                     // Page was in SQLite's cache (xRead wasn't
@@ -177,66 +179,35 @@ export class DatabaseServer {
                 returnValue: "resultRows",
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
-            assert(this.action.type === "query");
-            return {rows, pages: this.action.pages, changedPages: new Map()};
-        } catch (error) {
-            const stashed = this.vfs.takeError();
-            if (stashed !== null) {
-                if (stashed instanceof Error) {
-                    stashed.cause = error;
-                }
-                throw stashed;
-            }
-            throw error;
-        } finally {
-            this.db.exec("ROLLBACK");
-            this.db.pageAccessHook(null);
-            this.action = {type: "idle"};
-            this.vfs.takeError();
-            this.tempFiles.clear();
-        }
-    }
 
-    private executeWithWrites(sql: string): DatabaseServerResult {
-        this.action = {type: "mutate", pages: new Map(), changedPages: new Map(), timestamp: 0};
-        this.db.exec("BEGIN");
-        this.db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1 && this.action.type === "mutate") {
-                const pageIndex = pgno - 1;
-                if (!this.action.pages.has(pageIndex)) {
-                    const {data, timestamp} = this.storage.readPage(pageIndex);
-                    this.action.pages.set(pageIndex, {data: new Uint8Array(data), timestamp});
+            if (options.allowWrites) {
+                this.db.exec("COMMIT");
+                assert(this.action.type === "execute");
+
+                // Update read pages with post-write data for
+                // changed pages so callers see the latest state.
+                for (const [pageIndex, change] of this.action.changedPages) {
+                    this.action.pages.set(pageIndex, {
+                        data: change.after,
+                        timestamp: this.action.timestamp,
+                    });
                 }
             }
-        });
-        try {
-            const rows = this.db.exec(sql, {
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as Array<Record<string, unknown>>;
-            this.db.exec("COMMIT");
-            assert(this.action.type === "mutate");
 
-            // Update read pages with post-write data for
-            // changed pages so callers see the latest state.
-            for (const [pageIndex, change] of this.action.changedPages) {
-                this.action.pages.set(pageIndex, {
-                    data: change.after,
-                    timestamp: this.action.timestamp,
-                });
-            }
-
+            assert(this.action.type === "execute");
             return {
                 rows,
                 pages: this.action.pages,
                 changedPages: this.action.changedPages,
             };
         } catch (error) {
-            try {
-                this.db.exec("ROLLBACK");
-            } catch {
-                // With journal_mode=OFF, ROLLBACK may not be
-                // able to undo partial writes.
+            if (options.allowWrites) {
+                try {
+                    this.db.exec("ROLLBACK");
+                } catch {
+                    // With journal_mode=OFF, ROLLBACK may not be
+                    // able to undo partial writes.
+                }
             }
             const stashed = this.vfs.takeError();
             if (stashed !== null) {
@@ -247,8 +218,11 @@ export class DatabaseServer {
             }
             throw error;
         } finally {
-            this.action = {type: "idle"};
+            if (!options.allowWrites) {
+                this.db.exec("ROLLBACK");
+            }
             this.db.pageAccessHook(null);
+            this.action = {type: "idle"};
             this.vfs.takeError();
             this.tempFiles.clear();
         }
@@ -258,20 +232,18 @@ export class DatabaseServer {
         if (this.action.type === "idle") {
             return true;
         }
-        switch (this.action.type) {
-            case "query":
-                switch (action) {
-                    case "read":
-                    case "select":
-                    case "transaction":
-                    case "function":
-                    case "recursive":
-                        return true;
-                    default:
-                        return false;
-                }
-            case "mutate":
-                return action !== "pragma";
+        if (this.action.allowWrites) {
+            return action !== "pragma";
+        }
+        switch (action) {
+            case "read":
+            case "select":
+            case "transaction":
+            case "function":
+            case "recursive":
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -306,10 +278,7 @@ export class DatabaseServer {
 
                 // Stash database pages so the pageAccessHook
                 // doesn't double-read them.
-                if (
-                    (this.action.type === "query" || this.action.type === "mutate") &&
-                    !this.action.pages.has(pageIndex)
-                ) {
+                if (this.action.type === "execute" && !this.action.pages.has(pageIndex)) {
                     this.action.pages.set(pageIndex, {
                         data: new Uint8Array(pageData),
                         timestamp,
@@ -329,7 +298,7 @@ export class DatabaseServer {
                 );
                 const pageIndex = offset / sqlitePageSize;
 
-                if (this.action.type === "mutate") {
+                if (this.action.type === "execute" && this.action.allowWrites) {
                     const existing = this.action.changedPages.get(pageIndex);
                     if (existing === undefined) {
                         // Capture the before state. Check pending
@@ -357,7 +326,7 @@ export class DatabaseServer {
                 if (pendingWrites.size > 0) {
                     const timestamp = this.storage.writePages(pendingWrites);
                     pendingWrites.clear();
-                    if (this.action.type === "mutate") {
+                    if (this.action.type === "execute") {
                         this.action.timestamp = timestamp;
                     }
                 }

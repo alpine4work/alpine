@@ -26,6 +26,9 @@ const vfsNamePrefix = "alpine-client";
 let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
+/** Flag passed to `pageAccessHook` for page reads. */
+const pageAccessFlagRead = 1;
+
 /**
  * Represents a connected tab's route to the server.
  * Passed into {@link DatabaseClient.execute} so server
@@ -190,7 +193,7 @@ export class DatabaseClient {
         const readPages = new Set<number>();
         const setHook = () => {
             this.db.pageAccessHook((_pArg, pgno, flags) => {
-                if (flags === 1) readPages.add(pgno - 1);
+                if (flags === pageAccessFlagRead) readPages.add(pgno - 1);
             });
         };
 
