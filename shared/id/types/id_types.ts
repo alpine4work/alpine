@@ -53,3 +53,4 @@ export type RpcCallId = NominalRandomIdType<"RpcCall">;
 export type CursorCloudAgentId = NominalRandomIdType<"CursorCloudAgent">;
 export type DatabaseMutationId = NominalRandomIdType<"DatabaseMutation">;
 export type NotionImportId = NominalRandomIdType<"NotionImport">;
+export type DatabaseReactiveQueryId = NominalRandomIdType<"DatabaseReactiveQuery">;

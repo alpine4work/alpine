@@ -7,6 +7,7 @@ import type {
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 const testConn: DatabaseClientConnection = {
@@ -544,6 +545,251 @@ describe("server fallback", () => {
         const rows = await local.executeQuery(testConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
+    });
+});
+
+describe("executeQueryWithTracking", () => {
+    test("returns rows and read page set", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('hello')");
+
+        const {rows, readPages} = await client.executeQueryWithTracking(
+            testConn,
+            "SELECT * FROM t",
+        );
+
+        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(readPages.size).toBeGreaterThan(0);
+    });
+
+    test("read pages include the table's root page", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const db = client.unsafeGetDbForTests();
+
+        await client.executeQuery(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (2)");
+
+        const schema = db.exec("SELECT name, rootpage FROM sqlite_schema ORDER BY name", {
+            returnValue: "resultRows",
+            rowMode: "object",
+        }) as Array<{name: string; rootpage: number}>;
+
+        const t1Root = schema.find(s => s.name === "t1")!.rootpage;
+        const t2Root = schema.find(s => s.name === "t2")!.rootpage;
+
+        const {readPages: pagesT1} = await client.executeQueryWithTracking(
+            testConn,
+            "SELECT * FROM t1",
+        );
+        const {readPages: pagesT2} = await client.executeQueryWithTracking(
+            testConn,
+            "SELECT * FROM t2",
+        );
+
+        // 0-based page indices (SQLite rootpage is 1-based)
+        expect(pagesT1.has(t1Root - 1)).toBe(true);
+        expect(pagesT2.has(t2Root - 1)).toBe(true);
+    });
+
+    test("different tables have different read sets", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        await client.executeQuery(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (2)");
+
+        const {readPages: pagesT1} = await client.executeQueryWithTracking(
+            testConn,
+            "SELECT * FROM t1",
+        );
+        const {readPages: pagesT2} = await client.executeQueryWithTracking(
+            testConn,
+            "SELECT * FROM t2",
+        );
+
+        // Both include page 0 (schema page), but differ
+        // on at least one page (each table's root page).
+        const onlyT1 = [...pagesT1].filter(p => !pagesT2.has(p));
+        const onlyT2 = [...pagesT2].filter(p => !pagesT1.has(p));
+        expect(onlyT1.length + onlyT2.length).toBeGreaterThan(0);
+    });
+
+    test("server fallback still produces accurate read set", async () => {
+        // Create a "server" DB
+        const serverDir = createInMemoryDirectory();
+        const server = await DatabaseClient.create(serverDir);
+        await server.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        for (let i = 0; i < 20; i++) {
+            await server.executeQuery(
+                testConn,
+                `INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`,
+            );
+        }
+        const allPages = await extractPages(serverDir);
+
+        // Pre-populate with all but last page
+        const localDir = createInMemoryDirectory();
+        await prepopulatePages(localDir, allPages.slice(0, -1));
+        const local = await DatabaseClient.create(localDir);
+
+        const serverConn: DatabaseClientConnection = {
+            async queryServer(sql) {
+                const rows = await server.executeQuery(testConn, sql);
+                return {rows, pages: allPages} as QueryServerResult;
+            },
+            mutateServer() {
+                throw new UnavailableError("No server in test");
+            },
+            reportError() {},
+        };
+
+        const {rows, readPages} = await local.executeQueryWithTracking(
+            serverConn,
+            "SELECT count(*) AS n FROM t",
+        );
+
+        expect(rows).toMatchObject([{n: 20}]);
+        // After server fallback + local retry, should have
+        // an accurate read set covering multiple pages.
+        expect(readPages.size).toBeGreaterThan(0);
+    });
+});
+
+describe("registerReactiveQuery", () => {
+    test("returns initial rows", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('hello')");
+
+        const rows = await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t",
+            testConn,
+            () => {},
+            () => {},
+        );
+
+        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
+    });
+
+    test("notify fires when overlapping pages are written", async () => {
+        const dir = createInMemoryDirectory();
+        const client = await DatabaseClient.create(dir);
+
+        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('v1')");
+
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t ORDER BY id",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        // Insert another row locally
+        await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('v2')");
+
+        // Extract pages and write as realtime with newer
+        // timestamps to trigger invalidation.
+        const pages = await extractPages(dir);
+        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+
+        // Wait for microtask-based invalidation
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(1);
+        expect(notifications[0]).toMatchObject([
+            {id: 1, val: "v1"},
+            {id: 2, val: "v2"},
+        ]);
+    });
+
+    test("notify does NOT fire for non-overlapping pages", async () => {
+        const dir = createInMemoryDirectory();
+        const client = await DatabaseClient.create(dir);
+
+        await client.executeQuery(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (2)");
+
+        // Watch only t1
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t1",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        // Record pages before t2 mutation
+        const pagesBefore = await extractPages(dir);
+
+        // Mutate t2 only
+        await client.executeQuery(testConn, "INSERT INTO t2 (id) VALUES (3)");
+
+        const pagesAfter = await extractPages(dir);
+        const changedPages = pagesAfter
+            .filter(after => {
+                // Skip page 0 — it always changes (SQLite
+                // file change counter) and is in every
+                // query's read set, so it would always
+                // trigger a notification.
+                if (after.pageIndex === 0) return false;
+                const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
+                return before === undefined || before.timestamp !== after.timestamp;
+            })
+            .map(p => ({...p, timestamp: p.timestamp + 1000}));
+
+        client.writePagesFromRealtime(changedPages, generateId<DatabaseMutationId>());
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(0);
+    });
+
+    test("unregisterReactiveQuery stops notifications", async () => {
+        const dir = createInMemoryDirectory();
+        const client = await DatabaseClient.create(dir);
+
+        await client.executeQuery(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.executeQuery(testConn, "INSERT INTO t (id) VALUES (1)");
+
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        client.unregisterReactiveQuery("q1");
+
+        // Write pages — should not trigger notification
+        const pages = await extractPages(dir);
+        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(0);
     });
 });
 

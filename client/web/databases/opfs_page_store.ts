@@ -221,11 +221,11 @@ export class OpfsPageStore implements VfsFile {
      * Also updates the known database size from page 1's
      * header when page 0 is written.
      */
-    writePageIfNewer(pageIndex: number, timestamp: number, data: Uint8Array): void {
+    writePageIfNewer(pageIndex: number, timestamp: number, data: Uint8Array): boolean {
         assert(!this.hasOptimisticPages(), "cannot write to OPFS while optimistic pages exist");
         const existing = this.index.get(pageIndex);
         if (existing !== undefined && existing.timestamp >= timestamp) {
-            return;
+            return false;
         }
 
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
@@ -242,6 +242,8 @@ export class OpfsPageStore implements VfsFile {
             const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
             this.knownDatabaseSizeInPages = view.getUint32(28, false);
         }
+
+        return true;
     }
 
     isEmpty(): boolean {

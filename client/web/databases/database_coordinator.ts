@@ -11,7 +11,11 @@ import type {
 } from "~/client/web/databases/database_rpc_methods.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
-export type {DatabaseConnection} from "~/client/web/databases/database_active_tab_manager.js";
+export type {
+    DatabaseConnection,
+    ReactiveQueryHandle,
+    ReactiveQueryResult,
+} from "~/client/web/databases/database_active_tab_manager.js";
 
 /**
  * Connect to the shared client-side SQLite database.

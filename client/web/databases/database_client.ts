@@ -156,11 +156,155 @@ export class DatabaseClient {
     }
 
     /**
+     * Execute a query while tracking which database pages
+     * are read. Uses `pageAccessHook` to capture reads
+     * including cache hits. On missing pages, falls back
+     * to the server, then retries locally to build an
+     * accurate read-set.
+     *
+     * The hook is only active during synchronous
+     * `executeQueryLocally` calls — never across an
+     * `await` — so concurrent tracking calls cannot
+     * interfere with each other.
+     */
+    async executeQueryWithTracking(
+        conn: DatabaseClientConnection,
+        sql: string,
+    ): Promise<{rows: ReadonlyArray<Record<string, unknown>>; readPages: ReadonlySet<number>}> {
+        if (this.isEmpty()) {
+            try {
+                await this.executeQueryViaServer(conn, sql);
+            } catch {
+                // Server unavailable — fall through to local
+            }
+        }
+
+        const readPages = new Set<number>();
+        const setHook = () => {
+            this.db.pageAccessHook((_pArg, pgno, flags) => {
+                if (flags === 1) readPages.add(pgno - 1);
+            });
+        };
+
+        try {
+            setHook();
+            try {
+                return {rows: this.executeQueryLocally(sql), readPages};
+            } finally {
+                this.db.pageAccessHook(null);
+            }
+        } catch (error) {
+            if (!(error instanceof PageMissingError)) throw error;
+            readPages.clear();
+            await this.executeQueryViaServer(conn, sql);
+            setHook();
+            try {
+                return {rows: this.executeQueryLocally(sql), readPages};
+            } finally {
+                this.db.pageAccessHook(null);
+            }
+        }
+    }
+
+    // -- Reactive queries ----------------------------------------------------
+
+    private readonly reactiveQueries = new Map<
+        string,
+        {
+            readonly sql: string;
+            readPages: ReadonlySet<number>;
+            readonly conn: DatabaseClientConnection;
+            readonly notify: (rows: ReadonlyArray<Record<string, unknown>>) => void;
+            readonly reportError: (error: unknown) => void;
+            reExecuting: boolean;
+        }
+    >();
+    private pagesToInvalidate = new Set<number>();
+    private invalidationScheduled = false;
+
+    /**
+     * Register a reactive query. Executes the query with
+     * page tracking and returns the initial rows. When
+     * pages in the query's read-set are subsequently
+     * written, the query re-executes and {@link notify}
+     * is called with the new rows. If re-execution fails,
+     * {@link reportError} is called with the error.
+     */
+    async registerReactiveQuery(
+        queryId: string,
+        sql: string,
+        conn: DatabaseClientConnection,
+        notify: (rows: ReadonlyArray<Record<string, unknown>>) => void,
+        reportError: (error: unknown) => void,
+    ): Promise<ReadonlyArray<Record<string, unknown>>> {
+        const {rows, readPages} = await this.executeQueryWithTracking(conn, sql);
+        this.reactiveQueries.set(queryId, {
+            sql,
+            readPages,
+            conn,
+            notify,
+            reportError,
+            reExecuting: false,
+        });
+        return rows;
+    }
+
+    /**
+     * Unregister a reactive query. Stops future
+     * invalidation notifications.
+     */
+    unregisterReactiveQuery(queryId: string): void {
+        this.reactiveQueries.delete(queryId);
+    }
+
+    private scheduleInvalidation(): void {
+        if (this.invalidationScheduled) return;
+        this.invalidationScheduled = true;
+        queueMicrotask(() => {
+            this.invalidationScheduled = false;
+            const pages = this.pagesToInvalidate;
+            this.pagesToInvalidate = new Set();
+            void this.checkInvalidation(pages);
+        });
+    }
+
+    private async checkInvalidation(writtenPages: ReadonlySet<number>): Promise<void> {
+        for (const [, reg] of this.reactiveQueries) {
+            if (reg.reExecuting) continue;
+
+            let overlaps = false;
+            for (const page of writtenPages) {
+                if (reg.readPages.has(page)) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps) continue;
+
+            reg.reExecuting = true;
+            try {
+                const {rows, readPages} = await this.executeQueryWithTracking(reg.conn, reg.sql);
+                reg.readPages = readPages;
+                reg.notify(rows);
+            } catch (error) {
+                reg.reportError(error);
+            } finally {
+                reg.reExecuting = false;
+            }
+        }
+    }
+
+    // -- Page writes ---------------------------------------------------------
+
+    /**
      * Write pages received from realtime events into the
      * local OPFS store, skipping pages that are already at
      * a newer timestamp. If the `mutationId` matches a
      * queued optimistic mutation, removes it from the
      * queue and replays the remaining mutations.
+     * Automatically schedules invalidation for any
+     * reactive queries whose read-set overlaps the
+     * written pages.
      */
     writePagesFromRealtime(
         pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
@@ -184,10 +328,17 @@ export class DatabaseClient {
     private applyServerPages(
         pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
     ): void {
+        let anyWritten = false;
         for (const page of pages) {
-            this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, page.data);
+            if (this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, page.data)) {
+                this.pagesToInvalidate.add(page.pageIndex);
+                anyWritten = true;
+            }
         }
         this.pageStore.sync();
+        if (anyWritten) {
+            this.scheduleInvalidation();
+        }
     }
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
