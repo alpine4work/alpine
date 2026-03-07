@@ -758,10 +758,14 @@ describe("Reactive queries", () => {
             sql: "INSERT INTO t (val) VALUES ('v2')",
         });
 
-        // Extract the updated pages and write them as
-        // realtime updates.
+        // Write as realtime with newer timestamps.
+        // Empty diffs since OPFS already has the content.
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
         await conn.call("writePagesFromRealtime", {
             pages: newerPages,
             mutationId: generateId<DatabaseMutationId>(),
@@ -811,10 +815,16 @@ describe("Reactive queries", () => {
 
         // Find pages that changed (new or different
         // timestamp) — these are the t2 mutation pages.
-        const changedPages = pagesAfter.filter(after => {
-            const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
-            return before === undefined || before.timestamp !== after.timestamp;
-        });
+        const changedPages = pagesAfter
+            .filter(after => {
+                const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
+                return before === undefined || before.timestamp !== after.timestamp;
+            })
+            .map(({pageIndex, timestamp}) => ({
+                pageIndex,
+                timestamp: timestamp + 1000,
+                diff: [],
+            }));
 
         // Write only the changed pages as realtime updates
         await conn.call("writePagesFromRealtime", {
@@ -858,7 +868,11 @@ describe("Reactive queries", () => {
         // though the query is gone.
         const pages = await extractPages(dir);
         await conn.call("writePagesFromRealtime", {
-            pages,
+            pages: pages.map(({pageIndex, timestamp}) => ({
+                pageIndex,
+                timestamp,
+                diff: [],
+            })),
             mutationId: generateId<DatabaseMutationId>(),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -918,13 +932,14 @@ describe("watchQuery", () => {
             sql: "INSERT INTO t (val) VALUES ('v2')",
         });
 
-        // Extract pages and write as realtime to trigger
-        // invalidation. Bump timestamps so writePageIfNewer
-        // accepts them (simulates server-originated update).
+        // Write as realtime with newer timestamps to
+        // trigger invalidation. Empty diffs since OPFS
+        // already has the current content.
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({
-            ...p,
-            timestamp: p.timestamp + 1000,
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
         }));
         await conn.call("writePagesFromRealtime", {
             pages: newerPages,

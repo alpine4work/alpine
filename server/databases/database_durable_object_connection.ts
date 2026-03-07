@@ -9,11 +9,12 @@ import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export interface DatabaseRealtimeEventStub {
-    pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>;
+    pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
     mutationId: DatabaseMutationId;
 }
 
@@ -61,10 +62,10 @@ export class DatabaseDurableObjectConnection {
         mutate: async (_context, input) => {
             const {rows, pages} = this._storage.transactionSync(() => {
                 const {rows, changedPages, timestamp} = this._server.mutate(input.sql);
-                const pages = [...changedPages].map(([pageIndex, {after}]) => ({
+                const pages = [...changedPages].map(([pageIndex, {before, after}]) => ({
                     pageIndex,
                     timestamp,
-                    data: after,
+                    diff: diffPage(before, after),
                 }));
                 return {rows, pages};
             });

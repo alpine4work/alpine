@@ -699,10 +699,15 @@ describe("registerReactiveQuery", () => {
         // Insert another row locally
         await client.executeQuery(testConn, "INSERT INTO t (val) VALUES ('v2')");
 
-        // Extract pages and write as realtime with newer
-        // timestamps to trigger invalidation.
+        // Write as realtime with newer timestamps to
+        // trigger invalidation. Empty diffs since OPFS
+        // already has the current content.
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
         client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
 
         // Wait for microtask-based invalidation
@@ -753,7 +758,11 @@ describe("registerReactiveQuery", () => {
                 const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
                 return before === undefined || before.timestamp !== after.timestamp;
             })
-            .map(p => ({...p, timestamp: p.timestamp + 1000}));
+            .map(({pageIndex, timestamp}) => ({
+                pageIndex,
+                timestamp: timestamp + 1000,
+                diff: [],
+            }));
 
         client.writePagesFromRealtime(changedPages, generateId<DatabaseMutationId>());
 
@@ -784,7 +793,11 @@ describe("registerReactiveQuery", () => {
 
         // Write pages — should not trigger notification
         const pages = await extractPages(dir);
-        const newerPages = pages.map(p => ({...p, timestamp: p.timestamp + 1000}));
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
         client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
 
         await new Promise(resolve => setTimeout(resolve, 50));

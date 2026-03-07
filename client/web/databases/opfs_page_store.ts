@@ -246,6 +246,18 @@ export class OpfsPageStore implements VfsFile {
         return true;
     }
 
+    /**
+     * Reads the full page data for a given page index.
+     * Returns null if the page is not in the store.
+     */
+    readPage(pageIndex: number): Uint8Array | null {
+        const entry = this.index.get(pageIndex);
+        if (entry === undefined) return null;
+        const data = new Uint8Array(pageSize);
+        this.pagesHandle.read(data, {at: entry.slot * pageSize});
+        return data;
+    }
+
     isEmpty(): boolean {
         return this.index.size === 0;
     }
