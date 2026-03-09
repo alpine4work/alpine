@@ -10,6 +10,7 @@ DYNAMO_CORE_VISIBILITY = [
     "//server/bots",
     "//server/chat/data",
     "//server/context",
+    "//server/databases/data",
     "//server/deploy/data",
     "//server/documents/data",
     "//server/feed",

@@ -113,6 +113,7 @@ ts_project(
         "//server/bots/with_spaces",
         "//server/chat/data",
         "//server/content",
+        "//server/databases/data",
         "//server/content/context_module",
         "//server/debug/chat_gpt",
         "//server/deploy/data",

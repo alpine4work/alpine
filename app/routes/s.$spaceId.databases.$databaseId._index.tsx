@@ -1,6 +1,11 @@
-import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {
+    deserializeDatabaseIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {DatabaseView} from "~/client/web/databases/database_view.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {getDatabase} from "~/server/databases/data/get_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
@@ -10,14 +15,15 @@ import {
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
+    databaseName: Schema.string,
     tables: Schema.array(
         Schema.object({
             name: Schema.string,
         }),
     ),
-    readPages: Schema.map(
-        Schema.integer,
+    pages: Schema.array(
         Schema.object({
+            pageIndex: Schema.integer,
             timestamp: Schema.integer,
             data: Schema.bytes,
         }),
@@ -26,14 +32,17 @@ const LoaderSchema = Schema.object({
 
 export {LoaderSchema as DatabaseLoaderSchema};
 
-export const meta = createMetaFunction(LoaderSchema, () => [{title: "Database"}]);
+export const meta = createMetaFunction(LoaderSchema, ({data}) => [{title: data.databaseName}]);
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    deserializeSpaceIdForLoader(params.spaceId);
+    const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
+
+    const database = await getDatabase(context, databaseId);
 
     const result = await context.edge.fetchDurableObject(
-        `/api/durable-objects/databases/${spaceId}/query`,
+        `/api/durable-objects/databases/${databaseId}/query`,
         {
             serviceName: "DatabaseService",
             route: "/api/durable-objects/databases/:databaseId/query",
@@ -45,11 +54,17 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const {rows, readPages} = DatabaseQueryResponseSchema.deserialize(result);
 
     return jsonWithSchema(LoaderSchema, {
+        databaseName: database.model.name,
         tables: rows as Array<{name: string}>,
-        readPages,
+        pages: Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
+            pageIndex,
+            timestamp,
+            data,
+        })),
     });
 }
 
 export default function DatabaseRoute() {
-    return <DatabaseView />;
+    const {databaseName} = useLoaderDataWithSchema(LoaderSchema);
+    return <DatabaseView name={databaseName} />;
 }

@@ -1,5 +1,5 @@
 import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
-import {IconContext, Plus, SpinnerGap} from "phosphor-react";
+import {IconContext, Plus, SpinnerGap, Table} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
@@ -182,6 +182,16 @@ export function SpaceLayoutSideBarCreateButton() {
                                     onPress: async () => {
                                         await peekStackContext.push(
                                             `/s/${space.id}/channels/new?focus=name`,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: "Database",
+                                    icon: <Table />,
+                                    pressErrorTitle: "Couldn\u2019t create database",
+                                    onPress: async () => {
+                                        await peekStackContext.push(
+                                            `/s/${space.id}/databases/new?focus=name`,
                                         );
                                     },
                                 },

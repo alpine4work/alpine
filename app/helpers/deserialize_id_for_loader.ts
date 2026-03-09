@@ -17,6 +17,7 @@ import {
     BotId,
     ChannelId,
     ChatId,
+    DatabaseId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -48,6 +49,14 @@ export function deserializeDocumentCommentThreadIdForLoader(
 ): DocumentCommentThreadId {
     if (!id || !isId<DocumentCommentThreadId>(id)) {
         throw createDocumentCommentThreadNotFoundError(documentId, id ?? undefined);
+    }
+
+    return id;
+}
+
+export function deserializeDatabaseIdForLoader(id: string | null | undefined): DatabaseId {
+    if (!id || !isId<DatabaseId>(id)) {
+        throw new NotFoundError("Database not found");
     }
 
     return id;

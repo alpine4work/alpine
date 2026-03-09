@@ -226,8 +226,8 @@ function WatchedQueryEntry(props: {conn: DatabaseConnection; sql: string; onClos
     return <WatchedQueryResults sql={props.sql} handle={handle} onClose={props.onClose} />;
 }
 
-export function DatabaseView() {
-    const {spaceId} = useParams();
+export function DatabaseView({name}: {name: string}) {
+    const {databaseId} = useParams();
     const reporter = useReporter();
     const [query, setQuery] = useState("");
     const [conn, setConn] = useState<DatabaseConnection | null>(null);
@@ -246,7 +246,7 @@ export function DatabaseView() {
         },
     });
 
-    const wsUrl = spaceId ? `/api/durable-objects/databases/${spaceId}` : null;
+    const wsUrl = databaseId ? `/api/durable-objects/databases/${databaseId}` : null;
 
     const {procedures} = useWebSocket(
         "DatabaseService",
@@ -294,7 +294,7 @@ export function DatabaseView() {
             padding="4"
         >
             <Box fontSize="200" fontStyle="semi-bold">
-                Database
+                {name}
             </Box>
             <textarea
                 className={sprinkles({
