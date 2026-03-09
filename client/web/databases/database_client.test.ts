@@ -1,6 +1,6 @@
 import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
@@ -667,7 +667,7 @@ describe("registerReactiveQuery", () => {
         await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const rows = await client.registerReactiveQuery(
+        const result = await client.registerReactiveQuery(
             "q1",
             "SELECT * FROM t",
             testConn,
@@ -675,7 +675,8 @@ describe("registerReactiveQuery", () => {
             () => {},
         );
 
-        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(result.ok).toBe(true);
+        expect(result.value).toMatchObject([{id: 1, val: "hello"}]);
     });
 
     test("optimistic mutation invalidates overlapping reactive query", async () => {
@@ -806,6 +807,46 @@ describe("registerReactiveQuery", () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(notifications.length).toBe(0);
+    });
+
+    test("initial failure still registers query, re-executes on page write", async () => {
+        const dir = createInMemoryDirectory();
+        const client = await DatabaseClient.create(dir);
+
+        // Register a query against a table that doesn't
+        // exist yet — initial evaluation will fail.
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        const result = await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t ORDER BY id",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        expect(result.ok).toBe(false);
+
+        // Now create the table. The write goes to the
+        // base store so extractPages picks it up.
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
+
+        // Trigger invalidation via realtime page writes.
+        // readPages is null so any page write overlaps.
+        const pages = await extractPages(dir);
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(1);
+        expect(notifications[0]).toMatchObject([{id: 1, val: "hello"}]);
     });
 
     test("unregisterReactiveQuery stops notifications", async () => {

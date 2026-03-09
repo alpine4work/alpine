@@ -11,7 +11,7 @@ import {
     DatabaseActiveTabWorker,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
@@ -739,7 +739,10 @@ describe("Reactive queries", () => {
             sql: "SELECT * FROM t",
         });
 
-        expect(result.rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(result).toMatchObject({
+            rows: [{id: 1, val: "hello"}],
+            error: null,
+        });
     });
 
     test("reactive query re-executes when overlapping pages are written", async () => {

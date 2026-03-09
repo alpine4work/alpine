@@ -6,7 +6,7 @@ import {
     type ExecuteServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
-} from "~/client/web/databases/database_rpc_methods.js";
+} from "~/client/web/databases/database_worker_rpc_methods.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
@@ -211,7 +211,7 @@ export class DatabaseActiveTabWorker {
                     return {};
                 },
                 registerReactiveQuery: async input => {
-                    const rows = await this.client.registerReactiveQuery(
+                    const result = await this.client.registerReactiveQuery(
                         input.queryId,
                         input.sql,
                         conn,
@@ -228,7 +228,15 @@ export class DatabaseActiveTabWorker {
                             });
                         },
                     );
-                    return {rows: rows as ReadonlyArray<SchemaSerializedValue>};
+                    if (result.ok) {
+                        return {
+                            rows: result.value as ReadonlyArray<SchemaSerializedValue>,
+                            error: null,
+                        };
+                    }
+                    const message =
+                        result.error instanceof Error ? result.error.message : String(result.error);
+                    return {rows: [], error: message};
                 },
                 unregisterReactiveQuery: async input => {
                     this.client.unregisterReactiveQuery(input.queryId);
@@ -387,8 +395,8 @@ export class DatabaseActiveTabManager {
         const result = (await this.callMethod("registerReactiveQuery", {
             queryId,
             sql,
-        })) as {rows: ReadonlyArray<unknown>};
-        store.set({rows: result.rows, invalidationCount: 0, error: null});
+        })) as {rows: ReadonlyArray<unknown>; error: string | null};
+        store.set({rows: result.rows, invalidationCount: 0, error: result.error ?? null});
 
         return {
             store,
@@ -401,19 +409,23 @@ export class DatabaseActiveTabManager {
 
     private async reRegisterWatches(): Promise<void> {
         for (const [queryId, watch] of this.watches) {
-            try {
-                const result = (await this.callMethod("registerReactiveQuery", {
-                    queryId,
-                    sql: watch.sql,
-                })) as {rows: ReadonlyArray<unknown>};
-                const prev = watch.store.getSnapshot();
+            const result = (await this.callMethod("registerReactiveQuery", {
+                queryId,
+                sql: watch.sql,
+            })) as {rows: ReadonlyArray<unknown>; error: string | null};
+            const prev = watch.store.getSnapshot();
+            if (result.error !== null) {
+                watch.store.set({
+                    ...prev,
+                    invalidationCount: prev.invalidationCount + 1,
+                    error: result.error,
+                });
+            } else {
                 watch.store.set({
                     rows: result.rows,
                     invalidationCount: prev.invalidationCount + 1,
                     error: null,
                 });
-            } catch {
-                // Skip failed re-registrations
             }
         }
     }

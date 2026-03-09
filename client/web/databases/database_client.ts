@@ -1,4 +1,4 @@
-import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
@@ -19,6 +19,7 @@ import {
 } from "~/shared/databases/sqlite_constants.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
@@ -240,7 +241,7 @@ export class DatabaseClient {
         string,
         {
             readonly sql: string;
-            readPages: ReadonlySet<number>;
+            readPages: ReadonlySet<number> | null;
             readonly conn: DatabaseClientConnection;
             readonly notify: (rows: ReadonlyArray<Record<string, unknown>>) => void;
             readonly reportError: (error: unknown) => void;
@@ -264,17 +265,29 @@ export class DatabaseClient {
         conn: DatabaseClientConnection,
         notify: (rows: ReadonlyArray<Record<string, unknown>>) => void,
         reportError: (error: unknown) => void,
-    ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const {rows, readPages} = await this.executeWithTracking(conn, sql);
-        this.reactiveQueries.set(queryId, {
-            sql,
-            readPages,
-            conn,
-            notify,
-            reportError,
-            reExecuting: false,
-        });
-        return rows;
+    ): Promise<Result<ReadonlyArray<Record<string, unknown>>>> {
+        try {
+            const {rows, readPages} = await this.executeWithTracking(conn, sql);
+            this.reactiveQueries.set(queryId, {
+                sql,
+                readPages,
+                conn,
+                notify,
+                reportError,
+                reExecuting: false,
+            });
+            return {ok: true, value: rows};
+        } catch (error) {
+            this.reactiveQueries.set(queryId, {
+                sql,
+                readPages: null,
+                conn,
+                notify,
+                reportError,
+                reExecuting: false,
+            });
+            return {ok: false, error};
+        }
     }
 
     /**
@@ -301,10 +314,14 @@ export class DatabaseClient {
             if (reg.reExecuting) continue;
 
             let overlaps = false;
-            for (const page of writtenPages) {
-                if (reg.readPages.has(page)) {
-                    overlaps = true;
-                    break;
+            if (reg.readPages === null) {
+                overlaps = true;
+            } else {
+                for (const page of writtenPages) {
+                    if (reg.readPages.has(page)) {
+                        overlaps = true;
+                        break;
+                    }
                 }
             }
             if (!overlaps) continue;

@@ -4,7 +4,7 @@ import {
     type DatabaseConnection,
     type ReactiveQueryHandle,
     connectToDatabase,
-} from "~/client/web/databases/database_coordinator.js";
+} from "~/client/web/databases/connect_to_database.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
