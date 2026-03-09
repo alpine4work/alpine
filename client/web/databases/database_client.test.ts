@@ -293,6 +293,34 @@ describe("execute — mutations", () => {
         expect(rows).toMatchObject([{inserted: true}]);
     });
 
+    test("empty store falls back to local for writes", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        const calls: Array<{allowWrites: boolean}> = [];
+        const conn: DatabaseClientConnection = {
+            async executeServer(_sql, options) {
+                calls.push({allowWrites: options.allowWrites});
+                if (!options.allowWrites) {
+                    throw new UnavailableError("server unavailable");
+                }
+                // Simulate realtime confirmation arriving
+                // before server response.
+                client.writePagesFromRealtime([], options.mutationId);
+                return {rows: [], readPages: new Map()};
+            },
+            reportError() {},
+        };
+
+        const rows = await client.execute(conn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+
+        // DDL executes locally — returns no rows.
+        expect(rows).toMatchObject([]);
+
+        // Background send fires after microtask.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(calls).toMatchObject([{allowWrites: false}, {allowWrites: true}]);
+    });
+
     test("propagates local execution errors", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
@@ -570,6 +598,31 @@ describe("executeWithTracking", () => {
         const onlyT1 = [...pagesT1].filter(p => !pagesT2.has(p));
         const onlyT2 = [...pagesT2].filter(p => !pagesT1.has(p));
         expect(onlyT1.length + onlyT2.length).toBeGreaterThan(0);
+    });
+
+    test("throws on write attempts without contacting server", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
+
+        let serverCalled = false;
+        const conn: DatabaseClientConnection = {
+            async executeServer() {
+                serverCalled = true;
+                return {rows: [], readPages: new Map()};
+            },
+            reportError() {},
+        };
+
+        await expect(
+            client.executeWithTracking(conn, "INSERT INTO t (id) VALUES (2)"),
+        ).rejects.toThrow("executeWithTracking does not support writes");
+
+        expect(serverCalled).toBe(false);
+
+        // Table should be unchanged — the write was rolled back.
+        const {rows} = await client.executeWithTracking(testConn, "SELECT * FROM t");
+        expect(rows).toMatchObject([{id: 1}]);
     });
 
     test("server fallback still produces accurate read set", async () => {

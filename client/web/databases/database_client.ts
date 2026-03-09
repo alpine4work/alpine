@@ -12,7 +12,11 @@ import {
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
-import {pageAccessFlagRead, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {
+    pageAccessFlagRead,
+    pageAccessFlagWrite,
+    sqlitePageSize,
+} from "~/shared/databases/sqlite_constants.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
@@ -165,11 +169,13 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute a query while tracking which database pages
-     * are read. Uses `pageAccessHook` to capture reads
-     * including cache hits. On missing pages, falls back
-     * to the server, then retries locally to build an
-     * accurate read-set.
+     * Execute a read-only query while tracking which
+     * database pages are read. Uses `pageAccessHook` to
+     * capture reads including cache hits. Throws if the
+     * SQL attempts to write.
+     *
+     * On missing pages, falls back to the server, then
+     * retries locally to build an accurate read-set.
      *
      * The hook is only active during synchronous
      * `executeLocally` calls — never across an
@@ -181,36 +187,49 @@ export class DatabaseClient {
         sql: string,
     ): Promise<{rows: ReadonlyArray<Record<string, unknown>>; readPages: ReadonlySet<number>}> {
         if (this.isEmpty()) {
-            try {
-                await this.executeReadOnlyViaServer(conn, sql);
-            } catch {
-                // Server unavailable — fall through to local
-            }
+            await this.executeReadOnlyViaServer(conn, sql);
         }
 
-        const readPages = new Set<number>();
-        const setHook = () => {
-            this.db.pageAccessHook((_pArg, pgno, flags) => {
-                if (flags === pageAccessFlagRead) readPages.add(pgno - 1);
-            });
-        };
-
         try {
-            setHook();
-            try {
-                return {rows: this.executeLocally(sql), readPages};
-            } finally {
-                this.db.pageAccessHook(null);
-            }
+            return this.executeLocallyInReadOnlyTxn(sql);
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
-            readPages.clear();
             await this.executeReadOnlyViaServer(conn, sql);
-            setHook();
+            return this.executeLocallyInReadOnlyTxn(sql);
+        }
+    }
+
+    /**
+     * Executes SQL inside a BEGIN/ROLLBACK transaction
+     * with page-read tracking. Asserts that the SQL does
+     * not write any pages (writes are rolled back and an
+     * assertion error is thrown).
+     */
+    private executeLocallyInReadOnlyTxn(sql: string): {
+        rows: ReadonlyArray<Record<string, unknown>>;
+        readPages: ReadonlySet<number>;
+    } {
+        const readPages = new Set<number>();
+        let writeDetected = false;
+
+        this.db.exec("BEGIN");
+        this.db.pageAccessHook((_pArg, pgno, flags) => {
+            if (flags === pageAccessFlagRead) readPages.add(pgno - 1);
+            if (flags === pageAccessFlagWrite) writeDetected = true;
+        });
+        try {
+            const rows = this.executeLocally(sql);
+            assert(!writeDetected, "executeWithTracking does not support writes");
+            return {rows, readPages};
+        } finally {
+            this.db.pageAccessHook(null);
             try {
-                return {rows: this.executeLocally(sql), readPages};
-            } finally {
-                this.db.pageAccessHook(null);
+                this.db.exec("ROLLBACK");
+            } catch {
+                // VFS errors (e.g. PageMissingError) may
+                // leave SQLite's pager in a state where
+                // ROLLBACK fails. Swallow so the original
+                // exception propagates.
             }
         }
     }
