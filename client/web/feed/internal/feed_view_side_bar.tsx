@@ -532,6 +532,7 @@ function shouldOpenSearchAffinityResultInPeek(result: SearchAffinityEntityResult
         case "Account":
         case "Task":
             return true;
+        case "Database":
         case "Document":
         case "Channel":
         case "TaskCollection":

@@ -1334,6 +1334,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/ChatTable/Resource
+    DatabasesRealtimeTableF6ECE425:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: DatabasesRealtime
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/DatabasesRealtimeTable/Resource
     DeployTableF6562626:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -2342,6 +2367,9 @@ Resources:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
+                                - DatabasesRealtimeTableF6ECE425
+                                - Arn
+                          - Fn::GetAtt:
                                 - DeployTableF6562626
                                 - Arn
                           - Fn::GetAtt:
@@ -2411,6 +2439,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DatabasesRealtimeTableF6ECE425
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2588,6 +2622,19 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                Version: 2012-10-17
+            PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            Roles:
+                - Ref: TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action:
                           - firehose:PutRecord
                           - firehose:PutRecordBatch
@@ -2595,11 +2642,10 @@ Resources:
                       Resource:
                           Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
-            PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             Roles:
                 - Ref: TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole/OverflowPolicy1/Resource
     TaskRealtimeServiceTaskDefinition4487CD82:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -2911,6 +2957,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition1Of4/Service/Service
@@ -2942,6 +2989,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition2Of4/Service/Service
@@ -2973,6 +3021,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition3Of4/Service/Service
@@ -3004,6 +3053,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition4Of4/Service/Service
@@ -3242,6 +3292,9 @@ Resources:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
+                                - DatabasesRealtimeTableF6ECE425
+                                - Arn
+                          - Fn::GetAtt:
                                 - DeployTableF6562626
                                 - Arn
                           - Fn::GetAtt:
@@ -3311,6 +3364,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DatabasesRealtimeTableF6ECE425
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -4380,6 +4439,9 @@ Resources:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
+                                - DatabasesRealtimeTableF6ECE425
+                                - Arn
+                          - Fn::GetAtt:
                                 - DeployTableF6562626
                                 - Arn
                           - Fn::GetAtt:
@@ -4449,6 +4511,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DatabasesRealtimeTableF6ECE425
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5403,6 +5471,9 @@ Resources:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
+                                - DatabasesRealtimeTableF6ECE425
+                                - Arn
+                          - Fn::GetAtt:
                                 - DeployTableF6562626
                                 - Arn
                           - Fn::GetAtt:
@@ -5472,6 +5543,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DatabasesRealtimeTableF6ECE425
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5627,6 +5704,41 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
+                    - Action: ses:SendEmail
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :configuration-set/
+                                  - Ref: SesConfigurationSet74E7EAAF
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :identity/
+                                  - Ref: SesEmailIdentity8E702B39
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                Version: 2012-10-17
+            PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
+            Roles:
+                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    JobQueueServiceTaskDefinitionTaskRoleOverflowPolicy10624BA54:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/JobQueueService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action:
                           - sqs:ChangeMessageVisibility
                           - sqs:DeleteMessage
@@ -5647,41 +5759,6 @@ Resources:
                                 - SqsJobQueue62388F96
                                 - Arn
                     - Action:
-                          - ec2:DescribeNetworkInterfaces
-                          - ecs:DescribeContainerInstances
-                          - ecs:DescribeTasks
-                          - ecs:ListTasks
-                      Effect: Allow
-                      Resource: "*"
-                Version: 2012-10-17
-            PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
-            Roles:
-                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
-        Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/TaskRole/DefaultPolicy/Resource
-    JobQueueServiceTaskDefinitionTaskRoleOverflowPolicy10624BA54:
-        Type: AWS::IAM::ManagedPolicy
-        Properties:
-            Description: Part of the policies for CyberworldsStack/JobQueueService/TaskDefinition/TaskRole
-            Path: /
-            PolicyDocument:
-                Statement:
-                    - Action: ses:SendEmail
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:ses:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :configuration-set/
-                                  - Ref: SesConfigurationSet74E7EAAF
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:ses:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :identity/
-                                  - Ref: SesEmailIdentity8E702B39
-                    - Action:
                           - s3:GetBucket*
                           - s3:GetObject*
                           - s3:List*
@@ -5697,12 +5774,12 @@ Resources:
                                         - Arn
                                   - /*
                     - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
+                          - ec2:DescribeNetworkInterfaces
+                          - ecs:DescribeContainerInstances
+                          - ecs:DescribeTasks
+                          - ecs:ListTasks
                       Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                      Resource: "*"
                 Version: 2012-10-17
             Roles:
                 - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
@@ -6170,6 +6247,9 @@ Resources:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
+                                - DatabasesRealtimeTableF6ECE425
+                                - Arn
+                          - Fn::GetAtt:
                                 - DeployTableF6562626
                                 - Arn
                           - Fn::GetAtt:
@@ -6239,6 +6319,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DatabasesRealtimeTableF6ECE425
                                         - Arn
                                   - /index/*
                           - Fn::Join:

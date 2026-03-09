@@ -90,6 +90,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
+    "databases.$databaseId._index": () => {
+        test("not found error for route `databases.$databaseId._index`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/databases/${generateId()}`);
+
+            await expect(page.getByText("Database not found")).toBeVisible();
+        });
+    },
     "documents.$documentId._index": () => {
         test("not found error for route `documents.$documentId._index`", async ({
             page,

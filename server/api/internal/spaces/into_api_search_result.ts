@@ -227,6 +227,9 @@ function actuallyIntoApiSearchResult({
                 author,
             };
         }
+        case "Database":
+            // Databases are not yet exposed via the external API.
+            return null;
         default:
             throw exhaustive(entity);
     }

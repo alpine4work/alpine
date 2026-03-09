@@ -112,6 +112,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/content/context_module:context_module",
     "//server/context:context",
     "//server/databases:databases",
+    "//server/databases/data:data",
     "//server/debug/chat_gpt:chat_gpt",
     "//server/deploy/data:data",
     "//server/deploy/script:script_lib",

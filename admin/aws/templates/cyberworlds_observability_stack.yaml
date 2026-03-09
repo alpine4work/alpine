@@ -928,6 +928,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__chat__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__databases_realtime__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__databases_realtime__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__deploy__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__deploy__write_capacity_units
@@ -1079,6 +1083,14 @@ Resources:
                         - Name: dynamodb__table__chat__partition_type
                           Type: string
                         - Name: dynamodb__table__chat__partition__chat__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__databases_realtime__partition_type
+                          Type: string
+                        - Name: dynamodb__table__databases_realtime__partition__database__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__databases_realtime__partition__realtime__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__databases_realtime__partition__graveyard__sort_range_type
                           Type: string
                         - Name: dynamodb__table__deploy__partition_type
                           Type: string

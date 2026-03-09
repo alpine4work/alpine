@@ -94,6 +94,10 @@ export function getSearchDynamicEntityTypeDisplay(
         case "Account": {
             return {type, icon: <ChatBrandIcon />};
         }
+        case "Database": {
+            // TODO: Add a dedicated database brand icon.
+            return {type, icon: <DocumentBrandIcon />};
+        }
         case "Document": {
             return {type, icon: <DocumentBrandIcon />};
         }

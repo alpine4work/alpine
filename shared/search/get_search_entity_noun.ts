@@ -8,6 +8,8 @@ export function getSearchEntityNoun(type: SearchDynamicEntityType): string {
     switch (type) {
         case "Account":
             return "person";
+        case "Database":
+            return "database";
         case "Document":
             return "document";
         case "DocumentComment":

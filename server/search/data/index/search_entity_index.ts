@@ -531,6 +531,7 @@ function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]):
             return true;
 
         case "Account":
+        case "Database":
         case "Document":
         case "DocumentComment":
         case "Post":

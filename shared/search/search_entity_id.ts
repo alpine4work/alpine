@@ -12,6 +12,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -44,6 +45,7 @@ type SearchEntityIdAxes = {
     Dynamic: {
         Affinity:
             | `Account:${AccountId}`
+            | `Database:${DatabaseId}`
             | `Document:${DocumentId}`
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`
@@ -128,6 +130,7 @@ type GetSearchEntityIdActualTestMapType<Id extends string> = MergeObjectIntersec
 
 const searchEntityIdTestMap: GetSearchEntityIdActualTestMapType<SearchEntityId> = {
     Account: isId,
+    Database: isId,
     Document: isId,
     Channel: isId,
     Chat: isId,
@@ -178,6 +181,7 @@ type GetSearchEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
 
 const searchDynamicEntityIdTestMap: GetSearchEntityIdTestMapType<SearchDynamicEntityId> = {
     Account: true,
+    Database: true,
     Document: true,
     DocumentComment: true,
     Channel: true,
@@ -341,7 +345,10 @@ export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<Search
 assertAssignableTypes<SearchMentionEntityId, SearchEntityId>();
 assertEqualTypes<
     SearchMentionEntityId,
-    | Exclude<SearchAffinityEntityId, `Account:${AccountId}` | `Chat:${ChatId}` | "TaskPersonal">
+    | Exclude<
+          SearchAffinityEntityId,
+          `Account:${AccountId}` | `Chat:${ChatId}` | `Database:${DatabaseId}` | "TaskPersonal"
+      >
     | `Post:${PostId}`
 >();
 
@@ -352,6 +359,7 @@ assertEqualTypes<
  */
 export type SearchDynamicEntityIdObject =
     | {readonly type: "Account"; readonly accountId: AccountId}
+    | {readonly type: "Database"; readonly databaseId: DatabaseId}
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {
           readonly type: "DocumentComment";
@@ -388,6 +396,8 @@ export function parseSearchDynamicEntityId(id: SearchDynamicEntityId): SearchDyn
     switch (idType) {
         case "Account":
             return {type: "Account", accountId: idPayloadParts[0] as AccountId};
+        case "Database":
+            return {type: "Database", databaseId: idPayloadParts[0] as DatabaseId};
         case "Document":
             return {type: "Document", documentId: idPayloadParts[0] as DocumentId};
         case "DocumentComment":
@@ -442,6 +452,8 @@ export function printSearchDynamicEntityId(
     switch (idObject.type) {
         case "Account":
             return `Account:${idObject.accountId}`;
+        case "Database":
+            return `Database:${idObject.databaseId}`;
         case "Document":
             return `Document:${idObject.documentId}`;
         case "DocumentComment":
@@ -469,6 +481,7 @@ export function printSearchDynamicEntityId(
 
 const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinityEntityId> = {
     Account: true,
+    Database: true,
     Document: true,
     Channel: true,
     Chat: true,

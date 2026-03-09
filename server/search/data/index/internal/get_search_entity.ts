@@ -11,6 +11,7 @@ import {
     ServerActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {getDatabaseIfExistsAsSystem} from "~/server/databases/data/get_database_as_system.js";
 import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
@@ -72,6 +73,7 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
+import {DatabaseModel} from "~/shared/databases/database_model.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -110,6 +112,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DatabaseId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
@@ -861,6 +864,13 @@ class SearchEntityReadState {
             isDeleted: collection.isDeleted(),
         };
     }
+
+    public async getDatabase(databaseId: DatabaseId): Promise<DatabaseModel | null> {
+        this._recordDependencyId(`Database:${databaseId}:Authorization`);
+        this._recordDependencyId(`Database:${databaseId}:Name`);
+
+        return getDatabaseIfExistsAsSystem(this._context, databaseId);
+    }
 }
 
 function mergeMessageItemStreamIntoPayload(messageItem: MessageItem): MessagePayload {
@@ -1231,6 +1241,8 @@ async function actuallyGetSearchEntity(
     switch (idObject.type) {
         case "Account":
             return getAccountSearchEntity(state, idObject.accountId);
+        case "Database":
+            return getDatabaseSearchEntity(state, idObject.databaseId);
         case "Document":
             return getDocumentSearchEntity(state, idObject.documentId);
         case "DocumentComment":
@@ -2391,6 +2403,45 @@ async function getTaskCollectionSearchEntity(
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".
+        contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
+    };
+}
+
+async function getDatabaseSearchEntity(
+    state: SearchEntityReadState,
+    databaseId: DatabaseId,
+): Promise<SearchEntity> {
+    const id: SearchDynamicEntityId = `Database:${databaseId}`;
+
+    const database = await state.getDatabase(databaseId);
+
+    if (!database) {
+        throw new NotFoundError(quote`Database ${databaseId} not found`);
+    }
+
+    // Databases use space-level access — anyone in the space can view.
+    const accessPolicy = getSearchEntityIndexAccessPolicy({
+        defaultGrant: {level: "Edit"},
+        accountGrantById: emptyMap,
+        urlGrant: null,
+    });
+
+    return {
+        id,
+        accessPolicy,
+        createdTime: database.createdTime,
+        title: database.name,
+        titleVersion: null,
+        body: null,
+        tags: emptyArray,
+        media: null,
+        embeddingChunks: emptyArray,
+        creatorId: null,
         contributorIds: emptyMap,
         dueDate: null,
         assigneeId: null,
