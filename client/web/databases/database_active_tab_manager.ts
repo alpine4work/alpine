@@ -1,17 +1,22 @@
-import type {
+import {
     DatabaseClient,
-    DatabaseClientConnection,
+    type DatabaseClientConnection,
 } from "~/client/web/databases/database_client.js";
 import {
     type ExecuteServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
 } from "~/client/web/databases/database_rpc_methods.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
-import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import type {
+    DatabaseId,
+    DatabaseMutationId,
+    DatabaseReactiveQueryId,
+} from "~/shared/id/types/id_types.js";
+import type {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
@@ -96,8 +101,18 @@ export interface ReactiveQueryHandle {
     unwatch(): void;
 }
 
+/**
+ * Call signature exposed to consumers. Omits
+ * `databaseId` from inputs since the manager
+ * injects it automatically.
+ */
+type DatabaseConnectionCall = <K extends string & keyof typeof tabToWorkerDatabaseRpcMethods>(
+    method: K,
+    input: Omit<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["inputSchema"]>, "databaseId">,
+) => Promise<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["outputSchema"]>>;
+
 export interface DatabaseConnection {
-    call: TabToWorkerRpc["call"];
+    call: DatabaseConnectionCall;
     watchQuery(sql: string): Promise<ReactiveQueryHandle>;
     close(): void;
 }
@@ -161,7 +176,22 @@ export class DatabaseActiveTabServiceWorker {
  * reactive query logic to {@link DatabaseClient}.
  */
 export class DatabaseActiveTabWorker {
-    constructor(private readonly client: DatabaseClient) {}
+    private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
+    private readonly queryToDatabase = new Map<DatabaseReactiveQueryId, DatabaseId>();
+
+    constructor(private readonly dir: OpfsDirectoryHandle) {}
+
+    private getOrCreateClient(databaseId: DatabaseId): Promise<DatabaseClient> {
+        let promise = this.clientPromises.get(databaseId);
+        if (!promise) {
+            promise = (async () => {
+                const dbDir = await this.dir.getDirectoryHandle(databaseId, {create: true});
+                return DatabaseClient.create(dbDir);
+            })();
+            this.clientPromises.set(databaseId, promise);
+        }
+        return promise;
+    }
 
     /**
      * Returns a message handler function. The caller
@@ -200,18 +230,22 @@ export class DatabaseActiveTabWorker {
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
                 execute: async input => {
-                    const rows = (await this.client.execute(
+                    const client = await this.getOrCreateClient(input.databaseId);
+                    const rows = (await client.execute(
                         conn,
                         input.sql,
                     )) as ReadonlyArray<SchemaSerializedValue>;
                     return {rows};
                 },
                 writePagesFromRealtime: async input => {
-                    this.client.writePagesFromRealtime(input.pages, input.mutationId);
+                    const client = await this.getOrCreateClient(input.databaseId);
+                    client.writePagesFromRealtime(input.pages, input.mutationId);
                     return {};
                 },
                 registerReactiveQuery: async input => {
-                    const rows = await this.client.registerReactiveQuery(
+                    const client = await this.getOrCreateClient(input.databaseId);
+                    this.queryToDatabase.set(input.queryId, input.databaseId);
+                    const rows = await client.registerReactiveQuery(
                         input.queryId,
                         input.sql,
                         conn,
@@ -231,7 +265,10 @@ export class DatabaseActiveTabWorker {
                     return {rows: rows as ReadonlyArray<SchemaSerializedValue>};
                 },
                 unregisterReactiveQuery: async input => {
-                    this.client.unregisterReactiveQuery(input.queryId);
+                    const dbId = this.queryToDatabase.get(input.queryId) ?? input.databaseId;
+                    const client = await this.getOrCreateClient(dbId);
+                    client.unregisterReactiveQuery(input.queryId);
+                    this.queryToDatabase.delete(input.queryId);
                     return {};
                 },
             },
@@ -287,6 +324,7 @@ export class DatabaseActiveTabManager {
 
     constructor(
         private readonly deps: {
+            databaseId: DatabaseId;
             locks: ActiveTabLockManager;
             serviceWorker: ActiveTabServiceWorkerContainer;
             createWorker(): ActiveTabWorkerHandle;
@@ -319,7 +357,7 @@ export class DatabaseActiveTabManager {
 
         return {
             call: ((method: string, input: unknown) =>
-                this.callMethod(method, input)) as TabToWorkerRpc["call"],
+                this.callMethod(method, input)) as DatabaseConnectionCall,
             watchQuery: (sql: string) => this.watchQuery(sql),
             close: () => this.closeConnection(),
         };
@@ -332,9 +370,14 @@ export class DatabaseActiveTabManager {
             return Promise.reject(new CancelledError("Connection closed"));
         }
 
+        const tagged = {
+            ...(input as Record<string, unknown>),
+            databaseId: this.deps.databaseId,
+        };
+
         if (this.raw === null || this.reconnecting !== null || this.promoting) {
             return new Promise((resolve, reject) => {
-                this.callQueue.push({method, input, resolve, reject});
+                this.callQueue.push({method, input: tagged, resolve, reject});
             });
         }
 
@@ -342,8 +385,8 @@ export class DatabaseActiveTabManager {
         const rpc = this.raw.rpc;
 
         return new Promise((resolve, reject) => {
-            this.inflight.set(id, {method, input, resolve, reject});
-            (rpc.call as (m: string, i: unknown) => Promise<unknown>)(method, input).then(
+            this.inflight.set(id, {method, input: tagged, resolve, reject});
+            (rpc.call as (m: string, i: unknown) => Promise<unknown>)(method, tagged).then(
                 result => {
                     if (this.inflight.delete(id)) {
                         resolve(result);

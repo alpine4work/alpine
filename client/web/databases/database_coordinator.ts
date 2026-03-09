@@ -6,7 +6,7 @@ import {
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
-import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {
     DatabaseConnection,
@@ -21,7 +21,8 @@ export type {
  * worker), others proxy queries via MessagePort through
  * the ServiceWorker.
  */
-export function connectToDatabase(callbacks: {
+export function connectToDatabase(options: {
+    databaseId: DatabaseId;
     executeServer(
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
@@ -29,6 +30,7 @@ export function connectToDatabase(callbacks: {
     reportError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
+        databaseId: options.databaseId,
         locks: navigator.locks,
         serviceWorker: {
             ready: navigator.serviceWorker.ready.then(reg => ({
@@ -101,8 +103,8 @@ export function connectToDatabase(callbacks: {
         addUnloadListener(callback: () => void) {
             window.addEventListener("beforeunload", callback);
         },
-        executeServer: callbacks.executeServer,
-        reportError: callbacks.reportError,
+        executeServer: options.executeServer,
+        reportError: options.reportError,
     });
 
     return manager.connect();

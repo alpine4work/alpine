@@ -20,7 +20,27 @@ import type {
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseId,
+    DatabaseMutationId,
+    DatabaseReactiveQueryId,
+} from "~/shared/id/types/id_types.js";
+
+const testDatabaseId = generateId<DatabaseId>();
+
+/**
+ * Creates a {@link DatabaseClient} seeded into the
+ * per-database OPFS subdirectory so that the mock
+ * worker can find it.
+ */
+async function createSeededClient(
+    dir: OpfsDirectoryHandle,
+    databaseId: string = testDatabaseId,
+): Promise<DatabaseClient> {
+    const dbsDir = await dir.getDirectoryHandle("databases", {create: true});
+    const perDbDir = await dbsDir.getDirectoryHandle(databaseId, {create: true});
+    return DatabaseClient.create(perDbDir);
+}
 
 // ---------------------------------------------------------------------------
 // In-memory OPFS mock (same as database_client.test.ts)
@@ -105,10 +125,13 @@ const pageSize = 4096;
 
 async function extractPages(
     dir: OpfsDirectoryHandle,
+    databaseId: string = testDatabaseId,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const dbDir = await dir.getDirectoryHandle("databases");
-    const pagesHandle = await (await dbDir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dbDir.getFileHandle("index.json")).createSyncAccessHandle();
+    const dbsDir = await dir.getDirectoryHandle("databases");
+    const perDbDir = await dbsDir.getDirectoryHandle(databaseId);
+    const dataDir = await perDbDir.getDirectoryHandle("databases");
+    const pagesHandle = await (await dataDir.getFileHandle("pages.bin")).createSyncAccessHandle();
+    const indexHandle = await (await dataDir.getFileHandle("index.json")).createSyncAccessHandle();
 
     const indexSize = indexHandle.getSize();
     if (indexSize === 0) return [];
@@ -309,8 +332,8 @@ function createMockWorker(dir: OpfsDirectoryHandle): ActiveTabWorkerHandle {
     let handler: ((data: unknown, ports: Array<ActiveTabPort>) => void) | null = null;
     const [mainEnd, workerEnd] = createMockPortPair();
 
-    const ready = DatabaseClient.create(dir).then(client => {
-        const worker = new DatabaseActiveTabWorker(client);
+    const ready = dir.getDirectoryHandle("databases", {create: true}).then(dbsDir => {
+        const worker = new DatabaseActiveTabWorker(dbsDir);
         handler = worker.createMessageHandler(message => workerEnd.postMessage(message));
         workerEnd.onmessage = event => handler!(event.data, event.ports);
     });
@@ -342,6 +365,7 @@ function createTestTab(config: {
     bc: MockBroadcastChannelBus;
     clientId: string;
     dir: OpfsDirectoryHandle;
+    databaseId?: DatabaseId;
     executeServer?: (
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
@@ -350,6 +374,7 @@ function createTestTab(config: {
     const unloadListeners: Array<() => void> = [];
 
     const manager = new DatabaseActiveTabManager({
+        databaseId: config.databaseId ?? testDatabaseId,
         locks: config.locks,
         serviceWorker: config.sw.containerFor(config.clientId),
         createWorker: () => createMockWorker(config.dir),
@@ -458,7 +483,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const dir = createInMemoryDirectory();
 
         // Pre-populate OPFS so data persists across leader death
-        const seed = await DatabaseClient.create(dir);
+        const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (42)");
 
@@ -487,7 +512,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const dir = createInMemoryDirectory();
 
         // Pre-populate OPFS so data persists across leader change
-        const seed = await DatabaseClient.create(dir);
+        const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
 
@@ -517,7 +542,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const dir = createInMemoryDirectory();
 
         // Pre-populate OPFS so data persists across leader death
-        const seed = await DatabaseClient.create(dir);
+        const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (1)");
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (2)");
@@ -549,7 +574,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const dir = createInMemoryDirectory();
 
         // Pre-populate OPFS so data persists across leader change
-        const seed = await DatabaseClient.create(dir);
+        const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('nav')");
 
@@ -579,7 +604,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const dir = createInMemoryDirectory();
 
         // Pre-populate OPFS so data persists across leader death
-        const seed = await DatabaseClient.create(dir);
+        const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('data')");
 
@@ -928,7 +953,7 @@ describe("watchQuery", () => {
         // Pre-populate OPFS so data is in the base store
         // (no optimistic queue to replay on
         // writePagesFromRealtime).
-        const seed = await DatabaseClient.create(dir);
+        const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
 
@@ -946,7 +971,7 @@ describe("watchQuery", () => {
         // Build "after" state in a separate database that
         // has both rows — simulates a server-side mutation.
         const serverDir = createInMemoryDirectory();
-        const server = await DatabaseClient.create(serverDir);
+        const server = await createSeededClient(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");

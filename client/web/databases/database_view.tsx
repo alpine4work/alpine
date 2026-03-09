@@ -18,7 +18,11 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseId,
+    DatabaseMutationId,
+    DatabaseReactiveQueryId,
+} from "~/shared/id/types/id_types.js";
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 const sampleQueries = [
@@ -274,13 +278,17 @@ export function DatabaseView({name}: {name: string}) {
     useEffect(() => {
         let connection: DatabaseConnection | null = null;
         (async () => {
-            connection = await connectToDatabase({executeServer, reportError});
+            connection = await connectToDatabase({
+                databaseId: databaseId! as DatabaseId,
+                executeServer,
+                reportError,
+            });
             setConn(connection);
         })();
         return () => {
             connection?.close();
         };
-    }, [executeServer, reportError]);
+    }, [databaseId, executeServer, reportError]);
 
     return (
         <Box

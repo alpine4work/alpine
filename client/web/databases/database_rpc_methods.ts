@@ -1,6 +1,10 @@
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
-import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseId,
+    DatabaseMutationId,
+    DatabaseReactiveQueryId,
+} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 const pageValueSchema = Schema.object({
@@ -17,22 +21,30 @@ const pageDiffEntrySchema = Schema.object({
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     execute: {
-        input: {sql: Schema.string},
+        input: {databaseId: Schema.id<DatabaseId>(), sql: Schema.string},
         output: {rows: Schema.array(Schema.unknown())},
     },
     writePagesFromRealtime: {
         input: {
+            databaseId: Schema.id<DatabaseId>(),
             pages: Schema.array(pageDiffEntrySchema),
             mutationId: Schema.id<DatabaseMutationId>(),
         },
         output: {},
     },
     registerReactiveQuery: {
-        input: {queryId: Schema.id<DatabaseReactiveQueryId>(), sql: Schema.string},
+        input: {
+            databaseId: Schema.id<DatabaseId>(),
+            queryId: Schema.id<DatabaseReactiveQueryId>(),
+            sql: Schema.string,
+        },
         output: {rows: Schema.array(Schema.unknown())},
     },
     unregisterReactiveQuery: {
-        input: {queryId: Schema.id<DatabaseReactiveQueryId>()},
+        input: {
+            databaseId: Schema.id<DatabaseId>(),
+            queryId: Schema.id<DatabaseReactiveQueryId>(),
+        },
         output: {},
     },
 });

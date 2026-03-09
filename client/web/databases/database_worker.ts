@@ -1,5 +1,4 @@
 import {DatabaseActiveTabWorker} from "~/client/web/databases/database_active_tab_manager.js";
-import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 
 const workerSelf = globalThis as unknown as {
@@ -8,20 +7,20 @@ const workerSelf = globalThis as unknown as {
 };
 
 (async () => {
-    const dir: OpfsDirectoryHandle = await (navigator.storage as any).getDirectory();
+    const root: OpfsDirectoryHandle = await (navigator.storage as any).getDirectory();
 
     // Wipe OPFS on every leader start. Persistence will be
     // restored later; for now the client always starts empty
     // and falls back to querying the server.
     try {
-        await dir.removeEntry("databases", {recursive: true});
+        await root.removeEntry("databases", {recursive: true});
     } catch {
         // Directory may not exist yet.
     }
 
-    const client = await DatabaseClient.create(dir);
+    const dir = await root.getDirectoryHandle("databases", {create: true});
 
-    const worker = new DatabaseActiveTabWorker(client);
+    const worker = new DatabaseActiveTabWorker(dir);
     const handler = worker.createMessageHandler(message => workerSelf.postMessage(message));
 
     workerSelf.onmessage = event => {
