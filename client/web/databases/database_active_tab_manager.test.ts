@@ -914,9 +914,7 @@ describe("watchQuery", () => {
         const handle = await conn.watchQuery("SELECT * FROM t");
 
         const snapshot = handle.store.getSnapshot();
-        expect(snapshot.rows).toMatchObject([{id: 1, val: "hello"}]);
-        expect(snapshot.invalidationCount).toBe(0);
-        expect(snapshot.error).toBeNull();
+        expect(snapshot).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
 
         handle.unwatch();
     });
@@ -940,7 +938,7 @@ describe("watchQuery", () => {
         const handle = await conn.watchQuery("SELECT * FROM t ORDER BY id");
 
         const initial = handle.store.getSnapshot();
-        expect(initial.rows).toMatchObject([{id: 1, val: "v1"}]);
+        expect(initial).toMatchObject({ok: true, value: [{id: 1, val: "v1"}]});
 
         // Extract the seed state as the "before" snapshot.
         const seedPages = await extractPages(dir);
@@ -975,11 +973,13 @@ describe("watchQuery", () => {
         await new Promise(resolve => setTimeout(resolve, 200));
 
         const updated = handle.store.getSnapshot();
-        expect(updated.rows).toMatchObject([
-            {id: 1, val: "v1"},
-            {id: 2, val: "v2"},
-        ]);
-        expect(updated.invalidationCount).toBeGreaterThan(0);
+        expect(updated).toMatchObject({
+            ok: true,
+            value: [
+                {id: 1, val: "v1"},
+                {id: 2, val: "v2"},
+            ],
+        });
 
         handle.unwatch();
     });
@@ -1009,7 +1009,7 @@ describe("watchQuery", () => {
         const handle = await connB.watchQuery("SELECT * FROM t");
 
         const initial = handle.store.getSnapshot();
-        expect(initial.rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(initial).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
 
         // Kill leader — follower promotes
         locks.release("alpine-db");
@@ -1021,7 +1021,7 @@ describe("watchQuery", () => {
         // the store has data (re-registration re-executed
         // the query on the new leader).
         const afterPromotion = handle.store.getSnapshot();
-        expect(afterPromotion.rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(afterPromotion).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
 
         handle.unwatch();
     });

@@ -122,16 +122,17 @@ function WatchedQueryResults(props: {
 }) {
     const result = useStore(props.handle.store);
     const [flashing, setFlashing] = useState(false);
-    const prevCountRef = useRef(result.invalidationCount);
+    const isFirstRef = useRef(true);
 
     useEffect(() => {
-        if (result.invalidationCount > prevCountRef.current) {
-            prevCountRef.current = result.invalidationCount;
-            setFlashing(true);
-            const timer = setTimeout(() => setFlashing(false), 500);
-            return () => clearTimeout(timer);
+        if (isFirstRef.current) {
+            isFirstRef.current = false;
+            return;
         }
-    }, [result.invalidationCount]);
+        setFlashing(true);
+        const timer = setTimeout(() => setFlashing(false), 500);
+        return () => clearTimeout(timer);
+    }, [result]);
 
     return (
         <Box
@@ -161,7 +162,9 @@ function WatchedQueryResults(props: {
                     Close
                 </Button>
             </Box>
-            {result.error != null ? (
+            {result.ok ? (
+                <TableView rows={result.value} />
+            ) : (
                 <pre
                     className={sprinkles({
                         fontSize: "75",
@@ -172,8 +175,6 @@ function WatchedQueryResults(props: {
                 >
                     {result.error}
                 </pre>
-            ) : (
-                <TableView rows={result.rows} />
             )}
         </Box>
     );

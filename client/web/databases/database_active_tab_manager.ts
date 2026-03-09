@@ -9,6 +9,7 @@ import {
 } from "~/client/web/databases/database_worker_rpc_methods.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {CancelledError} from "~/shared/error/error.js";
+import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -83,13 +84,7 @@ type WorkerToTabRpc = WebWorkerRpc<
     typeof tabToWorkerDatabaseRpcMethods
 >;
 
-export interface ReactiveQueryResult {
-    readonly rows: ReadonlyArray<unknown>;
-    /** Increments on each re-execution so the UI can
-     *  detect updates even when rows are identical. */
-    readonly invalidationCount: number;
-    readonly error: string | null;
-}
+export type ReactiveQueryResult = Result<ReadonlyArray<unknown>, string>;
 
 export interface ReactiveQueryHandle {
     readonly store: Store<ReactiveQueryResult>;
@@ -384,11 +379,7 @@ export class DatabaseActiveTabManager {
 
     private async watchQuery(sql: string): Promise<ReactiveQueryHandle> {
         const queryId = generateId<DatabaseReactiveQueryId>();
-        const store = new ValueStore<ReactiveQueryResult>({
-            rows: [],
-            invalidationCount: 0,
-            error: null,
-        });
+        const store = new ValueStore<ReactiveQueryResult>({ok: true, value: []});
 
         this.watches.set(queryId, {sql, store});
 
@@ -396,7 +387,11 @@ export class DatabaseActiveTabManager {
             queryId,
             sql,
         })) as {rows: ReadonlyArray<unknown>; error: string | null};
-        store.set({rows: result.rows, invalidationCount: 0, error: result.error ?? null});
+        if (result.error !== null) {
+            store.set({ok: false, error: result.error});
+        } else {
+            store.set({ok: true, value: result.rows});
+        }
 
         return {
             store,
@@ -413,19 +408,8 @@ export class DatabaseActiveTabManager {
                 queryId,
                 sql: watch.sql,
             })) as {rows: ReadonlyArray<unknown>; error: string | null};
-            const prev = watch.store.getSnapshot();
-            if (result.error !== null) {
-                watch.store.set({
-                    ...prev,
-                    invalidationCount: prev.invalidationCount + 1,
-                    error: result.error,
-                });
-            } else {
-                watch.store.set({
-                    rows: result.rows,
-                    invalidationCount: prev.invalidationCount + 1,
-                    error: null,
-                });
+            if (result.error === null) {
+                watch.store.set({ok: true, value: result.rows});
             }
         }
     }
@@ -600,24 +584,14 @@ export class DatabaseActiveTabManager {
                 reactiveQueryUpdated: async input => {
                     const watch = this.watches.get(input.queryId);
                     if (watch) {
-                        const prev = watch.store.getSnapshot();
-                        watch.store.set({
-                            rows: input.rows,
-                            invalidationCount: prev.invalidationCount + 1,
-                            error: null,
-                        });
+                        watch.store.set({ok: true, value: input.rows});
                     }
                     return {};
                 },
                 reactiveQueryError: async input => {
                     const watch = this.watches.get(input.queryId);
                     if (watch) {
-                        const prev = watch.store.getSnapshot();
-                        watch.store.set({
-                            ...prev,
-                            invalidationCount: prev.invalidationCount + 1,
-                            error: input.message,
-                        });
+                        watch.store.set({ok: false, error: input.message});
                     }
                     return {};
                 },
@@ -674,24 +648,14 @@ export class DatabaseActiveTabManager {
                 reactiveQueryUpdated: async input => {
                     const watch = this.watches.get(input.queryId);
                     if (watch) {
-                        const prev = watch.store.getSnapshot();
-                        watch.store.set({
-                            rows: input.rows,
-                            invalidationCount: prev.invalidationCount + 1,
-                            error: null,
-                        });
+                        watch.store.set({ok: true, value: input.rows});
                     }
                     return {};
                 },
                 reactiveQueryError: async input => {
                     const watch = this.watches.get(input.queryId);
                     if (watch) {
-                        const prev = watch.store.getSnapshot();
-                        watch.store.set({
-                            ...prev,
-                            invalidationCount: prev.invalidationCount + 1,
-                            error: input.message,
-                        });
+                        watch.store.set({ok: false, error: input.message});
                     }
                     return {};
                 },
