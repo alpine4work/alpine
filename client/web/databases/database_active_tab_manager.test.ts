@@ -11,13 +11,14 @@ import {
     DatabaseActiveTabWorker,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
@@ -121,8 +122,6 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
 // OPFS page extraction helper
 // ---------------------------------------------------------------------------
 
-const pageSize = 4096;
-
 async function extractPages(
     dir: OpfsDirectoryHandle,
     databaseId: string = testDatabaseId,
@@ -143,8 +142,8 @@ async function extractPages(
     >;
 
     return entries.map(([pageIndex, {slot, timestamp}]) => {
-        const data = new Uint8Array(pageSize);
-        pagesHandle.read(data, {at: slot * pageSize});
+        const data = new Uint8Array(sqlitePageSize);
+        pagesHandle.read(data, {at: slot * sqlitePageSize});
         return {pageIndex, timestamp, data};
     });
 }
@@ -765,7 +764,10 @@ describe("Reactive queries", () => {
             sql: "SELECT * FROM t",
         });
 
-        expect(result.rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(result).toMatchObject({
+            rows: [{id: 1, val: "hello"}],
+            error: null,
+        });
     });
 
     test("reactive query re-executes when overlapping pages are written", async () => {
@@ -937,9 +939,7 @@ describe("watchQuery", () => {
         const handle = await conn.watchQuery("SELECT * FROM t");
 
         const snapshot = handle.store.getSnapshot();
-        expect(snapshot.rows).toMatchObject([{id: 1, val: "hello"}]);
-        expect(snapshot.invalidationCount).toBe(0);
-        expect(snapshot.error).toBeNull();
+        expect(snapshot).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
 
         handle.unwatch();
     });
@@ -963,7 +963,7 @@ describe("watchQuery", () => {
         const handle = await conn.watchQuery("SELECT * FROM t ORDER BY id");
 
         const initial = handle.store.getSnapshot();
-        expect(initial.rows).toMatchObject([{id: 1, val: "v1"}]);
+        expect(initial).toMatchObject({ok: true, value: [{id: 1, val: "v1"}]});
 
         // Extract the seed state as the "before" snapshot.
         const seedPages = await extractPages(dir);
@@ -981,7 +981,7 @@ describe("watchQuery", () => {
         // so writePagesFromRealtime applies real changes.
         const newerPages = serverPages.map(sp => {
             const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
-            const base = seedPage?.data ?? new Uint8Array(pageSize);
+            const base = seedPage?.data ?? new Uint8Array(sqlitePageSize);
             return {
                 pageIndex: sp.pageIndex,
                 timestamp: sp.timestamp + 10000,
@@ -998,11 +998,13 @@ describe("watchQuery", () => {
         await new Promise(resolve => setTimeout(resolve, 200));
 
         const updated = handle.store.getSnapshot();
-        expect(updated.rows).toMatchObject([
-            {id: 1, val: "v1"},
-            {id: 2, val: "v2"},
-        ]);
-        expect(updated.invalidationCount).toBeGreaterThan(0);
+        expect(updated).toMatchObject({
+            ok: true,
+            value: [
+                {id: 1, val: "v1"},
+                {id: 2, val: "v2"},
+            ],
+        });
 
         handle.unwatch();
     });
@@ -1032,7 +1034,7 @@ describe("watchQuery", () => {
         const handle = await connB.watchQuery("SELECT * FROM t");
 
         const initial = handle.store.getSnapshot();
-        expect(initial.rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(initial).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
 
         // Kill leader — follower promotes
         locks.release("alpine-db");
@@ -1044,7 +1046,7 @@ describe("watchQuery", () => {
         // the store has data (re-registration re-executed
         // the query on the new leader).
         const afterPromotion = handle.store.getSnapshot();
-        expect(afterPromotion.rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(afterPromotion).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
 
         handle.unwatch();
     });

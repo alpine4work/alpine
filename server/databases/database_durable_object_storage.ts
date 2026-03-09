@@ -1,5 +1,5 @@
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**

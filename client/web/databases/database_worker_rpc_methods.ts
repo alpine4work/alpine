@@ -38,7 +38,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
             queryId: Schema.id<DatabaseReactiveQueryId>(),
             sql: Schema.string,
         },
-        output: {rows: Schema.array(Schema.unknown())},
+        output: {rows: Schema.array(Schema.unknown()), error: Schema.string.nullable()},
     },
     unregisterReactiveQuery: {
         input: {

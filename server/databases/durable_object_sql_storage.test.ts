@@ -8,7 +8,7 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 // Cast to `any` because Miniflare's DurableObjectStorage type doesn't
 // include our patched `sql` / `transactionSync` in the upstream .d.ts

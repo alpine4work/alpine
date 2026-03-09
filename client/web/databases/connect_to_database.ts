@@ -5,7 +5,7 @@ import {
     DatabaseActiveTabManager,
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {

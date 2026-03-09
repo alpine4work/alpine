@@ -1,11 +1,12 @@
 import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {ExecuteServerResult} from "~/client/web/databases/database_rpc_methods.js";
+import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
@@ -97,8 +98,6 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
 // OPFS page extraction / pre-population helpers
 // ---------------------------------------------------------------------------
 
-const pageSize = 4096;
-
 /**
  * Reads all pages + index from a directory's "databases"
  * subdirectory. Uses the same OPFS mock handles that the
@@ -121,8 +120,8 @@ async function extractPages(
     >;
 
     return entries.map(([pageIndex, {slot, timestamp}]) => {
-        const data = new Uint8Array(pageSize);
-        pagesHandle.read(data, {at: slot * pageSize});
+        const data = new Uint8Array(sqlitePageSize);
+        pagesHandle.read(data, {at: slot * sqlitePageSize});
         return {pageIndex, timestamp, data};
     });
 }
@@ -144,7 +143,7 @@ async function prepopulatePages(
     const indexEntries: Array<[number, {slot: number; timestamp: number}]> = [];
     for (let i = 0; i < pages.length; i++) {
         const page = pages[i]!;
-        pagesHandle.write(page.data, {at: i * pageSize});
+        pagesHandle.write(page.data, {at: i * sqlitePageSize});
         indexEntries.push([page.pageIndex, {slot: i, timestamp: page.timestamp}]);
     }
     pagesHandle.flush();
@@ -292,6 +291,34 @@ describe("execute — mutations", () => {
 
         expect(serverCalled).toBe(true);
         expect(rows).toMatchObject([{inserted: true}]);
+    });
+
+    test("empty store falls back to local for writes", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+
+        const calls: Array<{allowWrites: boolean}> = [];
+        const conn: DatabaseClientConnection = {
+            async executeServer(_sql, options) {
+                calls.push({allowWrites: options.allowWrites});
+                if (!options.allowWrites) {
+                    throw new UnavailableError("server unavailable");
+                }
+                // Simulate realtime confirmation arriving
+                // before server response.
+                client.writePagesFromRealtime([], options.mutationId);
+                return {rows: [], readPages: new Map()};
+            },
+            reportError() {},
+        };
+
+        const rows = await client.execute(conn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+
+        // DDL executes locally — returns no rows.
+        expect(rows).toMatchObject([]);
+
+        // Background send fires after microtask.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(calls).toMatchObject([{allowWrites: false}, {allowWrites: true}]);
     });
 
     test("propagates local execution errors", async () => {
@@ -573,6 +600,31 @@ describe("executeWithTracking", () => {
         expect(onlyT1.length + onlyT2.length).toBeGreaterThan(0);
     });
 
+    test("throws on write attempts without contacting server", async () => {
+        const client = await DatabaseClient.create(createInMemoryDirectory());
+        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
+
+        let serverCalled = false;
+        const conn: DatabaseClientConnection = {
+            async executeServer() {
+                serverCalled = true;
+                return {rows: [], readPages: new Map()};
+            },
+            reportError() {},
+        };
+
+        await expect(
+            client.executeWithTracking(conn, "INSERT INTO t (id) VALUES (2)"),
+        ).rejects.toThrow("executeWithTracking does not support writes");
+
+        expect(serverCalled).toBe(false);
+
+        // Table should be unchanged — the write was rolled back.
+        const {rows} = await client.executeWithTracking(testConn, "SELECT * FROM t");
+        expect(rows).toMatchObject([{id: 1}]);
+    });
+
     test("server fallback still produces accurate read set", async () => {
         // Create a "server" DB
         const serverDir = createInMemoryDirectory();
@@ -615,7 +667,7 @@ describe("registerReactiveQuery", () => {
         await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const rows = await client.registerReactiveQuery(
+        const result = await client.registerReactiveQuery(
             "q1",
             "SELECT * FROM t",
             testConn,
@@ -623,7 +675,8 @@ describe("registerReactiveQuery", () => {
             () => {},
         );
 
-        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect(result.ok).toBe(true);
+        expect(result.value).toMatchObject([{id: 1, val: "hello"}]);
     });
 
     test("optimistic mutation invalidates overlapping reactive query", async () => {
@@ -754,6 +807,46 @@ describe("registerReactiveQuery", () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(notifications.length).toBe(0);
+    });
+
+    test("initial failure still registers query, re-executes on page write", async () => {
+        const dir = createInMemoryDirectory();
+        const client = await DatabaseClient.create(dir);
+
+        // Register a query against a table that doesn't
+        // exist yet — initial evaluation will fail.
+        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
+        const result = await client.registerReactiveQuery(
+            "q1",
+            "SELECT * FROM t ORDER BY id",
+            testConn,
+            rows => {
+                notifications.push(rows);
+            },
+            () => {},
+        );
+
+        expect(result.ok).toBe(false);
+
+        // Now create the table. The write goes to the
+        // base store so extractPages picks it up.
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
+
+        // Trigger invalidation via realtime page writes.
+        // readPages is null so any page write overlaps.
+        const pages = await extractPages(dir);
+        const newerPages = pages.map(({pageIndex, timestamp}) => ({
+            pageIndex,
+            timestamp: timestamp + 1000,
+            diff: [],
+        }));
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(1);
+        expect(notifications[0]).toMatchObject([{id: 1, val: "hello"}]);
     });
 
     test("unregisterReactiveQuery stops notifications", async () => {
