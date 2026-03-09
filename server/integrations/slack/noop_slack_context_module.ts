@@ -5,6 +5,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
+import {ErrorBase} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -18,7 +19,11 @@ export class NoopSlackContextModule extends SlackContextModuleBase {
         super();
     }
 
-    public async getOAuthUrl(_spaceId: SpaceId, _state: string): Promise<string> {
+    public async getOAuthUrl(_params: {
+        spaceId: SpaceId;
+        state: string;
+        workspaceId?: string;
+    }): Promise<string> {
         return "https://test.cyberworlds.dev";
     }
 
@@ -66,8 +71,8 @@ export class NoopSlackContextModule extends SlackContextModuleBase {
     public async uninstallAlpineAppFromSlackWorkspace(
         _context: ServerActionContext,
         _params: {spaceId: SpaceId},
-    ) {
-        // No-op for test environment.
+    ): Promise<{ok: boolean; error?: ErrorBase}> {
+        return {ok: true};
     }
 
     fork(): SlackContextModuleBase {

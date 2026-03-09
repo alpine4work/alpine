@@ -430,6 +430,9 @@ const TracerEventDataSchema = {
         browserId: Schema.id(),
         responseStatusCode: Schema.integer,
     },
+    slack: {
+        workspaceId: Schema.string,
+    },
     cloudflare: {
         r2: {
             action: IdentifierStringSchema,

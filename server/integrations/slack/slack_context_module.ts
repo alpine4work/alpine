@@ -1,4 +1,4 @@
-import {AnyBlock, WebClient} from "@slack/web-api";
+import {AnyBlock, ErrorCode, WebClient} from "@slack/web-api";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -6,7 +6,8 @@ import {
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {getConnectedSlackWorkspaceBotCredentialsIfExists} from "~/server/integrations/slack/get_connected_slack_workspace_bot_credentials_if_exists.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {NotFoundError, UnknownError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError, UnknownError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {slackBotOAuthScopes} from "~/shared/integrations/slack/slack_bot_oauth_scopes.js";
@@ -19,6 +20,11 @@ import {slackBotOAuthScopes} from "~/shared/integrations/slack/slack_bot_oauth_s
 const slackAuthenticatedBotClientCache = new ContextCache<SpaceId, WebClient>({
     whenActorChanges: "SafelyReset",
 });
+
+// Is this an error thrown by the Slack Web API?
+function isSlackWebApiCallError(error: unknown): error is {code: ErrorCode; data: {error: string}} {
+    return Object.values(ErrorCode).includes((error as {code: unknown}).code as ErrorCode);
+}
 
 export class SlackContextModule extends SlackContextModuleBase {
     private readonly _clientId: string;
@@ -66,12 +72,29 @@ export class SlackContextModule extends SlackContextModuleBase {
         });
     }
 
-    public async getOAuthUrl(spaceId: SpaceId, state: string): Promise<string> {
+    public async getOAuthUrl({
+        spaceId,
+        state,
+        workspaceId,
+    }: {
+        spaceId: SpaceId;
+        state: string;
+        workspaceId?: string;
+    }): Promise<string> {
         const redirectUri = this.getRedirectUri(spaceId);
 
         const botScopes = Array.from(slackBotOAuthScopes).join(",");
 
-        return `https://slack.com/oauth/v2/authorize?scope=${botScopes}&client_id=${this._clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
+        const searchParams = new URLSearchParams();
+        searchParams.set("scope", botScopes);
+        searchParams.set("client_id", this._clientId);
+        searchParams.set("redirect_uri", redirectUri);
+        searchParams.set("state", encodeURIComponent(state));
+        if (workspaceId) {
+            searchParams.set("team", workspaceId);
+        }
+
+        return `https://slack.com/oauth/v2/authorize?${searchParams.toString()}`;
     }
 
     public async exchangeShortLivedOAuthCodeForAccessToken(
@@ -141,6 +164,7 @@ export class SlackContextModule extends SlackContextModuleBase {
         const workspaceInfoResponse = await client.team.info({
             team: workspaceId,
         });
+
         if (!workspaceInfoResponse.ok) {
             throw new UnknownError("Failed to get Slack workspace info", {
                 cause: workspaceInfoResponse.error,
@@ -148,6 +172,7 @@ export class SlackContextModule extends SlackContextModuleBase {
         }
         return {
             workspaceName: assertExists(workspaceInfoResponse.team?.name),
+            workspaceUrl: workspaceInfoResponse.team?.url,
             workspaceImageUrl: assertExists(workspaceInfoResponse.team?.icon?.image_230),
         };
     }
@@ -181,16 +206,54 @@ export class SlackContextModule extends SlackContextModuleBase {
     ) {
         const client = await this._getAuthenticatedBotClientForSpace(context, spaceId);
 
-        const uninstallResponse = await client.apps.uninstall({
-            client_id: this._clientId,
-            client_secret: this._clientSecret,
-        });
-
-        if (!uninstallResponse.ok) {
-            throw new UnknownError("Failed to uninstall Alpine app from Slack workspace", {
-                cause: uninstallResponse.error,
+        try {
+            await client.apps.uninstall({
+                client_id: this._clientId,
+                client_secret: this._clientSecret,
             });
+        } catch (error: unknown) {
+            if (isSlackWebApiCallError(error)) {
+                switch (error.data.error) {
+                    // If the workspace is inactive, the app is no longer installed anyway. This says
+                    // "account" but since we use a bot token, it's actually the workspace that is
+                    // inactive.
+                    case "account_inactive":
+                    // If the token is revoked, the app is either already uninstalled or our bot user
+                    // is no longer in the workspace.
+                    case "token_revoked":
+                        return {
+                            ok: true,
+                        };
+                    case "access_denied":
+                    case "no_permission":
+                        return {
+                            ok: false,
+                            error: new PermissionDeniedError(
+                                "Permission denied attempting to uninstall Alpine app from Slack workspace",
+                                {
+                                    displayMessage: errorDisplayMessage`You don\u2019t have permission to uninstall the Alpine app from your Slack workspace`,
+                                },
+                            ),
+                        };
+                    default:
+                        return {
+                            ok: false,
+                            error: new UnknownError(
+                                "Failed to uninstall Alpine app from Slack workspace",
+                                {
+                                    cause: error,
+                                },
+                            ),
+                        };
+                }
+            } else {
+                throw error;
+            }
         }
+
+        return {
+            ok: true,
+        };
     }
 
     fork(): SlackContextModuleBase {

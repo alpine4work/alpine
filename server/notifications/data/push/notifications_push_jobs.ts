@@ -4,8 +4,12 @@ import {
 } from "~/server/context/server_action_context.js";
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
-import {SendWebPushNotificationJobDescription} from "~/server/jobs/core/job_description.js";
+import {
+    SendNotificationToSlackIntegrationJobDescription,
+    SendWebPushNotificationJobDescription,
+} from "~/server/jobs/core/job_description.js";
 import {sendAllPendingSubtleNotifications} from "~/server/notifications/data/internal/push/send_all_pending_subtle_notifications.js";
+import {sendNotificationToSlackIntegration} from "~/server/notifications/data/internal/push/send_notification_to_slack_integration.js";
 import {sendPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/send_pending_subtle_notifications_for_inbox.js";
 import {sendWebPushNotificationToSubscription} from "~/server/notifications/data/internal/push/send_web_push_notification_to_subscription.js";
 import {Context} from "~/shared/context/context.js";
@@ -47,4 +51,23 @@ export async function processSendPendingSubtleNotificationsForInboxJob(
     {accountId, spaceId, sendTime}: {accountId: AccountId; spaceId: SpaceId; sendTime: Date},
 ) {
     await sendPendingSubtleNotificationsForInbox(context, {accountId, spaceId, sendTime});
+}
+
+export async function processSendNotificationToSlackIntegrationJob(
+    context: Context<ServerSystemActionContextModules & {slack: SlackContextModuleBase}>,
+    {
+        spaceId,
+        accountId,
+        workspaceId,
+        notificationContent,
+        entryPath,
+    }: SendNotificationToSlackIntegrationJobDescription,
+) {
+    await sendNotificationToSlackIntegration(context, {
+        spaceId,
+        accountId,
+        workspaceId,
+        notificationContent,
+        entryPath,
+    });
 }

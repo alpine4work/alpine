@@ -9,6 +9,7 @@ export const SlackWorkspaceSchema = Schema.object({
     workspaceId: Schema.string,
     workspaceName: Schema.string,
     workspaceImageUrl: Schema.string.optional(),
+    workspaceUrl: Schema.string.optional(),
     connectedTime: Schema.date,
     connectedByAccountId: Schema.id<AccountId>(),
 });

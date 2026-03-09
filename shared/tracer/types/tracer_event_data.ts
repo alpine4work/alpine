@@ -1327,6 +1327,9 @@ export type TracerEventData = {
         readonly errorReason?: string;
     };
 
+    /**
+     * Information related to web push notifications.
+     */
     readonly webPush?: {
         /**
          * The origin of the web push service subscription endpoint like
@@ -1339,6 +1342,14 @@ export type TracerEventData = {
 
         /** The status code of the response from the web push service. */
         readonly responseStatusCode?: number;
+    };
+
+    /**
+     * Information related to Slack integrations and requests to the Slack API.
+     */
+    readonly slack?: {
+        /** The ID of the Slack workspace we're sending the notification to. */
+        readonly workspaceId?: string;
     };
 
     /**

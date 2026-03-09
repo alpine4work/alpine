@@ -185,6 +185,23 @@ export type SendWebPushNotificationJobDescription = SchemaType<
     typeof SendWebPushNotificationJobDescriptionSchema
 >;
 
+const SendNotificationToSlackIntegrationJobDescriptionSchema = Schema.object({
+    type: Schema.value("SendNotificationToSlackIntegration"),
+    spaceId: Schema.id<SpaceId>(),
+    accountId: Schema.id<AccountId>(),
+    workspaceId: Schema.string,
+    notificationContent: Schema.object({
+        title: Schema.string,
+        subtitle: Schema.string.optional(),
+        body: Schema.string,
+    }),
+    entryPath: Schema.string,
+});
+
+export type SendNotificationToSlackIntegrationJobDescription = SchemaType<
+    typeof SendNotificationToSlackIntegrationJobDescriptionSchema
+>;
+
 const SendPendingSubtleNotificationsForInboxJobDescriptionSchema = Schema.object({
     type: Schema.value("SendPendingSubtleNotificationsForInbox"),
     accountId: Schema.id<AccountId>(),
@@ -213,4 +230,5 @@ export const JobDescriptionSchema = Schema.union({
     SendWebPushNotification: SendWebPushNotificationJobDescriptionSchema,
     SendPendingSubtleNotificationsForInbox:
         SendPendingSubtleNotificationsForInboxJobDescriptionSchema,
+    SendNotificationToSlackIntegration: SendNotificationToSlackIntegrationJobDescriptionSchema,
 });

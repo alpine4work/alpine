@@ -6,6 +6,8 @@ import {getConnectedSlackWorkspaceIfExists} from "~/server/integrations/slack/ge
 import {generateSlackMessageBodyFromTemplate} from "~/server/integrations/slack/internal/message_templates/slack_message_templates.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getSpace} from "~/server/spaces/get_space.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -23,17 +25,36 @@ export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWo
 ) {
     await authorizeSpaceAccess(context, spaceId);
 
-    const {workspaceId, slackUserId, botToken, botUserId, botScopes} =
-        await context.slack.exchangeShortLivedOAuthCodeForAccessToken(context, {code, spaceId});
+    const [{workspaceId, slackUserId, botToken, botUserId, botScopes}, existingSlackWorkspace] =
+        await runAllPromises([
+            context.slack.exchangeShortLivedOAuthCodeForAccessToken(context, {code, spaceId}),
+            getConnectedSlackWorkspaceIfExists(
+                context,
+                {
+                    spaceId,
+                },
+                {consistency: "Strong"},
+            ),
+        ]);
+
+    // We only allow connecting one workspace per space, but the user could have chosen
+    // a different workspace in the Slack OAuth interface. We hint to Slack that they
+    // should use a specific workspace, but we can't limit which workspace the user
+    // ultimately chooses. So we check if the workspace they gave us permissions for is
+    // the same one that's already connected, and if not, we throw an error.
+    if (existingSlackWorkspace && existingSlackWorkspace.workspaceId !== workspaceId) {
+        throw new FailedPreconditionError(
+            "The workspace ID in the OAuth response does not match the existing workspace ID",
+            {
+                displayMessage: errorDisplayMessage`The Slack workspace you\u2019ve selected does not match the one connected to this space.`,
+            },
+        );
+    }
 
     // The bot token is now cached in context.slack for this request cycle, so the
     // getUserProfile and getWorkspaceInfo calls below share a single authenticated
     // WebClient without hitting the database again.
-    const [existingSlackWorkspace, userProfile, workspaceInfo, space] = await runAllPromises([
-        getConnectedSlackWorkspaceIfExists(context, {
-            spaceId,
-            workspaceId,
-        }),
+    const [userProfile, workspaceInfo, space] = await runAllPromises([
         context.slack.getUserProfile(context, {spaceId, slackUserId}),
         context.slack.getWorkspaceInfo(context, {spaceId, workspaceId}),
         getSpace(context, spaceId),
@@ -52,11 +73,7 @@ export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWo
 
         const {text, blocks} = generateSlackMessageBodyFromTemplate(
             "SlackAccountConnectedSuccess",
-            {
-                spaceName: space.name,
-                spaceId,
-                edgeServiceUrl: context.constants.edgeServiceUrl,
-            },
+            {spaceName: space.name, spaceId, edgeServiceUrl: context.constants.edgeServiceUrl},
         );
         await context.slack.sendDirectMessageAsAlpineApp(context, {
             spaceId,
@@ -72,6 +89,7 @@ export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWo
             workspaceId,
             workspaceName: workspaceInfo.workspaceName,
             workspaceImageUrl: workspaceInfo.workspaceImageUrl,
+            workspaceUrl: workspaceInfo.workspaceUrl,
             botToken,
             botUserId,
             botScopes,
@@ -79,11 +97,7 @@ export async function exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWo
 
         const {text, blocks} = generateSlackMessageBodyFromTemplate(
             "SlackWorkspaceConnectedSuccess",
-            {
-                spaceName: space.name,
-                spaceId,
-                edgeServiceUrl: context.constants.edgeServiceUrl,
-            },
+            {spaceName: space.name, spaceId, edgeServiceUrl: context.constants.edgeServiceUrl},
         );
 
         const [slackAccount] = await runAllPromises([

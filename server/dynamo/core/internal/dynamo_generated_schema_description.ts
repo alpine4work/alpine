@@ -10758,6 +10758,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "workspaceUrl": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
                                     "connectedTime": {
                                         "valueSchema": {
                                             "type": "Date"

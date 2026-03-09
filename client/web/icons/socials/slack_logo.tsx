@@ -3,7 +3,7 @@ import {CSSProperties} from "react";
 export function SlackLogo({style}: {style: CSSProperties}) {
     return (
         <svg viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
-            <g clip-path="url(#clip0_4127_70105)">
+            <g clipPath="url(#clip0_4127_70105)">
                 <path
                     d="M11.379 33.9993C11.379 37.1358 8.84512 39.6507 5.7276 39.6507C2.61008 39.6507 0.0572205 37.1168 0.0572205 33.9993C0.0572205 30.8817 2.5911 28.3479 5.70862 28.3479H11.36V33.9993H11.379Z"
                     fill="#E01E5A"

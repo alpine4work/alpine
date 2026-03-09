@@ -7,7 +7,6 @@ import {InboxEntryItem, InboxTable} from "~/server/notifications/data/internal/i
 import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
 import {queuePendingSubtleNotification} from "~/server/notifications/data/internal/push/queue_pending_subtle_notification.js";
 import {sendApnsPushNotification} from "~/server/notifications/data/internal/push/send_apns_push_notification.js";
-import {sendNotificationToSlackIntegration} from "~/server/notifications/data/internal/push/send_notification_to_slack_integration.js";
 import {getPushNotificationThreadId} from "~/server/notifications/data/push/get_push_notification_thread_id.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {Context} from "~/shared/context/context.js";
@@ -185,11 +184,12 @@ export async function sendPushNotificationToAccountTargets(
         await parallelProcessAsyncIterable(pushNotificationTargets, async target => {
             switch (target.type) {
                 case "SlackIntegration":
-                    return await sendNotificationToSlackIntegration(context, {
+                    return await context.jobs.sendAndWait({
+                        type: "SendNotificationToSlackIntegration",
                         spaceId,
                         accountId,
                         workspaceId: target.workspaceId,
-                        alertContent,
+                        notificationContent: alertContent,
                         entryPath,
                     });
                 case "WebPushSubscription":

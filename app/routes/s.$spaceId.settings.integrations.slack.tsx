@@ -1,6 +1,6 @@
 import {redirect} from "@remix-run/router";
 import {serialize} from "cookie";
-import {DotsThree, User, UsersThree} from "phosphor-react";
+import {ArrowSquareOut, DotsThree, User, UsersThree} from "phosphor-react";
 import {useEffect, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAccountModel} from "~/client/web/accounts/account_registry_context.js";
@@ -94,7 +94,12 @@ export async function loader({context, params}: LoaderArgs) {
     // coming from us. The cookie expires after 30 minutes, so if they don't complete
     // the OAuth flow within 30 minutes, they'll need to start over.
     const state = crypto.randomUUID();
-    const addToSlackUrl = await context.slack.getOAuthUrl(spaceId, state);
+
+    const addToSlackUrl = await context.slack.getOAuthUrl({
+        spaceId,
+        state,
+        workspaceId: slackWorkspace?.workspaceId,
+    });
 
     const response = jsonWithSchema(LoaderSchema, {
         slackWorkspace,
@@ -150,8 +155,8 @@ export default function SpaceSlackIntegrationSettingsRoute() {
         // close the popup window and return to the settings page.
         const handleMessage = (event: MessageEvent) => {
             if (event.data.type === slackOAuthStatusMessageType) {
-                const {success, error} = SlackOAuthStatusMessageSchema.deserialize(event.data);
-                if (success) {
+                const {ok, error} = SlackOAuthStatusMessageSchema.deserialize(event.data);
+                if (ok) {
                     void revalidator.revalidate();
                 } else if (error) {
                     reporter.displayError("Couldn\u2019t connect to Slack", error);
@@ -236,11 +241,11 @@ function SlackWorkspaceSection({
     ] = useState(false);
 
     const handleDisconnectSlackWorkspace = async () => {
+        setShouldShowDisconnectWorkspaceConfirmation(false);
         await disconnectSlackWorkspace(context, {
             spaceId,
             workspaceId: assertExists(slackWorkspace).workspaceId,
         });
-        setShouldShowDisconnectWorkspaceConfirmation(false);
         await onDisconnect();
     };
     return (
@@ -281,30 +286,45 @@ function SlackWorkspaceSection({
                                 <Box fontSize="200" fontStyle="semi-bold">
                                     {slackWorkspace.workspaceName}
                                 </Box>
-                                {hasAdminAccess && (
-                                    <MenuButton
-                                        placement="bottom-start"
-                                        actions={[
+
+                                <MenuButton
+                                    placement="bottom-start"
+                                    actions={[
+                                        [
                                             {
-                                                label: "Disconnect",
-                                                pressErrorTitle:
-                                                    "Couldn’t disconnect Slack workspace",
-                                                onPress: () =>
-                                                    setShouldShowDisconnectWorkspaceConfirmation(
-                                                        true,
-                                                    ),
+                                                label: "Open in Slack",
+                                                icon: <ArrowSquareOut />,
+
+                                                iconPlacement: "end",
+                                                onPress: () => {
+                                                    window.open(
+                                                        slackWorkspace.workspaceUrl ??
+                                                            "https://slack.com",
+                                                        "_blank",
+                                                    );
+                                                },
+                                                pressErrorTitle: "Couldn’t open Slack workspace",
                                             },
-                                        ]}
-                                    >
-                                        <IconButton
-                                            size="lg"
-                                            description="More"
-                                            withoutTooltip={true}
-                                        >
-                                            <DotsThree />
-                                        </IconButton>
-                                    </MenuButton>
-                                )}
+                                        ],
+                                        hasAdminAccess
+                                            ? [
+                                                  {
+                                                      label: "Disconnect",
+                                                      pressErrorTitle:
+                                                          "Couldn’t disconnect Slack workspace",
+                                                      onPress: () =>
+                                                          setShouldShowDisconnectWorkspaceConfirmation(
+                                                              true,
+                                                          ),
+                                                  },
+                                              ]
+                                            : [],
+                                    ]}
+                                >
+                                    <IconButton size="lg" description="More" withoutTooltip={true}>
+                                        <DotsThree />
+                                    </IconButton>
+                                </MenuButton>
                             </Box>
                             <Box fontSize="75" color="grey-60" userSelect="text" marginY="-1">
                                 Your Slack Workspace

@@ -1444,6 +1444,8 @@ Resources:
                           Type: string
                         - Name: web_push__response_status_code
                           Type: int
+                        - Name: slack__workspace_id
+                          Type: string
                         - Name: cloudflare__r2__action
                           Type: string
                         - Name: cloudflare__r2__bucket

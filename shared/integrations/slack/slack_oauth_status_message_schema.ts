@@ -12,7 +12,7 @@ export const slackOAuthStatusMessageType = "slackOAuthStatus";
 // flow was successful and if not, the error that occurred.
 export const SlackOAuthStatusMessageSchema = Schema.object({
     type: Schema.value(slackOAuthStatusMessageType),
-    success: Schema.boolean,
+    ok: Schema.boolean,
     error: ErrorSchema.nullable(),
 });
 

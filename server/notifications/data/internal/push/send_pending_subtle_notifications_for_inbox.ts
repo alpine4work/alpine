@@ -7,7 +7,6 @@ import {NotificationsTable} from "~/server/notifications/data/internal/notificat
 import {clearPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/clear_pending_subtle_notifications_for_inbox.js";
 import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
 import {PendingSubtleNotificationStub} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
-import {sendNotificationToSlackIntegration} from "~/server/notifications/data/internal/push/send_notification_to_slack_integration.js";
 import {getAccountSearchAffinityEntitiesInRange} from "~/server/search/data/table/get_search_entity_affinity_points.js";
 import {
     getAccountWithoutAvatar,
@@ -116,11 +115,12 @@ export async function sendPendingSubtleNotificationsForInbox(
     await parallelProcessAsyncIterable(pushNotificationTargets, async target => {
         switch (target.type) {
             case "SlackIntegration":
-                return sendNotificationToSlackIntegration(context, {
+                return context.jobs.sendAndWait({
+                    type: "SendNotificationToSlackIntegration",
                     spaceId,
                     accountId,
                     workspaceId: target.workspaceId,
-                    alertContent: content,
+                    notificationContent: content,
                     entryPath: `/s/${spaceId}/inbox`,
                 });
             case "WebPushSubscription":

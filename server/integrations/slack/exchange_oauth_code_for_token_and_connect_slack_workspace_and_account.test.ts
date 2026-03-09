@@ -143,3 +143,29 @@ test("throws PermissionDeniedError when actor does not have space access", async
         ),
     ).rejects.toThrow(PermissionDeniedError);
 });
+
+test("throws FailedPreconditionError when OAuth workspace ID does not match the already-connected workspace", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    // Pre-connect a workspace with a different ID than what NoopSlackContextModule
+    // returns.
+    await createSlackWorkspaceIntegration(adminSession.action(), {
+        spaceId: space.id,
+        workspaceId: "different-workspace-id",
+        workspaceName: "Other Workspace",
+        workspaceImageUrl: "https://slack.com/icon.png",
+        botToken: "xoxb-pre-existing",
+        botUserId: "B-pre-existing",
+        botScopes: new Set(),
+    });
+
+    await expect(
+        exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWorkspaceAndAccount(
+            adminSession.action(),
+            {code: "test-oauth-code", spaceId: space.id},
+        ),
+    ).rejects.toThrow(
+        "The workspace ID in the OAuth response does not match the existing workspace ID",
+    );
+});
