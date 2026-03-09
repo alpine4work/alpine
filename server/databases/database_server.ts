@@ -8,7 +8,7 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
+import {pageAccessFlagRead, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -17,9 +17,6 @@ const vfsNamePrefix = "alpine-server";
 let vfsCounter = 0;
 
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
-
-/** Flag passed to `pageAccessHook` for page reads. */
-const pageAccessFlagRead = 1;
 
 type DatabaseServerAction =
     | {type: "idle"}

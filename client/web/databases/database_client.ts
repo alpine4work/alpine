@@ -12,6 +12,7 @@ import {
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import {pageAccessFlagRead, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
@@ -25,9 +26,6 @@ interface OptimisticMutation {
 const vfsNamePrefix = "alpine-client";
 let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
-
-/** Flag passed to `pageAccessHook` for page reads. */
-const pageAccessFlagRead = 1;
 
 /**
  * Represents a connected tab's route to the server.
@@ -76,7 +74,7 @@ export class DatabaseClient {
         });
 
         this.db = new sqlite3.oo1.DB("/db.sqlite3", "ct", vfsName);
-        this.db.exec("PRAGMA page_size = 4096");
+        this.db.exec(`PRAGMA page_size = ${sqlitePageSize}`);
         this.db.exec("PRAGMA journal_mode = MEMORY");
     }
 

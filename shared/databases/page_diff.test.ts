@@ -3,6 +3,7 @@ import {
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 
 function makePage(size: number, fill = 0): Uint8Array {
@@ -193,8 +194,8 @@ describe("shouldIgnorePageInvalidation", () => {
 
 describe("round-trip", () => {
     test("applyPageDiff(before, diffPage(before, after)) equals after", () => {
-        const before = makePage(4096);
-        const after = new Uint8Array(4096);
+        const before = makePage(sqlitePageSize);
+        const after = new Uint8Array(sqlitePageSize);
 
         // Scatter some changes across the page.
         after.set(before);
@@ -211,15 +212,15 @@ describe("round-trip", () => {
     });
 
     test("round-trip with random data", () => {
-        const before = new Uint8Array(4096);
-        const after = new Uint8Array(4096);
+        const before = new Uint8Array(sqlitePageSize);
+        const after = new Uint8Array(sqlitePageSize);
         // Pseudo-random fill using a simple LCG.
         let seed = 12345;
-        for (let i = 0; i < 4096; i++) {
+        for (let i = 0; i < sqlitePageSize; i++) {
             seed = (seed * 1103515245 + 12345) & 0x7fffffff;
             before[i] = seed & 0xff;
         }
-        for (let i = 0; i < 4096; i++) {
+        for (let i = 0; i < sqlitePageSize; i++) {
             seed = (seed * 1103515245 + 12345) & 0x7fffffff;
             after[i] = seed & 0xff;
         }

@@ -1,10 +1,9 @@
 import type {OpfsDirectoryHandle, OpfsSyncAccessHandle} from "~/client/web/databases/opfs.js";
 import type {VfsFile} from "~/shared/databases/install_vfs.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
-
-const pageSize = 4096;
 
 const indexSchema = Schema.map(
     Schema.integer,
@@ -91,15 +90,15 @@ export class OpfsPageStore implements VfsFile {
             return false;
         }
 
-        const pageIndex = Math.floor(offset / pageSize);
+        const pageIndex = Math.floor(offset / sqlitePageSize);
         assert(
-            Math.floor((offset + data.byteLength - 1) / pageSize) === pageIndex,
+            Math.floor((offset + data.byteLength - 1) / sqlitePageSize) === pageIndex,
             `read spans pages: offset=${offset} amount=${data.byteLength}`,
         );
 
         const overlay = this.optimisticPages.get(pageIndex);
         if (overlay !== undefined) {
-            const pageOffset = offset % pageSize;
+            const pageOffset = offset % sqlitePageSize;
             data.set(overlay.subarray(pageOffset, pageOffset + data.byteLength));
             return true;
         }
@@ -109,16 +108,19 @@ export class OpfsPageStore implements VfsFile {
             throw new PageMissingError(pageIndex);
         }
 
-        const pageOffset = offset % pageSize;
-        this.pagesHandle.read(data, {at: entry.slot * pageSize + pageOffset});
+        const pageOffset = offset % sqlitePageSize;
+        this.pagesHandle.read(data, {at: entry.slot * sqlitePageSize + pageOffset});
         return true;
     }
 
     write(data: Uint8Array, offset: number): void {
-        assert(offset % pageSize === 0, `write offset ${offset} not page-aligned`);
-        assert(data.byteLength === pageSize, `write amount ${data.byteLength} !== ${pageSize}`);
+        assert(offset % sqlitePageSize === 0, `write offset ${offset} not page-aligned`);
+        assert(
+            data.byteLength === sqlitePageSize,
+            `write amount ${data.byteLength} !== ${sqlitePageSize}`,
+        );
 
-        const pageIndex = offset / pageSize;
+        const pageIndex = offset / sqlitePageSize;
 
         if (this.inOptimistic) {
             this.optimisticPages.set(pageIndex, new Uint8Array(data));
@@ -134,7 +136,7 @@ export class OpfsPageStore implements VfsFile {
         const existing = this.index.get(pageIndex);
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
 
-        this.pagesHandle.write(data, {at: slot * pageSize});
+        this.pagesHandle.write(data, {at: slot * sqlitePageSize});
         this.index.set(pageIndex, {slot, timestamp: Date.now()});
 
         if (pageIndex > this.maxPageIndex) {
@@ -143,7 +145,7 @@ export class OpfsPageStore implements VfsFile {
     }
 
     truncate(size: number): void {
-        const newMaxPage = size > 0 ? size / pageSize - 1 : -1;
+        const newMaxPage = size > 0 ? size / sqlitePageSize - 1 : -1;
 
         for (const pageIndex of this.index.keys()) {
             if (pageIndex > newMaxPage) {
@@ -175,12 +177,12 @@ export class OpfsPageStore implements VfsFile {
     fileSize(): number {
         let size: number;
         if (this.knownDatabaseSizeInPages > 0) {
-            size = this.knownDatabaseSizeInPages * pageSize;
+            size = this.knownDatabaseSizeInPages * sqlitePageSize;
         } else {
-            size = this.maxPageIndex < 0 ? 0 : (this.maxPageIndex + 1) * pageSize;
+            size = this.maxPageIndex < 0 ? 0 : (this.maxPageIndex + 1) * sqlitePageSize;
         }
         for (const pageIndex of this.optimisticPages.keys()) {
-            const end = (pageIndex + 1) * pageSize;
+            const end = (pageIndex + 1) * sqlitePageSize;
             if (end > size) size = end;
         }
         return size;
@@ -218,7 +220,7 @@ export class OpfsPageStore implements VfsFile {
         const page0 = this.index.get(0);
         if (page0 !== undefined) {
             const header = new Uint8Array(32);
-            this.pagesHandle.read(header, {at: page0.slot * pageSize});
+            this.pagesHandle.read(header, {at: page0.slot * sqlitePageSize});
             const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
             this.knownDatabaseSizeInPages = view.getUint32(28, false);
         }
@@ -247,7 +249,7 @@ export class OpfsPageStore implements VfsFile {
         }
 
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
-        this.pagesHandle.write(data, {at: slot * pageSize});
+        this.pagesHandle.write(data, {at: slot * sqlitePageSize});
         this.index.set(pageIndex, {slot, timestamp});
 
         if (pageIndex > this.maxPageIndex) {
@@ -271,8 +273,8 @@ export class OpfsPageStore implements VfsFile {
     readPage(pageIndex: number): Uint8Array | null {
         const entry = this.index.get(pageIndex);
         if (entry === undefined) return null;
-        const data = new Uint8Array(pageSize);
-        this.pagesHandle.read(data, {at: entry.slot * pageSize});
+        const data = new Uint8Array(sqlitePageSize);
+        this.pagesHandle.read(data, {at: entry.slot * sqlitePageSize});
         return data;
     }
 

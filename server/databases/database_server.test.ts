@@ -1,6 +1,6 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_page_size.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 class InMemoryStorage implements DatabaseServerStorage {
     private pages = new Map<number, {data: Uint8Array; timestamp: number}>();

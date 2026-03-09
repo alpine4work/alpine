@@ -1,4 +1,5 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {pageAccessFlagRead, pageAccessFlagWrite} from "~/shared/databases/sqlite_constants.js";
 
 const sqlite3Promise = sqlite3InitModule();
 
@@ -11,7 +12,7 @@ test("sqlite works", async () => {
 });
 
 describe("pageAccessHook", () => {
-    test("read flag is 1, write flag is 2", async () => {
+    test("read flag is pageAccessFlagRead, write flag is pageAccessFlagWrite", async () => {
         const sqlite3 = await sqlite3Promise;
         const db = new sqlite3.oo1.DB("/test-flags.sqlite3", "ct");
 
@@ -24,7 +25,7 @@ describe("pageAccessHook", () => {
         });
         db.exec("SELECT * FROM t");
 
-        expect(readFlags.has(1)).toBe(true);
+        expect(readFlags.has(pageAccessFlagRead)).toBe(true);
 
         const writeFlags = new Set<number>();
         db.pageAccessHook((_pArg, _pgno, flags) => {
@@ -32,7 +33,7 @@ describe("pageAccessHook", () => {
         });
         db.exec("INSERT INTO t VALUES(2)");
 
-        expect(writeFlags.has(2)).toBe(true);
+        expect(writeFlags.has(pageAccessFlagWrite)).toBe(true);
 
         db.pageAccessHook(null);
         db.close();
@@ -47,7 +48,7 @@ describe("pageAccessHook", () => {
 
         const pages: Array<number> = [];
         db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1) pages.push(pgno);
+            if (flags === pageAccessFlagRead) pages.push(pgno);
         });
         db.exec("SELECT * FROM t");
 
@@ -79,7 +80,7 @@ describe("pageAccessHook", () => {
         for (const {name, rootpage} of schema) {
             const pages = new Set<number>();
             db.pageAccessHook((_pArg, pgno, flags) => {
-                if (flags === 1) pages.add(pgno);
+                if (flags === pageAccessFlagRead) pages.add(pgno);
             });
             db.exec(`SELECT * FROM ${name}`);
 
@@ -101,13 +102,13 @@ describe("pageAccessHook", () => {
 
         const pagesForT1 = new Set<number>();
         db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1) pagesForT1.add(pgno);
+            if (flags === pageAccessFlagRead) pagesForT1.add(pgno);
         });
         db.exec("SELECT * FROM t1");
 
         const pagesForT2 = new Set<number>();
         db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1) pagesForT2.add(pgno);
+            if (flags === pageAccessFlagRead) pagesForT2.add(pgno);
         });
         db.exec("SELECT * FROM t2");
 
@@ -133,7 +134,7 @@ describe("pageAccessHook", () => {
 
         const writePages = new Set<number>();
         db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 2) writePages.add(pgno);
+            if (flags === pageAccessFlagWrite) writePages.add(pgno);
         });
         db.exec("INSERT INTO t VALUES(42)");
 
@@ -180,7 +181,7 @@ describe("pageAccessHook", () => {
         // Install hook after pages are cached, then read again.
         const firstRun: Array<number> = [];
         db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1) firstRun.push(pgno);
+            if (flags === pageAccessFlagRead) firstRun.push(pgno);
         });
         db.exec("SELECT * FROM t");
         expect(firstRun.length).toBeGreaterThan(0);
@@ -188,7 +189,7 @@ describe("pageAccessHook", () => {
         // A third read should fire the hook with the same pages.
         const secondRun: Array<number> = [];
         db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1) secondRun.push(pgno);
+            if (flags === pageAccessFlagRead) secondRun.push(pgno);
         });
         db.exec("SELECT * FROM t");
         expect(secondRun).toEqual(firstRun);
@@ -214,7 +215,7 @@ describe("pageAccessHook", () => {
         // Hook only covers the main database's pager.
         const pages: Array<number> = [];
         main.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === 1) pages.push(pgno);
+            if (flags === pageAccessFlagRead) pages.push(pgno);
         });
 
         // Read from the attached database only.

@@ -18,6 +18,7 @@ import type {
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
@@ -101,8 +102,6 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
 // OPFS page extraction helper
 // ---------------------------------------------------------------------------
 
-const pageSize = 4096;
-
 async function extractPages(
     dir: OpfsDirectoryHandle,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
@@ -120,8 +119,8 @@ async function extractPages(
     >;
 
     return entries.map(([pageIndex, {slot, timestamp}]) => {
-        const data = new Uint8Array(pageSize);
-        pagesHandle.read(data, {at: slot * pageSize});
+        const data = new Uint8Array(sqlitePageSize);
+        pagesHandle.read(data, {at: slot * sqlitePageSize});
         return {pageIndex, timestamp, data};
     });
 }
@@ -956,7 +955,7 @@ describe("watchQuery", () => {
         // so writePagesFromRealtime applies real changes.
         const newerPages = serverPages.map(sp => {
             const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
-            const base = seedPage?.data ?? new Uint8Array(pageSize);
+            const base = seedPage?.data ?? new Uint8Array(sqlitePageSize);
             return {
                 pageIndex: sp.pageIndex,
                 timestamp: sp.timestamp + 10000,

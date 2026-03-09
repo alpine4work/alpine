@@ -6,6 +6,7 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
@@ -97,8 +98,6 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
 // OPFS page extraction / pre-population helpers
 // ---------------------------------------------------------------------------
 
-const pageSize = 4096;
-
 /**
  * Reads all pages + index from a directory's "databases"
  * subdirectory. Uses the same OPFS mock handles that the
@@ -121,8 +120,8 @@ async function extractPages(
     >;
 
     return entries.map(([pageIndex, {slot, timestamp}]) => {
-        const data = new Uint8Array(pageSize);
-        pagesHandle.read(data, {at: slot * pageSize});
+        const data = new Uint8Array(sqlitePageSize);
+        pagesHandle.read(data, {at: slot * sqlitePageSize});
         return {pageIndex, timestamp, data};
     });
 }
@@ -144,7 +143,7 @@ async function prepopulatePages(
     const indexEntries: Array<[number, {slot: number; timestamp: number}]> = [];
     for (let i = 0; i < pages.length; i++) {
         const page = pages[i]!;
-        pagesHandle.write(page.data, {at: i * pageSize});
+        pagesHandle.write(page.data, {at: i * sqlitePageSize});
         indexEntries.push([page.pageIndex, {slot: i, timestamp: page.timestamp}]);
     }
     pagesHandle.flush();
