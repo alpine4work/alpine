@@ -7,8 +7,9 @@
 
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 // Cast to `any` because Miniflare's DurableObjectStorage type doesn't
 // include our patched `sql` / `transactionSync` in the upstream .d.ts
@@ -253,5 +254,184 @@ describe("DatabaseDurableObjectStorage integration", () => {
         expect(doStorage.readPage(1).data.every(b => b === 0)).toBe(true);
         expect(doStorage.readPage(2).data.every(b => b === 0)).toBe(true);
         expect(doStorage.getFileSize()).toBe(1 * sqlitePageSize);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// ensureCacheIsUpToDate handler tests
+// ---------------------------------------------------------------------------
+
+function createConnection(doStorage: DatabaseDurableObjectStorage) {
+    return new DatabaseDurableObjectConnection({
+        server: null as any,
+        storage: null as any,
+        durableObjectStorage: doStorage,
+        processContext: null as any,
+        sendEventToAll: () => {},
+    });
+}
+
+async function ensureCacheIsUpToDate(
+    conn: DatabaseDurableObjectConnection,
+    pageTimestampsByIndex: ReadonlyMap<number, number>,
+) {
+    return conn.procedures.ensureCacheIsUpToDate(null as any, {pageTimestampsByIndex}, null as any);
+}
+
+function makePage(marker: number): Uint8Array {
+    const data = new Uint8Array(sqlitePageSize);
+    data[0] = marker;
+    return data;
+}
+
+describe("ensureCacheIsUpToDate", () => {
+    test("returns empty when all pages are up to date", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(new Map([[0, makePage(0xaa)]]));
+        const ts = doStorage.readPage(0).timestamp;
+        const conn = createConnection(doStorage);
+
+        const result = await ensureCacheIsUpToDate(conn, new Map([[0, ts]]));
+
+        expect(result.updatedPages.size).toBe(0);
+        expect(result.stalePageIndexes).toEqual([]);
+    });
+
+    test("returns updated pages when few are stale", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0).timestamp;
+        const conn = createConnection(doStorage);
+
+        // Page 0 matches, page 1 has stale client timestamp
+        const result = await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, 999],
+            ]),
+        );
+
+        expect(result.updatedPages.size).toBe(1);
+        expect(result.updatedPages.has(1)).toBe(true);
+        expect(result.updatedPages.get(1)!.data[0]).toBe(0xbb);
+        expect(result.stalePageIndexes).toEqual([]);
+    });
+
+    test("returns stale indexes for pages not on server", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(new Map([[0, makePage(0xaa)]]));
+        const ts0 = doStorage.readPage(0).timestamp;
+        const conn = createConnection(doStorage);
+
+        // Page 5 doesn't exist on the server
+        const result = await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [5, 123],
+            ]),
+        );
+
+        expect(result.updatedPages.size).toBe(0);
+        expect(result.stalePageIndexes).toEqual([5]);
+    });
+
+    test("mixes updated pages and stale indexes", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(new Map([[0, makePage(0xaa)]]));
+        const conn = createConnection(doStorage);
+
+        // Page 0 is stale (mismatched ts), page 5 is
+        // missing on the server entirely.
+        const result = await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, 999],
+                [5, 123],
+            ]),
+        );
+
+        expect(result.updatedPages.size).toBe(1);
+        expect(result.updatedPages.has(0)).toBe(true);
+        expect(result.stalePageIndexes).toEqual([5]);
+    });
+
+    test("falls back to all stale indexes when over limit", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        // Write exactly cacheUpdateStalePageLimit pages
+        const pages = new Map<number, Uint8Array>();
+        for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
+            pages.set(i, makePage(i & 0xff));
+        }
+        doStorage.writePages(pages);
+        const conn = createConnection(doStorage);
+
+        // All pages are stale (client has ts=0 for each)
+        const clientTimestamps = new Map<number, number>();
+        for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
+            clientTimestamps.set(i, 0);
+        }
+
+        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+
+        // Exactly at the limit — should dump all into
+        // stalePageIndexes, updatedPages empty.
+        expect(result.updatedPages.size).toBe(0);
+        expect(result.stalePageIndexes.length).toBe(cacheUpdateStalePageLimit);
+    });
+
+    test("under limit returns all as updated pages", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        const count = cacheUpdateStalePageLimit - 1;
+        const pages = new Map<number, Uint8Array>();
+        for (let i = 0; i < count; i++) {
+            pages.set(i, makePage(i & 0xff));
+        }
+        doStorage.writePages(pages);
+        const conn = createConnection(doStorage);
+
+        // All pages stale
+        const clientTimestamps = new Map<number, number>();
+        for (let i = 0; i < count; i++) {
+            clientTimestamps.set(i, 0);
+        }
+
+        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+
+        expect(result.updatedPages.size).toBe(count);
+        expect(result.stalePageIndexes).toEqual([]);
+    });
+
+    test("over limit with trailing pages puts everything in stale indexes", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        // Write one more than the limit
+        const count = cacheUpdateStalePageLimit + 1;
+        const pages = new Map<number, Uint8Array>();
+        for (let i = 0; i < count; i++) {
+            pages.set(i, makePage(i & 0xff));
+        }
+        doStorage.writePages(pages);
+        const conn = createConnection(doStorage);
+
+        const clientTimestamps = new Map<number, number>();
+        for (let i = 0; i < count; i++) {
+            clientTimestamps.set(i, 0);
+        }
+
+        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+
+        // All pages should be in stalePageIndexes, none
+        // in updatedPages — it's all-or-nothing.
+        expect(result.updatedPages.size).toBe(0);
+        expect(result.stalePageIndexes.length).toBe(count);
     });
 });
