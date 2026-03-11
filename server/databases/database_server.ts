@@ -166,7 +166,12 @@ export class DatabaseServer {
                 if (!this.action.readPages.has(pageIndex)) {
                     // Page was in SQLite's cache (xRead wasn't
                     // called), so read from storage.
-                    const {data, timestamp} = this.storage.readPage(pageIndex);
+                    const page = this.storage.readPage(pageIndex);
+                    const data =
+                        page !== null && page.data !== null
+                            ? page.data
+                            : new Uint8Array(sqlitePageSize);
+                    const timestamp = page?.timestamp ?? 0;
                     this.action.readPages.set(pageIndex, {data: new Uint8Array(data), timestamp});
                 }
             }
@@ -271,14 +276,18 @@ export class DatabaseServer {
                     return false;
                 }
 
-                const {data: pageData, timestamp} = this.storage.readPage(pageIndex);
+                const page = this.storage.readPage(pageIndex);
+                const pageData =
+                    page !== null && page.data !== null
+                        ? page.data
+                        : new Uint8Array(sqlitePageSize);
 
                 // Stash database pages so the pageAccessHook
                 // doesn't double-read them.
                 if (this.action.type === "execute" && !this.action.readPages.has(pageIndex)) {
                     this.action.readPages.set(pageIndex, {
                         data: new Uint8Array(pageData),
-                        timestamp,
+                        timestamp: page?.timestamp ?? 0,
                     });
                 }
 
@@ -302,7 +311,9 @@ export class DatabaseServer {
                         // writes first in case the page was written
                         // earlier in the same transaction.
                         const before =
-                            pendingWrites.get(pageIndex) ?? this.storage.readPage(pageIndex).data;
+                            pendingWrites.get(pageIndex) ??
+                            this.storage.readPage(pageIndex)?.data ??
+                            new Uint8Array(sqlitePageSize);
                         this.action.changedPages.set(pageIndex, {
                             before: new Uint8Array(before),
                             after: new Uint8Array(data),

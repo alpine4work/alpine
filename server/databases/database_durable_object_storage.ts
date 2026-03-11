@@ -11,6 +11,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     private readonly sql: SqlStorage;
     private lastWriteTimestamp: number | null = null;
+    private _fileSize: number | null = null;
 
     constructor(sql: SqlStorage) {
         this.sql = sql;
@@ -18,15 +19,15 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
             `CREATE TABLE IF NOT EXISTS pages (
                 page_index INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL,
-                data BLOB NOT NULL,
+                data BLOB,
                 PRIMARY KEY (page_index, timestamp)
             ) WITHOUT ROWID`,
         );
     }
 
-    readPage(index: number): {data: Uint8Array; timestamp: number} {
+    readPage(index: number): {data: Uint8Array | null; timestamp: number} | null {
         const result = this.sql.exec<{
-            data: ArrayBuffer;
+            data: ArrayBuffer | null;
             timestamp: number;
         }>(
             "SELECT data, timestamp FROM pages WHERE page_index = ? ORDER BY timestamp DESC LIMIT 1",
@@ -34,17 +35,18 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         );
         const row = result.next();
         if (row.done) {
-            return {data: new Uint8Array(sqlitePageSize), timestamp: 0};
+            return null;
         }
 
         assert(result.next().done);
-        return {data: new Uint8Array(row.value.data), timestamp: row.value.timestamp};
+        return {
+            data: row.value.data !== null ? new Uint8Array(row.value.data) : null,
+            timestamp: row.value.timestamp,
+        };
     }
 
     writePages(pages: ReadonlyMap<number, Uint8Array>): number {
-        const prev = this.getLastWriteTimestamp();
-        const timestamp = Math.max(Date.now(), prev + 1);
-        this.lastWriteTimestamp = timestamp;
+        const timestamp = this.nextTimestamp();
         for (const [index, data] of pages) {
             this.sql.exec(
                 "INSERT INTO pages (page_index, timestamp, data) VALUES (?, ?, ?)",
@@ -52,7 +54,18 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
                 timestamp,
                 data.buffer,
             );
+            const end = (index + 1) * sqlitePageSize;
+            if (end > this.getFileSize()) {
+                this._fileSize = end;
+            }
         }
+        return timestamp;
+    }
+
+    private nextTimestamp(): number {
+        const prev = this.getLastWriteTimestamp();
+        const timestamp = Math.max(Date.now(), prev + 1);
+        this.lastWriteTimestamp = timestamp;
         return timestamp;
     }
 
@@ -68,19 +81,39 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     getFileSize(): number {
+        if (this._fileSize !== null) {
+            return this._fileSize;
+        }
         const result = this.sql.exec<{page_index: number}>(
-            "SELECT page_index FROM pages ORDER BY page_index DESC LIMIT 1",
+            `SELECT p.page_index FROM pages p
+             WHERE p.timestamp = (SELECT MAX(p2.timestamp) FROM pages p2 WHERE p2.page_index = p.page_index)
+               AND p.data IS NOT NULL
+             ORDER BY p.page_index DESC
+             LIMIT 1`,
         );
         const row = result.next();
         if (row.done) {
+            this._fileSize = 0;
             return 0;
         }
         assert(result.next().done);
-        return (row.value.page_index + 1) * sqlitePageSize;
+        this._fileSize = (row.value.page_index + 1) * sqlitePageSize;
+        return this._fileSize;
     }
 
     truncate(size: number): void {
         const maxPageIndex = Math.floor(size / sqlitePageSize);
-        this.sql.exec("DELETE FROM pages WHERE page_index >= ?", maxPageIndex);
+        const timestamp = this.nextTimestamp();
+        for (const {page_index} of this.sql.exec<{page_index: number}>(
+            "SELECT DISTINCT page_index FROM pages WHERE page_index >= ?",
+            maxPageIndex,
+        )) {
+            this.sql.exec(
+                "INSERT INTO pages (page_index, timestamp, data) VALUES (?, ?, NULL)",
+                page_index,
+                timestamp,
+            );
+        }
+        this._fileSize = size;
     }
 }

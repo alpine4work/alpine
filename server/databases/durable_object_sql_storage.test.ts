@@ -204,22 +204,18 @@ describe("DatabaseDurableObjectStorage integration", () => {
 
         doStorage.writePages(new Map([[0, page]]));
 
-        const {data: read, timestamp} = doStorage.readPage(0);
+        const {data: read, timestamp} = doStorage.readPage(0)!;
 
-        expect(read[0]).toBe(0xab);
-        expect(read[sqlitePageSize - 1]).toBe(0xcd);
-        expect(read.byteLength).toBe(sqlitePageSize);
+        expect(read![0]).toBe(0xab);
+        expect(read![sqlitePageSize - 1]).toBe(0xcd);
+        expect(read!.byteLength).toBe(sqlitePageSize);
         expect(timestamp).toBeGreaterThan(0);
     });
 
-    test("readPage returns zero-filled page for unwritten index", () => {
+    test("readPage returns null for unwritten index", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        const {data: page, timestamp} = doStorage.readPage(99);
-
-        expect(page.byteLength).toBe(sqlitePageSize);
-        expect(page.every(b => b === 0)).toBe(true);
-        expect(timestamp).toBe(0);
+        expect(doStorage.readPage(99)).toBeNull();
     });
 
     test("getFileSize reflects written pages", () => {
@@ -237,7 +233,7 @@ describe("DatabaseDurableObjectStorage integration", () => {
         expect(doStorage.getFileSize()).toBe(3 * sqlitePageSize);
     });
 
-    test("truncate removes pages at or beyond the threshold", () => {
+    test("truncate writes tombstones for pages at or beyond the threshold", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
         doStorage.writePages(
@@ -250,10 +246,62 @@ describe("DatabaseDurableObjectStorage integration", () => {
 
         doStorage.truncate(1 * sqlitePageSize);
 
-        // Pages 1 and 2 should be gone; page 0 survives.
-        expect(doStorage.readPage(1).data.every(b => b === 0)).toBe(true);
-        expect(doStorage.readPage(2).data.every(b => b === 0)).toBe(true);
+        // Pages 1 and 2 should be tombstones; page 0 survives.
+        const page1 = doStorage.readPage(1);
+        expect(page1).not.toBeNull();
+        expect(page1!.data).toBeNull();
+        expect(page1!.timestamp).toBeGreaterThan(0);
+
+        const page2 = doStorage.readPage(2);
+        expect(page2).not.toBeNull();
+        expect(page2!.data).toBeNull();
+
         expect(doStorage.getFileSize()).toBe(1 * sqlitePageSize);
+    });
+
+    test("readPage returns tombstone after truncate", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        doStorage.writePages(new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        doStorage.truncate(0);
+
+        const page = doStorage.readPage(0);
+        expect(page).not.toBeNull();
+        expect(page!.data).toBeNull();
+        expect(page!.timestamp).toBeGreaterThan(0);
+    });
+
+    test("getFileSize is correct after truncate", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        doStorage.writePages(
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+                [2, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+
+        expect(doStorage.getFileSize()).toBe(3 * sqlitePageSize);
+        doStorage.truncate(2 * sqlitePageSize);
+        expect(doStorage.getFileSize()).toBe(2 * sqlitePageSize);
+    });
+
+    test("writePages after truncate correctly extends file size", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        doStorage.writePages(
+            new Map([
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
+            ]),
+        );
+        doStorage.truncate(1 * sqlitePageSize);
+        expect(doStorage.getFileSize()).toBe(1 * sqlitePageSize);
+
+        // Write a page beyond the current file size.
+        doStorage.writePages(new Map([[3, new Uint8Array(sqlitePageSize)]]));
+        expect(doStorage.getFileSize()).toBe(4 * sqlitePageSize);
     });
 });
 
@@ -288,7 +336,7 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const ts = doStorage.readPage(0).timestamp;
+        const ts = doStorage.readPage(0)!.timestamp;
         const conn = createConnection(doStorage);
 
         const result = await ensureCacheIsUpToDate(conn, new Map([[0, ts]]));
@@ -305,7 +353,7 @@ describe("ensureCacheIsUpToDate", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0).timestamp;
+        const ts0 = doStorage.readPage(0)!.timestamp;
         const conn = createConnection(doStorage);
 
         // Page 0 matches, page 1 has stale client timestamp
@@ -326,7 +374,7 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns stale indexes for pages not on server", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const ts0 = doStorage.readPage(0).timestamp;
+        const ts0 = doStorage.readPage(0)!.timestamp;
         const conn = createConnection(doStorage);
 
         // Page 5 doesn't exist on the server
@@ -408,6 +456,34 @@ describe("ensureCacheIsUpToDate", () => {
 
         expect(result.updatedPages.size).toBe(count);
         expect(result.stalePageIndexes).toEqual([]);
+    });
+
+    test("returns stale indexes for tombstoned pages", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts1 = doStorage.readPage(1)!.timestamp;
+
+        // Truncate page 1 away.
+        doStorage.truncate(1 * sqlitePageSize);
+
+        const conn = createConnection(doStorage);
+        const result = await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, ts1],
+            ]),
+        );
+
+        // Page 0 matches, page 1 is a tombstone — should be stale.
+        expect(result.updatedPages.size).toBe(0);
+        expect(result.stalePageIndexes).toEqual([1]);
     });
 
     test("over limit with trailing pages puts everything in stale indexes", async () => {

@@ -87,14 +87,17 @@ export class DatabaseDurableObjectConnection {
 
             for (const [pageIndex, clientTs] of input.pageTimestampsByIndex) {
                 const page = this._durableObjectStorage.readPage(pageIndex);
-                if (page.timestamp === clientTs) continue;
 
-                if (overLimit || page.timestamp === 0) {
+                // Page matches — skip.
+                if (page !== null && page.data !== null && page.timestamp === clientTs) continue;
+
+                // Over limit, or page is gone (null/tombstone) — stale index.
+                if (overLimit || page === null || page.data === null) {
                     stalePageIndexes.push(pageIndex);
                     continue;
                 }
 
-                updatedPages.set(pageIndex, page);
+                updatedPages.set(pageIndex, {timestamp: page.timestamp, data: page.data});
                 if (updatedPages.size >= cacheUpdateStalePageLimit) {
                     // Too many stale pages to inline — dump
                     // everything collected so far into

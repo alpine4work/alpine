@@ -11,11 +11,15 @@
  */
 export interface DatabaseServerStorage {
     /**
-     * Read a single page by its zero-based index. Returns the
-     * page data and the server-authoritative timestamp of the
-     * last write to this page (0 if the page doesn't exist).
+     * Read a single page by its zero-based index.
+     *
+     * - `null` — page never existed (no rows for this index).
+     * - `{data: null, timestamp}` — tombstone (page was
+     *   truncated/deleted).
+     * - `{data: Uint8Array, timestamp}` — real page with
+     *   content.
      */
-    readPage(index: number): {data: Uint8Array; timestamp: number};
+    readPage(index: number): {data: Uint8Array | null; timestamp: number} | null;
 
     /**
      * Write a batch of pages. Called from `xSync` with all

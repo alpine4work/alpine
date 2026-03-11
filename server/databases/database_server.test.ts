@@ -3,12 +3,12 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 class InMemoryStorage implements DatabaseServerStorage {
-    private pages = new Map<number, {data: Uint8Array; timestamp: number}>();
+    private pages = new Map<number, {data: Uint8Array | null; timestamp: number}>();
     private _fileSize = 0;
     private lastWriteTimestamp = 0;
 
-    readPage(index: number): {data: Uint8Array; timestamp: number} {
-        return this.pages.get(index) ?? {data: new Uint8Array(sqlitePageSize), timestamp: 0};
+    readPage(index: number): {data: Uint8Array | null; timestamp: number} | null {
+        return this.pages.get(index) ?? null;
     }
 
     writePages(pages: ReadonlyMap<number, Uint8Array>): number {
@@ -30,6 +30,14 @@ class InMemoryStorage implements DatabaseServerStorage {
 
     truncate(size: number): void {
         this._fileSize = size;
+        const maxPageIndex = Math.floor(size / sqlitePageSize);
+        const timestamp = Math.max(Date.now(), this.lastWriteTimestamp + 1);
+        this.lastWriteTimestamp = timestamp;
+        for (const [index] of this.pages) {
+            if (index >= maxPageIndex) {
+                this.pages.set(index, {data: null, timestamp});
+            }
+        }
     }
 }
 
@@ -738,7 +746,7 @@ describe("DatabaseServer", () => {
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
             for (let i = 0; i < storage.getFileSize() / sqlitePageSize; i++) {
-                prePages.set(i, new Uint8Array(storage.readPage(i).data));
+                prePages.set(i, new Uint8Array(storage.readPage(i)!.data!));
             }
 
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: true});
@@ -761,7 +769,7 @@ describe("DatabaseServer", () => {
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: true});
 
             for (const [pageIndex, change] of result.changedPages) {
-                expect(change.after).toEqual(storage.readPage(pageIndex).data);
+                expect(change.after).toEqual(storage.readPage(pageIndex)!.data);
             }
 
             server.close();
