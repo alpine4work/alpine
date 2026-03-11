@@ -260,7 +260,7 @@ export function DatabaseView({name}: {name: string}) {
         events.handleEvent,
     );
 
-    const {executeServer, reportError} = useEvents({
+    const {executeServer, getPageLastModifiedTimes, reportError} = useEvents({
         executeServer: async (
             sql: string,
             options: {allowWrites: boolean; mutationId: DatabaseMutationId},
@@ -270,6 +270,9 @@ export function DatabaseView({name}: {name: string}) {
                 allowWrites: options.allowWrites,
                 mutationId: options.mutationId,
             });
+        },
+        getPageLastModifiedTimes: async (pageIndexes: ReadonlyArray<number>) => {
+            return procedures.getPageLastModifiedTimes({pageIndexes: [...pageIndexes]});
         },
         reportError: (message: string) => {
             reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
@@ -282,6 +285,7 @@ export function DatabaseView({name}: {name: string}) {
             connection = await connectToDatabase({
                 databaseId: databaseId! as DatabaseId,
                 executeServer,
+                getPageLastModifiedTimes,
                 reportError,
             });
             setConn(connection);
@@ -289,7 +293,7 @@ export function DatabaseView({name}: {name: string}) {
         return () => {
             connection?.close();
         };
-    }, [databaseId, executeServer, reportError]);
+    }, [databaseId, executeServer, getPageLastModifiedTimes, reportError]);
 
     return (
         <Box

@@ -27,6 +27,14 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
                 ),
             },
         },
+        getPageLastModifiedTimes: {
+            input: {
+                pageIndexes: Schema.array(Schema.integer),
+            },
+            output: {
+                pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
+            },
+        },
     },
     events: {
         PagesChanged: Schema.object({

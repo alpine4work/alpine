@@ -390,6 +390,41 @@ function createTestTab(config: {
                 // optimistic pages are preserved during tests.
                 return new Promise(() => {});
             }),
+        getPageLastModifiedTimes: async (pageIndexes: ReadonlyArray<number>) => {
+            // Read the local OPFS index to return matching
+            // timestamps, simulating a server that agrees with
+            // the local cache.
+            const pageTimestampsByIndex = new Map<number, number>();
+            try {
+                const dbsDir = await config.dir.getDirectoryHandle("databases");
+                const databaseId = config.databaseId ?? testDatabaseId;
+                const perDbDir = await dbsDir.getDirectoryHandle(databaseId);
+                const dataDir = await perDbDir.getDirectoryHandle("databases");
+                const indexFile = await dataDir.getFileHandle("index.json");
+                const handle = await indexFile.createSyncAccessHandle();
+                const size = handle.getSize();
+                if (size > 0) {
+                    const raw = new Uint8Array(size);
+                    handle.read(raw, {at: 0});
+                    const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
+                        [number, {slot: number; timestamp: number}]
+                    >;
+                    const local = new Map<number, number>();
+                    for (const [pageIndex, {timestamp}] of entries) {
+                        local.set(pageIndex, timestamp);
+                    }
+                    for (const pageIndex of pageIndexes) {
+                        const t = local.get(pageIndex);
+                        if (t !== undefined) {
+                            pageTimestampsByIndex.set(pageIndex, t);
+                        }
+                    }
+                }
+            } catch {
+                // No index yet
+            }
+            return {pageTimestampsByIndex};
+        },
     });
 
     return {

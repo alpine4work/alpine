@@ -8,16 +8,6 @@ const workerSelf = globalThis as unknown as {
 
 (async () => {
     const root: OpfsDirectoryHandle = await (navigator.storage as any).getDirectory();
-
-    // Wipe OPFS on every leader start. Persistence will be
-    // restored later; for now the client always starts empty
-    // and falls back to querying the server.
-    try {
-        await root.removeEntry("databases", {recursive: true});
-    } catch {
-        // Directory may not exist yet.
-    }
-
     const dir = await root.getDirectoryHandle("databases", {create: true});
 
     const worker = new DatabaseActiveTabWorker(dir);

@@ -176,12 +176,24 @@ export class DatabaseActiveTabWorker {
 
     constructor(private readonly dir: OpfsDirectoryHandle) {}
 
-    private getOrCreateClient(databaseId: DatabaseId): Promise<DatabaseClient> {
+    private getOrCreateClient(
+        databaseId: DatabaseId,
+        conn: DatabaseClientConnection,
+    ): Promise<DatabaseClient> {
         let promise = this.clientPromises.get(databaseId);
         if (!promise) {
             promise = (async () => {
                 const dbDir = await this.dir.getDirectoryHandle(databaseId, {create: true});
-                return DatabaseClient.create(dbDir);
+                const client = await DatabaseClient.create(dbDir);
+                try {
+                    await client.ensureCacheIsUpToDate(conn);
+                } catch {
+                    // Validation failed (e.g. server unreachable).
+                    // Proceed with potentially stale cache — the
+                    // client will fall back to the server for
+                    // missing pages on demand.
+                }
+                return client;
             })();
             this.clientPromises.set(databaseId, promise);
         }
@@ -225,7 +237,7 @@ export class DatabaseActiveTabWorker {
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
                 execute: async input => {
-                    const client = await this.getOrCreateClient(input.databaseId);
+                    const client = await this.getOrCreateClient(input.databaseId, conn);
                     const rows = (await client.execute(
                         conn,
                         input.sql,
@@ -233,12 +245,12 @@ export class DatabaseActiveTabWorker {
                     return {rows};
                 },
                 writePagesFromRealtime: async input => {
-                    const client = await this.getOrCreateClient(input.databaseId);
+                    const client = await this.getOrCreateClient(input.databaseId, conn);
                     client.writePagesFromRealtime(input.pages, input.mutationId);
                     return {};
                 },
                 registerReactiveQuery: async input => {
-                    const client = await this.getOrCreateClient(input.databaseId);
+                    const client = await this.getOrCreateClient(input.databaseId, conn);
                     this.queryToDatabase.set(input.queryId, input.databaseId);
                     const result = await client.registerReactiveQuery(
                         input.queryId,
@@ -269,7 +281,7 @@ export class DatabaseActiveTabWorker {
                 },
                 unregisterReactiveQuery: async input => {
                     const dbId = this.queryToDatabase.get(input.queryId) ?? input.databaseId;
-                    const client = await this.getOrCreateClient(dbId);
+                    const client = await this.getOrCreateClient(dbId, conn);
                     client.unregisterReactiveQuery(input.queryId);
                     this.queryToDatabase.delete(input.queryId);
                     return {};
@@ -284,6 +296,8 @@ export class DatabaseActiveTabWorker {
                     allowWrites: options.allowWrites,
                     mutationId: options.mutationId,
                 }),
+            getPageLastModifiedTimes: async pageIndexes =>
+                rpc.call("getPageLastModifiedTimes", {pageIndexes: [...pageIndexes]}),
             reportError: error => {
                 void rpc.call("reportError", {
                     message: error instanceof Error ? error.message : String(error),
@@ -338,6 +352,9 @@ export class DatabaseActiveTabManager {
                 sql: string,
                 options: {allowWrites: boolean; mutationId: DatabaseMutationId},
             ): Promise<ExecuteServerResult>;
+            getPageLastModifiedTimes(
+                pageIndexes: ReadonlyArray<number>,
+            ): Promise<{pageTimestampsByIndex: ReadonlyMap<number, number>}>;
             reportError?(message: string): void;
         },
     ) {}
@@ -620,6 +637,8 @@ export class DatabaseActiveTabManager {
                         readPages: result.readPages,
                     };
                 },
+                getPageLastModifiedTimes: async input =>
+                    this.deps.getPageLastModifiedTimes(input.pageIndexes),
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};
@@ -684,6 +703,8 @@ export class DatabaseActiveTabManager {
                         readPages: result.readPages,
                     };
                 },
+                getPageLastModifiedTimes: async input =>
+                    this.deps.getPageLastModifiedTimes(input.pageIndexes),
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};

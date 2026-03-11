@@ -31,6 +31,7 @@ class DatabaseDurableObject {
 
     private readonly _server: DatabaseServer;
     private readonly _storage: DurableObjectStorage;
+    private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _processContext: WorkerProcessContext;
 
     private readonly _webSocketServer: WebSocketServer<
@@ -53,21 +54,29 @@ class DatabaseDurableObject {
     }): Promise<DatabaseDurableObject> {
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
         const server = await DatabaseServer.create(durableObjectStorage);
-        return new DatabaseDurableObject({processContext, server, storage});
+        return new DatabaseDurableObject({
+            processContext,
+            server,
+            storage,
+            durableObjectStorage,
+        });
     }
 
     private constructor({
         processContext,
         server,
         storage,
+        durableObjectStorage,
     }: {
         processContext: WorkerProcessContext;
         server: DatabaseServer;
         storage: DurableObjectStorage;
+        durableObjectStorage: DatabaseDurableObjectStorage;
     }) {
         this._processContext = processContext;
         this._server = server;
         this._storage = storage;
+        this._durableObjectStorage = durableObjectStorage;
 
         this._webSocketServer = new WebSocketServer<
             WorkerProcessContextModules,
@@ -80,6 +89,7 @@ class DatabaseDurableObject {
                 server: this._server,
                 processContext: this._processContext,
                 storage,
+                durableObjectStorage: this._durableObjectStorage,
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },

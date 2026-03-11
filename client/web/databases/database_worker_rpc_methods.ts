@@ -62,6 +62,10 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
             readPages: Schema.map(Schema.integer, pageValueSchema),
         },
     },
+    getPageLastModifiedTimes: {
+        input: {pageIndexes: Schema.array(Schema.integer)},
+        output: {pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer)},
+    },
     reportError: {
         input: {message: Schema.string},
         output: {},

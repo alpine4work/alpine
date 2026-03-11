@@ -3,6 +3,7 @@ import {
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
@@ -21,6 +22,7 @@ export interface DatabaseRealtimeEventStub {
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
     private readonly _storage: DurableObjectStorage;
+    private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
         event: DatabaseRealtimeEventStub,
@@ -30,16 +32,19 @@ export class DatabaseDurableObjectConnection {
     constructor({
         server,
         storage,
+        durableObjectStorage,
         processContext,
         sendEventToAll,
     }: {
         server: DatabaseServer;
         storage: DurableObjectStorage;
+        durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
     }) {
         this._server = server;
         this._storage = storage;
+        this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
     }
@@ -73,6 +78,12 @@ export class DatabaseDurableObjectConnection {
                     readPages: result.readPages,
                 };
             });
+        },
+        getPageLastModifiedTimes: async (_context, input) => {
+            const pageTimestampsByIndex = this._durableObjectStorage.getPageLastModifiedTimes(
+                input.pageIndexes,
+            );
+            return {pageTimestampsByIndex};
         },
     };
 

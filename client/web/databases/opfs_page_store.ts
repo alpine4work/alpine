@@ -198,11 +198,19 @@ export class OpfsPageStore implements VfsFile {
         const size = this.indexHandle.getSize();
         if (size === 0) return;
 
-        const data = new Uint8Array(size);
-        this.indexHandle.read(data, {at: 0});
-        const json = new TextDecoder().decode(data);
-        const parsed = JSON.parse(json) as SchemaSerializedValue;
-        const index = indexSchema.deserialize(parsed);
+        let index: ReadonlyMap<number, {slot: number; timestamp: number}>;
+        try {
+            const data = new Uint8Array(size);
+            this.indexHandle.read(data, {at: 0});
+            const json = new TextDecoder().decode(data);
+            const parsed = JSON.parse(json) as SchemaSerializedValue;
+            index = indexSchema.deserialize(parsed);
+        } catch {
+            // Corrupted index (e.g. worker crashed mid-write).
+            // Treat as empty — the client will re-fetch pages
+            // from the server on demand.
+            return;
+        }
 
         for (const [pageIndex, entry] of index) {
             this.index.set(pageIndex, entry);
@@ -280,6 +288,32 @@ export class OpfsPageStore implements VfsFile {
 
     isEmpty(): boolean {
         return this.index.size === 0 && this.optimisticPages.size === 0;
+    }
+
+    /**
+     * Remove pages from the index by page index. The
+     * underlying slot data in `pages.bin` becomes
+     * unreachable but harmless — it will be reclaimed
+     * if new pages are written to those slots later.
+     */
+    deletePages(pageIndexes: ReadonlySet<number>): void {
+        for (const pageIndex of pageIndexes) {
+            this.index.delete(pageIndex);
+        }
+        this.maxPageIndex = -1;
+        for (const pageIndex of this.index.keys()) {
+            if (pageIndex > this.maxPageIndex) {
+                this.maxPageIndex = pageIndex;
+            }
+        }
+        this.knownDatabaseSizeInPages = 0;
+        const page0 = this.index.get(0);
+        if (page0 !== undefined) {
+            const header = new Uint8Array(32);
+            this.pagesHandle.read(header, {at: page0.slot * sqlitePageSize});
+            const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
+            this.knownDatabaseSizeInPages = view.getUint32(28, false);
+        }
     }
 
     /**

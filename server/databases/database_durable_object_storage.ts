@@ -79,6 +79,22 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         return (row.value.page_index + 1) * sqlitePageSize;
     }
 
+    getPageLastModifiedTimes(pageIndexes: ReadonlyArray<number>): Map<number, number> {
+        const pageTimestampsByIndex = new Map<number, number>();
+        for (const pageIndex of pageIndexes) {
+            const result = this.sql.exec<{timestamp: number | null}>(
+                "SELECT MAX(timestamp) AS timestamp FROM pages WHERE page_index = ?",
+                pageIndex,
+            );
+            const row = result.next();
+            pageTimestampsByIndex.set(
+                pageIndex,
+                row.done || row.value.timestamp === null ? 0 : row.value.timestamp,
+            );
+        }
+        return pageTimestampsByIndex;
+    }
+
     truncate(size: number): void {
         const maxPageIndex = Math.floor(size / sqlitePageSize);
         this.sql.exec("DELETE FROM pages WHERE page_index >= ?", maxPageIndex);

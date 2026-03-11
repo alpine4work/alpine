@@ -27,6 +27,9 @@ export function connectToDatabase(options: {
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
     ): Promise<ExecuteServerResult>;
+    getPageLastModifiedTimes(
+        pageIndexes: ReadonlyArray<number>,
+    ): Promise<{pageTimestampsByIndex: ReadonlyMap<number, number>}>;
     reportError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
@@ -104,6 +107,7 @@ export function connectToDatabase(options: {
             window.addEventListener("beforeunload", callback);
         },
         executeServer: options.executeServer,
+        getPageLastModifiedTimes: options.getPageLastModifiedTimes,
         reportError: options.reportError,
     });
 

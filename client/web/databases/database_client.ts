@@ -43,6 +43,9 @@ export interface DatabaseClientConnection {
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
     ): Promise<ExecuteServerResult>;
+    getPageLastModifiedTimes(
+        pageIndexes: ReadonlyArray<number>,
+    ): Promise<{pageTimestampsByIndex: ReadonlyMap<number, number>}>;
     reportError(error: unknown): void;
 }
 
@@ -93,6 +96,35 @@ export class DatabaseClient {
         const pageStore = await OpfsPageStore.create(dbDir);
 
         return new DatabaseClient(sqlite3, pageStore);
+    }
+
+    /**
+     * Validate the local OPFS page cache against the
+     * server. Sends the list of locally cached page
+     * indexes to the server, which responds with the
+     * latest timestamp for each page. Pages whose local
+     * timestamp doesn't match the server's are deleted
+     * so they get re-fetched on demand.
+     */
+    async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
+        const entries = this.pageStore.pageEntries();
+        if (entries.length === 0) return;
+
+        const pageIndexes = entries.map(e => e.pageIndex);
+        const {pageTimestampsByIndex} = await conn.getPageLastModifiedTimes(pageIndexes);
+
+        const stalePages = new Set<number>();
+        for (const entry of entries) {
+            const serverTimestamp = pageTimestampsByIndex.get(entry.pageIndex) ?? 0;
+            if (serverTimestamp !== entry.timestamp) {
+                stalePages.add(entry.pageIndex);
+            }
+        }
+
+        if (stalePages.size > 0) {
+            this.pageStore.deletePages(stalePages);
+            this.pageStore.sync();
+        }
     }
 
     /**
