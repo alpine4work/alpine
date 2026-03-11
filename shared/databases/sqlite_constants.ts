@@ -15,3 +15,11 @@ export const pageAccessFlagRead = 1;
  * page to the pager.
  */
 export const pageAccessFlagWrite = 2;
+
+/**
+ * Maximum number of stale pages the server will
+ * return with inline data during cache validation.
+ * Beyond this threshold the server returns only
+ * stale page indexes for the client to delete.
+ */
+export const cacheUpdateStalePageLimit = 1000;

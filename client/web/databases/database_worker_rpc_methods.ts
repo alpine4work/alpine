@@ -1,4 +1,5 @@
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {
     DatabaseId,
@@ -62,9 +63,11 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
             readPages: Schema.map(Schema.integer, pageValueSchema),
         },
     },
-    getPageLastModifiedTimes: {
-        input: {pageIndexes: Schema.array(Schema.integer)},
-        output: {pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer)},
+    ensureCacheIsUpToDate: {
+        input: {
+            pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
+        },
+        output: ensureCacheIsUpToDateResultConfig,
     },
     reportError: {
         input: {message: Schema.string},

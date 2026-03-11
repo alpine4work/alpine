@@ -20,8 +20,8 @@ const testConn: DatabaseClientConnection = {
         // optimistic pages are preserved during tests.
         return new Promise(() => {});
     },
-    getPageLastModifiedTimes() {
-        return Promise.resolve({pageTimestampsByIndex: new Map()});
+    ensureCacheIsUpToDate() {
+        return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
     },
     reportError() {},
 };
@@ -257,8 +257,8 @@ describe("execute — mutations", () => {
                 client.writePagesFromRealtime([], options.mutationId);
                 return {rows: [], readPages: new Map()};
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -290,8 +290,8 @@ describe("execute — mutations", () => {
                 serverCalled = true;
                 return {rows: [{inserted: true}], readPages: new Map()};
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -317,8 +317,8 @@ describe("execute — mutations", () => {
                 client.writePagesFromRealtime([], options.mutationId);
                 return {rows: [], readPages: new Map()};
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -353,8 +353,8 @@ describe("optimistic mutations", () => {
                 capturedMutationId = options.mutationId;
                 return new Promise(() => {});
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -376,8 +376,8 @@ describe("optimistic mutations", () => {
                 mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -403,8 +403,8 @@ describe("optimistic mutations", () => {
                 mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -438,8 +438,8 @@ describe("optimistic mutations", () => {
             async executeServer() {
                 throw new InternalError("server rejected mutation");
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError(error) {
                 reportedError = error;
@@ -461,8 +461,8 @@ describe("optimistic mutations", () => {
             async executeServer() {
                 throw new InternalError("server rejected mutation");
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -487,8 +487,8 @@ describe("optimistic mutations", () => {
                 // — the mutation is still in the queue.
                 return {rows: [], readPages: new Map()};
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError(error) {
                 reportedError = error;
@@ -532,8 +532,8 @@ describe("server fallback", () => {
                 const rows = await server.execute(testConn, sql);
                 return {rows, readPages: pagesToMap(allPages)} as ExecuteServerResult;
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -565,8 +565,8 @@ describe("server fallback", () => {
                 const rows = await server.execute(testConn, sql);
                 return {rows, readPages: pagesToMap(allPages)} as ExecuteServerResult;
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -647,8 +647,8 @@ describe("executeWithTracking", () => {
                 serverCalled = true;
                 return {rows: [], readPages: new Map()};
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };
@@ -684,8 +684,8 @@ describe("executeWithTracking", () => {
                 const rows = await server.execute(testConn, sql);
                 return {rows, readPages: pagesToMap(allPages)} as ExecuteServerResult;
             },
-            getPageLastModifiedTimes() {
-                return Promise.resolve({pageTimestampsByIndex: new Map()});
+            ensureCacheIsUpToDate() {
+                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
             },
             reportError() {},
         };

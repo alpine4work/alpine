@@ -11,6 +11,7 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
+import {cacheUpdateStalePageLimit} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -79,11 +80,34 @@ export class DatabaseDurableObjectConnection {
                 };
             });
         },
-        getPageLastModifiedTimes: async (_context, input) => {
-            const pageTimestampsByIndex = this._durableObjectStorage.getPageLastModifiedTimes(
-                input.pageIndexes,
-            );
-            return {pageTimestampsByIndex};
+        ensureCacheIsUpToDate: async (_context, input) => {
+            const updatedPages = new Map<number, {timestamp: number; data: Uint8Array}>();
+            const stalePageIndexes: Array<number> = [];
+            let overLimit = false;
+
+            for (const [pageIndex, clientTs] of input.pageTimestampsByIndex) {
+                const page = this._durableObjectStorage.readPage(pageIndex);
+                if (page.timestamp === clientTs) continue;
+
+                if (overLimit || page.timestamp === 0) {
+                    stalePageIndexes.push(pageIndex);
+                    continue;
+                }
+
+                updatedPages.set(pageIndex, page);
+                if (updatedPages.size >= cacheUpdateStalePageLimit) {
+                    // Too many stale pages to inline — dump
+                    // everything collected so far into
+                    // stalePageIndexes and stop reading data.
+                    for (const idx of updatedPages.keys()) {
+                        stalePageIndexes.push(idx);
+                    }
+                    updatedPages.clear();
+                    overLimit = true;
+                }
+            }
+
+            return {updatedPages, stalePageIndexes};
         },
     };
 

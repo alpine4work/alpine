@@ -9,6 +9,7 @@ import {
 } from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
+import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
@@ -296,8 +297,8 @@ export class DatabaseActiveTabWorker {
                     allowWrites: options.allowWrites,
                     mutationId: options.mutationId,
                 }),
-            getPageLastModifiedTimes: async pageIndexes =>
-                rpc.call("getPageLastModifiedTimes", {pageIndexes: [...pageIndexes]}),
+            ensureCacheIsUpToDate: async pageTimestampsByIndex =>
+                rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
             reportError: error => {
                 void rpc.call("reportError", {
                     message: error instanceof Error ? error.message : String(error),
@@ -352,9 +353,9 @@ export class DatabaseActiveTabManager {
                 sql: string,
                 options: {allowWrites: boolean; mutationId: DatabaseMutationId},
             ): Promise<ExecuteServerResult>;
-            getPageLastModifiedTimes(
-                pageIndexes: ReadonlyArray<number>,
-            ): Promise<{pageTimestampsByIndex: ReadonlyMap<number, number>}>;
+            ensureCacheIsUpToDate(
+                pageTimestampsByIndex: ReadonlyMap<number, number>,
+            ): Promise<EnsureCacheIsUpToDateResult>;
             reportError?(message: string): void;
         },
     ) {}
@@ -637,8 +638,8 @@ export class DatabaseActiveTabManager {
                         readPages: result.readPages,
                     };
                 },
-                getPageLastModifiedTimes: async input =>
-                    this.deps.getPageLastModifiedTimes(input.pageIndexes),
+                ensureCacheIsUpToDate: async input =>
+                    this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};
@@ -703,8 +704,8 @@ export class DatabaseActiveTabManager {
                         readPages: result.readPages,
                     };
                 },
-                getPageLastModifiedTimes: async input =>
-                    this.deps.getPageLastModifiedTimes(input.pageIndexes),
+                ensureCacheIsUpToDate: async input =>
+                    this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};

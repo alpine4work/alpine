@@ -3,6 +3,7 @@ import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
@@ -43,9 +44,9 @@ export interface DatabaseClientConnection {
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
     ): Promise<ExecuteServerResult>;
-    getPageLastModifiedTimes(
-        pageIndexes: ReadonlyArray<number>,
-    ): Promise<{pageTimestampsByIndex: ReadonlyMap<number, number>}>;
+    ensureCacheIsUpToDate(
+        pageTimestampsByIndex: ReadonlyMap<number, number>,
+    ): Promise<EnsureCacheIsUpToDateResult>;
     reportError(error: unknown): void;
 }
 
@@ -100,31 +101,39 @@ export class DatabaseClient {
 
     /**
      * Validate the local OPFS page cache against the
-     * server. Sends the list of locally cached page
-     * indexes to the server, which responds with the
-     * latest timestamp for each page. Pages whose local
-     * timestamp doesn't match the server's are deleted
-     * so they get re-fetched on demand.
+     * server. Sends the client's `pageIndex → timestamp`
+     * map and receives back:
+     *
+     * - `updatedPages` — pages whose server data is
+     *   newer; written directly into the local store.
+     * - `stalePageIndexes` — pages the client should
+     *   delete (re-fetched on demand).
+     *
+     * Both empty means the cache is already up to date.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
         const entries = this.pageStore.pageEntries();
         if (entries.length === 0) return;
 
-        const pageIndexes = entries.map(e => e.pageIndex);
-        const {pageTimestampsByIndex} = await conn.getPageLastModifiedTimes(pageIndexes);
-
-        const stalePages = new Set<number>();
+        const pageTimestampsByIndex = new Map<number, number>();
         for (const entry of entries) {
-            const serverTimestamp = pageTimestampsByIndex.get(entry.pageIndex) ?? 0;
-            if (serverTimestamp !== entry.timestamp) {
-                stalePages.add(entry.pageIndex);
-            }
+            pageTimestampsByIndex.set(entry.pageIndex, entry.timestamp);
         }
 
-        if (stalePages.size > 0) {
-            this.pageStore.deletePages(stalePages);
-            this.pageStore.sync();
+        const {updatedPages, stalePageIndexes} =
+            await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
+
+        if (updatedPages.size === 0 && stalePageIndexes.length === 0) return;
+
+        for (const [pageIndex, {timestamp, data}] of updatedPages) {
+            this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
         }
+
+        if (stalePageIndexes.length > 0) {
+            this.pageStore.deletePages(new Set(stalePageIndexes));
+        }
+
+        this.pageStore.sync();
     }
 
     /**

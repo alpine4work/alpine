@@ -6,6 +6,7 @@ import {
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
+import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {
@@ -27,9 +28,9 @@ export function connectToDatabase(options: {
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
     ): Promise<ExecuteServerResult>;
-    getPageLastModifiedTimes(
-        pageIndexes: ReadonlyArray<number>,
-    ): Promise<{pageTimestampsByIndex: ReadonlyMap<number, number>}>;
+    ensureCacheIsUpToDate(
+        pageTimestampsByIndex: ReadonlyMap<number, number>,
+    ): Promise<EnsureCacheIsUpToDateResult>;
     reportError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
@@ -107,7 +108,7 @@ export function connectToDatabase(options: {
             window.addEventListener("beforeunload", callback);
         },
         executeServer: options.executeServer,
-        getPageLastModifiedTimes: options.getPageLastModifiedTimes,
+        ensureCacheIsUpToDate: options.ensureCacheIsUpToDate,
         reportError: options.reportError,
     });
 

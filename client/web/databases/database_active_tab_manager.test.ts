@@ -390,40 +390,62 @@ function createTestTab(config: {
                 // optimistic pages are preserved during tests.
                 return new Promise(() => {});
             }),
-        getPageLastModifiedTimes: async (pageIndexes: ReadonlyArray<number>) => {
-            // Read the local OPFS index to return matching
-            // timestamps, simulating a server that agrees with
-            // the local cache.
-            const pageTimestampsByIndex = new Map<number, number>();
+        ensureCacheIsUpToDate: async (clientTimestamps: ReadonlyMap<number, number>) => {
+            // Read the local OPFS index to compare against
+            // client timestamps, simulating a server that
+            // agrees with the local cache.
             try {
                 const dbsDir = await config.dir.getDirectoryHandle("databases");
                 const databaseId = config.databaseId ?? testDatabaseId;
                 const perDbDir = await dbsDir.getDirectoryHandle(databaseId);
                 const dataDir = await perDbDir.getDirectoryHandle("databases");
                 const indexFile = await dataDir.getFileHandle("index.json");
-                const handle = await indexFile.createSyncAccessHandle();
-                const size = handle.getSize();
+                const indexHandle = await indexFile.createSyncAccessHandle();
+                const size = indexHandle.getSize();
                 if (size > 0) {
                     const raw = new Uint8Array(size);
-                    handle.read(raw, {at: 0});
+                    indexHandle.read(raw, {at: 0});
                     const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
                         [number, {slot: number; timestamp: number}]
                     >;
-                    const local = new Map<number, number>();
+                    const serverTimestamps = new Map<number, number>();
                     for (const [pageIndex, {timestamp}] of entries) {
-                        local.set(pageIndex, timestamp);
+                        serverTimestamps.set(pageIndex, timestamp);
                     }
-                    for (const pageIndex of pageIndexes) {
-                        const t = local.get(pageIndex);
-                        if (t !== undefined) {
-                            pageTimestampsByIndex.set(pageIndex, t);
+
+                    // Test page counts are tiny — always
+                    // return inline data for stale pages.
+                    const pagesHandle = await (
+                        await dataDir.getFileHandle("pages.bin")
+                    ).createSyncAccessHandle();
+                    const slotMap = new Map<number, number>();
+                    for (const [pageIndex, {slot}] of entries) {
+                        slotMap.set(pageIndex, slot);
+                    }
+
+                    const updatedPages = new Map<number, {timestamp: number; data: Uint8Array}>();
+                    const stalePageIndexes: Array<number> = [];
+                    for (const [pageIndex, clientTs] of clientTimestamps) {
+                        const serverTs = serverTimestamps.get(pageIndex) ?? 0;
+                        if (serverTs === clientTs) continue;
+                        const slot = slotMap.get(pageIndex);
+                        if (slot !== undefined) {
+                            const data = new Uint8Array(sqlitePageSize);
+                            pagesHandle.read(data, {at: slot * sqlitePageSize});
+                            updatedPages.set(pageIndex, {
+                                timestamp: serverTs,
+                                data,
+                            });
+                        } else {
+                            stalePageIndexes.push(pageIndex);
                         }
                     }
+                    return {updatedPages, stalePageIndexes};
                 }
             } catch {
                 // No index yet
             }
-            return {pageTimestampsByIndex};
+            return {updatedPages: new Map(), stalePageIndexes: []};
         },
     });
 
