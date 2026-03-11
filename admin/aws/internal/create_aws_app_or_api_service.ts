@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -344,6 +344,7 @@ export function createAwsAppOrApiService(
         },
         environment: {
             NODE_ENV: "production",
+            AWS_REGION: Stack.of(parentConstruct).region,
         },
         command: [
             // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks

@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
     InstanceClass,
@@ -296,6 +296,7 @@ export class AwsTaskRealtimeService extends Construct {
             environment: {
                 BAZEL_BINDIR: ".",
                 NODE_ENV: "production",
+                AWS_REGION: Stack.of(this).region,
             },
             command: [
                 // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
@@ -372,6 +373,7 @@ export class AwsTaskRealtimeService extends Construct {
             portMappings: [{containerPort: 80, hostPort: 80}],
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: Stack.of(this).region,
             },
             command: [
                 "/var/www/server/tasks/realtime/gateway/gateway",

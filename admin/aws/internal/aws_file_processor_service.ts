@@ -1,4 +1,4 @@
-import {CfnParameter, Duration} from "aws-cdk-lib";
+import {CfnParameter, Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -388,6 +388,7 @@ export class AwsFileProcessorService extends Construct {
             },
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: Stack.of(this).region,
             },
             command: [
                 // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks

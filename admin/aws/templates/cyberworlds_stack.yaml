@@ -2703,6 +2703,8 @@ Resources:
                         Value: .
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -2826,6 +2828,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -3424,6 +3428,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   Image:
                       Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
@@ -4313,6 +4319,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -5411,6 +5419,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -6520,6 +6530,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -7217,6 +7229,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   Image:
                       Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
@@ -8662,6 +8676,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:

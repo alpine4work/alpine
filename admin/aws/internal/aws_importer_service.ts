@@ -238,6 +238,7 @@ export class AwsImporterService extends Construct {
             },
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: stack.region,
             },
             command: [
                 // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks

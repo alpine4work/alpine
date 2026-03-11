@@ -1,3 +1,4 @@
+import {Stack} from "aws-cdk-lib";
 import {SecurityGroup} from "aws-cdk-lib/aws-ec2";
 import {
     ContainerImage,
@@ -70,6 +71,7 @@ export class AwsMigrationService extends Construct {
             },
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: Stack.of(this).region,
             },
             command: [
                 // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
