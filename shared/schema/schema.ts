@@ -1135,7 +1135,13 @@ export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
                 type: "Array",
                 itemSchema: itemSchema.getDescription(),
             }),
-            serialize: value => value.map(item => itemSchema.serialize(item)),
+            serialize: value => {
+                // Optimization: Don't allocate an empty array object if we're serializing an empty
+                // array.
+                if (value.length === 0) return emptyArray;
+
+                return value.map(item => itemSchema.serialize(item));
+            },
             deserialize: value => {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
@@ -3403,6 +3409,10 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
                 valueSchema: itemSchema.getDescription(),
             }),
             serialize: value => {
+                // Optimization: Don't allocate an empty array object if we're serializing an empty
+                // array.
+                if (value.size === 0) return emptyArray;
+
                 return Array.from(value, item => itemSchema.serialize(item));
             },
             deserialize: value => {
@@ -3542,6 +3552,10 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
                 valueSchema: valueSchema.getDescription(),
             }),
             serialize: value => {
+                // Optimization: Don't allocate an empty array object if we're serializing an empty
+                // array.
+                if (value.size === 0) return emptyArray;
+
                 return Array.from(value, ([key, keyValue]) => [
                     keySchema.serialize(key),
                     valueSchema.serialize(keyValue),
