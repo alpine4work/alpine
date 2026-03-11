@@ -4164,6 +4164,7 @@ Resources:
                                   - Ref: SesEmailIdentity8E702B39
                     - Action:
                           - s3:Abort*
+                          - s3:GetObject
                           - s3:PutObject
                           - s3:PutObjectLegalHold
                           - s3:PutObjectRetention

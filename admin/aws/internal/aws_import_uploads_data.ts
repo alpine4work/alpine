@@ -1,5 +1,5 @@
 import {Duration, RemovalPolicy} from "aws-cdk-lib";
-import {IGrantable} from "aws-cdk-lib/aws-iam";
+import {Grant, IGrantable} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket, HttpMethods} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 
@@ -64,6 +64,19 @@ export class AwsImportUploadsData extends Construct {
      */
     public grantUpload(grantee: IGrantable) {
         this._bucket.grantPut(grantee);
+    }
+
+    /**
+     * Grants the grantee only `s3:GetObject` permission, which covers HeadObject for
+     * verifying uploads exist. We don't want to grant a blanket read (`s3:GetObject*`,
+     * `s3:GetBucket*`, `s3:List*`) when only a single action is needed.
+     */
+    public grantGetObject(grantee: IGrantable) {
+        Grant.addToPrincipal({
+            grantee,
+            actions: ["s3:GetObject"],
+            resourceArns: [this._bucket.arnForObjects("*")],
+        });
     }
 
     /**
