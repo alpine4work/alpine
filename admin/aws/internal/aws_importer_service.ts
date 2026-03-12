@@ -266,7 +266,6 @@ export class AwsImporterService extends Construct {
                 "--importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY",
                 "--servicePrivateKey=$IMPORTER_SERVICE_PRIVATE_KEY",
                 "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
-                `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                 // Observability
                 "--honeycombApiKey=$HONEYCOMB_API_KEY",
                 `--kinesisTracerStreamName=${observability.tracerEventStreamName}`,
