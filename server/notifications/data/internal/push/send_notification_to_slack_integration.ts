@@ -13,14 +13,14 @@ export async function sendNotificationToSlackIntegration(
         spaceId,
         accountId,
         workspaceId,
-        notificationContent,
         entryPath,
+        notificationContent,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         workspaceId: string;
-        notificationContent: {title: string; subtitle?: string; body: string};
         entryPath: string;
+        notificationContent: {title: string; body: string; plainText: string};
     },
 ) {
     return context.tracer.withSpan(
@@ -44,7 +44,7 @@ export async function sendNotificationToSlackIntegration(
                     templateName: "SlackAlpineNotification",
                     templateArgs: {
                         title: notificationContent.title,
-                        subtitle: notificationContent.subtitle,
+                        plainText: notificationContent.plainText,
                         body: notificationContent.body,
                         entryUrl,
                     },

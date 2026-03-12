@@ -190,12 +190,12 @@ const SendNotificationToSlackIntegrationJobDescriptionSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
     accountId: Schema.id<AccountId>(),
     workspaceId: Schema.string,
+    entryPath: Schema.string,
     notificationContent: Schema.object({
         title: Schema.string,
-        subtitle: Schema.string.optional(),
         body: Schema.string,
+        plainText: Schema.string,
     }),
-    entryPath: Schema.string,
 });
 
 export type SendNotificationToSlackIntegrationJobDescription = SchemaType<

@@ -52,8 +52,9 @@ test("sends direct message successfully when workspace and account are connected
             templateName: "SlackAlpineNotification",
             templateArgs: {
                 title: "New task assigned",
+                plainText: "New task assigned",
                 body: "A task has been assigned to you",
-                entryUrl: "https://example.com/task/1",
+                entryUrl: "https://test.cyberworlds.dev/task/1",
             },
         },
     });
@@ -72,7 +73,8 @@ test("throws NotFoundError when no Slack workspace is connected to the space", a
                 templateArgs: {
                     title: "Test",
                     body: "Body",
-                    entryUrl: "https://example.com",
+                    plainText: "Test",
+                    entryUrl: "https://test.cyberworlds.dev",
                 },
             },
         }),
@@ -93,7 +95,8 @@ test("throws NotFoundError when account has no Slack account connected", async (
                 templateArgs: {
                     title: "Test",
                     body: "Body",
-                    entryUrl: "https://example.com",
+                    plainText: "Test",
+                    entryUrl: "https://test.cyberworlds.dev",
                 },
             },
         }),
@@ -115,7 +118,8 @@ test("throws NotFoundError when an explicit workspaceId has no bot credentials",
                 templateArgs: {
                     title: "Test",
                     body: "Body",
-                    entryUrl: "https://example.com",
+                    plainText: "Test",
+                    entryUrl: "https://test.cyberworlds.dev",
                 },
             },
         }),
@@ -136,7 +140,8 @@ test("throws PermissionDeniedError when actor does not have space access", async
                 templateArgs: {
                     title: "Test",
                     body: "Body",
-                    entryUrl: "https://example.com",
+                    plainText: "Test",
+                    entryUrl: "https://test.cyberworlds.dev",
                 },
             },
         }),

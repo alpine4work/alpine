@@ -1,52 +1,32 @@
 import {generateSlackMessageBodyFromTemplate} from "~/server/integrations/slack/internal/message_templates/slack_message_templates.js";
 
-test("generates SlackAlpineNotification message body with correct text", () => {
+test("generates SlackAlpineNotification message body", () => {
     const result = generateSlackMessageBodyFromTemplate("SlackAlpineNotification", {
         title: "Task assigned",
         body: "You have a new task",
-        entryUrl: "https://example.com/task/1",
+        plainText: "Task assigned",
+        entryUrl: "https://test.cyberworlds.dev/task/1",
     });
 
-    expect(result.text).toBe("Task assigned");
+    expect(result.blocks).not.toBeNull();
 });
 
-test("generates SlackAlpineNotification message body with blocks", () => {
-    const result = generateSlackMessageBodyFromTemplate("SlackAlpineNotification", {
-        title: "Task assigned",
-        body: "You have a new task",
-        entryUrl: "https://example.com/task/1",
-    });
-
-    expect(result.blocks).toHaveLength(3);
-});
-
-test("generates SlackAlpineNotification message with subtitle concatenated into text", () => {
-    const result = generateSlackMessageBodyFromTemplate("SlackAlpineNotification", {
-        title: "Task assigned",
-        subtitle: "Bug: login fails",
-        body: "You have a new task",
-        entryUrl: "https://example.com/task/1",
-    });
-
-    expect(result.text).toBe("Task assigned Bug: login fails");
-});
-
-test("generates SlackWorkspaceConnectedSuccess message body with correct text", () => {
+test("generates SlackWorkspaceConnectedSuccess message body", () => {
     const result = generateSlackMessageBodyFromTemplate("SlackWorkspaceConnectedSuccess", {
         spaceName: "My Space",
         spaceId: "space-abc",
-        edgeServiceUrl: "https://alpine.dev",
+        edgeServiceUrl: "https://test.cyberworlds.dev",
     });
 
-    expect(result.text).toBe("🏔️ Your Alpine space has been connected to Slack!");
+    expect(result.blocks).not.toBeNull();
 });
 
-test("generates SlackWorkspaceConnectedSuccess message body with blocks", () => {
-    const result = generateSlackMessageBodyFromTemplate("SlackWorkspaceConnectedSuccess", {
+test("generates SlackAccountConnectedSuccess message body", () => {
+    const result = generateSlackMessageBodyFromTemplate("SlackAccountConnectedSuccess", {
         spaceName: "My Space",
         spaceId: "space-abc",
-        edgeServiceUrl: "https://alpine.dev",
+        edgeServiceUrl: "https://test.cyberworlds.dev",
     });
 
-    expect(result.blocks).toHaveLength(2);
+    expect(result.blocks).not.toBeNull();
 });

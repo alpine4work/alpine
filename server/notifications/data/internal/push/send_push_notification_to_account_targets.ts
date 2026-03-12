@@ -2,20 +2,25 @@ import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import type {NotificationEvent} from "~/server/notifications/core/notification_event.js";
+import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
 import {getInboxEntryKey} from "~/server/notifications/data/internal/get_inbox_entry_key.js";
 import {InboxEntryItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
 import {queuePendingSubtleNotification} from "~/server/notifications/data/internal/push/queue_pending_subtle_notification.js";
 import {sendApnsPushNotification} from "~/server/notifications/data/internal/push/send_apns_push_notification.js";
 import {getPushNotificationThreadId} from "~/server/notifications/data/push/get_push_notification_thread_id.js";
+import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
 
 export function shouldSendApnsPushNotification() {
@@ -181,15 +186,60 @@ export async function sendPushNotificationToAccountTargets(
             spaceId,
         });
 
+        const [currentAccount, inboxEntryModel] = await runAllPromises([
+            getAccountWithoutAvatar(context, spaceId, accountId),
+            InboxTable.getRealtimeItem(
+                context,
+                getInboxEntryItemKey({
+                    spaceId,
+                    accountId,
+                    key: getInboxEntryKey(newInboxEntryItem),
+                }),
+            ),
+        ]);
+
+        const inboxEntryDisplay = getInboxEntryDisplayContent({
+            entry: inboxEntryModel.model,
+            locale: defaultLocale,
+            currentAccount: currentAccount,
+        });
+
+        // Create the notification title with and without Slack mrkdwn formatting. The
+        // styled version is shown in the message in Slack and the plain text version is
+        // shown in the push notification that Slack sends, which does not support any
+        // formatting.
+        const slackPlainTextComponents: Array<string> = [];
+        const slackStyledComponents: Array<string> = [];
+
+        for (const item of inboxEntryDisplay.summary) {
+            if (typeof item === "string") {
+                slackPlainTextComponents.push(item);
+                slackStyledComponents.push(item);
+            } else {
+                const name = getAccountShortNameWithoutFullNameTooltip(item.initialData);
+                slackPlainTextComponents.push(name);
+                slackStyledComponents.push(`*${name}*`);
+            }
+        }
+
+        const slackPlainTextTitle = slackPlainTextComponents.join("");
+        const slackStyledTitle = slackStyledComponents.join("");
+
         await parallelProcessAsyncIterable(pushNotificationTargets, async target => {
             switch (target.type) {
                 case "SlackIntegration":
+                    const slackNotificationContent = {
+                        title: slackStyledTitle,
+                        body: alertContent.body,
+                        plainText: slackPlainTextTitle,
+                    };
+
                     return await context.jobs.sendAndWait({
                         type: "SendNotificationToSlackIntegration",
                         spaceId,
                         accountId,
                         workspaceId: target.workspaceId,
-                        notificationContent: alertContent,
+                        notificationContent: slackNotificationContent,
                         entryPath,
                     });
                 case "WebPushSubscription":

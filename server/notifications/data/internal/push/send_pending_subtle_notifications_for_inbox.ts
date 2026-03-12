@@ -120,7 +120,11 @@ export async function sendPendingSubtleNotificationsForInbox(
                     spaceId,
                     accountId,
                     workspaceId: target.workspaceId,
-                    notificationContent: content,
+                    notificationContent: {
+                        title: content.title,
+                        body: content.body,
+                        plainText: content.title,
+                    },
                     entryPath: `/s/${spaceId}/inbox`,
                 });
             case "WebPushSubscription":
