@@ -1,6 +1,6 @@
 import {CSSProperties} from "react";
 
-export function SlackLogo({style}: {style: CSSProperties}) {
+export function SlackLogo({style}: {style?: CSSProperties}) {
     return (
         <svg viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
             <g clipPath="url(#clip0_4127_70105)">

@@ -1,10 +1,9 @@
-import {useNavigate} from "@remix-run/react";
 import {CaretRight} from "phosphor-react";
 import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {Button} from "~/client/web/design/button.js";
+import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {Switch} from "~/client/web/design/switch.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
@@ -297,23 +296,30 @@ function PushNotificationsSection({
 function SlackNotificationsSection() {
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
-    const navigate = useNavigate();
-
     return (
-        <Button
-            variant="quiet"
-            paddingX="2"
-            onPress={() => navigate(`/s/${space.id}/settings/integrations/slack`)}
-        >
-            <Box display="flex" flexDirection="row" alignItems="center" gap="2">
+        <Link url={`/s/${space.id}/settings/integrations/slack`} color="inherit" underline={false}>
+            <Box
+                display="flex"
+                flexDirection="row"
+                alignItems="center"
+                gap="4"
+                marginLeft="1.5"
+                width="fit-content"
+            >
                 <Box width="4" height="4" display="flex" borderRadius="full">
                     <SlackLogo style={{width: "100%", height: "100%"}} />
                 </Box>
-                <Box display="flex" flexDirection="row" gap="0.5" alignItems="center">
+                <Box
+                    display="flex"
+                    flexDirection="row"
+                    gap="0.5"
+                    alignItems="center"
+                    marginLeft="-0.5"
+                >
                     <Box fontSize="100">Configure Slack notifications</Box>
                     <CaretRight size={spacing[4]} />
                 </Box>
             </Box>
-        </Button>
+        </Link>
     );
 }

@@ -1,4 +1,4 @@
-import {Bell, Plug, Robot, User, Users} from "phosphor-react";
+import {Bell, Robot, SquaresFour, User, Users} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
 import {MobileSettingsRow} from "~/client/web/design/mobile_settings_row.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
@@ -92,7 +92,7 @@ export default function MobileSpaceSettingsRoute() {
                     />
                     {hasIntegrationsSettingsFeature(space.id) && (
                         <MobileSettingsRow
-                            icon={<Plug />}
+                            icon={<SquaresFour />}
                             label="Integrations"
                             pressErrorTitle="Couldn&#x2019;t open integrations settings"
                             onPress={async () => {

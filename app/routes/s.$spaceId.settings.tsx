@@ -1,5 +1,5 @@
 import {Outlet, useLocation, useNavigation} from "@remix-run/react";
-import {Bell, IconContext, Plug, Robot, User, Users} from "phosphor-react";
+import {Bell, IconContext, Robot, SquaresFour, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
@@ -314,7 +314,7 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                                 />
                                 {hasIntegrationsSettingsFeature(space.id) && (
                                     <SettingsNavigationItem
-                                        icon={<Plug />}
+                                        icon={<SquaresFour />}
                                         label="Integrations"
                                         isActive={nextRoute === "integrations"}
                                         onPressStart={() => {

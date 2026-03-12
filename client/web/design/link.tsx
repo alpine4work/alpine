@@ -34,6 +34,7 @@ export function Link({
     newTab = false,
     color,
     colorSchemeOverride,
+    underline = true,
 }: {
     url: string;
     onClick?: (event: MouseEvent) => void;
@@ -41,6 +42,7 @@ export function Link({
     newTab?: boolean;
     color?: "theme" | "inherit";
     colorSchemeOverride?: "light" | "dark";
+    underline?: boolean;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -74,6 +76,7 @@ export function Link({
                     style={{
                         textDecorationThickness:
                             textDecorationThicknessBySpacingScale[spacingScale],
+                        textDecorationLine: underline ? "underline" : "none",
                     }}
                     // We don't support arbitrary navigation in the native mobile app. Since not all
                     // URLs are openable in the native mobile app.
@@ -100,6 +103,7 @@ export function Link({
                     style={{
                         textDecorationThickness:
                             textDecorationThicknessBySpacingScale[spacingScale],
+                        textDecorationLine: underline ? "underline" : "none",
                     }}
                     // We don't support arbitrary navigation in the native mobile app. Since not all
                     // URLs are openable in the native mobile app.

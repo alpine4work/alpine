@@ -8,10 +8,10 @@ import {AppContext, useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {MenuActions} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {Spacer} from "~/client/web/design/spacer.js";
 import {Switch} from "~/client/web/design/switch.js";
 import {SlackLogo} from "~/client/web/icons/socials/slack_logo.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -174,26 +174,25 @@ export default function SpaceSlackIntegrationSettingsRoute() {
     };
 
     return (
-        <Box>
-            <Box display="flex" flexDirection="row" alignItems="flex-end" gap="5" height="14">
+        <Box display="flex" flexDirection="column" gap="12">
+            <Box display="flex" flexDirection="row" gap="5">
                 <Box
                     width={slackHeaderLogoSize}
                     height={slackHeaderLogoSize}
                     display="flex"
                     borderRadius="full"
                 >
-                    <SlackLogo style={{width: "100%", height: "100%"}} />
+                    <SlackLogo />
                 </Box>
-                <Box height="14" display="flex" flexDirection="column" gap="1">
+                <Box display="flex" flexDirection="column" gap="1" marginTop="-1.5">
                     <Box fontSize="600" fontStyle="truncate-bold" userSelect="text">
                         Slack
                     </Box>
                     <Box fontSize="100" userSelect="text" color="grey-60">
-                        Receive Alpine notifications in Slack
+                        Connect your Slack workspace to get notifications from Alpine
                     </Box>
                 </Box>
             </Box>
-            <Spacer space="14" />
             <Box display="flex" flexDirection="column" gap="12">
                 <SlackWorkspaceSection
                     context={context}
@@ -281,15 +280,13 @@ function SlackWorkspaceSection({
                                 />
                             )}
                         </Box>
-                        <Box display="flex" flexDirection="column" gap="0.5" marginY="-1">
-                            <Box display="flex" flexDirection="row" alignItems="center" gap="0.5">
+                        <Box display="flex" flexDirection="column" gap="2" marginY="-1">
+                            <Box display="flex" flexDirection="row" alignItems="center" gap="2">
                                 <Box fontSize="200" fontStyle="semi-bold">
                                     {slackWorkspace.workspaceName}
                                 </Box>
-
-                                <MenuButton
-                                    placement="bottom-start"
-                                    actions={[
+                                <SlackMoreMenuButton
+                                    menuActions={[
                                         [
                                             {
                                                 label: "Open in Slack",
@@ -320,11 +317,7 @@ function SlackWorkspaceSection({
                                               ]
                                             : [],
                                     ]}
-                                >
-                                    <IconButton size="lg" description="More" withoutTooltip={true}>
-                                        <DotsThree />
-                                    </IconButton>
-                                </MenuButton>
+                                />
                             </Box>
                             <Box fontSize="75" color="grey-60" userSelect="text" marginY="-1">
                                 Your Slack Workspace
@@ -470,25 +463,20 @@ function SlackAccountSection({
                             />
                         )}
                     </Box>
-                    <Box display="flex" flexDirection="column" gap="0.5" marginY="-1">
-                        <Box display="flex" flexDirection="row" alignItems="center" gap="0.5">
+                    <Box display="flex" flexDirection="column" gap="2" marginY="-1">
+                        <Box display="flex" flexDirection="row" alignItems="center" gap="2">
                             <Box fontSize="200" fontStyle="semi-bold">
                                 {slackAccount.displayName ?? slackAccount.realName}
                             </Box>
-                            <MenuButton
-                                placement="bottom-start"
-                                actions={[
+                            <SlackMoreMenuButton
+                                menuActions={[
                                     {
                                         label: "Disconnect",
                                         pressErrorTitle: "Couldn\u2019t disconnect Slack account",
                                         onPress: handleDisconnectSlackAccount,
                                     },
                                 ]}
-                            >
-                                <IconButton size="lg" description="More" withoutTooltip={true}>
-                                    <DotsThree />
-                                </IconButton>
-                            </MenuButton>
+                            />
                         </Box>
                         <Box fontSize="75" color="grey-60" userSelect="text" marginY="-1">
                             Your connected Slack Account
@@ -530,18 +518,33 @@ function SlackAccountSection({
                     </Button>
                 </Box>
             )}
+            {slackAccount !== null && (
+                <Box marginLeft="16">
+                    <Switch
+                        fontSize="100"
+                        isDisabled={!slackAccount}
+                        isSelected={areNotificationsToSlackEnabled && slackAccount !== null}
+                        changeErrorTitle={`Couldn\u2019t ${
+                            areNotificationsToSlackEnabled ? "disable" : "enable"
+                        } notifications to Slack`}
+                        onChange={handleNotificationsToSlackToggle}
+                    >
+                        Get Alpine notifications in Slack
+                    </Switch>
+                </Box>
+            )}
+        </Box>
+    );
+}
 
-            <Switch
-                fontSize="100"
-                isDisabled={!slackAccount}
-                isSelected={areNotificationsToSlackEnabled && slackAccount !== null}
-                changeErrorTitle={`Couldn\u2019t ${
-                    areNotificationsToSlackEnabled ? "disable" : "enable"
-                } notifications to Slack`}
-                onChange={handleNotificationsToSlackToggle}
-            >
-                Receive Alpine notifications in Slack
-            </Switch>
+function SlackMoreMenuButton({menuActions}: {menuActions: MenuActions}) {
+    return (
+        <Box paddingTop="0.5" display="flex" alignItems="center" justifyContent="center">
+            <MenuButton placement="bottom-start" actions={menuActions}>
+                <IconButton size="md" description="More" withoutTooltip={true}>
+                    <DotsThree />
+                </IconButton>
+            </MenuButton>
         </Box>
     );
 }
