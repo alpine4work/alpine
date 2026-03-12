@@ -129,7 +129,7 @@ class DatabaseDurableObject {
         );
 
         const result = this._storage.transactionSync(() =>
-            this._server.execute(sql, {allowWrites: false}),
+            this._server.execute(sql, {allowWrites: "none"}),
         );
 
         return new Response(

@@ -57,7 +57,7 @@ export class DatabaseDurableObjectConnection {
         execute: async (_context, input) => {
             return this._storage.transactionSync(() => {
                 const result = this._server.execute(input.sql, {
-                    allowWrites: input.allowWrites,
+                    allowWrites: input.allowWrites ? "data" : "none",
                 });
 
                 if (result.changedPages.size > 0) {

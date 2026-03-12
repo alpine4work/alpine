@@ -179,8 +179,7 @@ describe("DatabaseClient", () => {
     test("create table, insert, and select", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.execute(
-            testConn,
+        client.executeLocallyForTests(
             "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
         );
         await client.execute(testConn, "INSERT INTO items (name) VALUES ('alpha'), ('beta')");
@@ -195,8 +194,7 @@ describe("DatabaseClient", () => {
     test("aggregate query", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.execute(
-            testConn,
+        client.executeLocallyForTests(
             "CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)",
         );
         await client.execute(
@@ -218,10 +216,10 @@ describe("DatabaseClient", () => {
         const client1 = await DatabaseClient.create(createInMemoryDirectory());
         const client2 = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client1.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client1.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         await client1.execute(testConn, "INSERT INTO t (id) VALUES (1)");
 
-        await client2.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client2.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         await client2.execute(testConn, "INSERT INTO t (id) VALUES (99)");
 
         expect(await client1.execute(testConn, "SELECT * FROM t")).toMatchObject([{id: 1}]);
@@ -232,7 +230,7 @@ describe("DatabaseClient", () => {
 describe("execute — mutations", () => {
     test("executes mutation locally and returns rows", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
 
         const rows = await client.execute(
             testConn,
@@ -244,7 +242,7 @@ describe("execute — mutations", () => {
 
     test("sends mutation to server in background", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let capturedSql: string | null = null;
         let capturedMutationId: DatabaseMutationId | null = null;
@@ -323,14 +321,19 @@ describe("execute — mutations", () => {
             reportError() {},
         };
 
-        const rows = await client.execute(conn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        // Use executeLocallyForTests for DDL so the
+        // authorizer allows it; the store stays empty
+        // because the DB has no user data pages yet
+        // beyond the schema page.
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        const rows = await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
 
-        // DDL executes locally — returns no rows.
+        // DML executes locally — returns no rows.
         expect(rows).toMatchObject([]);
 
         // Background send fires after microtask.
         await new Promise(resolve => setTimeout(resolve, 0));
-        expect(calls).toMatchObject([{allowWrites: false}, {allowWrites: true}]);
+        expect(calls).toMatchObject([{allowWrites: true}]);
     });
 
     test("propagates local execution errors", async () => {
@@ -395,7 +398,7 @@ describe("optimistic mutations", () => {
 
     test("asserts on out-of-order confirmation", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
         const conn: DatabaseClientConnection = {
@@ -431,7 +434,7 @@ describe("optimistic mutations", () => {
 
     test("reports error when server mutation fails", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
         const conn: DatabaseClientConnection = {
@@ -478,7 +481,7 @@ describe("optimistic mutations", () => {
 
     test("asserts mutation confirmed before server responds", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
         const conn: DatabaseClientConnection = {
@@ -584,7 +587,7 @@ describe("executeWithTracking", () => {
     test("returns rows and read page set", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
 
         const {rows, readPages} = await client.executeWithTracking(testConn, "SELECT * FROM t");
@@ -597,8 +600,8 @@ describe("executeWithTracking", () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
         const db = client.unsafeGetDbForTests();
 
-        await client.execute(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
         await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
         await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
 
@@ -621,8 +624,8 @@ describe("executeWithTracking", () => {
     test("different tables have different read sets", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.execute(testConn, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
         await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
         await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
 
@@ -638,7 +641,7 @@ describe("executeWithTracking", () => {
 
     test("throws on write attempts without contacting server", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
 
         let serverCalled = false;
@@ -655,7 +658,7 @@ describe("executeWithTracking", () => {
 
         await expect(
             client.executeWithTracking(conn, "INSERT INTO t (id) VALUES (2)"),
-        ).rejects.toThrow("executeWithTracking does not support writes");
+        ).rejects.toThrow("not authorized");
 
         expect(serverCalled).toBe(false);
 
@@ -706,7 +709,7 @@ describe("registerReactiveQuery", () => {
     test("returns initial rows", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
 
         const result = await client.registerReactiveQuery(
@@ -724,7 +727,7 @@ describe("registerReactiveQuery", () => {
     test("optimistic mutation invalidates overlapping reactive query", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await client.execute(testConn, "INSERT INTO t (val) VALUES ('v1')");
 
         const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
@@ -895,7 +898,7 @@ describe("registerReactiveQuery", () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
-        await client.execute(testConn, "CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
 
         const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];

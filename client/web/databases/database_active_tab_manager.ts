@@ -11,6 +11,7 @@ import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
@@ -306,6 +307,25 @@ export class DatabaseActiveTabWorker {
             },
         };
         return {rpc, conn};
+    }
+
+    /**
+     * Execute SQL with full permissions (including DDL)
+     * on the worker's client. Creates the client if it
+     * doesn't exist yet. Use for test schema setup only.
+     */
+    async executeLocallyForTests(databaseId: DatabaseId, sql: string): Promise<void> {
+        assert(import.meta.jest, "executeLocallyForTests is test-only");
+        let promise = this.clientPromises.get(databaseId);
+        if (!promise) {
+            promise = (async () => {
+                const dbDir = await this.dir.getDirectoryHandle(databaseId, {create: true});
+                return DatabaseClient.create(dbDir);
+            })();
+            this.clientPromises.set(databaseId, promise);
+        }
+        const client = await promise;
+        client.executeLocallyForTests(sql);
     }
 }
 

@@ -8,6 +8,11 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
+import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import {
+    isSqliteActionAllowed,
+    sqliteAuthorizerActionName,
+} from "~/shared/databases/sqlite_authorizer.js";
 import {
     pageAccessFlagRead,
     sqliteOpenPragmas,
@@ -27,7 +32,7 @@ type DatabaseServerAction =
     | {type: "idle"}
     | {
           type: "execute";
-          allowWrites: boolean;
+          allowWrites: SqliteWriteLevel;
           readPages: Map<number, {data: Uint8Array; timestamp: number}>;
           changedPages: Map<number, DatabaseServerPageChange>;
           timestamp: number;
@@ -43,48 +48,6 @@ export interface DatabaseServerResult {
     readPages: Map<number, {data: Uint8Array; timestamp: number}>;
     changedPages: Map<number, DatabaseServerPageChange>;
 }
-
-// Mapping from SQLite authorizer action codes to
-// human-readable names.
-// prettier-ignore
-const authorizerActionNames = [
-    undefined,             // 0
-    "create-index",        // 1  SQLITE_CREATE_INDEX
-    "create-table",        // 2  SQLITE_CREATE_TABLE
-    "create-temp-index",   // 3  SQLITE_CREATE_TEMP_INDEX
-    "create-temp-table",   // 4  SQLITE_CREATE_TEMP_TABLE
-    "create-temp-trigger", // 5  SQLITE_CREATE_TEMP_TRIGGER
-    "create-temp-view",    // 6  SQLITE_CREATE_TEMP_VIEW
-    "create-trigger",      // 7  SQLITE_CREATE_TRIGGER
-    "create-view",         // 8  SQLITE_CREATE_VIEW
-    "delete",              // 9  SQLITE_DELETE
-    "drop-index",          // 10 SQLITE_DROP_INDEX
-    "drop-table",          // 11 SQLITE_DROP_TABLE
-    "drop-temp-index",     // 12 SQLITE_DROP_TEMP_INDEX
-    "drop-temp-table",     // 13 SQLITE_DROP_TEMP_TABLE
-    "drop-temp-trigger",   // 14 SQLITE_DROP_TEMP_TRIGGER
-    "drop-temp-view",      // 15 SQLITE_DROP_TEMP_VIEW
-    "drop-trigger",        // 16 SQLITE_DROP_TRIGGER
-    "drop-view",           // 17 SQLITE_DROP_VIEW
-    "insert",              // 18 SQLITE_INSERT
-    "pragma",              // 19 SQLITE_PRAGMA
-    "read",                // 20 SQLITE_READ
-    "select",              // 21 SQLITE_SELECT
-    "transaction",         // 22 SQLITE_TRANSACTION
-    "update",              // 23 SQLITE_UPDATE
-    "attach",              // 24 SQLITE_ATTACH
-    "detach",              // 25 SQLITE_DETACH
-    "alter-table",         // 26 SQLITE_ALTER_TABLE
-    "reindex",             // 27 SQLITE_REINDEX
-    "analyze",             // 28 SQLITE_ANALYZE
-    "create-vtable",       // 29 SQLITE_CREATE_VTABLE
-    "drop-vtable",         // 30 SQLITE_DROP_VTABLE
-    "function",            // 31 SQLITE_FUNCTION
-    "savepoint",           // 32 SQLITE_SAVEPOINT
-    "recursive",           // 33 SQLITE_RECURSIVE
-] as const;
-
-type AuthorizerAction = Exclude<(typeof authorizerActionNames)[number], undefined>;
 
 /**
  * Runs a canonical SQLite database backed by a
@@ -134,11 +97,14 @@ export class DatabaseServer {
         capi.sqlite3_set_authorizer(
             this.db.pointer!,
             (_cbArg: WasmPointer, actionCode: number) => {
-                const action = authorizerActionNames[actionCode];
+                const action = sqliteAuthorizerActionName(actionCode);
                 if (action === undefined) {
                     return capi.SQLITE_DENY;
                 }
-                return this.isAllowed(action) ? capi.SQLITE_OK : capi.SQLITE_DENY;
+                const writeLevel = this.action.type === "idle" ? null : this.action.allowWrites;
+                return isSqliteActionAllowed(action, writeLevel)
+                    ? capi.SQLITE_OK
+                    : capi.SQLITE_DENY;
             },
             0,
         );
@@ -161,7 +127,7 @@ export class DatabaseServer {
         return new DatabaseServer(sqlite3, storage);
     }
 
-    execute(sql: string, options: {allowWrites: boolean}): DatabaseServerResult {
+    execute(sql: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
         this.action = {
             type: "execute",
             allowWrites: options.allowWrites,
@@ -192,7 +158,7 @@ export class DatabaseServer {
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
 
-            if (options.allowWrites) {
+            if (options.allowWrites !== "none") {
                 this.db.exec("COMMIT");
                 assert(this.action.type === "execute");
 
@@ -213,7 +179,7 @@ export class DatabaseServer {
                 changedPages: this.action.changedPages,
             };
         } catch (error) {
-            if (options.allowWrites) {
+            if (options.allowWrites !== "none") {
                 try {
                     this.db.exec("ROLLBACK");
                 } catch {
@@ -230,32 +196,13 @@ export class DatabaseServer {
             }
             throw error;
         } finally {
-            if (!options.allowWrites) {
+            if (options.allowWrites === "none") {
                 this.db.exec("ROLLBACK");
             }
             this.db.pageAccessHook(null);
             this.action = {type: "idle"};
             this.vfs.takeError();
             this.tempFiles.clear();
-        }
-    }
-
-    private isAllowed(action: AuthorizerAction): boolean {
-        if (this.action.type === "idle") {
-            return true;
-        }
-        if (this.action.allowWrites) {
-            return action !== "pragma";
-        }
-        switch (action) {
-            case "read":
-            case "select":
-            case "transaction":
-            case "function":
-            case "recursive":
-                return true;
-            default:
-                return false;
         }
     }
 
@@ -314,7 +261,7 @@ export class DatabaseServer {
                 );
                 const pageIndex = offset / sqlitePageSize;
 
-                if (this.action.type === "execute" && this.action.allowWrites) {
+                if (this.action.type === "execute" && this.action.allowWrites !== "none") {
                     const existing = this.action.changedPages.get(pageIndex);
                     if (existing === undefined) {
                         // Capture the before state. Check pending

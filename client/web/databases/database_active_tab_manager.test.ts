@@ -327,30 +327,41 @@ class MockServiceWorkerBridge {
 // Mock worker
 // ---------------------------------------------------------------------------
 
-function createMockWorker(dir: OpfsDirectoryHandle): ActiveTabWorkerHandle {
+function createMockWorker(dir: OpfsDirectoryHandle): {
+    handle: ActiveTabWorkerHandle;
+    worker: DatabaseActiveTabWorker;
+} {
     let handler: ((data: unknown, ports: Array<ActiveTabPort>) => void) | null = null;
+    let resolvedWorker!: DatabaseActiveTabWorker;
     const [mainEnd, workerEnd] = createMockPortPair();
 
     const ready = dir.getDirectoryHandle("databases", {create: true}).then(dbsDir => {
-        const worker = new DatabaseActiveTabWorker(dbsDir);
-        handler = worker.createMessageHandler(message => workerEnd.postMessage(message));
+        resolvedWorker = new DatabaseActiveTabWorker(dbsDir);
+        handler = resolvedWorker.createMessageHandler(message => workerEnd.postMessage(message));
         workerEnd.onmessage = event => handler!(event.data, event.ports);
     });
 
     return {
-        ready,
-        postMessage(data: unknown, transfer: Array<ActiveTabPort> = []) {
-            queueMicrotask(() => handler?.(data, transfer));
+        handle: {
+            ready,
+            postMessage(data: unknown, transfer: Array<ActiveTabPort> = []) {
+                queueMicrotask(() => handler?.(data, transfer));
+            },
+            get onmessage() {
+                return mainEnd.onmessage;
+            },
+            set onmessage(
+                h: ((event: {data: unknown; ports: Array<ActiveTabPort>}) => void) | null,
+            ) {
+                mainEnd.onmessage = h;
+            },
+            start() {},
+            close() {},
+            terminate() {},
         },
-        get onmessage() {
-            return mainEnd.onmessage;
+        get worker() {
+            return resolvedWorker;
         },
-        set onmessage(h: ((event: {data: unknown; ports: Array<ActiveTabPort>}) => void) | null) {
-            mainEnd.onmessage = h;
-        },
-        start() {},
-        close() {},
-        terminate() {},
     };
 }
 
@@ -369,14 +380,22 @@ function createTestTab(config: {
         sql: string,
         options: {allowWrites: boolean; mutationId: DatabaseMutationId},
     ) => Promise<ExecuteServerResult>;
-}): {manager: DatabaseActiveTabManager; fireUnload: () => void} {
+}): {
+    manager: DatabaseActiveTabManager;
+    fireUnload: () => void;
+    worker: DatabaseActiveTabWorker;
+} {
     const unloadListeners: Array<() => void> = [];
+    let mockWorker: ReturnType<typeof createMockWorker> | undefined;
 
     const manager = new DatabaseActiveTabManager({
         databaseId: config.databaseId ?? testDatabaseId,
         locks: config.locks,
         serviceWorker: config.sw.containerFor(config.clientId),
-        createWorker: () => createMockWorker(config.dir),
+        createWorker: () => {
+            mockWorker = createMockWorker(config.dir);
+            return mockWorker.handle;
+        },
         createMessageChannel: createMockMessageChannel,
         createBroadcastChannel: name => config.bc.create(name),
         addUnloadListener: callback => unloadListeners.push(callback),
@@ -454,6 +473,9 @@ function createTestTab(config: {
         fireUnload: () => {
             for (const cb of unloadListeners) cb();
         },
+        get worker() {
+            return mockWorker!.worker;
+        },
     };
 }
 
@@ -484,16 +506,17 @@ describe("DatabaseActiveTabManager", () => {
         const dir = createInMemoryDirectory();
 
         // Tab A — leader
-        const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const connA = await managerA.connect();
+        const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        const connA = await tabA.manager.connect();
 
         // Tab B — follower
         const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
         const connB = await managerB.connect();
 
-        await connA.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)",
-        });
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)",
+        );
         await connA.call("execute", {
             sql: "INSERT INTO t (name) VALUES ('hello')",
         });
@@ -510,13 +533,15 @@ describe("DatabaseActiveTabManager", () => {
 
         const tab = (clientId: string) => createTestTab({locks, sw, bc, clientId, dir});
 
-        const connA = await tab("tab-a").manager.connect();
+        const tabA = tab("tab-a");
+        const connA = await tabA.manager.connect();
         const connB = await tab("tab-b").manager.connect();
         const connC = await tab("tab-c").manager.connect();
 
-        await connA.call("execute", {
-            sql: "CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)",
-        });
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)",
+        );
         await connA.call("execute", {
             sql: "INSERT INTO items (val) VALUES ('from-a')",
         });
@@ -694,7 +719,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const dir = createInMemoryDirectory();
 
         let capturedMutationId: DatabaseMutationId | null = null;
-        const {manager} = createTestTab({
+        const tab = createTestTab({
             locks,
             sw,
             bc,
@@ -711,12 +736,13 @@ describe("DatabaseActiveTabManager mutations", () => {
                 return new Promise(() => {});
             },
         });
-        const conn = await manager.connect();
+        const conn = await tab.manager.connect();
 
         // Create table first, then mutate
-        await conn.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
-        });
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
+        );
         const result = await conn.call("execute", {
             sql: "INSERT INTO t (title) VALUES ('hello') RETURNING *",
         });
@@ -736,19 +762,20 @@ describe("DatabaseActiveTabManager mutations", () => {
         const dir = createInMemoryDirectory();
 
         // Tab A — leader
-        const {manager: managerA} = createTestTab({
+        const tabA = createTestTab({
             locks,
             sw,
             bc,
             clientId: "tab-a",
             dir,
         });
-        const connA = await managerA.connect();
+        const connA = await tabA.manager.connect();
 
         // Create table via leader
-        await connA.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
-        });
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
+        );
         await connA.call("execute", {sql: "INSERT INTO t (id) VALUES (1)"});
 
         // Tab B — follower with working executeServer
@@ -805,12 +832,13 @@ describe("Reactive queries", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        const conn = await tab.manager.connect();
 
-        await conn.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
-        });
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
+        );
         await conn.call("execute", {
             sql: "INSERT INTO t (val) VALUES ('hello')",
         });
@@ -833,12 +861,13 @@ describe("Reactive queries", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        const conn = await tab.manager.connect();
 
-        await conn.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
-        });
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
+        );
         await conn.call("execute", {
             sql: "INSERT INTO t (val) VALUES ('v1')",
         });
@@ -878,15 +907,17 @@ describe("Reactive queries", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        const conn = await tab.manager.connect();
 
-        await conn.call("execute", {
-            sql: "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
-        });
-        await conn.call("execute", {
-            sql: "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
-        });
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
+        );
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
+        );
         await conn.call("execute", {
             sql: "INSERT INTO t1 (val) VALUES ('a')",
         });
@@ -942,12 +973,13 @@ describe("Reactive queries", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        const conn = await tab.manager.connect();
 
-        await conn.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
-        });
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
+        );
         await conn.call("execute", {
             sql: "INSERT INTO t (val) VALUES ('v1')",
         });
@@ -983,12 +1015,13 @@ describe("watchQuery", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = createInMemoryDirectory();
 
-        const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const conn = await manager.connect();
+        const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        const conn = await tab.manager.connect();
 
-        await conn.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
-        });
+        await tab.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
+        );
         await conn.call("execute", {
             sql: "INSERT INTO t (val) VALUES ('hello')",
         });
@@ -1073,19 +1106,21 @@ describe("watchQuery", () => {
         const dir = createInMemoryDirectory();
 
         // Tab A — leader
-        const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
-        const connA = await managerA.connect();
+        const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
+        await tabA.manager.connect();
 
         // Tab B — follower
         const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
         const connB = await managerB.connect();
 
-        await connA.call("execute", {
-            sql: "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
-        });
-        await connA.call("execute", {
-            sql: "INSERT INTO t (val) VALUES ('hello')",
-        });
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseId,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
+        );
+        await tabA.worker.executeLocallyForTests(
+            testDatabaseId,
+            "INSERT INTO t (val) VALUES ('hello')",
+        );
 
         // Watch from follower
         const handle = await connB.watchQuery("SELECT * FROM t");

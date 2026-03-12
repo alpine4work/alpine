@@ -1,7 +1,11 @@
 import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
-import type {Database, Sqlite3Static} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import type {
+    Database,
+    Sqlite3Static,
+    WasmPointer,
+} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
@@ -13,6 +17,11 @@ import {
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import {
+    isSqliteActionAllowed,
+    sqliteAuthorizerActionName,
+} from "~/shared/databases/sqlite_authorizer.js";
 import {
     pageAccessFlagRead,
     pageAccessFlagWrite,
@@ -66,6 +75,7 @@ export class DatabaseClient {
     private readonly vfs: InstalledVfs;
     private readonly pageStore: OpfsPageStore;
     private optimisticQueue: Array<OptimisticMutation> = [];
+    private writeLevel: SqliteWriteLevel | null = null;
 
     private constructor(sqlite3: Sqlite3Static, pageStore: OpfsPageStore) {
         this.pageStore = pageStore;
@@ -83,6 +93,22 @@ export class DatabaseClient {
         });
 
         this.db = new sqlite3.oo1.DB("/db.sqlite3", "ct", vfsName);
+
+        const capi = sqlite3.capi;
+        capi.sqlite3_set_authorizer(
+            this.db.pointer!,
+            (_cbArg: WasmPointer, actionCode: number) => {
+                const action = sqliteAuthorizerActionName(actionCode);
+                if (action === undefined) {
+                    return capi.SQLITE_DENY;
+                }
+                return isSqliteActionAllowed(action, this.writeLevel)
+                    ? capi.SQLITE_OK
+                    : capi.SQLITE_DENY;
+            },
+            0,
+        );
+
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);
         }
@@ -262,7 +288,7 @@ export class DatabaseClient {
             if (flags === pageAccessFlagWrite) writeDetected = true;
         });
         try {
-            const rows = this.executeLocally(sql);
+            const rows = this.executeLocally(sql, "none");
             assert(!writeDetected, "executeWithTracking does not support writes");
             return {rows, readPages};
         } finally {
@@ -505,7 +531,11 @@ export class DatabaseClient {
         return this.pageStore.isEmpty();
     }
 
-    private executeLocally(sql: string): ReadonlyArray<Record<string, unknown>> {
+    private executeLocally(
+        sql: string,
+        writeLevel: SqliteWriteLevel = "data",
+    ): ReadonlyArray<Record<string, unknown>> {
+        this.writeLevel = writeLevel;
         try {
             return this.db.exec(sql, {
                 returnValue: "resultRows",
@@ -520,6 +550,8 @@ export class DatabaseClient {
                 throw stashed;
             }
             throw error;
+        } finally {
+            this.writeLevel = null;
         }
     }
 
@@ -542,7 +574,7 @@ export class DatabaseClient {
      */
     executeLocallyForTests(sql: string): ReadonlyArray<Record<string, unknown>> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
-        return this.executeLocally(sql);
+        return this.executeLocally(sql, "schema+data");
     }
 
     /** Exposed for tests only. Do not use in production code. */
