@@ -58,8 +58,8 @@ export async function createSpaceForAccountAsAdmin(
  * Creates a space and adds the given user as the `Owner` of the space. This
  * creates all resources associated with a new account, including:
  *
- * - A Welcome channel
- * - Starter tasks for the user
+ * - A "General" and "Random" channel
+ * - Pre-installed ChatGPT and Cursor bots
  */
 async function actuallyCreateSpace(
     context: ServerActionContext,

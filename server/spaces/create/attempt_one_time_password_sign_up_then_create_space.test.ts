@@ -12,7 +12,10 @@ import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {attemptOneTimePasswordSignUpThenCreateSpace} from "~/server/spaces/create/attempt_one_time_password_sign_up_then_create_space.js";
-import {withChatGptBotIdForTest} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
+import {
+    withChatGptBotIdForTest,
+    withCursorBotIdForTest,
+} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
 import {getAccountSpaceIdsForTest} from "~/server/spaces/get_account_space_ids_for_test.js";
 import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {getSpaceAccountItem} from "~/server/spaces/internal/get_space_account_item.js";
@@ -110,18 +113,22 @@ async function testAnotherWorkSignUp(emailDomain: string, options?: {name?: stri
 }
 
 async function testSignUp(options: {name?: string; emailAddress: string}) {
-    const [chatGptBot, {accountId, emailAddress, oneTimePassword}] = await runAllPromises([
-        TestBot.create(context),
-        testSignUpUntilAttemptOneTimePasswordSignUp(options),
-    ]);
+    const [chatGptBot, cursorBot, {accountId, emailAddress, oneTimePassword}] =
+        await runAllPromises([
+            TestBot.create(context),
+            TestBot.create(context),
+            testSignUpUntilAttemptOneTimePasswordSignUp(options),
+        ]);
 
     const {sessionId, openSpaceId} = await withChatGptBotIdForTest(chatGptBot.id, () => {
-        return attemptOneTimePasswordSignUpThenCreateSpace(context.unknownAnonymousAction(), {
-            emailAddress: emailAddress,
-            oneTimePassword: oneTimePassword,
-            inviteEmailAddresses: [],
-            ipAddress: null,
-            userAgent: null,
+        return withCursorBotIdForTest(cursorBot.id, () => {
+            return attemptOneTimePasswordSignUpThenCreateSpace(context.unknownAnonymousAction(), {
+                emailAddress: emailAddress,
+                oneTimePassword: oneTimePassword,
+                inviteEmailAddresses: [],
+                ipAddress: null,
+                userAgent: null,
+            });
         });
     });
     assert(openSpaceId);
@@ -137,6 +144,7 @@ async function testSignUp(options: {name?: string; emailAddress: string}) {
         session: await TestSpaceSession.forSpace(session, space),
         emailAddress,
         chatGptBot,
+        cursorBot,
     };
 }
 
@@ -1371,6 +1379,7 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${item.generalChannelId}`, points: 3},
                     {entityId: `Channel:${item.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${item.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${item.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1403,11 +1412,13 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1444,12 +1455,14 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${session1.account.id}`, points: 2.996},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1487,13 +1500,15 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${session1.account.id}`, points: 2.997},
-                    {entityId: `Account:${session2.account.id}`, points: 2.996},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${session1.account.id}`, points: 2.996},
+                    {entityId: `Account:${session2.account.id}`, points: 2.995},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1533,15 +1548,17 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${session1.account.id}`, points: 2.997},
-                    {entityId: `Account:${session2.account.id}`, points: 2.996},
-                    {entityId: `Account:${session3.account.id}`, points: 2.995},
-                    {entityId: `Account:${session4.account.id}`, points: 2.994},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${session1.account.id}`, points: 2.996},
+                    {entityId: `Account:${session2.account.id}`, points: 2.995},
+                    {entityId: `Account:${session3.account.id}`, points: 2.994},
+                    {entityId: `Account:${session4.account.id}`, points: 2.993},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1586,16 +1603,18 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${session1.account.id}`, points: 2.997},
-                    {entityId: `Account:${session2.account.id}`, points: 2.996},
-                    {entityId: `Account:${session3.account.id}`, points: 2.995},
-                    {entityId: `Account:${session4.account.id}`, points: 2.994},
-                    {entityId: `Account:${session5.account.id}`, points: 2.993},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${session1.account.id}`, points: 2.996},
+                    {entityId: `Account:${session2.account.id}`, points: 2.995},
+                    {entityId: `Account:${session3.account.id}`, points: 2.994},
+                    {entityId: `Account:${session4.account.id}`, points: 2.993},
+                    {entityId: `Account:${session5.account.id}`, points: 2.992},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1633,12 +1652,14 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
                 ],
                 [session.space.id]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1669,7 +1690,8 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
                 ],
             },
         });
@@ -1712,13 +1734,15 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
-                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.996},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
+                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.995},
                 ],
                 [session.space.id]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });
@@ -1771,15 +1795,17 @@ describe("Welcome package", () => {
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
-                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.996},
-                    {entityId: `Account:${invitedSession2.account.id}`, points: 2.995},
-                    {entityId: `Account:${invitedSession3.account.id}`, points: 2.994},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
+                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.995},
+                    {entityId: `Account:${invitedSession2.account.id}`, points: 2.994},
+                    {entityId: `Account:${invitedSession3.account.id}`, points: 2.993},
                 ],
                 [session.space.id]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
                 ],
             },
         });

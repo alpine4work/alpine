@@ -208,6 +208,7 @@ export const SpacesTable = DynamoTableSchema.new({
                         generalChannelId: Schema.id<ChannelId>(),
                         randomChannelId: Schema.id<ChannelId>(),
                         chatGptBotAccountId: Schema.id<AccountId>().nullable(),
+                        cursorBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
 

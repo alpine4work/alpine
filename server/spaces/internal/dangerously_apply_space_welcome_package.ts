@@ -11,6 +11,7 @@ export const internalSpaceWelcomePackageSearchEntityMaxCount =
     1 + // General channel
     1 + // Random channel
     1 + // ChatGPT
+    1 + // Cursor
     suggestedSpaceAccountMaxCount;
 
 /**
@@ -20,7 +21,13 @@ export async function dangerouslyApplySpaceWelcomePackage(
     context: Context<Omit<ServerActionContextModules, "actor">>,
     {
         accountId,
-        welcomePackageItem: {spaceId, generalChannelId, randomChannelId, chatGptBotAccountId},
+        welcomePackageItem: {
+            spaceId,
+            generalChannelId,
+            randomChannelId,
+            chatGptBotAccountId,
+            cursorBotAccountId,
+        },
         suggestedAccountIds,
     }: {
         accountId: AccountId;
@@ -29,6 +36,14 @@ export async function dangerouslyApplySpaceWelcomePackage(
     },
 ) {
     const increment = 0.001;
+    let incrementMultiplier = 0;
+
+    function getPoints() {
+        const points =
+            searchAffinityEntityHighIntentUpdateInteractionPoints - increment * incrementMultiplier;
+        incrementMultiplier += 1;
+        return points;
+    }
 
     await runAllPromises([
         context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
@@ -40,35 +55,37 @@ export async function dangerouslyApplySpaceWelcomePackage(
             spaceId,
             accountId,
             entityId: `Channel:${generalChannelId}`,
-            points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 0,
+            points: getPoints(),
         }),
         context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
             spaceId,
             accountId,
             entityId: `Channel:${randomChannelId}`,
-            points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 1,
+            points: getPoints(),
         }),
         chatGptBotAccountId
             ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
                   spaceId,
                   accountId,
                   entityId: `Account:${chatGptBotAccountId}`,
-                  points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 2,
+                  points: getPoints(),
               })
             : null,
-        ...suggestedAccountIds
-            .slice(0, suggestedSpaceAccountMaxCount)
-            .map((suggestedAccountId, index) =>
-                context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(
-                    {
-                        spaceId,
-                        accountId,
-                        entityId: `Account:${suggestedAccountId}`,
-                        points:
-                            searchAffinityEntityHighIntentUpdateInteractionPoints -
-                            increment * (3 + index),
-                    },
-                ),
-            ),
+        cursorBotAccountId
+            ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
+                  spaceId,
+                  accountId,
+                  entityId: `Account:${cursorBotAccountId}`,
+                  points: getPoints(),
+              })
+            : null,
+        ...suggestedAccountIds.slice(0, suggestedSpaceAccountMaxCount).map(suggestedAccountId =>
+            context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
+                spaceId,
+                accountId,
+                entityId: `Account:${suggestedAccountId}`,
+                points: getPoints(),
+            }),
+        ),
     ]);
 }
