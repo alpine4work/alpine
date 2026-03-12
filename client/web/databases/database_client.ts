@@ -16,7 +16,7 @@ import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {
     pageAccessFlagRead,
     pageAccessFlagWrite,
-    sqlitePageSize,
+    sqliteOpenPragmas,
 } from "~/shared/databases/sqlite_constants.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -83,7 +83,9 @@ export class DatabaseClient {
         });
 
         this.db = new sqlite3.oo1.DB("/db.sqlite3", "ct", vfsName);
-        this.db.exec(`PRAGMA page_size = ${sqlitePageSize}`);
+        for (const pragma of sqliteOpenPragmas) {
+            this.db.exec(pragma);
+        }
         this.db.exec("PRAGMA journal_mode = MEMORY");
     }
 

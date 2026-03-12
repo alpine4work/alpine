@@ -8,7 +8,12 @@ import type {DatabaseServerStorage} from "~/server/databases/database_server_sto
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
-import {pageAccessFlagRead, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {
+    pageAccessFlagRead,
+    sqliteOpenPragmas,
+    sqlitePageSize,
+} from "~/shared/databases/sqlite_constants.js";
+import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -138,8 +143,13 @@ export class DatabaseServer {
             0,
         );
 
-        this.db.exec(`PRAGMA page_size = ${sqlitePageSize}`);
+        for (const pragma of sqliteOpenPragmas) {
+            this.db.exec(pragma);
+        }
         this.db.exec("PRAGMA journal_mode = OFF");
+        this.db.exec("PRAGMA quick_check");
+        runSqliteMigrations(this.db);
+        this.db.exec("PRAGMA optimize");
     }
 
     static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
