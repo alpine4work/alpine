@@ -3377,7 +3377,7 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - /var/www/server/importer/importer_binary
+                      - /var/www/server/importer/importer_service/importer_binary
                       - --edgeServiceUrl=https://alpine.inc
                       - --resourceServiceUrl=https://resources.alpine.inc
                       - --cloudflareAccountId=d496846050bfc973d24617456c59242b

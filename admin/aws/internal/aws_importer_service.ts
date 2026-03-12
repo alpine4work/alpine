@@ -247,7 +247,7 @@ export class AwsImporterService extends Construct {
                 //
                 // `runService()` implements env variable substitution which is why we can use env
                 // variable syntax like `$HONEYCOMB_API_KEY`.
-                "/var/www/server/importer/importer_binary",
+                "/var/www/server/importer/importer_service/importer_binary",
                 // Service URLs
                 "--edgeServiceUrl=https://alpine.inc",
                 "--resourceServiceUrl=https://resources.alpine.inc",
