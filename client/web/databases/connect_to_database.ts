@@ -5,7 +5,8 @@ import {
     DatabaseActiveTabManager,
     type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
-import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
+import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
+import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
@@ -24,10 +25,10 @@ export type {
  */
 export function connectToDatabase(options: {
     databaseId: DatabaseId;
-    executeServer(
-        sql: string,
-        options: {allowWrites: boolean; mutationId: DatabaseMutationId},
-    ): Promise<ExecuteServerResult>;
+    executeActionServer(
+        action: DatabaseActionObject,
+        options: {mutationId: DatabaseMutationId},
+    ): Promise<ExecuteActionServerResult>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
     ): Promise<EnsureCacheIsUpToDateResult>;
@@ -107,7 +108,7 @@ export function connectToDatabase(options: {
         addUnloadListener(callback: () => void) {
             window.addEventListener("beforeunload", callback);
         },
-        executeServer: options.executeServer,
+        executeActionServer: options.executeActionServer,
         ensureCacheIsUpToDate: options.ensureCacheIsUpToDate,
         reportError: options.reportError,
     });

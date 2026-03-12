@@ -3,12 +3,13 @@ import {
     type DatabaseClientConnection,
 } from "~/client/web/databases/database_client.js";
 import {
-    type ExecuteServerResult,
+    type ExecuteActionServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
 } from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
+import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -238,13 +239,12 @@ export class DatabaseActiveTabWorker {
             callMethods: workerToTabDatabaseRpcMethods,
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
-                execute: async input => {
+                executeAction: async input => {
                     const client = await this.getOrCreateClient(input.databaseId, conn);
-                    const rows = (await client.execute(
-                        conn,
-                        input.sql,
-                    )) as ReadonlyArray<SchemaSerializedValue>;
-                    return {rows};
+                    const result = await client.executeAction(conn, input.action);
+                    return {
+                        result: {name: input.action.name, output: result} as any,
+                    };
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseId, conn);
@@ -292,10 +292,9 @@ export class DatabaseActiveTabWorker {
             send,
         });
         const conn: DatabaseClientConnection = {
-            executeServer: async (sql, options) =>
-                rpc.call("executeServer", {
-                    sql,
-                    allowWrites: options.allowWrites,
+            executeActionServer: async (action, options) =>
+                rpc.call("executeActionServer", {
+                    action,
                     mutationId: options.mutationId,
                 }),
             ensureCacheIsUpToDate: async pageTimestampsByIndex =>
@@ -369,10 +368,10 @@ export class DatabaseActiveTabManager {
             createMessageChannel(): {port1: ActiveTabPort; port2: ActiveTabPort};
             createBroadcastChannel(name: string): ActiveTabBroadcastChannel;
             addUnloadListener(callback: () => void): void;
-            executeServer(
-                sql: string,
-                options: {allowWrites: boolean; mutationId: DatabaseMutationId},
-            ): Promise<ExecuteServerResult>;
+            executeActionServer(
+                action: DatabaseActionObject,
+                options: {mutationId: DatabaseMutationId},
+            ): Promise<ExecuteActionServerResult>;
             ensureCacheIsUpToDate(
                 pageTimestampsByIndex: ReadonlyMap<number, number>,
             ): Promise<EnsureCacheIsUpToDateResult>;
@@ -648,13 +647,12 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                executeServer: async input => {
-                    const result = await this.deps.executeServer(input.sql, {
-                        allowWrites: input.allowWrites,
+                executeActionServer: async input => {
+                    const result = await this.deps.executeActionServer(input.action, {
                         mutationId: input.mutationId,
                     });
                     return {
-                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
+                        result: result.result as SchemaSerializedValue as any,
                         readPages: result.readPages,
                     };
                 },
@@ -714,13 +712,12 @@ export class DatabaseActiveTabManager {
             callMethods: tabToWorkerDatabaseRpcMethods,
             handleMethods: workerToTabDatabaseRpcMethods,
             handlers: {
-                executeServer: async input => {
-                    const result = await this.deps.executeServer(input.sql, {
-                        allowWrites: input.allowWrites,
+                executeActionServer: async input => {
+                    const result = await this.deps.executeActionServer(input.action, {
                         mutationId: input.mutationId,
                     });
                     return {
-                        rows: result.rows as ReadonlyArray<SchemaSerializedValue>,
+                        result: result.result as SchemaSerializedValue as any,
                         readPages: result.readPages,
                     };
                 },

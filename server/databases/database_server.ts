@@ -5,6 +5,12 @@ import type {
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {
+    type DatabaseActionName,
+    type DatabaseActionObject,
+    type DatabaseActionOutput,
+    databaseActions,
+} from "~/shared/databases/database_actions.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
@@ -128,9 +134,44 @@ export class DatabaseServer {
     }
 
     execute(sql: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
+        const {
+            result: rows,
+            readPages,
+            changedPages,
+        } = this._executeInTransaction(options.allowWrites, db => {
+            return db.exec(sql, {
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as Array<Record<string, unknown>>;
+        });
+        return {rows, readPages, changedPages};
+    }
+
+    executeAction<N extends DatabaseActionName>(
+        actionObject: DatabaseActionObject<N>,
+    ): {
+        result: DatabaseActionOutput<N>;
+        readPages: Map<number, {data: Uint8Array; timestamp: number}>;
+        changedPages: Map<number, DatabaseServerPageChange>;
+    } {
+        const action = databaseActions[actionObject.name];
+        return this._executeInTransaction(
+            action.writeLevel,
+            db => action.run(db, actionObject.input) as DatabaseActionOutput<N>,
+        );
+    }
+
+    private _executeInTransaction<T>(
+        writeLevel: SqliteWriteLevel,
+        fn: (db: Database) => T,
+    ): {
+        result: T;
+        readPages: Map<number, {data: Uint8Array; timestamp: number}>;
+        changedPages: Map<number, DatabaseServerPageChange>;
+    } {
         this.action = {
             type: "execute",
-            allowWrites: options.allowWrites,
+            allowWrites: writeLevel,
             readPages: new Map(),
             changedPages: new Map(),
             timestamp: 0,
@@ -153,12 +194,9 @@ export class DatabaseServer {
             }
         });
         try {
-            const rows = this.db.exec(sql, {
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as Array<Record<string, unknown>>;
+            const result = fn(this.db);
 
-            if (options.allowWrites !== "none") {
+            if (writeLevel !== "none") {
                 this.db.exec("COMMIT");
                 assert(this.action.type === "execute");
 
@@ -174,12 +212,12 @@ export class DatabaseServer {
 
             assert(this.action.type === "execute");
             return {
-                rows,
+                result,
                 readPages: this.action.readPages,
                 changedPages: this.action.changedPages,
             };
         } catch (error) {
-            if (options.allowWrites !== "none") {
+            if (writeLevel !== "none") {
                 try {
                     this.db.exec("ROLLBACK");
                 } catch {
@@ -196,7 +234,7 @@ export class DatabaseServer {
             }
             throw error;
         } finally {
-            if (options.allowWrites === "none") {
+            if (writeLevel === "none") {
                 this.db.exec("ROLLBACK");
             }
             this.db.pageAccessHook(null);

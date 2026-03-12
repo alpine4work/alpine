@@ -13,7 +13,6 @@ import {
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export interface DatabaseRealtimeEventStub {
     pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
@@ -54,11 +53,9 @@ export class DatabaseDurableObjectConnection {
         WorkerSessionActionContextModules,
         typeof DatabaseRealtimeProtocol
     > = {
-        execute: async (_context, input) => {
+        executeAction: async (_context, input) => {
             return this._storage.transactionSync(() => {
-                const result = this._server.execute(input.sql, {
-                    allowWrites: input.allowWrites ? "data" : "none",
-                });
+                const result = this._server.executeAction(input.action);
 
                 if (result.changedPages.size > 0) {
                     const diffPages = [...result.changedPages].map(
@@ -75,7 +72,7 @@ export class DatabaseDurableObjectConnection {
                 }
 
                 return {
-                    rows: result.rows as Array<SchemaSerializedValue>,
+                    result: {name: input.action.name, output: result.result} as any,
                     readPages: result.readPages,
                 };
             });

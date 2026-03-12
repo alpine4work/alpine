@@ -1,4 +1,8 @@
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import {
+    DatabaseActionObjectSchema,
+    DatabaseActionResultSchema,
+} from "~/shared/databases/database_actions.js";
 import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {
@@ -21,9 +25,12 @@ const pageDiffEntrySchema = Schema.object({
 
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
-    execute: {
-        input: {databaseId: Schema.id<DatabaseId>(), sql: Schema.string},
-        output: {rows: Schema.array(Schema.unknown())},
+    executeAction: {
+        input: {
+            databaseId: Schema.id<DatabaseId>(),
+            action: DatabaseActionObjectSchema,
+        },
+        output: {result: DatabaseActionResultSchema},
     },
     writePagesFromRealtime: {
         input: {
@@ -52,14 +59,13 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
 
 /** Methods the worker can call on the tab. */
 export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
-    executeServer: {
+    executeActionServer: {
         input: {
-            sql: Schema.string,
-            allowWrites: Schema.boolean,
+            action: DatabaseActionObjectSchema,
             mutationId: Schema.id<DatabaseMutationId>(),
         },
         output: {
-            rows: Schema.array(Schema.unknown()),
+            result: DatabaseActionResultSchema,
             readPages: Schema.map(Schema.integer, pageValueSchema),
         },
     },
@@ -89,7 +95,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
     },
 });
 
-/** Result of a server execute: rows plus any pages needed locally. */
-export type ExecuteServerResult = SchemaType<
-    (typeof workerToTabDatabaseRpcMethods)["executeServer"]["outputSchema"]
+/** Result of a server executeAction: result plus any pages needed locally. */
+export type ExecuteActionServerResult = SchemaType<
+    (typeof workerToTabDatabaseRpcMethods)["executeActionServer"]["outputSchema"]
 >;

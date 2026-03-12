@@ -1062,6 +1062,59 @@ describe("DatabaseServer", () => {
         });
     });
 
+    describe("executeAction — rawSql", () => {
+        test("SELECT returns rows in result", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
+                // eslint-disable-next-line cyberworlds/string-quotes
+                "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
+            );
+
+            const {result} = server.executeAction({
+                name: "rawSql",
+                input: {sql: "SELECT id, name FROM items ORDER BY id"},
+            });
+
+            expect(result.rows).toEqual([
+                {id: 1, name: "alpha"},
+                {id: 2, name: "beta"},
+            ]);
+
+            server.close();
+        });
+
+        test("INSERT produces changedPages", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
+            );
+
+            const {result, changedPages} = server.executeAction({
+                name: "rawSql",
+                // eslint-disable-next-line cyberworlds/string-quotes
+                input: {sql: "INSERT INTO items VALUES (1, 'hello')"},
+            });
+
+            expect(result.rows).toEqual([]);
+            expect(changedPages.size).toBeGreaterThan(0);
+
+            server.close();
+        });
+
+        test("respects writeLevel (rawSql uses data)", async () => {
+            const server = await createServerWithSchema();
+
+            // DDL should be rejected because rawSql writeLevel is "data"
+            expect(() =>
+                server.executeAction({
+                    name: "rawSql",
+                    input: {sql: "CREATE TABLE bad (id INTEGER)"},
+                }),
+            ).toThrow();
+
+            server.close();
+        });
+    });
+
     describe("create", () => {
         test("multiple servers can coexist", async () => {
             const server1 = await createServerWithSchema(

@@ -260,14 +260,13 @@ export function DatabaseView({name}: {name: string}) {
         events.handleEvent,
     );
 
-    const {executeServer, ensureCacheIsUpToDate, reportError} = useEvents({
-        executeServer: async (
-            sql: string,
-            options: {allowWrites: boolean; mutationId: DatabaseMutationId},
+    const {executeActionServer, ensureCacheIsUpToDate, reportError} = useEvents({
+        executeActionServer: async (
+            action: {name: "rawSql"; input: {readonly sql: string}},
+            options: {mutationId: DatabaseMutationId},
         ) => {
-            return procedures.execute({
-                sql,
-                allowWrites: options.allowWrites,
+            return procedures.executeAction({
+                action,
                 mutationId: options.mutationId,
             });
         },
@@ -284,7 +283,7 @@ export function DatabaseView({name}: {name: string}) {
         (async () => {
             connection = await connectToDatabase({
                 databaseId: databaseId! as DatabaseId,
-                executeServer,
+                executeActionServer,
                 ensureCacheIsUpToDate,
                 reportError,
             });
@@ -293,7 +292,7 @@ export function DatabaseView({name}: {name: string}) {
         return () => {
             connection?.close();
         };
-    }, [databaseId, executeServer, ensureCacheIsUpToDate, reportError]);
+    }, [databaseId, executeActionServer, ensureCacheIsUpToDate, reportError]);
 
     return (
         <Box
@@ -348,8 +347,13 @@ export function DatabaseView({name}: {name: string}) {
                         if (conn == null) return;
                         setError(null);
                         try {
-                            const response = await conn.call("execute", {sql: query});
-                            setRows(response.rows);
+                            const response = await conn.call("executeAction", {
+                                action: {name: "rawSql" as const, input: {sql: query}},
+                            });
+                            const result = response.result as unknown as {
+                                output: {rows: Array<Record<string, unknown>>};
+                            };
+                            setRows(result.output.rows);
                         } catch (e) {
                             setError(e instanceof Error ? e.message : String(e));
                             setRows(null);

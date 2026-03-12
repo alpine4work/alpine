@@ -1,3 +1,7 @@
+import {
+    DatabaseActionObjectSchema,
+    DatabaseActionResultSchema,
+} from "~/shared/databases/database_actions.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
@@ -42,14 +46,13 @@ export type DatabaseRealtimeEvent = WebSocketProtocolEventType<typeof DatabaseRe
 
 export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
     procedures: {
-        execute: {
+        executeAction: {
             input: {
-                sql: Schema.string,
+                action: DatabaseActionObjectSchema,
                 mutationId: Schema.id<DatabaseMutationId>(),
-                allowWrites: Schema.boolean,
             },
             output: {
-                rows: Schema.array(Schema.unknown()),
+                result: DatabaseActionResultSchema,
                 readPages: Schema.map(
                     Schema.integer,
                     Schema.object({

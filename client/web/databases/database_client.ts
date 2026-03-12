@@ -1,4 +1,4 @@
-import type {ExecuteServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
+import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {
@@ -7,6 +7,13 @@ import type {
     WasmPointer,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {
+    type DatabaseActionName,
+    type DatabaseActionObject,
+    type DatabaseActionOutput,
+    type DatabaseActionResult,
+    databaseActions,
+} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
@@ -35,7 +42,7 @@ import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 interface OptimisticMutation {
     mutationId: DatabaseMutationId;
-    sql: string;
+    action: DatabaseActionObject;
 }
 
 const vfsNamePrefix = "alpine-client";
@@ -44,15 +51,15 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
  * Represents a connected tab's route to the server.
- * Passed into {@link DatabaseClient.execute} so server
- * fallbacks route through the correct tab's WebSocket
- * connection.
+ * Passed into {@link DatabaseClient.executeAction} so
+ * server fallbacks route through the correct tab's
+ * WebSocket connection.
  */
 export interface DatabaseClientConnection {
-    executeServer(
-        sql: string,
-        options: {allowWrites: boolean; mutationId: DatabaseMutationId},
-    ): Promise<ExecuteServerResult>;
+    executeActionServer(
+        action: DatabaseActionObject,
+        options: {mutationId: DatabaseMutationId},
+    ): Promise<ExecuteActionServerResult>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
     ): Promise<EnsureCacheIsUpToDateResult>;
@@ -63,8 +70,8 @@ export interface DatabaseClientConnection {
  * Client-side SQLite database backed by OPFS page
  * storage. Handles server fallback transparently:
  * when a local query hits a missing page, calls
- * {@link DatabaseClientConnection.executeServer} to
- * fetch pages from the server, stores them locally,
+ * {@link DatabaseClientConnection.executeActionServer}
+ * to fetch pages from the server, stores them locally,
  * and returns the server's result.
  *
  * Inject the result of `navigator.storage.getDirectory()`
@@ -165,9 +172,9 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute SQL. Detects reads vs writes via the
-     * optimistic page store: if the local execution
-     * writes no pages, it's a read and returns
+     * Execute a named action. Detects reads vs writes
+     * via the optimistic page store: if the local
+     * execution writes no pages, it's a read and returns
      * immediately. If pages are written, it's treated
      * as a mutation with optimistic local execution
      * and background server confirmation.
@@ -175,56 +182,37 @@ export class DatabaseClient {
      * Falls back to the server when the local store
      * is empty or missing pages.
      */
-    async execute(
+    async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
-        sql: string,
-    ): Promise<ReadonlyArray<Record<string, unknown>>> {
+        actionObject: DatabaseActionObject<N>,
+    ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
 
-        if (this.isEmpty()) {
-            try {
-                return await this.executeReadOnlyViaServer(conn, sql);
-            } catch {
-                // Server unavailable — fall through to local
-            }
-        }
-
-        let rows!: ReadonlyArray<Record<string, unknown>>;
+        let result!: DatabaseActionOutput<N>;
         let writtenPages: ReadonlySet<number>;
         try {
             writtenPages = this.pageStore.optimistic(() => {
-                rows = this.executeLocally(sql);
+                result = this.executeActionLocally(actionObject);
             });
         } catch (error) {
             if (error instanceof PageMissingError) {
-                // Try read-only first so pages get cached
-                // locally. Falls back to a write-capable
-                // server call if the SQL is a mutation.
-                try {
-                    return await this.executeReadOnlyViaServer(conn, sql);
-                } catch {
-                    const result = await conn.executeServer(sql, {
-                        allowWrites: true,
-                        mutationId,
-                    });
-                    return result.rows as ReadonlyArray<Record<string, unknown>>;
-                }
+                return await this.executeActionViaServer(conn, actionObject, mutationId);
             }
             throw error;
         }
 
         if (writtenPages.size === 0) {
             // Pure read — no server round-trip needed.
-            return rows;
+            return result;
         }
 
-        this.optimisticQueue.push({mutationId, sql});
+        this.optimisticQueue.push({mutationId, action: actionObject});
         this.invalidateForWrittenPages(writtenPages);
 
         // Send to server in the background.
         void (async () => {
             try {
-                await conn.executeServer(sql, {allowWrites: true, mutationId});
+                await conn.executeActionServer(actionObject, {mutationId});
                 assert(
                     !this.optimisticQueue.some(m => m.mutationId === mutationId),
                     "mutation not confirmed via realtime before server responded",
@@ -235,7 +223,19 @@ export class DatabaseClient {
             }
         })();
 
-        return rows;
+        return result;
+    }
+
+    /**
+     * Convenience wrapper: execute raw SQL via the
+     * `rawSql` action.
+     */
+    async execute(
+        conn: DatabaseClientConnection,
+        sql: string,
+    ): Promise<ReadonlyArray<Record<string, unknown>>> {
+        const {rows} = await this.executeAction(conn, {name: "rawSql", input: {sql}});
+        return rows as ReadonlyArray<Record<string, unknown>>;
     }
 
     /**
@@ -256,15 +256,15 @@ export class DatabaseClient {
         conn: DatabaseClientConnection,
         sql: string,
     ): Promise<{rows: ReadonlyArray<Record<string, unknown>>; readPages: ReadonlySet<number>}> {
-        if (this.isEmpty()) {
-            await this.executeReadOnlyViaServer(conn, sql);
-        }
-
         try {
             return this.executeLocallyInReadOnlyTxn(sql);
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
-            await this.executeReadOnlyViaServer(conn, sql);
+            await this.executeActionViaServer(
+                conn,
+                {name: "rawSql", input: {sql}},
+                generateId<DatabaseMutationId>(),
+            );
             return this.executeLocallyInReadOnlyTxn(sql);
         }
     }
@@ -483,7 +483,7 @@ export class DatabaseClient {
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
                 const writtenPages = this.pageStore.optimistic(() => {
-                    this.executeLocally(mutation.sql);
+                    this.executeActionLocally(mutation.action);
                 });
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;
@@ -531,6 +531,32 @@ export class DatabaseClient {
         return this.pageStore.isEmpty();
     }
 
+    /**
+     * Run an action's `run()` function locally with
+     * proper write-level authorization and VFS error
+     * handling.
+     */
+    private executeActionLocally<N extends DatabaseActionName>(
+        actionObject: DatabaseActionObject<N>,
+    ): DatabaseActionOutput<N> {
+        const action = databaseActions[actionObject.name];
+        this.writeLevel = action.writeLevel;
+        try {
+            return action.run(this.db, actionObject.input) as DatabaseActionOutput<N>;
+        } catch (error) {
+            const stashed = this.vfs.takeError();
+            if (stashed !== null) {
+                if (stashed instanceof Error) {
+                    stashed.cause = error;
+                }
+                throw stashed;
+            }
+            throw error;
+        } finally {
+            this.writeLevel = null;
+        }
+    }
+
     private executeLocally(
         sql: string,
         writeLevel: SqliteWriteLevel = "data",
@@ -555,16 +581,16 @@ export class DatabaseClient {
         }
     }
 
-    private async executeReadOnlyViaServer(
+    private async executeActionViaServer<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
-        sql: string,
-    ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const mutationId = generateId<DatabaseMutationId>();
-        const result = await conn.executeServer(sql, {allowWrites: false, mutationId});
+        actionObject: DatabaseActionObject<N>,
+        mutationId: DatabaseMutationId,
+    ): Promise<DatabaseActionOutput<N>> {
+        const serverResult = await conn.executeActionServer(actionObject, {mutationId});
         this.pageStore.clearOptimisticPages();
-        this.applyServerPages(result.readPages);
+        this.applyServerPages(serverResult.readPages);
         this.replayOptimisticQueue();
-        return result.rows as ReadonlyArray<Record<string, unknown>>;
+        return (serverResult.result as DatabaseActionResult<N>).output;
     }
 
     /**
