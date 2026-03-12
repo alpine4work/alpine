@@ -80,6 +80,18 @@ export class AwsImportUploadsData extends Construct {
     }
 
     /**
+     * Grants the grantee `s3:DeleteObject` permission for cleaning up uploaded files
+     * after import completion or cancellation.
+     */
+    public grantDeleteObject(grantee: IGrantable) {
+        Grant.addToPrincipal({
+            grantee,
+            actions: ["s3:DeleteObject"],
+            resourceArns: [this._bucket.arnForObjects("*")],
+        });
+    }
+
+    /**
      * Grants the grantee permissions to read files from the bucket. Used by job queue
      * service to read uploaded files for processing.
      */

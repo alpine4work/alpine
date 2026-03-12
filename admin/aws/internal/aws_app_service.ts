@@ -84,6 +84,7 @@ export class AwsAppService extends Construct {
         // uploads exist via HeadObject in finishedNotionImportUpload.
         options.importUploads.grantUpload(taskDefinition.taskRole);
         options.importUploads.grantGetObject(taskDefinition.taskRole);
+        options.importUploads.grantDeleteObject(taskDefinition.taskRole);
 
         // Grant permission to run importer tasks.
         //
