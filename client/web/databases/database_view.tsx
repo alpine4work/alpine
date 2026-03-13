@@ -1,15 +1,17 @@
-import {useEffect, useRef, useState} from "react";
+import {ReactNode, useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {
     type DatabaseConnection,
     type ReactiveQueryHandle,
     connectToDatabase,
 } from "~/client/web/databases/connect_to_database.js";
+import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {
@@ -24,23 +26,12 @@ import type {
     DatabaseReactiveQueryId,
 } from "~/shared/id/types/id_types.js";
 
-/* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
-const sampleQueries = [
-    {
-        label: "Create table",
-        sql: "CREATE TABLE tasks (\n  id INTEGER PRIMARY KEY,\n  title TEXT NOT NULL,\n  status TEXT DEFAULT 'todo',\n  created_at TEXT DEFAULT (datetime('now'))\n);",
-    },
-    {
-        label: "Insert rows",
-        sql: "INSERT INTO tasks (title, status) VALUES\n  ('Design database schema', 'done'),\n  ('Build OPFS storage layer', 'in_progress'),\n  ('Add sync protocol', 'todo'),\n  ('Write documentation', 'todo');",
-    },
-    {label: "Select all", sql: "SELECT * FROM tasks;"},
-    {label: "Filter", sql: "SELECT * FROM tasks WHERE status = 'todo';"},
-    {label: "Aggregate", sql: "SELECT status, count(*) AS count FROM tasks GROUP BY status;"},
-];
-/* eslint-enable cyberworlds/string-quotes */
+export interface DatabaseViewTable {
+    readonly name: string;
+    readonly tableName: string;
+}
 
-function TableView({rows}: {rows: ReadonlyArray<unknown>}) {
+function ResultTable({rows}: {rows: ReadonlyArray<unknown>}) {
     if (rows.length === 0) {
         return (
             <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
@@ -114,6 +105,8 @@ function TableView({rows}: {rows: ReadonlyArray<unknown>}) {
     );
 }
 
+// ─── SQL View ────────────────────────────────────────────
+
 interface WatchEntry {
     readonly id: DatabaseReactiveQueryId;
     readonly sql: string;
@@ -167,7 +160,7 @@ function WatchedQueryResults(props: {
                 </Button>
             </Box>
             {result.ok ? (
-                <TableView rows={result.value} />
+                <ResultTable rows={result.value} />
             ) : (
                 <pre
                     className={sprinkles({
@@ -231,83 +224,30 @@ function WatchedQueryEntry(props: {conn: DatabaseConnection; sql: string; onClos
     return <WatchedQueryResults sql={props.sql} handle={handle} onClose={props.onClose} />;
 }
 
-export function DatabaseView({name}: {name: string}) {
-    const {databaseId} = useParams();
-    const reporter = useReporter();
+/* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
+const sampleQueries = [
+    {
+        label: "Create table",
+        sql: "CREATE TABLE tasks (\n  id INTEGER PRIMARY KEY,\n  title TEXT NOT NULL,\n  status TEXT DEFAULT 'todo',\n  created_at TEXT DEFAULT (datetime('now'))\n);",
+    },
+    {
+        label: "Insert rows",
+        sql: "INSERT INTO tasks (title, status) VALUES\n  ('Design database schema', 'done'),\n  ('Build OPFS storage layer', 'in_progress'),\n  ('Add sync protocol', 'todo'),\n  ('Write documentation', 'todo');",
+    },
+    {label: "Select all", sql: "SELECT * FROM tasks;"},
+    {label: "Filter", sql: "SELECT * FROM tasks WHERE status = 'todo';"},
+    {label: "Aggregate", sql: "SELECT status, count(*) AS count FROM tasks GROUP BY status;"},
+];
+/* eslint-enable cyberworlds/string-quotes */
+
+export function DatabaseSqlView({conn}: {conn: DatabaseConnection | null}) {
     const [query, setQuery] = useState("");
-    const [conn, setConn] = useState<DatabaseConnection | null>(null);
     const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [watches, setWatches] = useState<ReadonlyArray<WatchEntry>>([]);
 
-    const events = useEvents({
-        handleEvent: (event: DatabaseRealtimeEvent) => {
-            if (event.type === "PagesChanged" && conn !== null) {
-                conn.call("writePagesFromRealtime", {
-                    pages: event.pages,
-                    mutationId: event.mutationId,
-                });
-            }
-        },
-    });
-
-    const wsUrl = databaseId ? `/api/durable-objects/databases/${databaseId}` : null;
-
-    const {procedures} = useWebSocket(
-        "DatabaseService",
-        DatabaseRealtimeProtocol,
-        wsUrl,
-        events.handleEvent,
-    );
-
-    const {executeActionServer, ensureCacheIsUpToDate, reportError} = useEvents({
-        executeActionServer: async (
-            action: {name: "rawSql"; input: {readonly sql: string}},
-            options: {mutationId: DatabaseMutationId},
-        ) => {
-            return procedures.executeAction({
-                action,
-                mutationId: options.mutationId,
-            });
-        },
-        ensureCacheIsUpToDate: async (pageTimestampsByIndex: ReadonlyMap<number, number>) => {
-            return procedures.ensureCacheIsUpToDate({pageTimestampsByIndex});
-        },
-        reportError: (message: string) => {
-            reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
-        },
-    });
-
-    useEffect(() => {
-        let connection: DatabaseConnection | null = null;
-        (async () => {
-            connection = await connectToDatabase({
-                databaseId: databaseId! as DatabaseId,
-                executeActionServer,
-                ensureCacheIsUpToDate,
-                reportError,
-            });
-            setConn(connection);
-        })();
-        return () => {
-            connection?.close();
-        };
-    }, [databaseId, executeActionServer, ensureCacheIsUpToDate, reportError]);
-
     return (
-        <Box
-            flexGrow="1"
-            width="full"
-            height="full"
-            overflow="hidden"
-            display="flex"
-            flexDirection="column"
-            gap="3"
-            padding="4"
-        >
-            <Box fontSize="200" fontStyle="semi-bold">
-                {name}
-            </Box>
+        <>
             <textarea
                 className={sprinkles({
                     display: "block",
@@ -389,7 +329,7 @@ export function DatabaseView({name}: {name: string}) {
                     {error}
                 </pre>
             )}
-            {rows != null && <TableView rows={rows} />}
+            {rows != null && <ResultTable rows={rows} />}
             {watches.length > 0 && conn != null && (
                 <Box display="flex" flexDirection="column" gap="2">
                     <Box fontSize="100" fontStyle="semi-bold">
@@ -407,6 +347,190 @@ export function DatabaseView({name}: {name: string}) {
                     ))}
                 </Box>
             )}
+        </>
+    );
+}
+
+// ─── Table Data View ─────────────────────────────────────
+
+export function DatabaseTableDataView({
+    conn,
+    tableName,
+}: {
+    conn: DatabaseConnection | null;
+    tableName: string;
+}) {
+    const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (conn == null) return;
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        setRows(null);
+        (async () => {
+            try {
+                /* eslint-disable-next-line cyberworlds/string-quotes -- SQL literal */
+                const sql = `SELECT * FROM "${tableName}"`;
+                const response = await conn.call("executeAction", {
+                    action: {name: "rawSql" as const, input: {sql}},
+                });
+                if (cancelled) return;
+                const result = response.result as unknown as {
+                    output: {rows: Array<Record<string, unknown>>};
+                };
+                setRows(result.output.rows);
+            } catch (e) {
+                if (cancelled) return;
+                setError(e instanceof Error ? e.message : String(e));
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [conn, tableName]);
+
+    if (loading) {
+        return (
+            <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
+                Loading...
+            </Box>
+        );
+    }
+    if (error != null) {
+        return (
+            <pre
+                className={sprinkles({
+                    fontSize: "75",
+                    fontStyle: "code",
+                    color: "red-60",
+                    padding: "2",
+                })}
+            >
+                {error}
+            </pre>
+        );
+    }
+    if (rows != null) {
+        return <ResultTable rows={rows} />;
+    }
+    return null;
+}
+
+// ─── Layout ──────────────────────────────────────────────
+
+export function DatabaseLayout({
+    name,
+    tables,
+    activeTableName,
+    children,
+}: {
+    name: string;
+    tables: ReadonlyArray<DatabaseViewTable>;
+    activeTableName: string | null;
+    children: ReactNode;
+}) {
+    const {spaceId, databaseId} = useParams();
+    const navigate = useNavigate();
+    const reporter = useReporter();
+    const [conn, setConn] = useState<DatabaseConnection | null>(null);
+
+    const events = useEvents({
+        handleEvent: (event: DatabaseRealtimeEvent) => {
+            if (event.type === "PagesChanged" && conn !== null) {
+                conn.call("writePagesFromRealtime", {
+                    pages: event.pages,
+                    mutationId: event.mutationId,
+                });
+            }
+        },
+    });
+
+    const wsUrl = databaseId ? `/api/durable-objects/databases/${databaseId}` : null;
+
+    const {procedures} = useWebSocket(
+        "DatabaseService",
+        DatabaseRealtimeProtocol,
+        wsUrl,
+        events.handleEvent,
+    );
+
+    const {executeActionServer, ensureCacheIsUpToDate, reportError} = useEvents({
+        executeActionServer: async (
+            action: {name: "rawSql"; input: {readonly sql: string}},
+            options: {mutationId: DatabaseMutationId},
+        ) => {
+            return procedures.executeAction({
+                action,
+                mutationId: options.mutationId,
+            });
+        },
+        ensureCacheIsUpToDate: async (pageTimestampsByIndex: ReadonlyMap<number, number>) => {
+            return procedures.ensureCacheIsUpToDate({pageTimestampsByIndex});
+        },
+        reportError: (message: string) => {
+            reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
+        },
+    });
+
+    useEffect(() => {
+        let connection: DatabaseConnection | null = null;
+        (async () => {
+            connection = await connectToDatabase({
+                databaseId: databaseId! as DatabaseId,
+                executeActionServer,
+                ensureCacheIsUpToDate,
+                reportError,
+            });
+            setConn(connection);
+        })();
+        return () => {
+            connection?.close();
+        };
+    }, [databaseId, executeActionServer, ensureCacheIsUpToDate, reportError]);
+
+    return (
+        <Box
+            flexGrow="1"
+            width="full"
+            height="full"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            gap="3"
+            padding="4"
+        >
+            <Box fontSize="200" fontStyle="semi-bold">
+                {name}
+            </Box>
+            <Box display="flex" gap="1" flexWrap="wrap">
+                {tables.map(table => (
+                    <Button
+                        key={table.tableName}
+                        variant={activeTableName === table.tableName ? "neutral" : "quieter"}
+                        onPress={() =>
+                            navigate(`/s/${spaceId}/databases/${databaseId}/${table.tableName}`)
+                        }
+                        pressErrorTitle="Failed to navigate"
+                    >
+                        {table.name}
+                    </Button>
+                ))}
+                <Button
+                    variant={activeTableName === null ? "neutral" : "quieter"}
+                    onPress={() => navigate(`/s/${spaceId}/databases/${databaseId}/sql`)}
+                    pressErrorTitle="Failed to navigate"
+                >
+                    SQL
+                </Button>
+            </Box>
+            <DatabaseConnectionContext.Provider value={conn}>
+                {children}
+            </DatabaseConnectionContext.Provider>
         </Box>
     );
 }
