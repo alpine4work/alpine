@@ -1908,7 +1908,7 @@ test("delete at the beginning of the second nested list item in a quote block", 
     await simulateTyping("test 3", {eachChar: false});
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")), unorderedListItem(paragraph("test 3"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), unorderedListItem(indent: 1, paragraph("test 3"))))',
     );
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(23))));
@@ -1916,25 +1916,25 @@ test("delete at the beginning of the second nested list item in a quote block", 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2"), paragraph("test 3"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2"), paragraph("test 3"))))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2")), paragraph("test 3")))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2")), paragraph("test 3")))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2"))), paragraph("test 3"))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2"))), paragraph("test 3"))',
     );
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
-        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(paragraph("test 2test 3"))))',
+        'doc(quoteBlock(unorderedListItem(paragraph("test 1")), unorderedListItem(indent: 1, paragraph("test 2test 3"))))',
     );
 });
 
