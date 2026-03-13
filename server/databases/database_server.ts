@@ -157,7 +157,7 @@ export class DatabaseServer {
         const action = databaseActions[actionObject.name];
         return this._executeInTransaction(
             action.writeLevel,
-            db => action.run(db, actionObject.input) as DatabaseActionOutput<N>,
+            db => action.run(db, actionObject.input as any) as DatabaseActionOutput<N>,
         );
     }
 

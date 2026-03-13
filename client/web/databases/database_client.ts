@@ -34,6 +34,7 @@ import {
     pageAccessFlagWrite,
     sqliteOpenPragmas,
 } from "~/shared/databases/sqlite_constants.js";
+import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -120,6 +121,11 @@ export class DatabaseClient {
             this.db.exec(pragma);
         }
         this.db.exec("PRAGMA journal_mode = MEMORY");
+
+        // writeLevel is already null here, which allows
+        // everything (including PRAGMAs needed by the
+        // migration runner).
+        runSqliteMigrations(this.db);
     }
 
     static async create(dir: OpfsDirectoryHandle): Promise<DatabaseClient> {
@@ -234,7 +240,7 @@ export class DatabaseClient {
         conn: DatabaseClientConnection,
         sql: string,
     ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const {rows} = await this.executeAction(conn, {name: "rawSql", input: {sql}});
+        const {rows} = await this.executeAction<"rawSql">(conn, {name: "rawSql", input: {sql}});
         return rows as ReadonlyArray<Record<string, unknown>>;
     }
 
@@ -542,7 +548,7 @@ export class DatabaseClient {
         const action = databaseActions[actionObject.name];
         this.writeLevel = action.writeLevel;
         try {
-            return action.run(this.db, actionObject.input) as DatabaseActionOutput<N>;
+            return action.run(this.db, actionObject.input as any) as DatabaseActionOutput<N>;
         } catch (error) {
             const stashed = this.vfs.takeError();
             if (stashed !== null) {

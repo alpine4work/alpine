@@ -6,7 +6,24 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * SQLite tables. Each entry is a SQL string executed once,
  * tracked by `PRAGMA user_version`.
  */
-export const sqliteMigrations: ReadonlyArray<string> = [];
+export const sqliteMigrations: ReadonlyArray<string> = [
+    `CREATE TABLE _alpine_tables (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        table_name TEXT NOT NULL UNIQUE
+    ) STRICT;
+
+    CREATE TABLE _alpine_fields (
+        id INTEGER PRIMARY KEY,
+        table_id INTEGER NOT NULL REFERENCES _alpine_tables(id),
+        name TEXT NOT NULL,
+        column_name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        UNIQUE(table_id, column_name)
+    ) STRICT;
+
+    CREATE INDEX _alpine_fields_table_id ON _alpine_fields(table_id);`,
+];
 
 /**
  * Runs any pending migrations from {@link sqliteMigrations}

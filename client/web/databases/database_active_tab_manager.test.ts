@@ -9,6 +9,7 @@ import {
     DatabaseActiveTabManager,
     DatabaseActiveTabServiceWorker,
     DatabaseActiveTabWorker,
+    type DatabaseConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
@@ -40,6 +41,16 @@ async function createSeededClient(
     const dbsDir = await dir.getDirectoryHandle("databases", {create: true});
     const perDbDir = await dbsDir.getDirectoryHandle(databaseId, {create: true});
     return DatabaseClient.create(perDbDir);
+}
+
+async function executeSql(
+    conn: DatabaseConnection,
+    sql: string,
+): Promise<Array<Record<string, unknown>>> {
+    const result = await conn.call("executeAction", {
+        action: {name: "rawSql" as const, input: {sql}},
+    });
+    return (result.result as any).output.rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -491,10 +502,8 @@ describe("DatabaseActiveTabManager", () => {
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
 
-        const result = await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "SELECT 1 + 1 AS result"}},
-        });
-        expect((result.result as any).output.rows).toMatchObject([{result: 2}]);
+        const rows = await executeSql(conn, "SELECT 1 + 1 AS result");
+        expect(rows).toMatchObject([{result: 2}]);
     });
 
     test("follower queries reach leader's worker", async () => {
@@ -515,14 +524,10 @@ describe("DatabaseActiveTabManager", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)",
         );
-        await connA.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (name) VALUES ('hello')"}},
-        });
+        await executeSql(connA, "INSERT INTO t (name) VALUES ('hello')");
 
-        const result = await connB.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "SELECT * FROM t"}},
-        });
-        expect((result.result as any).output.rows).toMatchObject([{id: 1, name: "hello"}]);
+        const rows = await executeSql(connB, "SELECT * FROM t");
+        expect(rows).toMatchObject([{id: 1, name: "hello"}]);
     });
 
     test("multiple followers query the same database", async () => {
@@ -542,20 +547,11 @@ describe("DatabaseActiveTabManager", () => {
             testDatabaseId,
             "CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await connA.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO items (val) VALUES ('from-a')"}},
-        });
-        await connB.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO items (val) VALUES ('from-b')"}},
-        });
+        await executeSql(connA, "INSERT INTO items (val) VALUES ('from-a')");
+        await executeSql(connB, "INSERT INTO items (val) VALUES ('from-b')");
 
-        const result = await connC.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "SELECT val FROM items ORDER BY id"}},
-        });
-        expect((result.result as any).output.rows).toMatchObject([
-            {val: "from-a"},
-            {val: "from-b"},
-        ]);
+        const rows = await executeSql(connC, "SELECT val FROM items ORDER BY id");
+        expect(rows).toMatchObject([{val: "from-a"}, {val: "from-b"}]);
     });
 });
 
@@ -585,10 +581,8 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Follower's connection should still work (it
         // becomes the new leader via lock-wait). The call
         // is queued until promotion completes.
-        const result = await connB.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "SELECT * FROM t"}},
-        });
-        expect((result.result as any).output.rows).toMatchObject([{id: 42}]);
+        const rows = await executeSql(connB, "SELECT * FROM t");
+        expect(rows).toMatchObject([{id: 42}]);
     });
 
     test("graceful handoff via beforeunload", async () => {
@@ -617,10 +611,8 @@ describe("DatabaseActiveTabManager resilience", () => {
         locks.release("alpine-db");
 
         // Follower takes over — queries should succeed
-        const result = await connB.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "SELECT * FROM t"}},
-        });
-        expect((result.result as any).output.rows).toMatchObject([{id: 1, val: "hello"}]);
+        const rows = await executeSql(connB, "SELECT * FROM t");
+        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
     test("queries queued during transition resolve after reconnection", async () => {
@@ -646,17 +638,13 @@ describe("DatabaseActiveTabManager resilience", () => {
 
         // Submit multiple queries before reconnection settles — they
         // should all be queued and eventually resolve.
-        const [r1, r2] = await Promise.all([
-            connB.call("executeAction", {
-                action: {name: "rawSql", input: {sql: "SELECT * FROM t WHERE id = 1"}},
-            }),
-            connB.call("executeAction", {
-                action: {name: "rawSql", input: {sql: "SELECT * FROM t WHERE id = 2"}},
-            }),
+        const [rows1, rows2] = await Promise.all([
+            executeSql(connB, "SELECT * FROM t WHERE id = 1"),
+            executeSql(connB, "SELECT * FROM t WHERE id = 2"),
         ]);
 
-        expect((r1.result as any).output.rows).toMatchObject([{id: 1}]);
-        expect((r2.result as any).output.rows).toMatchObject([{id: 2}]);
+        expect(rows1).toMatchObject([{id: 1}]);
+        expect(rows2).toMatchObject([{id: 2}]);
     });
 
     test("leader closing connection (navigation) lets followers recover", async () => {
@@ -685,10 +673,8 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Follower should recover: lock is released by
         // closeConnection(), lock-wait fires, follower
         // promotes to leader.
-        const result = await connB.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "SELECT * FROM t"}},
-        });
-        expect((result.result as any).output.rows).toMatchObject([{id: 1, val: "nav"}]);
+        const rows = await executeSql(connB, "SELECT * FROM t");
+        expect(rows).toMatchObject([{id: 1, val: "nav"}]);
     });
 
     test("multiple followers handle leader death", async () => {
@@ -714,17 +700,13 @@ describe("DatabaseActiveTabManager resilience", () => {
 
         // Both followers should recover — one becomes
         // leader, the other reconnects as follower to it.
-        const [resultB, resultC] = await Promise.all([
-            connB.call("executeAction", {
-                action: {name: "rawSql", input: {sql: "SELECT * FROM t"}},
-            }),
-            connC.call("executeAction", {
-                action: {name: "rawSql", input: {sql: "SELECT * FROM t"}},
-            }),
+        const [rowsB, rowsC] = await Promise.all([
+            executeSql(connB, "SELECT * FROM t"),
+            executeSql(connC, "SELECT * FROM t"),
         ]);
 
-        expect((resultB.result as any).output.rows).toMatchObject([{id: 1, val: "data"}]);
-        expect((resultC.result as any).output.rows).toMatchObject([{id: 1, val: "data"}]);
+        expect(rowsB).toMatchObject([{id: 1, val: "data"}]);
+        expect(rowsC).toMatchObject([{id: 1, val: "data"}]);
     });
 });
 
@@ -757,15 +739,10 @@ describe("DatabaseActiveTabManager mutations", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
         );
-        const result = await conn.call("executeAction", {
-            action: {
-                name: "rawSql",
-                input: {sql: "INSERT INTO t (title) VALUES ('hello') RETURNING *"},
-            },
-        });
+        const rows = await executeSql(conn, "INSERT INTO t (title) VALUES ('hello') RETURNING *");
 
         // Result comes from local optimistic execution
-        expect((result.result as any).output.rows).toMatchObject([{id: 1, title: "hello"}]);
+        expect(rows).toMatchObject([{id: 1, title: "hello"}]);
 
         // Background server call fires
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -793,9 +770,7 @@ describe("DatabaseActiveTabManager mutations", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
         );
-        await connA.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (id) VALUES (1)"}},
-        });
+        await executeSql(connA, "INSERT INTO t (id) VALUES (1)");
 
         // Tab B — follower with working executeActionServer
         let capturedAction: {name: string; input: unknown} | null = null;
@@ -815,9 +790,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         });
         const connB = await managerB.connect();
 
-        await connB.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "UPDATE t SET done = 1"}},
-        });
+        await executeSql(connB, "UPDATE t SET done = 1");
 
         // Background server call routes through follower's executeActionServer
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -843,11 +816,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const conn = await manager.connect();
 
         // No table exists — local execution fails
-        await expect(
-            conn.call("executeAction", {
-                action: {name: "rawSql", input: {sql: "INSERT INTO nonexistent VALUES (1)"}},
-            }),
-        ).rejects.toThrow();
+        await expect(executeSql(conn, "INSERT INTO nonexistent VALUES (1)")).rejects.toThrow();
     });
 });
 
@@ -865,9 +834,7 @@ describe("Reactive queries", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (val) VALUES ('hello')"}},
-        });
+        await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
         const queryId = generateId<DatabaseReactiveQueryId>();
         const result = await conn.call("registerReactiveQuery", {
@@ -894,9 +861,7 @@ describe("Reactive queries", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (val) VALUES ('v1')"}},
-        });
+        await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
         const queryId = generateId<DatabaseReactiveQueryId>();
         await conn.call("registerReactiveQuery", {
@@ -906,9 +871,7 @@ describe("Reactive queries", () => {
 
         // Insert another row — this writes pages that
         // overlap with the reactive query's read-set.
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (val) VALUES ('v2')"}},
-        });
+        await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
 
         // Write as realtime with newer timestamps.
         // Empty diffs since OPFS already has the content.
@@ -944,12 +907,8 @@ describe("Reactive queries", () => {
             testDatabaseId,
             "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t1 (val) VALUES ('a')"}},
-        });
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t2 (val) VALUES ('b')"}},
-        });
+        await executeSql(conn, "INSERT INTO t1 (val) VALUES ('a')");
+        await executeSql(conn, "INSERT INTO t2 (val) VALUES ('b')");
 
         // Watch only t1
         const queryId = generateId<DatabaseReactiveQueryId>();
@@ -962,9 +921,7 @@ describe("Reactive queries", () => {
         const pagesBefore = await extractPages(dir);
 
         // Mutate t2 only — write its data locally
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t2 (val) VALUES ('c')"}},
-        });
+        await executeSql(conn, "INSERT INTO t2 (val) VALUES ('c')");
         const pagesAfter = await extractPages(dir);
 
         // Find pages that changed (new or different
@@ -1006,9 +963,7 @@ describe("Reactive queries", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (val) VALUES ('v1')"}},
-        });
+        await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
         const queryId = generateId<DatabaseReactiveQueryId>();
         await conn.call("registerReactiveQuery", {
@@ -1048,9 +1003,7 @@ describe("watchQuery", () => {
             testDatabaseId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await conn.call("executeAction", {
-            action: {name: "rawSql", input: {sql: "INSERT INTO t (val) VALUES ('hello')"}},
-        });
+        await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
         const handle = await conn.watchQuery("SELECT * FROM t");
 

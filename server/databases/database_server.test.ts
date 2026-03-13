@@ -330,10 +330,15 @@ describe("DatabaseServer", () => {
             // Get each table's root page (SQLite's rootpage is
             // 1-based; our storage is 0-based).
             const db = server.unsafeGetDbForTests();
-            const schema = db.exec("SELECT name, rootpage FROM sqlite_schema ORDER BY name", {
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as Array<{name: string; rootpage: number}>;
+            /* eslint-disable cyberworlds/string-quotes */
+            const schema = db.exec(
+                "SELECT name, rootpage FROM sqlite_schema WHERE type = 'table' ORDER BY name",
+                {
+                    returnValue: "resultRows",
+                    rowMode: "object",
+                },
+            ) as Array<{name: string; rootpage: number}>;
+            /* eslint-enable cyberworlds/string-quotes */
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(`SELECT * FROM ${name}`, {allowWrites: "none"});
@@ -1070,7 +1075,7 @@ describe("DatabaseServer", () => {
                 "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
             );
 
-            const {result} = server.executeAction({
+            const {result} = server.executeAction<"rawSql">({
                 name: "rawSql",
                 input: {sql: "SELECT id, name FROM items ORDER BY id"},
             });
@@ -1088,7 +1093,7 @@ describe("DatabaseServer", () => {
                 "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
             );
 
-            const {result, changedPages} = server.executeAction({
+            const {result, changedPages} = server.executeAction<"rawSql">({
                 name: "rawSql",
                 // eslint-disable-next-line cyberworlds/string-quotes
                 input: {sql: "INSERT INTO items VALUES (1, 'hello')"},
