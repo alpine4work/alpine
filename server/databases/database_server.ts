@@ -121,6 +121,13 @@ export class DatabaseServer {
         this.db.exec("PRAGMA journal_mode = OFF");
         this.db.exec("PRAGMA quick_check");
         runSqliteMigrations(this.db);
+
+        // Seed a default table for new databases.
+        const tableCount = this.db.selectValue("SELECT COUNT(*) FROM _alpine_tables") as number;
+        if (tableCount === 0) {
+            databaseActions.createTable.run(this.db, {name: "Table"});
+        }
+
         this.db.exec("PRAGMA optimize");
     }
 

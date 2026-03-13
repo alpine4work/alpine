@@ -45,7 +45,11 @@ export const databaseActions = {
 
     createTable: defineDatabaseAction({
         input: Schema.object({name: Schema.string}),
-        output: Schema.object({tableId: Schema.integer, tableName: Schema.string}),
+        output: Schema.object({
+            tableId: Schema.integer,
+            tableName: Schema.string,
+            viewId: Schema.integer,
+        }),
         writeLevel: "schema+data",
         run(db, {name}) {
             const tableName = toSqlName(db, name);
@@ -67,7 +71,7 @@ export const databaseActions = {
             const nameCheck = checkConstraintForColumn("name", sqliteType, true);
 
             db.exec(
-                `CREATE TABLE ${tableName} (
+                `CREATE TABLE "${tableName}" (
                     _id INTEGER PRIMARY KEY,
                     _created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     name ${sqliteType}_alpine_${fieldId} NOT NULL DEFAULT '',
@@ -75,9 +79,20 @@ export const databaseActions = {
                     ${nameCheck}
                 )`,
             );
-            db.exec(`CREATE INDEX ${tableName}__created_at ON ${tableName}(_created_at)`);
+            db.exec(`CREATE INDEX "${tableName}__created_at" ON "${tableName}"(_created_at)`);
 
-            return {tableId, tableName};
+            db.exec(`INSERT INTO _alpine_views (table_id, name) VALUES (?, ?)`, {
+                bind: [tableId, "Grid view"],
+            });
+            const viewId = db.selectValue("SELECT last_insert_rowid()") as number;
+
+            db.exec(
+                `INSERT INTO _alpine_view_fields (view_id, field_id, position, width)
+                 VALUES (?, ?, ?, ?)`,
+                {bind: [viewId, fieldId, 0, 200]},
+            );
+
+            return {tableId, tableName, viewId};
         },
     }),
 };

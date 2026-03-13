@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -23,6 +25,30 @@ export const sqliteMigrations: ReadonlyArray<string> = [
     ) STRICT;
 
     CREATE INDEX _alpine_fields_table_id ON _alpine_fields(table_id);`,
+
+    `CREATE TABLE _alpine_views (
+        id INTEGER PRIMARY KEY,
+        table_id INTEGER NOT NULL REFERENCES _alpine_tables(id),
+        name TEXT NOT NULL
+    ) STRICT;
+
+    CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id);
+
+    CREATE TABLE _alpine_view_fields (
+        view_id INTEGER NOT NULL REFERENCES _alpine_views(id),
+        field_id INTEGER NOT NULL REFERENCES _alpine_fields(id),
+        position INTEGER NOT NULL,
+        width INTEGER NOT NULL,
+        PRIMARY KEY (view_id, field_id)
+    ) STRICT;
+
+    INSERT INTO _alpine_views (table_id, name)
+        SELECT id, 'Grid view' FROM _alpine_tables;
+
+    INSERT INTO _alpine_view_fields (view_id, field_id, position, width)
+        SELECT v.id, f.id, ROW_NUMBER() OVER (PARTITION BY f.table_id ORDER BY f.id) - 1, 200
+        FROM _alpine_views v
+        JOIN _alpine_fields f ON f.table_id = v.table_id;`,
 ];
 
 /**

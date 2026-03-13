@@ -341,7 +341,7 @@ describe("DatabaseServer", () => {
             ) as Array<{name: string; rootpage: number}>;
 
             for (const {name, rootpage} of schema) {
-                const result = server.execute(`SELECT * FROM ${name}`, {allowWrites: "none"});
+                const result = server.execute(`SELECT * FROM "${name}"`, {allowWrites: "none"});
                 const pageIndices = [...result.readPages.keys()];
 
                 // Page 0 (the schema page) is always accessed.

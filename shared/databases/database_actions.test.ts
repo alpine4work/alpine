@@ -144,4 +144,72 @@ describe("createTable", () => {
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
     });
+
+    test("creates a default view", async () => {
+        const db = await createDb();
+        const {tableId} = databaseActions.createTable.run(db, {name: "Tasks"});
+
+        const views = db.exec("SELECT * FROM _alpine_views WHERE table_id = ?", {
+            bind: [tableId],
+            returnValue: "resultRows",
+            rowMode: "object",
+        }) as Array<Record<string, unknown>>;
+
+        expect(views).toMatchObject([{table_id: tableId, name: "Grid view"}]);
+        db.close();
+    });
+
+    test("returns viewId", async () => {
+        const db = await createDb();
+        const {viewId} = databaseActions.createTable.run(db, {name: "Tasks"});
+
+        expect(viewId).toBeGreaterThan(0);
+        db.close();
+    });
+
+    test("default view contains the Name field", async () => {
+        const db = await createDb();
+        const {viewId} = databaseActions.createTable.run(db, {name: "Tasks"});
+
+        const viewFields = db.exec("SELECT * FROM _alpine_view_fields WHERE view_id = ?", {
+            bind: [viewId],
+            returnValue: "resultRows",
+            rowMode: "object",
+        }) as Array<Record<string, unknown>>;
+
+        expect(viewFields).toMatchObject([{view_id: viewId, position: 0, width: 200}]);
+        db.close();
+    });
+
+    test("multiple tables get independent views", async () => {
+        const db = await createDb();
+        const first = databaseActions.createTable.run(db, {name: "Tasks"});
+        const second = databaseActions.createTable.run(db, {name: "Projects"});
+
+        const views = db.exec("SELECT * FROM _alpine_views ORDER BY id", {
+            returnValue: "resultRows",
+            rowMode: "object",
+        }) as Array<Record<string, unknown>>;
+
+        expect(views).toMatchObject([
+            {table_id: first.tableId, name: "Grid view"},
+            {table_id: second.tableId, name: "Grid view"},
+        ]);
+
+        const firstFields = db.exec("SELECT * FROM _alpine_view_fields WHERE view_id = ?", {
+            bind: [first.viewId],
+            returnValue: "resultRows",
+            rowMode: "object",
+        }) as Array<Record<string, unknown>>;
+        const secondFields = db.exec("SELECT * FROM _alpine_view_fields WHERE view_id = ?", {
+            bind: [second.viewId],
+            returnValue: "resultRows",
+            rowMode: "object",
+        }) as Array<Record<string, unknown>>;
+
+        expect(firstFields).toHaveLength(1);
+        expect(secondFields).toHaveLength(1);
+        expect(firstFields[0]!.field_id).not.toBe(secondFields[0]!.field_id);
+        db.close();
+    });
 });
