@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {pageAccessFlagRead, pageAccessFlagWrite} from "~/shared/databases/sqlite_constants.js";
 
@@ -209,7 +211,7 @@ describe("pageAccessHook", () => {
 
         main.exec("CREATE TABLE t1(a INTEGER)");
         main.exec("INSERT INTO t1 VALUES(1)");
-        // eslint-disable-next-line cyberworlds/string-quotes
+
         main.exec("ATTACH '/test-attached.sqlite3' AS other");
 
         // Hook only covers the main database's pager.

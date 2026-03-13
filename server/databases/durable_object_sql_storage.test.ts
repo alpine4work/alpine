@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 /**
  * Tests for the SqlStorage and transactionSync polyfill patched
  * into `@miniflare/durable-objects`. Verifies that our better-sqlite3
@@ -23,7 +25,6 @@ beforeEach(() => {
 describe("SqlStorage cursor API", () => {
     test("exec returns cursor with correct columnNames", () => {
         storage.sql.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
-        // eslint-disable-next-line cyberworlds/string-quotes
         storage.sql.exec("INSERT INTO t VALUES (1, 'a')");
 
         const cursor = storage.sql.exec("SELECT id, name FROM t");

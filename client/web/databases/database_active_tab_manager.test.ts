@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import {
     type ActiveTabBroadcastChannel,
     type ActiveTabLockManager,
@@ -489,8 +491,6 @@ function createTestTab(config: {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 describe("DatabaseActiveTabManager", () => {
     test("leader can execute queries", async () => {
@@ -1122,5 +1122,3 @@ describe("watchQuery", () => {
         handle.unwatch();
     });
 });
-
-/* eslint-enable cyberworlds/string-quotes */

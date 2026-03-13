@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
@@ -163,8 +165,6 @@ function pagesToMap(
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
-/* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
 
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
@@ -950,5 +950,3 @@ describe("registerReactiveQuery", () => {
         expect(notifications.length).toBe(0);
     });
 });
-
-/* eslint-enable cyberworlds/string-quotes */

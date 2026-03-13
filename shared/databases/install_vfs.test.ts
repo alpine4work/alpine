@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
@@ -36,7 +38,7 @@ describe("installVfs", () => {
 
         const db = new sqlite3.oo1.DB("/test.db", "ct", name);
         db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        // eslint-disable-next-line cyberworlds/string-quotes
+
         db.exec("INSERT INTO t VALUES (1, 'hello')");
 
         expect(db.selectArray("SELECT val FROM t")).toEqual(["hello"]);

@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
@@ -66,7 +68,7 @@ describe("DatabaseServer", () => {
             const db = server.unsafeGetDbForTests();
 
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-            // eslint-disable-next-line cyberworlds/string-quotes
+
             db.exec("INSERT INTO items (name) VALUES ('alpha'), ('beta')");
 
             expect(
@@ -121,7 +123,7 @@ describe("DatabaseServer", () => {
         test("SELECT returns rows as objects", async () => {
             const server = await createServerWithSchema(
                 "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
             );
 
@@ -140,7 +142,7 @@ describe("DatabaseServer", () => {
         test("SELECT with WHERE filters correctly", async () => {
             const server = await createServerWithSchema(
                 "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO items (name) VALUES ('a'), ('b'), ('c')",
             );
 
@@ -157,9 +159,9 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema(
                 "CREATE TABLE authors (id INTEGER PRIMARY KEY, name TEXT)",
                 "CREATE TABLE books (id INTEGER PRIMARY KEY, author_id INTEGER, title TEXT)",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO authors VALUES (1, 'Alice')",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO books VALUES (1, 1, 'Book A')",
             );
 
@@ -262,7 +264,7 @@ describe("DatabaseServer", () => {
         test("all page values are 4096 bytes", async () => {
             const server = await createServerWithSchema(
                 "CREATE TABLE items (id INTEGER PRIMARY KEY, data TEXT)",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO items VALUES (1, 'hello world')",
             );
 
@@ -319,18 +321,17 @@ describe("DatabaseServer", () => {
                 "CREATE TABLE t1 (id INTEGER PRIMARY KEY, data TEXT)",
                 "CREATE TABLE t2 (id INTEGER PRIMARY KEY, data TEXT)",
                 "CREATE TABLE t3 (id INTEGER PRIMARY KEY, data TEXT)",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO t1 VALUES (1, 'a')",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO t2 VALUES (1, 'b')",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO t3 VALUES (1, 'c')",
             );
 
             // Get each table's root page (SQLite's rootpage is
             // 1-based; our storage is 0-based).
             const db = server.unsafeGetDbForTests();
-            /* eslint-disable cyberworlds/string-quotes */
             const schema = db.exec(
                 "SELECT name, rootpage FROM sqlite_schema WHERE type = 'table' ORDER BY name",
                 {
@@ -338,7 +339,6 @@ describe("DatabaseServer", () => {
                     rowMode: "object",
                 },
             ) as Array<{name: string; rootpage: number}>;
-            /* eslint-enable cyberworlds/string-quotes */
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(`SELECT * FROM ${name}`, {allowWrites: "none"});
@@ -618,11 +618,9 @@ describe("DatabaseServer", () => {
                 "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
             );
 
-            const result = server.execute(
-                // eslint-disable-next-line cyberworlds/string-quotes
-                "INSERT INTO items VALUES (1, 'hello')",
-                {allowWrites: "data"},
-            );
+            const result = server.execute("INSERT INTO items VALUES (1, 'hello')", {
+                allowWrites: "data",
+            });
 
             expect(result.rows).toEqual([]);
             expect(result.changedPages.size).toBeGreaterThan(0);
@@ -636,7 +634,6 @@ describe("DatabaseServer", () => {
             );
 
             const result = server.execute(
-                // eslint-disable-next-line cyberworlds/string-quotes
                 "INSERT INTO items VALUES (1, 'hello') RETURNING id, name",
                 {allowWrites: "data"},
             );
@@ -652,11 +649,7 @@ describe("DatabaseServer", () => {
             server.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)", {
                 allowWrites: "schema+data",
             });
-            server.execute(
-                // eslint-disable-next-line cyberworlds/string-quotes
-                "INSERT INTO items VALUES (1, 'hello')",
-                {allowWrites: "data"},
-            );
+            server.execute("INSERT INTO items VALUES (1, 'hello')", {allowWrites: "data"});
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
             expect(result.rows).toEqual([{id: 1, name: "hello"}]);
@@ -1071,7 +1064,7 @@ describe("DatabaseServer", () => {
         test("SELECT returns rows in result", async () => {
             const server = await createServerWithSchema(
                 "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
             );
 
@@ -1095,7 +1088,7 @@ describe("DatabaseServer", () => {
 
             const {result, changedPages} = server.executeAction<"rawSql">({
                 name: "rawSql",
-                // eslint-disable-next-line cyberworlds/string-quotes
+
                 input: {sql: "INSERT INTO items VALUES (1, 'hello')"},
             });
 
