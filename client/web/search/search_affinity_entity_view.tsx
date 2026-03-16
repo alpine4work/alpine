@@ -27,6 +27,7 @@ function SearchAffinityEntityView({
 
     return (
         <Box
+            data-testid="SearchAffinityEntityView"
             paddingY={searchEntityViewPaddingY}
             style={{
                 height:

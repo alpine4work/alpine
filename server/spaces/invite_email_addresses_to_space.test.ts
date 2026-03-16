@@ -119,10 +119,10 @@ test("only owners and admins can invite members", async () => {
         emailAddresses: [memberInviteEmailAddressA, memberInviteEmailAddressB],
     });
 
-    expect(memberInviteResult.accounts).toHaveLength(0);
-    expect(memberInviteResult.invalidEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.alreadyMemberEmailAddresses).toHaveLength(0);
+    expect(memberInviteResult.accounts.length).toEqual(0);
+    expect(memberInviteResult.invalidEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.alreadyMemberEmailAddresses.size).toEqual(0);
     expect([...memberInviteResult.requiresAdminAccessEmailAddresses].sort()).toEqual(
         [memberInviteEmailAddressA, memberInviteEmailAddressB].sort(),
     );
@@ -153,11 +153,11 @@ test("members can invite accounts from enabled auto-add email domains", async ()
         emailAddresses: [memberInviteEmailAddress],
     });
 
-    expect(memberInviteResult.accounts).toHaveLength(1);
-    expect(memberInviteResult.invalidEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.alreadyMemberEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.requiresAdminAccessEmailAddresses).toHaveLength(0);
+    expect(memberInviteResult.accounts.length).toEqual(1);
+    expect(memberInviteResult.invalidEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.alreadyMemberEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.requiresAdminAccessEmailAddresses.size).toEqual(0);
     expect(memberInviteResult.unexpectedFailureEmailAddresses.size).toEqual(0);
 
     expect(await getAllSpaceAccountIds(memberSession)).toEqual(
@@ -179,10 +179,10 @@ test("members cannot invite accounts from disabled auto-add email domains", asyn
         emailAddresses: [memberInviteEmailAddressA, memberInviteEmailAddressB],
     });
 
-    expect(memberInviteResult.accounts).toHaveLength(0);
-    expect(memberInviteResult.invalidEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.alreadyMemberEmailAddresses).toHaveLength(0);
+    expect(memberInviteResult.accounts.length).toEqual(0);
+    expect(memberInviteResult.invalidEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.alreadyMemberEmailAddresses.size).toEqual(0);
     expect([...memberInviteResult.requiresAdminAccessEmailAddresses].sort()).toEqual(
         [memberInviteEmailAddressA, memberInviteEmailAddressB].sort(),
     );
@@ -208,10 +208,10 @@ test("members cannot invite accounts from auto-add domains configured in a diffe
         emailAddresses: [memberInviteEmailAddressA, memberInviteEmailAddressB],
     });
 
-    expect(memberInviteResult.accounts).toHaveLength(0);
-    expect(memberInviteResult.invalidEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(memberInviteResult.alreadyMemberEmailAddresses).toHaveLength(0);
+    expect(memberInviteResult.accounts.length).toEqual(0);
+    expect(memberInviteResult.invalidEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect(memberInviteResult.alreadyMemberEmailAddresses.size).toEqual(0);
     expect([...memberInviteResult.requiresAdminAccessEmailAddresses].sort()).toEqual(
         [memberInviteEmailAddressA, memberInviteEmailAddressB].sort(),
     );
@@ -234,10 +234,10 @@ test("cannot invite existing members", async () => {
         emailAddresses: [member1Email],
     });
 
-    expect(result.accounts).toHaveLength(0);
-    expect(result.invalidEmailAddresses).toHaveLength(0);
-    expect(result.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(result.alreadyMemberEmailAddresses).toEqual([member1Email]);
+    expect(result.accounts.length).toEqual(0);
+    expect(result.invalidEmailAddresses.size).toEqual(0);
+    expect(result.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect([...result.alreadyMemberEmailAddresses.keys()]).toEqual([member1Email]);
 
     // // Invite a second member, validate it succeeds even though member1 failed
     const member2Email = generateEmailAddressForTest();
@@ -246,10 +246,10 @@ test("cannot invite existing members", async () => {
         emailAddresses: [member1Email, member2Email],
     });
 
-    expect(result.accounts).toHaveLength(1);
-    expect(result.invalidEmailAddresses).toHaveLength(0);
-    expect(result.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(result.alreadyMemberEmailAddresses).toEqual([member1Email]);
+    expect(result.accounts.length).toEqual(1);
+    expect(result.invalidEmailAddresses.size).toEqual(0);
+    expect(result.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect([...result.alreadyMemberEmailAddresses.keys()]).toEqual([member1Email]);
 
     const member2CreatedAccount = assertExists(result.accounts[0]);
     expect(member2CreatedAccount?.initialData.name).toEqual(member2Email);
@@ -260,10 +260,10 @@ test("cannot invite existing members", async () => {
         emailAddresses: [member1Email, member2Email],
     });
 
-    expect(result.accounts).toHaveLength(0);
-    expect(result.invalidEmailAddresses).toHaveLength(0);
-    expect(result.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect([...result.alreadyMemberEmailAddresses].sort()).toEqual(
+    expect(result.accounts.length).toEqual(0);
+    expect(result.invalidEmailAddresses.size).toEqual(0);
+    expect(result.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect([...result.alreadyMemberEmailAddresses.keys()].sort()).toEqual(
         [member1Email, member2Email].sort(),
     );
 
@@ -289,10 +289,10 @@ test("cannot invite InviteRejectedAsSpam Removed state", async () => {
         emailAddresses: [memberEmail],
     });
 
-    expect(result.accounts).toHaveLength(0);
-    expect(result.invalidEmailAddresses).toHaveLength(0);
-    expect(result.rejectedAsSpamEmailAddresses).toEqual([memberEmail]);
-    expect(result.alreadyMemberEmailAddresses).toHaveLength(0);
+    expect(result.accounts.length).toEqual(0);
+    expect(result.invalidEmailAddresses.size).toEqual(0);
+    expect([...result.rejectedAsSpamEmailAddresses]).toEqual([memberEmail]);
+    expect(result.alreadyMemberEmailAddresses.size).toEqual(0);
 });
 
 test("can invite ActionByAdmin Removed state", async () => {
@@ -309,10 +309,10 @@ test("can invite ActionByAdmin Removed state", async () => {
         emailAddresses: [memberEmail],
     });
 
-    expect(result.accounts).toHaveLength(1);
-    expect(result.invalidEmailAddresses).toHaveLength(0);
-    expect(result.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(result.alreadyMemberEmailAddresses).toHaveLength(0);
+    expect(result.accounts.length).toEqual(1);
+    expect(result.invalidEmailAddresses.size).toEqual(0);
+    expect(result.rejectedAsSpamEmailAddresses.size).toEqual(0);
+    expect(result.alreadyMemberEmailAddresses.size).toEqual(0);
 
     const member1 = await getSpaceAccountForTest(
         context.systemAction(space.id),
@@ -365,12 +365,12 @@ test(`kitchen sink invite test`, async () => {
         emailAddresses,
     });
 
-    expect(result.accounts).toHaveLength(1);
+    expect(result.accounts.length).toEqual(1);
     expect([...result.invalidEmailAddresses].sort()).toEqual([invalidEmail1, invalidEmail2].sort());
     expect([...result.rejectedAsSpamEmailAddresses].sort()).toEqual(
         [rejectedAsSpamInviteEmail1, rejectedAsSpamInviteEmail2].sort(),
     );
-    expect([...result.alreadyMemberEmailAddresses].sort()).toEqual(
+    expect([...result.alreadyMemberEmailAddresses.keys()].sort()).toEqual(
         [alreadyMemberEmail1, alreadyMemberEmail2].sort(),
     );
 
@@ -405,8 +405,8 @@ describe("rate limiting", () => {
             emailAddresses,
         });
 
-        expect(result.accounts).toHaveLength(60);
-        expect(result.invalidEmailAddresses).toHaveLength(0);
+        expect(result.accounts.length).toEqual(60);
+        expect(result.invalidEmailAddresses.size).toEqual(0);
     });
 
     test("invites to disabled organization domain emails are not rate limited", async () => {
@@ -423,8 +423,8 @@ describe("rate limiting", () => {
             emailAddresses,
         });
 
-        expect(result.accounts).toHaveLength(60);
-        expect(result.invalidEmailAddresses).toHaveLength(0);
+        expect(result.accounts.length).toEqual(60);
+        expect(result.invalidEmailAddresses.size).toEqual(0);
     });
 
     test("organization domains from a different space do not bypass rate limits", async () => {
@@ -471,7 +471,7 @@ describe("rate limiting", () => {
             spaceId: space.id,
             emailAddresses: firstBatch,
         });
-        expect(firstResult.accounts).toHaveLength(30);
+        expect(firstResult.accounts.length).toEqual(30);
 
         // Second batch: 25 generic emails (would exceed limit: 30 + 25 = 55 > 50)
         const secondBatch = createArrayWithLength(25, generateGenericEmailAddress);
@@ -520,7 +520,7 @@ describe("rate limiting", () => {
             emailAddresses: [...organizationEmails, ...genericEmails],
         });
 
-        expect(result.accounts).toHaveLength(80);
+        expect(result.accounts.length).toEqual(80);
     });
 
     test("rate limit counter decrements correctly", async () => {
@@ -533,7 +533,7 @@ describe("rate limiting", () => {
             spaceId: space.id,
             emailAddresses: firstBatch,
         });
-        expect(firstResult.accounts).toHaveLength(50);
+        expect(firstResult.accounts.length).toEqual(50);
 
         // Any additional generic email should fail
         const oneMoreEmail = [generateGenericEmailAddress()];
@@ -565,7 +565,7 @@ describe("rate limiting", () => {
             emailAddresses: emailsForSpaceB,
         });
 
-        expect(result.accounts).toHaveLength(50);
+        expect(result.accounts.length).toEqual(50);
     });
 
     test("rate limits are reset when the window ends", async () => {
@@ -585,7 +585,7 @@ describe("rate limiting", () => {
                 spaceId: space.id,
                 emailAddresses: firstBatch,
             });
-            expect(firstResult.accounts).toHaveLength(30);
+            expect(firstResult.accounts.length).toEqual(30);
 
             currentTime += 50 * 60 * 1000; // 50 minutes
 
@@ -615,7 +615,7 @@ describe("rate limiting", () => {
                 spaceId: space.id,
                 emailAddresses: secondBatch,
             });
-            expect(result.accounts).toHaveLength(25);
+            expect(result.accounts.length).toEqual(25);
         } finally {
             Date.now = originalDateNow;
         }

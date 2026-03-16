@@ -245,6 +245,21 @@ test("can sign up with work email and invite coworker with inferred domain", asy
     const {emailAddress: inviteEmailAddress, inviteUrl} = await waitForInviteUrl(0);
     expect(inviteEmailAddress).toBe(expectedCoworkerEmailAddress);
 
+    await expect(
+        page1.getByTestId("SearchAffinityEntityView").getByText(coworkerAlias, {exact: false}),
+    ).toBeVisible();
+
+    if (!isMobile) {
+        await page1.getByRole("button", {name: "Create"}).click();
+        await page1.getByRole("menuitem", {name: "Message"}).click();
+
+        const suggestions = page1.getByRole("listbox", {name: "Suggestions"});
+        await expect(suggestions).toBeVisible();
+        await expect(
+            suggestions.getByRole("option").filter({hasText: coworkerAlias}),
+        ).toBeVisible();
+    }
+
     const browserContext2 = await browser.newContext();
     const page2 = await browserContext2.newPage();
     await page2.goto(inviteUrl);

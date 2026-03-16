@@ -1303,27 +1303,25 @@ describe("Invite email addresses after sign up", () => {
         await expectMissingSpaceAccount(inviteEmailAddressWithSameDomain, firstSession.space.id);
     });
 
-    test("invite email failures are escalated from waitUntil tasks", async () => {
+    test("invite email failures are escalated from sign up invite step", async () => {
         const {emailAddress, oneTimePassword} =
             await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
         const inviteEmailAddress = generatePersonalTestEmailAddress();
 
-        await attemptOneTimePasswordSignUpThenCreateSpace(
-            context.unknownAnonymousAction().clone({
-                email: new TestFailingEmailContextModule(),
-            }),
-            {
-                emailAddress: emailAddress,
-                oneTimePassword: oneTimePassword,
-                inviteEmailAddresses: [validateEmailAddress(inviteEmailAddress)],
-                ipAddress: null,
-                userAgent: null,
-            },
-        );
-
-        await expect(ProcessContextModule.waitForTestTasks()).rejects.toThrow(
-            "Couldn\u2019t invite email addresses after sign up",
-        );
+        await expect(
+            attemptOneTimePasswordSignUpThenCreateSpace(
+                context.unknownAnonymousAction().clone({
+                    email: new TestFailingEmailContextModule(),
+                }),
+                {
+                    emailAddress: emailAddress,
+                    oneTimePassword: oneTimePassword,
+                    inviteEmailAddresses: [validateEmailAddress(inviteEmailAddress)],
+                    ipAddress: null,
+                    userAgent: null,
+                },
+            ),
+        ).rejects.toThrow("Couldn\u2019t invite email addresses after sign up");
     });
 });
 
@@ -1454,9 +1452,9 @@ describe("Welcome package", () => {
                 [session.space.id]: [
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${session1.account.id}`, points: 2.996},
+                    {entityId: `Account:${session1.account.id}`, points: 2.998},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.996},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
@@ -1499,10 +1497,10 @@ describe("Welcome package", () => {
                 [session.space.id]: [
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${session1.account.id}`, points: 2.996},
-                    {entityId: `Account:${session2.account.id}`, points: 2.995},
+                    {entityId: `Account:${session1.account.id}`, points: 2.998},
+                    {entityId: `Account:${session2.account.id}`, points: 2.997},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.996},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.995},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
@@ -1547,12 +1545,12 @@ describe("Welcome package", () => {
                 [session.space.id]: [
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${session1.account.id}`, points: 2.996},
-                    {entityId: `Account:${session2.account.id}`, points: 2.995},
-                    {entityId: `Account:${session3.account.id}`, points: 2.994},
-                    {entityId: `Account:${session4.account.id}`, points: 2.993},
+                    {entityId: `Account:${session1.account.id}`, points: 2.998},
+                    {entityId: `Account:${session2.account.id}`, points: 2.997},
+                    {entityId: `Account:${session3.account.id}`, points: 2.996},
+                    {entityId: `Account:${session4.account.id}`, points: 2.995},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.994},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.993},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
@@ -1602,19 +1600,360 @@ describe("Welcome package", () => {
                 [session.space.id]: [
                     {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${session1.account.id}`, points: 2.996},
-                    {entityId: `Account:${session2.account.id}`, points: 2.995},
-                    {entityId: `Account:${session3.account.id}`, points: 2.994},
-                    {entityId: `Account:${session4.account.id}`, points: 2.993},
-                    {entityId: `Account:${session5.account.id}`, points: 2.992},
+                    {entityId: `Account:${session1.account.id}`, points: 2.998},
+                    {entityId: `Account:${session2.account.id}`, points: 2.997},
+                    {entityId: `Account:${session3.account.id}`, points: 2.996},
+                    {entityId: `Account:${session4.account.id}`, points: 2.995},
+                    {entityId: `Account:${session5.account.id}`, points: 2.994},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.993},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.992},
                 ],
                 [personalSpaceId]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                     {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
                     {entityId: `Account:${personalItem.cursorBotAccountId}`, points: 2.997},
+                ],
+            },
+        });
+    });
+
+    test("sign up invited accounts are ranked above suggested accounts", async () => {
+        const {session: session1, emailDomain} = await testWorkSignUp();
+        const {session: session2} = await testAnotherWorkSignUp(emailDomain);
+
+        const {accountId, emailAddress, oneTimePassword} =
+            await testSignUpUntilAttemptOneTimePasswordSignUp({
+                emailAddress: generateWorkTestEmailAddress(emailDomain),
+            });
+        const invitedEmailAddress = generateWorkTestEmailAddress(emailDomain);
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+            context.unknownAnonymousAction(),
+            {
+                emailAddress,
+                oneTimePassword,
+                inviteEmailAddresses: [invitedEmailAddress],
+                ipAddress: null,
+                userAgent: null,
+            },
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const invitedAccountId = await getAccountIdForTestEmailAddress(invitedEmailAddress);
+        const accountSpaceIds = await getAccountSpaceIdsForTest(context, accountId);
+        const personalSpaceId = assertExists(
+            iterableFind(accountSpaceIds, spaceId => spaceId !== openSpaceId),
+        );
+
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: openSpaceId,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [accountId]: {
+                [openSpaceId]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${invitedAccountId}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${session2.account.id}`, points: 2.996},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.995},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.994},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                ],
+            },
+        });
+    });
+
+    test("invited already-member account replaces top suggested account rank", async () => {
+        const {
+            session: session1,
+            emailAddress: session1EmailAddress,
+            emailDomain,
+        } = await testWorkSignUp();
+        const {session: session2, emailAddress: session2EmailAddress} =
+            await testAnotherWorkSignUp(emailDomain);
+
+        // Sanity check setup for the replacement behavior:
+        //
+        // - `session1` should be the top suggested account by default.
+        // - inviting `session2` (already in the space) should replace that top slot.
+        assert(session1EmailAddress !== session2EmailAddress);
+
+        const {accountId, emailAddress, oneTimePassword} =
+            await testSignUpUntilAttemptOneTimePasswordSignUp({
+                emailAddress: generateWorkTestEmailAddress(emailDomain),
+            });
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+            context.unknownAnonymousAction(),
+            {
+                emailAddress,
+                oneTimePassword,
+                inviteEmailAddresses: [session2EmailAddress],
+                ipAddress: null,
+                userAgent: null,
+            },
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const accountSpaceIds = await getAccountSpaceIdsForTest(context, accountId);
+        const personalSpaceId = assertExists(
+            iterableFind(accountSpaceIds, spaceId => spaceId !== openSpaceId),
+        );
+
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: openSpaceId,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [accountId]: {
+                [openSpaceId]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${session2.account.id}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.996},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.995},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                ],
+            },
+        });
+    });
+
+    test("split invite affinity points go to the correct spaces when creating auto-add space", async () => {
+        const emailDomain = generateWorkTestEmailDomain();
+        const {accountId, emailAddress, oneTimePassword} =
+            await testSignUpUntilAttemptOneTimePasswordSignUp({
+                emailAddress: generateWorkTestEmailAddress(emailDomain),
+            });
+        const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
+        const inviteEmailAddressWithDifferentDomain = generatePersonalTestEmailAddress();
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+            context.unknownAnonymousAction(),
+            {
+                emailAddress,
+                oneTimePassword,
+                inviteEmailAddresses: [
+                    inviteEmailAddressWithSameDomain,
+                    inviteEmailAddressWithDifferentDomain,
+                ],
+                ipAddress: null,
+                userAgent: null,
+            },
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const [inviteAccountIdWithSameDomain, inviteAccountIdWithDifferentDomain] =
+            await runAllPromises([
+                getAccountIdForTestEmailAddress(inviteEmailAddressWithSameDomain),
+                getAccountIdForTestEmailAddress(inviteEmailAddressWithDifferentDomain),
+            ]);
+
+        const accountSpaceIds = await getAccountSpaceIdsForTest(context, accountId);
+        const personalSpaceId = assertExists(
+            iterableFind(accountSpaceIds, spaceId => spaceId !== openSpaceId),
+        );
+
+        const [autoAddItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: openSpaceId,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [accountId]: {
+                [openSpaceId]: [
+                    {entityId: `Channel:${autoAddItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${autoAddItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviteAccountIdWithSameDomain}`, points: 2.998},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviteAccountIdWithDifferentDomain}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("split invite affinity points go to the correct spaces when joining auto-add space", async () => {
+        const {session: firstSession, emailDomain} = await testWorkSignUp();
+        const {accountId, emailAddress, oneTimePassword} =
+            await testSignUpUntilAttemptOneTimePasswordSignUp({
+                emailAddress: generateWorkTestEmailAddress(emailDomain),
+            });
+        const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
+        const inviteEmailAddressWithDifferentDomain = generatePersonalTestEmailAddress();
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+            context.unknownAnonymousAction(),
+            {
+                emailAddress,
+                oneTimePassword,
+                inviteEmailAddresses: [
+                    inviteEmailAddressWithSameDomain,
+                    inviteEmailAddressWithDifferentDomain,
+                ],
+                ipAddress: null,
+                userAgent: null,
+            },
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(openSpaceId).toEqual(firstSession.space.id);
+
+        const [inviteAccountIdWithSameDomain, inviteAccountIdWithDifferentDomain] =
+            await runAllPromises([
+                getAccountIdForTestEmailAddress(inviteEmailAddressWithSameDomain),
+                getAccountIdForTestEmailAddress(inviteEmailAddressWithDifferentDomain),
+            ]);
+
+        const accountSpaceIds = await getAccountSpaceIdsForTest(context, accountId);
+        const personalSpaceId = assertExists(
+            iterableFind(accountSpaceIds, spaceId => spaceId !== openSpaceId),
+        );
+
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: firstSession.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [accountId]: {
+                [firstSession.space.id]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviteAccountIdWithSameDomain}`, points: 2.998},
+                    {entityId: `Account:${firstSession.account.id}`, points: 2.997},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.996},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.995},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviteAccountIdWithDifferentDomain}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("invited account crowds out the lowest ranked suggested account", async () => {
+        const {session: session1, emailDomain} = await testWorkSignUp();
+        const {session: session2} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session3} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session4} = await testAnotherWorkSignUp(emailDomain);
+        await testAnotherWorkSignUp(emailDomain);
+
+        const {accountId, emailAddress, oneTimePassword} =
+            await testSignUpUntilAttemptOneTimePasswordSignUp({
+                emailAddress: generateWorkTestEmailAddress(emailDomain),
+            });
+        const invitedEmailAddress = generateWorkTestEmailAddress(emailDomain);
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+            context.unknownAnonymousAction(),
+            {
+                emailAddress,
+                oneTimePassword,
+                inviteEmailAddresses: [invitedEmailAddress],
+                ipAddress: null,
+                userAgent: null,
+            },
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const invitedAccountId = await getAccountIdForTestEmailAddress(invitedEmailAddress);
+        const accountSpaceIds = await getAccountSpaceIdsForTest(context, accountId);
+        const personalSpaceId = assertExists(
+            iterableFind(accountSpaceIds, spaceId => spaceId !== openSpaceId),
+        );
+
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: openSpaceId,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [accountId]: {
+                [openSpaceId]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${invitedAccountId}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${session2.account.id}`, points: 2.996},
+                    {entityId: `Account:${session3.account.id}`, points: 2.995},
+                    {entityId: `Account:${session4.account.id}`, points: 2.994},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.993},
+                    {entityId: `Account:${workItem.cursorBotAccountId}`, points: 2.992},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
                 ],
             },
         });
@@ -1651,9 +1990,9 @@ describe("Welcome package", () => {
                 [inviterSession.space.id]: [
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.998},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.996},
                 ],
                 [session.space.id]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
@@ -1689,9 +2028,9 @@ describe("Welcome package", () => {
                 [inviterSession.space.id]: [
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.998},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.997},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.996},
                 ],
             },
         });
@@ -1733,10 +2072,10 @@ describe("Welcome package", () => {
                 [inviterSession.space.id]: [
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
-                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.995},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.998},
+                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.997},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.996},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.995},
                 ],
                 [session.space.id]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
@@ -1794,12 +2133,12 @@ describe("Welcome package", () => {
                 [inviterSession.space.id]: [
                     {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
                     {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
-                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
-                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.997},
-                    {entityId: `Account:${inviterSession.account.id}`, points: 2.996},
-                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.995},
-                    {entityId: `Account:${invitedSession2.account.id}`, points: 2.994},
-                    {entityId: `Account:${invitedSession3.account.id}`, points: 2.993},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.998},
+                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.997},
+                    {entityId: `Account:${invitedSession2.account.id}`, points: 2.996},
+                    {entityId: `Account:${invitedSession3.account.id}`, points: 2.995},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.994},
+                    {entityId: `Account:${inviterItem.cursorBotAccountId}`, points: 2.993},
                 ],
                 [session.space.id]: [
                     {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},

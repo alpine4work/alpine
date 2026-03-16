@@ -131,6 +131,7 @@ async function actuallyCreateSpace(
                 welcomePackageItem,
                 // New space so there are no suggested accounts.
                 suggestedAccountIds: [],
+                invitedAccountIds: [],
             }),
         ]);
 

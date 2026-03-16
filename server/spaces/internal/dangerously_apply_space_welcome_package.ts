@@ -4,6 +4,7 @@ import {SpaceWelcomePackageItem} from "~/server/spaces/internal/spaces_table.js"
 import {searchAffinityEntityHighIntentUpdateInteractionPoints} from "~/server/spaces/search_affinity_entity_interaction_points.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 export const internalSpaceWelcomePackageSearchEntityMaxCount =
@@ -29,10 +30,12 @@ export async function dangerouslyApplySpaceWelcomePackage(
             cursorBotAccountId,
         },
         suggestedAccountIds,
+        invitedAccountIds,
     }: {
         accountId: AccountId;
         welcomePackageItem: SpaceWelcomePackageItem;
-        suggestedAccountIds: ReadonlyArray<AccountId>;
+        suggestedAccountIds: Iterable<AccountId>;
+        invitedAccountIds: Iterable<AccountId>;
     },
 ) {
     const increment = 0.001;
@@ -45,47 +48,75 @@ export async function dangerouslyApplySpaceWelcomePackage(
         return points;
     }
 
-    await runAllPromises([
+    const promises: Array<Promise<unknown>> = [];
+
+    promises.push(
         context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
             spaceId,
             accountId,
             entityId: "TaskPersonal",
         }),
+    );
+
+    promises.push(
         context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
             spaceId,
             accountId,
             entityId: `Channel:${generalChannelId}`,
             points: getPoints(),
         }),
+    );
+
+    promises.push(
         context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
             spaceId,
             accountId,
             entityId: `Channel:${randomChannelId}`,
             points: getPoints(),
         }),
-        chatGptBotAccountId
-            ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
-                  spaceId,
-                  accountId,
-                  entityId: `Account:${chatGptBotAccountId}`,
-                  points: getPoints(),
-              })
-            : null,
-        cursorBotAccountId
-            ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
-                  spaceId,
-                  accountId,
-                  entityId: `Account:${cursorBotAccountId}`,
-                  points: getPoints(),
-              })
-            : null,
-        ...suggestedAccountIds.slice(0, suggestedSpaceAccountMaxCount).map(suggestedAccountId =>
+    );
+
+    let remainingSuggestedAccountCount = suggestedSpaceAccountMaxCount;
+
+    // Put any users you invite in your feed sidebar. Otherwise add some suggested
+    // accounts to your feed sidebar (if available).
+    for (const invitedOrSuggestedAccountId of new Set(
+        concatIterables(invitedAccountIds, suggestedAccountIds),
+    )) {
+        if (remainingSuggestedAccountCount <= 0) break;
+        remainingSuggestedAccountCount--;
+
+        promises.push(
             context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
                 spaceId,
                 accountId,
-                entityId: `Account:${suggestedAccountId}`,
+                entityId: `Account:${invitedOrSuggestedAccountId}`,
                 points: getPoints(),
             }),
-        ),
-    ]);
+        );
+    }
+
+    if (chatGptBotAccountId) {
+        promises.push(
+            context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
+                spaceId,
+                accountId,
+                entityId: `Account:${chatGptBotAccountId}`,
+                points: getPoints(),
+            }),
+        );
+    }
+
+    if (cursorBotAccountId) {
+        promises.push(
+            context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
+                spaceId,
+                accountId,
+                entityId: `Account:${cursorBotAccountId}`,
+                points: getPoints(),
+            }),
+        );
+    }
+
+    await runAllPromises(promises);
 }

@@ -206,6 +206,7 @@ export async function updateSpaceAccountWithInviteDecision(
                         accountId,
                         welcomePackageItem,
                         suggestedAccountIds,
+                        invitedAccountIds: [],
                     });
                 }
             }

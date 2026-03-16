@@ -210,11 +210,13 @@ export default implementRpcs(definitions, {
             return {
                 accounts,
                 errors: {
-                    invalidEmailAddresses,
-                    rejectedAsSpamEmailAddresses,
-                    alreadyMemberEmailAddresses,
+                    invalidEmailAddresses: Array.from(invalidEmailAddresses),
+                    rejectedAsSpamEmailAddresses: Array.from(rejectedAsSpamEmailAddresses),
+                    alreadyMemberEmailAddresses: Array.from(alreadyMemberEmailAddresses.keys()),
+                    requiresAdminAccessEmailAddresses: Array.from(
+                        requiresAdminAccessEmailAddresses,
+                    ),
                     unexpectedFailureEmailAddresses,
-                    requiresAdminAccessEmailAddresses,
                 },
             };
         },

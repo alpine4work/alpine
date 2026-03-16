@@ -26,10 +26,13 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {unionSets} from "~/shared/helpers/set/union_sets.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -76,37 +79,35 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
           })
         : null;
 
-    const [
-        {personalSpaceId, autoAddAccountsFromEmailDomainSpaceId},
-        {sessionId, sessionAccountId},
-    ] = await attemptOneTimePasswordSignInWithAction(
-        context,
-        emailAddress,
-        oneTimePassword,
-        options,
-        async (accountEmailAddressItem, span) => {
-            return context
-                .clone({tracer: new TracerContextModule(span)})
-                .tracer.withSpan("Create space after sign up", context => {
-                    let hasAlreadyAttempted = false;
+    const [{personalSpaceResult, autoAddToEmailDomainSpaceResult}, {sessionId, sessionAccountId}] =
+        await attemptOneTimePasswordSignInWithAction(
+            context,
+            emailAddress,
+            oneTimePassword,
+            options,
+            async (accountEmailAddressItem, span) => {
+                return context
+                    .clone({tracer: new TracerContextModule(span)})
+                    .tracer.withSpan("Create space after sign up", context => {
+                        let hasAlreadyAttempted = false;
 
-                    return context.dynamo.retryTransaction(context => {
-                        const isInitialAttempt = !hasAlreadyAttempted;
-                        hasAlreadyAttempted = true;
+                        return context.dynamo.retryTransaction(context => {
+                            const isInitialAttempt = !hasAlreadyAttempted;
+                            hasAlreadyAttempted = true;
 
-                        return createSpace(
-                            context,
-                            span,
-                            accountEmailAddressItem,
-                            isInitialAttempt,
-                        );
+                            return createSpace(
+                                context,
+                                span,
+                                accountEmailAddressItem,
+                                isInitialAttempt,
+                            );
+                        });
                     });
-                });
-        },
-    );
+            },
+        );
 
     const inviteEmailAddressesToPersonalSpace: Array<string> = [];
-    const inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace: Array<string> = [];
+    const inviteEmailAddressesToAutoAddToEmailDomainSpace: Array<string> = [];
 
     // We try to add invited email addresses the same domain to the auto-add space.
     // Otherwise we add invited email addresses to the user's new personal space.
@@ -117,55 +118,80 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         ) {
             inviteEmailAddressesToPersonalSpace.push(inviteEmailAddress);
         } else {
-            inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace.push(inviteEmailAddress);
+            inviteEmailAddressesToAutoAddToEmailDomainSpace.push(inviteEmailAddress);
         }
     }
 
-    if (!autoAddAccountsFromEmailDomainSpaceId) {
-        for (const inviteEmailAddress of inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace) {
+    let invitedPersonalAccountIdsPromise: Promise<Iterable<AccountId>> | null = null;
+    let invitedAutoAddToEmailDomainAccountIdsPromise: Promise<Iterable<AccountId>> | null = null;
+
+    if (!autoAddToEmailDomainSpaceResult) {
+        for (const inviteEmailAddress of inviteEmailAddressesToAutoAddToEmailDomainSpace) {
             inviteEmailAddressesToPersonalSpace.push(inviteEmailAddress);
         }
 
         // Truncate this list since we didn't use it. Report the list length as zero if we
         // check it again.
-        inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace.length = 0;
-    } else if (inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace.length > 0) {
-        context.process.waitUntil(
-            context.tracer.withSpan(
-                "Invite email addresses after sign up to auto add accounts from email domain space",
-                async (context, span) => {
-                    span.addData({
-                        common: {
-                            count: inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace.length,
-                        },
-                    });
+        inviteEmailAddressesToAutoAddToEmailDomainSpace.length = 0;
+    } else if (inviteEmailAddressesToAutoAddToEmailDomainSpace.length > 0) {
+        invitedAutoAddToEmailDomainAccountIdsPromise = context.tracer.withSpan(
+            "Invite email addresses after sign up to auto add accounts from email domain space",
+            (context, span) => {
+                span.addData({
+                    common: {
+                        count: inviteEmailAddressesToAutoAddToEmailDomainSpace.length,
+                    },
+                });
 
-                    await invite(
-                        context,
-                        autoAddAccountsFromEmailDomainSpaceId,
-                        inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace,
-                    );
-                },
-            ),
+                return invite(
+                    context,
+                    autoAddToEmailDomainSpaceResult.spaceId,
+                    inviteEmailAddressesToAutoAddToEmailDomainSpace,
+                );
+            },
         );
     }
 
     if (inviteEmailAddressesToPersonalSpace.length > 0) {
-        context.process.waitUntil(
-            context.tracer.withSpan(
-                "Invite email addresses after sign up to personal space",
-                async (context, span) => {
-                    span.addData({
-                        common: {
-                            count: inviteEmailAddressesToPersonalSpace.length,
-                        },
-                    });
+        invitedPersonalAccountIdsPromise = context.tracer.withSpan(
+            "Invite email addresses after sign up to personal space",
+            async (context, span) => {
+                span.addData({
+                    common: {
+                        count: inviteEmailAddressesToPersonalSpace.length,
+                    },
+                });
 
-                    await invite(context, personalSpaceId, inviteEmailAddressesToPersonalSpace);
-                },
-            ),
+                return invite(
+                    context,
+                    personalSpaceResult.spaceId,
+                    inviteEmailAddressesToPersonalSpace,
+                );
+            },
         );
     }
+
+    const [invitedPersonalAccountIds, invitedAutoAddToEmailDomainAccountIds] = await runAllPromises(
+        [invitedPersonalAccountIdsPromise, invitedAutoAddToEmailDomainAccountIdsPromise],
+    );
+
+    await runAllPromises([
+        dangerouslyApplySpaceWelcomePackage(context, {
+            accountId: sessionAccountId,
+            welcomePackageItem: personalSpaceResult.welcomePackageItem,
+            suggestedAccountIds: personalSpaceResult.suggestedAccountIds,
+            invitedAccountIds: invitedPersonalAccountIds ?? emptyArray,
+        }),
+
+        autoAddToEmailDomainSpaceResult?.welcomePackageItem
+            ? dangerouslyApplySpaceWelcomePackage(context, {
+                  accountId: sessionAccountId,
+                  welcomePackageItem: autoAddToEmailDomainSpaceResult.welcomePackageItem,
+                  suggestedAccountIds: autoAddToEmailDomainSpaceResult.suggestedAccountIds,
+                  invitedAccountIds: invitedAutoAddToEmailDomainAccountIds ?? emptyArray,
+              })
+            : null,
+    ]);
 
     let openSpaceId: SpaceId;
 
@@ -173,14 +199,25 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
     // them to the personal space (not the company space).
     if (
         inviteEmailAddressesToPersonalSpace.length > 0 &&
-        inviteEmailAddressesToAutoAddAccountsFromEmailDomainSpace.length === 0
+        inviteEmailAddressesToAutoAddToEmailDomainSpace.length === 0
     ) {
-        openSpaceId = personalSpaceId;
+        openSpaceId = personalSpaceResult.spaceId;
     } else {
-        openSpaceId = autoAddAccountsFromEmailDomainSpaceId ?? personalSpaceId;
+        openSpaceId = autoAddToEmailDomainSpaceResult?.spaceId ?? personalSpaceResult.spaceId;
     }
 
     return {sessionId, sessionAccountId, openSpaceId};
+
+    type CreateSpaceResult = {
+        spaceId: SpaceId;
+        welcomePackageItem: SpaceWelcomePackageItem | null;
+        suggestedAccountIds: Array<AccountId>;
+        accountVersionConditionCheckTransactionEntry: DynamoTransactionEntry | null;
+        accountSpacesItemTransactionEntry: DynamoTransactionEntry & {
+            newItem: AccountSpacesItem;
+        };
+        transactionEntries: Array<DynamoTransactionEntry>;
+    };
 
     async function createSpace(
         context: Context<ServerUnknownActionContextModules & {logoDev: LogoDevContextModuleBase}>,
@@ -188,8 +225,11 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         {accountId}: {accountId: AccountId},
         isInitialAttempt: boolean,
     ): Promise<{
-        personalSpaceId: SpaceId;
-        autoAddAccountsFromEmailDomainSpaceId: SpaceId | null;
+        personalSpaceResult: Replace<
+            CreateSpaceResult,
+            {welcomePackageItem: SpaceWelcomePackageItem}
+        >;
+        autoAddToEmailDomainSpaceResult: CreateSpaceResult | null;
     }> {
         span.addData({
             auth: {
@@ -202,17 +242,6 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         const personalSpaceId = generateId<SpaceId>();
 
         const currentTime = new Date();
-
-        type CreateSpaceResult = {
-            spaceId: SpaceId;
-            welcomePackageItem: SpaceWelcomePackageItem | null;
-            suggestedAccountIds: Array<AccountId>;
-            accountVersionConditionCheckTransactionEntry: DynamoTransactionEntry | null;
-            accountSpacesItemTransactionEntry: DynamoTransactionEntry & {
-                newItem: AccountSpacesItem;
-            };
-            transactionEntries: Array<DynamoTransactionEntry>;
-        };
 
         const [accountResult, personalSpaceResult, autoAddToEmailDomainSpaceResult] =
             await runAllPromises([
@@ -595,33 +624,11 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
         transactionEntries.push(finishSignUpTransactionEntry);
 
-        await runAllPromises([
-            DynamoTableSchema.executeTransaction(context, transactionEntries),
-
-            // Faster to add affinity points separately from our create space transaction. We
-            // don't care if there are some affinity point items floating around for a space
-            // that doesn't exist.
-            dangerouslyApplySpaceWelcomePackage(context, {
-                accountId,
-                welcomePackageItem: personalSpaceResult.welcomePackageItem,
-                suggestedAccountIds: personalSpaceResult.suggestedAccountIds,
-            }),
-
-            // Faster to add affinity points separately from our create space transaction. We
-            // don't care if there are some affinity point items floating around for a space
-            // that doesn't exist.
-            autoAddToEmailDomainSpaceResult?.welcomePackageItem
-                ? dangerouslyApplySpaceWelcomePackage(context, {
-                      accountId,
-                      welcomePackageItem: autoAddToEmailDomainSpaceResult.welcomePackageItem,
-                      suggestedAccountIds: autoAddToEmailDomainSpaceResult.suggestedAccountIds,
-                  })
-                : null,
-        ]);
+        await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
         return {
-            personalSpaceId,
-            autoAddAccountsFromEmailDomainSpaceId: autoAddToEmailDomainSpaceResult?.spaceId ?? null,
+            personalSpaceResult,
+            autoAddToEmailDomainSpaceResult,
         };
     }
 
@@ -629,7 +636,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         context: Context<ServerUnknownActionContextModules & {email: EmailContextModuleBase}>,
         spaceId: SpaceId,
         emailAddresses: ReadonlyArray<string>,
-    ) {
+    ): Promise<Iterable<AccountId>> {
         const result = await inviteEmailAddressesToSpace(
             context.clone({
                 // It's safe to create an actor context module here because we literally just
@@ -669,13 +676,18 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         // since the user truly shouldn't be getting a new email (rejected as spam, already
         // member).
         if (
-            result.requiresAdminAccessEmailAddresses.length > 0 ||
+            result.requiresAdminAccessEmailAddresses.size > 0 ||
             result.unexpectedFailureEmailAddresses.size > 0
         ) {
             throw new DataLossError(
-                `Couldn\u2019t invite email addresses after sign up (requires admin access errors = ${result.requiresAdminAccessEmailAddresses.length}, unexpected failures = ${result.unexpectedFailureEmailAddresses.size})`,
+                `Couldn\u2019t invite email addresses after sign up (requires admin access errors = ${result.requiresAdminAccessEmailAddresses.size}, unexpected failures = ${result.unexpectedFailureEmailAddresses.size})`,
             );
         }
+
+        return concatIterables(
+            result.alreadyMemberEmailAddresses.values(),
+            mapIterable(result.accounts, account => account.id),
+        );
     }
 }
 

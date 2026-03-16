@@ -194,13 +194,13 @@ export class TestSpace {
         const account = assertExists(
             result.accounts[0],
             `Expected an account to be created from the email invite, got ${
-                result.alreadyMemberEmailAddresses.length
+                result.alreadyMemberEmailAddresses.size
                     ? "already member error"
-                    : result.invalidEmailAddresses.length
+                    : result.invalidEmailAddresses.size
                       ? "invalid email address error"
-                      : result.rejectedAsSpamEmailAddresses.length
+                      : result.rejectedAsSpamEmailAddresses.size
                         ? "rejected as spam error"
-                        : result.requiresAdminAccessEmailAddresses.length
+                        : result.requiresAdminAccessEmailAddresses.size
                           ? "requires admin access error"
                           : result.unexpectedFailureEmailAddresses.size
                             ? `unexpected failure:\n${

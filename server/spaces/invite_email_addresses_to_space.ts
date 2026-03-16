@@ -73,12 +73,12 @@ export async function inviteEmailAddressesToSpace(
         emailAddresses: ReadonlyArray<string>;
     },
 ): Promise<{
-    accounts: Array<AccountModel>;
-    invalidEmailAddresses: Array<string>;
-    rejectedAsSpamEmailAddresses: Array<string>;
-    alreadyMemberEmailAddresses: Array<string>;
-    requiresAdminAccessEmailAddresses: Array<string>;
-    unexpectedFailureEmailAddresses: Map<string, unknown>;
+    accounts: ReadonlyArray<AccountModel>;
+    invalidEmailAddresses: ReadonlySet<string>;
+    rejectedAsSpamEmailAddresses: ReadonlySet<string>;
+    alreadyMemberEmailAddresses: ReadonlyMap<string, AccountId>;
+    requiresAdminAccessEmailAddresses: ReadonlySet<string>;
+    unexpectedFailureEmailAddresses: ReadonlyMap<string, unknown>;
 }> {
     await authorizeSpaceAccess(context, spaceId, "Member");
 
@@ -87,7 +87,7 @@ export async function inviteEmailAddressesToSpace(
         const unexpectedFailureEmailAddresses = new Map<string, unknown>();
         const invalidEmailAddresses = new Set<string>();
         const rejectedAsSpamEmailAddresses = new Set<string>();
-        const alreadyMemberEmailAddresses = new Set<string>();
+        const alreadyMemberEmailAddresses = new Map<string, AccountId>();
         const requiresAdminAccessEmailAddresses = new Set<string>();
 
         const {autoAddAccountsFromEmailDomains} =
@@ -115,13 +115,13 @@ export async function inviteEmailAddressesToSpace(
                             rejectedAsSpamEmailAddresses.add(emailAddress);
                             return;
                         case "AlreadyMember":
-                            alreadyMemberEmailAddresses.add(emailAddress);
+                            alreadyMemberEmailAddresses.set(emailAddress, result.accountId);
                             return;
                         case "RequiresAdminAccess":
                             requiresAdminAccessEmailAddresses.add(emailAddress);
                             return;
                         default:
-                            throw exhaustive(result.reason);
+                            throw exhaustive(result);
                     }
                 }
 
@@ -154,11 +154,11 @@ export async function inviteEmailAddressesToSpace(
         });
 
         return {
-            accounts: Array.from(accounts),
-            invalidEmailAddresses: Array.from(invalidEmailAddresses),
-            rejectedAsSpamEmailAddresses: Array.from(rejectedAsSpamEmailAddresses),
-            alreadyMemberEmailAddresses: Array.from(alreadyMemberEmailAddresses),
-            requiresAdminAccessEmailAddresses: Array.from(requiresAdminAccessEmailAddresses),
+            accounts,
+            invalidEmailAddresses,
+            rejectedAsSpamEmailAddresses,
+            alreadyMemberEmailAddresses,
+            requiresAdminAccessEmailAddresses,
             unexpectedFailureEmailAddresses,
         };
     });
@@ -274,20 +274,16 @@ async function validateEmailAddressForInviteInSpace(
         autoAddAccountsFromEmailDomains: ReadonlySet<string>;
     },
 ): Promise<
-    | {
-          ok: false;
-          reason: "Invalid" | "InviteRejectedAsSpam" | "AlreadyMember" | "RequiresAdminAccess";
-      }
-    | {
-          ok: true;
-          accountId: AccountId | null;
-          emailAddress: EmailAddress;
-      }
+    | {ok: false; emailAddress: string; reason: "Invalid"}
+    | {ok: false; emailAddress: string; reason: "InviteRejectedAsSpam"}
+    | {ok: false; emailAddress: string; reason: "RequiresAdminAccess"}
+    | {ok: false; emailAddress: string; reason: "AlreadyMember"; accountId: AccountId}
+    | {ok: true; accountId: AccountId | null; emailAddress: EmailAddress}
 > {
     emailAddress = emailAddress.toLowerCase();
 
     if (!isEmailAddressValid(emailAddress)) {
-        return {ok: false, reason: "Invalid"};
+        return {ok: false, reason: "Invalid", emailAddress};
     }
 
     const emailDomainForAutoAddSpaceAccounts = getEmailDomainForAutoAddSpaceAccounts(emailAddress);
@@ -304,7 +300,7 @@ async function validateEmailAddressForInviteInSpace(
     ]);
 
     if (!adminAuthorizationResult.ok) {
-        return {ok: false, reason: "RequiresAdminAccess"};
+        return {ok: false, reason: "RequiresAdminAccess", emailAddress};
     }
 
     const spaceAccountItem = accountId
@@ -315,9 +311,14 @@ async function validateEmailAddressForInviteInSpace(
 
     if (spaceAccountItem) {
         if (spaceAccountItem.state.type !== "Removed") {
-            return {ok: false, reason: "AlreadyMember"};
+            return {
+                ok: false,
+                reason: "AlreadyMember",
+                emailAddress,
+                accountId: spaceAccountItem.accountId,
+            };
         } else if (spaceAccountItem.state.reason === "InviteRejectedAsSpam") {
-            return {ok: false, reason: "InviteRejectedAsSpam"};
+            return {ok: false, reason: "InviteRejectedAsSpam", emailAddress};
         }
     }
 
@@ -336,11 +337,10 @@ async function validateInviteEmailAddressToSpace(
         autoAddAccountsFromEmailDomains: ReadonlySet<string>;
     },
 ): Promise<
-    | {
-          ok: false;
-          emailAddress: string;
-          reason: "Invalid" | "InviteRejectedAsSpam" | "AlreadyMember" | "RequiresAdminAccess";
-      }
+    | {ok: false; emailAddress: string; reason: "Invalid"}
+    | {ok: false; emailAddress: string; reason: "InviteRejectedAsSpam"}
+    | {ok: false; emailAddress: string; reason: "RequiresAdminAccess"}
+    | {ok: false; emailAddress: string; reason: "AlreadyMember"; accountId: AccountId}
     | {
           ok: true;
           emailAddress: EmailAddress;
@@ -354,14 +354,7 @@ async function validateInviteEmailAddressToSpace(
         emailAddress,
         autoAddAccountsFromEmailDomains,
     });
-
-    if (!result.ok) {
-        return {
-            ok: false,
-            emailAddress,
-            reason: result.reason,
-        };
-    }
+    if (!result.ok) return result;
 
     const {accountId: initialAccountId, emailAddress: validatedEmailAddress} = result;
 
@@ -387,7 +380,7 @@ async function validateInviteEmailAddressToSpace(
 
                     if (!result.ok) {
                         throw new FailedPreconditionError(
-                            "Can\u2019t invite email address to space",
+                            quote`Can\u2019t invite email address to space: ${result.reason}`,
                         );
                     }
 
