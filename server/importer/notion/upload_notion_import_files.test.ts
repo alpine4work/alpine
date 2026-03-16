@@ -13,6 +13,7 @@ import {
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {generateDeterministicNotionFileIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
+import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {uploadNotionImportFiles} from "~/server/importer/notion/internal/upload_notion_import_files.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
@@ -21,6 +22,8 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
+import {generateId} from "~/shared/id/id.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const context = createTestContext();
@@ -117,15 +120,24 @@ describe("uploadNotionImportFiles", () => {
             rootLevelCsvDatabases: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
+            filePathToTeamspaceId: new Map([
+                ["attachments/image.png", "test-teamspace"],
+                ["attachments/doc.pdf", "test-teamspace"],
+            ]),
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
+        const progressState = new NotionImporterProgressState({
+            notionImportId: generateId<NotionImportId>(),
+            context: systemContext,
+        });
 
         await uploadNotionImportFiles(
             systemContext,
             space.id,
             session.account.id,
             mappedReferencesResult,
+            progressState,
         );
 
         // Verify files were uploaded to R2.
@@ -181,9 +193,14 @@ describe("uploadNotionImportFiles", () => {
             rootLevelCsvDatabases: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
+            filePathToTeamspaceId: new Map([["attachments/image.png", "test-teamspace"]]),
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
+        const progressState = new NotionImporterProgressState({
+            notionImportId: generateId<NotionImportId>(),
+            context: systemContext,
+        });
 
         // Upload once.
         await uploadNotionImportFiles(
@@ -191,6 +208,7 @@ describe("uploadNotionImportFiles", () => {
             space.id,
             session.account.id,
             mappedReferencesResult,
+            progressState,
         );
 
         // Upload again - should not throw and should skip the existing file.
@@ -199,6 +217,7 @@ describe("uploadNotionImportFiles", () => {
             space.id,
             session.account.id,
             mappedReferencesResult,
+            progressState,
         );
 
         // Verify file still exists in R2.
@@ -247,9 +266,17 @@ describe("uploadNotionImportFiles", () => {
             rootLevelCsvDatabases: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
+            filePathToTeamspaceId: new Map([
+                ["attachments/image.png", "test-teamspace"],
+                ["attachments/missing.pdf", "test-teamspace"],
+            ]),
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
+        const progressState = new NotionImporterProgressState({
+            notionImportId: generateId<NotionImportId>(),
+            context: systemContext,
+        });
 
         // Should not throw even though one file is missing.
         await uploadNotionImportFiles(
@@ -257,6 +284,7 @@ describe("uploadNotionImportFiles", () => {
             space.id,
             session.account.id,
             mappedReferencesResult,
+            progressState,
         );
 
         // Verify the existing file was uploaded.
@@ -266,6 +294,76 @@ describe("uploadNotionImportFiles", () => {
         // Verify the missing file was not created.
         const missingFile = await getFileIfExistsAsSystem(systemContext, missingFileId);
         expect(missingFile).toBeNull();
+    });
+
+    test("skips files without a teamspace", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const importerModule = new TestImporterContextModule();
+        const testDiskPath = "test-no-teamspace";
+
+        const imageContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+        const orphanContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+
+        await importerModule.setUnzippedFiles(testDiskPath, {
+            "attachments/image.png": imageContent,
+            "attachments/orphan.png": orphanContent,
+        });
+
+        const diskPathToUnzippedFiles = importerModule.getUnzippedFilesPath(testDiskPath);
+
+        const workspaceId = "test-workspace";
+        const importTime = Date.now();
+        const imageFileId = generateDeterministicNotionFileIdSync(
+            space.id,
+            workspaceId,
+            "file:attachments/image.png",
+            importTime,
+        );
+        const orphanFileId = generateDeterministicNotionFileIdSync(
+            space.id,
+            workspaceId,
+            "file:attachments/orphan.png",
+            importTime,
+        );
+
+        const mappedReferencesResult: NotionImportMappedReferencesResult = {
+            notionWorkspaceId: workspaceId,
+            teamspaces: [],
+            filesToUpload: {
+                "attachments/image.png": {id: imageFileId},
+                "attachments/orphan.png": {id: orphanFileId},
+            },
+            diskPathToUnzippedFiles,
+            inlineDatabaseChildren: new Map(),
+            rootLevelCsvDatabases: new Map(),
+            pathToDocumentId: new Map(),
+            documentIdToPath: new Map(),
+            // Only image.png has a teamspace; orphan.png does not.
+            filePathToTeamspaceId: new Map([["attachments/image.png", "test-teamspace"]]),
+        };
+
+        const systemContext = createSystemActionContext(space, importerModule);
+        const progressState = new NotionImporterProgressState({
+            notionImportId: generateId<NotionImportId>(),
+            context: systemContext,
+        });
+
+        await uploadNotionImportFiles(
+            systemContext,
+            space.id,
+            session.account.id,
+            mappedReferencesResult,
+            progressState,
+        );
+
+        // Verify the image with a teamspace was uploaded.
+        const imageBytes = await getR2ObjectBytes(filesBucketName, `${space.id}/${imageFileId}`);
+        expect(imageBytes).toEqual(imageContent);
+
+        // Verify the orphan without a teamspace was not uploaded.
+        const orphanFile = await getFileIfExistsAsSystem(systemContext, orphanFileId);
+        expect(orphanFile).toBeNull();
     });
 
     test("handles empty filesToUpload", async () => {
@@ -282,9 +380,14 @@ describe("uploadNotionImportFiles", () => {
             rootLevelCsvDatabases: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
+            filePathToTeamspaceId: new Map(),
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
+        const progressState = new NotionImporterProgressState({
+            notionImportId: generateId<NotionImportId>(),
+            context: systemContext,
+        });
 
         // Should complete without error.
         await uploadNotionImportFiles(
@@ -292,6 +395,7 @@ describe("uploadNotionImportFiles", () => {
             space.id,
             session.account.id,
             mappedReferencesResult,
+            progressState,
         );
     });
 
@@ -326,6 +430,11 @@ describe("uploadNotionImportFiles", () => {
             filesToUpload[fileName] = {id: fileId};
         }
 
+        const filePathToTeamspaceId = new Map<string, string>();
+        for (const fileName of Object.keys(files)) {
+            filePathToTeamspaceId.set(fileName, "test-teamspace");
+        }
+
         const mappedReferencesResult: NotionImportMappedReferencesResult = {
             notionWorkspaceId: workspaceId,
             teamspaces: [],
@@ -335,15 +444,21 @@ describe("uploadNotionImportFiles", () => {
             rootLevelCsvDatabases: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
+            filePathToTeamspaceId,
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
+        const progressState = new NotionImporterProgressState({
+            notionImportId: generateId<NotionImportId>(),
+            context: systemContext,
+        });
 
         await uploadNotionImportFiles(
             systemContext,
             space.id,
             session.account.id,
             mappedReferencesResult,
+            progressState,
         );
 
         // Verify all files were uploaded.

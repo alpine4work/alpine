@@ -1,26 +1,58 @@
+/**
+ * Uploads files from a Notion import to Alpine's file storage.
+ *
+ * ## Processing Order
+ *
+ * Files are processed in a specific order to optimize resource usage:
+ *
+ * 1. **Light files** (images, PDFs, etc.) - parallel with `availableParallelism()`
+ *    concurrency
+ * 2. **Heavy files** (video, audio) - sequential, one at a time
+ *
+ * ## Why This Order
+ *
+ * Heavy files (video/audio) use FFmpeg which internally uses all available CPU
+ * cores. Running multiple FFmpeg processes causes CPU thrashing. Light files use
+ * Sharp/libuv which are lighter weight and benefit from parallelism.
+ *
+ * ## Why NOT worker_threads
+ *
+ * We considered Node.js `worker_threads` but decided against it because:
+ *
+ * 1. File processing requires full server context (DynamoDB, R2, tracer) which
+ *    would require complex serialization
+ * 2. The CPU-intensive work happens in external native processes (Sharp, FFmpeg)
+ *    that already parallelize internally
+ * 3. Node.js just orchestrates I/O and external tools here
+ */
 import {statSync} from "fs";
-import {tmpdir} from "os";
+import {availableParallelism} from "os";
 import {join as joinPath} from "path";
-import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
-import {
-    finishUploadingAndStartProcessingFile,
-    getFileIfExistsAsSystem,
-    startUploadingFile,
-} from "~/server/files/data/files_actions.js";
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
-import {processFile} from "~/server/files/processor/process_file.js";
-import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
-import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {
+    NotionImportUploadType,
+    uploadFileForNotionImport,
+} from "~/server/importer/notion/internal/upload_file_for_notion_import.js";
+import {
+    FileContentType,
+    getPathFileContentTypeIfExists,
+    isFileAudioContentType,
+    isFileImageContentType,
+    isFileVideoContentType,
+} from "~/shared/files/file_content_type.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Represents a file that needs to be uploaded, enriched with size information for
- * sorting.
+ * Maximum number of light files to upload concurrently.
+ */
+const numberOfConcurrentLightFiles = availableParallelism();
+
+/**
+ * Represents a file that needs to be uploaded, enriched with metadata.
  */
 interface NotionImportFileToUpload {
     /** The relative file path within the unzipped export. */
@@ -29,6 +61,10 @@ interface NotionImportFileToUpload {
     fileId: FileId;
     /** The size of the file in bytes (used for ordering). */
     sizeInBytes: number;
+    /** The upload type for counter tracking. */
+    uploadType: NotionImportUploadType;
+    /** The teamspace this file belongs to. */
+    teamspaceId: string;
 }
 
 /**
@@ -51,20 +87,28 @@ interface NotionImportFileToUpload {
  * Files that don't have a recognized content type are uploaded as
  * `application/octet-stream` (binary/unknown).
  *
- * @param context - System action context with importer module @param spaceId - The
- * space to upload files into @param uploaderId - The account ID to attribute
- * uploads to @param mappedReferencesResult - Contains filesToUpload and disk paths
+ * Processing order:
+ *
+ * 1. Light files (images, PDFs, etc.) - parallel with availableParallelism()
+ *    concurrency
+ * 2. Heavy files (video, audio) - sequential, one at a time
+ *
+ * Within each category, files are sorted by size (smallest first) so smaller files
+ * complete quickly.
  */
 export async function uploadNotionImportFiles(
     context: ImporterServiceSystemActionContext,
     spaceId: SpaceId,
     uploaderId: AccountId,
     mappedReferencesResult: NotionImportMappedReferencesResult,
+    progressState: NotionImporterProgressState,
 ): Promise<void> {
-    const {filesToUpload, diskPathToUnzippedFiles} = mappedReferencesResult;
+    const {filesToUpload, diskPathToUnzippedFiles, filePathToTeamspaceId} = mappedReferencesResult;
 
-    // Build list of files with their sizes for ordering.
-    const filesToProcess: Array<NotionImportFileToUpload> = [];
+    // Build lists of files, separated by heavy vs light.
+    const lightFiles: Array<NotionImportFileToUpload> = [];
+    const heavyFiles: Array<NotionImportFileToUpload> = [];
+
     for (const [relativeFilePath, {id: fileId}] of Object.entries(filesToUpload)) {
         const absolutePath = joinPath(diskPathToUnzippedFiles, relativeFilePath);
         let sizeInBytes: number;
@@ -76,165 +120,126 @@ export async function uploadNotionImportFiles(
             continue;
         }
 
-        filesToProcess.push({relativeFilePath, fileId, sizeInBytes});
+        // NOTE(imjoshin, 2026-02-25) - Skip files that don't belong to any teamspace we're
+        // importing. The Workspace-Flat export in our test fixtures has an orphaned
+        // "Untitled 26c7-4124.md" file — no content, no reference in the index.html, no
+        // copy of it in Notion itself. It's just... there. No pattern that would indicate
+        // when it shows up, but we don't have any reason to import it.
+        const teamspaceId = filePathToTeamspaceId.get(relativeFilePath);
+        if (teamspaceId === undefined) continue;
+
+        // Determine content type and upload category from the file extension.
+        const contentType =
+            getPathFileContentTypeIfExists(relativeFilePath) ?? "application/octet-stream";
+        const uploadType = getUploadTypeFromContentType(contentType);
+        const file = {relativeFilePath, fileId, sizeInBytes, uploadType, teamspaceId};
+
+        // Classify as heavy or light using the same routing logic as file processing.
+        // Heavy files (video, audio needing transcoding, large files) are processed
+        // sequentially. Light files (images, small docs) are processed in parallel.
+        const {jobType} = routeFileToProcessor({contentType, contentLength: sizeInBytes});
+        if (jobType === "ProcessFileHeavy") {
+            heavyFiles.push(file);
+        } else {
+            lightFiles.push(file);
+        }
     }
 
-    // Sort by size ascending - process smaller files first so they complete quickly
-    // while larger files continue processing.
-    filesToProcess.sort((a, b) => a.sizeInBytes - b.sizeInBytes);
+    // Sort by size ascending within each category.
+    lightFiles.sort((a, b) => a.sizeInBytes - b.sizeInBytes);
+    heavyFiles.sort((a, b) => a.sizeInBytes - b.sizeInBytes);
 
-    if (filesToProcess.length === 0) {
-        return;
-    }
-
-    // TODO: Upload files in parallel using a worker pool pattern. Upload files
-    // sequentially.
-    for (const file of filesToProcess) {
-        await uploadSingleNotionImportFile(context, {
+    // Helper to upload a single file.
+    const uploadFile = async (file: NotionImportFileToUpload): Promise<void> => {
+        await uploadFileForNotionImport(context, {
             spaceId,
             uploaderId,
             diskPathToUnzippedFiles,
             relativeFilePath: file.relativeFilePath,
             fileId: file.fileId,
             contentLength: file.sizeInBytes,
+            uploadType: file.uploadType,
+            teamspaceId: file.teamspaceId,
+            progressState,
         });
+    };
+
+    // Phase 1: Upload light files in parallel using rotating pool.
+    if (lightFiles.length > 0) {
+        await uploadFilesWithPool(lightFiles, uploadFile, numberOfConcurrentLightFiles);
+    }
+
+    // Phase 2: Upload heavy files sequentially (one at a time). Heavy files
+    // (video/audio) use FFmpeg which uses all CPU cores internally.
+    for (const file of heavyFiles) {
+        await uploadFile(file);
     }
 }
 
 /**
- * Uploads a single file from the Notion import to Alpine's file storage and
- * processes it inline using `processFile`.
+ * Uploads files using a rotating pool pattern.
  *
- * This creates the file record in DynamoDB, uploads to R2, marks the upload
- * complete (without scheduling a file processor job), and then runs the same file
- * processing logic that the file processor service would run. This handles all
- * content types including images, PDFs, videos, audio, code, and MS Office
- * documents.
- *
- * If the file has already been uploaded (fileId exists in DynamoDB), the upload is
- * skipped. This supports resumable imports where a previous attempt may have
- * partially completed.
+ * Maintains `concurrency` active uploads at all times. When one completes,
+ * immediately starts the next. More efficient than batching because we don't wait
+ * for the slowest file in each batch.
  */
-async function uploadSingleNotionImportFile(
-    context: ImporterServiceSystemActionContext,
-    {
-        spaceId,
-        uploaderId,
-        diskPathToUnzippedFiles,
-        relativeFilePath,
-        fileId,
-        contentLength,
-    }: {
-        spaceId: SpaceId;
-        uploaderId: AccountId;
-        diskPathToUnzippedFiles: string;
-        relativeFilePath: string;
-        fileId: FileId;
-        contentLength: number;
-    },
+async function uploadFilesWithPool(
+    files: Array<NotionImportFileToUpload>,
+    uploadFile: (file: NotionImportFileToUpload) => Promise<void>,
+    concurrency: number,
 ): Promise<void> {
-    // Check if the file has already been uploaded (supports resumable imports).
-    const existingFile = await getFileIfExistsAsSystem(context, fileId);
-    if (existingFile) {
-        // File already exists - skip the upload.
-        return;
+    let nextFileIndex = 0;
+    let firstError: unknown = null;
+
+    const getNextFile = (): NotionImportFileToUpload | null => {
+        if (nextFileIndex >= files.length) {
+            return null;
+        }
+        const file = files[nextFileIndex]!;
+        nextFileIndex += 1;
+        return file;
+    };
+
+    const runWorker = async (): Promise<void> => {
+        while (true) {
+            // If we've already encountered an error, stop processing.
+            if (firstError !== null) {
+                return;
+            }
+
+            const file = getNextFile();
+            if (file === null) {
+                return;
+            }
+
+            try {
+                await uploadFile(file);
+            } catch (error) {
+                // Capture the first error to throw later.
+                if (firstError === null) {
+                    firstError = error;
+                }
+                return;
+            }
+        }
+    };
+
+    // Start the worker pool.
+    const workers: Array<Promise<void>> = [];
+    for (let i = 0; i < concurrency && i < files.length; i++) {
+        workers.push(runWorker());
     }
 
-    // Determine content type from file extension. Fall back to
-    // application/octet-stream for unknown types.
-    const contentType =
-        getPathFileContentTypeIfExists(relativeFilePath) ?? "application/octet-stream";
+    await runAllPromises(workers);
 
-    // Read the file content from disk.
-    const fileContent = assertExists(
-        await context.importerService.readUnzippedFile({
-            diskPathToUnzippedFiles,
-            relativeFilePath,
-        }),
-    );
+    if (firstError !== null) {
+        throw firstError;
+    }
+}
 
-    // File operations require an account context, so we impersonate the uploader
-    // account to perform the upload.
-    await impersonateAccountAsSystemContext(context, uploaderId, async impersonatedContext => {
-        // Create the file record in DynamoDB. We provide the pre-assigned fileId from
-        // reference mapping.
-        await startUploadingFile(impersonatedContext, {
-            spaceId,
-            fileId,
-            contentType,
-            contentLength,
-        });
-
-        // Upload the file content to Cloudflare R2. Skip if using the empty test R2 client
-        // (tests without R2 access).
-        if (!context.r2.isEmptyForTest()) {
-            await context.r2.PutObject({
-                Bucket: filesBucketName,
-                Key: `${spaceId}/${fileId}`,
-                Body: fileContent,
-                ContentType: contentType,
-                ContentLength: contentLength,
-            });
-        }
-
-        // Mark upload complete without scheduling a file processor job. We process files
-        // inline below instead.
-        await finishUploadingAndStartProcessingFile(impersonatedContext, {
-            spaceId,
-            fileId,
-            withoutProcessJob: true,
-        });
-
-        // Process the file inline using the same logic as the file processor service. This
-        // handles all content types (images, PDFs, videos, audio, code, MS Office
-        // documents).
-        //
-        // If inline processing fails, fall back to scheduling a file processor job so the
-        // file can be processed later.
-        const {hasAlternative, hasPreview} = fileProcessorDeclarationByContentType[contentType];
-
-        // Skip file processing if
-        //
-        // 1. the file is invalid (no alternative or preview)
-        // 2. the file was actually uploaded to R2 (not true in test)
-        if ((!hasAlternative && !hasPreview) || context.r2.isEmptyForTest()) {
-            return;
-        }
-
-        await context.tracer.withSpan(
-            "Process notion import file",
-            async (_tracerContext, span) => {
-                try {
-                    await withTemporaryDirectory(
-                        tmpdir(),
-                        `notion-import-${fileId}_`,
-                        async temporaryDirectoryPath => {
-                            await processFile(impersonatedContext, span, {
-                                spaceId,
-                                fileId,
-                                contentType,
-                                temporaryDirectoryPath,
-                            });
-                        },
-                    );
-                } catch (error) {
-                    span.addException(error);
-
-                    // Schedule a file processor job so the file can be processed by the service later.
-                    const {jobType, reason} = routeFileToProcessor({
-                        contentType,
-                        contentLength,
-                    });
-
-                    await impersonatedContext.jobs.sendAndWait({
-                        type: jobType,
-                        spaceId,
-                        fileId,
-                        contentType,
-                        reason,
-                    });
-                }
-            },
-        );
-    });
+function getUploadTypeFromContentType(contentType: FileContentType): NotionImportUploadType {
+    if (isFileImageContentType(contentType)) return "Images";
+    if (isFileVideoContentType(contentType)) return "Videos";
+    if (isFileAudioContentType(contentType)) return "Audio";
+    return "Files";
 }

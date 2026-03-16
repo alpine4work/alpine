@@ -140,7 +140,10 @@ export function parseNotionImportHierarchyFromIndexHtml(
             }
         }
 
-        if (path && hasMarkdownFile && teamspaceId) {
+        // Track which teamspace each path belongs to. This includes both `.md` and `.csv`
+        // paths — CSV-only databases (inline databases without an `.md` wrapper) still
+        // need a teamspace so their referenced files get uploaded.
+        if (path && teamspaceId) {
             result.teamspaceForPath.set(path, teamspaceId);
         }
 

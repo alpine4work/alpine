@@ -1,6 +1,10 @@
 import {strFromU8} from "fflate";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {
+    findFilePathsInCsv,
+    findFilePathsInDatabaseProperties,
+} from "~/server/importer/notion/internal/find_notion_import_file_paths.js";
+import {
     generateDeterministicNotionFileIdSync,
     generateDeterministicNotionIdSync,
 } from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
@@ -104,6 +108,11 @@ export type NotionImportMappedReferencesResult = {
     pathToDocumentId: Map<string, DocumentId>;
     /** Map from document ID to file path for reverse lookups. */
     documentIdToPath: Map<DocumentId, string>;
+    /**
+     * Maps file paths to their teamspace ID. Derived from which teamspace's documents
+     * reference the file. Files not referenced by any document will not have an entry.
+     */
+    filePathToTeamspaceId: Map<string, string>;
 };
 
 // Matches markdown links: [text](url) and ![text](url)
@@ -311,8 +320,9 @@ export async function parseNotionImportAndMapReferences(
         }
     }
 
-    // Parse markdown content for references and file attachments Read each markdown
-    // file on-demand
+    // Parse markdown content for references and file attachments. Also builds
+    // filePathToTeamspaceId as we discover which documents reference which files.
+    const filePathToTeamspaceId = new Map<string, string>();
     for (const path of allPaths) {
         if (!path.endsWith(".md")) continue;
         if (!documents[path]) continue;
@@ -327,6 +337,7 @@ export async function parseNotionImportAndMapReferences(
         const markdown = strFromU8(content);
         const linkedPaths = findMarkdownLinks(markdown, allPaths, path);
 
+        const teamspaceId = hierarchy.teamspaceForPath.get(path) ?? "";
         for (const linkedPath of linkedPaths) {
             const documentId = pathToDocumentId.get(linkedPath);
             if (documentId) {
@@ -336,6 +347,19 @@ export async function parseNotionImportAndMapReferences(
             const fileId = pathToFileId.get(linkedPath);
             if (fileId) {
                 documents[path].files.add(fileId);
+                filePathToTeamspaceId.set(linkedPath, teamspaceId);
+            }
+        }
+
+        // Also detect raw file paths in database property values. Property lines like
+        // "Files: image.jpg, video.mp4" contain file paths as raw strings, not markdown
+        // links.
+        const propertyFilePaths = findFilePathsInDatabaseProperties(markdown, path, pathToFileId);
+        for (const filePath of propertyFilePaths) {
+            const fileId = pathToFileId.get(filePath);
+            if (fileId) {
+                documents[path].files.add(fileId);
+                filePathToTeamspaceId.set(filePath, teamspaceId);
             }
         }
 
@@ -362,6 +386,41 @@ export async function parseNotionImportAndMapReferences(
                     inlineReferencedCsvs.add(linkedPath);
                 }
             }
+        }
+    }
+
+    // Scan CSV files for raw file paths in cells. Database exports include file paths
+    // as raw strings in CSV cells that need to be tracked for proper teamspace
+    // association.
+    for (const path of allPaths) {
+        if (!path.endsWith(".csv")) continue;
+        if (path.endsWith("_all.csv")) continue;
+
+        const csvFileName = path.split("/").pop()!;
+        if (!parseNotionImportFileName(csvFileName)) continue;
+
+        const content = await context.importerService.readUnzippedFile({
+            diskPathToUnzippedFiles,
+            relativeFilePath: path,
+        });
+
+        if (!content) continue;
+
+        const csvContent = strFromU8(content);
+        const csvDir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+
+        // Determine teamspace from companion .md file, the CSV path itself (for CSV-only
+        // databases), or root-level database
+        const companionMdPath = path.replace(/\.csv$/, ".md");
+        const teamspaceId =
+            hierarchy.teamspaceForPath.get(companionMdPath) ??
+            hierarchy.teamspaceForPath.get(path) ??
+            hierarchy.rootLevelCsvDatabases.get(path)?.teamspaceId ??
+            "";
+
+        const csvFilePaths = findFilePathsInCsv(csvContent, csvDir, pathToFileId);
+        for (const filePath of csvFilePaths) {
+            filePathToTeamspaceId.set(filePath, teamspaceId);
         }
     }
 
@@ -531,6 +590,7 @@ export async function parseNotionImportAndMapReferences(
         rootLevelCsvDatabases: hierarchy.rootLevelCsvDatabases,
         pathToDocumentId,
         documentIdToPath,
+        filePathToTeamspaceId,
     };
 }
 

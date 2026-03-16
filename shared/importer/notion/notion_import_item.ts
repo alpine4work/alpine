@@ -1,6 +1,52 @@
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
+const NotionImportTeamspaceStatistics = Schema.map(
+    Schema.string,
+    Schema.object({
+        // TODO(#sites-notion-import): add sites here - maybe we also add the site IDs so
+        // we can display them in the UI?
+        documents: Schema.object({
+            imported: Schema.integer.min(0),
+            // This is a very rough count for documents. Without going through the entire
+            // structure and doing our csv/md calculations (see the README), we don't know
+            // exactly how many documents we're going to create. This is just a raw count of
+            // .md files.
+            expectedCount: Schema.integer.min(0),
+        }),
+        videos: Schema.object({
+            imported: Schema.integer.min(0),
+            expectedCount: Schema.integer.min(0),
+            size: Schema.integer.min(0),
+        }),
+        images: Schema.object({
+            imported: Schema.integer.min(0),
+            expectedCount: Schema.integer.min(0),
+            size: Schema.integer.min(0),
+        }),
+        audio: Schema.object({
+            imported: Schema.integer.min(0),
+            expectedCount: Schema.integer.min(0),
+            size: Schema.integer.min(0),
+        }),
+        files: Schema.object({
+            imported: Schema.integer.min(0),
+            expectedCount: Schema.integer.min(0),
+            size: Schema.integer.min(0),
+        }),
+    }),
+);
+
+const NotionImportProcessingOrDoneResultSchema = Schema.object({
+    teamspaces: NotionImportTeamspaceStatistics,
+}).default({
+    teamspaces: new Map(),
+});
+
+export type NotionImportProcessingOrDoneResult = SchemaType<
+    typeof NotionImportProcessingOrDoneResultSchema
+>;
+
 /**
  * Status of a Notion import operation.
  *
@@ -31,13 +77,20 @@ export const NotionImportStatusSchema = Schema.union({
     /** Import job queued and waiting to be processed. */
     ProcessQueued: Schema.object({type: Schema.value("ProcessQueued")}),
     /** Import job is actively processing. */
-    Processing: Schema.object({type: Schema.value("Processing")}),
+    Processing: Schema.object({
+        type: Schema.value("Processing"),
+        result: NotionImportProcessingOrDoneResultSchema,
+    }),
     /** Import completed successfully. */
-    Success: Schema.object({type: Schema.value("Success")}),
+    Success: Schema.object({
+        type: Schema.value("Success"),
+        result: NotionImportProcessingOrDoneResultSchema,
+    }),
     /** Import failed at some stage. */
     Failed: Schema.object({
         type: Schema.value("Failed"),
         error: Schema.string.optional(),
+        result: NotionImportProcessingOrDoneResultSchema,
     }),
 });
 

@@ -96,3 +96,21 @@ export const cancelNotionImport = defineRpc({
     },
     output: {},
 });
+
+/**
+ * Retries a failed Notion import by re-queueing it for processing.
+ *
+ * This can only be called on imports that:
+ *
+ * 1. Have status "Failed"
+ * 2. Were created within the last 7 days (file retention period)
+ */
+export const retryNotionImport = defineRpc({
+    name: "retryNotionImport",
+    isIdempotent: false,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        notionImportId: Schema.id<NotionImportId>(),
+    },
+    output: {},
+});

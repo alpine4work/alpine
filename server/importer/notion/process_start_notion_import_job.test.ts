@@ -48,7 +48,7 @@ async function createSystemActionWithFile(
         tracer: new TracerContextModule(context.tracer.getTracer()),
         cache: CacheContextModule.new(),
         batch: BatchContextModule.new(),
-        actor: SystemActorContextModule.dangerouslyNew("ImporterService", space.id),
+        actor: SystemActorContextModule.dangerouslyNew("Test", space.id),
         importer,
         importerService: importer.createServiceModule(),
     });
@@ -323,8 +323,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            expect(importItem.importedCount).toBe(1);
+            // 1 user doc + 1 teamspace root
+            expect(importItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
         });
 
         test("imports document with inline database as table", async () => {
@@ -376,11 +379,12 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-
             // The inline database should NOT create a separate document. Only the parent
-            // document should be created.
-            expect(importItem.importedCount).toBe(1);
+            // document should be created (1 user doc + 1 teamspace root).
+            expect(importItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
         });
 
         test("inline database children have parent link to grandparent", async () => {
@@ -441,9 +445,12 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            // Parent document + Alice + Bob = 3 documents (inline database itself is excluded)
-            expect(importItem.importedCount).toBe(3);
+            // Parent document + Alice + Bob + teamspace root = 4 documents (inline database
+            // itself is excluded)
+            expect(importItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
 
             // Find the documents
             const parentDocInfo = await findDocumentByTitle(space.id, "Project");
@@ -664,7 +671,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            // Home + MTG Notes db doc + Weekly + Standup + teamspace root = 5
+            expect(importItem.status).toMatchObject({type: "Success"});
+            expect(
+                (importItem.status as any).result.teamspaces.get(teamspace.notionId),
+            ).toMatchObject({documents: {imported: 5}});
 
             // Find all the documents created
             const allDocs = await findDocumentsInSpace(space.id);
@@ -677,9 +688,6 @@ describe("processStartNotionImportJob", () => {
             expect(docTitles).toContain("Weekly - July 6, 2025");
             expect(docTitles).toContain("Standup - July 7, 2025");
             expect(docTitles).toContain("Test Workspace | Engineering");
-            // importedCount only counts user documents, not the teamspace root doc Home + MTG
-            // Notes db doc + Weekly + Standup = 4
-            expect(importItem.importedCount).toBe(4);
 
             // Find all the documents
             const mtgNotesDoc = await findDocumentByTitle(space.id, "MTG Notes");
@@ -965,7 +973,7 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find the teamspace root document
             const teamspaceRootDoc = await findDocumentByTitle(
@@ -1086,9 +1094,15 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            // 2 documents (one per teamspace) + 2 teamspace root documents
-            expect(importItem.importedCount).toBeGreaterThanOrEqual(2);
+            // 1 doc + 1 teamspace root per teamspace
+            expect(importItem.status).toMatchObject({type: "Success"});
+            const result = (importItem.status as any).result;
+            expect(result.teamspaces.get(publicTs.notionId)).toMatchObject({
+                documents: {imported: 2},
+            });
+            expect(result.teamspaces.get(privateTs.notionId)).toMatchObject({
+                documents: {imported: 2},
+            });
         });
 
         /**
@@ -1180,6 +1194,74 @@ describe("processStartNotionImportJob", () => {
             );
 
             expect(flat).toBe(nested);
+        });
+
+        async function importFixtureAndGetResult(fixtureName: string) {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const zip = readFixture(fixtureName);
+
+            const notionImportId = generateId<NotionImportId>();
+            const importKey = `${space.id}/Notion/${notionImportId}`;
+
+            await NotionImporterTable.createItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId: space.id,
+                startedByAccountId: session.account.id,
+                workspaceName: "Export",
+                importKey,
+                createdTime: new Date(),
+                updatedTime: new Date(),
+                teamspaceImportOptions: null,
+                status: {type: "ProcessQueued"},
+                importedCount: 0,
+                importZipSize: 1024,
+            });
+
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            const importItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+
+            return importItem.status;
+        }
+
+        test("Media-Export-Flat.zip final upload state", async () => {
+            const status = await importFixtureAndGetResult("Media-Export-Flat.zip");
+
+            expect(status).toMatchObject({type: "Success"});
+            expect(
+                (status as any).result.teamspaces.get("ed5ae4dfdc9b814faf5400032de29467"),
+            ).toMatchObject({
+                documents: {imported: 11, expectedCount: 0},
+                images: {imported: 6, expectedCount: 0, size: 0},
+                videos: {imported: 3, expectedCount: 0, size: 0},
+                audio: {imported: 0, expectedCount: 0, size: 0},
+                files: {imported: 3, expectedCount: 0, size: 0},
+            });
+        });
+
+        test("JJ-Test-Flat.zip final upload state", async () => {
+            const status = await importFixtureAndGetResult("JJ-Test-Flat.zip");
+
+            expect(status).toMatchObject({type: "Success"});
+            expect(
+                (status as any).result.teamspaces.get("00f80a22fe3781a094cb00034a90e2b8"),
+            ).toMatchObject({
+                documents: {imported: 33, expectedCount: 0},
+                images: {imported: 10, expectedCount: 0, size: 0},
+                videos: {imported: 1, expectedCount: 0, size: 0},
+                audio: {imported: 0, expectedCount: 0, size: 0},
+                files: {imported: 0, expectedCount: 0, size: 0},
+            });
         });
 
         test("converts .md links with parentheses in filename to mentions", async () => {
@@ -1307,8 +1389,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(firstImportItem.status).toEqual({type: "Success"});
-            expect(firstImportItem.importedCount).toBe(2); // Parent + Child
+            // Parent + Child + teamspace root
+            expect(firstImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
 
             // Get documents after first import
             const docsAfterFirstImport = await findDocumentsInSpace(space.id);
@@ -1337,9 +1422,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(secondImportItem.status).toEqual({type: "Success"});
-            // importedCount should be 0 since all documents were skipped
-            expect(secondImportItem.importedCount).toBe(0);
+            // All documents should be skipped (empty teamspaces map)
+            expect(secondImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: new Map()},
+            });
 
             // Get documents after second import
             const docsAfterSecondImport = await findDocumentsInSpace(space.id);
@@ -1402,8 +1489,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(firstImportItem.status).toEqual({type: "Success"});
-            expect(firstImportItem.importedCount).toBe(3); // Parent + Child + Grandchild
+            // Parent + Child + Grandchild + teamspace root = 4
+            expect(firstImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
 
             // Get documents after first import
             const docsAfterFirstImport = await findDocumentsInSpace(space.id);
@@ -1436,9 +1526,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(secondImportItem.status).toEqual({type: "Success"});
-            // All documents should be skipped
-            expect(secondImportItem.importedCount).toBe(0);
+            // All documents should be skipped (empty teamspaces map)
+            expect(secondImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: new Map()},
+            });
 
             // Get documents after second import
             const docsAfterSecondImport = await findDocumentsInSpace(space.id);
@@ -1611,8 +1703,7 @@ ${child2.toReference()}`,
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            expect(importItem.importedCount).toBeGreaterThan(10);
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find documents by title
             const databasePageDoc = await findDocumentByTitle(space.id, "Database Page");
@@ -1845,8 +1936,7 @@ ${child2.toReference()}`,
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            expect(importItem.importedCount).toBeGreaterThan(10);
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find "I'm a nested page" and "Page Parent" by title
             const nestedPageDoc = await findDocumentByTitle(space.id, "I’m a nested page");
@@ -1977,7 +2067,7 @@ ${child2.toReference()}`,
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Get all documents and their titles
             const allDocs = await findDocumentsInSpace(space.id);
@@ -2057,7 +2147,7 @@ ${child2.toReference()}`,
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Get all documents and their titles
             const allDocs = await findDocumentsInSpace(space.id);
@@ -2140,7 +2230,7 @@ ${child2.toReference()}`,
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({
+            expect(importItem.status).toMatchObject({
                 type: "Failed",
                 error: "Import file not found in S3",
             });

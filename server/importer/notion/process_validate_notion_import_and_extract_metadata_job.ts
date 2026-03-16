@@ -147,7 +147,7 @@ async function markImportFailed(
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Failed", error},
+            status: {type: "Failed", error, result: {teamspaces: new Map()}},
             updatedTime: new Date(),
         }),
     );

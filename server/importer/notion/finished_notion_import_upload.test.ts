@@ -281,7 +281,10 @@ test("throws when status is Processing", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Processing" as const},
+            status: {
+                type: "Processing" as const,
+                result: {teamspaces: new Map()},
+            },
         }),
     );
 
@@ -308,7 +311,7 @@ test("throws when status is Success", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Success" as const},
+            status: {type: "Success" as const, result: {teamspaces: new Map()}},
         }),
     );
 
@@ -335,7 +338,11 @@ test("throws when status is Failed", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Failed" as const, error: "Test error"},
+            status: {
+                type: "Failed" as const,
+                error: "Test error",
+                result: {teamspaces: new Map()},
+            },
         }),
     );
 

@@ -165,6 +165,29 @@ Property lines are identified by consecutive lines at the start of the content t
 pattern: one or more words (letters only), then a colon and a value. We rely on Notion's export
 having each property on its own line (separated by single newlines).
 
+#### File Paths in Database Properties and CSV Cells
+
+File paths appear as raw strings in two places within database exports:
+
+1. **Property values** in `.md` database row pages: `Files: image.jpg, video.mp4`
+2. **CSV cells** in database export CSVs: a cell might contain `sunset.png` or
+   `Parent%20Doc/beach.png, Parent%20Doc/mountain.png`
+
+These raw file paths are **not** markdown links (`[text](url)` or `![text](url)`), so the standard
+markdown link scanner doesn't detect them. We handle them separately during reference mapping:
+
+- **Property values**: After scanning markdown links for each `.md` file, we parse consecutive
+  property lines at the top of the content, split values by commas, and check if each part looks
+  like a file path (has a file extension or URL-encoded characters). Resolved paths are added to
+  both `documents[path].files` and `filePathToTeamspaceId`.
+- **CSV cells**: After the markdown scanning loop, we iterate through all CSV files with Notion IDs
+  in their filenames. For each cell that looks like a file path, we resolve it (relative to the
+  CSV's grandparent directory, matching Notion's convention) and add it to `filePathToTeamspaceId`.
+
+The `filePathToTeamspaceId` map is used during file upload to associate each file with the correct
+teamspace. Without this tracking, files referenced only through property values or CSV cells would
+be uploaded with an empty teamspace ID.
+
 #### Skipped Home Files
 
 Notion creates a `Home.md` file at the root of teamspaces (or the workspace root when there are no
@@ -583,6 +606,10 @@ The parser works in four phases:
 - For each markdown document, parses all `[text](url)` and `![text](url)` links
 - Decoded link paths that match known document paths become `references`
 - Decoded link paths that match known file paths become `files`
+- Additionally detects raw file paths in database property values (e.g.,
+  `Files: image.jpg, video.mp4`) and adds them to `files` and `filePathToTeamspaceId`
+- Scans CSV cells for raw file paths (e.g., file names or URL-encoded paths) and adds them to
+  `filePathToTeamspaceId` so they get proper teamspace association during upload
 - External URLs (http/https) are ignored
 - Detects `hasChildrenHeader` by checking if content before `---` contains only child links
 - Tracks CSV references in body content (after `---`) to identify inline databases
@@ -747,3 +774,97 @@ bazel test //server/importer/notion/...
 # Run type checking and linting
 bazel test //server/importer/notion:notion_typecheck_test //server/importer/notion:notion_lint_test
 ```
+
+## File Processing and Concurrency
+
+The importer uploads and processes files (images, videos, audio, documents) from the Notion export.
+This section documents the concurrency model used for file operations.
+
+### Architecture Overview
+
+File processing happens in these stages:
+
+1. **Upload to R2**: Read file from disk, upload to Cloudflare R2 storage
+2. **File processing**: Generate thumbnails (images), transcode (video/audio), etc.
+3. **Database updates**: Update file records with processing results
+
+### Why We Don't Use Worker Threads
+
+Worker threads wouldn't help here because the CPU-intensive work happens in external native tools,
+not in our JavaScript code:
+
+- **Sharp** (image processing): Uses libuv thread pool internally, already parallelized
+- **FFmpeg** (video/audio): Uses all available CPU cores via `-threads`
+- **PDF tools**: Similar pattern
+
+Our TypeScript code just orchestrates I/O: read file from disk, upload to R2, call external tool,
+update database. This is all async I/O that Node.js handles efficiently in a single thread. Worker
+threads would add complexity without improving performance.
+
+### Concurrency Model
+
+We use a **rotating pool** pattern instead of worker threads:
+
+```typescript
+// Create N workers (N = available parallelism)
+const workers = [];
+for (let i = 0; i < availableParallelism(); i++) {
+    workers.push(runWorker());
+}
+
+// Each worker pulls from a shared queue until empty
+async function runWorker() {
+    while (true) {
+        const file = getNextFile();
+        if (!file) return;
+        await processFile(file);
+    }
+}
+
+// Wait for all workers to finish
+await runAllPromises(workers);
+```
+
+This approach:
+
+- Maintains `availableParallelism()` concurrent operations
+- When one completes, the worker immediately picks up the next file
+- More efficient than batching (no waiting for slowest file in batch)
+- Files are sorted by size (smallest first) so small files complete quickly
+
+### Why availableParallelism()
+
+We use `availableParallelism()` as the concurrency limit. This isn't because the upload work is
+CPU-bound - it's mostly I/O (disk reads, network uploads, database writes). The parallelism count is
+simply a **convenient proxy for system capacity** that scales with machine size.
+
+A fixed number like 10 or 20 would work equally well. We chose `availableParallelism()` because:
+
+1. **Scales with machine**: Larger instances get more concurrency automatically
+2. **Memory constraints**: Each file in flight consumes memory (file content buffer). Limiting
+   concurrency prevents memory exhaustion on large imports
+3. **Good enough estimate**: For I/O-bound work, the exact number matters less than having _some_
+   reasonable limit
+
+### Progress Tracking
+
+The `NotionImporterProgressState` tracks progress:
+
+- **Counter increments**: Each completed upload increments a counter (by file type)
+- **Periodic persistence**: Every ~1 second, changed counters are persisted to DynamoDB
+- **Final persistence**: When import completes, final counts are persisted with the success/failure
+  status
+
+This allows the UI to show real-time progress without overwhelming the database with writes.
+
+### Error Handling
+
+If any file upload fails:
+
+1. The first error is captured
+2. Other in-flight workers continue to completion (to avoid leaving orphaned files)
+3. After all workers finish, the first error is thrown
+4. The import is marked as failed with the error message
+
+Failed files don't have previews, but this doesn't affect document content. Users can re-upload
+files manually if needed.

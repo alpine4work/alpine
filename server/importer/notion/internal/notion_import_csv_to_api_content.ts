@@ -56,7 +56,7 @@ function normalizeRowToColumnCount(row: Array<string>, columnCount: number): Arr
     return normalizedRow;
 }
 
-function parseCSVLine(line: string): Array<string> {
+export function parseCSVLine(line: string): Array<string> {
     const fields: Array<string> = [];
     let current = "";
     let inQuotes = false;

@@ -13,7 +13,7 @@ import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/in
 import {createNotionImportTeamspaceRootDocument} from "~/server/importer/notion/internal/create_notion_import_teamspace_root_document.js";
 import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
-import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
+import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
@@ -28,7 +28,6 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -68,6 +67,7 @@ export async function convertExtractedNotionDataToEntities(
     notionImportId: NotionImportId,
     importItem: NotionImportItem,
     mappedReferencesResult: NotionImportMappedReferencesResult,
+    progressState: NotionImporterProgressState,
 ): Promise<void> {
     const {spaceId, startedByAccountId, workspaceName} = importItem;
     const {
@@ -261,27 +261,8 @@ export async function convertExtractedNotionDataToEntities(
                 ),
             );
 
-            // Increment the imported count TODO: batch this:
-            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
-            await NotionImporterTable.updateItem(
-                context,
-                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-                item => {
-                    const existingItem = assertExists(item);
-
-                    if (existingItem.status.type !== "Processing") {
-                        throw new FailedPreconditionError(
-                            "Status is not in the correct state for importing",
-                        );
-                    }
-
-                    return {
-                        ...existingItem,
-                        importedCount: existingItem.importedCount + 1,
-                        updatedTime: new Date(),
-                    };
-                },
-            );
+            // Increment document counter via state manager (periodically persisted)
+            progressState.incrementDocumentCounter(teamspace.id);
         }
 
         // Create documents for root-level CSV-only databases
@@ -306,27 +287,8 @@ export async function convertExtractedNotionDataToEntities(
                 filesToUpload,
             });
 
-            // Increment the imported count TODO: batch this:
-            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
-            await NotionImporterTable.updateItem(
-                context,
-                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-                item => {
-                    const existingItem = assertExists(item);
-
-                    if (existingItem.status.type !== "Processing") {
-                        throw new FailedPreconditionError(
-                            "Status is not in the correct state for importing",
-                        );
-                    }
-
-                    return {
-                        ...existingItem,
-                        importedCount: existingItem.importedCount + 1,
-                        updatedTime: new Date(),
-                    };
-                },
-            );
+            // Increment document counter via state manager (periodically persisted)
+            progressState.incrementDocumentCounter(teamspace.id);
         }
 
         // Skip duplicate teamspace root documents
@@ -349,6 +311,9 @@ export async function convertExtractedNotionDataToEntities(
                     .map(([csvPath, info]) => [csvPath, info.id]),
             ),
         });
+
+        // Increment document counter for teamspace root
+        progressState.incrementDocumentCounter(teamspace.id);
     }
 }
 

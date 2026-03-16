@@ -1550,6 +1550,87 @@ describe.each([false, true])("with nested=%p", nested => {
             expect(new Set(allIds).size).toBe(allIds.length);
         });
     });
+
+    describe("filePathToTeamspaceId", () => {
+        test("file referenced via markdown link is tracked", async () => {
+            const file = new ExportedNotionFile("photo.png", "image");
+            const page = new ExportedNotionDocument("Gallery", file.toReference());
+            page.addFiles([file]);
+            const zip = createZip([page]);
+
+            const result = assertResult(
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
+            );
+
+            const filePath = nested ? "Gallery/photo.png" : "photo.png";
+            expect(result.filePathToTeamspaceId.has(filePath)).toBe(true);
+        });
+
+        test("raw file path in database property is tracked", async () => {
+            const file = new ExportedNotionFile("photo.png", "image");
+            // The file path in the property value must match the actual location in the zip so
+            // it resolves against pathToFileId.
+            const rawFilePath = nested ? "Task/photo.png" : "photo.png";
+            const row = new ExportedNotionDocument(
+                "Task",
+                `Files: ${rawFilePath}\nStatus: Done\n\nSome description`,
+            );
+            row.addFiles([file]);
+            const zip = createZip([row]);
+
+            const result = assertResult(
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
+            );
+
+            expect(result.filePathToTeamspaceId.has(rawFilePath)).toBe(true);
+            // Verify the file is also in the document's files set
+            const docs = getAllDocuments(result);
+            const docEntry = docs[`Task ${row.notionId}.md`]!;
+            const fileId = result.filesToUpload[rawFilePath]!.id;
+            expect(docEntry.files.has(fileId)).toBe(true);
+        });
+
+        test("multiple raw file paths in one database property are tracked", async () => {
+            const file1 = new ExportedNotionFile("a.png", "image");
+            const file2 = new ExportedNotionFile("b.png", "image");
+            const path1 = nested ? "Row/a.png" : "a.png";
+            const path2 = nested ? "Row/b.png" : "b.png";
+            const row = new ExportedNotionDocument(
+                "Row",
+                `Attachments: ${path1}, ${path2}\nStatus: Active\n\nContent here`,
+            );
+            row.addFiles([file1, file2]);
+            const zip = createZip([row]);
+
+            const result = assertResult(
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
+            );
+
+            expect(result.filePathToTeamspaceId.has(path1)).toBe(true);
+            expect(result.filePathToTeamspaceId.has(path2)).toBe(true);
+        });
+
+        test("file path in CSV cell is tracked", async () => {
+            const file = new ExportedNotionFile("photo.png", "image");
+            // Attach the file to a document so it ends up in the zip
+            const page = new ExportedNotionDocument("Page", file.toReference());
+            page.addFiles([file]);
+
+            // Create a database whose CSV cells reference the file by path
+            const filePath = nested ? "Page/photo.png" : "photo.png";
+            const database = new ExportedNotionDatabase("Tasks", [
+                ["Name", "Attachment"],
+                ["Item", filePath],
+            ]);
+            const zip = createZip([page, database]);
+
+            const result = assertResult(
+                await parseNotionImportWithTestContext(zip, createTestNotionImportItem()),
+            );
+
+            expect(result.filePathToTeamspaceId.has(filePath)).toBe(true);
+        });
+    });
 });
 
 describe("real notion export fixtures", () => {

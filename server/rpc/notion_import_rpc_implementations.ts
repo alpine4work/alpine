@@ -5,6 +5,7 @@ import {
     getAllNotionImportsForSpace,
     getNotionImport,
 } from "~/server/importer/notion/get_notion_import.js";
+import {retryNotionImport} from "~/server/importer/notion/retry_notion_import.js";
 import {startNotionImport} from "~/server/importer/notion/start_notion_import.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/notion_import_rpc_definitions.js";
@@ -81,6 +82,18 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await cancelNotionImport(context.actor.authorizeSession(), {
+                spaceId: input.spaceId,
+                notionImportId: input.notionImportId,
+            });
+
+            return {};
+        },
+    },
+
+    retryNotionImport: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await retryNotionImport(context.actor.authorizeSession(), {
                 spaceId: input.spaceId,
                 notionImportId: input.notionImportId,
             });

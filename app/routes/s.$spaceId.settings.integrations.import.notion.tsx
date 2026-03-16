@@ -7,6 +7,7 @@ import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {PrettyNumber} from "~/client/web/design/pretty_number.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -53,7 +54,6 @@ const LocalNotionImportItemSchema = Schema.object({
     updatedTime: Schema.date,
     teamspaceImportOptions: NotionImportTeamspaceOptionsSchema.nullable(),
     status: NotionImportStatusSchema,
-    importedCount: Schema.integer,
 });
 
 const LoaderSchema = Schema.object({
@@ -80,7 +80,6 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
             updatedTime: item.updatedTime,
             teamspaceImportOptions: item.teamspaceImportOptions,
             status: item.status,
-            importedCount: item.importedCount,
         })),
     });
 }
@@ -640,7 +639,7 @@ export default function SpaceIntegrationsSettingsRoute() {
                                 : "Importing..."}
                         </Box>
                         <Box fontSize="75" color="grey-60">
-                            {activeImport.importedCount} items imported
+                            <ImportProgressSummary status={activeImport.status} />
                         </Box>
                     </Box>
                 </Box>
@@ -758,7 +757,7 @@ function NotionImportHistory({
                         <Box>
                             <Box fontSize="75">{item.createdTime.toLocaleDateString()}</Box>
                             <Box fontSize="75" color="grey-60">
-                                {item.importedCount} items imported
+                                <ImportProgressSummary status={item.status} />
                             </Box>
                         </Box>
                         <Box
@@ -771,5 +770,57 @@ function NotionImportHistory({
                 ))}
             </Box>
         </Box>
+    );
+}
+
+/**
+ * Displays a summary of import progress from the status result. Shows document
+ * count and file counts (if any).
+ */
+function ImportProgressSummary({status}: {status: SchemaType<typeof NotionImportStatusSchema>}) {
+    // Only Processing, Success, and Failed statuses have result data
+    if (status.type !== "Processing" && status.type !== "Success" && status.type !== "Failed") {
+        return <>Waiting...</>;
+    }
+
+    if (status.result.teamspaces.size === 0) {
+        return <>No items imported</>;
+    }
+
+    return (
+        <>
+            {[...status.result.teamspaces.entries()].map(([teamspaceId, ts]) => (
+                <Box key={teamspaceId}>
+                    <Box fontStyle="semi-bold">Teamspace ID: {teamspaceId}</Box>
+                    <Box paddingLeft="4">
+                        {ts.documents.imported > 0 && (
+                            <Box>
+                                <PrettyNumber number={ts.documents.imported} label="document" />
+                            </Box>
+                        )}
+                        {ts.images.imported > 0 && (
+                            <Box>
+                                <PrettyNumber number={ts.images.imported} label="image" />
+                            </Box>
+                        )}
+                        {ts.videos.imported > 0 && (
+                            <Box>
+                                <PrettyNumber number={ts.videos.imported} label="video" />
+                            </Box>
+                        )}
+                        {ts.audio.imported > 0 && (
+                            <Box>
+                                <PrettyNumber number={ts.audio.imported} label="audio file" />
+                            </Box>
+                        )}
+                        {ts.files.imported > 0 && (
+                            <Box>
+                                <PrettyNumber number={ts.files.imported} label="file" />
+                            </Box>
+                        )}
+                    </Box>
+                </Box>
+            ))}
+        </>
     );
 }

@@ -1,11 +1,11 @@
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {convertExtractedNotionDataToEntities} from "~/server/importer/notion/internal/convert_extracted_notion_data_to_entities.js";
 import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
+import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {parseNotionImportAndMapReferences} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {uploadNotionImportFiles} from "~/server/importer/notion/internal/upload_notion_import_files.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId} from "~/shared/id/types/id_types.js";
 
@@ -34,7 +34,10 @@ export async function processStartNotionImportJob(
 
                 return {
                     ...existingItem,
-                    status: {type: "Processing" as const},
+                    status: {
+                        type: "Processing" as const,
+                        result: {teamspaces: new Map()},
+                    },
                     updatedTime: new Date(),
                 };
             },
@@ -58,7 +61,11 @@ export async function processStartNotionImportJob(
             {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
             item => ({
                 ...assertExists(item),
-                status: {type: "Failed" as const, error: "Import file not found in S3"},
+                status: {
+                    type: "Failed" as const,
+                    error: "Import file not found in S3",
+                    result: {teamspaces: new Map()},
+                },
                 updatedTime: new Date(),
             }),
         );
@@ -78,45 +85,36 @@ export async function processStartNotionImportJob(
         );
     }
 
-    try {
-        // Upload files and create documents
-        await runAllPromises([
-            uploadNotionImportFiles(
+    // Track progress with periodic persistence and update the import status to Success
+    // or Failed when done.
+    await NotionImporterProgressState.with(
+        {notionImportId, context, persistIntervalMs: 1000},
+        async progressState => {
+            // Process in order: light files (parallel), heavy files (sequential), then
+            // documents. This ordering optimizes resource usage:
+            //
+            // 1. Light files (images, small docs) run in parallel with availableParallelism()
+            //    concurrency
+            // 2. Heavy files (video, audio) run one at a time to avoid CPU thrashing
+            // 3. Documents are created last, after all files are uploaded and processing
+
+            // Phase 1 & 2: Upload files (light in parallel, then heavy sequentially)
+            await uploadNotionImportFiles(
                 context,
                 importItem.spaceId,
                 importItem.startedByAccountId,
                 parsedNotionImport,
-            ),
-            convertExtractedNotionDataToEntities(
+                progressState,
+            );
+
+            // Phase 3: Create documents (batched 10 at a time)
+            await convertExtractedNotionDataToEntities(
                 context,
                 notionImportId,
                 importItem,
                 parsedNotionImport,
-            ),
-        ]);
-
-        await NotionImporterTable.updateItem(
-            context,
-            {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-            item => ({
-                ...assertExists(item),
-                status: {type: "Success" as const},
-                updatedTime: new Date(),
-            }),
-        );
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error during import";
-
-        await NotionImporterTable.updateItem(
-            context,
-            {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-            item => ({
-                ...assertExists(item),
-                status: {type: "Failed" as const, error: errorMessage},
-                updatedTime: new Date(),
-            }),
-        );
-
-        throw error;
-    }
+                progressState,
+            );
+        },
+    );
 }
