@@ -1,4 +1,3 @@
-import {redirect} from "@remix-run/router";
 import {parse, serialize} from "cookie";
 import {useEffect, useRef} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
@@ -19,7 +18,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {hasSlackIntegrationSettingsFeature} from "~/shared/integrations/has_slack_integration_settings_feature.js";
 import {
     SlackOAuthStatusMessageSchema,
     slackOAuthStatusMessageType,
@@ -46,10 +44,6 @@ const LoaderSchema = Schema.object({
  */
 export async function loader({context, params, request}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-
-    if (!hasSlackIntegrationSettingsFeature(spaceId)) {
-        return redirect(`/s/${params.spaceId}/settings/integrations`);
-    }
 
     const authenticatedContext = (await context.actor.authenticate()).actor.authorizeSession();
 

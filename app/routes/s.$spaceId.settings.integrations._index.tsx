@@ -24,7 +24,6 @@ import {
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {hasSlackIntegrationSettingsFeature} from "~/shared/integrations/has_slack_integration_settings_feature.js";
 import {hasNotionImportFeature} from "~/shared/spaces/has_notion_import_feature.js";
 
 // We don't need to reload if the URL doesn't change.
@@ -52,7 +51,7 @@ const integrations: Array<IntegrationData> = [
         name: "Slack",
         tagline: "Get notifications in Slack",
         icon: <SlackLogo />,
-        isAvailable: (spaceId: SpaceId) => hasSlackIntegrationSettingsFeature(spaceId),
+        isAvailable: () => true,
     },
     {
         slug: "import/notion",

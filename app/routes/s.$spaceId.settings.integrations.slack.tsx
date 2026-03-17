@@ -1,4 +1,3 @@
-import {redirect} from "@remix-run/router";
 import {serialize} from "cookie";
 import {ArrowSquareOut, DotsThree, User, UsersThree} from "phosphor-react";
 import {useEffect, useState} from "react";
@@ -28,7 +27,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {hasSlackIntegrationSettingsFeature} from "~/shared/integrations/has_slack_integration_settings_feature.js";
 import {
     SlackOAuthStatusMessageSchema,
     slackOAuthStatusMessageType,
@@ -60,10 +58,6 @@ const LoaderSchema = Schema.object({
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-
-    if (!hasSlackIntegrationSettingsFeature(spaceId)) {
-        return redirect(`/s/${params.spaceId}/settings/integrations`);
-    }
 
     const authenticatedContext = (await context.actor.authenticate()).actor.authorizeSession();
 
