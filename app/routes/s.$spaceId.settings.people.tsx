@@ -32,12 +32,14 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {
     expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
     moveSpaceOwner,
     removeSpaceAccount,
     updateSpaceAccountRole,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     AccountModel,
@@ -298,8 +300,22 @@ function SpacePeopleSettingsRouteAccounts({
         setModalState({type: "ConfirmDelete", accountData: accountData});
     };
 
-    const handleCopyInviteLink = async () => {
-        const inviteUrl = `${window.location.origin}/auth/sign-in?invite=${space.id}`;
+    const handleCopyInviteLink = async (accountData: AccountModelData) => {
+        // HACK: We don't currently share an account's email address with other accounts in
+        // the space for privacy reasons. However, for an invite pending account we, as of
+        // 2026-03-13, always set the invited email address as the account name. So we use
+        // the account's name to prefill the email input on the sign in page.
+        //
+        // If the name is `maxLabelStringLength` characters then the email may have been
+        // truncated. Since account names have a max length of 50 characters whereas emails
+        // can be much longer. Assume a 50 character account name is a truncated email. We
+        // also check `isEmailAddressValid()` to defend against invited accounts who don't
+        // have their name set to their email address.
+        const inviteUrl =
+            accountData.name.length < maxLabelStringLength && isEmailAddressValid(accountData.name)
+                ? `${window.location.origin}/auth/sign-in?email=${encodeURIComponent(accountData.name)}&invite=${space.id}`
+                : `${window.location.origin}/auth/sign-in?invite=${space.id}`;
+
         await writeTextToClipboard(inviteUrl);
     };
 
@@ -423,7 +439,7 @@ function SpacePeopleSettingsRouteAccounts({
                                         [
                                             {
                                                 label: "Copy invite link",
-                                                onPress: handleCopyInviteLink,
+                                                onPress: () => handleCopyInviteLink(account),
                                                 pressErrorTitle: "Couldn\u2019t copy invite link",
                                             },
                                         ],
@@ -452,7 +468,7 @@ function SpacePeopleSettingsRouteAccounts({
                                     </Button>
                                 </MenuButton>
                                 <SpacePeopleSettingsCopyInviteLinkButton
-                                    onPress={handleCopyInviteLink}
+                                    onPress={() => handleCopyInviteLink(account)}
                                 />
                             </Box>
                         </Box>

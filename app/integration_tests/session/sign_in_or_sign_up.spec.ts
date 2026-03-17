@@ -108,6 +108,12 @@ async function goToPeopleSettings(page: Page, isMobile: boolean) {
     }
 }
 
+function getCurrentSpaceId(page: Page): string {
+    const match = page.url().match(/\/s\/([^/?#]+)/);
+    expect(match).not.toBeNull();
+    return match![1]!;
+}
+
 test("can switch between sign in and sign up page", async ({page}) => {
     await page.goto("/auth/sign-up");
 
@@ -277,6 +283,48 @@ test("can sign up with work email and invite coworker with inferred domain", asy
     await expect(page2.getByText("Test 1")).toBeVisible();
 
     await page2.close();
+});
+
+test("invited account chat shows pending invite message", async ({page, isMobile}) => {
+    await page.goto("/auth/sign-up");
+
+    const emailId = generateId();
+    const emailAddress = `test.1@company-${emailId}.com`;
+    const invitedEmailAlias = `test.pending.${generateId()}`;
+    const invitedEmailAddress = `${invitedEmailAlias}@company-${emailId}.com`;
+
+    await startSignUp(page, emailAddress);
+    await submitSignUpProfile(page, "Test 1");
+    await continueSignUpWithInvites(page, [invitedEmailAlias]);
+    await submitSignUpOneTimePassword({page, isMobile, oneTimePasswordIndex: 0});
+
+    await expect(page.getByText("Welcome to Alpine")).toBeVisible();
+    await expect(page.getByText("added to this space with you")).toBeVisible();
+
+    const {emailAddress: inviteEmailAddress} = await waitForInviteUrl(0);
+    expect(inviteEmailAddress).toBe(invitedEmailAddress);
+
+    // Invited accounts use the email as display name and are truncated in some
+    // surfaces.
+    const invitedAccountName = invitedEmailAddress.substring(0, 50);
+
+    if (isMobile) {
+        const spaceId = getCurrentSpaceId(page);
+        await page.goto(`/s/${spaceId}/chat/new`);
+
+        await page.getByRole("combobox", {name: "To"}).click();
+        await page.getByRole("option", {name: invitedAccountName, exact: true}).click();
+    } else {
+        await expect(page.getByText(invitedAccountName, {exact: true})).toBeVisible();
+        await page.getByText(invitedAccountName, {exact: true}).click();
+    }
+
+    const pendingInviteOverlay = page.getByTestId("ChatDirectOneOnOneInvitePendingOverlay");
+    await expect(pendingInviteOverlay).toBeVisible();
+    await expect(pendingInviteOverlay).toContainText("join you in Alpine");
+    await expect(
+        pendingInviteOverlay.getByRole("button", {name: "Copy invite link"}),
+    ).toBeVisible();
 });
 
 test("company sign up can invite outside domain and opens personal space", async ({

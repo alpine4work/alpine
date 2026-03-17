@@ -270,6 +270,16 @@ function Button(
          * Defaults to `true`.
          */
         isFocusable?: boolean;
+
+        /**
+         * Called when we start hovering the button.
+         */
+        onHoverStart?: () => void;
+
+        /**
+         * Called when we stop hovering the button.
+         */
+        onHoverEnd?: () => void;
     },
     foreignRef:
         | Ref<
@@ -314,6 +324,8 @@ function Button(
         focusRingOffset,
         isTabbable = true,
         isFocusable = true,
+        onHoverStart,
+        onHoverEnd,
     } = props;
     const platform = usePlatform();
     const reporter = useReporter();
@@ -403,7 +415,10 @@ function Button(
 
     const isPressed = isPressedFromButton || isPressedFromProps;
 
-    const {hoverProps, isHovered} = useHover({});
+    const {hoverProps, isHovered} = useHover({
+        onHoverStart,
+        onHoverEnd,
+    });
 
     // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our hover
     // styles even though we aren't receiving pointer events since there's a cover over

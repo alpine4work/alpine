@@ -1042,20 +1042,7 @@ function Tooltip(
                         pointerEvents="none"
                         className={overlayAnimateContainerClassName}
                     >
-                        <Box
-                            ref={tooltipContentRef}
-                            maxWidth="64"
-                            paddingX="1.5"
-                            paddingY="1"
-                            fontSize="50"
-                            color="grey-100"
-                            backgroundColor="grey-0"
-                            borderRadius="0.5"
-                            boxShadow="elevation-20"
-                            className={greyElevated2ClassName}
-                        >
-                            {content}
-                        </Box>
+                        <TooltipContent ref={tooltipContentRef}>{content}</TooltipContent>
                     </Box>
                 }
                 children={children}
@@ -1072,4 +1059,24 @@ function Tooltip(
         children,
         targetElement,
     ]);
+}
+
+export function TooltipContent({ref, children}: {ref?: Ref<HTMLDivElement>; children?: ReactNode}) {
+    return (
+        <Box
+            ref={ref}
+            maxWidth="64"
+            paddingX="1.5"
+            paddingY="1"
+            fontSize="50"
+            color="grey-100"
+            backgroundColor="grey-0"
+            borderRadius="0.5"
+            boxShadow="elevation-20"
+            pointerEvents="none"
+            className={greyElevated2ClassName}
+        >
+            {children}
+        </Box>
+    );
 }

@@ -1,5 +1,6 @@
 import {Memo, Ref, forwardRef, useCallback, useEffect, useMemo, useRef} from "react";
 import {getSafeCurrentlyViewedEntityIfPossibleForClient} from "~/client/web/bots/get_safe_current_viewed_entity_if_possible_for_client.js";
+import {ChatDirectOneOnOneInvitePendingOverlayController} from "~/client/web/chat/internal/chat_direct_one_on_one_invite_pending_overlay_controller.js";
 import {chatMessagingViewHeaderItem} from "~/client/web/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -208,6 +209,11 @@ function NewChatMessagingView(
             )}
             inputRestoreStateRef={inputRestoreStateRef}
             dangerousCurrentlyViewingSearchEntityId={currentlyViewingSearchEntityId}
+            extraChildren={
+                selectedChat && (
+                    <ChatDirectOneOnOneInvitePendingOverlayController chat={selectedChat.chat} />
+                )
+            }
         />
     );
 }

@@ -5,6 +5,7 @@ import {useAccountModel} from "~/client/web/accounts/account_registry_context.js
 import {AccountShortName} from "~/client/web/accounts/account_short_name.js";
 import {getSafeCurrentlyViewedEntityIfPossibleForClient} from "~/client/web/bots/get_safe_current_viewed_entity_if_possible_for_client.js";
 import {getChatOrAccountSearchAffinityEntityId} from "~/client/web/chat/get_chat_or_account_search_affinity_entity_id.js";
+import {ChatDirectOneOnOneInvitePendingOverlayController} from "~/client/web/chat/internal/chat_direct_one_on_one_invite_pending_overlay_controller.js";
 import {chatMessagingViewHeaderItem} from "~/client/web/chat/internal/chat_messaging_view_header_item.js";
 import {RoomChatMobileEditor} from "~/client/web/chat/internal/room_chat_mobile_editor.js";
 import {RoomChatViewNameEditor} from "~/client/web/chat/internal/room_chat_view_name_editor.js";
@@ -931,6 +932,7 @@ function ChatMessagingView({
                 [chat.id, chat.spaceId],
             )}
             dangerousCurrentlyViewingSearchEntityId={currentlyViewingSearchEntityId}
+            extraChildren={<ChatDirectOneOnOneInvitePendingOverlayController chat={chat} />}
         />
     );
 }
