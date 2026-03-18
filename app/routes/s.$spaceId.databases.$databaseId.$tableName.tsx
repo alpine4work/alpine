@@ -12,6 +12,7 @@ import {getDatabase} from "~/server/databases/data/get_database.js";
 import {queryDatabase} from "~/server/databases/data/query_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {databaseTableDataQuery} from "~/shared/databases/database_queries.js";
 import {LoaderDatabaseQueryResultSchema} from "~/shared/databases/database_query_schema.js";
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
@@ -22,8 +23,11 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     // Verify the database exists.
     await getDatabase(context, databaseId);
 
-    /* eslint-disable-next-line cyberworlds/string-quotes -- SQL literal */
-    const result = await queryDatabase(context, databaseId, `SELECT * FROM "${params.tableName}"`);
+    const result = await queryDatabase(
+        context,
+        databaseId,
+        databaseTableDataQuery(params.tableName!),
+    );
 
     return jsonWithSchema(LoaderDatabaseQueryResultSchema, result);
 }
@@ -31,8 +35,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 export default function DatabaseTableRoute() {
     const {tableName} = useParams();
     const loaderData = useLoaderDataWithSchema(LoaderDatabaseQueryResultSchema);
-    /* eslint-disable-next-line cyberworlds/string-quotes -- SQL literal */
-    const sql = `SELECT * FROM "${tableName}"`;
+    const sql = tableName != null ? databaseTableDataQuery(tableName) : null;
     const result = useReactiveDatabaseQuery({sql, initialData: loaderData});
 
     if (result == null) {

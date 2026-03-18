@@ -22,6 +22,7 @@ import {getDatabase} from "~/server/databases/data/get_database.js";
 import {queryDatabase} from "~/server/databases/data/query_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {databaseTablesQuery} from "~/shared/databases/database_queries.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
@@ -58,11 +59,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
     const database = await getDatabase(context, databaseId);
 
-    const {rows, pages} = await queryDatabase(
-        context,
-        databaseId,
-        "SELECT name, table_name FROM _alpine_tables ORDER BY id",
-    );
+    const {rows, pages} = await queryDatabase(context, databaseId, databaseTablesQuery());
 
     return jsonWithSchema(LoaderSchema, {
         databaseName: database.model.name,
