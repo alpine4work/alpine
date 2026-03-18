@@ -90,6 +90,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
+    "databases.$databaseId.$tableName": () => {
+        test("not found error for route `databases.$databaseId.$tableName`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/databases/${generateId()}/some_table`);
+
+            await expect(page.getByText("Database not found")).toBeVisible();
+        });
+    },
     "databases.$databaseId._index": () => {
         test("not found error for route `databases.$databaseId._index`", async ({
             page,
@@ -103,6 +117,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await expect(page.getByText("Database not found")).toBeVisible();
         });
+    },
+    "databases.$databaseId.sql": () => {
+        // The sql route doesn't have its own loader so it relies on the
+        // layout route to throw not found.
+    },
+    "databases.$databaseId": () => {
+        // Layout route; covered by the child route tests above.
     },
     "documents.$documentId._index": () => {
         test("not found error for route `documents.$documentId._index`", async ({
