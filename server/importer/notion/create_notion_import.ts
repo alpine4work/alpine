@@ -43,6 +43,7 @@ export async function createNotionImport(
         createdTime: currentTime,
         updatedTime: currentTime,
         workspaceName: null,
+        startedProcessingTime: null,
         teamspaceImportOptions: null,
         status: {type: "UploadPending"},
         importedCount: 0,

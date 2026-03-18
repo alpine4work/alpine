@@ -53,6 +53,7 @@ function createTestNotionImportItem(
         startedByAccountId: generateId<AccountId>(),
         createdTime: new Date(),
         updatedTime: new Date(),
+        startedProcessingTime: new Date(),
         teamspaceImportOptions: teamspaceImportOptions ?? null,
         status: {type: "UploadPending"},
         importedCount: 0,

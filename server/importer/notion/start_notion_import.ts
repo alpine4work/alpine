@@ -50,7 +50,10 @@ export async function startNotionImport(
 
                 return {
                     ...existingItem,
-                    status: {type: "ProcessQueued" as const},
+                    status: {
+                        type: "ProcessQueued" as const,
+                        result: existingItem.status.result,
+                    },
                     teamspaceImportOptions,
                     updatedTime: new Date(),
                 };

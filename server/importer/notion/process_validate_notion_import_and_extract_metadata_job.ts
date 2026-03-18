@@ -1,4 +1,5 @@
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/internal/compute_notion_import_expected_statistics.js";
 import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
@@ -113,6 +114,15 @@ export async function processValidateNotionImportAndExtractMetadataJob(
         };
     });
 
+    // Compute expected counts and file sizes per teamspace by scanning the zip
+    // contents. This gives users an estimate of the import scope before they confirm.
+    const result = computeNotionImportExpectedStatistics(
+        rawFiles,
+        indexHtmlContent,
+        teamspaceNameById,
+        metadata.workspaceId,
+    );
+
     // Update the import item with extracted metadata
     await NotionImporterTable.updateItem(
         context,
@@ -130,7 +140,7 @@ export async function processValidateNotionImportAndExtractMetadataJob(
                 ...existingItem,
                 workspaceName: metadata.workspaceName,
                 teamspaceImportOptions,
-                status: {type: "Validated"},
+                status: {type: "Validated", result},
                 updatedTime: new Date(),
             };
         },
@@ -145,10 +155,19 @@ async function markImportFailed(
     await NotionImporterTable.updateItem(
         context,
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-        item => ({
-            ...assertExists(item),
-            status: {type: "Failed", error, result: {teamspaces: new Map()}},
-            updatedTime: new Date(),
-        }),
+        item => {
+            const existingItem = assertExists(item);
+
+            const result =
+                "result" in existingItem.status
+                    ? existingItem.status.result
+                    : {teamspaces: new Map()};
+
+            return {
+                ...existingItem,
+                status: {type: "Failed" as const, error, result},
+                updatedTime: new Date(),
+            };
+        },
     );
 }

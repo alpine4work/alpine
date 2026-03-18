@@ -32,17 +32,8 @@ import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
-import {
-    NotionImportUploadType,
-    uploadFileForNotionImport,
-} from "~/server/importer/notion/internal/upload_file_for_notion_import.js";
-import {
-    FileContentType,
-    getPathFileContentTypeIfExists,
-    isFileAudioContentType,
-    isFileImageContentType,
-    isFileVideoContentType,
-} from "~/shared/files/file_content_type.js";
+import {uploadFileForNotionImport} from "~/server/importer/notion/internal/upload_file_for_notion_import.js";
+import {FileContentType, getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -61,8 +52,8 @@ interface NotionImportFileToUpload {
     fileId: FileId;
     /** The size of the file in bytes (used for ordering). */
     sizeInBytes: number;
-    /** The upload type for counter tracking. */
-    uploadType: NotionImportUploadType;
+    /** The mimetype for counter tracking (e.g. "image/png", "video/mp4"). */
+    contentType: FileContentType;
     /** The teamspace this file belongs to. */
     teamspaceId: string;
 }
@@ -73,8 +64,7 @@ interface NotionImportFileToUpload {
  * This function:
  *
  * 1. Reads file metadata to determine sizes
- * 2. Orders files by size (smallest first) to process many files quickly
- * 3. For each file:
+ * 2. For each file:
  *     - Determines content type from the file extension
  *     - Creates a file record in DynamoDB
  *     - Uploads the file to Cloudflare R2
@@ -92,9 +82,6 @@ interface NotionImportFileToUpload {
  * 1. Light files (images, PDFs, etc.) - parallel with availableParallelism()
  *    concurrency
  * 2. Heavy files (video, audio) - sequential, one at a time
- *
- * Within each category, files are sorted by size (smallest first) so smaller files
- * complete quickly.
  */
 export async function uploadNotionImportFiles(
     context: ImporterServiceSystemActionContext,
@@ -128,11 +115,9 @@ export async function uploadNotionImportFiles(
         const teamspaceId = filePathToTeamspaceId.get(relativeFilePath);
         if (teamspaceId === undefined) continue;
 
-        // Determine content type and upload category from the file extension.
         const contentType =
             getPathFileContentTypeIfExists(relativeFilePath) ?? "application/octet-stream";
-        const uploadType = getUploadTypeFromContentType(contentType);
-        const file = {relativeFilePath, fileId, sizeInBytes, uploadType, teamspaceId};
+        const file = {relativeFilePath, fileId, sizeInBytes, contentType, teamspaceId};
 
         // Classify as heavy or light using the same routing logic as file processing.
         // Heavy files (video, audio needing transcoding, large files) are processed
@@ -145,10 +130,6 @@ export async function uploadNotionImportFiles(
         }
     }
 
-    // Sort by size ascending within each category.
-    lightFiles.sort((a, b) => a.sizeInBytes - b.sizeInBytes);
-    heavyFiles.sort((a, b) => a.sizeInBytes - b.sizeInBytes);
-
     // Helper to upload a single file.
     const uploadFile = async (file: NotionImportFileToUpload): Promise<void> => {
         await uploadFileForNotionImport(context, {
@@ -158,7 +139,7 @@ export async function uploadNotionImportFiles(
             relativeFilePath: file.relativeFilePath,
             fileId: file.fileId,
             contentLength: file.sizeInBytes,
-            uploadType: file.uploadType,
+            contentType: file.contentType,
             teamspaceId: file.teamspaceId,
             progressState,
         });
@@ -235,11 +216,4 @@ async function uploadFilesWithPool(
     if (firstError !== null) {
         throw firstError;
     }
-}
-
-function getUploadTypeFromContentType(contentType: FileContentType): NotionImportUploadType {
-    if (isFileImageContentType(contentType)) return "Images";
-    if (isFileVideoContentType(contentType)) return "Videos";
-    if (isFileAudioContentType(contentType)) return "Audio";
-    return "Files";
 }

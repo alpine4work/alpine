@@ -14,26 +14,15 @@ const NotionImportTeamspaceStatistics = Schema.map(
             // .md files.
             expectedCount: Schema.integer.min(0),
         }),
-        videos: Schema.object({
-            imported: Schema.integer.min(0),
-            expectedCount: Schema.integer.min(0),
-            size: Schema.integer.min(0),
-        }),
-        images: Schema.object({
-            imported: Schema.integer.min(0),
-            expectedCount: Schema.integer.min(0),
-            size: Schema.integer.min(0),
-        }),
-        audio: Schema.object({
-            imported: Schema.integer.min(0),
-            expectedCount: Schema.integer.min(0),
-            size: Schema.integer.min(0),
-        }),
-        files: Schema.object({
-            imported: Schema.integer.min(0),
-            expectedCount: Schema.integer.min(0),
-            size: Schema.integer.min(0),
-        }),
+        /** Per-mimetype file statistics (e.g. "image/png", "video/mp4"). */
+        files: Schema.map(
+            Schema.string,
+            Schema.object({
+                imported: Schema.integer.min(0),
+                expectedCount: Schema.integer.min(0),
+                size: Schema.integer.min(0),
+            }),
+        ),
     }),
 );
 
@@ -73,9 +62,15 @@ export const NotionImportStatusSchema = Schema.union({
      * Validation complete. Workspace name and teamspaces extracted. Ready to start
      * import.
      */
-    Validated: Schema.object({type: Schema.value("Validated")}),
+    Validated: Schema.object({
+        type: Schema.value("Validated"),
+        result: NotionImportProcessingOrDoneResultSchema,
+    }),
     /** Import job queued and waiting to be processed. */
-    ProcessQueued: Schema.object({type: Schema.value("ProcessQueued")}),
+    ProcessQueued: Schema.object({
+        type: Schema.value("ProcessQueued"),
+        result: NotionImportProcessingOrDoneResultSchema,
+    }),
     /** Import job is actively processing. */
     Processing: Schema.object({
         type: Schema.value("Processing"),
@@ -151,6 +146,15 @@ export const NotionImportItemSchema = Schema.object({
      * When the import was last updated.
      */
     updatedTime: Schema.date,
+
+    /**
+     * When the import started processing.
+     *
+     * Only set after the import has been queued for processing.
+     *
+     * If the import is retried, this will be set to the new processing start time.
+     */
+    startedProcessingTime: Schema.date.nullable().default(null),
 
     /**
      * For each detected teamspace ID, the user's choice of how to import it.

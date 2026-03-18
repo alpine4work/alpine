@@ -6,6 +6,7 @@ import {NotionImporterTable} from "~/server/importer/notion/internal/notion_impo
 import {parseNotionImportAndMapReferences} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {uploadNotionImportFiles} from "~/server/importer/notion/internal/upload_notion_import_files.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId} from "~/shared/id/types/id_types.js";
 
@@ -32,17 +33,23 @@ export async function processStartNotionImportJob(
                     );
                 }
 
+                const now = new Date();
+
                 return {
                     ...existingItem,
                     status: {
                         type: "Processing" as const,
-                        result: {teamspaces: new Map()},
+                        result: existingItem.status.result,
                     },
-                    updatedTime: new Date(),
+                    startedProcessingTime: now,
+                    updatedTime: now,
                 };
             },
         ),
     );
+
+    assert(importItem.status.type === "Processing");
+    const initialResult = importItem.status.result;
 
     // Download and unzip the import file to disk
     let diskPathToUnzippedFiles: string;
@@ -64,7 +71,7 @@ export async function processStartNotionImportJob(
                 status: {
                     type: "Failed" as const,
                     error: "Import file not found in S3",
-                    result: {teamspaces: new Map()},
+                    result: initialResult,
                 },
                 updatedTime: new Date(),
             }),
@@ -88,7 +95,7 @@ export async function processStartNotionImportJob(
     // Track progress with periodic persistence and update the import status to Success
     // or Failed when done.
     await NotionImporterProgressState.with(
-        {notionImportId, context, persistIntervalMs: 1000},
+        {notionImportId, context, persistIntervalMs: 1000, initialResult},
         async progressState => {
             // Process in order: light files (parallel), heavy files (sequential), then
             // documents. This ordering optimizes resource usage:

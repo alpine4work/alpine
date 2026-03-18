@@ -1,3 +1,16 @@
+/**
+ * Uploads a single file from a Notion import to Alpine's file storage.
+ *
+ * This module handles the complete upload workflow for a single file:
+ *
+ * 1. Check if already uploaded (skip if exists)
+ * 2. Create file record in DynamoDB
+ * 3. Upload to Cloudflare R2
+ * 4. Mark upload complete (without scheduling a processor job)
+ * 5. Process the file inline using `processFile`
+ * 6. If inline processing fails, fall back to scheduling a job
+ */
+
 import {tmpdir} from "os";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {
@@ -12,11 +25,9 @@ import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_direc
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {FileContentType, getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
-
-export type NotionImportUploadType = "Videos" | "Images" | "Audio" | "Files";
 
 export interface NotionImportUploadSingleFileOptions {
     spaceId: SpaceId;
@@ -25,7 +36,7 @@ export interface NotionImportUploadSingleFileOptions {
     relativeFilePath: string;
     fileId: FileId;
     contentLength: number;
-    uploadType: NotionImportUploadType;
+    contentType: FileContentType;
     teamspaceId: string;
     progressState: NotionImporterProgressState;
 }
@@ -33,14 +44,12 @@ export interface NotionImportUploadSingleFileOptions {
 /**
  * Uploads a single file from the Notion import to Alpine's file storage.
  *
- * This module handles the complete upload workflow for a single file:
+ * This creates the file record in DynamoDB, uploads to R2, and triggers file
+ * processing for previews and alternatives.
  *
- * 1. Check if already uploaded (skip if exists)
- * 2. Create file record in DynamoDB
- * 3. Upload to Cloudflare R2
- * 4. Mark upload complete (without scheduling a processor job)
- * 5. Process the file inline using `processFile`
- * 6. If inline processing fails, fall back to scheduling a job
+ * If the file has already been uploaded (fileId exists in DynamoDB), the upload is
+ * skipped. This supports resumable imports where a previous attempt may have
+ * partially completed.
  */
 export async function uploadFileForNotionImport(
     context: ImporterServiceSystemActionContext,
@@ -53,7 +62,7 @@ export async function uploadFileForNotionImport(
         relativeFilePath,
         fileId,
         contentLength,
-        uploadType,
+        contentType: contentTypeFromCaller,
         teamspaceId,
         progressState,
     } = options;
@@ -62,7 +71,7 @@ export async function uploadFileForNotionImport(
     const existingFile = await getFileIfExistsAsSystem(context, fileId);
     if (existingFile) {
         // File already exists - skip the upload but still count it.
-        progressState.incrementUploadCounter(teamspaceId, uploadType);
+        progressState.incrementFileCounter(teamspaceId, contentTypeFromCaller);
         return;
     }
 
@@ -164,6 +173,6 @@ export async function uploadFileForNotionImport(
         );
     });
 
-    // Increment the upload counter for this file type
-    progressState.incrementUploadCounter(teamspaceId, uploadType);
+    // Increment the file counter for this mimetype
+    progressState.incrementFileCounter(teamspaceId, contentTypeFromCaller);
 }

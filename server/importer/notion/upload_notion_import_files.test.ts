@@ -14,6 +14,7 @@ import {
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {generateDeterministicNotionFileIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
 import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
+import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {uploadNotionImportFiles} from "~/server/importer/notion/internal/upload_notion_import_files.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
@@ -23,7 +24,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {generateId} from "~/shared/id/id.js";
-import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const context = createTestContext();
@@ -70,6 +71,55 @@ function createSystemActionContext(
         importer,
         r2: new CloudflareR2ContextModule(r2Client),
         constants: context.constants.fork(),
+    });
+}
+
+/**
+ * Creates a notion import item in "Processing" state and returns a state manager
+ * wired up for persistence.
+ */
+async function createProgressStateForTest({
+    systemContext,
+    spaceId,
+    accountId,
+    mappedReferencesResult,
+}: {
+    systemContext: ReturnType<typeof createSystemActionContext>;
+    spaceId: SpaceId;
+    accountId: string;
+    mappedReferencesResult: NotionImportMappedReferencesResult;
+}): Promise<NotionImporterProgressState> {
+    const notionImportId = generateId<NotionImportId>();
+    const initialResult = {
+        teamspaces: new Map(
+            [...new Set(mappedReferencesResult.filePathToTeamspaceId.values())].map(id => [
+                id,
+                {documents: {imported: 0, expectedCount: 0}, files: new Map()},
+            ]),
+        ),
+    };
+
+    await NotionImporterTable.createItem(systemContext, {
+        partitionType: "Import",
+        sortRangeType: "Attributes",
+        notionImportId,
+        spaceId,
+        startedByAccountId: accountId as any,
+        workspaceName: "Test Workspace",
+        importKey: "test-import-key",
+        importZipSize: 1024,
+        createdTime: new Date(),
+        updatedTime: new Date(),
+        startedProcessingTime: new Date(),
+        teamspaceImportOptions: null,
+        status: {type: "Processing", result: initialResult},
+        importedCount: 0,
+    });
+
+    return new NotionImporterProgressState({
+        notionImportId,
+        context: systemContext,
+        initialResult,
     });
 }
 
@@ -127,9 +177,11 @@ describe("uploadNotionImportFiles", () => {
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
-        const progressState = new NotionImporterProgressState({
-            notionImportId: generateId<NotionImportId>(),
-            context: systemContext,
+        const progressState = await createProgressStateForTest({
+            systemContext,
+            spaceId: space.id,
+            accountId: session.account.id,
+            mappedReferencesResult,
         });
 
         await uploadNotionImportFiles(
@@ -197,9 +249,11 @@ describe("uploadNotionImportFiles", () => {
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
-        const progressState = new NotionImporterProgressState({
-            notionImportId: generateId<NotionImportId>(),
-            context: systemContext,
+        const progressState = await createProgressStateForTest({
+            systemContext,
+            spaceId: space.id,
+            accountId: session.account.id,
+            mappedReferencesResult,
         });
 
         // Upload once.
@@ -273,9 +327,11 @@ describe("uploadNotionImportFiles", () => {
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
-        const progressState = new NotionImporterProgressState({
-            notionImportId: generateId<NotionImportId>(),
-            context: systemContext,
+        const progressState = await createProgressStateForTest({
+            systemContext,
+            spaceId: space.id,
+            accountId: session.account.id,
+            mappedReferencesResult,
         });
 
         // Should not throw even though one file is missing.
@@ -344,9 +400,11 @@ describe("uploadNotionImportFiles", () => {
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
-        const progressState = new NotionImporterProgressState({
-            notionImportId: generateId<NotionImportId>(),
-            context: systemContext,
+        const progressState = await createProgressStateForTest({
+            systemContext,
+            spaceId: space.id,
+            accountId: session.account.id,
+            mappedReferencesResult,
         });
 
         await uploadNotionImportFiles(
@@ -384,9 +442,11 @@ describe("uploadNotionImportFiles", () => {
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
-        const progressState = new NotionImporterProgressState({
-            notionImportId: generateId<NotionImportId>(),
-            context: systemContext,
+        const progressState = await createProgressStateForTest({
+            systemContext,
+            spaceId: space.id,
+            accountId: session.account.id,
+            mappedReferencesResult,
         });
 
         // Should complete without error.
@@ -448,9 +508,11 @@ describe("uploadNotionImportFiles", () => {
         };
 
         const systemContext = createSystemActionContext(space, importerModule);
-        const progressState = new NotionImporterProgressState({
-            notionImportId: generateId<NotionImportId>(),
-            context: systemContext,
+        const progressState = await createProgressStateForTest({
+            systemContext,
+            spaceId: space.id,
+            accountId: session.account.id,
+            mappedReferencesResult,
         });
 
         await uploadNotionImportFiles(

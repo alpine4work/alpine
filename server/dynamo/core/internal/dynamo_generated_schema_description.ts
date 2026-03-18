@@ -11451,6 +11451,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "startedProcessingTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "teamspaceImportOptions": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -11572,30 +11581,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "value": "Validated"
                                                             },
                                                             "optional": false
-                                                        }
-                                                    }
-                                                },
-                                                "ProcessQueued": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "ProcessQueued"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
-                                                },
-                                                "Processing": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "Processing"
-                                                            },
-                                                            "optional": false
                                                         },
                                                         "result": {
                                                             "valueSchema": {
@@ -11630,105 +11615,33 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         },
                                                                                         "optional": false
                                                                                     },
-                                                                                    "videos": {
-                                                                                        "valueSchema": {
-                                                                                            "type": "Object",
-                                                                                            "propertySchemaByKey": {
-                                                                                                "imported": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "expectedCount": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "size": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                }
-                                                                                            }
-                                                                                        },
-                                                                                        "optional": false
-                                                                                    },
-                                                                                    "images": {
-                                                                                        "valueSchema": {
-                                                                                            "type": "Object",
-                                                                                            "propertySchemaByKey": {
-                                                                                                "imported": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "expectedCount": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "size": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                }
-                                                                                            }
-                                                                                        },
-                                                                                        "optional": false
-                                                                                    },
-                                                                                    "audio": {
-                                                                                        "valueSchema": {
-                                                                                            "type": "Object",
-                                                                                            "propertySchemaByKey": {
-                                                                                                "imported": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "expectedCount": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "size": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
-                                                                                                }
-                                                                                            }
-                                                                                        },
-                                                                                        "optional": false
-                                                                                    },
                                                                                     "files": {
                                                                                         "valueSchema": {
-                                                                                            "type": "Object",
-                                                                                            "propertySchemaByKey": {
-                                                                                                "imported": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
+                                                                                            "type": "Map",
+                                                                                            "keySchema": {
+                                                                                                "type": "String"
+                                                                                            },
+                                                                                            "valueSchema": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "imported": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Integer"
+                                                                                                        },
+                                                                                                        "optional": false
                                                                                                     },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "expectedCount": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
+                                                                                                    "expectedCount": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Integer"
+                                                                                                        },
+                                                                                                        "optional": false
                                                                                                     },
-                                                                                                    "optional": false
-                                                                                                },
-                                                                                                "size": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Integer"
-                                                                                                    },
-                                                                                                    "optional": false
+                                                                                                    "size": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Integer"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
                                                                                                 }
                                                                                             }
                                                                                         },
@@ -11740,7 +11653,45 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "optional": false
                                                                     }
                                                                 },
-                                                                "referenceId": "253ce2f0"
+                                                                "referenceId": "3110e696"
+                                                            },
+                                                            "optional": true
+                                                        }
+                                                    }
+                                                },
+                                                "ProcessQueued": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "ProcessQueued"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "result": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "3110e696"
+                                                            },
+                                                            "optional": true
+                                                        }
+                                                    }
+                                                },
+                                                "Processing": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Processing"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "result": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "3110e696"
                                                             },
                                                             "optional": true
                                                         }
@@ -11759,7 +11710,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "result": {
                                                             "valueSchema": {
                                                                 "type": "Reference",
-                                                                "reuseReferenceId": "253ce2f0"
+                                                                "reuseReferenceId": "3110e696"
                                                             },
                                                             "optional": true
                                                         }
@@ -11784,7 +11735,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "result": {
                                                             "valueSchema": {
                                                                 "type": "Reference",
-                                                                "reuseReferenceId": "253ce2f0"
+                                                                "reuseReferenceId": "3110e696"
                                                             },
                                                             "optional": true
                                                         }

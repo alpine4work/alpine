@@ -798,25 +798,12 @@ function ImportProgressSummary({status}: {status: SchemaType<typeof NotionImport
                                 <PrettyNumber number={ts.documents.imported} label="document" />
                             </Box>
                         )}
-                        {ts.images.imported > 0 && (
-                            <Box>
-                                <PrettyNumber number={ts.images.imported} label="image" />
-                            </Box>
-                        )}
-                        {ts.videos.imported > 0 && (
-                            <Box>
-                                <PrettyNumber number={ts.videos.imported} label="video" />
-                            </Box>
-                        )}
-                        {ts.audio.imported > 0 && (
-                            <Box>
-                                <PrettyNumber number={ts.audio.imported} label="audio file" />
-                            </Box>
-                        )}
-                        {ts.files.imported > 0 && (
-                            <Box>
-                                <PrettyNumber number={ts.files.imported} label="file" />
-                            </Box>
+                        {[...ts.files.entries()].map(([contentType, fileStats]) =>
+                            fileStats.imported > 0 ? (
+                                <Box key={contentType}>
+                                    <PrettyNumber number={fileStats.imported} label={contentType} />
+                                </Box>
+                            ) : null,
                         )}
                     </Box>
                 </Box>

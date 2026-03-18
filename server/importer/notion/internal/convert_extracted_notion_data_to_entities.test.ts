@@ -29,6 +29,33 @@ import {DocumentId, FileId, NotionImportId} from "~/shared/id/types/id_types.js"
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
+ * Creates a state manager from a mapped references result by extracting the
+ * teamspace IDs. Requires context and notionImportId for DynamoDB persistence.
+ */
+function stateManagerFromResult({
+    notionImportId,
+    context,
+    mappedResult,
+}: {
+    notionImportId: NotionImportId;
+    context: ReturnType<TestSpace["systemAction"]>;
+    mappedResult: NotionImportMappedReferencesResult;
+}): NotionImporterProgressState {
+    return new NotionImporterProgressState({
+        notionImportId,
+        context,
+        initialResult: {
+            teamspaces: new Map(
+                mappedResult.teamspaces.map(ts => [
+                    ts.id,
+                    {documents: {imported: 0, expectedCount: 0}, files: new Map()},
+                ]),
+            ),
+        },
+    });
+}
+
+/**
  * Helper to properly unzip and map references from a test zip file. This uses the
  * disk-based flow (via test importer's in-memory storage) so that CSV files can be
  * read during conversion.
@@ -80,6 +107,7 @@ async function createTestNotionImportItemInDatabase(
         importZipSize: 1024,
         createdTime: new Date(),
         updatedTime: new Date(),
+        startedProcessingTime: new Date(),
         teamspaceImportOptions: null,
         status: {type: "Processing", result: {teamspaces: new Map()}},
         importedCount: 0,
@@ -206,7 +234,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Verify the document was created
@@ -253,7 +285,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const doc1 = await getDocument(space.systemAction(), doc1Id);
@@ -302,9 +338,10 @@ describe("convertExtractedNotionDataToEntities", () => {
                 ],
             });
 
-            const progressState = new NotionImporterProgressState({
+            const progressState = stateManagerFromResult({
                 notionImportId,
                 context: space.systemAction(),
+                mappedResult,
             });
 
             await convertExtractedNotionDataToEntities(
@@ -353,7 +390,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -392,7 +433,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -431,7 +476,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -486,7 +535,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const publicDoc = await getDocument(space.systemAction(), publicDocId);
@@ -531,7 +584,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -571,7 +628,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -610,7 +671,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -659,7 +724,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const childDocument = await getDocument(space.systemAction(), childId);
@@ -735,7 +804,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentId);
@@ -838,7 +911,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document1 = await getDocument(space.systemAction(), doc1Id);
@@ -918,7 +995,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const nestedDocument = await getDocument(space.systemAction(), nestedDocId);
@@ -994,7 +1075,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1068,7 +1153,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1143,7 +1232,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1217,7 +1310,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1286,7 +1383,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1354,7 +1455,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1418,7 +1523,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1481,7 +1590,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1601,7 +1714,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1695,7 +1812,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
         });
 
@@ -1725,7 +1846,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
         });
 
@@ -1762,7 +1887,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1812,7 +1941,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1858,7 +1991,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1883,9 +2020,10 @@ Related:
                 teamspaces: [],
             });
 
-            const progressState = new NotionImporterProgressState({
+            const progressState = stateManagerFromResult({
                 notionImportId,
                 context: space.systemAction(),
+                mappedResult,
             });
 
             await convertExtractedNotionDataToEntities(
@@ -1933,7 +2071,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1993,7 +2135,11 @@ Content under subsection.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2080,7 +2226,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDoc = await getDocument(space.systemAction(), parentId);
@@ -2156,7 +2306,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const childDoc = await getDocument(space.systemAction(), childId);
@@ -2235,7 +2389,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDoc = await getDocument(space.systemAction(), parentId);
@@ -2340,7 +2498,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2435,7 +2597,11 @@ Task 2,In Progress,Medium`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2574,7 +2740,11 @@ Bob,Designer`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2695,7 +2865,11 @@ Bob,Designer`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2795,7 +2969,11 @@ Write tests,Bob,2024-01-20`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), databaseDocId);
@@ -2895,7 +3073,11 @@ Here are some details.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDoc = await getDocument(space.systemAction(), parentId);
@@ -3003,7 +3185,11 @@ Here are some details.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document
@@ -3096,7 +3282,11 @@ Here are some details.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the parent document and database document
@@ -3190,7 +3380,11 @@ Here are some details.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the database .md document
@@ -3278,7 +3472,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find all documents
@@ -3435,7 +3633,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the database .md document ID
@@ -3503,7 +3705,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document IDs
@@ -3573,9 +3779,10 @@ Sprint completed successfully.`,
             const zipData = readFixture("JJ-Test-Flat.zip");
             const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
-            const progressState = new NotionImporterProgressState({
+            const progressState = stateManagerFromResult({
                 notionImportId,
                 context: space.systemAction(),
+                mappedResult,
             });
 
             await convertExtractedNotionDataToEntities(
@@ -3632,9 +3839,10 @@ Sprint completed successfully.`,
             const zipData = readFixture("Workspace-Flat.zip");
             const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
-            const progressState = new NotionImporterProgressState({
+            const progressState = stateManagerFromResult({
                 notionImportId,
                 context: space.systemAction(),
+                mappedResult,
             });
 
             await convertExtractedNotionDataToEntities(
@@ -3720,7 +3928,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // The teamspace root document has title "WorkspaceName | TeamspaceName" Find it by
@@ -3766,7 +3978,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document IDs
@@ -3858,7 +4074,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document IDs
@@ -4022,7 +4242,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4081,7 +4305,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4142,7 +4370,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4209,7 +4441,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4281,7 +4517,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4379,7 +4619,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4465,7 +4709,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the database document (the one with a table)
@@ -4615,7 +4863,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the database document
@@ -4795,7 +5047,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4854,7 +5110,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -4934,7 +5194,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -5033,7 +5297,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -5116,7 +5384,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -5209,7 +5481,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
@@ -5298,7 +5574,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
-                new NotionImporterProgressState({notionImportId, context: space.systemAction()}),
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>

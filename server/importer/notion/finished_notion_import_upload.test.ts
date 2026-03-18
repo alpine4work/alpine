@@ -118,7 +118,7 @@ test("throws if status is already Validated", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Validated" as const},
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
         }),
     );
 
@@ -254,7 +254,7 @@ test("throws when status is ProcessQueued", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "ProcessQueued" as const},
+            status: {type: "ProcessQueued" as const, result: {teamspaces: new Map()}},
         }),
     );
 

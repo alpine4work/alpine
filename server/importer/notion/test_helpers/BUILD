@@ -14,6 +14,5 @@ ts_project(
         "//:node_modules/fflate",
         "//server/importer/notion",
         "//shared/helpers",
-        "//shared/importer/notion",
     ],
 )

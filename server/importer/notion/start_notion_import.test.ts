@@ -70,7 +70,7 @@ test("startNotionImport transitions from Validated to ProcessQueued", async () =
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Validated" as const},
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
             workspaceName: "Test Workspace",
             teamspaceImportOptions: [],
         }),
@@ -109,7 +109,7 @@ test("startNotionImport triggers import via importer context module", async () =
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Validated" as const},
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
             workspaceName: "Test Workspace",
             teamspaceImportOptions: [],
         }),

@@ -1,7 +1,7 @@
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
-import {NotionImportUploadType} from "~/server/importer/notion/internal/upload_file_for_notion_import.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId} from "~/shared/id/types/id_types.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
@@ -11,6 +11,8 @@ export interface NotionImporterProgressStateConfig {
     context: ImporterServiceSystemActionContext;
     /** How often to persist state to DynamoDB (ms). Default: 1000. */
     persistIntervalMs?: number;
+    /** Expected statistics from the validation step. */
+    initialResult: NotionImportProcessingOrDoneResult;
 }
 
 /**
@@ -25,12 +27,10 @@ export class NotionImporterProgressState {
     private readonly notionImportId: NotionImportId;
     private readonly context: ImporterServiceSystemActionContext;
     private readonly persistIntervalMs: number;
+    private readonly initialResult: NotionImportProcessingOrDoneResult;
 
     /** Per-teamspace counters for tracking progress. */
-    readonly teamspaceCounters = new Map<
-        string,
-        {documents: number; videos: number; images: number; audio: number; files: number}
-    >();
+    readonly teamspaceCounters = new Map<string, {documents: number; files: Map<string, number>}>();
 
     /** Persistence loop interval handle. */
     private persistInterval: NodeJS.Timeout | null = null;
@@ -39,6 +39,14 @@ export class NotionImporterProgressState {
         this.notionImportId = config.notionImportId;
         this.context = config.context;
         this.persistIntervalMs = config.persistIntervalMs ?? 1000;
+        this.initialResult = config.initialResult;
+
+        for (const teamspaceId of config.initialResult.teamspaces.keys()) {
+            this.teamspaceCounters.set(teamspaceId, {
+                documents: 0,
+                files: new Map(),
+            });
+        }
     }
 
     /**
@@ -65,47 +73,20 @@ export class NotionImporterProgressState {
      * Increment the document counter for a teamspace.
      */
     incrementDocumentCounter(teamspaceId: string, count: number = 1): void {
-        this.getOrCreateCounters(teamspaceId).documents += count;
+        assertExists(this.teamspaceCounters.get(teamspaceId)).documents += count;
     }
 
     /**
-     * Increment an upload counter for the given type in a teamspace.
+     * Increment the file counter for a mimetype in a teamspace.
      */
-    incrementUploadCounter(
+    incrementFileCounter(
         teamspaceId: string,
-        type: NotionImportUploadType,
+        contentType: FileContentType,
         count: number = 1,
     ): void {
-        const counters = this.getOrCreateCounters(teamspaceId);
-        switch (type) {
-            case "Videos":
-                counters.videos += count;
-                break;
-            case "Images":
-                counters.images += count;
-                break;
-            case "Audio":
-                counters.audio += count;
-                break;
-            case "Files":
-                counters.files += count;
-                break;
-        }
-    }
-
-    private getOrCreateCounters(teamspaceId: string): {
-        documents: number;
-        videos: number;
-        images: number;
-        audio: number;
-        files: number;
-    } {
-        let counters = this.teamspaceCounters.get(teamspaceId);
-        if (!counters) {
-            counters = {documents: 0, videos: 0, images: 0, audio: 0, files: 0};
-            this.teamspaceCounters.set(teamspaceId, counters);
-        }
-        return counters;
+        const counters = assertExists(this.teamspaceCounters.get(teamspaceId));
+        const current = counters.files.get(contentType) ?? 0;
+        counters.files.set(contentType, current + count);
     }
 
     private startPersistLoop(): void {
@@ -167,27 +148,41 @@ export class NotionImporterProgressState {
     }
 
     /**
-     * Build the result object from current counters.
+     * Build the result object by merging current counters with expected statistics
+     * from the validation step.
      */
     private buildResult(): NotionImportProcessingOrDoneResult {
         const teamspaces = new Map<
             string,
             {
                 documents: {imported: number; expectedCount: number};
-                videos: {imported: number; expectedCount: number; size: number};
-                images: {imported: number; expectedCount: number; size: number};
-                audio: {imported: number; expectedCount: number; size: number};
-                files: {imported: number; expectedCount: number; size: number};
+                files: Map<string, {imported: number; expectedCount: number; size: number}>;
             }
         >();
 
-        for (const [teamspaceId, counters] of this.teamspaceCounters) {
+        for (const [teamspaceId, expected] of this.initialResult.teamspaces) {
+            const counters = assertExists(this.teamspaceCounters.get(teamspaceId));
+
+            const files = new Map<
+                string,
+                {imported: number; expectedCount: number; size: number}
+            >();
+
+            for (const [contentType, expectedFile] of expected.files) {
+                const importedCount = counters.files.get(contentType) ?? 0;
+                files.set(contentType, {
+                    imported: importedCount,
+                    expectedCount: expectedFile.expectedCount,
+                    size: expectedFile.size,
+                });
+            }
+
             teamspaces.set(teamspaceId, {
-                documents: {imported: counters.documents, expectedCount: 0},
-                videos: {imported: counters.videos, expectedCount: 0, size: 0},
-                images: {imported: counters.images, expectedCount: 0, size: 0},
-                audio: {imported: counters.audio, expectedCount: 0, size: 0},
-                files: {imported: counters.files, expectedCount: 0, size: 0},
+                documents: {
+                    imported: counters.documents,
+                    expectedCount: expected.documents.expectedCount,
+                },
+                files,
             });
         }
 

@@ -4,6 +4,9 @@ import {join} from "path";
 import {getDocument, getDocumentsTableForTest} from "~/server/documents/data/documents_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/internal/compute_notion_import_expected_statistics.js";
+import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
+import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {
@@ -19,9 +22,11 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 
 const context = createTestContext({
     // Inject search so mentions can be resolved when getting documents
@@ -111,6 +116,37 @@ async function findDocumentByTitle(
     return docs.find(doc => doc.title === title);
 }
 
+/**
+ * Computes the validated result (expected statistics per teamspace) from a test
+ * zip, matching what the validation step would produce in production.
+ *
+ * This calls production code directly. The correctness of
+ * `computeNotionImportExpectedStatistics` and getNotionImportMetadata is tested
+ * separately; here we use it to get realistic initial state for testing the actual
+ * import.
+ */
+function createProcessQueuedTestResult(zip: Uint8Array): NotionImportProcessingOrDoneResult {
+    const rawFiles = assertExists(findNotionImportRoot(zip));
+    const indexHtmlKey = assertExists(
+        Object.keys(rawFiles).find(key => key.endsWith("/index.html") || key === "index.html"),
+    );
+
+    const indexHtmlContent = rawFiles[indexHtmlKey]!;
+    const metadata = assertExists(getNotionImportMetadata(indexHtmlContent));
+
+    const teamspaceNameById =
+        metadata.teamspaceNameById.size > 0
+            ? metadata.teamspaceNameById
+            : new Map([["default", metadata.workspaceName]]);
+
+    return computeNotionImportExpectedStatistics(
+        rawFiles,
+        indexHtmlContent,
+        teamspaceNameById,
+        metadata.workspaceId,
+    );
+}
+
 async function importedFixtureSpaceItemsToString(
     space: TestSpace,
     session: TestSession,
@@ -131,8 +167,9 @@ async function importedFixtureSpaceItemsToString(
         importKey,
         createdTime: new Date(),
         updatedTime: new Date(),
+        startedProcessingTime: null,
         teamspaceImportOptions: null,
-        status: {type: "ProcessQueued"},
+        status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
         importedCount: 0,
         importZipSize: 1024,
     });
@@ -305,8 +342,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -363,8 +401,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -429,8 +468,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -655,8 +695,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -957,8 +998,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1078,8 +1120,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1214,8 +1257,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1237,30 +1281,29 @@ describe("processStartNotionImportJob", () => {
         test("Media-Export-Flat.zip final upload state", async () => {
             const status = await importFixtureAndGetResult("Media-Export-Flat.zip");
 
-            expect(status).toMatchObject({type: "Success"});
-            expect(
-                (status as any).result.teamspaces.get("ed5ae4dfdc9b814faf5400032de29467"),
-            ).toMatchObject({
-                documents: {imported: 11, expectedCount: 0},
-                images: {imported: 6, expectedCount: 0, size: 0},
-                videos: {imported: 3, expectedCount: 0, size: 0},
-                audio: {imported: 0, expectedCount: 0, size: 0},
-                files: {imported: 3, expectedCount: 0, size: 0},
+            assert(status.type === "Success");
+            expect(status.result.teamspaces.get("ed5ae4dfdc9b814faf5400032de29467")).toEqual({
+                documents: {imported: 11, expectedCount: 10},
+                files: new Map([
+                    ["application/octet-stream", {expectedCount: 3, imported: 3, size: 837399}],
+                    ["image/jpeg", {expectedCount: 3, imported: 3, size: 977085}],
+                    ["image/png", {expectedCount: 3, imported: 3, size: 3746532}],
+                    ["video/mp4", {expectedCount: 3, imported: 3, size: 4381020}],
+                ]),
             });
         });
 
         test("JJ-Test-Flat.zip final upload state", async () => {
             const status = await importFixtureAndGetResult("JJ-Test-Flat.zip");
 
-            expect(status).toMatchObject({type: "Success"});
-            expect(
-                (status as any).result.teamspaces.get("00f80a22fe3781a094cb00034a90e2b8"),
-            ).toMatchObject({
-                documents: {imported: 33, expectedCount: 0},
-                images: {imported: 10, expectedCount: 0, size: 0},
-                videos: {imported: 1, expectedCount: 0, size: 0},
-                audio: {imported: 0, expectedCount: 0, size: 0},
-                files: {imported: 0, expectedCount: 0, size: 0},
+            assert(status.type === "Success");
+            expect(status.result.teamspaces.get("00f80a22fe3781a094cb00034a90e2b8")).toEqual({
+                documents: {imported: 33, expectedCount: 32},
+                files: new Map([
+                    ["image/jpeg", {expectedCount: 2, imported: 2, size: 750073}],
+                    ["image/png", {expectedCount: 8, imported: 8, size: 1761071}],
+                    ["video/mp4", {expectedCount: 1, imported: 1, size: 1460340}],
+                ]),
             });
         });
 
@@ -1299,8 +1342,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1371,8 +1415,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1405,7 +1450,7 @@ describe("processStartNotionImportJob", () => {
                 {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
                 item => ({
                     ...item!,
-                    status: {type: "ProcessQueued"},
+                    status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                     importedCount: 0,
                 }),
             );
@@ -1422,10 +1467,9 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            // All documents should be skipped (empty teamspaces map)
             expect(secondImportItem.status).toMatchObject({
                 type: "Success",
-                result: {teamspaces: new Map()},
+                result: {teamspaces: expect.any(Map)},
             });
 
             // Get documents after second import
@@ -1472,8 +1516,9 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1510,7 +1555,7 @@ describe("processStartNotionImportJob", () => {
                 {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
                 item => ({
                     ...item!,
-                    status: {type: "ProcessQueued"},
+                    status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                     importedCount: 0,
                 }),
             );
@@ -1526,10 +1571,9 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            // All documents should be skipped (empty teamspaces map)
             expect(secondImportItem.status).toMatchObject({
                 type: "Success",
-                result: {teamspaces: new Map()},
+                result: {teamspaces: expect.any(Map)},
             });
 
             // Get documents after second import
@@ -1577,8 +1621,9 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1687,8 +1732,9 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1920,8 +1966,9 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -2051,8 +2098,9 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -2131,8 +2179,9 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -2211,8 +2260,9 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                status: {type: "ProcessQueued", result: {teamspaces: new Map()}},
                 importedCount: 0,
                 importZipSize: 1024,
             });

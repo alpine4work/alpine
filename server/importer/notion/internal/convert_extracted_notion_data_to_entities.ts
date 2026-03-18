@@ -16,6 +16,10 @@ import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/not
 import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
+import {
+    decodeNotionImportRelativePathUrl,
+    resolveNotionImportFileLinkPath,
+} from "~/server/importer/notion/internal/resolve_notion_import_file_link_path.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
@@ -482,7 +486,7 @@ function convertFilePathsToMarkdownImageLines(
             }
 
             // Extract filename from path
-            const fileName = decodeRelativePathUrl(part.split("/").pop() ?? part);
+            const fileName = decodeNotionImportRelativePathUrl(part.split("/").pop() ?? part);
 
             // Convert to markdown image syntax: ![filename](path)
             return `![${fileName}](${part})`;
@@ -908,30 +912,9 @@ function resolveFileLinkPath(
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
 ): string | null {
-    // Skip external URLs
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-        return null;
-    }
-
-    // Decode URL-encoded characters in the markdown link path (e.g. `%20` → space) to
-    // match filesystem paths.
-    let path = decodeRelativePathUrl(url);
-    if (path.startsWith("./")) {
-        path = path.slice(2);
-    }
-
-    // Try direct match first (for absolute or root-relative paths)
-    if (filesToUpload[path]) {
-        return path;
-    }
-
-    // Resolve relative path against current document's directory
-    const resolved = resolveNotionImportRelativePath(currentDir, path);
-    if (resolved && filesToUpload[resolved]) {
-        return resolved;
-    }
-
-    return null;
+    return resolveNotionImportFileLinkPath(url, currentDir, {
+        has: (path: string) => path in filesToUpload,
+    });
 }
 
 /**
@@ -1268,7 +1251,7 @@ async function transformCsvLinksToTables(
                     if (linkMark && "url" in linkMark) {
                         const url = linkMark.url;
                         if (url.endsWith(".csv")) {
-                            const decodedUrl = decodeRelativePathUrl(url);
+                            const decodedUrl = decodeNotionImportRelativePathUrl(url);
                             const normalizedPath = decodedUrl.startsWith("./")
                                 ? decodedUrl.slice(2)
                                 : decodedUrl;
@@ -1360,7 +1343,7 @@ function transformMdLinksToMentions(
             if (!url.endsWith(".md")) return;
 
             // Convert .md link to document mention
-            const decodedUrl = decodeRelativePathUrl(url);
+            const decodedUrl = decodeNotionImportRelativePathUrl(url);
             const normalizedPath = decodedUrl.startsWith("./") ? decodedUrl.slice(2) : decodedUrl;
 
             let documentId = pathToDocumentId.get(normalizedPath);
@@ -1399,20 +1382,4 @@ function transformMdLinksToMentions(
             }
         },
     });
-}
-
-/**
- * Decode a URL-encoded relative path from a Notion markdown link into a filesystem
- * path. Notion exports URL-encode special characters in link targets (e.g. spaces
- * become `%20`), but the actual filenames in the zip are not encoded.
- *
- * Handles lone `%` characters that aren't valid percent-encoded sequences by
- * escaping them as `%25` before decoding, so a filename like `100% Done.md`
- * decodes correctly instead of throwing.
- */
-function decodeRelativePathUrl(url: string): string {
-    // Replace lone `%` (not followed by two hex digits) with `%25` so
-    // `decodeURIComponent` treats them as literal `%`.
-    const sanitized = url.replace(/%(?![0-9A-Fa-f]{2})/g, "%25");
-    return decodeURIComponent(sanitized);
 }

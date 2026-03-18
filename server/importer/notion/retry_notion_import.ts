@@ -44,21 +44,30 @@ export async function retryNotionImport(
 
                 if (existingItem.status.type !== "Failed") {
                     throw new FailedPreconditionError(
-                        `Cannot retry import with status \u201C${existingItem.status.type}\u201D. ` +
+                        `Can\u2019t retry import with status \u201C${existingItem.status.type}\u201D. ` +
                             `Only failed imports can be retried.`,
+                    );
+                }
+
+                if (!("result" in existingItem.status)) {
+                    throw new FailedPreconditionError(
+                        `Can\u2019t retry an import that hasn\u2019t been validated.`,
                     );
                 }
 
                 if (existingItem.createdTime < retentionCutoff) {
                     throw new FailedPreconditionError(
-                        `Cannot retry import. The uploaded file has been deleted after ` +
+                        `Can\u2019t retry import. The uploaded file has been deleted after ` +
                             `${fileRetentionDays} days. Please upload a new file.`,
                     );
                 }
 
                 return {
                     ...existingItem,
-                    status: {type: "ProcessQueued" as const},
+                    status: {
+                        type: "ProcessQueued" as const,
+                        result: existingItem.status.result,
+                    },
                     updatedTime: now,
                 };
             },
