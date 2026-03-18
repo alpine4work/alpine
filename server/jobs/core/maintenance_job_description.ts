@@ -87,4 +87,13 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
     SendAllPendingSubtleNotifications: Schema.object({
         type: Schema.value("SendAllPendingSubtleNotifications"),
     }),
+
+    CreateLoopContact: Schema.object({
+        type: Schema.value("CreateLoopContact"),
+        emailAddress: EmailAddressSchema,
+        accountId: Schema.id<AccountId>(),
+        firstName: Schema.string,
+        lastName: Schema.string.optional(),
+        fullName: Schema.string.optional(),
+    }),
 });

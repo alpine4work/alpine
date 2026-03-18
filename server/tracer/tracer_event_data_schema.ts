@@ -655,6 +655,9 @@ const TracerEventDataSchema = {
             },
         },
     },
+    loops: {
+        contactId: Schema.string,
+    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**

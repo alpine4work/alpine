@@ -1928,6 +1928,13 @@ export type TracerEventData = {
             };
         };
     };
+
+    /**
+     * Information we get from the Loops API.
+     */
+    readonly loops?: {
+        readonly contactId?: string;
+    };
 };
 
 /**

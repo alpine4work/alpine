@@ -76,6 +76,7 @@ process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const openAiDevApiKey = env.OPEN_AI_DEV_API_KEY;
 const logoDevSecretKey = env.LOGO_DEV_SECRET_KEY;
+const loopsApiKey = env.LOOPS_API_KEY;
 const logoDevPublishableKey = env.LOGO_DEV_PUBLISHABLE_KEY;
 const cursorAgentSmeeWebhookUrl = env.CURSOR_AGENT_SMEE_WEBHOOK_URL;
 
@@ -568,6 +569,7 @@ async function createArtifacts() {
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--kinesisTracerStreamName=${kinesisTracerStreamName}`,
+                ...(loopsApiKey ? [`--loopsApiKey=${loopsApiKey}`] : []),
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

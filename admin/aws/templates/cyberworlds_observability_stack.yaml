@@ -422,6 +422,10 @@ Resources:
                           Type: string
                         - Name: http__request__header__cyberworlds_transient_error
                           Type: string
+                        - Name: http__request__header__x_ratelimit_limit
+                          Type: string
+                        - Name: http__request__header__x_ratelimit_remaining
+                          Type: string
                         - Name: http__request__obfuscated_cookie_header
                           Type: string
                         - Name: http__response__header__accept
@@ -589,6 +593,10 @@ Resources:
                         - Name: http__response__header__cyberworlds_route
                           Type: string
                         - Name: http__response__header__cyberworlds_transient_error
+                          Type: string
+                        - Name: http__response__header__x_ratelimit_limit
+                          Type: string
+                        - Name: http__response__header__x_ratelimit_remaining
                           Type: string
                         - Name: http__response__obfuscated_set_cookie_header
                           Type: string
@@ -1701,6 +1709,8 @@ Resources:
                         - Name: cursor__cloud_agents__webhook__id
                           Type: string
                         - Name: cursor__cloud_agents__webhook__event
+                          Type: string
+                        - Name: loops__contact_id
                           Type: string
                     InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
                     Location:

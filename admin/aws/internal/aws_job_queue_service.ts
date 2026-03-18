@@ -289,6 +289,7 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "cloudflareR2SecretAccessKey",
                 ),
+                LOOPS_API_KEY: EcsSecret.fromSecretsManager(secrets, "loopsApiKey"),
             },
             environment: {
                 NODE_ENV: "production",
@@ -341,6 +342,7 @@ export class AwsJobQueueService extends Construct {
                 "--slackClientId=$SLACK_CLIENT_ID",
                 "--slackClientSecret=$SLACK_CLIENT_SECRET",
                 "--githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY",
+                "--loopsApiKey=$LOOPS_API_KEY",
             ],
             healthCheck: {
                 command: [

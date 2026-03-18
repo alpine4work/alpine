@@ -16,6 +16,7 @@ import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_conte
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
+import {LoopsContextModuleBase} from "~/server/spaces/loops_context_module.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -33,6 +34,7 @@ type TestContextExtraModules = {
     importerService: ImporterServiceContextModuleBase;
     slack: SlackContextModuleBase;
     logoDev: LogoDevContextModuleBase;
+    loops: LoopsContextModuleBase;
 };
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;

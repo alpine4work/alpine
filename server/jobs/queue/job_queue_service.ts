@@ -75,6 +75,11 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {
+    LoopsContextModule,
+    LoopsContextModuleBase,
+    LoopsNoopContextModule,
+} from "~/server/spaces/loops_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     createServiceTaskRealtimeServiceRouter,
@@ -113,6 +118,7 @@ export const options = {
     githubAppClientId: {type: "string"},
     githubAppClientSecret: {type: "string"},
     githubAppInstallationId: {type: "string"},
+    loopsApiKey: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
@@ -307,6 +313,22 @@ export async function run({
                   ),
               });
 
+    let loopsContextModule: LoopsContextModuleBase;
+    if (process.env.NODE_ENV === "production") {
+        loopsContextModule = new LoopsContextModule({
+            apiKey: assertExists(
+                options.loopsApiKey,
+                "`loopsApiKey` option is required in production",
+            ),
+        });
+    } else {
+        loopsContextModule = !options.loopsApiKey
+            ? new LoopsNoopContextModule()
+            : new LoopsContextModule({
+                  apiKey: options.loopsApiKey,
+              });
+    }
+
     // Jobs are already processed in a system context so this isn't actually an
     // escalation but we still need it for compatibility.
     //
@@ -355,6 +377,7 @@ export async function run({
             router: createServiceTaskRealtimeServiceRouter(options),
             dangerouslyEscalateToSystemContext,
         }),
+
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
@@ -375,6 +398,7 @@ export async function run({
         botWebhook: new BotWebhookContextModule(tokenAgent),
         webPush: webPushContextModule,
         slack: slackContextModule,
+        loops: loopsContextModule,
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

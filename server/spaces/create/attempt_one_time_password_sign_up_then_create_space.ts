@@ -19,7 +19,11 @@ import {
 } from "~/server/spaces/internal/spaces_table.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {
+    getAccountShortNameWithoutFullNameTooltip,
+    parseAccountNameAssumingWesternNameOrder,
+} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {getEmailDomainForAutoAddSpaceAccounts} from "~/shared/accounts/get_email_domain_for_auto_add_space_accounts.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -79,32 +83,34 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
           })
         : null;
 
-    const [{personalSpaceResult, autoAddToEmailDomainSpaceResult}, {sessionId, sessionAccountId}] =
-        await attemptOneTimePasswordSignInWithAction(
-            context,
-            emailAddress,
-            oneTimePassword,
-            options,
-            async (accountEmailAddressItem, span) => {
-                return context
-                    .clone({tracer: new TracerContextModule(span)})
-                    .tracer.withSpan("Create space after sign up", context => {
-                        let hasAlreadyAttempted = false;
+    const [
+        {account, personalSpaceResult, autoAddToEmailDomainSpaceResult},
+        {sessionId, sessionAccountId},
+    ] = await attemptOneTimePasswordSignInWithAction(
+        context,
+        emailAddress,
+        oneTimePassword,
+        options,
+        async (accountEmailAddressItem, span) => {
+            return context
+                .clone({tracer: new TracerContextModule(span)})
+                .tracer.withSpan("Create space after sign up", context => {
+                    let hasAlreadyAttempted = false;
 
-                        return context.dynamo.retryTransaction(context => {
-                            const isInitialAttempt = !hasAlreadyAttempted;
-                            hasAlreadyAttempted = true;
+                    return context.dynamo.retryTransaction(context => {
+                        const isInitialAttempt = !hasAlreadyAttempted;
+                        hasAlreadyAttempted = true;
 
-                            return createSpace(
-                                context,
-                                span,
-                                accountEmailAddressItem,
-                                isInitialAttempt,
-                            );
-                        });
+                        return createSpace(
+                            context,
+                            span,
+                            accountEmailAddressItem,
+                            isInitialAttempt,
+                        );
                     });
-            },
-        );
+                });
+        },
+    );
 
     const inviteEmailAddressesToPersonalSpace: Array<string> = [];
     const inviteEmailAddressesToAutoAddToEmailDomainSpace: Array<string> = [];
@@ -191,6 +197,22 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                   invitedAccountIds: invitedAutoAddToEmailDomainAccountIds ?? emptyArray,
               })
             : null,
+
+        (async () => {
+            const {givenName, familyName} = parseAccountNameAssumingWesternNameOrder(
+                account.initialData.name,
+            );
+
+            // Put loop contact creation on the job queue so it doesn't block the response.
+            await context.jobs.dangerouslySendMaintenance({
+                type: "CreateLoopContact",
+                emailAddress,
+                firstName: givenName,
+                lastName: familyName ?? undefined,
+                fullName: account.initialData.name,
+                accountId: sessionAccountId,
+            });
+        })(),
     ]);
 
     let openSpaceId: SpaceId;
@@ -225,6 +247,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         {accountId}: {accountId: AccountId},
         isInitialAttempt: boolean,
     ): Promise<{
+        account: AccountModelWithoutSpace;
         personalSpaceResult: Replace<
             CreateSpaceResult,
             {welcomePackageItem: SpaceWelcomePackageItem}
@@ -627,6 +650,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
         return {
+            account,
             personalSpaceResult,
             autoAddToEmailDomainSpaceResult,
         };

@@ -18,6 +18,8 @@ export function getErrorCodeForHttpStatusCode(statusCode: number): ErrorCode {
             return ErrorCode.PermissionDenied;
         case 404:
             return ErrorCode.NotFound;
+        case 429:
+            return ErrorCode.ResourceExhausted;
         default:
             return statusCode >= 500 ? ErrorCode.Internal : ErrorCode.Unknown;
     }

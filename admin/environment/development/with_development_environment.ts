@@ -60,6 +60,7 @@ import {
     LogoDevContextModule,
     LogoDevNoopContextModule,
 } from "~/server/spaces/logo_dev_context_module.js";
+import {LoopsContextModule, LoopsNoopContextModule} from "~/server/spaces/loops_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     TestAnonymousActionContext,
@@ -280,6 +281,9 @@ export async function withDevelopmentEnvironment<Value>(
                       publishableKey: env.LOGO_DEV_PUBLISHABLE_KEY,
                   })
                 : new LogoDevNoopContextModule(),
+        loops: env.LOOPS_API_KEY
+            ? new LoopsContextModule({apiKey: env.LOOPS_API_KEY})
+            : new LoopsNoopContextModule(),
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),

@@ -45,6 +45,10 @@ export async function processMaintenanceJob(
             await processSendAllPendingSubtleNotificationsJob(context, jobStartTime);
             return;
         }
+        case "CreateLoopContact": {
+            await context.loops.createContact(job);
+            return;
+        }
         default: {
             throw exhaustive(job);
         }

@@ -67,7 +67,9 @@ type TracerEventHttpHeaderNameMap = {
     "x-powered-by": true;
     "x-ua-compatible": true;
     "x-xss-protection": true;
+
     // AWS headers
+    //
     // https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonRequestHeaders.html
     // https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonResponseHeaders.html
     "content-md5": true;
@@ -75,7 +77,9 @@ type TracerEventHttpHeaderNameMap = {
     "x-amz-content-sha256": true;
     "x-amz-id-2": true;
     "x-amz-request-id": true;
+
     // Cloudflare headers
+    //
     // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers/
     "cf-connecting-ip": true;
     "cf-connecting-ipv6": true;
@@ -85,10 +89,14 @@ type TracerEventHttpHeaderNameMap = {
     "cf-ipcountry": true;
     "cdn-loop": true;
     "cf-worker": true;
+
     // Cloudflare cache status header
+    //
     // https://developers.cloudflare.com/cache/concepts/cache-responses
     "cf-cache-status": true;
+
     // APNs headers
+    //
     // https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
     // https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
     "apns-push-type": true;
@@ -98,6 +106,7 @@ type TracerEventHttpHeaderNameMap = {
     "apns-topic": true;
     "apns-collapse-id": true;
     "apns-unique-id": true;
+
     // Remix headers
     "x-remix-catch": true;
     "x-remix-error": true;
@@ -105,12 +114,19 @@ type TracerEventHttpHeaderNameMap = {
     "x-remix-reload-document": true;
     "x-remix-revalidate": true;
     "x-remix-status": true;
+
     // Cyberworlds custom headers
     "cyberworlds-durable-object-id-name": true;
     "cyberworlds-durable-object-if-initialized": true;
     "cyberworlds-space-id-hint": true;
     "cyberworlds-route": true;
     "cyberworlds-transient-error": true;
+
+    // Loops headers
+    //
+    // https://loops.so/docs/api-reference/intro#rate-limiting-details
+    "x-ratelimit-limit": true;
+    "x-ratelimit-remaining": true;
 };
 
 const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
@@ -197,6 +213,8 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "cyberworlds-space-id-hint": true,
     "cyberworlds-route": true,
     "cyberworlds-transient-error": true,
+    "x-ratelimit-limit": true,
+    "x-ratelimit-remaining": true,
 };
 
 /**
