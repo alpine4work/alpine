@@ -1088,7 +1088,7 @@ Resources:
         Properties:
             FlexibleTimeWindow:
                 Mode: OFF
-            ScheduleExpression: cron(58 * * * ? *)
+            ScheduleExpression: cron(13,28,43,58 * * * ? *)
             ScheduleExpressionTimezone: Etc/UTC
             State: ENABLED
             Target:

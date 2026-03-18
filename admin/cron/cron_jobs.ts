@@ -67,12 +67,13 @@ export const cronJobs: ReadonlyArray<CronJob> = [
     },
 
     // Enqueue scheduled notification digests. We want users to receive their
-    // notification digest as close to the scheduled time as possible, so this runs at
-    // 2 minutes before the hour to allow for processing time.
+    // notification digest as close to the scheduled time as possible, so this runs
+    // every 15 minutes at 2 minutes before the 15-minute mark (e.g. 1:13, 1:28, 1:43,
+    // 1:58) to allow for processing time.
     {
         name: "EnqueueScheduledNotificationDigests",
         cron: {
-            minute: "58",
+            minute: "13,28,43,58",
         },
         job: {type: "EnqueueScheduledNotificationDigests"},
     },

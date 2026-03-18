@@ -278,8 +278,8 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
-     * ScheduleDateTime acts just like Date, but enforces that the time is truncated to
-     * the nearest minute and its string representation is in the format
+     * ScheduleDateTime acts just like Date, but enforces that the time is rounded up
+     * to the nearest quarter hour and its string representation is in the format
      * "YYYY-MM-DDTHH:mm:ss.SSSZ".
      */
     public static ScheduleDateTime = new DynamoKeyAttributeSchema<ScheduleDateTime>({
@@ -301,7 +301,6 @@ export class DynamoKeyAttributeSchema<Value> {
                 view.setBigInt64(
                     byteOffset,
                     // We use a bigint since safe JavaScript integers can go up to 2^53.
-
                     BigInt(serializeScheduleDateTime(value).getTime()),
                     // It is important that we store in big endian format so that when comparing bytes
                     // without knowledge of the type we get the correct order.

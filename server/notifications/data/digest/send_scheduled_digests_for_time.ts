@@ -1,4 +1,3 @@
-import {fromDate} from "@internationalized/date";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
@@ -24,10 +23,7 @@ export async function sendScheduledDigestsForTime(
     return context.tracer.withSpan(
         "Send scheduled notification digests for time",
         async (context, span) => {
-            // Round to the next hour to match index partition keys.
-            const sendTime = serializeScheduleDateTime(
-                fromDate(digestTime, "UTC").add({hours: 1}).toDate(),
-            );
+            const sendTime = serializeScheduleDateTime(digestTime);
             span.addData({
                 notifications: {
                     emailDigest: {

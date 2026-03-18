@@ -243,6 +243,16 @@ describe("computeDigestNotificationsNextScheduledDateTime", () => {
                 tzString: "Europe/Kyiv",
                 calendarDate: "2024-01-15",
             },
+            {
+                description: "Asia Kolkata Time, +30 minute offset",
+                tzString: "Asia/Kolkata",
+                calendarDate: "2024-01-15",
+            },
+            {
+                description: "Australian Central Western Time, +45 minute offset",
+                tzString: "Australia/Eucla",
+                calendarDate: "2024-01-15",
+            },
         ])(
             "Gets the correct next scheduled time for each time zone",
             ({description, tzString, calendarDate}) => {
@@ -1349,7 +1359,7 @@ describe("sendScheduledDigestsForTime", () => {
     afterEach(async () => {
         await context.resetDynamoLocal();
     });
-    test("should send digests for the given digestTime that is already rounded to the nearest hour", async () => {
+    test("should send digests for a send time that is already rounded to the nearest quarter hour", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1366,14 +1376,14 @@ describe("sendScheduledDigestsForTime", () => {
             lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: null,
-            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T20:30:00.000Z") as any,
         });
-        const sendTime = new Date("2025-10-15T20:15:00.000Z");
+        const sendTime = new Date("2025-10-15T20:30:00.000Z");
         await sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime);
         expect(sendNotificationDigestMock).toHaveBeenCalled();
     });
 
-    test("should send digests for a digestTime with non-zero seconds or milliseconds", async () => {
+    test("should send digests for a send time with non-zero seconds or milliseconds", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1390,14 +1400,14 @@ describe("sendScheduledDigestsForTime", () => {
             lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: null,
-            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T20:15:00.000Z") as any,
         });
         const sendTime = new Date("2025-10-15T20:01:02.123Z");
         await sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime);
         expect(sendNotificationDigestMock).toHaveBeenCalled();
     });
 
-    test("should throw if digestTime is not a valid date", async () => {
+    test("should throw if send time is not a valid date", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1423,7 +1433,7 @@ describe("sendScheduledDigestsForTime", () => {
         expect(sendNotificationDigestMock).not.toHaveBeenCalled();
     });
 
-    test("should throw if sendTime is not a valid scheduleDateTime", async () => {
+    test("should throw if send time is not a valid ScheduleDateTime", async () => {
         const emailSpy = import.meta.jest.spyOn(
             EmailContextModule.NoopEmailContextModule.prototype,
             "send",

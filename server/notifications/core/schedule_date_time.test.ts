@@ -89,22 +89,22 @@ describe("serializeScheduleDateTime", () => {
         expect(result.toISOString()).toBe("2023-12-25T15:00:00.000Z");
     });
 
-    test("returns valid ScheduleDateTime after truncating minutes", () => {
-        const dateWithSeconds = new Date("2023-12-25T15:01:00.123Z");
-        const result = serializeScheduleDateTime(dateWithSeconds);
-        expect(isScheduleDateTime(result)).toBe(true);
+    test("rounds up minutes to next quarter hour", () => {
+        const dateWithMinutes = new Date("2023-12-25T15:01:00.123Z");
+        const result = serializeScheduleDateTime(dateWithMinutes);
+        expect(result.toISOString()).toBe("2023-12-25T15:15:00.000Z");
     });
 
-    test("returns valid ScheduleDateTime after truncating seconds", () => {
-        const dateWithSeconds = new Date("2023-12-25T15:00:45.123Z");
-        const result = serializeScheduleDateTime(dateWithSeconds);
-        expect(isScheduleDateTime(result)).toBe(true);
+    test("truncates milliseconds then preserves quarter hour", () => {
+        const dateWithMilliseconds = new Date("2023-12-25T15:00:00.123Z");
+        const result = serializeScheduleDateTime(dateWithMilliseconds);
+        expect(result.toISOString()).toBe("2023-12-25T15:00:00.000Z");
     });
 
-    test("returns valid ScheduleDateTime after truncating milliseconds", () => {
-        const dateWithSeconds = new Date("2023-12-25T15:00:00.123Z");
-        const result = serializeScheduleDateTime(dateWithSeconds);
-        expect(isScheduleDateTime(result)).toBe(true);
+    test("rounds up 11:48pm to 12:00am next day", () => {
+        const date = new Date("2023-12-25T23:48:00.000Z");
+        const result = serializeScheduleDateTime(date);
+        expect(result.toISOString()).toBe("2023-12-26T00:00:00.000Z");
     });
 
     test("converts EST timezone offset to UTC correctly", () => {
@@ -127,57 +127,57 @@ describe("serializeScheduleDateTime", () => {
 
 describe("deserializeScheduleDateTime", () => {
     test("preserves ISO string format after deserialization", () => {
-        const ScheduleDateTime = serializeScheduleDateTime(new Date("2023-12-25T15:00:00.000Z"));
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(new Date("2023-12-25T15:00:00.000Z"));
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.toISOString()).toBe("2023-12-25T15:00:00.000Z");
     });
 
     test("preserves year from original date", () => {
         const originalDate = new Date("2024-06-15T09:00:00.000Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.getFullYear()).toBe(2024);
     });
 
     test("preserves month from original date (0-based)", () => {
         const originalDate = new Date("2024-06-15T09:00:00.000Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.getMonth()).toBe(5); // 0-based months
     });
 
     test("preserves day of month from original date", () => {
         const originalDate = new Date("2024-06-15T09:00:00.000Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.getDate()).toBe(15);
     });
 
     test("preserves hours from original date", () => {
         const originalDate = new Date("2024-06-15T09:00:00.000Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.getUTCHours()).toBe(9);
     });
 
-    test("ensures minutes are zero after deserialization", () => {
-        const originalDate = new Date("2024-06-15T09:45:00.000Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
-        expect(result.getUTCMinutes()).toBe(0);
+    test("ensures minutes are on quarter hour after deserialization", () => {
+        const originalDate = new Date("2024-06-15T09:14:30.000Z");
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
+        expect(result.getUTCMinutes()).toBe(15);
     });
 
     test("ensures seconds are zero after deserialization", () => {
         const originalDate = new Date("2024-06-15T09:00:45.000Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.getUTCSeconds()).toBe(0);
     });
 
     test("ensures milliseconds are zero after deserialization", () => {
         const originalDate = new Date("2024-06-15T09:00:00.500Z");
-        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
-        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(scheduleDateTime);
         expect(result.getUTCMilliseconds()).toBe(0);
     });
 });
@@ -282,33 +282,39 @@ describe("assertScheduleDateTimeString", () => {
 
 describe("serializeScheduleDateTimeString", () => {
     test("converts ScheduleDateTime to expected format", () => {
-        const ScheduleDateTime = serializeScheduleDateTime(new Date("2023-08-21T15:30:45.123Z"));
-        const result = serializeScheduleDateTimeString(ScheduleDateTime);
-        expect(result).toEqual("2023-08-21T15:00:00.000Z");
+        const scheduleDateTime = serializeScheduleDateTime(new Date("2023-08-21T15:30:45.123Z"));
+        const result = serializeScheduleDateTimeString(scheduleDateTime);
+        expect(result).toEqual("2023-08-21T15:30:00.000Z");
     });
 
     test("returns valid ScheduleDateTimeString after conversion", () => {
-        const ScheduleDateTime = serializeScheduleDateTime(new Date("2023-12-25T15:30:45.123Z"));
-        const result = serializeScheduleDateTimeString(ScheduleDateTime);
+        const scheduleDateTime = serializeScheduleDateTime(new Date("2023-12-25T15:30:45.123Z"));
+        const result = serializeScheduleDateTimeString(scheduleDateTime);
         expect(isScheduleDateTimeString(result)).toBe(true);
     });
 
-    test("truncates minutes", () => {
-        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:59:30.500Z"));
-        const result = serializeScheduleDateTimeString(ScheduleDateTime);
-        expect(result).toBe("2024-06-15T23:00:00.000Z");
+    test("does not round up minutes if they are already on a quarter hour", () => {
+        const scheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:15:00.000Z"));
+        const result = serializeScheduleDateTimeString(scheduleDateTime);
+        expect(result).toBe("2024-06-15T23:15:00.000Z");
+    });
+
+    test("rounds up minutes to next quarter hour", () => {
+        const scheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:31:30.500Z"));
+        const result = serializeScheduleDateTimeString(scheduleDateTime);
+        expect(result).toBe("2024-06-15T23:45:00.000Z");
     });
 
     test("truncates seconds", () => {
-        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:59:30.500Z"));
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:15:30.000Z"));
         const result = serializeScheduleDateTimeString(ScheduleDateTime);
-        expect(result).toBe("2024-06-15T23:00:00.000Z");
+        expect(result).toBe("2024-06-15T23:15:00.000Z");
     });
 
     test("truncates milliseconds", () => {
-        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:59:00.500Z"));
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:15:00.500Z"));
         const result = serializeScheduleDateTimeString(ScheduleDateTime);
-        expect(result).toBe("2024-06-15T23:00:00.000Z");
+        expect(result).toBe("2024-06-15T23:15:00.000Z");
     });
 });
 
@@ -355,10 +361,10 @@ describe("deserializeScheduleDateTimeString", () => {
         expect(result.getUTCHours()).toBe(14);
     });
 
-    test("minutes are zero after deserialization", () => {
+    test("minutes are on quarter hour after deserialization", () => {
         const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
         const result = deserializeScheduleDateTimeString(dateString);
-        expect(result.getUTCMinutes()).toBe(0);
+        expect(result.getUTCMinutes()).toBe(30);
     });
 
     test("seconds are zero after deserialization", () => {
@@ -381,10 +387,10 @@ describe("ScheduleDateTimeSchema", () => {
         expect(isScheduleDateTime(result)).toBe(true);
     });
 
-    test("minutes,seconds,and milliseconds are zero after deserialization", () => {
+    test("rounds minutes to quarter hour and zeroes seconds and milliseconds", () => {
         const isoString = "2023-12-25T15:30:45.123Z";
         const result = ScheduleDateTimeSchema.deserialize(isoString);
-        expect(result.toISOString()).toBe("2023-12-25T15:00:00.000Z");
+        expect(result.toISOString()).toBe("2023-12-25T15:30:00.000Z");
     });
 
     test("throws SchemaDeserializationError for invalid ISO string", () => {
