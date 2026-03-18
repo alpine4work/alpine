@@ -908,6 +908,15 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
             tag: '[style*="white-space: pre"]',
             // Beat `<div>` rule for paragraphs.
             priority: 200,
+            getAttrs: node => {
+                if (!(node instanceof HTMLElement)) return false;
+
+                // Only `white-space: pre` should parse as a code block. This avoids treating
+                // common plain text styles like `white-space: pre-wrap` as code.
+                if (node.style.whiteSpace !== "pre") return false;
+
+                return {};
+            },
             getContent,
         },
 
