@@ -34,6 +34,7 @@ import {
     pageAccessFlagWrite,
     sqliteOpenPragmas,
 } from "~/shared/databases/sqlite_constants.js";
+import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -115,6 +116,8 @@ export class DatabaseClient {
             },
             0,
         );
+
+        registerSqliteCustomFunctions(this.db);
 
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);

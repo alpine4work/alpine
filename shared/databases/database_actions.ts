@@ -8,6 +8,8 @@ import {
     toSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -46,45 +48,46 @@ export const databaseActions = {
     createTable: defineDatabaseAction({
         input: Schema.object({name: Schema.string}),
         output: Schema.object({
-            tableId: Schema.integer,
+            tableId: Schema.id<DatabaseTableId>(),
             tableName: Schema.string,
-            viewId: Schema.integer,
+            viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
         run(db, {name}) {
             const tableName = toSqlName(db, name);
+            const tableId = generateChronologicalId<DatabaseTableId>();
 
-            db.exec(`INSERT INTO _alpine_tables (name, table_name) VALUES (?, ?)`, {
-                bind: [name, tableName],
+            db.exec(`INSERT INTO _alpine_tables (id, name, table_name) VALUES (?, ?, ?)`, {
+                bind: [tableId, name, tableName],
             });
-            const tableId = db.selectValue("SELECT last_insert_rowid()") as number;
 
             const fieldType = serializeDatabaseFieldType({type: "plainText"});
+            const fieldId = generateChronologicalId<DatabaseFieldId>();
             db.exec(
-                `INSERT INTO _alpine_fields (table_id, name, column_name, type)
-                 VALUES (?, ?, ?, ?)`,
-                {bind: [tableId, "Name", "name", fieldType]},
+                `INSERT INTO _alpine_fields (id, table_id, name, column_name, type)
+                 VALUES (?, ?, ?, ?, ?)`,
+                {bind: [fieldId, tableId, "Name", "name", fieldType]},
             );
-            const fieldId = db.selectValue("SELECT last_insert_rowid()") as number;
 
             const sqliteType = alpineFieldTypeToSqliteType("plainText");
             const nameCheck = checkConstraintForColumn("name", sqliteType, true);
 
             db.exec(
                 `CREATE TABLE "${tableName}" (
-                    _id INTEGER PRIMARY KEY,
+                    _id TEXT PRIMARY KEY DEFAULT (generate_id()),
                     _created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     name ${sqliteType}_alpine_${fieldId} NOT NULL DEFAULT '',
+                    CHECK(is_id(_id)),
                     CHECK(datetime(_created_at) IS NOT NULL),
                     ${nameCheck}
-                )`,
+                ) WITHOUT ROWID`,
             );
             db.exec(`CREATE INDEX "${tableName}__created_at" ON "${tableName}"(_created_at)`);
 
-            db.exec(`INSERT INTO _alpine_views (table_id, name) VALUES (?, ?)`, {
-                bind: [tableId, "Grid view"],
+            const viewId = generateChronologicalId<DatabaseViewId>();
+            db.exec(`INSERT INTO _alpine_views (id, table_id, name) VALUES (?, ?, ?)`, {
+                bind: [viewId, tableId, "Grid view"],
             });
-            const viewId = db.selectValue("SELECT last_insert_rowid()") as number;
 
             db.exec(
                 `INSERT INTO _alpine_view_fields (view_id, field_id, position, width)

@@ -4,7 +4,9 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseActions} from "~/shared/databases/database_actions.js";
 import {serializeDatabaseFieldType} from "~/shared/databases/database_field_type.js";
+import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {isId} from "~/shared/id/id.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
@@ -12,6 +14,7 @@ let dbCounter = 0;
 async function createDb(): Promise<Database> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-actions-${dbCounter++}.sqlite3`, "ct");
+    registerSqliteCustomFunctions(db);
     runSqliteMigrations(db);
     return db;
 }
@@ -21,14 +24,14 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableId, tableName} = databaseActions.createTable.run(db, {name: "Tasks"});
 
-        expect(tableId).toBe(1);
+        expect(isId(tableId)).toBe(true);
         expect(tableName).toBe("tasks");
 
         const tables = db.exec("SELECT * FROM _alpine_tables", {
             returnValue: "resultRows",
             rowMode: "object",
         }) as Array<Record<string, unknown>>;
-        expect(tables).toMatchObject([{id: 1, name: "Tasks", table_name: "tasks"}]);
+        expect(tables).toMatchObject([{id: tableId, name: "Tasks", table_name: "tasks"}]);
 
         const fields = db.exec("SELECT * FROM _alpine_fields", {
             returnValue: "resultRows",
@@ -36,7 +39,7 @@ describe("createTable", () => {
         }) as Array<Record<string, unknown>>;
         expect(fields).toMatchObject([
             {
-                table_id: 1,
+                table_id: tableId,
                 name: "Name",
                 column_name: "name",
                 type: serializeDatabaseFieldType({type: "plainText"}),
@@ -55,21 +58,26 @@ describe("createTable", () => {
             rowMode: "object",
         }) as Array<Record<string, unknown>>;
 
-        expect(rows).toMatchObject([{_id: 1, name: "Do laundry"}]);
+        expect(isId(rows[0]!._id as string)).toBe(true);
+        expect(rows).toMatchObject([{name: "Do laundry"}]);
         expect(rows[0]!._created_at).toBeDefined();
     });
 
-    test("_id is an alias for rowid", async () => {
+    test("_id auto-generates a ChronologicalId", async () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
         db.exec(`INSERT INTO ${tableName} (name) VALUES ('a')`);
-        const row = db.exec(`SELECT _id, rowid AS rid FROM ${tableName}`, {
+        db.exec(`INSERT INTO ${tableName} (name) VALUES ('b')`);
+        const rows = db.exec(`SELECT _id FROM ${tableName} ORDER BY _id`, {
             returnValue: "resultRows",
             rowMode: "object",
         }) as Array<Record<string, unknown>>;
 
-        expect(row[0]!._id).toBe(row[0]!.rid);
+        expect(rows).toHaveLength(2);
+        expect(isId(rows[0]!._id as string)).toBe(true);
+        expect(isId(rows[1]!._id as string)).toBe(true);
+        expect(rows[0]!._id).not.toBe(rows[1]!._id);
     });
 
     test("_created_at auto-populates with datetime", async () => {
@@ -120,7 +128,7 @@ describe("createTable", () => {
         }) as Array<Record<string, unknown>>;
 
         const nameCol = colInfo.find(c => c.name === "name");
-        expect(nameCol!.type).toMatch(/^TEXT_alpine_\d+$/);
+        expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}$/);
     });
 
     test("duplicate name gets unique suffix", async () => {
@@ -163,7 +171,7 @@ describe("createTable", () => {
         const db = await createDb();
         const {viewId} = databaseActions.createTable.run(db, {name: "Tasks"});
 
-        expect(viewId).toBeGreaterThan(0);
+        expect(isId(viewId)).toBe(true);
         db.close();
     });
 

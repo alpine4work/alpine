@@ -7,6 +7,7 @@ import {
     checkConstraintForColumn,
     toSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
+import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -15,6 +16,7 @@ let dbCounter = 0;
 async function createDb(): Promise<Database> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-helpers-${dbCounter++}.sqlite3`, "ct");
+    registerSqliteCustomFunctions(db);
     runSqliteMigrations(db);
     return db;
 }

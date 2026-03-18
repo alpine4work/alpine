@@ -24,6 +24,7 @@ import {
     sqliteOpenPragmas,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
+import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -114,6 +115,8 @@ export class DatabaseServer {
             },
             0,
         );
+
+        registerSqliteCustomFunctions(this.db);
 
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);

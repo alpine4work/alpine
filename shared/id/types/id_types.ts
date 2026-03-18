@@ -55,3 +55,6 @@ export type DatabaseId = NominalRandomIdType<"Database">;
 export type DatabaseMutationId = NominalRandomIdType<"DatabaseMutation">;
 export type NotionImportId = NominalRandomIdType<"NotionImport">;
 export type DatabaseReactiveQueryId = NominalRandomIdType<"DatabaseReactiveQuery">;
+export type DatabaseTableId = NominalChronologicalIdType<"DatabaseTable">;
+export type DatabaseFieldId = NominalChronologicalIdType<"DatabaseField">;
+export type DatabaseViewId = NominalChronologicalIdType<"DatabaseView">;

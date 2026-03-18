@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -10,45 +8,44 @@ import {assert} from "~/shared/helpers/control/assert.js";
  */
 export const sqliteMigrations: ReadonlyArray<string> = [
     `CREATE TABLE _alpine_tables (
-        id INTEGER PRIMARY KEY,
+        id TEXT PRIMARY KEY DEFAULT (generate_id()),
         name TEXT NOT NULL,
-        table_name TEXT NOT NULL UNIQUE
-    ) STRICT;
+        table_name TEXT NOT NULL UNIQUE,
+        CHECK(is_id(id))
+    ) STRICT, WITHOUT ROWID;
 
     CREATE TABLE _alpine_fields (
-        id INTEGER PRIMARY KEY,
-        table_id INTEGER NOT NULL REFERENCES _alpine_tables(id),
+        id TEXT PRIMARY KEY DEFAULT (generate_id()),
+        table_id TEXT NOT NULL REFERENCES _alpine_tables(id),
         name TEXT NOT NULL,
         column_name TEXT NOT NULL,
         type TEXT NOT NULL,
-        UNIQUE(table_id, column_name)
-    ) STRICT;
+        UNIQUE(table_id, column_name),
+        CHECK(is_id(id)),
+        CHECK(is_id(table_id))
+    ) STRICT, WITHOUT ROWID;
 
-    CREATE INDEX _alpine_fields_table_id ON _alpine_fields(table_id);`,
+    CREATE INDEX _alpine_fields_table_id ON _alpine_fields(table_id);
 
-    `CREATE TABLE _alpine_views (
-        id INTEGER PRIMARY KEY,
-        table_id INTEGER NOT NULL REFERENCES _alpine_tables(id),
-        name TEXT NOT NULL
-    ) STRICT;
+    CREATE TABLE _alpine_views (
+        id TEXT PRIMARY KEY DEFAULT (generate_id()),
+        table_id TEXT NOT NULL REFERENCES _alpine_tables(id),
+        name TEXT NOT NULL,
+        CHECK(is_id(id)),
+        CHECK(is_id(table_id))
+    ) STRICT, WITHOUT ROWID;
 
     CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id);
 
     CREATE TABLE _alpine_view_fields (
-        view_id INTEGER NOT NULL REFERENCES _alpine_views(id),
-        field_id INTEGER NOT NULL REFERENCES _alpine_fields(id),
+        view_id TEXT NOT NULL REFERENCES _alpine_views(id),
+        field_id TEXT NOT NULL REFERENCES _alpine_fields(id),
         position INTEGER NOT NULL,
         width INTEGER NOT NULL,
-        PRIMARY KEY (view_id, field_id)
-    ) STRICT;
-
-    INSERT INTO _alpine_views (table_id, name)
-        SELECT id, 'Grid view' FROM _alpine_tables;
-
-    INSERT INTO _alpine_view_fields (view_id, field_id, position, width)
-        SELECT v.id, f.id, ROW_NUMBER() OVER (PARTITION BY f.table_id ORDER BY f.id) - 1, 200
-        FROM _alpine_views v
-        JOIN _alpine_fields f ON f.table_id = v.table_id;`,
+        PRIMARY KEY (view_id, field_id),
+        CHECK(is_id(view_id)),
+        CHECK(is_id(field_id))
+    ) STRICT, WITHOUT ROWID;`,
 ];
 
 /**
