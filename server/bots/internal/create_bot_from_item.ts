@@ -6,6 +6,7 @@ export function createBotFromItem(botItem: BotWithAvatarItem): Bot {
     return {
         id: botItem.id,
         name: botItem.name,
+        createdTime: botItem.createdTime,
         avatar: createAvatarModelFromItem(botItem.avatar),
     };
 }

@@ -193,17 +193,13 @@ export type BotSettingsSchemaItem = DynamoTableItemType<typeof BotsTable, "Bot",
 
 export type BotWithAvatarItem = {
     readonly id: BotId;
+    readonly createdTime: Date;
     readonly name: string;
     readonly hasWebhookUrl: boolean;
     readonly avatar: BotAvatarItem | null;
 };
 
-// NOTE(calebmer, 2025-08-21): We don't currently use this index but something
-// we'll definitely someday is the ability to list all of a bot's API keys.
-// Since it's hard to add an index to an existing table right now, we're
-// setting up this index on table creation.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const BotApiKeysIndex = BotsTable.addIndex({
+export const BotApiKeysIndex = BotsTable.addIndex({
     name: "BotApiKeys",
     itemTypes: [{partitionType: "ApiKey", sortRangeType: "Attributes"}],
     partitionKeyAttributes: {

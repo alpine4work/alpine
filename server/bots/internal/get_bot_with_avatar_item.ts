@@ -41,6 +41,7 @@ async function getBotWithAvatarItemIfExists(
     return {
         id: attributesItem.botId,
         name: attributesItem.name,
+        createdTime: attributesItem.createdTime,
         hasWebhookUrl: !!attributesItem.webhookUrl,
         avatar: avatarItem ?? null,
     };

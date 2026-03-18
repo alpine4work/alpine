@@ -2,6 +2,7 @@ import {BotSchema} from "~/shared/bots/bot_schema.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const finishUploadingBotAvatar = defineRpc({
@@ -33,6 +34,54 @@ export const updateBotSpaceSettingsPropertyValue = defineRpc({
     },
 });
 
+export const deleteBot = defineRpc({
+    name: "deleteBot",
+    isIdempotent: false,
+    input: {
+        botId: Schema.id<BotId>(),
+    },
+    output: {},
+});
+
+export const createBot = defineRpc({
+    name: "createBot",
+    isIdempotent: false,
+    input: {
+        name: LabelStringSchema,
+        webhookUrl: Schema.string.nullable(),
+    },
+    output: {
+        botId: Schema.id<BotId>(),
+    },
+});
+
+export const createUnscopedApiKeyForBot = defineRpc({
+    name: "createUnscopedApiKeyForBot",
+    isIdempotent: false,
+    input: {
+        botId: Schema.id<BotId>(),
+        name: LabelStringSchema.nullable(),
+    },
+    output: {
+        apiKey: Schema.string,
+    },
+});
+
+export const createScopedApiKeyForBot = defineRpc({
+    name: "createScopedApiKeyForBot",
+    isIdempotent: false,
+    input: {
+        botId: Schema.id<BotId>(),
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
+        name: LabelStringSchema.nullable(),
+        scope: Schema.unknown(),
+    },
+    output: {
+        apiKey: Schema.string,
+    },
+});
+
 export const updateBotSpaceAccountSettingsPropertyValue = defineRpc({
     name: "updateBotSpaceAccountSettingsPropertyValue",
     isIdempotent: true,
@@ -46,5 +95,17 @@ export const updateBotSpaceAccountSettingsPropertyValue = defineRpc({
     output: {
         valuesVersion: Schema.integer,
         values: Schema.map(Schema.string, Schema.unknown()),
+    },
+});
+
+export const getBotAccountIdForSpaceIfExists = defineRpc({
+    name: "getBotAccountIdForSpaceIfExists",
+    isIdempotent: true,
+    input: {
+        botId: Schema.id<BotId>(),
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {
+        accountId: Schema.id<AccountId>().nullable(),
     },
 });

@@ -1,3 +1,4 @@
+import {useNavigate} from "@remix-run/react";
 import {Copy, Eye, EyeSlash} from "phosphor-react";
 import {useState} from "react";
 import {accountAvatarClassName} from "~/client/web/accounts/account_avatar_html.js";
@@ -7,6 +8,7 @@ import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
@@ -30,8 +32,25 @@ import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.js";
+import {
+    AccountId,
+    BotId,
+    ChatId,
+    DocumentId,
+    PostId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+import {
+    createBot,
+    createScopedApiKeyForBot,
+    createUnscopedApiKeyForBot,
+    deleteBot,
+    getBotAccountIdForSpaceIfExists,
+} from "~/shared/rpc/bots_rpc_definitions.js";
+import {instantiateBotSpaceAccount} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -46,15 +65,20 @@ const LoaderSchema = Schema.object({
 });
 
 export async function loader({context}: LoaderArgs) {
+    const bots = await expensivelyGetAllBotsForAdminSettingsPage(
+        await context.actor.authenticate(),
+    );
+    bots.sort((a, b) => b.createdTime.getTime() - a.createdTime.getTime());
     return jsonWithSchema(LoaderSchema, {
         knownBotIds: new Set(settingsDefaultKnownBotAccountModelDataById.get().keys()),
-        bots: await expensivelyGetAllBotsForAdminSettingsPage(await context.actor.authenticate()),
+        bots,
     });
 }
 
 export default function BotsManagementPage() {
     const {knownBotIds, bots} = useLoaderDataWithSchema(LoaderSchema);
     const context = useAppContext();
+    const navigate = useNavigate();
 
     const handleUploadAvatar = async (bot: Bot, file: File): Promise<AvatarModel> => {
         return fetchWithTracer(
@@ -96,6 +120,10 @@ export default function BotsManagementPage() {
                     Manage bots that you own.
                 </Box>
                 <Spacer space="6" />
+                <Box border="grey-5" borderRadius="3" padding="6" backgroundColor="grey-20">
+                    <CreateBotForm onCreated={() => navigate(0)} />
+                </Box>
+                <Spacer space="6" />
                 {bots.length === 0 && <Box color="grey-80">No bots found</Box>}
                 <Box display="flex" flexDirection="column" gap="6">
                     {bots.map(bot => (
@@ -119,6 +147,222 @@ export default function BotsManagementPage() {
     );
 }
 
+function CreateBotForm({onCreated}: {onCreated: () => void}) {
+    const context = useAppContext();
+    const [name, setName] = useState("");
+    const [keyName, setKeyName] = useState("");
+    const [webhookUrl, setWebhookUrl] = useState("");
+    const [scopeState, setScopeState] = useState<ScopeState>({type: "Unscoped"});
+
+    return (
+        <Box display="flex" flexDirection="column" gap="3">
+            <Box fontStyle="semi-bold" fontSize="200">
+                Create a new bot
+            </Box>
+            <TextInput label="Name" value={name} onChange={setName} placeholder="My Bot" />
+            <TextInput
+                label="Webhook URL (optional)"
+                value={webhookUrl}
+                onChange={setWebhookUrl}
+                placeholder="https://..."
+            />
+            <TextInput
+                label="Key Name (optional)"
+                value={keyName}
+                onChange={setKeyName}
+                placeholder="My Key"
+            />
+            <ScopeForm scopeState={scopeState} onChange={setScopeState} />
+            <Box>
+                <Button
+                    variant="accent"
+                    isDisabled={name.trim().length === 0}
+                    pressErrorTitle="Couldn&#x2019;t create bot"
+                    onPress={async () => {
+                        const {botId} = await createBot(context, {
+                            name,
+                            webhookUrl: webhookUrl.trim() || null,
+                        });
+
+                        switch (scopeState.type) {
+                            case "Unscoped":
+                                await createUnscopedApiKeyForBot(context, {
+                                    botId,
+                                    name: keyName.trim() || null,
+                                });
+                                break;
+                            case "Space":
+                            case "Account":
+                            case "Chat":
+                            case "Document":
+                            case "Post":
+                            case "Task":
+                                const spaceId = assertId<SpaceId>(scopeState.spaceId);
+                                const accountId = await getOrInstantiateBotAccountId(
+                                    context,
+                                    botId,
+                                    spaceId,
+                                );
+                                await createScopedApiKeyForBot(context, {
+                                    botId,
+                                    spaceId,
+                                    accountId,
+                                    name: keyName.trim() || null,
+                                    scope: buildScope(scopeState),
+                                });
+                                break;
+                            default:
+                                throw exhaustive(scopeState);
+                        }
+
+                        setName("");
+                        setWebhookUrl("");
+                        setScopeState({type: "Unscoped"});
+                        onCreated();
+                    }}
+                >
+                    Create Bot
+                </Button>
+            </Box>
+        </Box>
+    );
+}
+
+type ScopeState =
+    | {type: "Unscoped"}
+    | {type: "Space"; spaceId: string}
+    | {type: "Account"; spaceId: string; resourceId: string}
+    | {type: "Chat"; spaceId: string; resourceId: string}
+    | {type: "Document"; spaceId: string; resourceId: string}
+    | {type: "Post"; spaceId: string; resourceId: string}
+    | {type: "Task"; spaceId: string; resourceId: string};
+
+type ScopedScopeType = Exclude<ScopeState["type"], "Unscoped">;
+
+async function getOrInstantiateBotAccountId(
+    context: ReturnType<typeof useAppContext>,
+    botId: BotId,
+    spaceId: SpaceId,
+): Promise<AccountId> {
+    const {accountId: existingAccountId} = await getBotAccountIdForSpaceIfExists(context, {
+        botId,
+        spaceId,
+    });
+    if (existingAccountId !== null) return existingAccountId;
+    const {account} = await instantiateBotSpaceAccount(context, {botId, spaceId});
+    return account.id;
+}
+
+function buildScope(scopeState: Exclude<ScopeState, {type: "Unscoped"}>) {
+    switch (scopeState.type) {
+        case "Space":
+            return {type: "Space"};
+        case "Account":
+            return {type: "Account", accountId: assertId<AccountId>(scopeState.resourceId)};
+        case "Chat":
+            return {type: "Chat", chatId: assertId<ChatId>(scopeState.resourceId)};
+        case "Document":
+            return {type: "Document", documentId: assertId<DocumentId>(scopeState.resourceId)};
+        case "Post":
+            return {type: "Post", postId: assertId<PostId>(scopeState.resourceId)};
+        case "Task":
+            return {type: "Task", taskId: assertId<TaskId>(scopeState.resourceId)};
+        default:
+            throw exhaustive(scopeState);
+    }
+}
+
+const scopeTypes: ReadonlyArray<ScopeState["type"]> = [
+    "Unscoped",
+    "Space",
+    "Account",
+    "Chat",
+    "Document",
+    "Post",
+    "Task",
+];
+
+const resourceIdLabel: Record<ScopedScopeType, string | null> = {
+    Space: null,
+    Account: "Account ID",
+    Chat: "Chat ID",
+    Document: "Document ID",
+    Post: "Post ID",
+    Task: "Task ID",
+};
+
+function ScopeForm({
+    scopeState,
+    onChange,
+}: {
+    scopeState: ScopeState;
+    onChange: (state: ScopeState) => void;
+}) {
+    const spaceId = scopeState.type !== "Unscoped" ? scopeState.spaceId : "";
+    const resourceId =
+        scopeState.type !== "Unscoped" && scopeState.type !== "Space" ? scopeState.resourceId : "";
+
+    const handleTypeChange = (newType: ScopeState["type"]) => {
+        if (newType === "Unscoped") {
+            onChange({type: "Unscoped"});
+        } else if (newType === "Space") {
+            onChange({type: "Space", spaceId});
+        } else {
+            onChange({type: newType, spaceId, resourceId});
+        }
+    };
+
+    const handleSpaceIdChange = (value: string) => {
+        if (scopeState.type === "Unscoped") return;
+        if (scopeState.type === "Space") {
+            onChange({type: "Space", spaceId: value});
+        } else {
+            onChange({...scopeState, spaceId: value});
+        }
+    };
+
+    const handleResourceIdChange = (value: string) => {
+        if (scopeState.type === "Unscoped" || scopeState.type === "Space") return;
+        onChange({...scopeState, resourceId: value});
+    };
+
+    const idLabel = scopeState.type !== "Unscoped" ? resourceIdLabel[scopeState.type] : null;
+
+    return (
+        <Box display="flex" flexDirection="column" gap="2">
+            <Box fontSize="75" fontStyle="semi-bold">
+                Scope
+            </Box>
+            <select
+                value={scopeState.type}
+                onChange={e => handleTypeChange(e.currentTarget.value as ScopeState["type"])}
+            >
+                {scopeTypes.map(t => (
+                    <option key={t} value={t}>
+                        {t}
+                    </option>
+                ))}
+            </select>
+            {scopeState.type !== "Unscoped" && (
+                <TextInput
+                    label="Space ID"
+                    value={spaceId}
+                    onChange={handleSpaceIdChange}
+                    placeholder="Space ID"
+                />
+            )}
+            {idLabel !== null && (
+                <TextInput
+                    label={idLabel}
+                    value={resourceId}
+                    onChange={handleResourceIdChange}
+                    placeholder={idLabel}
+                />
+            )}
+        </Box>
+    );
+}
+
 function BotRow({
     bot,
     isKnownBot,
@@ -128,7 +372,10 @@ function BotRow({
     isKnownBot: boolean;
     onUploadAvatar: (bot: Bot, file: File) => Promise<AvatarModel>;
 }) {
+    const context = useAppContext();
+    const navigate = useNavigate();
     const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     // NOTE(ifitzsimmons, 2025-12-15): We manage the bot avatar's state locally in this
     // React component. Normally, we'd use something like a Registry to make sure that
@@ -152,6 +399,20 @@ function BotRow({
 
     return (
         <Box display="flex" gap="6" flexDirection="column">
+            {isDeleteDialogOpen && (
+                <ModalDialog
+                    title={`Delete ${bot.name}?`}
+                    description="This will permanently delete the bot and all of its API keys. This action cannot be undone."
+                    primaryButtonLabel="Delete"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t delete bot"
+                    onPrimaryButtonPress={async () => {
+                        await deleteBot(context, {botId: bot.id});
+                        navigate(0);
+                    }}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                    initiallyFocus="Cancel"
+                />
+            )}
             {/* Identity Section */}
             <Box display="flex" alignItems="center" gap="4">
                 <AvatarUploader
@@ -168,14 +429,17 @@ function BotRow({
                         size="12"
                     />
                 </AvatarUploader>
-                <Box display="flex" flexDirection="column" gap="1">
+                <Box display="flex" flexDirection="column" gap="1" flexGrow="1">
                     <Box fontStyle="semi-bold" fontSize="200" userSelect="text">
                         {bot.name}
                     </Box>
-                    <Box fontSize="75" color="grey-60">
+                    <Box fontSize="75" color="grey-60" userSelect="text">
                         Bot Id: {bot.id}
                     </Box>
                 </Box>
+                <Button type="button" variant="quiet" onPress={() => setIsDeleteDialogOpen(true)}>
+                    Delete
+                </Button>
             </Box>
 
             {isKnownBot && (
@@ -230,12 +494,11 @@ function BotRow({
                 </Box>
 
                 {/* API Keys */}
-                {/* TODO(ifitzsimmons, 2025-12-15): Add ability to generate new API key for bot */}
                 <Box display="flex" flexDirection="column" gap="3">
                     <Box fontSize="75" fontStyle="semi-bold">
                         API Keys
                     </Box>
-                    {bot.apiKeys.length === 0 ? (
+                    {bot.apiKeys.length === 0 && (
                         <Box
                             padding="4"
                             border="grey-5"
@@ -249,65 +512,197 @@ function BotRow({
                                 No API keys yet
                             </Box>
                         </Box>
-                    ) : (
+                    )}
+                    {bot.apiKeys.length > 0 && (
                         <Box display="flex" flexDirection="column" gap="2">
-                            {bot.apiKeys.map(({apiKey, name}, index) => (
-                                <Box
+                            {bot.apiKeys.map(({apiKey, name, spaceId, scope}, index) => (
+                                <ApiKeyRow
                                     key={index}
-                                    padding="3"
-                                    border="grey-5"
-                                    borderRadius="2"
-                                    backgroundColor="grey-40"
-                                    position="relative"
-                                >
-                                    <TextInput
-                                        label={name || "Unnamed API Key"}
-                                        inputMode={visibleApiKeys.has(index) ? "text" : "password"}
-                                        fontSize="75"
-                                        value={apiKey}
-                                        // TODO(ifitzsimmons, 2025-12-15): Add endpoint for updating other bot properties.
-                                        // Bots can have multiple API keys, so this should ultimately be a list of API
-                                        // keys. But we'll probably want a key description?
-                                        isReadOnly={true}
-                                        onChange={() => {}}
-                                    />
-                                    <Box
-                                        position="absolute"
-                                        display="flex"
-                                        alignItems="center"
-                                        style={{
-                                            right: "1rem",
-                                            bottom: "0.85rem",
-                                        }}
-                                    >
-                                        <Button
-                                            type="button"
-                                            height="6"
-                                            paddingX="1.5"
-                                            onPress={() => toggleApiKeyVisibility(index)}
-                                        >
-                                            {visibleApiKeys.has(index) ? (
-                                                <EyeSlash color={iconColor} />
-                                            ) : (
-                                                <Eye color={iconColor} />
-                                            )}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            height="6"
-                                            paddingX="1.5"
-                                            onPress={() => writeTextToClipboard(apiKey)}
-                                            pressErrorTitle="Couldn&#x2019;t copy API key"
-                                        >
-                                            <Copy color={iconColor} />
-                                        </Button>
-                                        {/* TODO(ifitzsimmons, #bots): Implement delete API key? */}
-                                    </Box>
-                                </Box>
+                                    apiKey={apiKey}
+                                    name={name}
+                                    spaceId={spaceId}
+                                    scope={scope}
+                                    index={index}
+                                    visibleApiKeys={visibleApiKeys}
+                                    onToggleVisibility={toggleApiKeyVisibility}
+                                    iconColor={iconColor}
+                                />
                             ))}
                         </Box>
                     )}
+                    <GenerateApiKeyForm botId={bot.id} onGenerated={() => navigate(0)} />
                 </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function ApiKeyRow({
+    apiKey,
+    name,
+    spaceId,
+    scope,
+    index,
+    visibleApiKeys,
+    onToggleVisibility,
+    iconColor,
+}: {
+    apiKey: string;
+    name: string | null;
+    spaceId: string | null;
+    scope: unknown;
+    index: number;
+    visibleApiKeys: Set<number>;
+    onToggleVisibility: (index: number) => void;
+    iconColor: string;
+}) {
+    const scopeLabel =
+        spaceId === null
+            ? "Unscoped"
+            : `Scoped · ${(scope as {type: string} | null)?.type ?? "Unknown"}`;
+
+    return (
+        <Box
+            padding="3"
+            border="grey-5"
+            borderRadius="2"
+            backgroundColor="grey-40"
+            position="relative"
+        >
+            <Box display="flex" alignItems="center" gap="2" paddingBottom="2">
+                <Box fontSize="75" fontStyle="semi-bold">
+                    {name || "Unnamed API Key"}
+                </Box>
+                <Box
+                    fontSize="75"
+                    color={spaceId === null ? "grey-60" : "blue-80"}
+                    fontStyle="semi-bold"
+                >
+                    {scopeLabel}
+                </Box>
+                {spaceId !== null && (
+                    <Box fontSize="75" color="grey-60" userSelect="text">
+                        {spaceId}
+                    </Box>
+                )}
+            </Box>
+            <TextInput
+                label=""
+                inputMode={visibleApiKeys.has(index) ? "text" : "password"}
+                fontSize="75"
+                value={apiKey}
+                isReadOnly={true}
+                onChange={() => {}}
+            />
+            <Box
+                position="absolute"
+                display="flex"
+                alignItems="center"
+                style={{
+                    right: "1rem",
+                    bottom: "0.85rem",
+                }}
+            >
+                <Button
+                    type="button"
+                    height="6"
+                    paddingX="1.5"
+                    onPress={() => onToggleVisibility(index)}
+                >
+                    {visibleApiKeys.has(index) ? (
+                        <EyeSlash color={iconColor} />
+                    ) : (
+                        <Eye color={iconColor} />
+                    )}
+                </Button>
+                <Button
+                    type="button"
+                    height="6"
+                    paddingX="1.5"
+                    onPress={() => writeTextToClipboard(apiKey)}
+                    pressErrorTitle="Couldn&#x2019;t copy API key"
+                >
+                    <Copy color={iconColor} />
+                </Button>
+            </Box>
+        </Box>
+    );
+}
+
+function GenerateApiKeyForm({botId, onGenerated}: {botId: BotId; onGenerated: () => void}) {
+    const context = useAppContext();
+    const [keyName, setKeyName] = useState("");
+    const [scopeState, setScopeState] = useState<ScopeState>({type: "Unscoped"});
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    if (!isExpanded) {
+        return (
+            <Button type="button" variant="quiet" onPress={() => setIsExpanded(true)}>
+                Generate new API key
+            </Button>
+        );
+    }
+
+    const handleCancel = () => {
+        setKeyName("");
+        setScopeState({type: "Unscoped"});
+        setIsExpanded(false);
+    };
+
+    return (
+        <Box
+            display="flex"
+            flexDirection="column"
+            gap="3"
+            padding="3"
+            border="grey-5"
+            borderRadius="2"
+            backgroundColor="grey-40"
+        >
+            <Box fontStyle="semi-bold" fontSize="75">
+                Generate new API key
+            </Box>
+            <TextInput
+                label="Key name (optional)"
+                value={keyName}
+                onChange={setKeyName}
+                placeholder="e.g. Production key"
+            />
+            <ScopeForm scopeState={scopeState} onChange={setScopeState} />
+            <Box display="flex" gap="2" justifyContent="flex-end">
+                <Button type="button" variant="quiet" onPress={handleCancel}>
+                    Cancel
+                </Button>
+                <Button
+                    variant="accent"
+                    pressErrorTitle="Couldn&#x2019;t generate API key"
+                    onPress={async () => {
+                        const name = keyName.trim() || null;
+                        if (scopeState.type === "Unscoped") {
+                            await createUnscopedApiKeyForBot(context, {botId, name});
+                        } else {
+                            const spaceId = assertId<SpaceId>(scopeState.spaceId);
+                            const accountId = await getOrInstantiateBotAccountId(
+                                context,
+                                botId,
+                                spaceId,
+                            );
+                            await createScopedApiKeyForBot(context, {
+                                botId,
+                                spaceId,
+                                accountId,
+                                name,
+                                scope: buildScope(scopeState),
+                            });
+                        }
+                        setKeyName("");
+                        setScopeState({type: "Unscoped"});
+                        setIsExpanded(false);
+                        onGenerated();
+                    }}
+                >
+                    Generate
+                </Button>
             </Box>
         </Box>
     );
