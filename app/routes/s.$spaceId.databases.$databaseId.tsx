@@ -19,12 +19,9 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {getDatabase} from "~/server/databases/data/get_database.js";
+import {queryDatabase} from "~/server/databases/data/query_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {
-    DatabaseQueryRequestSchema,
-    DatabaseQueryResponseSchema,
-} from "~/shared/databases/database_query_schema.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
@@ -61,26 +58,16 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
     const database = await getDatabase(context, databaseId);
 
-    const result = await context.edge.fetchDurableObject(
-        `/api/durable-objects/databases/${databaseId}/query`,
-        {
-            serviceName: "DatabaseService",
-            route: "/api/durable-objects/databases/:databaseId/query",
-            body: DatabaseQueryRequestSchema.serialize({
-                sql: "SELECT name, table_name FROM _alpine_tables ORDER BY id",
-            }),
-        },
+    const {rows, pages} = await queryDatabase(
+        context,
+        databaseId,
+        "SELECT name, table_name FROM _alpine_tables ORDER BY id",
     );
-    const {rows, readPages} = DatabaseQueryResponseSchema.deserialize(result);
 
     return jsonWithSchema(LoaderSchema, {
         databaseName: database.model.name,
         tables: rows as Array<{name: string; table_name: string}>,
-        pages: Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
-            pageIndex,
-            timestamp,
-            data,
-        })),
+        pages,
     });
 }
 

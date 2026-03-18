@@ -14,7 +14,7 @@ interface WatchEntry {
 }
 
 function WatchedQuery(props: {sql: string; onClose: () => void}) {
-    const result = useReactiveDatabaseQuery(props.sql);
+    const result = useReactiveDatabaseQuery({sql: props.sql});
     const [flashing, setFlashing] = useState(false);
     const isFirstRef = useRef(true);
 
