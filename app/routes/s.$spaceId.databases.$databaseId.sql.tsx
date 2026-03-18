@@ -1,13 +1,9 @@
 import {useEffect, useRef, useState} from "react";
-import {
-    type DatabaseConnection,
-    type ReactiveQueryHandle,
-} from "~/client/web/databases/connect_to_database.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
+import {useReactiveDatabaseQuery} from "~/client/web/databases/use_reactive_database_query.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
-import {useStore} from "~/client/web/helpers/use_store.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
@@ -17,16 +13,13 @@ interface WatchEntry {
     readonly sql: string;
 }
 
-function WatchedQueryResults(props: {
-    sql: string;
-    handle: ReactiveQueryHandle;
-    onClose: () => void;
-}) {
-    const result = useStore(props.handle.store);
+function WatchedQuery(props: {sql: string; onClose: () => void}) {
+    const result = useReactiveDatabaseQuery(props.sql);
     const [flashing, setFlashing] = useState(false);
     const isFirstRef = useRef(true);
 
     useEffect(() => {
+        if (result == null) return;
         if (isFirstRef.current) {
             isFirstRef.current = false;
             return;
@@ -64,7 +57,11 @@ function WatchedQueryResults(props: {
                     Close
                 </Button>
             </Box>
-            {result.ok ? (
+            {result == null ? (
+                <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
+                    Loading...
+                </Box>
+            ) : result.ok ? (
                 <DatabaseResultTable rows={result.value} />
             ) : (
                 <pre
@@ -80,53 +77,6 @@ function WatchedQueryResults(props: {
             )}
         </Box>
     );
-}
-
-function WatchedQueryEntry(props: {conn: DatabaseConnection; sql: string; onClose: () => void}) {
-    const [handle, setHandle] = useState<ReactiveQueryHandle | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        let h: ReactiveQueryHandle | null = null;
-        (async () => {
-            h = await props.conn.watchQuery(props.sql);
-            if (!cancelled) setHandle(h);
-        })();
-        return () => {
-            cancelled = true;
-            h?.unwatch();
-        };
-    }, [props.conn, props.sql]);
-
-    if (handle === null) {
-        return (
-            <Box borderRadius="1" boxShadow="elevation-5-with-grey-10-border" padding="2">
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <pre
-                        className={sprinkles({
-                            fontSize: "75",
-                            fontStyle: "code",
-                            color: "grey-60",
-                        })}
-                    >
-                        {props.sql}
-                    </pre>
-                    <Button
-                        variant="quieter"
-                        onPress={props.onClose}
-                        pressErrorTitle="Failed to unwatch"
-                    >
-                        Close
-                    </Button>
-                </Box>
-                <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
-                    Loading...
-                </Box>
-            </Box>
-        );
-    }
-
-    return <WatchedQueryResults sql={props.sql} handle={handle} onClose={props.onClose} />;
 }
 
 /* eslint-disable cyberworlds/string-quotes -- SQL literals, not UI text */
@@ -236,15 +186,14 @@ export default function DatabaseSqlRoute() {
                 </pre>
             )}
             {rows != null && <DatabaseResultTable rows={rows} />}
-            {watches.length > 0 && conn != null && (
+            {watches.length > 0 && (
                 <Box display="flex" flexDirection="column" gap="2">
                     <Box fontSize="100" fontStyle="semi-bold">
                         Watched Queries
                     </Box>
                     {watches.map(watch => (
-                        <WatchedQueryEntry
+                        <WatchedQuery
                             key={watch.id}
-                            conn={conn}
                             sql={watch.sql}
                             onClose={() => {
                                 setWatches(prev => prev.filter(w => w.id !== watch.id));

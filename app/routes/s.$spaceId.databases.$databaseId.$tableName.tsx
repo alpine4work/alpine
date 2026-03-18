@@ -1,55 +1,22 @@
 import {useParams} from "@remix-run/react";
-import {useEffect, useState} from "react";
-import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
+import {useReactiveDatabaseQuery} from "~/client/web/databases/use_reactive_database_query.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 
 export default function DatabaseTableRoute() {
     const {tableName} = useParams();
-    const conn = useDatabaseConnection();
-    const [rows, setRows] = useState<ReadonlyArray<unknown> | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    /* eslint-disable-next-line cyberworlds/string-quotes -- SQL literal */
+    const result = useReactiveDatabaseQuery(`SELECT * FROM "${tableName}"`);
 
-    useEffect(() => {
-        if (conn == null) return;
-        let cancelled = false;
-        setLoading(true);
-        setError(null);
-        setRows(null);
-        (async () => {
-            try {
-                /* eslint-disable-next-line cyberworlds/string-quotes -- SQL literal */
-                const sql = `SELECT * FROM "${tableName}"`;
-                const response = await conn.call("executeAction", {
-                    action: {name: "rawSql" as const, input: {sql}},
-                });
-                if (cancelled) return;
-                const result = response.result as unknown as {
-                    output: {rows: Array<Record<string, unknown>>};
-                };
-                setRows(result.output.rows);
-            } catch (e) {
-                if (cancelled) return;
-                setError(e instanceof Error ? e.message : String(e));
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [conn, tableName]);
-
-    if (loading) {
+    if (result == null) {
         return (
             <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
                 Loading...
             </Box>
         );
     }
-    if (error != null) {
+    if (!result.ok) {
         return (
             <pre
                 className={sprinkles({
@@ -59,12 +26,9 @@ export default function DatabaseTableRoute() {
                     padding: "2",
                 })}
             >
-                {error}
+                {result.error}
             </pre>
         );
     }
-    if (rows != null) {
-        return <DatabaseResultTable rows={rows} />;
-    }
-    return null;
+    return <DatabaseResultTable rows={result.value} />;
 }
