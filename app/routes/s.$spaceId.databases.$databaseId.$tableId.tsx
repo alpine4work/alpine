@@ -4,16 +4,18 @@ import {
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
+import {useDatabaseTables} from "~/client/web/databases/database_tables_context.js";
 import {useReactiveDatabaseQuery} from "~/client/web/databases/use_reactive_database_query.js";
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action.js";
 import {getDatabase} from "~/server/databases/data/get_database.js";
-import {queryDatabase} from "~/server/databases/data/query_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {databaseTableDataQuery} from "~/shared/databases/database_queries.js";
 import {LoaderDatabaseQueryResultSchema} from "~/shared/databases/database_query_schema.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
@@ -23,18 +25,29 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     // Verify the database exists.
     await getDatabase(context, databaseId);
 
-    const result = await queryDatabase(
-        context,
-        databaseId,
-        databaseTableDataQuery(params.tableName!),
-    );
+    const {result, readPages} = await fetchDatabaseAction(context, databaseId, {
+        name: "getTableData",
+        input: {tableId: params.tableId! as DatabaseTableId},
+    });
 
-    return jsonWithSchema(LoaderDatabaseQueryResultSchema, result);
+    const pages = Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
+        pageIndex,
+        timestamp,
+        data,
+    }));
+
+    return jsonWithSchema(LoaderDatabaseQueryResultSchema, {
+        sql: databaseTableDataQuery(result.tableName),
+        rows: result.rows,
+        pages,
+    });
 }
 
 export default function DatabaseTableRoute() {
-    const {tableName} = useParams();
+    const {tableId} = useParams();
+    const tables = useDatabaseTables();
     const loaderData = useLoaderDataWithSchema(LoaderDatabaseQueryResultSchema);
+    const tableName = tables?.get(tableId as DatabaseTableId)?.tableName;
     const sql = tableName != null ? databaseTableDataQuery(tableName) : null;
     const result = useReactiveDatabaseQuery({sql, initialData: loaderData});
 

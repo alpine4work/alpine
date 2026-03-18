@@ -15,16 +15,14 @@ import {
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {
-    DatabaseQueryRequestSchema,
-    DatabaseQueryResponseSchema,
-} from "~/shared/databases/database_query_schema.js";
+import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
+import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
-type DatabaseDurableObjectRoute = "Main" | "Query" | "NotFound";
+type DatabaseDurableObjectRoute = "Main" | "Action" | "NotFound";
 
 class DatabaseDurableObject {
     public static readonly serviceName = "DatabaseService";
@@ -99,7 +97,7 @@ class DatabaseDurableObject {
 
     public static parseRoute(url: URL): [string, DatabaseDurableObjectRoute] {
         if (url.pathname === "/") return ["/", "Main"];
-        if (url.pathname === "/query") return ["/query", "Query"];
+        if (url.pathname === "/action") return ["/action", "Action"];
         return ["/*", "NotFound"];
     }
 
@@ -114,8 +112,8 @@ class DatabaseDurableObject {
                     context.actor.authorizeSession(),
                     request,
                 );
-            case "Query":
-                return await this._handleQuery(request);
+            case "Action":
+                return await this._handleAction(request);
             case "NotFound":
                 throw new NotFoundError("Route not found");
             default:
@@ -123,20 +121,20 @@ class DatabaseDurableObject {
         }
     }
 
-    private async _handleQuery(request: Request): Promise<Response> {
-        const {sql} = DatabaseQueryRequestSchema.deserialize(
+    private async _handleAction(request: Request): Promise<Response> {
+        const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,
         );
 
-        const result = this._storage.transactionSync(() =>
-            this._server.execute(sql, {allowWrites: "none"}),
+        const {result, readPages} = this._storage.transactionSync(() =>
+            this._server.executeAction(actionObject),
         );
 
         return new Response(
             JSON.stringify(
-                DatabaseQueryResponseSchema.serialize({
-                    rows: result.rows as Array<SchemaSerializedValue>,
-                    readPages: result.readPages,
+                DatabaseActionFetchResponseSchema.serialize({
+                    result: {name: actionObject.name, output: result} as any,
+                    readPages,
                 }),
             ),
             {

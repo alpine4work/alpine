@@ -8,6 +8,7 @@ import {
     toSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
@@ -96,6 +97,57 @@ export const databaseActions = {
             );
 
             return {tableId, tableName, viewId};
+        },
+    }),
+
+    getTables: defineDatabaseAction({
+        input: Schema.object({}),
+        output: Schema.object({
+            tables: Schema.map(
+                Schema.id<DatabaseTableId>(),
+                Schema.object({
+                    name: Schema.string,
+                    tableName: Schema.string,
+                }),
+            ),
+        }),
+        writeLevel: "none",
+        run(db) {
+            const rows = db.exec("SELECT id, name, table_name FROM _alpine_tables ORDER BY id", {
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as Array<{id: string; name: string; table_name: string}>;
+            const tables = new Map<DatabaseTableId, {name: string; tableName: string}>();
+            for (const row of rows) {
+                tables.set(row.id as DatabaseTableId, {
+                    name: row.name,
+                    tableName: row.table_name,
+                });
+            }
+            return {tables};
+        },
+    }),
+
+    getTableData: defineDatabaseAction({
+        input: Schema.object({tableId: Schema.id<DatabaseTableId>()}),
+        output: Schema.object({
+            tableName: Schema.string,
+            rows: Schema.array(Schema.unknown()),
+        }),
+        writeLevel: "none",
+        run(db, {tableId}) {
+            const result = db.exec("SELECT table_name FROM _alpine_tables WHERE id = ?", {
+                bind: [tableId],
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as Array<{table_name: string}>;
+            assert(result.length === 1, "Table not found");
+            const tableName = result[0]!.table_name;
+            const rows = db.exec(`SELECT * FROM "${tableName}"`, {
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as Array<Record<string, unknown>>;
+            return {tableName, rows};
         },
     }),
 };

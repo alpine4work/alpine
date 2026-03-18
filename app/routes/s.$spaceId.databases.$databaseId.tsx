@@ -9,6 +9,7 @@ import {
     connectToDatabase,
 } from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
+import {DatabaseTablesContext} from "~/client/web/databases/database_tables_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
@@ -18,25 +19,25 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
+import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action.js";
 import {getDatabase} from "~/server/databases/data/get_database.js";
-import {queryDatabase} from "~/server/databases/data/query_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {databaseTablesQuery} from "~/shared/databases/database_queries.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
-import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseId, DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     databaseName: Schema.string,
-    tables: Schema.array(
+    tables: Schema.map(
+        Schema.id<DatabaseTableId>(),
         Schema.object({
             name: Schema.string,
-            table_name: Schema.string,
+            tableName: Schema.string,
         }),
     ),
     pages: Schema.array(
@@ -59,11 +60,20 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
     const database = await getDatabase(context, databaseId);
 
-    const {rows, pages} = await queryDatabase(context, databaseId, databaseTablesQuery());
+    const {result, readPages} = await fetchDatabaseAction(context, databaseId, {
+        name: "getTables",
+        input: {},
+    });
+
+    const pages = Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
+        pageIndex,
+        timestamp,
+        data,
+    }));
 
     return jsonWithSchema(LoaderSchema, {
         databaseName: database.model.name,
-        tables: rows as Array<{name: string; table_name: string}>,
+        tables: result.tables,
         pages,
     });
 }
@@ -147,14 +157,12 @@ export default function DatabaseLayoutRoute() {
                 {databaseName}
             </Box>
             <Box display="flex" gap="1" flexWrap="wrap">
-                {tables.map(table => (
+                {Array.from(tables, ([tableId, table]) => (
                     <Button
-                        key={table.table_name}
-                        variant={params.tableName === table.table_name ? "neutral" : "quieter"}
+                        key={tableId}
+                        variant={params.tableId === tableId ? "neutral" : "quieter"}
                         onPress={() =>
-                            navigate(
-                                `/s/${params.spaceId}/databases/${databaseId}/${table.table_name}`,
-                            )
+                            navigate(`/s/${params.spaceId}/databases/${databaseId}/${tableId}`)
                         }
                         pressErrorTitle="Failed to navigate"
                     >
@@ -162,16 +170,18 @@ export default function DatabaseLayoutRoute() {
                     </Button>
                 ))}
                 <Button
-                    variant={params.tableName == null ? "neutral" : "quieter"}
+                    variant={params.tableId == null ? "neutral" : "quieter"}
                     onPress={() => navigate(`/s/${params.spaceId}/databases/${databaseId}/sql`)}
                     pressErrorTitle="Failed to navigate"
                 >
                     SQL
                 </Button>
             </Box>
-            <DatabaseConnectionContext.Provider value={conn}>
-                <Outlet />
-            </DatabaseConnectionContext.Provider>
+            <DatabaseTablesContext.Provider value={tables}>
+                <DatabaseConnectionContext.Provider value={conn}>
+                    <Outlet />
+                </DatabaseConnectionContext.Provider>
+            </DatabaseTablesContext.Provider>
         </Box>
     );
 }

@@ -3,10 +3,9 @@ import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
+import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action.js";
 import {getDatabase} from "~/server/databases/data/get_database.js";
-import {queryDatabase} from "~/server/databases/data/query_database.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {databaseFirstTableQuery} from "~/shared/databases/database_queries.js";
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
@@ -16,10 +15,13 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     // Verify the database exists.
     await getDatabase(context, databaseId);
 
-    const {rows} = await queryDatabase(context, databaseId, databaseFirstTableQuery());
+    const {result} = await fetchDatabaseAction(context, databaseId, {
+        name: "getTables",
+        input: {},
+    });
 
-    const firstTable = rows[0] as {table_name: string} | undefined;
-    const target = firstTable ? firstTable.table_name : "sql";
+    const firstTableId = result.tables.keys().next().value;
+    const target = firstTableId ?? "sql";
 
     return redirect(`/s/${spaceId}/databases/${databaseId}/${target}`);
 }
