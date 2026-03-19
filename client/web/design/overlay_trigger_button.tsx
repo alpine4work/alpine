@@ -838,7 +838,7 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
     //
     // If we can't handle a key event, we dispatch call `dispatchEvent()` on our
     // overlay element so it can handle the event.
-    const handleGlobalKeyDown = useEvent((event: KeyboardEvent) => {
+    const handleGlobalKeyDownCapture = useEvent((event: KeyboardEvent) => {
         // If we're re-dispatching a `keydown` event then don't run our handler again.
         if (isReDispatchingKeyboardEvent) return;
 
@@ -919,11 +919,11 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
     });
 
     useEffect(() => {
-        document.addEventListener("keydown", handleGlobalKeyDown, {capture: true});
+        document.addEventListener("keydown", handleGlobalKeyDownCapture, {capture: true});
         return () => {
-            document.removeEventListener("keydown", handleGlobalKeyDown, {capture: true});
+            document.removeEventListener("keydown", handleGlobalKeyDownCapture, {capture: true});
         };
-    }, [handleGlobalKeyDown]);
+    }, [handleGlobalKeyDownCapture]);
 
     return (
         // While tooltips are disabled outside our overlay, we still want to allow tooltips

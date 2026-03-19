@@ -1,4 +1,4 @@
-import {ArrowsLeftRight, Gear, Plug, Plus, Robot, Users} from "phosphor-react";
+import {ArrowsLeftRight, Gear, Plus, Robot, SquaresFour, Users} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
@@ -78,7 +78,7 @@ export function SpaceLayoutSideBarSpaceButton() {
                 ...(hasIntegrationsSettingsFeature(space.id)
                     ? [
                           {
-                              icon: <Plug />,
+                              icon: <SquaresFour />,
                               size: cast<MenuSize>("lg"),
                               label: "Integrations",
                               pressErrorTitle: "Couldn\u2019t open integrations settings",

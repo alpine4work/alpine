@@ -101,6 +101,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "react-stately",
     "react/jsx-dev-runtime",
     "react/jsx-runtime",
+    "remove-accents",
     "scheduler",
     "set-cookie-parser",
     "statuses",

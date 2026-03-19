@@ -12,50 +12,63 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {generateEmailAddressForDevConsole} from "~/client/web/helpers/generate_email_address_for_dev_console.js";
+import {getGlobalContext} from "~/client/web/helpers/global_context.js";
+import {getErrorDisplayMessageForPartialInviteAccountsFailure} from "~/client/web/navigation/internal/get_error_display_message_for_partial_invite_accounts_failure.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {getErrorDisplayMessageForPartialInvitePeopleFailure} from "~/client/web/settings/internal/get_error_display_message_for_partial_invite_people_failure.js";
+import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {inviteEmailAddressesToSpace} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {
+    expensivelyGetAllSpaceAccounts,
+    inviteEmailAddressesToSpace,
+} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 
-type SettingsInvitePeopleModalProps = {
-    spaceId: SpaceId;
+type InviteAccountsModalProps = {
+    "data-ownedby"?: string;
+    initialEmailAddresses?: string;
+    withoutRestoreFocus?: boolean;
     onClose: () => void;
-    onSuccess: () => void;
+    onNewAccounts?: (newAccounts: Array<{account: AccountModel; points: number}>) => void;
 };
 
-export function SettingsInvitePeopleModal({
-    spaceId,
+export function InviteAccountsModal({
+    "data-ownedby": dataOwnedBy,
+    initialEmailAddresses = "",
+    withoutRestoreFocus,
     onClose,
-    onSuccess,
-}: SettingsInvitePeopleModalProps) {
+    onNewAccounts,
+}: InviteAccountsModalProps) {
     const titleFontSize = "300";
     const textInputPaddingY = "2.5";
 
     const titleId = useId();
     const descriptionId = useId();
-    const [batchEmailString, setBatchEmailString] = useState("");
-    const [hadSuccessfulInvites, setHadSuccessfulInvites] = useState(false);
+    const [emailAddressesString, setEmailAddressesString] = useState(initialEmailAddresses);
     const appContext = useAppContext();
     const accountRegistry = useAccountRegistry();
+    const {space} = useSpaceContext();
     const {locale, isAppleDevice} = useClientInfo();
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const modalRef = useRef<ModalWithButtonsRef>(null);
 
-    useDevConsoleTool("spaceInvite", () => ({
+    useDevConsoleTool("invite", () => ({
         generateEmailAddress: (baseEmailAddress?: string) => {
             const emailAddress = generateEmailAddressForDevConsole(baseEmailAddress);
-            setBatchEmailString(batchEmailString => {
-                if (batchEmailString.length === 0 || batchEmailString.endsWith("\n")) {
-                    return batchEmailString + emailAddress;
+            setEmailAddressesString(emailAddressesString => {
+                if (emailAddressesString.length === 0 || emailAddressesString.endsWith("\n")) {
+                    return emailAddressesString + emailAddress;
                 } else {
-                    return batchEmailString + "\n" + emailAddress;
+                    return emailAddressesString + "\n" + emailAddress;
                 }
             });
             return emailAddress;
@@ -69,7 +82,7 @@ export function SettingsInvitePeopleModal({
                     filterMapIterable(
                         // Comma separator, newline separator, space separator, semicolon separator, all
                         // should work for splitting up email addresses.
-                        batchEmailString.split(/[\s,;]+/),
+                        emailAddressesString.split(/[\s,;]+/),
                         emailAddress => {
                             emailAddress = emailAddress.trim();
                             if (emailAddress.length === 0) return;
@@ -78,46 +91,121 @@ export function SettingsInvitePeopleModal({
                     ),
                 ),
             ),
-        [batchEmailString],
+        [emailAddressesString],
     );
 
     const [inviteFailureError, setInviteFailureError] = useState<unknown>(null);
 
     const handleSendInvites = async () => {
         try {
-            const {accounts, errors} = await inviteEmailAddressesToSpace(appContext, {
-                emailAddresses,
-                spaceId,
+            const {accounts, affinityPoints, errors} = await inviteEmailAddressesToSpace(
+                appContext,
+                {
+                    emailAddresses,
+                    spaceId: space.id,
+                },
+            );
+
+            const newAccountsWithAffinityPoints: Array<{
+                account: AccountModel;
+                points: number;
+            }> = [];
+
+            // Incorporate our invited accounts into relevant stores.
+            //
+            // 1. Add the accounts to the `AccountRegistry`.
+            // 2. Add the accounts via an optimistic update to the
+            //    `expensivelyGetAllSpaceAccounts` RPC cache.
+            batchStoreUpdates(() => {
+                for (let index = 0; index < accounts.length; index++) {
+                    const account = accounts[index]!;
+                    const points = affinityPoints[index] ?? 0;
+
+                    accountRegistry.immediatelyUpdateAccountStoreIfExists(account);
+                    newAccountsWithAffinityPoints.push({account, points});
+                }
+
+                const rpcCache = getGlobalContext(RpcCacheContext);
+
+                const promiseResolver = createPromiseResolver();
+
+                // Add an optimistic update that incorporates the newly invited accounts into the
+                // `expensivelyGetAllSpaceAccounts` RPC cache. Once we detect that
+                // `expensivelyGetAllSpaceAccounts` includes all invited accounts we resolve this
+                // optimistic update.
+                rpcCache.addOptimisticUpdate(
+                    expensivelyGetAllSpaceAccounts,
+                    {spaceId: space.id},
+                    promiseResolver.promise,
+                    output => {
+                        const newAccountIds = new Set(
+                            newAccountsWithAffinityPoints.map(({account}) => account.id),
+                        );
+
+                        const allAccountsWithAffinityPoints: Array<{
+                            account: AccountModel;
+                            points: number;
+                        }> = [];
+
+                        for (let index = 0; index < output.accounts.length; index++) {
+                            const account = output.accounts[index]!;
+                            const points = output.affinityPoints[index] ?? 0;
+
+                            newAccountIds.delete(account.id);
+                            allAccountsWithAffinityPoints.push({account, points});
+                        }
+
+                        // All invited accounts are now present in `expensivelyGetAllSpaceAccounts`. We
+                        // don't need this optimistic update anymore!
+                        if (newAccountIds.size === 0) {
+                            promiseResolver.resolve();
+                            return output;
+                        }
+
+                        for (const accountWithAffinityPoints of newAccountsWithAffinityPoints) {
+                            if (!newAccountIds.has(accountWithAffinityPoints.account.id)) continue;
+                            allAccountsWithAffinityPoints.push(accountWithAffinityPoints);
+                        }
+
+                        // Re-sort the accounts by affinity points. Will maintain the original sort order
+                        // for accounts that don't have affinity points.
+                        allAccountsWithAffinityPoints.sort((a, b) => b.points - a.points);
+
+                        const accounts: Array<AccountModel> = [];
+                        const affinityPoints: Array<number> = [];
+                        let isAffinityPointsArrayDone = false;
+
+                        for (const {account, points} of allAccountsWithAffinityPoints) {
+                            accounts.push(account);
+                            if (points <= 0) {
+                                isAffinityPointsArrayDone = true;
+                            } else if (!isAffinityPointsArrayDone) {
+                                affinityPoints.push(points);
+                            }
+                        }
+
+                        return {accounts, affinityPoints};
+                    },
+                );
             });
 
-            // We keep a separate count of invited accounts and if there were any previously
-            // successful invites. This is useful to know if we should call `onSuccess` or not,
-            // while still being able to show the last requested success count.
-            if (accounts.length > 0) {
-                setHadSuccessfulInvites(true);
-            }
-
-            for (const account of accounts) {
-                accountRegistry.immediatelyUpdateAccountStoreIfExists(account);
-            }
+            onNewAccounts?.(newAccountsWithAffinityPoints);
 
             const totalErrors = Object.values(errors).reduce(
                 (acc, errorAggregate) =>
                     acc +
-                    (errorAggregate instanceof Array ? errorAggregate.length : errorAggregate.size),
+                    (isReadonlyArray(errorAggregate) ? errorAggregate.length : errorAggregate.size),
                 0,
             );
 
             if (totalErrors === 0) {
-                onSuccess();
-                // We handle closing the modal ourself
                 onClose();
                 return;
             }
 
             setInviteFailureError(
                 new FailedPreconditionError("Failed to invite all addresses in the batch", {
-                    displayMessage: errorDisplayMessage`${getErrorDisplayMessageForPartialInvitePeopleFailure(
+                    displayMessage: errorDisplayMessage`${getErrorDisplayMessageForPartialInviteAccountsFailure(
                         locale,
                         accounts.length,
                         errors,
@@ -138,21 +226,10 @@ export function SettingsInvitePeopleModal({
                 appContext.react.reportRenderedError(error);
             }
 
-            setBatchEmailString(remainingEmailAddresses.join(", "));
+            setEmailAddressesString(remainingEmailAddresses.join(", "));
         } catch (error) {
             setInviteFailureError(error);
         }
-    };
-
-    const onCloseAndCheckSuccess = () => {
-        // We only want to call `onSuccess` if we had successful invites and are closing
-        // the modal. If there were errors, we show them in the UI and do not call
-        // `onSuccess` immediately.
-        if (hadSuccessfulInvites) {
-            onSuccess();
-        }
-
-        onClose();
     };
 
     const hasInitiallyMountedRef = useRef(false);
@@ -161,7 +238,9 @@ export function SettingsInvitePeopleModal({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        assertExists(inputRef.current).focus();
+        const inputElement = assertExists(inputRef.current);
+        inputElement.focus();
+        inputElement.selectionStart = inputElement.selectionEnd = inputElement.value.length;
     }, []);
 
     return (
@@ -169,17 +248,21 @@ export function SettingsInvitePeopleModal({
             ref={modalRef}
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
-            onClose={onCloseAndCheckSuccess}
+            onClose={onClose}
             primaryButtonLabel="Send"
             isPrimaryButtonDisabled={emailAddresses.length === 0}
             primaryButtonPressErrorTitle="Couldn&#x2019;t send invites"
             onPrimaryButtonPress={handleSendInvites}
-            onCancelButtonPress={onCloseAndCheckSuccess}
+            onCancelButtonPress={onClose}
             withoutCloseButton={true}
             withoutCloseAfterPrimaryButtonPress={true}
+            withoutRestoreFocus={withoutRestoreFocus}
+            data-ownedby={dataOwnedBy}
             // Slightly larger max width so the modal doesn't perfectly overlap with the
             // settings page underneath.
             maxWidth={addRemLengths(defaultModalMaxWidth, "4")}
+            buttonsPaddingX="7"
+            buttonsPaddingBottom="5"
         >
             <Box paddingX="7" paddingY="7">
                 <Box display="flex" flexDirection="column" gap="1">
@@ -194,7 +277,7 @@ export function SettingsInvitePeopleModal({
                         Invite people
                     </h2>
                     <Box fontSize="75" color="grey-60" userSelect="text" id={descriptionId}>
-                        Add email addresses and they&#x2019;ll be sent a link to join your space.
+                        These email addresses will be sent a link which lets them join your space.
                     </Box>
                 </Box>
                 <Spacer space="5" />
@@ -223,8 +306,10 @@ export function SettingsInvitePeopleModal({
                             <TextAreaWithAutoGrowingHeight
                                 ref={inputRef}
                                 aria-label="Emails"
-                                value={batchEmailString}
-                                onChange={event => setBatchEmailString(event.currentTarget.value)}
+                                value={emailAddressesString}
+                                onChange={event =>
+                                    setEmailAddressesString(event.currentTarget.value)
+                                }
                                 placeholder="jane@company.com, john@company.com, …"
                                 className={sprinkles({
                                     width: "full",

@@ -2011,7 +2011,10 @@ test("will show top three favorites at the start of affinity list when querying 
     ]);
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session2.account.id,
         session3.account.id,
@@ -2026,7 +2029,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session2.account.id,
@@ -2041,7 +2047,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2056,7 +2065,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2071,7 +2083,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2144,7 +2159,10 @@ test("will show top three favorites at the start of affinity list when querying 
     ]);
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,

@@ -54,6 +54,7 @@ export function Modal({
     withoutCloseInteractions,
     withoutElevatedGrey,
     withBlurBackdropFilter,
+    withoutRestoreFocus,
 }: {
     /**
      * The contents of the modal. If the contents are too big for the screen then the
@@ -174,6 +175,11 @@ export function Modal({
      * `backgroundColor` to something semi-transparent.
      */
     withBlurBackdropFilter?: boolean;
+
+    /**
+     * Don't restore focus to the previously focused element when the modal closes.
+     */
+    withoutRestoreFocus?: boolean;
 } & (
     | {
           /**
@@ -296,7 +302,7 @@ export function Modal({
                 // modal.
                 onPointerDown={!withoutCloseInteractions ? onCloseWithAnimation : undefined}
             />
-            <FocusScope restoreFocus contain>
+            <FocusScope restoreFocus={!withoutRestoreFocus} contain>
                 <RootOverlayScopeContextProvider>
                     <GlobalKeyDownEventModal>
                         <GlobalKeyDownEvent

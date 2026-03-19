@@ -677,6 +677,10 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
             {
                 spaceId,
                 emailAddresses,
+                // Don't add affinity points for invited accounts in this function. We'll apply
+                // affinity points for the invited accounts later when we apply the welcome
+                // package.
+                withoutAffinityPoints: true,
             },
         ).catch(error => {
             throw DataLossError.from(error, "Couldn\u2019t invite email addresses after sign up");
@@ -687,6 +691,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         assertEqualTypes<
             keyof typeof result,
             | "accounts"
+            | "affinityPoints"
             | "invalidEmailAddresses"
             | "rejectedAsSpamEmailAddresses"
             | "alreadyMemberEmailAddresses"

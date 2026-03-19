@@ -82,6 +82,7 @@ export function ShareOverlayAccountBody({
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
+                        gap="3"
                         height="7"
                     >
                         <Checkbox

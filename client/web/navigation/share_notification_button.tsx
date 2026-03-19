@@ -2,6 +2,7 @@ import {Memo, ReactElement, useRef} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
 import {defaultAccessLevelText} from "~/client/web/navigation/access_level_text.js";
+import {allowShareOverlayEscapeGlobalKeyDownDefault} from "~/client/web/navigation/allow_share_overlay_escape_global_key_down_default.js";
 import {
     ShareNotificationOverlay,
     ShareNotificationOverlayRef,
@@ -51,14 +52,7 @@ export function ShareNotificationButton({
                 </Box>
             )}
             onOverlayEscapeGlobalKeyDown={event => {
-                // If the focused element is a combobox input, `<MenuButton>`, or menu item that's
-                // open and the user hits escape then we want the escape keydown to close the
-                // focused element's overlay.
-                if (
-                    event.target instanceof HTMLElement &&
-                    (event.target.getAttribute("aria-expanded") === "true" ||
-                        event.target.role === "menuitem")
-                ) {
+                if (allowShareOverlayEscapeGlobalKeyDownDefault(event)) {
                     return {allowDefault: true};
                 }
             }}

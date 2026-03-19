@@ -56,6 +56,7 @@ ts_project(
         "//:node_modules/grapheme-splitter",
         "//:node_modules/html-tags",
         "//:node_modules/tough-cookie",
+        "//:node_modules/remove-accents",
         "//shared/error:error_core",
     ],
 )

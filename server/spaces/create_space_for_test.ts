@@ -1,6 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {addSpaceAccountWithoutAuthorization} from "~/server/spaces/internal/add_space_account_without_authorization.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {SpaceAccountItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
@@ -29,6 +30,50 @@ export async function createSpaceForTest(
         createdTime: new Date(),
         themeColor: defaultSpaceThemeColor,
     });
+}
+
+/**
+ * Create a space in a test environment with a linked email domain.
+ */
+export async function createSpaceWithAutoAddAccountsFromEmailDomainForTest(
+    context: DynamoContext,
+    {
+        id = generateId<SpaceId>(),
+        name,
+        emailDomain,
+        isDisabled = false,
+    }: {
+        id?: SpaceId;
+        name: string;
+        emailDomain: string;
+        isDisabled?: boolean;
+    },
+) {
+    assert(isTestNodeEnvOrAdminScenariosScript);
+
+    await DynamoTableSchema.executeTransaction(context, [
+        SpacesTable.transactionCreateItem({
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId: id,
+            name,
+            createdTime: new Date(),
+            themeColor: defaultSpaceThemeColor,
+        }),
+        SpacesTable.transactionCreateOrReplaceItem({
+            partitionType: "Space",
+            sortRangeType: "AutoAddAccountsFromEmailDomain",
+            spaceId: id,
+            emailDomain,
+        }),
+        SpacesTable.transactionCreateItem({
+            partitionType: "AutoAddAccountsFromEmailDomain",
+            sortRangeType: "Space",
+            emailDomain,
+            spaceId: id,
+            isEnabled: !isDisabled,
+        }),
+    ]);
 }
 
 /**

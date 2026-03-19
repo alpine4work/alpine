@@ -56,6 +56,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {filterAsyncIterableIterator} from "~/shared/helpers/iterable/filter_async_iterable_iterator.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {
@@ -836,6 +837,8 @@ function getSearchAffinityEntityInteractionPoints(
  * convenient since you guarantee an affinity update after the actual database
  * update. However, sometimes it's useful to throttle calls to this function (e.g.
  * typing in a document) which is easiest to do on the client.
+ *
+ * Returns the number of points the entity has after this update.
  */
 // TODO(calebmer): I wonder if we should add a "mobile multiplier" to some of these
 // interactions. Since all of these interactions are harder to do on mobile that
@@ -851,7 +854,7 @@ export function markSearchAffinityEntityInteraction(
         entityId: SearchAffinityEntityId;
         interaction: SearchAffinityEntityInteraction;
     },
-) {
+): Promise<number> {
     return addSearchAffinityEntityPoints(context, {
         spaceId,
         accountId: context.actor.getAccountId(),
@@ -886,7 +889,7 @@ export function markSearchAffinityEntityInteractionForAccount(
         entityId: SearchAffinityEntityId;
         interaction: SearchAffinityEntityInteraction;
     },
-) {
+): Promise<number> {
     // Make sure we're using a system actor.
     context.actor.authorizeSystem();
 
@@ -915,7 +918,7 @@ export function markSearchAffinityCreateDocumentEntityInteraction(
         documentId: DocumentId;
         creatorId: AccountId;
     },
-) {
+): Promise<number> {
     return addSearchAffinityEntityPoints(context, {
         spaceId,
         accountId: creatorId,
@@ -943,7 +946,7 @@ async function addSearchAffinityEntityPoints(
         erosion?: number;
         isViewInteraction: boolean;
     },
-) {
+): Promise<number> {
     // Optimization: We don't authorize whether the actor has access to the entity.
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
@@ -966,7 +969,7 @@ async function addSearchAffinityEntityPoints(
     ]);
 
     // Bots don't accumulate affinity points
-    if (isBot) return;
+    if (isBot) return 0;
 
     return dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(context, options);
 }
@@ -1001,7 +1004,7 @@ export async function dangerouslyAddSearchAffinityEntityPointsWithoutAuthorizati
         erosion?: number;
         isViewInteraction?: boolean;
     },
-) {
+): Promise<number> {
     // Make sure increments are positive and finite.
     if (pointsIncrement < 0 || isNaN(pointsIncrement) || !Number.isFinite(pointsIncrement))
         throw new InvalidArgumentError("Search affinity points increment must be a positive");
@@ -1017,7 +1020,7 @@ export async function dangerouslyAddSearchAffinityEntityPointsWithoutAuthorizati
         ? assertId<TaskCollectionId>(entityId.slice(15))
         : null;
 
-    await runAllPromises([
+    const [newItem] = await runAllPromises([
         SearchEntityTable.updateItem(
             context,
             {
@@ -1143,6 +1146,8 @@ export async function dangerouslyAddSearchAffinityEntityPointsWithoutAuthorizati
               )
             : null,
     ]);
+
+    return getCurrentSearchAffinityEntityPoints(currentTime, assertExists(newItem));
 }
 
 /**
@@ -1848,7 +1853,7 @@ async function querySessionActorSearchAffinityEntities<IdType extends Id>(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     entityType: GetSearchAffinityEntityIdType<SearchAffinityEntityId, IdType>,
-): Promise<Array<IdType>> {
+): Promise<Iterable<{id: IdType; points: number}>> {
     await authorizeSpaceAccess(context, spaceId);
 
     const currentTime = Date.now();
@@ -1926,7 +1931,10 @@ async function querySessionActorSearchAffinityEntities<IdType extends Id>(
     // automatically expire items (so we don't have to) and the points bucket doesn't
     // matter for the performance of this function. So spare the points bucket update
     // cost.
-    return items.map(item => item.entityId.slice(entityType.length + 1) as IdType);
+    return mapIterable(items, item => ({
+        id: item.entityId.slice(entityType.length + 1) as IdType,
+        points: item.points,
+    }));
 }
 
 /**
@@ -1943,7 +1951,7 @@ async function querySessionActorSearchAffinityEntities<IdType extends Id>(
 export async function getPossiblyStaleAccountSearchAffinityEntityIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
-): Promise<Array<AccountId>> {
+): Promise<Iterable<{id: AccountId; points: number}>> {
     return querySessionActorSearchAffinityEntities<AccountId>(context, spaceId, "Account");
 }
 
@@ -1964,7 +1972,10 @@ export async function getPossiblyStaleChannelSearchAffinityEntityIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Array<ChannelId>> {
-    return querySessionActorSearchAffinityEntities<ChannelId>(context, spaceId, "Channel");
+    return Array.from(
+        await querySessionActorSearchAffinityEntities<ChannelId>(context, spaceId, "Channel"),
+        ({id}) => id,
+    );
 }
 
 /**
@@ -1984,10 +1995,13 @@ export async function getPossiblyStaleTaskCollectionSearchAffinityEntityIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Array<TaskCollectionId>> {
-    return querySessionActorSearchAffinityEntities<TaskCollectionId>(
-        context,
-        spaceId,
-        "TaskCollection",
+    return Array.from(
+        await querySessionActorSearchAffinityEntities<TaskCollectionId>(
+            context,
+            spaceId,
+            "TaskCollection",
+        ),
+        ({id}) => id,
     );
 }
 

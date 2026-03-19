@@ -19,6 +19,7 @@ export const expensivelyGetAllSpaceAccounts = defineRpc({
     },
     output: {
         accounts: Schema.array(AccountModel.schema),
+        affinityPoints: Schema.array(Schema.float).default(emptyArray),
     },
 });
 
@@ -148,6 +149,7 @@ export const inviteEmailAddressesToSpace = defineRpc({
     },
     output: {
         accounts: Schema.array(AccountModel.schema),
+        affinityPoints: Schema.array(Schema.float).default(emptyArray),
         errors: Schema.object({
             invalidEmailAddresses: Schema.array(Schema.string),
             rejectedAsSpamEmailAddresses: Schema.array(Schema.string),

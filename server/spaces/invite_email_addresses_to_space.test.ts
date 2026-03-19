@@ -1,10 +1,13 @@
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_actions.js";
 import {getSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
@@ -14,7 +17,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 
-const context = createTestContext();
+const context = createTestContext({searchInjection});
 
 function generateOrganizationEmailAddress(emailDomain: string) {
     return `test.${generateId()}@${emailDomain}`;
@@ -56,6 +59,18 @@ async function getAllSpaceAccountIds(session: TestSpaceSession) {
     });
 
     return accounts.map(account => account.id).sort();
+}
+
+async function getAccountAffinityPointsById(session: TestSpaceSession) {
+    return new Map(
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(
+                context.action(session),
+                session.space.id,
+            ),
+            ({id, points}) => [id, points],
+        ),
+    );
 }
 
 test("can not invite accounts for a space we are not in", async () => {
@@ -219,6 +234,61 @@ test("members cannot invite accounts from auto-add domains configured in a diffe
 
     // Make sure we didn't report an error but then silently added the accounts.
     expect(await getAllSpaceAccountIds(memberSession)).toEqual([memberSession.account.id].sort());
+});
+
+test("inviting existing and new accounts adds affinity points for both invited accounts", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+
+    const existingAccount = await TestAccount.create(context);
+    const existingAccountEmailAddress = await existingAccount.createEmailAddress();
+    const newAccountEmailAddress = generateEmailAddressForTest();
+
+    const result = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+        spaceId: space.id,
+        emailAddresses: [existingAccountEmailAddress, newAccountEmailAddress],
+    });
+
+    expect(result.accounts.length).toEqual(2);
+    expect(result.affinityPoints.length).toEqual(2);
+    expect(result.affinityPoints.every(points => points > 0)).toBe(true);
+
+    const existingInvitedAccount = result.accounts.find(
+        account => account.id === existingAccount.id,
+    );
+    expect(existingInvitedAccount).toBeDefined();
+
+    const newInvitedAccount = assertExists(
+        result.accounts.find(account => account.id !== existingAccount.id),
+    );
+
+    const affinityPointsByAccountId = await getAccountAffinityPointsById(ownerSession);
+    expect(assertExists(affinityPointsByAccountId.get(existingAccount.id))).toBeGreaterThan(0);
+    expect(assertExists(affinityPointsByAccountId.get(newInvitedAccount.id))).toBeGreaterThan(0);
+});
+
+test("inviting an existing member adds affinity points for that member account", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+    const memberSession = await space.createSession();
+    const memberEmailAddress = await memberSession.account.createEmailAddress();
+
+    const affinityPointsByAccountIdBefore = await getAccountAffinityPointsById(ownerSession);
+    const memberAffinityPointsBefore =
+        affinityPointsByAccountIdBefore.get(memberSession.account.id) ?? 0;
+
+    const result = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+        spaceId: space.id,
+        emailAddresses: [memberEmailAddress],
+    });
+
+    expect(result.accounts.length).toEqual(0);
+    expect([...result.alreadyMemberEmailAddresses.keys()]).toEqual([memberEmailAddress]);
+
+    const affinityPointsByAccountIdAfter = await getAccountAffinityPointsById(ownerSession);
+    expect(
+        assertExists(affinityPointsByAccountIdAfter.get(memberSession.account.id)),
+    ).toBeGreaterThan(memberAffinityPointsBefore);
 });
 
 test("cannot invite existing members", async () => {

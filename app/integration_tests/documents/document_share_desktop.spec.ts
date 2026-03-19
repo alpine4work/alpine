@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
@@ -11,10 +11,33 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {generateId} from "~/shared/id/id.js";
 
 const {context, services} = createTestServices();
 
 const mentionText = "\u00A0\u00A0\u202FSara";
+
+function generateInviteEmailAddress(domain = "test.cyberworlds.dev") {
+    return `invite.${generateId().slice(0, 8)}@${domain}`;
+}
+
+async function openInviteAccountsModalFromShareOverlay(page: Page, emailAddress: string) {
+    await page.getByRole("button", {name: "Share"}).click();
+
+    const addPeopleInput = page.getByPlaceholder("Add people");
+    await addPeopleInput.fill(emailAddress);
+
+    const inviteOption = page.getByRole("option", {
+        name: new RegExp(`Invite.*${escapeRegExp(emailAddress)}`),
+    });
+    await inviteOption.click();
+
+    const inviteModal = page.getByRole("alertdialog", {name: "Invite people"});
+    await expect(inviteModal).toBeVisible();
+
+    return inviteModal;
+}
 
 test("can toggle document sharing on/off with switch", async ({
     browser,
@@ -1771,6 +1794,128 @@ test("will send a notification when sharing with account", async ({
     await expect(page2.getByText("Test shared a document with you")).toBeVisible();
 
     await browserContext1.close();
+});
+
+test("can invite account from share overlay and use optimistic account update", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(session, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await expect(inviteModal.getByRole("textbox", {name: "Emails"})).toHaveValue(
+        inviteEmailAddress,
+    );
+
+    await inviteModal.getByRole("button", {name: "Send"}).click();
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
+
+    const accountInput = page.getByTestId("ShareOverlayAccountInput").locator("input");
+    await accountInput.click();
+    await accountInput.press("Backspace");
+
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeHidden();
+
+    await accountInput.fill(inviteEmailAddress);
+
+    // If our optimistic update worked then we'll see the newly invited email in the
+    // list of space accounts.
+    await expect(page.getByRole("option", {name: inviteEmailAddress, exact: true})).toBeVisible();
+});
+
+test("escape closes invite modal but leaves share overlay open", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(session, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await page.keyboard.press("Escape");
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByPlaceholder("Add people")).toBeVisible();
+    await expect(page.getByTestId("ShareOverlayDefaultGrant")).toBeVisible();
+});
+
+test("can send invite from modal with keyboard shortcut", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(session, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await inviteModal.getByRole("textbox", {name: "Emails"}).click();
+
+    await page.keyboard.press("ControlOrMeta+Enter");
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
+});
+
+test("member sees admin-only error when inviting non-domain account from share overlay", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    await space.createSession({role: "Owner"});
+    const memberSession = await space.createSession({role: "Member"});
+
+    const document = await TestDocument.create(memberSession, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress("outside-company.com");
+
+    await services.signIn(browserContext, memberSession);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await inviteModal.getByRole("button", {name: "Send"}).click();
+
+    await expect(inviteModal).toBeVisible();
+    await expect(page.getByTestId("InviteErroredEmailAddresses")).toContainText(
+        "can only be invited by an admin",
+    );
+    await expect(inviteModal.getByRole("textbox", {name: "Emails"})).toHaveValue(
+        inviteEmailAddress,
+    );
+});
+
+test("member can invite linked-domain account from share overlay", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.createWithAutoAddAccountsFromEmailDomain(context);
+
+    const memberSession = await space.createSession({role: "Member"});
+    const document = await TestDocument.create(memberSession, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress(space.emailDomain);
+
+    await services.signIn(browserContext, memberSession);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await inviteModal.getByRole("button", {name: "Send"}).click();
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
 });
 
 test("anonymous users can see document with url grant but only public mentions", async ({page}) => {

@@ -3,7 +3,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Locale} from "~/shared/helpers/intl/locale.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 
-export function getErrorDisplayMessageForPartialInvitePeopleFailure(
+export function getErrorDisplayMessageForPartialInviteAccountsFailure(
     locale: Locale,
     successfulInviteCount: number,
     errors: {

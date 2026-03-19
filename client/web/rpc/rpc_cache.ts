@@ -76,6 +76,19 @@ export class RpcCache {
             Replace<Output, {readonly input: Input}>
         >;
     }
+
+    public addOptimisticUpdate<Input, Output extends {}>(
+        rpc: RpcDefinition<Input, Output>,
+        input: Input,
+        promise: Promise<unknown>,
+        update: (output: Output) => Output,
+    ): void {
+        const key = getRpcCacheKey(rpc, input);
+
+        return this._cache.addOptimisticUpdate(key, promise, (output: any) =>
+            Object.assign(update(output), {input: output.input}),
+        );
+    }
 }
 
 export const RpcCacheContext = createGlobalContext(get => new RpcCache(get(SwrCacheContext)));

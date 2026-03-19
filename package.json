@@ -299,6 +299,7 @@
         "react-router": "6.23.1",
         "react-router-dom": "6.23.1",
         "react-stately": "3.27.0",
+        "remove-accents": "^0.5.0",
         "scheduler": "^0.27.0",
         "serve-static": "^1.15.0",
         "set-cookie-parser": "^2.6.0",

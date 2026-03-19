@@ -31,6 +31,7 @@ import {useIsTextInputFocused} from "~/client/web/design/use_is_text_input_focus
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
 import {defaultAccessLevelText} from "~/client/web/navigation/access_level_text.js";
+import {allowShareOverlayEscapeGlobalKeyDownDefault} from "~/client/web/navigation/allow_share_overlay_escape_global_key_down_default.js";
 import {ShareMobileModal} from "~/client/web/navigation/internal/share_mobile_modal.js";
 import {ShareOverlay, ShareOverlayRef} from "~/client/web/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
@@ -637,14 +638,7 @@ export function NavigationBarContentMoreButton({
                 onOverlayEscapeGlobalKeyDown={event => {
                     if (!showShareDesktopOverlay) return;
 
-                    // If the focused element is a combobox input, `<MenuButton>`, or menu item that's
-                    // open and the user hits escape then we want the escape keydown to close the
-                    // focused element's overlay.
-                    if (
-                        event.target instanceof HTMLElement &&
-                        (event.target.getAttribute("aria-expanded") === "true" ||
-                            event.target.role === "menuitem")
-                    ) {
+                    if (allowShareOverlayEscapeGlobalKeyDownDefault(event)) {
                         return {allowDefault: true};
                     }
                 }}

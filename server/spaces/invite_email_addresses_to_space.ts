@@ -68,12 +68,15 @@ export async function inviteEmailAddressesToSpace(
     {
         spaceId,
         emailAddresses,
+        withoutAffinityPoints = false,
     }: {
         spaceId: SpaceId;
         emailAddresses: ReadonlyArray<string>;
+        withoutAffinityPoints?: boolean;
     },
 ): Promise<{
     accounts: ReadonlyArray<AccountModel>;
+    affinityPoints: ReadonlyArray<number>;
     invalidEmailAddresses: ReadonlySet<string>;
     rejectedAsSpamEmailAddresses: ReadonlySet<string>;
     alreadyMemberEmailAddresses: ReadonlyMap<string, AccountId>;
@@ -84,6 +87,7 @@ export async function inviteEmailAddressesToSpace(
 
     return context.tracer.withSpan("Invite email addresses to space", async (context, span) => {
         const accounts: Array<AccountModel> = [];
+        const affinityPoints: Array<number> = [];
         const unexpectedFailureEmailAddresses = new Map<string, unknown>();
         const invalidEmailAddresses = new Set<string>();
         const rejectedAsSpamEmailAddresses = new Set<string>();
@@ -108,18 +112,32 @@ export async function inviteEmailAddressesToSpace(
 
                 if (!result.ok) {
                     switch (result.reason) {
-                        case "Invalid":
+                        case "Invalid": {
                             invalidEmailAddresses.add(emailAddress);
                             return;
-                        case "InviteRejectedAsSpam":
+                        }
+                        case "InviteRejectedAsSpam": {
                             rejectedAsSpamEmailAddresses.add(emailAddress);
                             return;
-                        case "AlreadyMember":
+                        }
+                        case "AlreadyMember": {
                             alreadyMemberEmailAddresses.set(emailAddress, result.accountId);
+
+                            // Even though we didn't send an invite, we still want to boost affinity points for
+                            // this account that's already a member of the space.
+                            if (!withoutAffinityPoints) {
+                                await context.searchInjection.markSearchAffinityEntityInteraction({
+                                    spaceId,
+                                    entityId: `Account:${result.accountId}`,
+                                    interaction: {type: "HighIntentUpdate"},
+                                });
+                            }
                             return;
-                        case "RequiresAdminAccess":
+                        }
+                        case "RequiresAdminAccess": {
                             requiresAdminAccessEmailAddresses.add(emailAddress);
                             return;
+                        }
                         default:
                             throw exhaustive(result);
                     }
@@ -128,7 +146,18 @@ export async function inviteEmailAddressesToSpace(
                 try {
                     const account = await result.inviteEmailAddressToSpace(context);
 
+                    // Add affinity points for each account the actor has invited so they show up high
+                    // in the account's suggested accounts list.
+                    const points = withoutAffinityPoints
+                        ? 0
+                        : await context.searchInjection.markSearchAffinityEntityInteraction({
+                              spaceId,
+                              entityId: `Account:${account.id}`,
+                              interaction: {type: "HighIntentUpdate"},
+                          });
+
                     accounts.push(account);
+                    affinityPoints.push(points);
                 } catch (error) {
                     // Error is reported in internalInviteAccountToSpace, no need to report again here.
                     unexpectedFailureEmailAddresses.set(emailAddress, error);
@@ -155,6 +184,7 @@ export async function inviteEmailAddressesToSpace(
 
         return {
             accounts,
+            affinityPoints,
             invalidEmailAddresses,
             rejectedAsSpamEmailAddresses,
             alreadyMemberEmailAddresses,

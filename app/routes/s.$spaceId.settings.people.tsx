@@ -17,10 +17,8 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {TooltipRef} from "~/client/web/design/tooltip.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {InviteAccountsModal} from "~/client/web/navigation/invite_accounts_modal.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
-import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
-import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {SettingsInvitePeopleModal} from "~/client/web/settings/settings_invite_people_modal.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -28,13 +26,15 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {
-    expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
     moveSpaceOwner,
     removeSpaceAccount,
     updateSpaceAccountRole,
@@ -131,17 +131,6 @@ function SpacePeopleSettingsRouteAccounts({
     const currentAccountData = useAccountModel(currentAccount);
     const appContext = useAppContext();
     const accountRegistry = useAccountRegistry();
-    const {revalidate} = useRevalidator();
-
-    // Add `accounts` to the RPC cache so future RPC calls have access to them and we
-    // can skip any preloads but don't read `accounts` from the RPC cache since it may
-    // have eventually consistent data that overrides our strongly consistent
-    // `accounts` loaded from the server!
-    useLazyLoadRpc(
-        expensivelyGetAllSpaceAccountsRpc,
-        {spaceId: space.id},
-        {initialOutput: useMemo(() => ({accounts: allAccounts}), [allAccounts])},
-    );
 
     const [modalState, setModalState] = useState<
         | {
@@ -158,16 +147,25 @@ function SpacePeopleSettingsRouteAccounts({
         | null
     >(null);
 
+    const [newAccountsFromInviteModal, setNewAccountsFromInviteModal] =
+        useState<ReadonlyArray<AccountModel>>(emptyArray);
+
     // Make sure we sync our fetched accounts data with accountStore to get the latest
     // and consistent data across the application.
     const allAccountsDatas = useStore(
-        useMemo(
-            () =>
-                Store.many(
-                    (allAccounts ?? []).map(account => accountRegistry.getAccountStore(account)),
+        useMemo(() => {
+            const accountById = new Map<AccountId, AccountModel>();
+
+            if (allAccounts)
+                for (const account of allAccounts) accountById.set(account.id, account);
+            for (const account of newAccountsFromInviteModal) accountById.set(account.id, account);
+
+            return Store.many(
+                Array.from(accountById.values(), account =>
+                    accountRegistry.getAccountStore(account),
                 ),
-            [accountRegistry, allAccounts],
-        ),
+            );
+        }, [accountRegistry, allAccounts, newAccountsFromInviteModal]),
     );
 
     // check "Admin" access for currently logged in account.
@@ -230,17 +228,6 @@ function SpacePeopleSettingsRouteAccounts({
             invitedAccounts,
         };
     }, [allAccountsDatas]);
-
-    const onSendInvitesSuccess = () => {
-        // TODO: update this to use the promise that is now available TODO: revalidate does
-        // not return a promise, so we can't wait for it to finish. We should create some
-        // method of waiting for the data to come back before closing the modal. This would
-        // be a great UX improvement as we don't want users to see flashes of new data
-        // coming in after the modal closes.
-
-        // If we've sent any new invites, revalidate to refetch the loader data.
-        void revalidate();
-    };
 
     const handleConfirmMoveOwner = async () => {
         assert(modalState?.type === "ConfirmOwner");
@@ -590,10 +577,14 @@ function SpacePeopleSettingsRouteAccounts({
             )}
             {/* We use a custom invite dialog */}
             {modalState?.type === "SendInvites" && (
-                <SettingsInvitePeopleModal
-                    spaceId={space.id}
+                <InviteAccountsModal
                     onClose={() => setModalState(null)}
-                    onSuccess={onSendInvitesSuccess}
+                    onNewAccounts={newAccounts => {
+                        setNewAccountsFromInviteModal(newAccountsFromInviteModal => [
+                            ...newAccountsFromInviteModal,
+                            ...mapIterable(newAccounts, ({account}) => account),
+                        ]);
+                    }}
                 />
             )}
         </Box>

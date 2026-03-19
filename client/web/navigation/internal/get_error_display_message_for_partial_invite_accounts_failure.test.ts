@@ -1,4 +1,4 @@
-import {getErrorDisplayMessageForPartialInvitePeopleFailure} from "~/client/web/settings/internal/get_error_display_message_for_partial_invite_people_failure.js";
+import {getErrorDisplayMessageForPartialInviteAccountsFailure} from "~/client/web/navigation/internal/get_error_display_message_for_partial_invite_accounts_failure.js";
 import {InternalError} from "~/shared/error/error.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 
@@ -15,7 +15,7 @@ function createEmptyErrors() {
 describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
     test("throws error when no errors are provided", () => {
         expect(() => {
-            getErrorDisplayMessageForPartialInvitePeopleFailure(
+            getErrorDisplayMessageForPartialInviteAccountsFailure(
                 defaultLocale,
                 3,
                 createEmptyErrors(),
@@ -31,7 +31,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["notanemail"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             1,
             errors,
@@ -46,7 +46,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["invalid@"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -59,7 +59,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.unexpectedFailureEmailAddresses.set("fail@example.com", {});
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -75,7 +75,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         errors.unexpectedFailureEmailAddresses.set("a@example.com", {});
         errors.unexpectedFailureEmailAddresses.set("b@example.com", {});
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -90,7 +90,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["notanemail"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -103,7 +103,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["bad1", "bad2"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -116,7 +116,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.rejectedAsSpamEmailAddresses = ["spam@example.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -129,7 +129,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.alreadyMemberEmailAddresses = ["member@example.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -142,7 +142,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.alreadyMemberEmailAddresses = ["a@example.com", "b@example.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -155,7 +155,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["a@x.com", "b@x.com", "c@x.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -168,7 +168,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["a@x.com", "b@x.com", "c@x.com", "d@x.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -183,7 +183,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         const errors = createEmptyErrors();
         errors.invalidEmailAddresses = ["a@x.com", "b@x.com", "c@x.com", "d@x.com", "e@x.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             0,
             errors,
@@ -199,7 +199,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         errors.invalidEmailAddresses = ["invalid@"];
         errors.alreadyMemberEmailAddresses = ["member@example.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             2,
             errors,
@@ -217,7 +217,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
         errors.rejectedAsSpamEmailAddresses = ["spam@example.com"];
         errors.alreadyMemberEmailAddresses = ["member@example.com"];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             1,
             errors,
@@ -254,7 +254,7 @@ describe("getErrorDisplayMessageForPartialInvitePeopleFailure", () => {
             "member5@example.com",
         ];
 
-        const result = getErrorDisplayMessageForPartialInvitePeopleFailure(
+        const result = getErrorDisplayMessageForPartialInviteAccountsFailure(
             defaultLocale,
             3,
             errors,

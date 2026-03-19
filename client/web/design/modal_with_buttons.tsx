@@ -44,6 +44,7 @@ function ModalWithButtons(
         withoutCloseButton,
         withoutCloseInteractions,
         withoutCloseAfterPrimaryButtonPress,
+        withoutRestoreFocus,
         buttonsPaddingX = "5",
         buttonsPaddingBottom = "4",
         additionalButtons,
@@ -70,6 +71,7 @@ function ModalWithButtons(
         withoutCloseButton?: boolean;
         withoutCloseInteractions?: boolean;
         withoutCloseAfterPrimaryButtonPress?: boolean;
+        withoutRestoreFocus?: boolean;
         buttonsPaddingX?: Spacing;
         buttonsPaddingBottom?: Spacing;
         additionalButtons?: ReactNode;
@@ -112,6 +114,7 @@ function ModalWithButtons(
             withoutCloseAnimation={withoutCloseAnimation}
             withoutCloseButton={withoutCloseButton}
             withoutCloseInteractions={withoutCloseInteractions}
+            withoutRestoreFocus={withoutRestoreFocus}
         >
             {({onCloseWithAnimation, onCloseWithoutAnimation}) => {
                 const pressPrimaryButton = () => {

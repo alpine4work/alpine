@@ -90,6 +90,7 @@ export function Checkbox({
                 tabIndex={isDisabled ? -1 : 0}
                 color={isDisabled ? "grey-30" : color}
                 fontSize={fontSize}
+                minWidth="flex-fit"
                 maxWidth="full"
                 paddingY={touchSlop.slop}
                 marginY={`-${touchSlop.slop}`}
@@ -113,6 +114,7 @@ export function Checkbox({
                     paddingLeft="1.5"
                     position="relative"
                     paddingRight={shouldShowPendingSpinner ? "1" : undefined}
+                    fontStyle="truncate"
                 >
                     {children}
                 </Box>

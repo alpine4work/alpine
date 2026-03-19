@@ -74,6 +74,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 // HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when we
@@ -283,6 +284,7 @@ export type SearchInjectionContextModule = InstanceType<typeof SearchInjectionCo
 
 export const SearchInjectionContextModule = createInjectionContextModule<SearchInjection>({
     getSearchMentionEntityIfPossible: true,
+    markSearchAffinityEntityInteraction: true,
     dangerouslyFavoriteSearchEntityWithoutAuthorization: true,
     dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization: true,
 });
@@ -293,6 +295,19 @@ export type SearchInjection = {
         spaceId: SpaceId,
         entityId: SearchMentionEntityId,
     ): Promise<ContentReferencesSearchEntity | null>;
+
+    markSearchAffinityEntityInteraction(
+        context: ServerSessionActionContext,
+        {
+            spaceId,
+            entityId,
+            interaction,
+        }: {
+            spaceId: SpaceId;
+            entityId: SearchAffinityEntityId;
+            interaction: SearchAffinityEntityInteraction;
+        },
+    ): Promise<number>;
 
     dangerouslyFavoriteSearchEntityWithoutAuthorization(
         context: DynamoContext,
@@ -313,7 +328,7 @@ export type SearchInjection = {
             erosion?: number;
             isViewInteraction?: boolean;
         },
-    ): Promise<void>;
+    ): Promise<unknown>;
 };
 
 export type SpacesInjectionContextModule = InstanceType<typeof SpacesInjectionContextModule>;

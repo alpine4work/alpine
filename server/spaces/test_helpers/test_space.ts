@@ -1,5 +1,9 @@
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
-import {addSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/create_space_for_test.js";
+import {
+    addSpaceAccountForTest,
+    createSpaceForTest,
+    createSpaceWithAutoAddAccountsFromEmailDomainForTest,
+} from "~/server/spaces/create_space_for_test.js";
 import {getSpace} from "~/server/spaces/get_space.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
@@ -21,6 +25,7 @@ import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 let testSpaceCount = 1;
+let testAutoAddAccountsFromEmailDomainCount = 1;
 
 /**
  * Our test object system gives you a way to quickly set up scenarios for your unit
@@ -73,6 +78,32 @@ export class TestSpace {
         const space = new TestSpace(context, id);
 
         return space;
+    }
+
+    public static async createWithAutoAddAccountsFromEmailDomain(
+        context: TestContext,
+        {
+            name = `Test Space ${testSpaceCount++}`,
+            emailDomain = `test${testAutoAddAccountsFromEmailDomainCount++}.cyberworlds.dev`,
+            isDisabled,
+        }: {
+            name?: string;
+            emailDomain?: string;
+            isDisabled?: boolean;
+        } = {},
+    ): Promise<TestSpace & {readonly emailDomain: string}> {
+        const id = generateId<SpaceId>();
+
+        await createSpaceWithAutoAddAccountsFromEmailDomainForTest(context, {
+            id,
+            name,
+            emailDomain,
+            isDisabled,
+        });
+
+        const space = new TestSpace(context, id);
+
+        return Object.assign(space, {emailDomain});
     }
 
     public getTokenPayload(): SystemTokenPayload {
@@ -189,6 +220,8 @@ export class TestSpace {
         const result = await inviteEmailAddressesToSpace(session.action(), {
             spaceId: this.id,
             emailAddresses: [emailAddress],
+            // Test helpers should not require search injection by default.
+            withoutAffinityPoints: true,
         });
 
         const account = assertExists(

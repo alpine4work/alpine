@@ -1093,14 +1093,17 @@ class TaskActionTransactionIndexState {
                                 collectionId,
                             ] of newTask.collections.raw.collections.entries()) {
                                 if (!oldTask?.collections.raw.collections.has(collectionId)) {
-                                    afterWriteCallbacks.push(() =>
-                                        markSearchAffinityEntityInteractionForAccount(context, {
-                                            spaceId,
-                                            accountId: actorId,
-                                            entityId: `TaskCollection:${collectionId}`,
-                                            interaction: {type: "LowIntentUpdate"},
-                                        }),
-                                    );
+                                    afterWriteCallbacks.push(async () => {
+                                        await markSearchAffinityEntityInteractionForAccount(
+                                            context,
+                                            {
+                                                spaceId,
+                                                accountId: actorId,
+                                                entityId: `TaskCollection:${collectionId}`,
+                                                interaction: {type: "LowIntentUpdate"},
+                                            },
+                                        );
+                                    });
                                 }
                             }
                         }
@@ -1191,14 +1194,14 @@ class TaskActionTransactionIndexState {
                     // more points than expected. Consider adding a flag to disable affinity updates
                     // when reindexing OpenSearch from scratch.
                     if (actorId !== null && !oldCollection) {
-                        afterWriteCallbacks.push(() =>
-                            markSearchAffinityEntityInteractionForAccount(context, {
+                        afterWriteCallbacks.push(async () => {
+                            await markSearchAffinityEntityInteractionForAccount(context, {
                                 spaceId,
                                 accountId: actorId,
                                 entityId: `TaskCollection:${newCollection.id}`,
                                 interaction: {type: "HighIntentUpdate"},
-                            }),
-                        );
+                            });
+                        });
                     }
 
                     return new OpensearchIndexDocIfVersionCommand(

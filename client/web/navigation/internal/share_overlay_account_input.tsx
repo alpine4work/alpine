@@ -2,7 +2,7 @@ import {isFocusVisible, setInteractionModality, usePress} from "@react-aria/inte
 import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
-import {CaretDown, MagnifyingGlass} from "phosphor-react";
+import {CaretDown, MagnifyingGlass, UserCirclePlus} from "phosphor-react";
 import {
     Dispatch,
     KeyboardEvent,
@@ -13,6 +13,7 @@ import {
     createRef,
     forwardRef,
     useEffect,
+    useId,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -34,8 +35,10 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {InviteAccountsModal} from "~/client/web/navigation/invite_accounts_modal.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,
@@ -50,6 +53,8 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
+import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
@@ -58,10 +63,17 @@ import {Store} from "~/shared/store/store.js";
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-type ShareOverlayAccountInputItem = {
-    readonly key: AccountId;
-    readonly accountData: AccountModelData;
-};
+type ShareOverlayAccountInputItem =
+    | {
+          readonly type: "Account";
+          readonly key: AccountId;
+          readonly accountData: AccountModelData;
+      }
+    | {
+          readonly type: "Invite";
+          readonly key: "Invite";
+          readonly emailAddress: string;
+      };
 
 let isClosingComboBox = false;
 
@@ -104,10 +116,16 @@ function ShareOverlayAccountInput(
     const spacingScale = useSpacingScale();
     const accountRegistry = useAccountRegistry();
 
+    const id = useId();
+
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
+
+    const [inviteAccountsModalState, setInviteAccountsModalState] = useState<{
+        initialEmailAddresses: string;
+    } | null>(null);
 
     const [buttonsRef, buttonsSize] = useResizeObserver();
 
@@ -118,14 +136,17 @@ function ShareOverlayAccountInput(
                 allAccountDatas =>
                     filterMapArray(
                         allAccountDatas,
-                        (accountData): ShareOverlayAccountInputItem | undefined => {
+                        (
+                            accountData,
+                        ): (ShareOverlayAccountInputItem & {type: "Account"}) | undefined => {
                             // Don't allow sharing with an account that was removed.
-                            if (accountData.space.state.type !== "Active") return;
+                            if (accountData.space.state.type === "Removed") return;
 
                             // Don't allow sharing with bot accounts.
                             if (accountData.botId) return;
 
                             return {
+                                type: "Account",
                                 key: accountData.id,
                                 accountData,
                             };
@@ -158,11 +179,39 @@ function ShareOverlayAccountInput(
         [items],
     );
 
-    const searchedItems = useMemo(
-        () =>
-            searchQuery === "" ? items : itemsSearchIndex.search(searchQuery).map(({item}) => item),
-        [items, itemsSearchIndex, searchQuery],
-    );
+    const searchedItems: ReadonlyArray<ShareOverlayAccountInputItem> = useMemo(() => {
+        if (searchQuery === "") return items;
+
+        const searchedItems = itemsSearchIndex.search(searchQuery).map(({item}) => item);
+
+        // If there are no search results then encourage the user to invite the provided
+        // email address.
+        if (searchedItems.length === 0) {
+            let emailAddress: string;
+
+            const allowedCharacters = new Set(["-", "+"]);
+
+            // Convert a search like "Josh Johnson" to "josh.johnson@" to make inviting email
+            // addresses really easy.
+            if (isEmailAddressValid(searchQuery)) {
+                emailAddress = searchQuery;
+            } else if (!searchQuery.includes("@")) {
+                emailAddress =
+                    convertToUrlPathnameSlug(searchQuery, ".", {allowedCharacters}) + "@";
+            } else {
+                const [part1 = "", part2 = ""] = searchQuery.split("@", 2);
+
+                emailAddress =
+                    convertToUrlPathnameSlug(part1, ".", {allowedCharacters}) +
+                    "@" +
+                    convertToUrlPathnameSlug(part2, ".", {allowedCharacters});
+            }
+
+            return [{type: "Invite", key: "Invite", emailAddress}];
+        }
+
+        return searchedItems;
+    }, [items, itemsSearchIndex, searchQuery]);
 
     const [disableAnimationOut, setDisableAnimationOut] = useState(true);
     useEffect(() => {
@@ -193,7 +242,13 @@ function ShareOverlayAccountInput(
 
         items: searchedItems,
         children: item => (
-            <Item textValue={item.accountData.name}>
+            <Item
+                textValue={
+                    item.type === "Account"
+                        ? item.accountData.name
+                        : `Invite \u201C${item.emailAddress}\u201D`
+                }
+            >
                 <ShareOverlayAccountInputListBoxOptionItem item={item} />
             </Item>
         ),
@@ -231,15 +286,27 @@ function ShareOverlayAccountInput(
             setSearchQuery("");
 
             if (typeof key === "string") {
-                const account = accountById.get(assertId(key));
-                if (account) {
-                    onSelectedAccountsChange(selectedAccounts => {
-                        // If the account already exists in the selection, don't add it a second time.
-                        if (selectedAccounts.some(otherAccount => otherAccount.id === account.id)) {
-                            return selectedAccounts;
-                        }
-                        return [...selectedAccounts, account];
+                if (key === "Invite") {
+                    setInviteAccountsModalState({
+                        initialEmailAddresses: assertExists(
+                            searchedItems.find(item => item.type === "Invite"),
+                        ).emailAddress,
                     });
+                } else {
+                    const account = accountById.get(assertId(key));
+                    if (account) {
+                        onSelectedAccountsChange(selectedAccounts => {
+                            // If the account already exists in the selection, don't add it a second time.
+                            if (
+                                selectedAccounts.some(
+                                    otherAccount => otherAccount.id === account.id,
+                                )
+                            ) {
+                                return selectedAccounts;
+                            }
+                            return [...selectedAccounts, account];
+                        });
+                    }
                 }
             }
 
@@ -434,6 +501,7 @@ function ShareOverlayAccountInput(
                 <Box
                     ref={selectedAccountRefs[index]}
                     cursor="default"
+                    minWidth="flex-fit"
                     height="6"
                     backgroundColor="grey-5"
                     borderRadius="full"
@@ -450,7 +518,7 @@ function ShareOverlayAccountInput(
                     <Box paddingLeft="0.5">
                         <AccountAvatar size="5" account={accountData} />
                     </Box>
-                    <Box paddingLeft="1.5" paddingRight="2" fontSize="75">
+                    <Box paddingLeft="1.5" paddingRight="2" fontSize="75" fontStyle="truncate">
                         {accountData.name}
                     </Box>
                 </Box>
@@ -532,6 +600,7 @@ function ShareOverlayAccountInput(
                 }
             >
                 <Box
+                    id={id}
                     data-testid="ShareOverlayAccountInput"
                     position="relative"
                     zIndex="0"
@@ -543,6 +612,34 @@ function ShareOverlayAccountInput(
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                 >
+                    {inviteAccountsModalState && (
+                        <InviteAccountsModal
+                            data-ownedby={id}
+                            initialEmailAddresses={inviteAccountsModalState.initialEmailAddresses}
+                            // Don't restore focus when the modal closes. Since focus would be restored to this
+                            // account input which would reopen the input combobox. However, we opened the
+                            // invite modal in the first place because there was nothing the user cared about
+                            // in the combobox. So opening the combobox again doesn't make sense. Instead the
+                            // user should focus on adding a message for the invited accounts.
+                            withoutRestoreFocus={true}
+                            onClose={() => setInviteAccountsModalState(null)}
+                            onNewAccounts={newAccounts => {
+                                onSelectedAccountsChange(selectedAccounts => {
+                                    for (const {account} of newAccounts) {
+                                        // If the account already exists in the selection, don't add it a second time.
+                                        if (
+                                            !selectedAccounts.some(
+                                                otherAccount => otherAccount.id === account.id,
+                                            )
+                                        ) {
+                                            selectedAccounts = [...selectedAccounts, account];
+                                        }
+                                    }
+                                    return selectedAccounts;
+                                });
+                            }}
+                        />
+                    )}
                     <Box
                         position="relative"
                         zIndex="0"
@@ -859,12 +956,37 @@ function ShareOverlayAccountInputListBoxOption({
 }
 
 function ShareOverlayAccountInputListBoxOptionItem({item}: {item: ShareOverlayAccountInputItem}) {
+    const {space} = useSpaceContext();
+
     return (
-        <Box display="flex" alignItems="center" gap="1.5">
-            <AccountAvatar account={item.accountData} size="5" />
-            <Box flexGrow="1" fontStyle="truncate">
-                {item.accountData.name}
-            </Box>
+        <Box display="flex" alignItems="center" gap="1.5" height="5">
+            {item.type === "Account" ? (
+                <>
+                    <AccountAvatar account={item.accountData} size="5" />
+                    <Box flexGrow="1" fontStyle="truncate">
+                        {item.accountData.name}
+                    </Box>
+                </>
+            ) : (
+                <>
+                    <Box
+                        width="5"
+                        height="5"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        color="grey-70"
+                    >
+                        <UserCirclePlus size={spacing["4"]} />
+                    </Box>
+                    <Box flexGrow="1" fontStyle="truncate">
+                        Invite &#x201C;{item.emailAddress}&#x201D; to{" "}
+                        <Box as="span" fontStyle="semi-bold">
+                            {space.name}
+                        </Box>
+                    </Box>
+                </>
+            )}
         </Box>
     );
 }

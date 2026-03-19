@@ -1,5 +1,6 @@
 import {createGlobalContext} from "~/client/web/helpers/global_context.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -10,6 +11,7 @@ import {computeStore} from "~/shared/store/compute_store.js";
 import {createPromiseStore} from "~/shared/store/promise_store.js";
 import {Store} from "~/shared/store/store.js";
 import {StoreMap} from "~/shared/store/store_map.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 export const swrDefaultDedupingIntervalMs = 2 * 1000;
 
@@ -47,6 +49,16 @@ export class SwrCache {
         }
     >();
 
+    private readonly _optimisticUpdatesStoreByKey = new Map<
+        string,
+        ValueStore<
+            ReadonlyArray<{
+                readonly promise: Promise<unknown>;
+                readonly update: (value: object) => object;
+            }>
+        >
+    >();
+
     private readonly _browserActivatedEmitter = new EventEmitter();
 
     constructor() {
@@ -79,7 +91,7 @@ export class SwrCache {
         }
     }
 
-    public destroy() {
+    public destroy(): void {
         assert(!this._isDestroyed);
         this._isDestroyed = true;
 
@@ -96,7 +108,7 @@ export class SwrCache {
         }
     }
 
-    private _onBrowserStateChange() {
+    private _onBrowserStateChange(): void {
         const wasBrowserActive = this._isBrowserActive;
         this._isBrowserActive = this._isOnline && document.visibilityState === "visible";
 
@@ -105,14 +117,14 @@ export class SwrCache {
         }
     }
 
-    public subscribeToBrowserActivated(listener: () => void) {
+    public subscribeToBrowserActivated(listener: () => void): () => void {
         return this._browserActivatedEmitter.subscribe(listener);
     }
 
     /**
      * Get the cache entry associated with this key.
      */
-    public getEntryStack(key: string) {
+    public getEntryStack(key: string): Store<SwrCacheEntryStack | undefined> {
         return this._entryStackByKey.get(key);
     }
 
@@ -120,7 +132,7 @@ export class SwrCache {
      * Retain cached data for the provided key. Multiple components may retain the same
      * data. We won't delete the data from the cache until the entry is fully released.
      */
-    public retainEntry(key: string) {
+    public retainEntry(key: string): void {
         const referenceState = getOrSetDefaultMapValue(this._referenceStateByKey, key, () => ({
             referenceCount: 0,
             expirationTimeout: null,
@@ -139,7 +151,7 @@ export class SwrCache {
      * we delete the data after our expiration timeout from the cache so it can be
      * garbage collected.
      */
-    public releaseEntry(key: string) {
+    public releaseEntry(key: string): void {
         const referenceState = this._referenceStateByKey.get(key);
 
         assert(referenceState && referenceState.referenceCount > 0, "Entry is already released");
@@ -166,7 +178,7 @@ export class SwrCache {
     ): void {
         const referenceState = this._referenceStateByKey.get(key);
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
-            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+            throw new FailedPreconditionError("Must retain entry before it can be revalidated");
         }
 
         const currentTime = Date.now();
@@ -195,7 +207,7 @@ export class SwrCache {
     ): void {
         const referenceState = this._referenceStateByKey.get(key);
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
-            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+            throw new FailedPreconditionError("Must retain entry before it can be revalidated");
         }
 
         const currentTime = Date.now();
@@ -217,7 +229,7 @@ export class SwrCache {
     ): SafeFloatingPromiseLike<object> {
         const referenceState = this._referenceStateByKey.get(key);
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
-            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+            throw new FailedPreconditionError("Must retain entry before it can be revalidated");
         }
 
         const currentTime = Date.now();
@@ -235,7 +247,40 @@ export class SwrCache {
     ): SafeFloatingPromiseLike<object> {
         const dedupingIntervalExpirationTime = currentTime + dedupingInterval;
         const dataPromise = fetcher(key);
-        const dataStore = createPromiseStore(dataPromise);
+
+        const dataStoreWithoutOptimisticUpdates = createPromiseStore(dataPromise);
+
+        const optimisticUpdatesStore = getOrSetDefaultMapValue(
+            this._optimisticUpdatesStoreByKey,
+            key,
+            () =>
+                new ValueStore<
+                    ReadonlyArray<{
+                        readonly promise: Promise<unknown>;
+                        readonly update: (value: object) => object;
+                    }>
+                >(emptyArray),
+        );
+
+        const dataStore: Store<PromiseState<object>> = Store.mapMany(
+            [dataStoreWithoutOptimisticUpdates, optimisticUpdatesStore],
+            ([data, optimisticUpdates]) => {
+                if (data.status !== "fulfilled") {
+                    return data;
+                } else {
+                    const newDataValue = optimisticUpdates.reduce(
+                        (value, update) => update.update(value),
+                        data.value,
+                    );
+
+                    // Optimization: If the optimistic updates didn't change the data then we can
+                    // return the original data object and skip an update.
+                    if (Object.is(newDataValue, data.value)) return data;
+
+                    return {status: "fulfilled", value: newDataValue};
+                }
+            },
+        );
 
         entryStack =
             entryStack?.push({dedupingIntervalExpirationTime, dataStore}) ??
@@ -244,6 +289,50 @@ export class SwrCache {
         this._entryStackByKey.set(key, entryStack);
 
         return dataPromise as SafeFloatingPromiseLike<object>;
+    }
+
+    /**
+     * Add an optimistic update to the cache for the given key. While the promise is
+     * pending, whenever you read the data for this key the optimistic updates will be
+     * applied. Once the promise resolves the optimistic updates are reverted and we
+     * expect the data in the cache to be correct.
+     *
+     * This differs from `useStateWithOptimisticUpdates()` which will permanently
+     * commit the optimistic update if the promise resolves without error.
+     */
+    public addOptimisticUpdate(
+        key: string,
+        promise: Promise<unknown>,
+        update: (value: object) => object,
+    ) {
+        const optimisticUpdate = {
+            promise,
+            update,
+        };
+
+        const optimisticUpdatesStore = getOrSetDefaultMapValue(
+            this._optimisticUpdatesStoreByKey,
+            key,
+            () =>
+                new ValueStore<
+                    ReadonlyArray<{
+                        readonly promise: Promise<unknown>;
+                        readonly update: (value: object) => object;
+                    }>
+                >(emptyArray),
+        );
+
+        optimisticUpdatesStore.set(optimisticUpdates => [...optimisticUpdates, optimisticUpdate]);
+
+        const cleanup = () => {
+            optimisticUpdatesStore.set(optimisticUpdates =>
+                optimisticUpdates.filter(
+                    otherOptimisticUpdate => otherOptimisticUpdate !== optimisticUpdate,
+                ),
+            );
+        };
+
+        promise.then(cleanup, cleanup);
     }
 }
 
@@ -281,10 +370,10 @@ export type SwrCacheEntryStack = Store<SwrCacheEntryResult> & {
      * will return its data. Until then we will return the last asynchronous data to be
      * resolved that was pushed to our entry.
      */
-    push(item: {
+    readonly push: (item: {
         dedupingIntervalExpirationTime: number;
         dataStore: Store<PromiseState<object>>;
-    }): SwrCacheEntryStack;
+    }) => SwrCacheEntryStack;
 };
 
 export function createSwrCacheEntryStack(
@@ -362,10 +451,10 @@ export type SwrCacheEntryHistoryStack = Store<SwrCacheEntryResult> & {
      * `SwrCacheEntryStack` finishes loading we will present it to the user. Until then
      * we present previously loaded data.
      */
-    push(item: {
+    readonly push: (item: {
         key: string;
         entryStackStore: Store<SwrCacheEntryStack | undefined>;
-    }): SwrCacheEntryHistoryStack;
+    }) => SwrCacheEntryHistoryStack;
 };
 
 export function createSwrCacheEntryHistoryStack(

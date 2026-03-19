@@ -3,10 +3,12 @@ import {getSearchMentionEntityIfPossible} from "~/server/search/data/index/searc
 import {
     dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization,
     dangerouslyFavoriteSearchEntityWithoutAuthorization,
+    markSearchAffinityEntityInteraction,
 } from "~/server/search/data/table/search_entity_actions.js";
 
 export const searchInjection: SearchInjection = {
     getSearchMentionEntityIfPossible,
+    markSearchAffinityEntityInteraction,
     dangerouslyFavoriteSearchEntityWithoutAuthorization,
     dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization,
 };
