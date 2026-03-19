@@ -33,6 +33,7 @@ import {Button} from "~/client/web/design/button.js";
 import {ErrorBodyRenderer} from "~/client/web/design/error_body_renderer.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {Modal} from "~/client/web/design/modal.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {ErrorBoundary} from "~/client/web/helpers/error_boundary.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
@@ -76,7 +77,7 @@ export function ContentFileViewerModalDesktop({
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const {space} = useSpaceContext();
 
     const [viewerRef, viewerSize] = useResizeObserver();
@@ -155,19 +156,28 @@ export function ContentFileViewerModalDesktop({
         >
             <GlobalKeyDownEvent
                 onGlobalKeyDown={event => {
-                    if (event.key === "=" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                    if (
+                        event.key === "=" &&
+                        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
                         zoomIn();
                     }
 
-                    if (event.key === "-" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                    if (
+                        event.key === "-" &&
+                        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
                         zoomOut();
                     }
 
-                    if (event.key === "0" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                    if (
+                        event.key === "0" &&
+                        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
                         setZoomLevel(initialZoomLevel);
@@ -227,7 +237,11 @@ export function ContentFileViewerModalDesktop({
                                         variant="quiet-above-content-file-viewer-modal"
                                         description="Zoom in"
                                         tooltipPlacement="bottom"
-                                        keyboardShortcutHint={isAppleDevice ? "⌘+=" : "Ctrl+="}
+                                        keyboardShortcutHint={renderKeyboardShortcutHint(
+                                            clientInfo,
+                                            "mod",
+                                            "=",
+                                        )}
                                         isDisabled={zoomLevel >= maxZoomLevel}
                                         onPress={zoomIn}
                                     >
@@ -237,7 +251,11 @@ export function ContentFileViewerModalDesktop({
                                         variant="quiet-above-content-file-viewer-modal"
                                         description="Zoom out"
                                         tooltipPlacement="bottom"
-                                        keyboardShortcutHint={isAppleDevice ? "⌘+-" : "Ctrl+-"}
+                                        keyboardShortcutHint={renderKeyboardShortcutHint(
+                                            clientInfo,
+                                            "mod",
+                                            "-",
+                                        )}
                                         isDisabled={zoomLevel <= minZoomLevel}
                                         onPress={zoomOut}
                                     >

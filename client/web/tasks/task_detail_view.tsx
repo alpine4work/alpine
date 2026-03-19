@@ -32,6 +32,7 @@ import {ContextMenuActions} from "~/client/web/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_next_focusable_element.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/web/design/safe_area_inset.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
@@ -305,7 +306,8 @@ export function TaskDetailView({
     const rootNavigate = useRootNavigate();
     const [searchParams] = useSearchParams();
     const context = useAppContext();
-    const {timeZone, isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {timeZone} = clientInfo;
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContextIfExists();
@@ -1744,12 +1746,12 @@ export function TaskDetailView({
             menuActions.push([
                 {
                     label: "Undo",
-                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                    keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "z"),
                     onPress: undo,
                 },
                 {
                     label: "Redo",
-                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                    keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "y"),
                     onPress: redo,
                 },
             ]);
@@ -1939,7 +1941,7 @@ export function TaskDetailView({
         isWideProjectLayout,
         priorityInputState.isVisible,
         dueDateInputState.isVisible,
-        isAppleDevice,
+        clientInfo,
         undo,
         redo,
         initialFields.assignee?.id,

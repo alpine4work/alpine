@@ -1,6 +1,6 @@
 import {useMemo} from "react";
-import {useAppContext} from "~/client/web/context/app_context.js";
-import {useIdlyPreloadSwr, useSwr} from "~/client/web/rpc/internal/use_swr.js";
+import {AppContext, useAppContext} from "~/client/web/context/app_context.js";
+import {preloadSwr, useIdlyPreloadSwr, useSwr} from "~/client/web/rpc/internal/use_swr.js";
 import {createRpcCacheFetcher, getRpcCacheKey} from "~/client/web/rpc/rpc_cache.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
@@ -107,4 +107,21 @@ export function useIdlyPreloadRpc<Input, Output extends {}>(
     const key = useMemo(() => (input !== null ? getRpcCacheKey(rpc, input) : null), [input, rpc]);
 
     useIdlyPreloadSwr(key, fetcher);
+}
+
+/**
+ * Preload the provided RPC call in the RPC cache.
+ *
+ * The preloaded entry will be retained for ~20 seconds before being deleted if a
+ * `useIdlyPreloadRpc()` or `useLazyLoadRpc()` hook for the same key isn't mounted.
+ */
+export function preloadRpc<Input, Output extends {}>(
+    context: AppContext,
+    rpc: RpcDefinition<Input, Output>,
+    input: Input,
+) {
+    const fetcher = createRpcCacheFetcher(context, rpc);
+    const key = getRpcCacheKey(rpc, input);
+
+    preloadSwr(key, fetcher);
 }

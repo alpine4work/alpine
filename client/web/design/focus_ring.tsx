@@ -38,6 +38,7 @@ function FocusRing(
         insetRight,
         insetTop,
         insetBottom,
+        targetBorderRadius,
         isVisible: isAlwaysVisible = false,
         isDisabled = false,
         shouldIgnoreFocusEvents = false,
@@ -113,6 +114,13 @@ function FocusRing(
          * `offset - insetBottom`.
          */
         insetBottom?: Spacing | "border";
+
+        /**
+         * Instead of looking at the `border-radius` CSS of our target element the provided
+         * value overrides the target border radius for the purpose of calculating the
+         * focus ring's border radius.
+         */
+        targetBorderRadius?: Spacing;
 
         /**
          * Is the focus ring always visible regardless of whether the target is focused?
@@ -219,6 +227,7 @@ function FocusRing(
                         insetRight={insetRight}
                         insetTop={insetTop}
                         insetBottom={insetBottom}
+                        targetBorderRadius={targetBorderRadius}
                         targetRef={targetRef}
                     />
                 </div>
@@ -238,6 +247,7 @@ export function FocusRingBox({
     insetBottom: insetBottomProp,
     insetLeft: insetLeftProp,
     insetRight: insetRightProp,
+    targetBorderRadius,
     targetRef,
 }: {
     offset?: Spacing | "border" | "inset";
@@ -248,6 +258,7 @@ export function FocusRingBox({
     insetBottom?: Spacing | `-${Spacing}` | "border";
     insetLeft?: Spacing | `-${Spacing}`;
     insetRight?: Spacing | `-${Spacing}`;
+    targetBorderRadius?: Spacing;
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const insetTop = insetTopProp ?? insetYProp ?? insetProp ?? "0";
@@ -293,23 +304,44 @@ export function FocusRingBox({
         const run = () => {
             assert(ringRef.current && targetRef.current);
 
-            const targetStyle = getComputedStyle(targetRef.current);
-
-            const ringStyle = {
-                borderTopLeftRadius: parseCssLength(targetStyle.borderTopLeftRadius, spacingScale),
-                borderTopRightRadius: parseCssLength(
-                    targetStyle.borderTopRightRadius,
-                    spacingScale,
-                ),
-                borderBottomLeftRadius: parseCssLength(
-                    targetStyle.borderBottomLeftRadius,
-                    spacingScale,
-                ),
-                borderBottomRightRadius: parseCssLength(
-                    targetStyle.borderBottomRightRadius,
-                    spacingScale,
-                ),
+            let ringStyle: {
+                borderTopLeftRadius: number | string;
+                borderTopRightRadius: number | string;
+                borderBottomLeftRadius: number | string;
+                borderBottomRightRadius: number | string;
             };
+
+            if (targetBorderRadius) {
+                const targetBorderRadiusPx = convertRemLengthToPx(targetBorderRadius, spacingScale);
+
+                ringStyle = {
+                    borderTopLeftRadius: targetBorderRadiusPx,
+                    borderTopRightRadius: targetBorderRadiusPx,
+                    borderBottomLeftRadius: targetBorderRadiusPx,
+                    borderBottomRightRadius: targetBorderRadiusPx,
+                };
+            } else {
+                const targetStyle = getComputedStyle(targetRef.current);
+
+                ringStyle = {
+                    borderTopLeftRadius: parseCssLength(
+                        targetStyle.borderTopLeftRadius,
+                        spacingScale,
+                    ),
+                    borderTopRightRadius: parseCssLength(
+                        targetStyle.borderTopRightRadius,
+                        spacingScale,
+                    ),
+                    borderBottomLeftRadius: parseCssLength(
+                        targetStyle.borderBottomLeftRadius,
+                        spacingScale,
+                    ),
+                    borderBottomRightRadius: parseCssLength(
+                        targetStyle.borderBottomRightRadius,
+                        spacingScale,
+                    ),
+                };
+            }
 
             // Tweak border radius because of our ring offset. Using formula:
             //
@@ -376,7 +408,7 @@ export function FocusRingBox({
         return () => {
             isCancelled = true;
         };
-    }, [ringOffsetBasePx, spacingScale, targetRef]);
+    }, [ringOffsetBasePx, spacingScale, targetBorderRadius, targetRef]);
 
     return (
         <div

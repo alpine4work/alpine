@@ -19,6 +19,7 @@ import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
+import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {
@@ -30,14 +31,9 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
-import {
-    backgroundFontSizePercentage,
-    pointerEventsNoneNotInheritedClassName,
-    sprinkles,
-} from "~/client/web/styles/styles.js";
+import {pointerEventsNoneNotInheritedClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
     taskGridViewPaddingBottomWithNext,
@@ -87,8 +83,6 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
@@ -2493,33 +2487,6 @@ const TaskPersonalViewDesktopNavigationBar = memo(function TaskPersonalViewDeskt
     sorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
-    const spacingScale = useSpacingScale();
-
-    // We want to baseline align our `fontSize="400"` collection name with our centered
-    // `fontSize="75"` customization bar (filters and sort). Calculate the offset for
-    // center aligned `fontSize="400"` using font metrics.
-    const nameBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
-
-        const fontSize75Descender =
-            fontSize75.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
-
-        const fontSize400 = fontSizesBySpacingScale["400"][spacingScale];
-
-        const fontSize400Descender =
-            fontSize400.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize400BottomHalfHeight = fontSize400Descender + fontSize400.fontSize / 2;
-
-        return -fontSize400BottomHalfHeight + fontSize75BottomHalfHeight;
-    }, [spacingScale]);
-
     return (
         <div
             className={pointerEventsNoneNotInheritedClassName}
@@ -2553,7 +2520,7 @@ const TaskPersonalViewDesktopNavigationBar = memo(function TaskPersonalViewDeskt
                     >
                         <h1
                             className={sprinkles({fontSize: "400", fontStyle: "bold"})}
-                            style={{marginTop: nameBaselineAlignmentMarginTop}}
+                            style={{marginTop: useAlignFontBaselines("400", "75")}}
                         >
                             My tasks
                         </h1>

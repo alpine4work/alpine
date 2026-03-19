@@ -23,7 +23,10 @@ async function getMessageInputDropPosition(page: Page) {
 
 async function openGhostTaskFromCreateMenu(page: Page) {
     await page.getByLabel("Create").click();
-    await page.getByRole("menuitem", {name: "Task"}).click();
+    await page
+        .getByRole("menubar", {name: "Quick create"})
+        .getByRole("menuitem", {name: "Task"})
+        .click();
 
     const peek = page.getByTestId("PeekStackOverlay");
     await expect(peek).toBeVisible();

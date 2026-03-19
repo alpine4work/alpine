@@ -19,18 +19,30 @@ import {emptyObject} from "~/shared/helpers/object/empty_object.js";
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
  */
 export function useResizeObserver({
+    isDisabled = false,
     withSuppressResizeLoopErrorNotification = false,
 }: {
+    isDisabled?: boolean;
     withSuppressResizeLoopErrorNotification?: boolean;
 } = emptyObject): [
     RefCallback<HTMLElement>,
     {readonly height: number; readonly width: number} | null,
 ] {
-    const [contentRect, setContentRect] = useState<{height: number; width: number} | null>(null);
+    const [actualContentRect, setContentRect] = useState<{height: number; width: number} | null>(
+        null,
+    );
+    let contentRect = actualContentRect;
+
+    if (isDisabled && contentRect) {
+        contentRect = null;
+        setContentRect(null);
+    }
 
     const ref = useLifecycleRef<HTMLElement>(
         useCallback(
             element => {
+                if (isDisabled) return;
+
                 const listener = (entry: ResizeObserverEntry) => {
                     const newContentRect = {
                         width: entry.borderBoxSize[0]?.inlineSize ?? 0,
@@ -55,7 +67,7 @@ export function useResizeObserver({
                         removeSuppressResizeLoopErrorNotificationForElement(element);
                 };
             },
-            [withSuppressResizeLoopErrorNotification],
+            [isDisabled, withSuppressResizeLoopErrorNotification],
         ),
     );
 

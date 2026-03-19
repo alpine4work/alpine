@@ -13,21 +13,14 @@ import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
 } from "~/client/web/design/navigation_bar_helpers.js";
+import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {NavigationBarContent} from "~/client/web/navigation/navigation_bar_content.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {
     searchModalMaxHeight,
     searchModalMaxWidth,
 } from "~/client/web/styles/search_shared_styles.js";
-import {
-    backgroundFontSizePercentage,
-    buttonStyles,
-    colorSchemeVars,
-    sprinkles,
-} from "~/client/web/styles/styles.js";
-import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {buttonStyles, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
@@ -347,8 +340,6 @@ function DocumentContentCoverModalDesktopView({
     onRefresh: () => void;
     onClose: () => void;
 }) {
-    const spacingScale = useSpacingScale();
-
     const titleId = useId();
 
     const titleFontSize = "300";
@@ -356,27 +347,7 @@ function DocumentContentCoverModalDesktopView({
     // We want to baseline align our `fontSize="300"` title with our centered
     // `fontSize="75"` remove cover button. Calculate the offset for center aligned
     // `fontSize="300"` using font metrics.
-    const buttonBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
-
-        const fontSize75Descender =
-            fontSize75.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
-
-        const fontSize300 = fontSizesBySpacingScale[titleFontSize][spacingScale];
-
-        const fontSize300Descender =
-            fontSize300.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize300BottomHalfHeight = fontSize300Descender + fontSize300.fontSize / 2;
-
-        return -1 * (-fontSize300BottomHalfHeight + fontSize75BottomHalfHeight);
-    }, [spacingScale]);
+    const buttonBaselineAlignmentMarginTop = useAlignFontBaselines(titleFontSize, "75");
 
     return (
         <Modal

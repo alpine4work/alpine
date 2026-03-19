@@ -828,26 +828,10 @@ const Menu = forwardRef(function Menu(
                                 event.preventDefault();
                                 event.stopPropagation();
 
-                                // If the user presses a shortcut key while a menu item is focused and the menu
-                                // item in focus is not the one that matches the shortcut key, then blur the
-                                // focused menu item. If we don't do this, we get into a weird UI state where one
-                                // menu item is focused while another menu item is visually pressed.
-                                const activeMenuItemIndex = getFocusedActionIndexIfExists();
-                                if (activeMenuItemIndex !== null) {
-                                    const activeMenuItemRef =
-                                        menuItemRefs[activeMenuItemIndex]?.current;
-
-                                    if (
-                                        activeMenuItemRef &&
-                                        activeMenuItemRef !== menuItemRef.current
-                                    ) {
-                                        activeMenuItemRef.blur();
-                                    }
-
-                                    setKeyboardPressedMenuItemRef(menuItemRef);
-                                    menuItemRef.current?.press();
-                                    return;
-                                }
+                                assertExists(menuItemRef.current).focus();
+                                setKeyboardPressedMenuItemRef(menuItemRef);
+                                assertExists(menuItemRef.current).press();
+                                return;
                             }
                         }
 
@@ -886,7 +870,7 @@ const Menu = forwardRef(function Menu(
                 // Clear the keyboard pressed state when the key is released
                 if (/^[0-9a-zA-Z]$/.test(event.key) && !isModifiedKeyboardEvent(event)) {
                     const menuItemRef = keyboardShortcutMap.get(event.key.toLowerCase());
-                    if (menuItemRef !== undefined && keyboardPressedMenuItemRef === menuItemRef) {
+                    if (menuItemRef && keyboardPressedMenuItemRef === menuItemRef) {
                         setKeyboardPressedMenuItemRef(null);
                     }
                 }
@@ -930,7 +914,7 @@ const Menu = forwardRef(function Menu(
                                 isNotFocusable={isNotFocusable}
                                 shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
                                 openedActionKey={openedActionKey}
-                                isKeyboardPressed={
+                                isPressedFromKeyboard={
                                     keyboardPressedMenuItemRef === menuItemRefs[index]
                                 }
                                 onActionOpen={action => setOpenedActionKey(action.key)}
@@ -971,7 +955,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible = false,
         shouldNotCloseAfterPress = false,
         openedActionKey,
-        isKeyboardPressed = false,
+        isPressedFromKeyboard = false,
         onActionOpen,
         onActionClose,
     }: {
@@ -985,7 +969,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible?: boolean;
         shouldNotCloseAfterPress?: boolean;
         openedActionKey: Key | null;
-        isKeyboardPressed?: boolean;
+        isPressedFromKeyboard?: boolean;
         onActionOpen: (action: MenuChildrenAction) => void;
         onActionClose: (action: MenuChildrenAction) => void;
     },
@@ -1004,7 +988,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                isKeyboardPressed={isKeyboardPressed}
+                isPressedFromKeyboard={isPressedFromKeyboard}
             />
         );
     }
@@ -1057,7 +1041,7 @@ export const MenuItem = forwardRef(function MenuItem(
                         isNotFocusable={isNotFocusable}
                         isFocusRingVisible={isFocusRingVisible}
                         shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                        isKeyboardPressed={isKeyboardPressed}
+                        isPressedFromKeyboard={isPressedFromKeyboard}
                     />
                 )}
             </Tooltip>
@@ -1075,7 +1059,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                isKeyboardPressed={isKeyboardPressed}
+                isPressedFromKeyboard={isPressedFromKeyboard}
             />
         );
     }
@@ -1093,7 +1077,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable,
         isFocusRingVisible,
         shouldNotCloseAfterPress,
-        isKeyboardPressed,
+        isPressedFromKeyboard,
     }: {
         size: MenuSize;
         menuItemId: string;
@@ -1105,7 +1089,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable: boolean;
         isFocusRingVisible: boolean;
         shouldNotCloseAfterPress: boolean;
-        isKeyboardPressed: boolean;
+        isPressedFromKeyboard: boolean;
     },
     foreignRef: Ref<MenuItemRef>,
 ) {
@@ -1195,7 +1179,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
     const {refCallback} = useMenuItemPressRef(onPress, foreignRef);
 
-    const {isPressed: isPressedFromHook, pressProps} = usePress({
+    const {isPressed: isPressedFromState, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
         // We want buttons with a disabled reason to be pressable so they can show their
         // tooltip with the reason for why they are disabled.
@@ -1204,7 +1188,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     });
 
     // Combine press state from usePress hook and keyboard shortcut
-    const isPressed = isPressedFromHook || isKeyboardPressed;
+    const isPressed = isPressedFromState || isPressedFromKeyboard;
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so
     // we delay showing a spinner to avoid a loading spinner flicker which can be
@@ -1354,7 +1338,7 @@ function MenuCustomItem({
     isNotFocusable,
     isFocusRingVisible,
     shouldNotCloseAfterPress,
-    isKeyboardPressed,
+    isPressedFromKeyboard,
 }: {
     menuItemRef: Ref<MenuItemRef>;
     menuItemId: string;
@@ -1364,7 +1348,7 @@ function MenuCustomItem({
     isNotFocusable: boolean;
     isFocusRingVisible: boolean;
     shouldNotCloseAfterPress: boolean;
-    isKeyboardPressed: boolean;
+    isPressedFromKeyboard: boolean;
 }) {
     const reporter = useReporter();
     const [pendingState, setPendingState] = useState<
@@ -1443,7 +1427,7 @@ function MenuCustomItem({
     });
 
     // Combine press state from usePress hook and keyboard shortcut
-    const isPressed = isPressedFromHook || isKeyboardPressed;
+    const isPressed = isPressedFromHook || isPressedFromKeyboard;
 
     const {isHovered, hoverProps} = useHover({});
 

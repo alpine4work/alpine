@@ -30,7 +30,9 @@ test("can reply to range in post", async ({page, context: browserContext}) => {
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    const replyButton = page.getByText("Reply", {exact: true});
+
+    await expect(replyButton).toBeHidden();
 
     await page.getByText("jklmnopqr").evaluate(element => {
         const selection = globalThis.window.getSelection()!;
@@ -45,14 +47,14 @@ test("can reply to range in post", async ({page, context: browserContext}) => {
 
     const messageTestIdRegExp = /^MessageView:[^:]+:0$/;
 
-    await expect(page.getByText("Reply")).toBeVisible();
+    await expect(replyButton).toBeVisible();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).not.toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
 
-    await page.getByText("Reply").click();
+    await replyButton.click();
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeVisible();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
@@ -62,7 +64,7 @@ test("can reply to range in post", async ({page, context: browserContext}) => {
     await page.getByLabel("New comment").fill("Works!");
     await page.getByLabel("New comment").press("Enter");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeVisible();
@@ -100,7 +102,9 @@ test("can reply to range in post when post has marks", async ({page, context: br
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    const replyButton = page.getByText("Reply", {exact: true});
+
+    await expect(replyButton).toBeHidden();
 
     await page.getByText("jklmnopqr").evaluate(element => {
         const selection = globalThis.window.getSelection()!;
@@ -115,14 +119,14 @@ test("can reply to range in post when post has marks", async ({page, context: br
 
     const messageTestIdRegExp = /^MessageView:[^:]+:0$/;
 
-    await expect(page.getByText("Reply")).toBeVisible();
+    await expect(replyButton).toBeVisible();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).not.toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
 
-    await page.getByText("Reply").click();
+    await replyButton.click();
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeVisible();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
@@ -132,7 +136,7 @@ test("can reply to range in post when post has marks", async ({page, context: br
     await page.getByLabel("New comment").fill("Works!");
     await page.getByLabel("New comment").press("Enter");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeVisible();
@@ -171,7 +175,9 @@ test("can reply to range in post when range has multiple block nodes", async ({
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    const replyButton = page.getByText("Reply", {exact: true});
+
+    await expect(replyButton).toBeHidden();
 
     await page.getByText("jklmno").evaluate(element => {
         const selection = globalThis.window.getSelection()!;
@@ -186,14 +192,14 @@ test("can reply to range in post when range has multiple block nodes", async ({
 
     const messageTestIdRegExp = /^MessageView:[^:]+:0$/;
 
-    await expect(page.getByText("Reply")).toBeVisible();
+    await expect(replyButton).toBeVisible();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).not.toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
 
-    await page.getByText("Reply").click();
+    await replyButton.click();
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeVisible();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
@@ -203,7 +209,7 @@ test("can reply to range in post when range has multiple block nodes", async ({
     await page.getByLabel("New comment").fill("Works!");
     await page.getByLabel("New comment").press("Enter");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeVisible();
@@ -239,7 +245,9 @@ test("if content within replied post range changes then the reply is updated", a
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    const replyButton = page.getByText("Reply", {exact: true});
+
+    await expect(replyButton).toBeHidden();
 
     await page.getByText("jklmnopqr").evaluate(element => {
         const selection = globalThis.window.getSelection()!;
@@ -254,14 +262,14 @@ test("if content within replied post range changes then the reply is updated", a
 
     const messageTestIdRegExp = /^MessageView:[^:]+:0$/;
 
-    await expect(page.getByText("Reply")).toBeVisible();
+    await expect(replyButton).toBeVisible();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).not.toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
 
-    await page.getByText("Reply").click();
+    await replyButton.click();
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeVisible();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeHidden();
@@ -271,7 +279,7 @@ test("if content within replied post range changes then the reply is updated", a
     await page.getByLabel("New comment").fill("Works!");
     await page.getByLabel("New comment").press("Enter");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId(messageTestIdRegExp)).toBeVisible();
@@ -336,14 +344,17 @@ test("can reply to range in post in channel peek", async ({page, context: browse
     await page.getByText("Test Channel").first().click({button: "right"});
     await expect(page.getByTestId("PeekStack")).toBeHidden();
     await page.getByText("Open in peek").click();
-    await expect(page.getByTestId("PeekStack")).toBeVisible();
+    const peekStackLocator = page.getByTestId("PeekStack");
+    await expect(peekStackLocator).toBeVisible();
 
     await (await page
         .getByTestId("PeekStack")
         .getByText("jklmnopqr")
         .elementHandle())!.waitForElementState("stable");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    const replyButton = peekStackLocator.getByText("Reply", {exact: true});
+
+    await expect(replyButton).toBeHidden();
 
     await page
         .getByTestId("PeekStack")
@@ -361,14 +372,14 @@ test("can reply to range in post in channel peek", async ({page, context: browse
 
     const messageTestIdRegExp = /^MessageView:[^:]+:0$/;
 
-    await expect(page.getByText("Reply")).toBeVisible();
+    await expect(replyButton).toBeVisible();
     await expect(page.getByTestId("PeekStack").getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByTestId("PeekStack").getByLabel("New comment")).toBeHidden();
     await expect(page.getByTestId("PeekStack").getByTestId(messageTestIdRegExp)).toBeHidden();
 
-    await page.getByText("Reply").click();
+    await replyButton.click();
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("PeekStack").getByTestId("MessageInputParent")).toBeVisible();
     await expect(page.getByTestId("PeekStack").getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId("PeekStack").getByTestId(messageTestIdRegExp)).toBeHidden();
@@ -380,7 +391,7 @@ test("can reply to range in post in channel peek", async ({page, context: browse
     await page.getByTestId("PeekStack").getByLabel("New comment").fill("Works!");
     await page.getByTestId("PeekStack").getByLabel("New comment").press("Enter");
 
-    await expect(page.getByText("Reply")).toBeHidden();
+    await expect(replyButton).toBeHidden();
     await expect(page.getByTestId("PeekStack").getByTestId("MessageInputParent")).toBeHidden();
     await expect(page.getByTestId("PeekStack").getByLabel("New comment")).toBeFocused();
     await expect(page.getByTestId("PeekStack").getByTestId(messageTestIdRegExp)).toBeVisible();

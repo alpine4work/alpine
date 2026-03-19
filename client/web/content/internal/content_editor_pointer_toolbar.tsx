@@ -55,6 +55,7 @@ import {useOutsidePress} from "~/client/web/design/helpers/use_outside_interacti
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {Overlay, OverlayRef} from "~/client/web/design/overlay.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/web/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
@@ -776,7 +777,7 @@ function ContentEditorPointerToolbarButtons({
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     // IMPORTANT: Use `toolbarSelection` instead of `state.selection`. If the selection
     // changes the toolbar may fade out. But we want to continue showing buttons for
@@ -875,7 +876,7 @@ function ContentEditorPointerToolbarButtons({
         <>
             <ContentEditorPointerToolbarButton
                 description="Bold"
-                keyboardShortcutHint={isAppleDevice ? "⌘+B" : "Ctrl+B"}
+                keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "b")}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -886,7 +887,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Italic"
-                keyboardShortcutHint={isAppleDevice ? "⌘+I" : "Ctrl+I"}
+                keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "i")}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -897,7 +898,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Strikethrough"
-                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+X" : "Ctrl+Shift+X"}
+                keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "shift", "x")}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -1027,7 +1028,12 @@ function ContentEditorPointerToolbarButtons({
                 <ContentEditorPointerToolbarButton
                     dividerLeft
                     description="Comment"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "shift",
+                        "c",
+                    )}
                     viewRef={viewRef}
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -1205,7 +1211,7 @@ function ContentEditorPointerToolbarLinkButton({
     dividerLeft?: boolean;
     dividerRight?: boolean;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const buttonContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1271,7 +1277,7 @@ function ContentEditorPointerToolbarLinkButton({
                     dividerLeft={dividerLeft}
                     dividerRight={dividerRight}
                     description="Link"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+K" : "Ctrl+K"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "k")}
                     isActive={isLinkInputOpen || !!activeLinkMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isLinkInputOpen
@@ -1325,7 +1331,7 @@ function ContentEditorPointerToolbarHighlightButton({
     dividerRight?: boolean;
     dividerLeft?: boolean;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const buttonContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1370,7 +1376,12 @@ function ContentEditorPointerToolbarHighlightButton({
                     dividerRight={dividerRight}
                     dividerLeft={dividerLeft}
                     description="Highlight"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "shift",
+                        "h",
+                    )}
                     isActive={isHighlightSelectorOpen || !!activeHighlightMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isHighlightSelectorOpen
@@ -1461,13 +1472,13 @@ function ContentEditorPointerToolbarButtonsCommentOnly({
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     return (
         <ContentEditorPointerToolbarButton
             description="Comment"
             withoutDescriptionTooltip={true}
-            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+            keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "shift", "c")}
             viewRef={viewRef}
             isTooltipDisabledWithoutAnimation={false}
             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}

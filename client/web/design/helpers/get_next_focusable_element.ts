@@ -1,4 +1,4 @@
-const focusableElements = [
+const focusableElementSelectors = [
     "input:not([disabled]):not([type=hidden])",
     "select:not([disabled])",
     "textarea:not([disabled])",
@@ -12,13 +12,14 @@ const focusableElements = [
     "audio[controls]",
     "video[controls]",
     "[contenteditable]:not([contenteditable=false])",
+    "[tabindex]",
 ];
 
-export const focusableElementSelector = `${focusableElements.join(",")},[tabindex]`;
+export const focusableElementSelector = focusableElementSelectors.join(", ");
 
-const tabbableElements = [...focusableElements, '[tabindex]:not([tabindex="-1"])'];
-
-const tabbableElementSelector = tabbableElements.join(':not([tabindex="-1"]),');
+const tabbableElementSelector = focusableElementSelectors
+    .map(selector => `${selector}:not([tabindex="-1"])`)
+    .join(", ");
 
 function createFocusableTreeWalker(
     element: Element | null,

@@ -497,7 +497,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                     fontSize="75"
                     style={{lineHeight: 1.5}}
                 >
-                    Effortlessly turn your document into a slide deck. Each divider in your document
+                    Effortlessly turn your document into a slideshow. Each divider in your document
                     creates a new slide. To add a divider either type &#x201C;---&#x201D; in an
                     empty line or right click and choose insert &gt; divider.
                 </Box>

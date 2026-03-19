@@ -54,6 +54,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/web/search/search_modal.js";
+import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
 import {
     GlobalLoadingIndicatorChip,
     GlobalLoadingIndicatorContextProvider,
@@ -536,32 +537,7 @@ export default function SpaceLayoutRoute() {
     // isn't offscreen (or hidden by the native mobile keyboard).
     useTextInputVisibilityMaintainer();
 
-    const setSearchQueryText = useCallback(
-        (queryText: string | null) => {
-            setSearchParams(
-                oldSearchParams => {
-                    if (oldSearchParams.get("search") === queryText) return oldSearchParams;
-
-                    const newSearchParams = new URLSearchParams(oldSearchParams);
-                    if (queryText === null) {
-                        newSearchParams.delete("search");
-                    } else {
-                        newSearchParams.set("search", queryText);
-                    }
-                    return newSearchParams;
-                },
-                {
-                    replace: true,
-                    // Don't revalidate when updating search params from here. We can't use the stable
-                    // `shouldRevalidate` route function because we want ALL rendered routes to skip
-                    // revalidation. And updating all rendered routes `shouldRevalidate` function to
-                    // ignore `search` is too much of a burden.
-                    unstable_shouldRevalidate: false,
-                },
-            );
-        },
-        [setSearchParams],
-    );
+    const setSearchQueryText = useSetSearchQueryText();
 
     // If we switch to mobile then clear the `search` URL parameter since mobile can't
     // render the search modal.

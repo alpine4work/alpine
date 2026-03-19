@@ -35,6 +35,7 @@ import {
     dispatchTriggeredOverlayCloseEvent,
     dispatchTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {setElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -393,7 +394,7 @@ type ContextMenuState =
       };
 
 export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const [contextMenuState, setContextMenuState] = useState<ContextMenuState>({
         isOpen: false,
@@ -522,7 +523,11 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         if (!isEmpty) {
                             const action: MenuStandardAction = {
                                 label: "Copy",
-                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "c",
+                                ),
                                 onPress: () => {
                                     document.execCommand("copy");
                                 },
@@ -539,7 +544,11 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             {
                                 label: "Cut",
                                 isDisabled: isEmpty,
-                                keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "x",
+                                ),
                                 onPress: () => {
                                     document.execCommand("cut");
                                 },
@@ -547,14 +556,22 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             {
                                 label: "Copy",
                                 isDisabled: isEmpty,
-                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "c",
+                                ),
                                 onPress: () => {
                                     document.execCommand("copy");
                                 },
                             },
                             {
                                 label: "Paste",
-                                keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "v",
+                                ),
                                 onPress: () => {
                                     // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we have
                                     // a desktop app wrapper also ask the user if they want to install the app to
@@ -619,7 +636,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
         return () => {
             document.removeEventListener("contextmenu", handleContextMenu);
         };
-    }, [isAppleDevice]);
+    }, [clientInfo]);
 
     const [shouldShowPasteWarningDialog, setShouldShowPasteWarningDialog] = useState(false);
 
@@ -757,10 +774,16 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 )}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
-                    title={`Can only paste with ${isAppleDevice ? "⌘+V" : "Ctrl+V"}`}
-                    description={`For security purposes, your browser only allows pasting with the keyboard shortcut ${
-                        isAppleDevice ? "⌘+V" : "Ctrl+V"
-                    }. Try again but instead of right clicking use the keyboard shortcut.`}
+                    title={`Can only paste with ${renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "v",
+                    )}`}
+                    description={`For security purposes, your browser only allows pasting with the keyboard shortcut ${renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "v",
+                    )}. Try again but instead of right clicking use the keyboard shortcut.`}
                     primaryButtonLabel="Ok"
                     onPrimaryButtonPress={() => setShouldShowPasteWarningDialog(false)}
                     shouldHideCancelButton={true}

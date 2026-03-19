@@ -92,7 +92,7 @@ function SpaceLayoutSideBarSearchActualHint({
         },
     });
 
-    const keyboardShortcut = isAppleDevice ? "\u2318+P" : "Ctrl+P";
+    const keyboardShortcut = isAppleDevice ? "\u2318+p" : "ctrl+p";
 
     return (
         <Overlay

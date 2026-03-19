@@ -1108,7 +1108,7 @@ function PostListView(
                         minHeight: addRemLengths(
                             hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
                             item.header.type === "FeedCreateSection"
-                                ? feedCreateSectionMinHeight[routeLayout]
+                                ? feedCreateSectionMinHeight[platform]
                                 : "0rem",
                         ),
                         node: (
@@ -1746,6 +1746,21 @@ function PostListView(
                 }
 
                 case "FeedEntry": {
+                    const content = (
+                        <>
+                            {hasHeader &&
+                                index === 1 &&
+                                // This is the first post in a `<PostListView>` with a `header` so we need to draw
+                                // a border between the first `<PostListView>` and the `header`.
+                                topBorder}
+                            {bottomBorder}
+                            <FeedEntryView entry={item.entry} />
+                        </>
+                    );
+
+                    const hasPaddingBottom =
+                        item.entry.type === "Welcome" && index === posts.getItemCount() - 1;
+
                     return {
                         key: `FeedEntry:${item.entry.getId()}`,
                         minHeight: feedEntryHeight,
@@ -1761,19 +1776,24 @@ function PostListView(
                                     className={sprinkles({
                                         position: "relative",
                                         width: "full",
+                                        minWidth: "flex-fit",
                                         maxWidth: contentStyles.contentMaxWidth,
+                                        paddingBottom: hasPaddingBottom ? "16" : undefined,
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasHeader &&
-                                        index === 1 &&
-                                        // This is the first post in a `<PostListView>` with a `header` so we need to draw
-                                        // a border between the first `<PostListView>` and the `header`.
-                                        topBorder}
-                                    {bottomBorder}
-                                    <FeedEntryView entry={item.entry} />
+                                    {!hasPaddingBottom ? (
+                                        content
+                                    ) : (
+                                        // If we have a welcome feed entry and it's the last item in the feed, add some
+                                        // spacing underneath the feed entry so the create section doesn't just end at the
+                                        // bottom of the screen.
+                                        <div className={sprinkles({position: "relative"})}>
+                                            {content}
+                                        </div>
+                                    )}
                                 </div>
                                 {asideSpacer}
                                 {sideBarRightSpacer}

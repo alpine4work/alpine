@@ -7,6 +7,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
@@ -45,7 +46,7 @@ export function SpaceLayoutSideBar({
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     // Preload affinitive search entities so they're ready when the search modal opens.
     // We expect search to be the primary way users navigate around the product so the
@@ -131,7 +132,11 @@ export function SpaceLayoutSideBar({
                                     size="lg"
                                     description="Search"
                                     tooltipPlacement="right"
-                                    keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
+                                    keyboardShortcutHint={renderKeyboardShortcutHint(
+                                        clientInfo,
+                                        "mod",
+                                        "p",
+                                    )}
                                     isHovered={isHintVisible}
                                     onPress={onSearchPress}
                                 >
@@ -214,7 +219,7 @@ function SpaceLayoutSideBarNavigationButtons() {
                 <IconButton
                     size="xs"
                     description="Go back"
-                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+[" : "Ctrl+["}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "[")}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasPreviousLocation}
                     pressErrorTitle="Couldn&#x2019;t go back"
@@ -225,7 +230,7 @@ function SpaceLayoutSideBarNavigationButtons() {
                 <IconButton
                     size="xs"
                     description="Go forwards"
-                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+]" : "Ctrl+]"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "]")}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasNextLocation}
                     pressErrorTitle="Couldn&#x2019;t go forwards"

@@ -6,6 +6,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useDynamoGeneralRealtimeItemBase} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -67,7 +68,8 @@ export function InboxBannerOutletContainer({
     const navigate = useNavigate();
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const {locale, isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {locale} = clientInfo;
     const location = useLocation();
     const accountRegistry = useAccountRegistry();
     const {space, currentAccount} = useSpaceContext();
@@ -364,7 +366,10 @@ export function InboxBannerOutletContainer({
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                if (event.key === "d" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                if (
+                    event.key === "d" &&
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
                     event.preventDefault();
                     event.stopPropagation();
 
@@ -548,9 +553,7 @@ export function InboxBannerOutletContainer({
                                     icon={<Check />}
                                     keyboardShortcutHint={
                                         !entry.model.isArchived
-                                            ? isAppleDevice
-                                                ? "⌘+D"
-                                                : "Ctrl+D"
+                                            ? renderKeyboardShortcutHint(clientInfo, "mod", "d")
                                             : undefined
                                     }
                                     pressErrorTitle="Can&#x2019;t mark as done"

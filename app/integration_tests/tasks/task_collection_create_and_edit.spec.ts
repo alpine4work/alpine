@@ -17,7 +17,7 @@ test("can create a task collection and edit the name", async ({
     await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
-    await page.getByText("More").click();
+    if (isMobile) await page.getByText("More").click();
 
     const newTaskCollectionNameLocator = !isMobile
         ? page.getByPlaceholder("New collection")
@@ -27,7 +27,7 @@ test("can create a task collection and edit the name", async ({
     await expect(page.getByText("FooBar")).toBeHidden();
     await expect(page.getByText("BarFoo")).toBeHidden();
 
-    await page.getByText("Task collection", {exact: true}).click();
+    await page.getByText(/^(Create )?Task collection$/i).click();
 
     await newTaskCollectionNameLocator.fill("FooBar");
 

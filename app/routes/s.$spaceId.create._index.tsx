@@ -44,26 +44,6 @@ export default function CreateRoute() {
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
                 <CreateRouteButton
                     withBorderTop
-                    icon={<PostBrandBigIcon />}
-                    label="Post"
-                    description="Share your ideas in a channel"
-                    pressErrorTitle="Couldn&#x2019;t create post"
-                    onPress={async () => {
-                        const draftId = generateChronologicalId();
-
-                        await rootNavigate(`/s/${space.id}/posts/new/${draftId}?focus=channel`);
-                    }}
-                />
-                <CreateRouteButton
-                    icon={<ChatBrandBigIcon />}
-                    label="Message"
-                    description="Start a chat with anyone"
-                    pressErrorTitle="Couldn&#x2019;t open new chat"
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/chat/new?focus=picker`);
-                    }}
-                />
-                <CreateRouteButton
                     icon={<DocumentBrandBigIcon />}
                     label="Document"
                     description="Write what&#x2019;s on your mind"
@@ -81,6 +61,26 @@ export default function CreateRoute() {
                     onPress={async () => {
                         const taskId = generateId();
                         await rootNavigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
+                    }}
+                />
+                <CreateRouteButton
+                    icon={<PostBrandBigIcon />}
+                    label="Post"
+                    description="Share your ideas in a channel"
+                    pressErrorTitle="Couldn&#x2019;t create post"
+                    onPress={async () => {
+                        const draftId = generateChronologicalId();
+
+                        await rootNavigate(`/s/${space.id}/posts/new/${draftId}?focus=channel`);
+                    }}
+                />
+                <CreateRouteButton
+                    icon={<ChatBrandBigIcon />}
+                    label="Message"
+                    description="Start a chat with anyone"
+                    pressErrorTitle="Couldn&#x2019;t open new chat"
+                    onPress={async () => {
+                        await rootNavigate(`/s/${space.id}/chat/new?focus=picker`);
                     }}
                 />
                 <MobileSettingsRow

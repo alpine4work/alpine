@@ -6,11 +6,10 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {backgroundFontSizePercentage} from "~/client/web/styles/styles.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {
@@ -24,8 +23,6 @@ import {
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryViewCustomizationBar} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
-import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -87,7 +84,6 @@ function TaskCollectionViewDesktopHeader(
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
     const context = useAppContext();
-    const spacingScale = useSpacingScale();
     const {currentAccount} = useSpaceContext();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
@@ -103,31 +99,6 @@ function TaskCollectionViewDesktopHeader(
 
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
-
-    // We want to baseline align our `fontSize="200"` collection name with our centered
-    // `fontSize="75"` customization bar (filters and sort). Calculate the offset for
-    // center aligned `fontSize="200"` using font metrics.
-    const nameBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
-
-        const fontSize75Descender =
-            fontSize75.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
-
-        const fontSize200 = fontSizesBySpacingScale["200"][spacingScale];
-
-        const fontSize200Descender =
-            fontSize200.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize200BottomHalfHeight = fontSize200Descender + fontSize200.fontSize / 2;
-
-        return -fontSize200BottomHalfHeight + fontSize75BottomHalfHeight;
-    }, [spacingScale]);
 
     const accessPolicy: AccessPolicy = useMemo(
         () =>
@@ -153,7 +124,7 @@ function TaskCollectionViewDesktopHeader(
                 display="flex"
                 alignItems="center"
                 maxWidth="1/3"
-                style={{marginTop: nameBaselineAlignmentMarginTop}}
+                style={{marginTop: useAlignFontBaselines("200", "75")}}
                 // Align the left edge of the desktop header name text with the left edge of the
                 // "Name" column header.
                 paddingLeft="1"

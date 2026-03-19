@@ -50,12 +50,15 @@ import {
     documentCommentThreadPreviewHeight,
 } from "~/client/web/styles/document_shared_styles.js";
 import {
-    feedCreateSectionButtonHeight,
+    createWidgetPrimaryMenuBarItemBackgroundInsetY,
+    createWidgetPrimaryMenuBarItemDesktopPaddingX,
+    createWidgetPrimaryMenuBarItemHeight,
     feedCreateSectionForYouHeadingMarginBottom,
     feedCreateSectionGap,
     feedCreateSectionHeadingFontSize,
     feedCreateSectionHeadingLineHeight,
-    feedCreateSectionMarginTop,
+    feedCreateSectionSearchBarContainerPaddingX,
+    feedCreateSectionSearchBarContainerPaddingY,
     feedViewSideBarLeftFlex,
     feedViewSideBarPaddingLeft,
     feedViewSideBarRightFlex,
@@ -112,6 +115,8 @@ import {
     searchEntityHeaderPaddingTop,
     searchEntitySideBarWidth,
     searchEntityViewDefaultPaddingX,
+    searchEntityViewMediaSize,
+    searchEntityViewTitleFontSize,
     searchMobileInputBorderRadius,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
@@ -206,9 +211,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.chat.room.new": {component: RoomChatCreatorRouteShimmer},
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
-    "routes/s.$spaceId.create.more": {
-        component: () => <MobileSettingsRowsShimmer titleWidth="12" sectionCounts={[3]} />,
-    },
+    "routes/s.$spaceId.create.more": {component: CreateRouteShimmer},
     // This route is only used in tests, so we don't bother with a shimmer.
     "routes/s.$spaceId.dev.empty": false,
     "routes/s.$spaceId.dev.feed": {component: FeedRouteShimmer},
@@ -410,12 +413,12 @@ function RouteShimmer({
 }
 
 export function FeedRouteShimmer() {
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box overflow="hidden" width="full" height="full" display="flex" flexDirection="column">
-            {routeLayout === "narrow" && (
+            {platform !== "desktop" && (
                 <Box flexShrink="0" width="full" paddingX={screenPaddingX}>
                     <Box height="safe-area-inset-top" />
                     <Box
@@ -436,7 +439,7 @@ export function FeedRouteShimmer() {
                 display="flex"
                 justifyContent="space-between"
             >
-                {routeLayout !== "narrow" && (
+                {platform === "desktop" && (
                     <Box
                         width="full"
                         maxWidth={searchEntitySideBarWidth}
@@ -539,27 +542,66 @@ export function FeedRouteShimmer() {
                     maxWidth={contentStyles.contentMaxWidth}
                     style={{flex: postViewFlex}}
                 >
+                    {platform === "desktop" && (
+                        <Box
+                            height={navigationBarHeight}
+                            paddingX={feedCreateSectionSearchBarContainerPaddingX}
+                            paddingY={feedCreateSectionSearchBarContainerPaddingY}
+                        >
+                            <Box
+                                position="relative"
+                                display="flex"
+                                alignItems="center"
+                                height="full"
+                                boxShadow="elevation-5-with-grey-10-border"
+                                borderRadius="full"
+                            />
+                        </Box>
+                    )}
+                    {platform === "mobile" && (
+                        <Box paddingX={screenPaddingX}>
+                            <TextShimmer
+                                fontSize={{
+                                    fontSize:
+                                        fontSizes[feedCreateSectionHeadingFontSize[platform]]
+                                            .fontSize,
+                                    lineHeight: feedCreateSectionHeadingLineHeight[platform],
+                                }}
+                                width="9"
+                            />
+                        </Box>
+                    )}
+                    <Box
+                        paddingX={platform === "desktop" ? screenPaddingX : undefined}
+                        marginX={
+                            platform === "desktop"
+                                ? `-${createWidgetPrimaryMenuBarItemDesktopPaddingX}`
+                                : undefined
+                        }
+                        marginTop={`-${createWidgetPrimaryMenuBarItemBackgroundInsetY}`}
+                        marginBottom={
+                            platform !== "desktop"
+                                ? `-${createWidgetPrimaryMenuBarItemBackgroundInsetY}`
+                                : undefined
+                        }
+                    >
+                        <Box height={createWidgetPrimaryMenuBarItemHeight} display="flex">
+                            <CreateWidgetPrimaryMenuBarItemShimmer />
+                            <CreateWidgetPrimaryMenuBarItemShimmer />
+                            <CreateWidgetPrimaryMenuBarItemShimmer />
+                            <CreateWidgetPrimaryMenuBarItemShimmer isLastItem={true} />
+                        </Box>
+                    </Box>
                     <Box paddingX={screenPaddingX} position="relative">
-                        <Spacer space={feedCreateSectionMarginTop[routeLayout]} />
-                        <TextShimmer
-                            fontSize={{
-                                fontSize:
-                                    fontSizes[feedCreateSectionHeadingFontSize[routeLayout]]
-                                        .fontSize,
-                                lineHeight: feedCreateSectionHeadingLineHeight[routeLayout],
-                            }}
-                            width={routeLayout === "narrow" ? "9" : "14"}
-                        />
-                        <Box style={{height: feedCreateSectionButtonHeight[routeLayout]}} />
-                        {routeLayout === "narrow" && (
+                        {platform === "mobile" && (
                             <>
-                                <Spacer space={feedCreateSectionGap[routeLayout]} />
+                                <Spacer space={feedCreateSectionGap[platform]} />
                                 <TextShimmer
                                     fontSize={{
                                         fontSize:
-                                            fontSizes[feedCreateSectionHeadingFontSize[routeLayout]]
+                                            fontSizes[feedCreateSectionHeadingFontSize[platform]]
                                                 .fontSize,
-                                        lineHeight: feedCreateSectionHeadingLineHeight[routeLayout],
+                                        lineHeight: feedCreateSectionHeadingLineHeight[platform],
                                     }}
                                     width="16"
                                 />
@@ -570,13 +612,12 @@ export function FeedRouteShimmer() {
                                 <SearchEntityShimmer paddingX="0" marginX="0" titleWidth="64" />
                             </>
                         )}
-                        <Spacer space={feedCreateSectionGap[routeLayout]} />
+                        <Spacer space={feedCreateSectionGap[platform]} />
                         <TextShimmer
                             fontSize={{
                                 fontSize:
-                                    fontSizes[feedCreateSectionHeadingFontSize[routeLayout]]
-                                        .fontSize,
-                                lineHeight: feedCreateSectionHeadingLineHeight[routeLayout],
+                                    fontSizes[feedCreateSectionHeadingFontSize[platform]].fontSize,
+                                lineHeight: feedCreateSectionHeadingLineHeight[platform],
                             }}
                             width="16"
                         />
@@ -585,7 +626,7 @@ export function FeedRouteShimmer() {
                             position="absolute"
                             left="0"
                             right="0"
-                            height={routeLayout === "narrow" ? "border" : "border-thick"}
+                            height={platform === "mobile" ? "border" : "border-thick"}
                             backgroundColor="grey-5"
                             style={{bottom: -1}}
                         />
@@ -596,7 +637,7 @@ export function FeedRouteShimmer() {
                     <PostShimmer />
                     <PostShimmer />
                 </Box>
-                {routeLayout !== "narrow" && spacingScale !== "small" && (
+                {platform !== "mobile" && spacingScale !== "small" && (
                     <Box
                         width="full"
                         maxWidth={feedViewSideBarRightMaxWidth}
@@ -604,6 +645,65 @@ export function FeedRouteShimmer() {
                     />
                 )}
             </Box>
+        </Box>
+    );
+}
+
+function CreateWidgetPrimaryMenuBarItemShimmer({isLastItem}: {isLastItem?: boolean}) {
+    const platform = usePlatform();
+
+    return (
+        <Box
+            position="relative"
+            zIndex="0"
+            flexGrow="1"
+            width="full"
+            minWidth="flex-fit"
+            height={createWidgetPrimaryMenuBarItemHeight}
+            paddingX={
+                platform === "desktop" ? createWidgetPrimaryMenuBarItemDesktopPaddingX : undefined
+            }
+            display="flex"
+            alignItems="center"
+            justifyContent={platform === "desktop" ? "space-between" : "center"}
+            gap="2"
+        >
+            <Box display="flex" alignItems="center" gap="1.5">
+                <Box
+                    width={searchEntityViewMediaSize}
+                    height={searchEntityViewMediaSize}
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                >
+                    <Box
+                        className={pulseAnimationClassName}
+                        width="3"
+                        height="3"
+                        backgroundColor="grey-5"
+                        borderRadius="full"
+                    />
+                </Box>
+                <Box width="8">
+                    <TextShimmer fontSize={searchEntityViewTitleFontSize} width="8" />
+                </Box>
+            </Box>
+            {!isLastItem && (
+                <Box
+                    position="absolute"
+                    zIndex="10"
+                    top="3"
+                    bottom="3"
+                    width="border"
+                    backgroundColor="grey-5"
+                    pointerEvents="none"
+                    style={{
+                        // Rounds up to 0.5px on high-DPI screens and rounds down to 0px on low-DPI
+                        // screens.
+                        right: -0.45,
+                    }}
+                />
+            )}
         </Box>
     );
 }

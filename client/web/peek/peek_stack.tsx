@@ -42,6 +42,7 @@ import {Box} from "~/client/web/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {
     trackNavigationAnimationFinish,
@@ -1386,7 +1387,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
     },
     ref: Ref<PeekStackOverlayContentRef>,
 ) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const navigate = useNavigate();
 
     const contentRef = useRef<HTMLDivElement>(null);
@@ -1507,7 +1508,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                     }
                     case "e": {
                         if (state.stack.length === 0) break;
-                        if (!(isAppleDevice ? event.metaKey : event.ctrlKey)) break;
+                        if (!(clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)) break;
 
                         event.preventDefault();
                         event.stopPropagation();
@@ -1616,7 +1617,11 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         <IconButton
                             size="xs"
                             description="Expand"
-                            keyboardShortcutHint={isAppleDevice ? "⌘+E" : "Ctrl+E"}
+                            keyboardShortcutHint={renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "e",
+                            )}
                             tooltipPlacement="top"
                             pressErrorTitle="Couldn&#x2019;t expand"
                             onPress={async event => {

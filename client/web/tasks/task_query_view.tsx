@@ -6,6 +6,7 @@ import {Button} from "~/client/web/design/button.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -102,7 +103,7 @@ export function TaskQueryView({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const spacingScale = useSpacingScale();
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -266,28 +267,18 @@ export function TaskQueryView({
         menuActions.push([
             {
                 label: "Undo",
-                keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "z"),
                 onPress: undoEvent,
             },
             {
                 label: "Redo",
-                keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "y"),
                 onPress: redoEvent,
             },
         ]);
 
         return menuActions;
-    }, [
-        filters,
-        isAppleDevice,
-        name,
-        platform,
-        redoEvent,
-        routeLayout,
-        sorts,
-        space.id,
-        undoEvent,
-    ]);
+    }, [clientInfo, filters, name, platform, redoEvent, routeLayout, sorts, space.id, undoEvent]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);

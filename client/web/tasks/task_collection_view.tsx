@@ -14,6 +14,7 @@ import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -142,7 +143,7 @@ export function TaskCollectionView({
     const navigate = useNavigate();
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
@@ -449,12 +450,20 @@ export function TaskCollectionView({
                     menuActions.push([
                         {
                             label: "Undo",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                            keyboardShortcutHint: renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "z",
+                            ),
                             onPress: undoEvent,
                         },
                         {
                             label: "Redo",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                            keyboardShortcutHint: renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "y",
+                            ),
                             onPress: redoEvent,
                         },
                     ]);
@@ -501,6 +510,7 @@ export function TaskCollectionView({
     }, [
         accessLevel,
         affinityManager,
+        clientInfo,
         collectionId,
         collectionSubscription,
         context,
@@ -508,7 +518,6 @@ export function TaskCollectionView({
         customizationState,
         favoriteMenuAction,
         hasEditAccessLevel,
-        isAppleDevice,
         navigate,
         platform,
         redoEvent,

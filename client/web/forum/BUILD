@@ -36,6 +36,7 @@ ts_project(
         "//client/web/search/core",
         "//client/web/shimmer",
         "//client/web/spaces",
+        "//client/web/spaces/layout",
         "//client/web/styles",
         "//client/web/virtualized",
         "//client/web/web_socket",

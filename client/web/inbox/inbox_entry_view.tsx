@@ -8,6 +8,7 @@ import {AccountShortName} from "~/client/web/accounts/account_short_name.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
@@ -98,7 +99,8 @@ export function InboxEntryView({
     onArchive: (options: {withAnimation: boolean}) => MaybePromise<void>;
     onUnarchive: () => MaybePromise<void>;
 }) {
-    const {isAppleDevice, locale} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {locale} = clientInfo;
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {currentAccount} = useSpaceContext();
 
@@ -839,7 +841,9 @@ export function InboxEntryView({
                                 description="Done"
                                 tooltipPlacement="bottom"
                                 keyboardShortcutHint={
-                                    isSelected ? (isAppleDevice ? "⌘+D" : "Ctrl+D") : undefined
+                                    isSelected
+                                        ? renderKeyboardShortcutHint(clientInfo, "mod", "d")
+                                        : undefined
                                 }
                                 pressErrorTitle="Couldn&#x2019;t mark as done"
                                 onPress={() => onArchive({withAnimation: false})}

@@ -344,7 +344,11 @@ test("anonymous users can open message context menu in URL shared room chat", as
     await expect(page.getByTestId("ContextMenu").getByText("Copy link")).toBeVisible();
 });
 
-test("can create a new chat room from create menu", async ({context: browserContext, page}) => {
+test("can create a new chat room from create menu", async ({
+    context: browserContext,
+    page,
+    isMobile,
+}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const roomName = "Created Chat Room";
@@ -353,9 +357,11 @@ test("can create a new chat room from create menu", async ({context: browserCont
     await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
-    await page.getByText("More").click();
+    if (isMobile) {
+        await page.getByText("More", {exact: true}).click();
+    }
 
-    await page.getByText("Chat room", {exact: true}).click();
+    await page.getByRole("menuitem", {name: /chat room/i}).click();
 
     await page.getByLabel("Name").fill(roomName);
     await page.getByLabel("Name").press("Enter");

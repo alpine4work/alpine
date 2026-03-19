@@ -1,6 +1,7 @@
 import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -30,7 +31,7 @@ function InlineEditorToolbar(
     },
     ref: Ref<InlineEditorToolbarRef>,
 ) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const saveButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -88,8 +89,8 @@ function InlineEditorToolbar(
                 borderRadius="1"
                 keyboardShortcutHint={
                     withModEnterSaveKeyboardShortcut
-                        ? `${isAppleDevice ? "⌘" : "Ctrl"}+Enter`
-                        : "Enter"
+                        ? renderKeyboardShortcutHint(clientInfo, "mod", "enter")
+                        : "enter"
                 }
                 keyboardShortcutHintTooltipOffset="2.5"
                 isPending={isSaving}

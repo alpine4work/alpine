@@ -1,16 +1,9 @@
 import {Box} from "~/client/web/design/box.js";
-import {MobileSettingsRow} from "~/client/web/design/mobile_settings_row.js";
-import {ChannelBrandIcon} from "~/client/web/icons/brand/channel_brand_icon.js";
-import {ChatBrandIcon} from "~/client/web/icons/brand/chat_brand_icon.js";
-import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
-import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
 import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_view.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {generateId} from "~/shared/id/id.js";
+import {CreateWidgetSecondaryMenuBar} from "~/client/web/spaces/layout/create_widget_secondary_menu_bar.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];
@@ -18,8 +11,6 @@ export function meta() {
 
 export default function CreateMoreRoute() {
     const platform = usePlatform();
-    const rootNavigate = useRootNavigate();
-    const {space} = useSpaceContext();
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -30,43 +21,16 @@ export default function CreateMoreRoute() {
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
         >
-            <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
-                <MobileSettingsRow
-                    withBorderTop
-                    icon={<ChannelBrandIcon />}
-                    label="Channel"
-                    pressErrorTitle="Couldn&#x2019;t create channel"
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/channels/new`);
-                    }}
-                />
-                <MobileSettingsRow
-                    icon={<TaskCollectionBrandIcon />}
-                    label="Task collection"
-                    pressErrorTitle="Couldn&#x2019;t create task collection"
-                    onPress={async () => {
-                        const collectionId = generateId();
-
-                        await rootNavigate(
-                            `/s/${space.id}/tasks/collections/${collectionId}?create`,
-                        );
-                    }}
-                />
-                <MobileSettingsRow
-                    icon={<TaskQueryBrandIcon />}
-                    label="Task view"
-                    pressErrorTitle="Couldn&#x2019;t create task view"
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/tasks/view`);
-                    }}
-                />
-                <MobileSettingsRow
-                    icon={<ChatBrandIcon />}
-                    label="Chat room"
-                    pressErrorTitle="Couldn&#x2019;t create chat room"
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/chat/room/new`);
-                    }}
+            <Box width="full" maxWidth={maxWidth} marginX="center">
+                <CreateWidgetSecondaryMenuBar
+                    headingType="Null"
+                    maxWidth={maxWidth}
+                    withRootNavigateToCreatedDocument={false}
+                    withDocumentAndProjectTaskStartHereBadges={false}
+                    withCreateVerbBeforeItemName={true}
+                    onCloseWithAnimation={noop}
+                    onCloseWithoutAnimation={noop}
+                    onFocusPrimaryMenuBar={noop}
                 />
             </Box>
         </SpaceRouteScrollView>

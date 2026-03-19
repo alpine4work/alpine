@@ -104,7 +104,7 @@ async function goToPeopleSettings(page: Page, isMobile: boolean) {
         await page.getByText("People").click();
     } else {
         await page.getByLabel("Space").click();
-        await page.getByRole("menuitem", {name: "People"}).click();
+        await page.getByRole("menuitem", {name: "People", exact: true}).click();
     }
 }
 
@@ -257,7 +257,12 @@ test("can sign up with work email and invite coworker with inferred domain", asy
 
     if (!isMobile) {
         await page1.getByRole("button", {name: "Create"}).click();
-        await page1.getByRole("menuitem", {name: "Message"}).click();
+        const chatMessageMenuItem = page1
+            .getByRole("menubar", {name: "Create"})
+            .getByRole("menuitem", {name: /^Chat message\b/});
+        await expect(chatMessageMenuItem).toBeVisible();
+        await chatMessageMenuItem.focus();
+        await chatMessageMenuItem.press("Enter");
 
         const suggestions = page1.getByRole("listbox", {name: "Suggestions"});
         await expect(suggestions).toBeVisible();
@@ -468,7 +473,7 @@ test("can sign up from invite link from settings", async ({browser, page: page1,
         await page1.getByText("People").click();
     } else {
         await page1.getByLabel("Space").click();
-        await page1.getByRole("menuitem", {name: "People"}).click();
+        await page1.getByRole("menuitem", {name: "People", exact: true}).click();
     }
     await page1.getByRole("button", {name: "Invite"}).click();
     await page1.getByPlaceholder("jane@company.com").click();

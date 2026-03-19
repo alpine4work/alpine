@@ -1,6 +1,8 @@
 import {useCallback, useEffect, useRef, useState} from "react";
+import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -83,15 +85,35 @@ function useStorageBase<Value>(
     schema: Schema<Value>,
     defaultValue: Value | (() => Value),
 ): [value: Value, setValue: (value: Value) => void, isLoading: boolean] {
-    const [value, actuallySetValue] = useStateWithDependencies(
-        (): Value => (typeof defaultValue === "function" ? (defaultValue as any)() : defaultValue),
-        [key, schema],
-    );
+    const isInitialAppRender = useIsInitialAppRender();
+
+    const [value, actuallySetValue] = useStateWithDependencies((): Value => {
+        // During SSR we need to use the default value since `localStorage` isn't available
+        // on the server. After that for client navigations we can use the value in
+        // `localStorage`.
+        if (isInitialAppRender) {
+            return typeof defaultValue === "function" ? (defaultValue as any)() : defaultValue;
+        } else {
+            assert(typeof window !== "undefined");
+
+            const initialValueString = assertExists(storage).getItem(key) ?? null;
+            const initialValue: Value =
+                initialValueString !== null
+                    ? schema.deserialize(JSON.parse(initialValueString))
+                    : typeof defaultValue === "function"
+                      ? (defaultValue as any)()
+                      : defaultValue;
+
+            return initialValue;
+        }
+    }, [key, schema]);
     const [isLoading, setIsLoading] = useState(true);
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
     const reloadFromStorage = useCallback(() => {
-        const newValueString = storage?.getItem(key) ?? null;
+        assert(typeof window !== "undefined");
+
+        const newValueString = assertExists(storage).getItem(key) ?? null;
         const newValue: Value =
             newValueString !== null
                 ? schema.deserialize(JSON.parse(newValueString))

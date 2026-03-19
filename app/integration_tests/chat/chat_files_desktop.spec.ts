@@ -625,7 +625,12 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
     await page1.getByLabel("Create").click();
-    await page1.getByLabel("Message").click();
+    await page1
+        .getByRole("menubar", {name: "Quick create"})
+        .getByRole("menuitem", {
+            name: "Chat",
+        })
+        .click();
 
     await expect(page1.getByTestId("MessagingView")).toBeVisible();
 
@@ -735,7 +740,12 @@ test("can drag file from message input in new chat to another new chat", async (
     await page.getByRole("option", {name: session2.account.initialName}).click();
 
     await page.getByLabel("Create").click();
-    await page.getByLabel("Message", {exact: true}).click();
+    await page
+        .getByRole("menubar", {name: "Quick create"})
+        .getByRole("menuitem", {
+            name: "Chat",
+        })
+        .click();
 
     await expect(page.getByTestId("PeekStack").getByTestId("MessagingView")).toBeVisible();
     await expect(page.getByTestId("MessagingView")).toHaveCount(2);

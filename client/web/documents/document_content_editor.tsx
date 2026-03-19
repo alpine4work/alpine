@@ -49,6 +49,7 @@ import {
 } from "~/client/web/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
@@ -275,7 +276,8 @@ export function DocumentContentEditor({
     const context = useAppContext();
     const reporter = useReporter();
     const isInitialAppRender = useIsInitialAppRender();
-    const {isAppleDevice, isNativeMobile} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {isNativeMobile} = clientInfo;
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
@@ -1575,13 +1577,21 @@ export function DocumentContentEditor({
                               {
                                   label: "Undo",
                                   isDisabled: isUndoDisabled,
-                                  keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                                  keyboardShortcutHint: renderKeyboardShortcutHint(
+                                      clientInfo,
+                                      "mod",
+                                      "z",
+                                  ),
                                   onPress: () => assertExists(editorRef.current).undo(),
                               },
                               {
                                   label: "Redo",
                                   isDisabled: isRedoDisabled,
-                                  keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                                  keyboardShortcutHint: renderKeyboardShortcutHint(
+                                      clientInfo,
+                                      "mod",
+                                      "y",
+                                  ),
                                   onPress: () => assertExists(editorRef.current).redo(),
                               },
                           ],
@@ -1681,13 +1691,13 @@ export function DocumentContentEditor({
             ],
             [
                 accessLevel,
+                clientInfo,
                 content.doc,
                 context,
                 currentAccount,
                 doNotShowDuplicationInstructionalModalAgain,
                 documentId,
                 favoriteMenuAction,
-                isAppleDevice,
                 isRedoDisabled,
                 isUndoDisabled,
                 navigate,
@@ -1813,14 +1823,18 @@ export function DocumentContentEditor({
                                 // itself and call `event.preventDefault()` + `event.stopPropagation()`.
                                 switch (event.key) {
                                     case "z": {
-                                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                                        if (
+                                            clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey
+                                        ) {
                                             event.preventDefault();
                                             event.stopPropagation();
 
                                             if (event.shiftKey) {
                                                 assertExists(editorRef.current).redo();
                                             } else if (
-                                                (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
+                                                (clientInfo.isAppleDevice
+                                                    ? !event.ctrlKey
+                                                    : !event.metaKey) &&
                                                 !event.altKey
                                             ) {
                                                 assertExists(editorRef.current).undo();
@@ -1831,12 +1845,16 @@ export function DocumentContentEditor({
                                     }
                                     // https://en.wikipedia.org/wiki/Control-Y
                                     case "y": {
-                                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                                        if (
+                                            clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey
+                                        ) {
                                             event.preventDefault();
                                             event.stopPropagation();
 
                                             if (
-                                                (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
+                                                (clientInfo.isAppleDevice
+                                                    ? !event.ctrlKey
+                                                    : !event.metaKey) &&
                                                 !event.altKey &&
                                                 !event.shiftKey
                                             ) {
@@ -2522,7 +2540,8 @@ function DocumentContentEditorSidebar({
 }) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
-    const {isAppleDevice, isNativeMobile} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {isNativeMobile} = clientInfo;
 
     const previousCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
     const nextCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
@@ -2643,7 +2662,7 @@ function DocumentContentEditorSidebar({
                         ref={previousCommentThreadButtonRef}
                         size={platform === "mobile" ? "md" : "xs"}
                         description="Previous thread"
-                        keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
+                        keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", ",")}
                         isDisabled={!previousCommentThreadId}
                         pressErrorTitle="Can&#x2019;t go to previous thread"
                         onPress={async () => {
@@ -2672,7 +2691,7 @@ function DocumentContentEditorSidebar({
                         ref={nextCommentThreadButtonRef}
                         size={platform === "mobile" ? "md" : "xs"}
                         description="Next thread"
-                        keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
+                        keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", ".")}
                         isDisabled={!nextCommentThreadId}
                         pressErrorTitle="Can&#x2019;t go to next thread"
                         onPress={async () => {
@@ -2720,7 +2739,7 @@ function DocumentContentEditorSidebar({
                 if (
                     event.key === "," &&
                     event.shiftKey &&
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -2733,7 +2752,7 @@ function DocumentContentEditorSidebar({
                 if (
                     event.key === "." &&
                     event.shiftKey &&
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     event.preventDefault();
                     event.stopPropagation();

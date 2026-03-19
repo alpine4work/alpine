@@ -129,6 +129,7 @@ import {
     dispatchTriggeredOverlayCloseEvent,
     dispatchTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/web/design/safe_area_inset.js";
 import {flushScrollbarResizeSync} from "~/client/web/design/scrollbar.js";
@@ -4885,7 +4886,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                         {
                             label: "Undo",
                             isDisabled: !canUndo,
-                            keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                            keyboardShortcutHint: renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "z",
+                            ),
                             onPress: () => {
                                 undo(view.state, view.dispatch, view);
                             },
@@ -4893,7 +4898,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                         {
                             label: "Redo",
                             isDisabled: !canRedo,
-                            keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                            keyboardShortcutHint: renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "y",
+                            ),
                             onPress: () => {
                                 redo(view.state, view.dispatch, view);
                             },
@@ -4910,7 +4919,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ],
             };
         },
-        [canRedo, canUndo, clientInfo.isAppleDevice, hasEditAccessLevel, schema],
+        [canRedo, canUndo, clientInfo, hasEditAccessLevel, schema],
     );
 
     // Manually add context menu actions on `contextmenu` event since we can't render a

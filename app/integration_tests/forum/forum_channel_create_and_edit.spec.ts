@@ -1,8 +1,15 @@
-import {expect, test} from "@playwright/test";
+import {type Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 
 const {context, services} = createTestServices();
+
+async function clickCreateChannelMenuItem(page: Page, isMobile: boolean) {
+    const moreButton = page.getByText("More", {exact: true});
+    if (isMobile) await moreButton.click();
+
+    await page.getByRole("menuitem", {name: /^(Create )?channel\b/i}).click();
+}
 
 test("can create a channel and edit the name/description", async ({
     page,
@@ -17,14 +24,13 @@ test("can create a channel and edit the name/description", async ({
     await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
-    await page.getByText("More").click();
 
     await expect(page.getByLabel("Name")).toBeHidden();
     await expect(page.getByText("FooBar")).toBeHidden();
     await expect(page.getByText("BarFoo")).toBeHidden();
     await expect(page.getByText("The quick brown fox")).toBeHidden();
 
-    await page.getByText("Channel", {exact: true}).click();
+    await clickCreateChannelMenuItem(page, isMobile);
 
     await page.getByLabel("Name").fill("FooBar");
 
@@ -106,12 +112,11 @@ test("can create a private channel", async ({
     await page1.goto(`/s/${space.id}/dev/empty`);
 
     await page1.getByLabel("Create").click();
-    await page1.getByText("More").click();
 
     await expect(page1.getByLabel("Name")).toBeHidden();
     await expect(page1.getByText("FooBar")).toBeHidden();
 
-    await page1.getByText("Channel", {exact: true}).click();
+    await clickCreateChannelMenuItem(page1, isMobile);
 
     await page1.getByLabel("Name").fill("FooBar");
 
@@ -158,12 +163,11 @@ test("can create a public channel", async ({
     await page1.goto(`/s/${space.id}/dev/empty`);
 
     await page1.getByLabel("Create").click();
-    await page1.getByText("More").click();
 
     await expect(page1.getByLabel("Name")).toBeHidden();
     await expect(page1.getByText("FooBar")).toBeHidden();
 
-    await page1.getByText("Channel", {exact: true}).click();
+    await clickCreateChannelMenuItem(page1, isMobile);
 
     await page1.getByLabel("Name").fill("FooBar");
 

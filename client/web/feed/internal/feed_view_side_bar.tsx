@@ -490,7 +490,7 @@ function FeedSearchAffinityView({
             <Box
                 {...pressProps}
                 paddingX={searchEntityViewDefaultPaddingX}
-                backgroundColor={isPressed || hasActiveContextMenu ? "grey-10" : undefined}
+                backgroundColor={isPressed || hasActiveContextMenu ? "grey-5" : undefined}
                 borderRadius="1.5"
             >
                 <SearchAffinityEntityView result={result} lineClamp={1} />

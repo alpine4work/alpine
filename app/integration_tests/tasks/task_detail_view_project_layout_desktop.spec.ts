@@ -184,8 +184,7 @@ test("can create a project from create menu in fullscreen and focused", async ({
     await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
-    await page.getByRole("menuitem", {name: "More"}).hover();
-    await page.getByRole("menuitem", {name: "Project"}).click();
+    await page.getByRole("menuitem", {name: /^Project\b/}).click();
 
     await expect(page).toHaveURL(/\/s\/[^/]+\/tasks\/[^?]+\?create=/);
     await expect(page.getByTestId("PeekStackOverlay")).toBeHidden();
@@ -221,7 +220,12 @@ test("can turn a create-menu task peek into project and get fullscreen project u
     await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
-    await page.getByRole("menuitem", {name: "Task"}).click();
+    await page
+        .getByRole("menubar", {name: "Quick create"})
+        .getByRole("menuitem", {
+            name: /^Task\b/,
+        })
+        .click();
 
     const peek = page.getByTestId("PeekStackOverlay");
     await expect(peek).toBeVisible();
