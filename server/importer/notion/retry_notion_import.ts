@@ -5,9 +5,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
-
-/** Number of days that import files are retained before being deleted. */
-const fileRetentionDays = 7;
+import {notionImportFileRetentionDays} from "~/shared/importer/notion/notion_import_file_retention.js";
 
 /**
  * Retries a failed Notion import by re-queueing it for processing.
@@ -27,7 +25,9 @@ export async function retryNotionImport(
     await authorizeSpaceAccess(context, spaceId, "Member");
 
     const now = new Date();
-    const retentionCutoff = new Date(now.getTime() - fileRetentionDays * 24 * 60 * 60 * 1000);
+    const retentionCutoff = new Date(
+        now.getTime() - notionImportFileRetentionDays * 24 * 60 * 60 * 1000,
+    );
 
     const updatedItem = assertExists(
         await NotionImporterTable.updateItem(
@@ -58,7 +58,7 @@ export async function retryNotionImport(
                 if (existingItem.createdTime < retentionCutoff) {
                     throw new FailedPreconditionError(
                         `Can\u2019t retry import. The uploaded file has been deleted after ` +
-                            `${fileRetentionDays} days. Please upload a new file.`,
+                            `${notionImportFileRetentionDays} days. Please upload a new file.`,
                     );
                 }
 

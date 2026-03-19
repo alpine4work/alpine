@@ -56,6 +56,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/helpers:helpers",
     "//client/web/helpers/gl:gl",
     "//client/web/icons:icons",
+    "//client/web/importers/notion:notion",
     "//client/web/inbox:inbox",
     "//client/web/messaging:messaging",
     "//client/web/navigation:navigation",

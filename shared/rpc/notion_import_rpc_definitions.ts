@@ -104,6 +104,9 @@ export const cancelNotionImport = defineRpc({
  *
  * 1. Have status "Failed"
  * 2. Were created within the last 7 days (file retention period)
+ *
+ * The import will be transitioned back to "ProcessQueued" status and the import
+ * job will be started again.
  */
 export const retryNotionImport = defineRpc({
     name: "retryNotionImport",

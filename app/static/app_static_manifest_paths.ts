@@ -59,6 +59,7 @@ export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/icons/task_brand_big_icon_light.png",
     "/icons/task_brand_icon_dark.png",
     "/icons/task_brand_icon_light.png",
+    "/images/integrations/import/notion/notion_export.gif",
     "/images/og.jpg",
     "/manifest.json",
     "/notes/file-data-transfer-readme.md",

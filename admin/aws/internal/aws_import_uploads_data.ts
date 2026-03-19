@@ -2,6 +2,7 @@ import {Duration, RemovalPolicy} from "aws-cdk-lib";
 import {Grant, IGrantable} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket, HttpMethods} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
+import {notionImportFileRetentionDays} from "~/shared/importer/notion/notion_import_file_retention.js";
 
 /**
  * Construct for the import uploads S3 bucket used for Notion imports and
@@ -38,7 +39,7 @@ export class AwsImportUploadsData extends Construct {
             autoDeleteObjects: true,
             // Delete uploaded files after 7 days. Files should be processed within
             // minutes/hours but we keep them around for a week in case of debugging needs.
-            lifecycleRules: [{expiration: Duration.days(7)}],
+            lifecycleRules: [{expiration: Duration.days(notionImportFileRetentionDays)}],
             // CORS configuration for browser-based uploads via presigned URLs.
             cors: [
                 {

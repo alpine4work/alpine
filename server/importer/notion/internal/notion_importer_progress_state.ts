@@ -127,10 +127,14 @@ export class NotionImporterProgressState {
     /**
      * Stop the persist loop and update the import status to Failed.
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private async finishUploadWithError(error: unknown): Promise<void> {
         this.stopPersistLoop();
 
-        const errorMessage = error instanceof Error ? error.message : "Unknown error during import";
+        // TODO use error schema and displayMessage here
+        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/fbczkf41gdyake12jywe30hs8m
+        const errorMessage = "Unknown error during import";
+
         const result = this.buildResult();
         await NotionImporterTable.updateItem(
             this.context,
@@ -141,7 +145,11 @@ export class NotionImporterProgressState {
             },
             item => ({
                 ...assertExists(item),
-                status: {type: "Failed" as const, error: errorMessage, result},
+                status: {
+                    type: "Failed" as const,
+                    error: errorMessage,
+                    result,
+                },
                 updatedTime: new Date(),
             }),
         );

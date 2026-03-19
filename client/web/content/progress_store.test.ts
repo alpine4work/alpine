@@ -1,7 +1,7 @@
 import {
     ProgressValueStore,
     createProgressCompositeStore,
-} from "~/client/web/content/internal/progress_store.js";
+} from "~/client/web/content/progress_store.js";
 
 import.meta.jest.useFakeTimers();
 

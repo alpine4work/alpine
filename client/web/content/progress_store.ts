@@ -171,6 +171,12 @@ export class ProgressValueStore extends Store<number> {
         }
     }
 
+    /** Cancel any in-progress easing animation. */
+    public cancelEase(): void {
+        this._cancelEase?.();
+        this._cancelEase = null;
+    }
+
     /**
      * Eases the progress monitor from 0 to ~0.86 over a third of the provided duration
      * and from 0 to ~0.99 over the full provided duration. Starts by quickly updating

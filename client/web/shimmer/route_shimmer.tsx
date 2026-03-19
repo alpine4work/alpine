@@ -258,7 +258,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.settings.integrations._index": {
         component: SpaceIntegrationsSettingsRouteShimmer,
     },
-    "routes/s.$spaceId.settings.integrations.import.notion": {
+    "routes/s.$spaceId.settings.integrations.notion": {
         component: SpaceNotionImportSettingsRouteShimmer,
     },
     "routes/s.$spaceId.settings.integrations.slack": {

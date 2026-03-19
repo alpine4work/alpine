@@ -16,6 +16,10 @@ import {SlackLogo} from "~/client/web/icons/socials/slack_logo.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {
+    spaceBotSettingsHeadingGap,
+    spaceBotSettingsHeadingHeight,
+} from "~/client/web/styles/space_settings_shared_styles.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {getConnectedSlackAccountIfExists} from "~/server/integrations/slack/get_connected_slack_account_if_exists.js";
 import {getConnectedSlackWorkspaceIfExists} from "~/server/integrations/slack/get_connected_slack_workspace_if_exists.js";
@@ -117,7 +121,7 @@ export async function loader({context, params}: LoaderArgs) {
 const slackHeaderLogoSize = "12";
 
 const slackIntegrationSettingsSectionHeight = "16";
-const slackIntegrationSettingsSectionConnectButtonHeight = "6";
+const slackIntegrationSettingsSectionConnectButtonHeight = "9";
 const slackIntegrationSettingsAvatarGap = "6";
 const slackIntegrationSettingsAvatarSize = "10";
 
@@ -169,7 +173,12 @@ export default function SpaceSlackIntegrationSettingsRoute() {
 
     return (
         <Box display="flex" flexDirection="column" gap="12">
-            <Box display="flex" flexDirection="row" gap="5">
+            <Box
+                display="flex"
+                alignItems="center"
+                height={spaceBotSettingsHeadingHeight}
+                gap={spaceBotSettingsHeadingGap}
+            >
                 <Box
                     width={slackHeaderLogoSize}
                     height={slackHeaderLogoSize}
@@ -178,12 +187,12 @@ export default function SpaceSlackIntegrationSettingsRoute() {
                 >
                     <SlackLogo />
                 </Box>
-                <Box display="flex" flexDirection="column" gap="1" marginTop="-1.5">
+                <Box display="flex" flexDirection="column" gap="1">
                     <Box fontSize="600" fontStyle="truncate-bold" userSelect="text">
                         Slack
                     </Box>
                     <Box fontSize="100" userSelect="text" color="grey-60">
-                        Connect your Slack workspace to get notifications from Alpine
+                        Get Alpine notifications in Slack
                     </Box>
                 </Box>
             </Box>
@@ -268,15 +277,19 @@ function SlackWorkspaceSection({
                                 />
                             ) : (
                                 <UsersThree
-                                    size={spacing[slackIntegrationSettingsAvatarSize]}
-                                    color={colorSchemeVars["grey-70"]}
-                                    weight="fill"
+                                    size={spacing["6"]}
+                                    color={colorSchemeVars["grey-50"]}
                                 />
                             )}
                         </Box>
-                        <Box display="flex" flexDirection="column" gap="2" marginY="-1">
+                        <Box
+                            display="flex"
+                            flexDirection="column"
+                            justifyContent="space-between"
+                            height={slackIntegrationSettingsAvatarSize}
+                        >
                             <Box display="flex" flexDirection="row" alignItems="center" gap="2">
-                                <Box fontSize="200" fontStyle="semi-bold">
+                                <Box fontSize="200" fontStyle="semi-bold" userSelect="text">
                                     {slackWorkspace.workspaceName}
                                 </Box>
                                 <SlackMoreMenuButton
@@ -313,8 +326,8 @@ function SlackWorkspaceSection({
                                     ]}
                                 />
                             </Box>
-                            <Box fontSize="75" color="grey-60" userSelect="text" marginY="-1">
-                                Your Slack Workspace
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                Your Slack workspace
                             </Box>
                         </Box>
                     </Box>
@@ -324,7 +337,7 @@ function SlackWorkspaceSection({
                         flexDirection="row"
                         alignItems="flex-start"
                         justifyContent="space-between"
-                        gap="3"
+                        gap="6"
                     >
                         <Box
                             height={slackIntegrationSettingsSectionHeight}
@@ -332,16 +345,19 @@ function SlackWorkspaceSection({
                             flexDirection="column"
                             gap="1"
                         >
-                            <Box fontSize="100">Slack workspace</Box>
-                            <Box fontSize="75" color="grey-60">
-                                Only admins can edit this, shared for everyone
+                            <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
+                                Slack workspace
+                            </Box>
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                Only admins can connect, everyone will need to connect their
+                                personal accounts separately
                             </Box>
                         </Box>
                         <Button
                             variant="accent"
-                            fontSize="75"
+                            fontSize="100"
                             height={slackIntegrationSettingsSectionConnectButtonHeight}
-                            paddingX="2"
+                            paddingX="3"
                             disabledReason={
                                 !hasAdminAccess
                                     ? "Ask an admin to connect this integration"
@@ -430,7 +446,7 @@ function SlackAccountSection({
             gap="8"
             paddingLeft={slackIntegrationSettingsSectionMarginLeft}
         >
-            {slackAccount !== null ? (
+            {(slackAccount !== null || slackWorkspace) && (
                 <Box
                     display="flex"
                     flexDirection="row"
@@ -447,69 +463,56 @@ function SlackAccountSection({
                         borderRadius="1.5"
                         overflow="hidden"
                     >
-                        {slackAccount.profileImageUrl ? (
+                        {slackAccount && slackAccount.profileImageUrl ? (
                             <img src={slackAccount.profileImageUrl} alt="Slack account profile" />
                         ) : (
-                            <User
-                                size={spacing[slackIntegrationSettingsAvatarSize]}
-                                weight="fill"
-                                color={colorSchemeVars["grey-70"]}
-                            />
+                            <User size={spacing["6"]} color={colorSchemeVars["grey-50"]} />
                         )}
                     </Box>
-                    <Box display="flex" flexDirection="column" gap="2" marginY="-1">
-                        <Box display="flex" flexDirection="row" alignItems="center" gap="2">
-                            <Box fontSize="200" fontStyle="semi-bold">
-                                {slackAccount.displayName ?? slackAccount.realName}
-                            </Box>
-                            <SlackMoreMenuButton
-                                menuActions={[
-                                    {
-                                        label: "Disconnect",
-                                        pressErrorTitle: "Couldn\u2019t disconnect Slack account",
-                                        onPress: handleDisconnectSlackAccount,
-                                    },
-                                ]}
-                            />
-                        </Box>
-                        <Box fontSize="75" color="grey-60" userSelect="text" marginY="-1">
-                            Your connected Slack Account
-                        </Box>
-                    </Box>
-                </Box>
-            ) : (
-                <Box
-                    display="flex"
-                    flexDirection="row"
-                    alignItems="flex-start"
-                    justifyContent="space-between"
-                    gap="3"
-                >
                     <Box
-                        height={slackIntegrationSettingsSectionHeight}
                         display="flex"
                         flexDirection="column"
-                        gap="1"
+                        justifyContent="space-between"
+                        height={slackIntegrationSettingsAvatarSize}
                     >
-                        <Box fontSize="100">Your Slack account</Box>
-                        <Box fontSize="75" color="grey-60">
-                            Everyone will need to connect their own Slack account to use this
-                            integration
+                        <Box display="flex" flexDirection="row" alignItems="center" gap="2">
+                            <Box fontSize="200" fontStyle="semi-bold" userSelect="text">
+                                {!slackAccount
+                                    ? "My account"
+                                    : (slackAccount.displayName ?? slackAccount.realName)}
+                            </Box>
+                            {slackAccount && (
+                                <SlackMoreMenuButton
+                                    menuActions={[
+                                        {
+                                            label: "Disconnect",
+                                            pressErrorTitle:
+                                                "Couldn\u2019t disconnect Slack account",
+                                            onPress: handleDisconnectSlackAccount,
+                                        },
+                                    ]}
+                                />
+                            )}
+                        </Box>
+                        <Box fontSize="75" color="grey-60" userSelect="text">
+                            {!slackAccount
+                                ? "Connect your personal account to get notifications"
+                                : "Your personal Slack account"}
                         </Box>
                     </Box>
-                    <Button
-                        variant="accent"
-                        fontSize="75"
-                        height={slackIntegrationSettingsSectionConnectButtonHeight}
-                        paddingX="2"
-                        isDisabled={!slackWorkspace}
-                        disabledReason={
-                            !slackWorkspace ? "Connect a Slack workspace first" : undefined
-                        }
-                        onPress={onConnect}
-                    >
-                        Connect
-                    </Button>
+                    {!slackAccount && (
+                        <Box flexGrow="1" display="flex" justifyContent="flex-end">
+                            <Button
+                                variant="accent"
+                                fontSize="100"
+                                height={slackIntegrationSettingsSectionConnectButtonHeight}
+                                paddingX="3"
+                                onPress={onConnect}
+                            >
+                                Connect
+                            </Button>
+                        </Box>
+                    )}
                 </Box>
             )}
             {slackAccount !== null && (

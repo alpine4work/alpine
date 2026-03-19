@@ -7,7 +7,7 @@ import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
-import {NotionIcon} from "~/client/web/icons/notion_icon.js";
+import {NotionLogo} from "~/client/web/icons/socials/notion_logo.js";
 import {SlackLogo} from "~/client/web/icons/socials/slack_logo.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -54,10 +54,10 @@ const integrations: Array<IntegrationData> = [
         isAvailable: () => true,
     },
     {
-        slug: "import/notion",
+        slug: "notion",
         name: "Notion",
         tagline: "Import documents from Notion",
-        icon: <NotionIcon size={spacing[spaceListSettingsHeadingSettingsRowAvatarSize]} />,
+        icon: <NotionLogo />,
         isAvailable: hasNotionImportFeature,
     },
 ];
@@ -140,8 +140,9 @@ function SpaceIntegrationSettingsRow({integration}: {integration: IntegrationDat
                     />
                 )}
                 <Box
-                    width="10"
-                    height="10"
+                    width={spaceListSettingsHeadingSettingsRowAvatarSize}
+                    height={spaceListSettingsHeadingSettingsRowAvatarSize}
+                    padding="1"
                     display="flex"
                     alignItems="center"
                     justifyContent="center"

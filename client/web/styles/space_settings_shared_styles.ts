@@ -13,7 +13,7 @@ export const spaceListSettingsHeadingSettingsRowTitleFontSize = "200";
 export const spaceListSettingsHeadingSettingsRowTitleMarginBottom = "0.5";
 export const spaceListSettingsHeadingSettingsRowTaglineFontSize = "75";
 
-export const spaceBotSettingsHeadingGap = "4";
+export const spaceBotSettingsHeadingGap = "5";
 export const spaceBotSettingsHeadingAvatarSize = addRemLengths("14", "1");
 export const spaceBotSettingsHeadingHeight = "16";
 export const spaceBotSettingsHeadingHeightNameFontSize = "600";

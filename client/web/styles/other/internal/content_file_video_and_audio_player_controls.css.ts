@@ -165,11 +165,13 @@ const scrubberTrackShared: ComplexStyleRule = {
     pointerEvents: "none",
 };
 
+const scrubberTrackHeightPx = 4;
+
 export const scrubberTrackClassName = style({
     top: "calc(50% - 2px)",
     left: "0",
     right: "0",
-    height: "4px",
+    height: scrubberTrackHeightPx,
     ...scrubberTrackShared,
 });
 

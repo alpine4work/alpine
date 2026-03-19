@@ -41,7 +41,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.settings.bots._index"
     | "routes/s.$spaceId.settings.general"
     | "routes/s.$spaceId.settings.integrations._index"
-    | "routes/s.$spaceId.settings.integrations.import.notion"
+    | "routes/s.$spaceId.settings.integrations.notion"
     | "routes/s.$spaceId.settings.integrations.slack"
     | "routes/s.$spaceId.settings.notifications"
     | "routes/s.$spaceId.settings.people"

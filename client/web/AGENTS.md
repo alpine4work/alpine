@@ -269,6 +269,59 @@ A collection of best practices to consider while writing frontend code in our co
     - `use_state_without_dependencies.ts`: Local state that reinitializes if anything in a
       dependency array changes. Useful for state that's partially derived from props.
 
+### Let primitive components like `<Button>` and `<Menu>` handle loading states
+
+Many of our primitive components in `client/web/design` let you pass in an `onPress` handler that
+returns a promise. If you’re doing async work, always await your async work in the `onPress` handler
+(unless you have a really good reason).
+
+```tsx
+// ❌ No
+function MyComponent() {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    return (
+        <Button
+            isDisabled={isSubmitting}
+            onPress={() => {
+                setIsSubmitting(true);
+
+                submitData().then(() => {
+                    setIsSubmitting(false);
+                });
+            }}
+        >
+            Submit
+        </Button>
+    );
+}
+```
+
+```tsx
+// ✅ Yes
+function MyComponent() {
+    return (
+        <Button
+            pressErrorTitle="Couldn&#x2019;t submit"
+            onPress={async () => {
+                await submitData();
+            }}
+        >
+            Submit
+        </Button>
+    );
+}
+```
+
+Our primitive components (like `<Button>`):
+
+- Handle errors for you (you just typically need to provide a prop like `pressErrorTitle`).
+- Handle loading states, the button is disabled while you await and shows a loading spinner.
+
+Our primitive components provide a much better UX than if you tried to implement this logic yourself
+from scratch every time. So always deeply pass down event handlers (like `onPress`) that return
+promises so we can handle loading states directly at the place the event handler is called.
+
 ### Always assume `useEffect()`s execute on every render
 
 Write your `useEffect()`s assuming they have no dependency array and will execute on every render.

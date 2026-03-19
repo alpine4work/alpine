@@ -19,14 +19,16 @@ export function PrettyNumber({
     number,
     label,
     pluralLabel,
+    smallNumbersAsWords,
 }: {
     number: number;
     label?: string;
     pluralLabel?: string;
+    smallNumbersAsWords?: boolean;
 }) {
     const {locale} = useClientInfo();
 
     return useMemo(() => {
-        return <>{printPrettyNumber(locale, number, label, {pluralLabel})}</>;
-    }, [label, locale, number, pluralLabel]);
+        return <>{printPrettyNumber(locale, number, label, {pluralLabel, smallNumbersAsWords})}</>;
+    }, [label, locale, number, pluralLabel, smallNumbersAsWords]);
 }

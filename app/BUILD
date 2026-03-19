@@ -90,6 +90,7 @@ ts_project(
         "//client/web/feed",
         "//client/web/forum",
         "//client/web/helpers",
+        "//client/web/importers/notion",
         "//client/web/inbox",
         "//client/web/messaging",
         "//client/web/navigation",

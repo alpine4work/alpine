@@ -89,7 +89,7 @@ test("startNotionImport transitions from Validated to ProcessQueued", async () =
     });
 
     expect(importItem).toMatchObject({
-        status: {type: "ProcessQueued"},
+        status: {type: "ProcessQueued", result: {teamspaces: new Map()}},
     });
 });
 
@@ -128,6 +128,176 @@ test("startNotionImport triggers import via importer context module", async () =
     expect(importer.startNotionImportCalls.at(-1)).toMatchObject({
         spaceId: space.id,
         notionImportId,
+    });
+});
+
+test("startNotionImport throws if another import is ProcessQueued", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    // Create first import and set it to ProcessQueued
+    const {notionImportId: firstImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId: firstImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "ProcessQueued" as const, result: {teamspaces: new Map()}},
+            workspaceName: "First Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    // Create second import and set it to Validated
+    const {notionImportId: secondImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId: secondImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
+            workspaceName: "Second Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    await expect(
+        startNotionImport(session.action(), {
+            spaceId: space.id,
+            notionImportId: secondImportId,
+            teamspaceImportOptions: [],
+        }),
+    ).rejects.toThrow("Another import is already in progress");
+});
+
+test("startNotionImport throws if another import is Processing", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    // Create first import and set it to Processing
+    const {notionImportId: firstImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId: firstImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "Processing" as const, result: {teamspaces: new Map()}},
+            workspaceName: "First Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    // Create second import and set it to Validated
+    const {notionImportId: secondImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId: secondImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
+            workspaceName: "Second Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    await expect(
+        startNotionImport(session.action(), {
+            spaceId: space.id,
+            notionImportId: secondImportId,
+            teamspaceImportOptions: [],
+        }),
+    ).rejects.toThrow("Another import is already in progress");
+});
+
+test("startNotionImport succeeds when existing imports are completed or failed", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    // Create a completed import
+    const {notionImportId: completedImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {
+            partitionType: "Import",
+            sortRangeType: "Attributes",
+            notionImportId: completedImportId,
+        },
+        item => ({
+            ...assertExists(item),
+            status: {type: "Success" as const, result: {teamspaces: new Map()}},
+            workspaceName: "Completed Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    // Create a failed import
+    const {notionImportId: failedImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId: failedImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "Failed" as const, result: {teamspaces: new Map()}},
+            workspaceName: "Failed Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    // Create new import and set it to Validated
+    const {notionImportId: newImportId} = await createNotionImport(session.action(), {
+        spaceId: space.id,
+        contentType: "application/zip",
+        contentLength: 1024,
+    });
+    await NotionImporterTable.updateItem(
+        context,
+        {partitionType: "Import", sortRangeType: "Attributes", notionImportId: newImportId},
+        item => ({
+            ...assertExists(item),
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
+            workspaceName: "New Workspace",
+            teamspaceImportOptions: [],
+        }),
+    );
+
+    await startNotionImport(session.action(), {
+        spaceId: space.id,
+        notionImportId: newImportId,
+        teamspaceImportOptions: [],
+    });
+
+    const importItem = await NotionImporterTable.getItem(context, {
+        partitionType: "Import",
+        sortRangeType: "Attributes",
+        notionImportId: newImportId,
+    });
+
+    expect(importItem).toMatchObject({
+        status: {type: "ProcessQueued"},
     });
 });
 

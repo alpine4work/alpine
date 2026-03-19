@@ -29,6 +29,7 @@ ts_project(
         "//shared/files",
         "//shared/helpers",
         "//shared/importer",
+        "//shared/importer/notion",
         "//shared/schema",
     ],
 )
