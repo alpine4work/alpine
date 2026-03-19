@@ -1058,7 +1058,11 @@ function TaskCollectionsInput(
                     })}
                 />
             )}
-            {collectionsChildren}
+            {isReadOnly && displayCollections.length === 0 ? (
+                <Box style={inputPlaceholderStyles}>None</Box>
+            ) : (
+                collectionsChildren
+            )}
             {createCollectionInputState.isVisible && (
                 <Box
                     overflow="hidden"

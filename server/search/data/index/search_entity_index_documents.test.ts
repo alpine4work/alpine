@@ -162,7 +162,7 @@ test("will index a document after a timeout", async () => {
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -221,7 +221,7 @@ test("will only index a document once if update happened within the timeout", as
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -297,7 +297,7 @@ test("will only index a document once if update happened within timeout even acr
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -365,7 +365,7 @@ test("will index a document again if update happened after timeout", async () =>
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -395,7 +395,7 @@ test("will index a document again if update happened after timeout with more upd
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
-    ).toEqual(null);
+    ).toEqual(expect.objectContaining({version: 0}));
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
@@ -526,7 +526,7 @@ test("will index a document again if update happened after timeout with more upd
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -590,10 +590,6 @@ test("will not schedule another indexing job if document title is updated after 
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-
-    // Clear the timer for the `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
-    import.meta.jest.clearAllTimers();
 });
 
 test("will schedule another indexing job if document title is updated after content update", async () => {
@@ -693,7 +689,7 @@ test("will schedule another indexing job if document title is updated after cont
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -810,7 +806,7 @@ test("will not schedule another indexing job if document title is updated twice 
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -1710,7 +1706,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job, the
     // `AddFeedAccountCandidateEntry` job, and the `AddFeedCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(3);
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 

@@ -41,6 +41,11 @@ export type ActorContextModule =
     | ImpersonatedAccountActorContextModule
     | BotActorContextModule;
 
+export type AccountActorContextModule =
+    | SessionActorContextModule
+    | ImpersonatedAccountActorContextModule
+    | BotActorContextModule;
+
 interface ActorContextModuleBase extends ContextModuleBase {
     /**
      * Name of the service which initiated the current action. If the browser initiated

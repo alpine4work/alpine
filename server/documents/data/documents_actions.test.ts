@@ -316,7 +316,6 @@ test("non-system actor cannot specify 'from' field", async () => {
     const session = await space.createSession();
 
     await expect(
-        // @ts-expect-error
         createDocument(session.action(), {
             spaceId: space.id,
             from: {type: "Importer", source: {type: "Notion"}},
@@ -336,7 +335,6 @@ test("bot cannot specify 'from' field", async () => {
     const botAction = botAccount.action({type: "Chat", chatId: chat.id});
 
     await expect(
-        // @ts-expect-error
         createDocument(botAction, {
             spaceId: space.id,
             from: {type: "Importer", source: {type: "Notion"}},
@@ -419,13 +417,16 @@ test("system actor can create document with createFeedEntry: false", async () =>
     ]);
     assert(isDocumentContent(content));
 
-    const result = await createDocument(space.systemAction(), {
-        spaceId: space.id,
-        creatorId: session.account.id,
-        content,
-        createFeedEntry: false,
-        from: {type: "Importer", source: {type: "Notion"}},
-    });
+    const result = await createDocument(
+        context.impersonatedAccountAction(space.id, session.account.id),
+        {
+            spaceId: space.id,
+            creatorId: session.account.id,
+            content,
+            createFeedEntry: false,
+            from: {type: "Importer", source: {type: "Notion"}},
+        },
+    );
 
     expect(result.creator).toEqual({
         id: session.account.id,
@@ -4174,15 +4175,15 @@ test("authorizing document access after getting document as session actor is cac
 
         await getDocumentContentPreviewIfExists(actionContext, document.id);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -4192,7 +4193,7 @@ test("authorizing document access after getting document as session actor is cac
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
     }
 });
 
@@ -9228,11 +9229,37 @@ test("can get and update document content preview", async () => {
     const otherSession = await otherSpace.createSession();
     const document = await TestDocument.create(session, {title: "Hello, world!"});
 
-    await document.type(session, "Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+    await document.type(session, "Lorem ipsum dolor sit amet,");
 
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
-    ).toEqual(null);
+    ).toEqual({
+        version: 1,
+        content: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [schema.text("Lorem ipsum dolor sit amet,")]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    await document.type(session, " consectetur adipiscing elit.");
+
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
+        version: 2,
+        content: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
 
     // Can update the content preview:
     {
@@ -9252,7 +9279,18 @@ test("can get and update document content preview", async () => {
 
         expect(
             (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
-        ).toEqual(null);
+        ).toEqual({
+            version: 2,
+            content: {
+                doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                    schema.node("title", null, [schema.text("Hello, world!")]),
+                    schema.node("paragraph", null, [
+                        schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                    ]),
+                ]),
+                references: emptyDocumentContentReferences,
+            },
+        });
 
         await expect(updateContentPreview(otherSession.action())).rejects.toThrow(
             PermissionDeniedError,
@@ -9263,7 +9301,18 @@ test("can get and update document content preview", async () => {
 
         expect(
             (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
-        ).toEqual(null);
+        ).toEqual({
+            version: 2,
+            content: {
+                doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                    schema.node("title", null, [schema.text("Hello, world!")]),
+                    schema.node("paragraph", null, [
+                        schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                    ]),
+                ]),
+                references: emptyDocumentContentReferences,
+            },
+        });
 
         await updateContentPreview(session.action());
     }
@@ -9271,7 +9320,7 @@ test("can get and update document content preview", async () => {
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
     ).toEqual({
-        version: 1,
+        version: 2,
         content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9295,7 +9344,7 @@ test("can get and update document content preview", async () => {
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
     ).toEqual({
-        version: 1,
+        version: 2,
         content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9332,7 +9381,7 @@ test("can get and update document content preview", async () => {
         expect(
             (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
         ).toEqual({
-            version: 1,
+            version: 2,
             content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9350,7 +9399,7 @@ test("can get and update document content preview", async () => {
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
     ).toEqual({
-        version: 5,
+        version: 6,
         content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9392,7 +9441,7 @@ test("can get and update document content preview", async () => {
         expect(
             (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
         ).toEqual({
-            version: 5,
+            version: 6,
             content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9412,7 +9461,7 @@ test("can get and update document content preview", async () => {
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
     ).toEqual({
-        version: 6,
+        version: 7,
         content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9456,7 +9505,7 @@ test("can get and update document content preview", async () => {
         expect(
             (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
         ).toEqual({
-            version: 6,
+            version: 7,
             content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9477,7 +9526,7 @@ test("can get and update document content preview", async () => {
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
     ).toEqual({
-        version: 6,
+        version: 7,
         content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9521,7 +9570,7 @@ test("can get and update document content preview", async () => {
         expect(
             (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
         ).toEqual({
-            version: 6,
+            version: 7,
             content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9542,7 +9591,7 @@ test("can get and update document content preview", async () => {
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
     ).toEqual({
-        version: 8,
+        version: 9,
         content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
@@ -9550,6 +9599,35 @@ test("can get and update document content preview", async () => {
                     schema.text(
                         "Lorem zipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
                             "x".repeat(7_330),
+                    ),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+});
+
+test("will truncate initial document preview before the first preview update", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const document = await TestDocument.create(session, {title: "Hello, world!"});
+
+    await document.type(
+        session,
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " + "x".repeat(10_000),
+    );
+
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
+        version: 1,
+        content: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text(
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+                            "x".repeat(7_428),
                     ),
                 ]),
             ]),

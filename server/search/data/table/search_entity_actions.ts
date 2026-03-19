@@ -3,6 +3,7 @@ import {
     ServerImpersonatedAccountActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -908,7 +909,7 @@ export function markSearchAffinityEntityInteractionForAccount(
  * it adds a lot of points we don't want the client to be able to add.
  */
 export function markSearchAffinityCreateDocumentEntityInteraction(
-    context: ServerActionContext,
+    context: ServerMinimalActionContext,
     {
         spaceId,
         documentId,

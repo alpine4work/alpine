@@ -6961,6 +6961,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "optional": true
                                                         },
+                                                        "excludeFromCreatorFeed": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": true
+                                                        },
                                                         "event": {
                                                             "valueSchema": {
                                                                 "type": "Enum",
@@ -6969,6 +6975,62 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "SharedWithAccessPolicyDefaultGrant"
                                                                 ],
                                                                 "referenceId": "651b7b0d"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Task": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Task"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "taskId": {
+                                                            "valueSchema": {
+                                                                "type": "Id"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "sharedTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "sharerId": {
+                                                            "valueSchema": {
+                                                                "type": "Id"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "creatorId": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Id"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "excludeFromCreatorFeed": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": true
+                                                        },
+                                                        "event": {
+                                                            "valueSchema": {
+                                                                "type": "Enum",
+                                                                "values": [
+                                                                    "UpdatedToProjectLayout",
+                                                                    "SharedWithAccessPolicyDefaultGrant",
+                                                                    "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant"
+                                                                ]
                                                             },
                                                             "optional": false
                                                         }
@@ -7010,6 +7072,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "excludeFromCreatorFeed": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": true
                                                         },
                                                         "event": {
                                                             "valueSchema": {
@@ -7057,6 +7125,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "optional": false
                                                         },
+                                                        "excludeFromCreatorFeed": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": true
+                                                        },
                                                         "event": {
                                                             "valueSchema": {
                                                                 "type": "Reference",
@@ -7102,6 +7176,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "excludeFromCreatorFeed": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": true
                                                         },
                                                         "event": {
                                                             "valueSchema": {
@@ -13561,7 +13641,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "type": "Enum",
                                                                                             "values": [
                                                                                                 "Project"
-                                                                                            ]
+                                                                                            ],
+                                                                                            "referenceId": "cb073e6d"
                                                                                         }
                                                                                     },
                                                                                     "optional": false
@@ -14358,12 +14439,52 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "layout": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "value": {
+                                                        "valueSchema": {
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "cb073e6d"
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "version": {
+                                                        "valueSchema": {
+                                                            "type": "Uint64"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Reference",
                                                 "reuseReferenceId": "ea6170f1"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "feed": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Enum",
+                                                "values": [
+                                                    "AddedAccountCandidateEntry",
+                                                    "AddedCandidateEntry"
+                                                ]
                                             }
                                         },
                                         "optional": true

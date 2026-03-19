@@ -1,15 +1,12 @@
-import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {
     getAccountIfExistsWithoutAuthorization,
     getAccountWithoutAvatarIfExistsWithoutAuthorization,
 } from "~/server/spaces/internal/get_account_if_exists_without_authorization.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -31,13 +28,7 @@ import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 // This lives in `server/spaces` because it needs access to both the account table
 // and the space table.
 export async function getAccountIfExists(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
@@ -52,13 +43,7 @@ export async function getAccountIfExists(
 // This lives in `server/spaces` because it needs access to both the account table
 // and the space table.
 export async function getAccountWithoutAvatarIfExists(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
@@ -79,13 +64,7 @@ export async function getAccountWithoutAvatarIfExists(
 // This lives in `server/spaces` because it needs access to both the account table
 // and the space table.
 export async function getAccount(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
@@ -101,13 +80,7 @@ export async function getAccount(
 // This lives in `server/spaces` because it needs access to both the account table
 // and the space table.
 export async function getAccountWithoutAvatar(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},

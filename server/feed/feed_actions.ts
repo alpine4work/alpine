@@ -12,9 +12,13 @@ import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_docu
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
 import {getFileChatEntityModelIfPossible} from "~/server/files/data/get_file_chat_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {getFileTaskEntityModelIfPossible} from "~/server/files/data/get_file_task_entity_model_if_possible.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
@@ -28,6 +32,7 @@ import {
     FeedEntryModel,
     FeedPostEntryModel,
     FeedTaskCollectionEntryModel,
+    FeedTaskEntryModel,
     FeedWelcomeEntryModel,
 } from "~/shared/feed/feed_entry_model.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
@@ -46,7 +51,10 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {parseSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
-import {createTaskCollectionNotFoundError} from "~/shared/tasks/task_error_messages.js";
+import {
+    createTaskCollectionNotFoundError,
+    createTaskNotFoundError,
+} from "~/shared/tasks/task_error_messages.js";
 
 /**
  * NOTE: this file is currently being split up. We do not anticipate adding more
@@ -54,11 +62,6 @@ import {createTaskCollectionNotFoundError} from "~/shared/tasks/task_error_messa
  */
 
 type FeedCandidatesEntryItem = DynamoTableItemType<typeof FeedTable, "FeedCandidates", "Entry">;
-type FeedAccountCandidatesEntryItem = DynamoTableItemType<
-    typeof FeedTable,
-    "FeedAccountCandidates",
-    "Entry"
->;
 type FeedAttributesItem = DynamoTableItemType<typeof FeedTable, "Feed", "Attributes">;
 type FeedEntryBlockItem = DynamoTableItemType<typeof FeedTable, "Feed", "EntryBlock">;
 
@@ -72,7 +75,7 @@ export async function getFeedCandidateEntriesForTest(
 ): Promise<Array<{index: number; entry: FeedEntry}>> {
     // Only allow this function to be called in unit tests! We don't perform any
     // authorization that the actor is allowed to see the returned candidates.
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
     context.actor.authorizeSystem();
 
     return arrayFromAsyncIterable(
@@ -107,7 +110,7 @@ export async function getFeedAccountCandidateEntriesForTest(
 ): Promise<Array<{index: number; entry: FeedEntry}>> {
     // Only allow this function to be called in unit tests! We don't perform any
     // authorization that the actor is allowed to see the returned candidates.
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
     context.actor.authorizeSystem();
 
     return arrayFromAsyncIterable(
@@ -160,7 +163,7 @@ export async function processAddFeedCandidateEntryJob(
  * top of the account's personal feed.
  */
 export async function addFeedCandidateEntry(
-    context: ServerActionContext,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     entry: FeedEntry,
     {clientRequestToken}: {clientRequestToken?: string} = {},
@@ -258,7 +261,7 @@ export async function processAddFeedAccountCandidateEntryJob(
  * may only ever be visible to a single account in the space.
  */
 export async function addFeedAccountCandidateEntry(
-    context: ServerActionContext,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     entry: FeedEntry,
@@ -511,6 +514,52 @@ async function updateFeedEntries(
 
     const currentTime = new Date();
 
+    function getCreatorIdForEntry(
+        entry: FeedEntry & {type: "Document" | "Task" | "TaskCollection" | "Channel" | "RoomChat"},
+    ): AccountId | null {
+        switch (entry.type) {
+            case "Document":
+                return entry.creator.id ?? null;
+            case "Channel":
+            case "RoomChat":
+            case "Task":
+            case "TaskCollection":
+                return entry.creatorId ?? null;
+            default:
+                throw exhaustive(entry);
+        }
+    }
+
+    const processEntry = async (
+        item: Pick<FeedCandidatesEntryItem, "index" | "entry">,
+    ): Promise<
+        | (Pick<FeedCandidatesEntryItem, "index" | "entry"> & {isUnauthorized?: undefined})
+        | {isUnauthorized: true; index: number}
+    > => {
+        if (item.entry.type !== "Post") {
+            const excludeFromCreatorFeed =
+                // If we were instructed to exclude this entry from the creator's feed, do that
+                // filtering here.
+                item.entry.excludeFromCreatorFeed ??
+                // If you create a private document, task collection, or channel then we add a
+                // created event feed account candidate to the creator's personal feed. So don't
+                // add subsequent share events to the creator's feed since the creator's feed
+                // should already include an entry for the entity.
+                item.entry.event !== "Created";
+
+            if (
+                excludeFromCreatorFeed &&
+                getCreatorIdForEntry(item.entry) === context.actor.getAccountId()
+            ) {
+                return {isUnauthorized: true, index: item.index};
+            }
+        }
+
+        const result = await authorizeFeedEntryIfPossible(context, item.entry);
+        if (!result.ok) return {isUnauthorized: true, index: item.index};
+        return item;
+    };
+
     const [candidateEntries, accountCandidateEntries, welcomeEntry, searchAffinityEntities] =
         await runAllPromises([
             parallelMapAsyncIterableToArray(
@@ -529,16 +578,7 @@ async function updateFeedEntries(
                         index: (feedItem?.lastCandidateIndex ?? -1) + 1,
                     },
                 }),
-                async (
-                    item,
-                ): Promise<
-                    | (FeedCandidatesEntryItem & {isUnauthorized?: undefined})
-                    | {isUnauthorized: true; index: number}
-                > => {
-                    const result = await authorizeFeedEntryIfPossible(context, item.entry);
-                    if (!result.ok) return {isUnauthorized: true, index: item.index};
-                    return item;
-                },
+                processEntry,
             ),
             parallelMapAsyncIterableToArray(
                 FeedTable.query(context, {
@@ -557,16 +597,7 @@ async function updateFeedEntries(
                         index: (feedItem?.lastAccountCandidateIndex ?? -1) + 1,
                     },
                 }),
-                async (
-                    item,
-                ): Promise<
-                    | (FeedAccountCandidatesEntryItem & {isUnauthorized?: undefined})
-                    | {isUnauthorized: true; index: number}
-                > => {
-                    const result = await authorizeFeedEntryIfPossible(context, item.entry);
-                    if (!result.ok) return {isUnauthorized: true, index: item.index};
-                    return item;
-                },
+                processEntry,
             ),
 
             // If we're creating the account's feed then add a welcome entry to the end of the
@@ -624,36 +655,8 @@ async function updateFeedEntries(
 
     const mergedCandidateEntries: Array<FeedEntry> = [];
 
-    const getCreatorIdForEntry = (
-        entry: FeedEntry & {type: "Document" | "TaskCollection" | "Channel" | "RoomChat"},
-    ): AccountId | null => {
-        switch (entry.type) {
-            case "Document":
-                return entry.creator.id ?? null;
-            case "Channel":
-            case "RoomChat":
-            case "TaskCollection":
-                return entry.creatorId ?? null;
-            default:
-                throw exhaustive(entry);
-        }
-    };
-
     for (const entry of candidateEntries) {
         if (entry.isUnauthorized) continue;
-
-        // If you create a private document, task collection, or channel then we add a
-        // created event feed account candidate to the creator's personal feed. So don't
-        // add subsequent share events to the creator's feed since the creator's feed
-        // should already include an entry for the entity.
-        if (
-            entry.entry.type !== "Post" && // `type` is e.g. `Document`, `TaskCollection`, or `Channel`
-            entry.entry.event !== "Created" && // `event` is e.g. `SharedWithAccessPolicyDefaultGrant`
-            getCreatorIdForEntry(entry.entry) === context.actor.getAccountId()
-        ) {
-            continue;
-        }
-
         mergedCandidateEntries.push(entry.entry);
     }
 
@@ -900,6 +903,14 @@ async function authorizeFeedEntryIfPossible(
                 "View",
             );
         }
+        case "Task": {
+            const result = await context.tasksInjection.authorizeTaskAccessIfPossible(
+                entry.taskId,
+                "View",
+            );
+            if (!result) throw createTaskNotFoundError(entry.taskId);
+            return result;
+        }
         case "TaskCollection": {
             const result = await context.tasksInjection.authorizeTaskCollectionAccessIfPossible(
                 entry.collectionId,
@@ -974,6 +985,23 @@ export async function createFeedEntryModelIfPossible(
                         sharedTime: entry.sharedTime,
                         event: entry.event,
                         collection,
+                    }),
+            );
+        }
+        case "Task": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileTaskEntityModelIfPossible(context, spaceId, entry.taskId),
+            ]);
+
+            return mapResult(
+                result,
+                task =>
+                    new FeedTaskEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        task,
                     }),
             );
         }

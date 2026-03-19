@@ -1,5 +1,5 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
+import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicy, validateAccessPolicyUpdate} from "~/shared/access/access_policy.js";
@@ -20,7 +20,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * changes to show the user an error.
  */
 export async function validateAccessPolicyUpdateForServer(
-    context: ServerAccountActionContext,
+    context: ServerMinimalAccountActionContext,
     spaceId: SpaceId,
     oldAccessPolicy: AccessPolicy | null,
     newAccessPolicy: AccessPolicy,

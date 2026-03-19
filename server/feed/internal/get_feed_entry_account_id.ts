@@ -14,6 +14,7 @@ export function getFeedEntryAccountId(entry: FeedEntry): AccountId | null {
         case "Post":
             return entry.authorId;
         case "Document":
+        case "Task":
         case "TaskCollection":
         case "Channel":
         case "RoomChat":

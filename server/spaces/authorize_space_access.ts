@@ -2,6 +2,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -13,6 +14,17 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
+
+export type AuthorizeSpaceAccessContext = Context<AuthorizeSpaceAccessContextModules>;
+
+export type AuthorizeSpaceAccessContextModules = {
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    cache: CacheContextModule;
+    batch: BatchContextModule;
+    dynamo: DynamoContextModule;
+    actor: ActorContextModule;
+};
 
 /**
  * Authorize that the authenticated account has access to the provided `spaceId`.
@@ -26,13 +38,7 @@ import {SpaceRole} from "~/shared/spaces/space_model.js";
  * space(`spaceId`) using optional property`expectedRole`.
  */
 export async function authorizeSpaceAccess(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     expectedRole?: SpaceRole,
     options?: {allowInvitePending?: boolean},

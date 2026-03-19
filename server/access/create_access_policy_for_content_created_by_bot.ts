@@ -1,5 +1,5 @@
 import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
-import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
@@ -9,7 +9,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function createAccessPolicyForContentCreatedByBot(
-    context: ServerBotActionContext,
+    context: ServerMinimalBotActionContext,
     spaceId: SpaceId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccessPolicy> {

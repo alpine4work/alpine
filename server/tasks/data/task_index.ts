@@ -1,5 +1,4 @@
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {
@@ -23,7 +22,10 @@ import {
     markSearchAffinityEntityInteractionForAccount,
     removeSearchAffinityEntityActiveTaskAssigneePoints,
 } from "~/server/search/data/table/search_entity_actions.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContextModules,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
@@ -53,9 +55,7 @@ import {
     TaskRealtimeSessionActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     DataLossError,
@@ -292,14 +292,12 @@ export async function runIndexTaskInitialAssigneePositionMigrationForTask(
  * all tasks in the space.
  */
 export async function getTaskIndexDocsIfExist(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        opensearch: OpensearchContextModule;
-        actor: SystemActorContextModule;
-    }>,
+    context: Context<
+        Replace<
+            AuthorizeSpaceAccessContextModules,
+            {opensearch: OpensearchContextModule; actor: SystemActorContextModule}
+        >
+    >,
     spaceId: SpaceId,
     taskIds: ReadonlyArray<TaskId>,
 ): Promise<ReadonlyArray<OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc> | null>> {
@@ -323,14 +321,12 @@ export async function getTaskIndexDocsIfExist(
  * access to all collections in the space.
  */
 export async function getTaskCollectionIndexDocsIfExist(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        opensearch: OpensearchContextModule;
-        actor: SystemActorContextModule;
-    }>,
+    context: Context<
+        Replace<
+            AuthorizeSpaceAccessContextModules,
+            {opensearch: OpensearchContextModule; actor: SystemActorContextModule}
+        >
+    >,
     spaceId: SpaceId,
     collectionIds: ReadonlyArray<TaskCollectionId>,
 ): Promise<
@@ -1947,14 +1943,12 @@ export const queryTaskIndexTestCounter = new TestCounter<SpaceId>();
  * glitches when we can't fully catch up a query.
  */
 export async function queryTaskIndex(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        opensearch: OpensearchContextModule;
-        actor: SystemActorContextModule;
-    }>,
+    context: Context<
+        Replace<
+            AuthorizeSpaceAccessContextModules,
+            {opensearch: OpensearchContextModule; actor: SystemActorContextModule}
+        >
+    >,
     {
         spaceId,
         filters,

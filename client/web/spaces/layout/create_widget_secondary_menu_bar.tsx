@@ -56,7 +56,7 @@ import {
     CreateWidgetTaskQueryExample,
     createWidgetExampleHeight,
 } from "~/client/web/spaces/layout/internal/create_widget_examples.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
     accentThemeBackgroundColor,
     accentThemeForegroundColor,
@@ -114,7 +114,7 @@ export function CreateWidgetSecondaryMenuBar({
     const clientInfo = useClientInfo();
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const menuItemRefs = [
         useRef<HTMLElement & {press(): void}>(null),
@@ -239,6 +239,13 @@ export function CreateWidgetSecondaryMenuBar({
                         operation: {
                             type: "OneOf",
                             layouts: ["Project"],
+                        },
+                    },
+                    {
+                        type: "Assignee",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "Account", accountId: currentAccount.id}],
                         },
                     },
                 ]);

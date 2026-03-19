@@ -32,7 +32,7 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     attachFileFromAttachment,
@@ -69,7 +69,10 @@ import {NotificationEvent} from "~/server/notifications/core/notification_event.
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {
     isAccountMemberOfSpace,
@@ -239,6 +242,7 @@ import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionStateSchema,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {
     TaskNotesContent,
     TaskNotesContentSchema,
@@ -702,11 +706,34 @@ const TaskTable = DynamoTableSchema.new({
                         assigneeId: TaskAssigneeAccountIdRegister.schema,
 
                         /**
+                         * The layout of the task.
+                         *
+                         * Project tasks created before 2026-03-13 (or whenever this commit is deployed)
+                         * will have this set to null since we didn't add it until later. There should be
+                         * <20 project tasks in this state in the database. We haven't run a migration yet
+                         * to make sure the tasks are updated since we're not using this register for
+                         * anything too critical yet.
+                         */
+                        layout: TaskLayoutRegister.schema.nullable().default(null),
+
+                        /**
                          * Who is allowed to access this task and with what permission level.
                          *
                          * If null, we default to a policy that only includes the task creator.
                          */
                         accessPolicy: AccessPolicyRegister.schema.nullable().default(null),
+
+                        /**
+                         * Have we added a feed candidate entry for the task? We add an entry when the task
+                         * is shared with some `defaultGrant`. But if you revoke the `defaultGrant` then
+                         * add it again we don't want to add another feed candidate entry.
+                         *
+                         * We include the event type we added to the feed since our behavior changes
+                         * slightly depending on the event types we've added so far.
+                         */
+                        feed: Schema.enum(["AddedAccountCandidateEntry", "AddedCandidateEntry"])
+                            .nullable()
+                            .default(null),
 
                         /**
                          * Leases are valid as long as the task is unmodified. This is how we keep track of
@@ -997,7 +1024,7 @@ type TaskCommentsSummaryItem = DynamoTableItemType<typeof TaskTable, "Task", "Co
 
 type TaskEssentialAttributesItemBase = Omit<
     TaskEssentialAttributesItem,
-    "childTaskIds" | "validLeaseId"
+    "childTaskIds" | "validLeaseId" | "feed"
 >;
 
 export type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
@@ -2443,6 +2470,10 @@ class TaskActionTransactionCommitState {
         );
     }
 
+    public doesTaskItemHaveDefaultGrant(taskItem: TaskEssentialAttributesItem) {
+        return doesTaskItemHaveDefaultGrant(this._context, taskItem, this);
+    }
+
     /**
      * Run some code after the action transaction has successfully committed.
      *
@@ -2480,13 +2511,15 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (taskAction.type) {
                     case "Create": {
-                        if (taskAction.creatorId !== state.getActorAccountId()) {
+                        const {creatorId} = taskAction;
+
+                        if (creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
                                 "Can only create a task with yourself as the creator",
                             );
                         }
 
-                        state.createTaskItem({
+                        const newTaskItem: TaskEssentialAttributesItem = {
                             partitionType: "Task",
                             sortRangeType: "EssentialAttributes",
                             taskId,
@@ -2495,7 +2528,7 @@ async function actuallyCommitTaskActionTransaction(
                             // initiator. The initiator should get partial credit. For example task created by
                             // Caleb (with ChatGPT). Counting steps on documents and tasks should be similar.
                             // "caleb's docs" in search should find docs written by me (with ChatGPT).
-                            creatorId: taskAction.creatorId,
+                            creatorId,
                             createdTime: action.time,
                             deletedTime: null,
                             statusType: new TaskStatusTypeRegister("Open", action.time),
@@ -2513,8 +2546,12 @@ async function actuallyCommitTaskActionTransaction(
                             // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in the
                             // first place.
                             accessPolicy: null,
+                            layout: null,
+                            feed: null,
                             validLeaseId: null,
-                        });
+                        };
+
+                        state.createTaskItem(newTaskItem);
                         break;
                     }
                     case "Undelete": {
@@ -2816,13 +2853,15 @@ async function actuallyCommitTaskActionTransaction(
                                     version: action.time,
                                 });
 
-                                state.updateTaskItem({
+                                const newTaskItem: TaskEssentialAttributesItem = {
                                     ...taskItem,
                                     parentTaskId: newParentTaskId.apply({
                                         value: taskAction.parentTaskId,
                                         version: action.time,
                                     }),
-                                });
+                                };
+
+                                state.updateTaskItem(newTaskItem);
 
                                 // If the parent task changed then increment our counters such that we remove our
                                 // task from the old parent and add our task to the new parent.
@@ -2886,6 +2925,10 @@ async function actuallyCommitTaskActionTransaction(
                                         },
                                     );
                                 }
+
+                                await maybeAddFeedCandidateEntryAfterAddCollectionOrUpdateParentTaskId(
+                                    newTaskItem,
+                                );
                                 break;
                             }
                             case "UpdateParentPosition": {
@@ -2931,7 +2974,7 @@ async function actuallyCommitTaskActionTransaction(
                                     "Edit",
                                 );
 
-                                state.updateTaskItem({
+                                const newTaskItem: TaskEssentialAttributesItem = {
                                     ...taskItem,
                                     collections: taskItem.collections.apply({
                                         type: "Set",
@@ -2939,7 +2982,9 @@ async function actuallyCommitTaskActionTransaction(
                                         value: taskAction.orderKey,
                                         version: action.time,
                                     }),
-                                });
+                                };
+
+                                state.updateTaskItem(newTaskItem);
 
                                 state.updateCollectionItemAttributes(taskAction.collectionId, {
                                     taskCountDelta: 1,
@@ -2947,6 +2992,10 @@ async function actuallyCommitTaskActionTransaction(
                                         taskItem.statusType.value === "Open" ? 1 : 0,
                                     lastTaskAddedTime: action.time,
                                 });
+
+                                await maybeAddFeedCandidateEntryAfterAddCollectionOrUpdateParentTaskId(
+                                    newTaskItem,
+                                );
                                 break;
                             }
                             case "RemoveCollection": {
@@ -3206,8 +3255,63 @@ async function actuallyCommitTaskActionTransaction(
                                 break;
                             }
                             case "UpdateLayout": {
-                                // We don't store layout in essential attributes and action time is validated
-                                // above.
+                                const newLayout = taskItem.layout
+                                    ? taskItem.layout.apply({
+                                          value: taskAction.layout,
+                                          version: action.time,
+                                      })
+                                    : new TaskLayoutRegister(taskAction.layout, action.time);
+
+                                let newFeed = taskItem.feed;
+
+                                if (newLayout.value === "Project" && taskItem.feed === null) {
+                                    // If the task has a default grant, then add a feed entry for everyone. Otherwise,
+                                    // only add a feed entry for the creator.
+                                    newFeed = (await state.doesTaskItemHaveDefaultGrant(taskItem))
+                                        ? "AddedCandidateEntry"
+                                        : "AddedAccountCandidateEntry";
+                                }
+
+                                state.updateTaskItem({
+                                    ...taskItem,
+                                    layout: newLayout,
+                                    feed: newFeed,
+                                });
+
+                                // When a task is turned into a project we add a feed entry for the creator. If
+                                // this task has previously been shared we do not add a second entry to the feed.
+                                if (taskItem.feed !== newFeed) {
+                                    state.registerAfterCommitAction(async context => {
+                                        const entry: FeedEntry = {
+                                            type: "Task",
+                                            taskId,
+                                            sharedTime: new Date(action.time[0]),
+                                            sharerId: context.actor.getAccountId(),
+                                            creatorId: taskItem.creatorId,
+                                            // Override the default behavior to exclude entries from the creator feed that
+                                            // aren't `event: "Created"`.
+                                            excludeFromCreatorFeed: false,
+                                            event: "UpdatedToProjectLayout",
+                                        };
+
+                                        if (newFeed === "AddedAccountCandidateEntry") {
+                                            context.process.waitUntil(
+                                                addFeedAccountCandidateEntry(
+                                                    context,
+                                                    spaceId,
+                                                    // In case the person turning the account into a project is different from the task
+                                                    // creator, add the entry to the person turning the task into a project.
+                                                    context.actor.getAccountId(),
+                                                    entry,
+                                                ),
+                                            );
+                                        } else {
+                                            context.process.waitUntil(
+                                                addFeedCandidateEntry(context, spaceId, entry),
+                                            );
+                                        }
+                                    });
+                                }
                                 break;
                             }
                             case "UpdateAccessPolicy": {
@@ -3231,10 +3335,76 @@ async function actuallyCommitTaskActionTransaction(
                                     newAccessPolicy.value,
                                 );
 
+                                let newFeed = taskItem.feed;
+
+                                if (
+                                    (taskItem.feed === null ||
+                                        taskItem.feed === "AddedAccountCandidateEntry") &&
+                                    // Was this task directly shared via its access policy?
+                                    newAccessPolicy.value.defaultGrant
+                                ) {
+                                    newFeed = "AddedCandidateEntry";
+                                }
+
                                 state.updateTaskItem({
                                     ...taskItem,
                                     accessPolicy: newAccessPolicy,
+                                    feed: newFeed,
                                 });
+
+                                // If we're sharing a task for the first time then add a feed candidate entry after
+                                // 5 minutes. We wait 5 minutes to give the user the chance to add some data to the
+                                // task. So the feed entry we publish doesn't show an empty task.
+                                //
+                                // Unless some condition has been met on the task that makes us feel like the user
+                                // has filled out the task and it's not empty. For example, if the task has
+                                // children or a collection then that's good signal the user has filled out the
+                                // task.
+                                if (taskItem.feed !== newFeed) {
+                                    state.registerAfterCommitAction(async context => {
+                                        const entry: FeedEntry = {
+                                            type: "Task",
+                                            taskId,
+                                            sharedTime: new Date(action.time[0]),
+                                            sharerId: context.actor.getAccountId(),
+                                            creatorId: taskItem.creatorId,
+                                            // If we've already added this entry to the creator's feed then we don't want to
+                                            // add it again.
+                                            excludeFromCreatorFeed:
+                                                taskItem.feed === "AddedAccountCandidateEntry",
+                                            event: "SharedWithAccessPolicyDefaultGrant",
+                                        };
+
+                                        if (
+                                            // Is this a project task? When you create a project task we focus the title (and
+                                            // set the creator as the assignee) so we assume at least those two fields have
+                                            // been filled out which will make for a relevant feed entry.
+                                            !!taskItem.layout?.value ||
+                                            // Does this task have any children? If so the user has clearly done some work to
+                                            // set up the task's data.
+                                            taskItem.addedChildTaskCount -
+                                                taskItem.removedChildTaskCount >
+                                                0 ||
+                                            // Is this task in at least one collection? If so the user has clearly done some
+                                            // work to set up the task's data.
+                                            taskItem.collections.getArray().length > 0
+                                        ) {
+                                            context.process.waitUntil(
+                                                addFeedCandidateEntry(context, spaceId, entry),
+                                            );
+                                        } else {
+                                            context.jobs.send(
+                                                {
+                                                    type: "AddFeedCandidateEntry",
+                                                    jobId: generateId(),
+                                                    spaceId,
+                                                    entry,
+                                                },
+                                                {delaySeconds: 5 * 60},
+                                            );
+                                        }
+                                    });
+                                }
                                 break;
                             }
                             case "UpdateNotepadPagePosition":
@@ -3248,6 +3418,53 @@ async function actuallyCommitTaskActionTransaction(
                         }
                     }
                 }
+
+                async function maybeAddFeedCandidateEntryAfterAddCollectionOrUpdateParentTaskId(
+                    newTaskItem: TaskEssentialAttributesItem,
+                ) {
+                    let newFeed = newTaskItem.feed;
+
+                    if (
+                        newTaskItem.layout?.value === "Project" &&
+                        (newTaskItem.feed === null ||
+                            newTaskItem.feed === "AddedAccountCandidateEntry") &&
+                        // If there was no feed candidate entry, we assume the task previously was private
+                        // (didn't have a `defaultGrant`). In all code paths that might add a
+                        // `defaultGrant` we add a feed candidate entry if we detect the task is public and
+                        // there's no previous feed candidate entry.
+                        //
+                        // Run this last in the condition since it's expensive as it potentially needs to
+                        // load all referenced collections/tasks!
+                        (await state.doesTaskItemHaveDefaultGrant(newTaskItem))
+                    ) {
+                        newFeed = "AddedCandidateEntry";
+                    }
+
+                    // If the project was shared then add a feed entry saying "so and so shared this
+                    // project".
+                    if (newTaskItem.feed !== newFeed) {
+                        state.updateTaskItem({...newTaskItem, feed: newFeed});
+
+                        state.registerAfterCommitAction(async context => {
+                            const entry: FeedEntry = {
+                                type: "Task",
+                                taskId,
+                                sharedTime: new Date(action.time[0]),
+                                sharerId: context.actor.getAccountId(),
+                                creatorId: newTaskItem.creatorId,
+                                // If we've already added this entry to the creator's feed then we don't want to
+                                // add it again.
+                                excludeFromCreatorFeed:
+                                    newTaskItem.feed === "AddedAccountCandidateEntry",
+                                event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+                            };
+
+                            context.process.waitUntil(
+                                addFeedCandidateEntry(context, spaceId, entry),
+                            );
+                        });
+                    }
+                }
                 break;
             }
             case "UpdateCollection": {
@@ -3255,13 +3472,13 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (collectionAction.type) {
                     case "Create": {
-                        if (collectionAction.creatorId !== state.getActorAccountId()) {
+                        const {creatorId} = collectionAction;
+
+                        if (creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
                                 "Can only create a collection with yourself as the creator",
                             );
                         }
-
-                        const {creatorId} = collectionAction;
 
                         const newCollectionItem: TaskCollectionEssentialAttributesItem = {
                             partitionType: "TaskCollection",
@@ -3293,7 +3510,7 @@ async function actuallyCommitTaskActionTransaction(
                         state.createCollectionItem(newCollectionItem);
 
                         state.registerAfterCommitAction(async context => {
-                            const entry: FeedEntry = {
+                            const entry: FeedEntry & {type: "TaskCollection"} = {
                                 type: "TaskCollection",
                                 collectionId,
                                 sharedTime: new Date(action.time[0]),
@@ -3302,8 +3519,16 @@ async function actuallyCommitTaskActionTransaction(
                                 event: "Created",
                             };
 
-                            // If we created a public task collection then add a feed candidate entry after 15
-                            // minutes. We wait 15 minutes to give the user the chance to add some tasks to the
+                            // Immediately add the collection to the creator's feed. Whether the collection is
+                            // private or public. If the collection is public we will add it to everyone else's
+                            // feed below. This way the creator can quickly find the collection they created
+                            // again by opening their feed.
+                            context.process.waitUntil(
+                                addFeedAccountCandidateEntry(context, spaceId, creatorId, entry),
+                            );
+
+                            // If we created a public task collection then add a feed candidate entry after 5
+                            // minutes. We wait 5 minutes to give the user the chance to add some tasks to the
                             // collection. So the feed entry we publish doesn't show an empty task collection.
                             if (newCollectionItem.hasAddedFeedCandidateEntry) {
                                 context.jobs.send(
@@ -3311,23 +3536,10 @@ async function actuallyCommitTaskActionTransaction(
                                         type: "AddFeedCandidateEntry",
                                         jobId: generateId(),
                                         spaceId,
-                                        entry,
+                                        // We already added this collection to the creator's feed. Don't add it again.
+                                        entry: {...entry, excludeFromCreatorFeed: true},
                                     },
-                                    {delaySeconds: 15 * 60},
-                                );
-                            }
-                            // If we're creating a private task collection then only add an entry to the
-                            // creator account's personal feed.
-                            else {
-                                context.jobs.send(
-                                    {
-                                        type: "AddFeedAccountCandidateEntry",
-                                        jobId: generateId(),
-                                        spaceId,
-                                        accountId: creatorId,
-                                        entry,
-                                    },
-                                    {delaySeconds: 15 * 60},
+                                    {delaySeconds: 5 * 60},
                                 );
                             }
                         });
@@ -3465,9 +3677,9 @@ async function actuallyCommitTaskActionTransaction(
                                 });
 
                                 // If we're sharing a task collection for the first time then add a feed candidate
-                                // entry after 15 minutes. We wait 15 minutes to give the user the chance to add
-                                // some tasks to the collection. So the feed entry we publish doesn't show an empty
-                                // task collection.
+                                // entry after 5 minutes. We wait 5 minutes to give the user the chance to add some
+                                // tasks to the collection. So the feed entry we publish doesn't show an empty task
+                                // collection.
                                 //
                                 // Unless there are 8 or more open tasks. Then we add the feed candidate entry
                                 // immediately since we have enough tasks to render a good preview in feed.
@@ -3486,13 +3698,9 @@ async function actuallyCommitTaskActionTransaction(
                                         };
 
                                         if (collectionItem.openTaskCount >= 8) {
-                                            context.process.waitUntil(async () => {
-                                                await addFeedCandidateEntry(
-                                                    context,
-                                                    spaceId,
-                                                    entry,
-                                                );
-                                            });
+                                            context.process.waitUntil(
+                                                addFeedCandidateEntry(context, spaceId, entry),
+                                            );
                                         } else {
                                             context.jobs.send(
                                                 {
@@ -3501,7 +3709,7 @@ async function actuallyCommitTaskActionTransaction(
                                                     spaceId,
                                                     entry,
                                                 },
-                                                {delaySeconds: 15 * 60},
+                                                {delaySeconds: 5 * 60},
                                             );
                                         }
                                     });
@@ -4166,14 +4374,7 @@ export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<S
  * Get all action transactions since the provided start time in the provided space.
  */
 export async function backfillTaskActionTransactionHistory(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        opensearch: OpensearchContextModule;
-        actor: SystemActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     startCommittedTime: Date,
 ): Promise<
@@ -5106,6 +5307,65 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
 
     if (!value) throw createTaskNotFoundError(taskId);
     return value;
+}
+
+/**
+ * Does the task have a default grant? Either directly or inherited via the task's
+ * collections / parent task.
+ *
+ * As long as you have access to the space you can call this function. Since if the
+ * task has a `defaultGrant` if you have access to the space then you have access
+ * to the task (if we ever add "guest" accounts that don't have access to
+ * `defaultGrant` content in the space this may need to change). If the task
+ * doesn't have a `defaultGrant` then as a space member you know the task exists if
+ * you have its `TaskId` so returning false (instead of, say, throwing
+ * `NotFoundError`) doesn't give you new information.
+ */
+async function doesTaskItemHaveDefaultGrant(
+    context: TaskRealtimeActionContext,
+    taskItem: TaskEssentialAttributesItemBase,
+    loaders: {
+        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItemBase>;
+        getCollectionItem: (
+            taskId: TaskCollectionId,
+        ) => Promise<TaskCollectionEssentialAttributesItemBase>;
+    },
+): Promise<boolean> {
+    await authorizeSpaceAccess(context, taskItem.spaceId);
+
+    {
+        const immediateAccessPolicy = getTaskItemAccessPolicyWithDefault(taskItem);
+        if (immediateAccessPolicy.defaultGrant) return true;
+    }
+
+    // An array of `TaskCollectionId`s that authorize access to the task or `null` if
+    // no `TaskCollectionId`s authorize access to the task.
+    const authorizingCollectionItems = await runAllPromises(
+        taskItem.collections.getArray().map(async ({collectionId}) => {
+            const collectionItem = await loaders.getCollectionItem(collectionId);
+
+            // Deleted collections don't grant any access.
+            if (isTaskCollectionItemDeleted(collectionItem)) return false;
+
+            return !!collectionItem.accessPolicy.value.defaultGrant;
+        }),
+    );
+
+    // We evaluate the access policies for all collections on a task but we only need
+    // one `defaultGrant` to be true.
+    if (authorizingCollectionItems.some(value => value)) return true;
+
+    if (taskItem.parentTaskId.value) {
+        const parentTaskItem = await loaders.getTaskItem(taskItem.parentTaskId.value);
+
+        // Parent tasks implicitly grant access to all of their child tasks. If we have a
+        // parent task that is not deleted then check it before returning false.
+        if (!parentTaskItem.deletedTime) {
+            return doesTaskItemHaveDefaultGrant(context, parentTaskItem, loaders);
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -7666,6 +7926,7 @@ function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesI
             task.assignee.value?.assignee.accountId ?? null,
             task.assignee.version,
         ),
+        layout: task.layout,
         accessPolicy: task.accessPolicy,
     };
 }

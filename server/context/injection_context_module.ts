@@ -357,6 +357,7 @@ export type TasksInjectionContextModule = InstanceType<typeof TasksInjectionCont
 
 export const TasksInjectionContextModule = createInjectionContextModule<TasksInjection>({
     indexTaskActionTransactionAssumingItsCommitted: true,
+    authorizeTaskAccessIfPossible: true,
     authorizeTaskCollectionAccessIfPossible: true,
     internalGetUpdateOurAccountNameTaskTransactionEntries: true,
     getTaskAccessPolicyForBotScope: true,
@@ -367,6 +368,12 @@ export type TasksInjection = {
         context: ServerSystemActionContext,
         actionTransaction: TaskContextModuleActionTransaction,
     ): Promise<void>;
+
+    authorizeTaskAccessIfPossible(
+        context: ServerActionContext,
+        taskId: TaskId,
+        expectedAccessLevel: AccessLevel,
+    ): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null>;
 
     authorizeTaskCollectionAccessIfPossible(
         context: ServerActionContext,

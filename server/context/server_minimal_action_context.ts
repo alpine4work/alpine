@@ -6,7 +6,13 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {ActorContextModule, BotActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {
+    AccountActorContextModule,
+    ActorContextModule,
+    BotActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -29,6 +35,7 @@ export type ServerMinimalActionContextModules = {
     cache: CacheContextModule;
     batch: BatchContextModule;
     dynamo: DynamoContextModule;
+    jobs: JobsContextModule;
     actor: ActorContextModule;
     chatInjection: ChatInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;
@@ -36,11 +43,29 @@ export type ServerMinimalActionContextModules = {
     tasksInjection: TasksInjectionContextModule;
 };
 
+export type ServerMinimalSystemActionContext = Context<ServerMinimalSystemActionContextModules>;
+
+export type ServerMinimalSystemActionContextModules = Replace<
+    ServerMinimalActionContextModules,
+    {
+        actor: SystemActorContextModule;
+    }
+>;
+
 export type ServerMinimalBotActionContext = Context<ServerMinimalBotActionContextModules>;
 
 export type ServerMinimalBotActionContextModules = Replace<
     ServerMinimalActionContextModules,
     {
         actor: BotActorContextModule;
+    }
+>;
+
+export type ServerMinimalAccountActionContext = Context<ServerMinimalAccountActionContextModules>;
+
+export type ServerMinimalAccountActionContextModules = Replace<
+    ServerMinimalActionContextModules,
+    {
+        actor: AccountActorContextModule;
     }
 >;

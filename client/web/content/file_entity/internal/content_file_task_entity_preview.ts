@@ -10,6 +10,7 @@ import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generat
 import {lockIconSvg} from "~/client/web/icons/lock_icon_svg.js";
 import {inputPlaceholderFontWeight, sprinkles} from "~/client/web/styles/styles.js";
 import {
+    taskDetailViewDenseFieldGap,
     taskDetailViewDenseFieldMinHeight,
     taskDetailViewFieldLabelFontSize,
     taskDetailViewTitleFontSize,
@@ -247,7 +248,7 @@ export function renderContentFileTaskEntityPreview(
             "class",
             sprinkles({
                 display: "grid",
-                gap: "3",
+                gap: taskDetailViewDenseFieldGap,
                 paddingLeft: !isSmallerThanThirdOfBlockMaxWidth ? "8" : undefined,
             }),
         );
@@ -274,7 +275,13 @@ export function renderContentFileTaskEntityPreview(
 
                 assigneeHtml.setAttribute(
                     "class",
-                    sprinkles({display: "flex", alignItems: "center", gap: "1.5", marginY: "-0.5"}),
+                    sprinkles({
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1.5",
+                        marginY: "-0.5",
+                        marginLeft: "-0.5",
+                    }),
                 );
 
                 assigneeHtml.appendChild(
@@ -328,95 +335,108 @@ export function renderContentFileTaskEntityPreview(
                 "Collections",
             );
 
-            collectionsDenseFieldContainerHtml.setAttribute(
-                "class",
-                sprinkles({
-                    maxWidth: "full",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: "2",
-                    marginY: "-0.5",
-                }),
-            );
-
-            let collectionRows = [];
-
-            const chunkArray = <Item>(
-                array: ReadonlyArray<Item>,
-                maxLength: number,
-            ): Array<Array<Item>> => {
-                assert(maxLength > 1);
-
-                const arrays: Array<Array<Item>> = [];
-
-                for (const item of array) {
-                    const lastArray = arrays[arrays.length - 1];
-
-                    if (lastArray === undefined || lastArray.length === maxLength) {
-                        arrays.push([item]);
-                    } else {
-                        lastArray.push(item);
-                    }
-                }
-
-                return arrays;
-            };
-
-            if (isSmallerThanThirdOfBlockMaxWidth) {
-                collectionRows = chunkArray(fileEntity.collections, 2);
-            } else if (isSmallerThanHalfOfBlockMaxWidth) {
-                collectionRows = chunkArray(fileEntity.collections, 3);
-            } else {
-                collectionRows = chunkArray(fileEntity.collections, 5);
-            }
-
-            for (let i = 0; i < collectionRows.length; i++) {
-                const collectionRow = collectionRows[i]!;
-
-                const collectionRowHtml = collectionsDenseFieldContainerHtml.appendChild(
-                    new HtmlElementGenerator("div"),
+            if (fileEntity.collections.length === 0) {
+                collectionsDenseFieldContainerHtml.setAttribute(
+                    "class",
+                    sprinkles({color: "grey-30"}),
                 );
-                collectionRowHtml.setAttribute(
+                collectionsDenseFieldContainerHtml.setAttribute(
+                    "style",
+                    `font-weight: ${inputPlaceholderFontWeight}`,
+                );
+
+                collectionsDenseFieldContainerHtml.appendChild(new HtmlTextGenerator("None"));
+            } else {
+                collectionsDenseFieldContainerHtml.setAttribute(
                     "class",
                     sprinkles({
                         maxWidth: "full",
                         display: "flex",
-                        alignItems: "center",
-                        gap: "1.5",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        gap: "2",
+                        marginY: "-0.5",
                     }),
                 );
 
-                for (const collection of collectionRow) {
-                    collectionRowHtml.appendChild(
-                        renderTaskCollectionChipBase({
-                            color: collection.getColor(),
-                            name: collection.getName(),
-                        }),
-                    );
+                let collectionRows = [];
+
+                const chunkArray = <Item>(
+                    array: ReadonlyArray<Item>,
+                    maxLength: number,
+                ): Array<Array<Item>> => {
+                    assert(maxLength > 1);
+
+                    const arrays: Array<Array<Item>> = [];
+
+                    for (const item of array) {
+                        const lastArray = arrays[arrays.length - 1];
+
+                        if (lastArray === undefined || lastArray.length === maxLength) {
+                            arrays.push([item]);
+                        } else {
+                            lastArray.push(item);
+                        }
+                    }
+
+                    return arrays;
+                };
+
+                if (isSmallerThanThirdOfBlockMaxWidth) {
+                    collectionRows = chunkArray(fileEntity.collections, 2);
+                } else if (isSmallerThanHalfOfBlockMaxWidth) {
+                    collectionRows = chunkArray(fileEntity.collections, 3);
+                } else {
+                    collectionRows = chunkArray(fileEntity.collections, 5);
                 }
 
-                if (i === collectionRows.length - 1) {
-                    const extraCollectionCount =
-                        fileEntity.task.getCollections().getArray().length -
-                        fileEntity.collections.length;
+                for (let i = 0; i < collectionRows.length; i++) {
+                    const collectionRow = collectionRows[i]!;
 
-                    if (extraCollectionCount > 0) {
-                        const extraCollectionCountHtml = collectionRowHtml.appendChild(
-                            new HtmlElementGenerator("div"),
+                    const collectionRowHtml = collectionsDenseFieldContainerHtml.appendChild(
+                        new HtmlElementGenerator("div"),
+                    );
+                    collectionRowHtml.setAttribute(
+                        "class",
+                        sprinkles({
+                            maxWidth: "full",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "1.5",
+                        }),
+                    );
+
+                    for (const collection of collectionRow) {
+                        collectionRowHtml.appendChild(
+                            renderTaskCollectionChipBase({
+                                color: collection.getColor(),
+                                name: collection.getName(),
+                            }),
                         );
-                        extraCollectionCountHtml.setAttribute(
-                            "class",
-                            sprinkles({color: "grey-70", width: "4", flexShrink: "0"}),
-                        );
-                        extraCollectionCountHtml.setAttribute(
-                            "style",
-                            // eslint-disable-next-line cyberworlds/string-quotes
-                            `white-space: nowrap; font-feature-settings: "calt" on`,
-                        );
-                        extraCollectionCountHtml.appendChild(
-                            new HtmlTextGenerator(`+${extraCollectionCount}`),
-                        );
+                    }
+
+                    if (i === collectionRows.length - 1) {
+                        const extraCollectionCount =
+                            fileEntity.task.getCollections().getArray().length -
+                            fileEntity.collections.length;
+
+                        if (extraCollectionCount > 0) {
+                            const extraCollectionCountHtml = collectionRowHtml.appendChild(
+                                new HtmlElementGenerator("div"),
+                            );
+                            extraCollectionCountHtml.setAttribute(
+                                "class",
+                                sprinkles({color: "grey-70", width: "4", flexShrink: "0"}),
+                            );
+                            extraCollectionCountHtml.setAttribute(
+                                "style",
+                                // eslint-disable-next-line cyberworlds/string-quotes
+                                `white-space: nowrap; font-feature-settings: "calt" on`,
+                            );
+                            extraCollectionCountHtml.appendChild(
+                                new HtmlTextGenerator(`+${extraCollectionCount}`),
+                            );
+                        }
                     }
                 }
             }

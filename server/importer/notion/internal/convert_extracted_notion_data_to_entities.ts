@@ -4,8 +4,7 @@ import {extractFileIdsFromApiContent} from "~/server/api/content/extract_file_id
 import {ApiContentExtended, fromApiContent} from "~/server/api/content/from_api_content.js";
 import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {createDocument} from "~/server/documents/data/documents_actions.js";
-import {doesDocumentExist} from "~/server/documents/data/does_document_exist.js";
+import {createDocument, doesDocumentExist} from "~/server/documents/data/documents_actions.js";
 import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
@@ -21,6 +20,7 @@ import {
     resolveNotionImportFileLinkPath,
 } from "~/server/importer/notion/internal/resolve_notion_import_file_link_path.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     ApiContent,
@@ -243,26 +243,32 @@ export async function convertExtractedNotionDataToEntities(
                 continue;
             }
 
-            // Create the document
-            await createDocument(context, {
-                id: documentInfo.id,
-                spaceId,
-                creatorId: startedByAccountId,
-                content: documentContent,
-                createFeedEntry: false,
-                from: {type: "Importer", source: {type: "Notion"}},
-            });
-
             // Attach files to the document so they can be accessed via the document. Files are
             // uploaded separately, but they need attachment records to be viewable when the
             // document is loaded. We extract file IDs from the final content because
             // additional files may have been added during content transformation (e.g., from
             // CSV tables).
+            //
+            // It's important that we attach the files before creating the document! So that if
+            // you open a document after it's created you don't get "file not attached"
+            // crashes.
             const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
             await runAllPromises(
                 [...fileIdsInContent].map(fileId =>
                     attachFileToDocumentAsSystem(context, spaceId, fileId, documentInfo.id),
                 ),
+            );
+
+            // Create the document
+            await impersonateAccountAsSystemContext(context, startedByAccountId, context =>
+                createDocument(context, {
+                    id: documentInfo.id,
+                    spaceId,
+                    creatorId: startedByAccountId,
+                    content: documentContent,
+                    createFeedEntry: false,
+                    from: {type: "Importer", source: {type: "Notion"}},
+                }),
             );
 
             // Increment document counter via state manager (periodically persisted)

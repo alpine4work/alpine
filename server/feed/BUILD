@@ -19,6 +19,7 @@ ts_project(
         "//admin/crawl:__pkg__",
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
+        "//app/integration_tests:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

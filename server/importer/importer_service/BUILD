@@ -30,6 +30,7 @@ ts_project(
         "//server/notifications/data",
         "//server/search/data/index",
         "//server/spaces",
+        "//server/tasks/data",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

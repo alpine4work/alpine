@@ -1,7 +1,7 @@
 import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {FeedEntryEvent, FeedEntryEventSchema} from "~/shared/feed/feed_entry_schema.js";
+import {FeedEntryEventSchema, FeedTaskEntryEventSchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
@@ -12,6 +12,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
+import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 
 export type FeedEntryModel = SchemaType<typeof FeedEntryModelSchema>;
 
@@ -28,7 +29,6 @@ assertAssignableTypes<
     {
         sharer: AccountModel;
         sharedTime: Date;
-        event: FeedEntryEvent;
         getId: () => FileEntityId;
     }
 >();
@@ -70,6 +70,21 @@ export class FeedDocumentEntryModel extends Model(
 
     public getId(): FileEntityId {
         return `Document:${this.document.id}`;
+    }
+}
+
+export class FeedTaskEntryModel extends Model(
+    Schema.object({
+        sharer: AccountModel.schema,
+        sharedTime: Schema.date,
+        event: FeedTaskEntryEventSchema,
+        task: FileTaskEntityModelSchema.omit(["type"]),
+    }),
+) {
+    public readonly type = "Task";
+
+    public getId(): FileEntityId {
+        return `Task:${this.task.task.id}`;
     }
 }
 
@@ -122,6 +137,7 @@ export const FeedEntryModelSchema = createModelUnionSchema({
     Welcome: FeedWelcomeEntryModel,
     Post: FeedPostEntryModel,
     Document: FeedDocumentEntryModel,
+    Task: FeedTaskEntryModel,
     TaskCollection: FeedTaskCollectionEntryModel,
     Channel: FeedChannelEntryModel,
     Chat: FeedChatEntryModel,

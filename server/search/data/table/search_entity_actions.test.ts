@@ -334,7 +334,7 @@ test("can\u2019t read affinitive items for the wrong space", async () => {
     const documentCount = 20;
 
     // Limit concurrent requests to reduce test flakiness.
-    const mutexes = createArrayWithLength(10, () => new Mutex());
+    const mutexes = createArrayWithLength(5, () => new Mutex());
 
     const documents = await runAllPromises(
         createArrayWithLength(documentCount, index =>
@@ -488,7 +488,7 @@ test(
         const documentCount = Math.floor(searchAffinityEntityQueryPageLimit * 4.5);
 
         // Limit concurrent requests to reduce test flakiness.
-        const mutexes = createArrayWithLength(10, () => new Mutex());
+        const mutexes = createArrayWithLength(5, () => new Mutex());
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -497,6 +497,12 @@ test(
                         title: `Document ${index + 1}`,
                     });
                     await document.access.grantDefault(session);
+
+                    // Wait for feed entries to be created otherwise we get "Retry with exponential
+                    // backoff" failures because there's a lot of writes trying to update the account's
+                    // `FeedAccountCandidates#Attributes` item at once.
+                    await ProcessContextModule.waitForTestTasks();
+
                     return document;
                 }),
             ),
@@ -712,7 +718,7 @@ test(
         const documentCount = Math.floor(searchAffinityEntityQueryPageLimit * 4.5);
 
         // Limit concurrent requests to reduce test flakiness.
-        const mutexes = createArrayWithLength(10, () => new Mutex());
+        const mutexes = createArrayWithLength(5, () => new Mutex());
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -936,7 +942,7 @@ test(
         const documentCount = Math.floor(searchAffinityEntityQueryPageLimit * 4.5);
 
         // Limit concurrent requests to reduce test flakiness.
-        const mutexes = createArrayWithLength(10, () => new Mutex());
+        const mutexes = createArrayWithLength(5, () => new Mutex());
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>

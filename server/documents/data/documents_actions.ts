@@ -15,12 +15,10 @@ import {
 import {
     ServerAccountActionContext,
     ServerActionContext,
-    ServerBotActionContext,
     ServerSessionActionContext,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
-    ServerMinimalActionContext,
+    ServerMinimalAccountActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
@@ -40,13 +38,15 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/server/files/data/files_actions.js";
-import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -111,10 +111,7 @@ import {
     createEmptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {
-    DocumentCreatorFrom,
-    DocumentCreatorFromImporterType,
-} from "~/shared/documents/document_creator_from.js";
+import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {
     createDocumentCommentNotFoundError,
     createDocumentCommentThreadNotFoundError,
@@ -332,11 +329,12 @@ const documentIndexSearchEntityJobFastMaxGeneration = 60;
 const documentIndexSearchEntityJobRegularDelaySeconds = 60;
 
 /**
- * If you've been editing the document for more than ~3 consecutive minutes before
- * sharing the document then we want to immediately add the document as a feed
- * candidate instead of waiting 15 minutes to add the feed candidate.
+ * If you've been editing the document for more than ~2 consecutive minutes
+ * (`(documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration * documentIndexSearchEntityJobFastDelaySeconds) / 60`)
+ * before sharing the document then we want to immediately add the document as a
+ * feed candidate instead of waiting 5 minutes to add the feed candidate.
  */
-const documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration = 20;
+const documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration = 14;
 
 /**
  * The throttle interval for document indexing jobs in seconds. Indexing a document
@@ -366,18 +364,6 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
     return documentIndexSearchEntityJobRegularDelaySeconds;
 }
 
-/**
- * Minimal context type for creating documents from importers. This is a subset of
- * ServerSystemActionContext with only the modules needed.
- */
-type CreateDocumentSystemContext = Context<
-    DynamoContextModules & {
-        actor: SystemActorContextModule;
-        jobs: JobsContextModule;
-        cache: CacheContextModule;
-    }
->;
-
 /*
  * Creates a new document with no history using the initial content provided.
  *
@@ -388,41 +374,7 @@ type CreateDocumentSystemContext = Context<
  * useful for bulk operations like imports.
  */
 export async function createDocument(
-    context: CreateDocumentSystemContext,
-    options: {
-        id?: DocumentId;
-        spaceId: SpaceId;
-        creatorId: AccountId;
-        content: DocumentContent;
-        consistency?: DynamoCacheReadConsistency;
-        createFeedEntry?: boolean;
-        from: DocumentCreatorFromImporterType;
-    },
-): Promise<{
-    id: DocumentId;
-    createdTime: Date;
-    version: number;
-    creator: {id: AccountId; from: DocumentCreatorFrom | null};
-}>;
-export async function createDocument(
-    context: ServerAccountActionContext,
-    options: {
-        id?: DocumentId;
-        spaceId: SpaceId;
-        creatorId?: AccountId;
-        content?: DocumentContent;
-        consistency?: DynamoCacheReadConsistency;
-        createFeedEntry?: boolean;
-        from?: never;
-    },
-): Promise<{
-    id: DocumentId;
-    createdTime: Date;
-    version: number;
-    creator: {id: AccountId; from: DocumentCreatorFrom | null};
-}>;
-export async function createDocument(
-    context: ServerAccountActionContext | ServerSystemActionContext | CreateDocumentSystemContext,
+    context: ServerMinimalAccountActionContext,
     {
         id: documentId = generateId<DocumentId>(),
         spaceId,
@@ -446,57 +398,45 @@ export async function createDocument(
     version: number;
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
 }> {
-    if (context.actor.type !== "System") {
-        const accountContext = context as Exclude<
-            typeof context,
-            ServerSystemActionContext | CreateDocumentSystemContext
-        >;
-
-        if (from != null) {
-            throw new PermissionDeniedError(
-                "Only system actors can specify the \u2018from\u2019 field when creating documents",
-            );
-        }
-
-        if (
-            creatorId &&
-            context.actor.type !== "Bot" &&
-            creatorId !== context.actor.getPossiblyBotAccountId()
-        ) {
-            throw new PermissionDeniedError(
-                "Only bots can create documents on behalf of other accounts",
-            );
-        }
-
-        creatorId ??= context.actor.getPossiblyBotAccountId();
-
-        if (!content && context.actor.type === "Bot") {
-            // We need a special function for creating documents that were created by bots. A
-            // document created by a non-bot always gives manage access to the human that
-            // created the document. Bots are different. If we gave access only to account that
-            // created the document (the bot) no other users would be able to read the
-            // document.
-            content = await createEmptyDocumentContentForBot(
-                context as ServerBotActionContext,
-                spaceId,
-            );
-        }
-
-        content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
-
-        await authorizeSpaceAccess(accountContext, spaceId);
-
-        await validateAccessPolicyUpdateForServer(
-            accountContext,
-            spaceId,
-            null,
-            content.attrs.accessPolicy,
-            {consistency},
+    // If we have an `ImpersonatedAccount` actor we know the "parent" actor is a system
+    // actor. Only allow system actors to set the `from` field.
+    if (from && context.actor.type !== "ImpersonatedAccount") {
+        throw new PermissionDeniedError(
+            "Only system actors can specify the \u2018from\u2019 field when creating documents",
         );
     }
 
-    assert(creatorId != null, "creatorId is required for system actors");
-    assert(content != null, "content is required for system actors");
+    if (
+        creatorId &&
+        context.actor.type !== "Bot" &&
+        creatorId !== context.actor.getPossiblyBotAccountId()
+    ) {
+        throw new PermissionDeniedError(
+            "Only bots can create documents on behalf of other accounts",
+        );
+    }
+
+    creatorId ??= context.actor.getPossiblyBotAccountId();
+
+    if (!content && context.actor.type === "Bot") {
+        // We need a special function for creating documents that were created by bots. A
+        // document created by a non-bot always gives manage access to the human that
+        // created the document. Bots are different. If we gave access only to account that
+        // created the document (the bot) no other users would be able to read the
+        // document.
+        content = await createEmptyDocumentContentForBot(
+            context as ServerMinimalBotActionContext,
+            spaceId,
+        );
+    }
+
+    content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
+
+    await authorizeSpaceAccess(context, spaceId);
+
+    await validateAccessPolicyUpdateForServer(context, spaceId, null, content.attrs.accessPolicy, {
+        consistency,
+    });
 
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
 
@@ -562,9 +502,23 @@ export async function createDocument(
             event: "Created",
         };
 
-        // If we created a public document then we immediately add it to the feed.
-        //
-        // We wait 15min before adding to the feed so the user has time to type in the
+        // Immediately add the document to the creator's feed. Whether the document is
+        // private or public. If the document is public we will add it to everyone else's
+        // feed below. This way the creator can quickly find the document they created
+        // again by opening their feed.
+        context.process.waitUntil(
+            addFeedAccountCandidateEntry(
+                // NOTE(calebmer, #2026-03-16): This is an `async` operation that runs after
+                // `createDocument()` returns. We don't need to enforce strong read consistency
+                // here.
+                context.dynamo.unexpectStrongReadConsistency(),
+                spaceId,
+                creatorId,
+                entry,
+            ),
+        );
+
+        // We wait 5min before adding to the feed so the user has time to type in the
         // document. That way if the user opens their feed they don't see an empty
         // document. Also, we have to wait a bit for the document content preview to be
         // generated anyway or else we'll only have the document's title.
@@ -574,23 +528,10 @@ export async function createDocument(
                     type: "AddFeedCandidateEntry",
                     jobId: generateId(),
                     spaceId,
-                    entry,
+                    // We already added this document to the creator's feed. Don't add it again.
+                    entry: {...entry, excludeFromCreatorFeed: true},
                 },
-                {delaySeconds: 15 * 60},
-            );
-        }
-        // If we're creating a private document then only add an entry to the creator
-        // account's personal feed.
-        else {
-            context.jobs.send(
-                {
-                    type: "AddFeedAccountCandidateEntry",
-                    jobId: generateId(),
-                    spaceId,
-                    accountId: creatorId,
-                    entry,
-                },
-                {delaySeconds: 15 * 60},
+                {delaySeconds: 5 * 60},
             );
         }
     }
@@ -608,29 +549,22 @@ export async function createDocument(
         {delaySeconds: newIndexSearchEntityJob.delaySeconds},
     );
 
-    if (context.actor.type !== "System") {
-        const accountContext = context as Exclude<
-            typeof context,
-            ServerSystemActionContext | CreateDocumentSystemContext
-        >;
-
-        accountContext.process.waitUntil(
-            // Special interaction that adds a bunch more points then normal interactions. So
-            // newly created documents are always easily accessible in the search affinity
-            // list.
-            markSearchAffinityCreateDocumentEntityInteraction(
-                // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
-                // `createDocument()` returns. We don't need to expect strong read consistency
-                // here.
-                accountContext.dynamo.unexpectStrongReadConsistency(),
-                {
-                    spaceId,
-                    documentId,
-                    creatorId,
-                },
-            ),
-        );
-    }
+    context.process.waitUntil(
+        // Special interaction that adds a bunch more points then normal interactions. So
+        // newly created documents are always easily accessible in the search affinity
+        // list.
+        markSearchAffinityCreateDocumentEntityInteraction(
+            // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
+            // `createDocument()` returns. We don't need to expect strong read consistency
+            // here.
+            context.dynamo.unexpectStrongReadConsistency(),
+            {
+                spaceId,
+                documentId,
+                creatorId,
+            },
+        ),
+    );
 
     return {
         id: documentId,
@@ -941,7 +875,12 @@ const DocumentItemAuthorizationCache = new DynamoContextCache<
 });
 
 async function getDocumentItemForAuthorization(
-    context: ServerMinimalActionContext,
+    context: Context<
+        DynamoContextModules & {
+            actor: ActorContextModule;
+            cache: CacheContextModule;
+        }
+    >,
     documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentAttributesItem> {
@@ -951,7 +890,12 @@ async function getDocumentItemForAuthorization(
 }
 
 async function getDocumentItemForAuthorizationIfExists(
-    context: ServerMinimalActionContext,
+    context: Context<
+        DynamoContextModules & {
+            actor: ActorContextModule;
+            cache: CacheContextModule;
+        }
+    >,
     documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentAttributesItem | null> {
@@ -966,6 +910,28 @@ async function getDocumentItemForAuthorizationIfExists(
             {consistency},
         ),
     );
+}
+
+/**
+ * Check if a document with the given ID exists.
+ *
+ * This function bypasses authorization checks and is intended for system
+ * operations like imports where we need to check if a document already exists
+ * before creating it.
+ */
+export async function doesDocumentExist(
+    context: Context<
+        DynamoContextModules & {
+            actor: SystemActorContextModule;
+            cache: CacheContextModule;
+        }
+    >,
+    documentId: DocumentId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<boolean> {
+    context.actor.authorizeSystem();
+    const item = await getDocumentItemForAuthorizationIfExists(context, documentId, options);
+    return !!item;
 }
 
 type InternalDocument = {
@@ -1616,6 +1582,19 @@ export async function getDocumentContent(
     };
 }
 
+function getDocumentContentPreviewSnippet(content: DocumentContent): DocumentContent {
+    // We want enough lines that we can render a letter-sized paper preview for
+    // documents. See [this task][1] for images of the documents we used to figure out
+    // how many lines of text fill a letter sized paper. We count 37 lines then we add
+    // 1 for safety giving us 38 lines.
+    //
+    // [1]:
+    //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
+    return assertDocumentContent(
+        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
+    );
+}
+
 async function updateDocumentContentPreviewAfterGetDocumentContent(
     context: ServerActionContext,
     {
@@ -1633,17 +1612,7 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
     // and `content` come from `getDocumentContent()`.
     await authorizeDocumentAccess(context, documentId, "View");
 
-    // Get the first 30 lines of the document for the preview. We want enough lines
-    // that we can render a letter-sized paper preview for documents. See [this
-    // task][1] for images of the documents we used to figure out how many lines of
-    // text fill a letter sized paper. We count 37 lines then we add 1 for safety
-    // giving us 38 lines.
-    //
-    // [1]:
-    //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
-    const previewContent = assertDocumentContent(
-        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
-    );
+    const contentSnippet = getDocumentContentPreviewSnippet(content);
 
     await DocumentsTable.updateItem(
         context,
@@ -1662,14 +1631,14 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // There is a race condition bug here:
             //
             // 1. Document is at version `n`
-            // 2. Document is updated to version `n + 1` which has different `previewContent`
+            // 2. Document is updated to version `n + 1` which has different `contentSnippet`
             //    than version `n`
-            // 3. Document is updated to version `n + 2` which has the same `previewContent` as
+            // 3. Document is updated to version `n + 2` which has the same `contentSnippet` as
             //    version `n`
             // 4. We run this content preview update for version `n + 2` _before_ version
-            //    `n + 1` so we skip updating `version` because `previewContent` is the same
+            //    `n + 1` so we skip updating `version` because `contentSnippet` is the same
             // 5. Now we run this content preview update for version `n + 1` which updates
-            //    `version` and `previewContent`
+            //    `version` and `contentSnippet`
             //
             // Now we have a stale content preview version!
             //
@@ -1679,7 +1648,7 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // practice.
             //
             // Even if this race condition were to occur and we have stale data in
-            // `previewContent`, likely the reason for the stale data is the user added a bit
+            // `contentSnippet`, likely the reason for the stale data is the user added a bit
             // of text then immediately deleted it (or deleted a bit of text then immediately
             // re-added it). Given the difference between the actual doc and the stale doc is
             // likely fairly minor in practice we further don't mind this race condition.
@@ -1689,14 +1658,14 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // on every document change. So we accept this potentially benign race condition
             // bug. In the future, we could choose to remove this optimization if we find the
             // write cost acceptable to fix race condition bugs we're seeing.
-            if (item && item.content.eq(previewContent)) return item;
+            if (item && item.content.eq(contentSnippet)) return item;
 
             return {
                 partitionType: "Document",
                 sortRangeType: "ContentPreview",
                 documentId,
                 version,
-                content: previewContent,
+                content: contentSnippet,
             };
         },
     );
@@ -1733,7 +1702,7 @@ export async function getDocumentContentPreviewIfPossible(
         preview: {
             version: number;
             content: DocumentContentWithReferences;
-        } | null;
+        };
     },
     ErrorBase
 > | null> {
@@ -1780,23 +1749,33 @@ export async function getDocumentContentPreviewIfPossible(
     const result = await authorizeDocumentItemAccessIfPossible(context, attributesItem, "View");
     if (!result.ok) return result;
 
-    if (!contentPreviewItem)
-        return {
-            ok: true,
-            value: {
-                version: attributesItem.version,
-                titleWithoutFallback: attributesItem.titleWithoutFallback,
-                preview: null,
-            },
-        };
+    let contentSnippetVersion: number;
+    let contentSnippet: DocumentContent;
+
+    if (contentPreviewItem) {
+        contentSnippetVersion = contentPreviewItem.version;
+        contentSnippet = contentPreviewItem.content;
+    } else {
+        // If there is no content preview item (because the first `IndexSearchEntity`
+        // hasn't run yet) then we fallback to reading the full document.
+        const document = await getInternalDocumentIfExists(context, documentId, {
+            consistency,
+            // We always strip comments. Allow viewers to read this content.
+            withOptionalComments: true,
+        });
+
+        // We know the document exists because we found its attributes earlier.
+        assert(document);
+
+        contentSnippetVersion = document.version;
+        contentSnippet = getDocumentContentPreviewSnippet(document.content);
+    }
 
     // Remove comment marks from document preview. Since actor may only have the `View`
     // permission level. But also since comment marks in a preview are distracting. We
     // want the preview to be focused on the content. Must open the document to see
     // comments.
-    const previewContent = assertDocumentContent(
-        stripDocumentContentCommentMarks(contentPreviewItem.content),
-    );
+    contentSnippet = assertDocumentContent(stripDocumentContentCommentMarks(contentSnippet));
 
     return {
         ok: true,
@@ -1804,15 +1783,15 @@ export async function getDocumentContentPreviewIfPossible(
             version: attributesItem.version,
             titleWithoutFallback: attributesItem.titleWithoutFallback,
             preview: {
-                version: contentPreviewItem.version,
+                version: contentSnippetVersion,
                 content: {
-                    doc: previewContent,
+                    doc: contentSnippet,
                     references: {
                         ...(await getContentReferencesForNode(
                             context,
                             attributesItem.spaceId,
                             FileDocumentAuthorizer.bind({type: "Document", documentId}),
-                            previewContent,
+                            contentSnippet,
                         )),
                         commentThreadById: emptyMap,
                     },
@@ -1851,7 +1830,7 @@ export async function getDocumentContentPreviewIfExists(
     preview: {
         version: number;
         content: DocumentContentWithReferences;
-    } | null;
+    };
 } | null> {
     const result = await getDocumentContentPreviewIfPossible(context, documentId, options);
     if (result === null) return null;
@@ -3326,45 +3305,25 @@ export async function updateDocumentContent(
 
                             // If we just updated `hasAddedFeedCandidateEntry` to true this update then make
                             // sure to actually add the feed candidate entry. We add the feed candidate entry
-                            // 15min after the document is shared (if the document doesn't have much content).
+                            // 5min after the document is shared (if the document doesn't have much content).
                             // In case the user shared the document before writing the document's title or any
-                            // text. 15min gives the user time to write the document's introduction and gives
-                            // our backend time to generate the document `ContentPreview` item (which is
-                            // generated by the `IndexSearchEntity` job) we need to render the document in the
-                            // home feed.
-                            //
-                            // We picked 15min since that's the max SQS message delay. Arguably the delay
-                            // should be longer since it often takes a human more than 15min to write a doc.
-                            // Though at least some of the time, if the user is sharing a doc maybe they've
-                            // finished writing it?
+                            // text. 5min gives the user time to write the document's introduction.
                             //
                             // ### Deciding when to immediately add the feed candidate
                             //
                             // We decide whether the document has "enough content" by looking at
-                            // `lastIndexSearchEntityJob.generation`. Why do we use this instead of looking at
-                            // the document's `version` or `content.nodeSize`? Well,
+                            // `lastIndexSearchEntityJob.generation` or `newContent.nodeSize`.
+                            //
                             // `lastIndexSearchEntityJob.generation` can give us a very rough approximation of
                             // how much _time_ has been spent editing the document.
                             // `lastIndexSearchEntityJob.generation` is incremented at least once every 10
                             // seconds (`documentIndexSearchEntityJobFastDelaySeconds`) of editing. So if we
-                            // wait for the generation to be 20 then we know there have been 20 10 second time
-                            // periods where the user has made at least one edit (~3 minutes total).
+                            // wait for the generation to be 14 then we know there have been 14 10 second time
+                            // periods where the user has made at least one edit (~2 minutes total).
                             //
-                            // Why is it better to wait for a certain amount of time to pass instead of looking
-                            // at `content.nodeSize` which directly determines how much content is visible in a
-                            // preview? Well, document content previews are only updated during an
-                            // `IndexSearchEntity` action. So if the user creates a document, pastes a lot of
-                            // content, and shares the document publicly if we checked that `content.nodeSize`
-                            // was above a certain threshold and added a feed candidate then when users view
-                            // the document in their feed it would have no content because we haven't run the
-                            // `IndexSearchEntity` job yet! Waiting for some amount of time to pass therefore
-                            // gives us some assurance that the user has typed enough content for the start of
-                            // the document to be filled and for `IndexSearchEntity` to have run a couple
-                            // times.
-                            //
-                            // Another approach could be to read the document content preview item here and
-                            // check the content preview size to make a decision about whether to immediately
-                            // add the document feed candidate. This seems pretty reasonable.
+                            // `content.nodeSize` detects if the user pasted in a bunch of content (or had a
+                            // bot like ChatGPT write the content) and then shared the document without making
+                            // many more updates.
                             if (newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry) {
                                 const entry: FeedEntry = {
                                     type: "Document",
@@ -3377,15 +3336,23 @@ export async function updateDocumentContent(
 
                                 if (
                                     newLastIndexSearchEntityJob.generation >=
-                                    documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration
+                                        documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration ||
+                                    // We want enough text that we can render a letter-sized paper preview for
+                                    // documents. See [this task][1] for images of the documents we used to figure out
+                                    // how much text fills a letter sized paper. We count ~3300 characters and we round
+                                    // up to 3500 for some margin of error.
+                                    //
+                                    // [1]:
+                                    //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
+                                    newContent.nodeSize > 3500
                                 ) {
-                                    context.process.waitUntil(async () => {
-                                        await addFeedCandidateEntry(
+                                    context.process.waitUntil(
+                                        addFeedCandidateEntry(
                                             context,
                                             internalDocument.spaceId,
                                             entry,
-                                        );
-                                    });
+                                        ),
+                                    );
                                 } else {
                                     context.jobs.send(
                                         {
@@ -3394,7 +3361,7 @@ export async function updateDocumentContent(
                                             spaceId: internalDocument.spaceId,
                                             entry,
                                         },
-                                        {delaySeconds: 15 * 60},
+                                        {delaySeconds: 5 * 60},
                                     );
                                 }
                             }
@@ -7450,7 +7417,10 @@ export async function getDocumentCommentParentContent(
  * created the document (the bot) no other users would be able to read the
  * document.
  */
-async function createEmptyDocumentContentForBot(context: ServerBotActionContext, spaceId: SpaceId) {
+async function createEmptyDocumentContentForBot(
+    context: ServerMinimalBotActionContext,
+    spaceId: SpaceId,
+) {
     const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
         consistency: "StrongWithinCache",
     });

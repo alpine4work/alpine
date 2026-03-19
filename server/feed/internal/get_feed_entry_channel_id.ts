@@ -14,6 +14,7 @@ export function getFeedEntryChannelId(entry: FeedEntry): ChannelId | null {
         case "Welcome":
         case "Document":
         case "RoomChat":
+        case "Task":
         case "TaskCollection":
             return null;
         default:

@@ -7,12 +7,19 @@ import {
     DocumentId,
     PostId,
     TaskCollectionId,
+    TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type FeedEntryEvent = SchemaType<typeof FeedEntryEventSchema>;
 
 export const FeedEntryEventSchema = Schema.enum(["Created", "SharedWithAccessPolicyDefaultGrant"]);
+
+export const FeedTaskEntryEventSchema = Schema.enum([
+    "UpdatedToProjectLayout",
+    "SharedWithAccessPolicyDefaultGrant",
+    "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+]);
 
 export type FeedEntry = SchemaType<typeof FeedEntrySchema>;
 
@@ -63,7 +70,22 @@ export const FeedEntrySchema = Schema.union({
         })
             .wrapOriginalPropertyInObject("id", {from: null})
             .originalPropertyKey("creatorId"),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
+    }),
+
+    /**
+     * We add a feed entry for tasks when they're shared with the space. The feed entry
+     * says "X shared a task".
+     */
+    Task: Schema.object({
+        type: Schema.value("Task"),
+        taskId: Schema.id<TaskId>(),
+        sharedTime: Schema.date,
+        sharerId: Schema.id<AccountId>(),
+        creatorId: Schema.id<AccountId>().nullable(),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
+        event: FeedTaskEntryEventSchema,
     }),
 
     /**
@@ -76,6 +98,7 @@ export const FeedEntrySchema = Schema.union({
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
         creatorId: Schema.id<AccountId>().nullable(),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),
 
@@ -92,6 +115,7 @@ export const FeedEntrySchema = Schema.union({
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
         creatorId: Schema.id<AccountId>().nullable(),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),
 
@@ -108,6 +132,7 @@ export const FeedEntrySchema = Schema.union({
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
         creatorId: Schema.id<AccountId>().nullable(),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),
 });
@@ -121,6 +146,7 @@ export function getFeedEntryTime(entry: FeedEntry): Date {
         case "Channel":
         case "RoomChat":
         case "Document":
+        case "Task":
         case "TaskCollection":
             return entry.sharedTime;
         default:

@@ -1,8 +1,10 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     ApiContent,
@@ -12,9 +14,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export interface CreateNotionImportTeamspaceRootDocumentOptions {
@@ -166,32 +166,41 @@ export async function createNotionImportTeamspaceRootDocument(
     );
 
     // Create the document using the pre-generated ID
-    const {createdTime} = await createDocument(context, {
-        id: teamspaceRootDocumentId,
-        spaceId,
-        creatorId,
-        content: documentContent,
-        createFeedEntry: false,
-        from: {type: "Importer", source: {type: "Notion"}},
-    });
+    const {createdTime} = await impersonateAccountAsSystemContext(context, creatorId, context =>
+        createDocument(context, {
+            id: teamspaceRootDocumentId,
+            spaceId,
+            creatorId,
+            content: documentContent,
+            createFeedEntry: false,
+            from: {type: "Importer", source: {type: "Notion"}},
+        }),
+    );
 
     // Send feed entry for teamspace document (feed filters by access)
-    const entry: FeedEntry = {
-        type: "Document",
-        documentId: teamspaceRootDocumentId,
-        sharedTime: createdTime,
-        sharerId: creatorId,
-        creator: {
-            id: creatorId,
-            from: {type: "Importer", source: {type: "Notion"}},
-        },
-        event: "Created",
-    };
-
-    context.jobs.send({
-        type: "AddFeedCandidateEntry",
-        jobId: generateId(),
-        spaceId,
-        entry,
-    });
+    if (isPublic) {
+        await addFeedCandidateEntry(context, spaceId, {
+            type: "Document",
+            documentId: teamspaceRootDocumentId,
+            sharedTime: createdTime,
+            sharerId: creatorId,
+            creator: {
+                id: creatorId,
+                from: {type: "Importer", source: {type: "Notion"}},
+            },
+            event: "Created",
+        });
+    } else {
+        await addFeedAccountCandidateEntry(context, spaceId, creatorId, {
+            type: "Document",
+            documentId: teamspaceRootDocumentId,
+            sharedTime: createdTime,
+            sharerId: creatorId,
+            creator: {
+                id: creatorId,
+                from: {type: "Importer", source: {type: "Notion"}},
+            },
+            event: "Created",
+        });
+    }
 }

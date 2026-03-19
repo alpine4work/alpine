@@ -2,8 +2,10 @@ import _Fuse from "fuse.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {SpaceAccountAvatarOverrideItemContextCache} from "~/server/spaces/internal/get_account_if_exists_without_authorization.js";
 import {SpaceAccountItemContextCache} from "~/server/spaces/internal/get_space_account_item.js";
@@ -116,13 +118,7 @@ export class SpaceAccountsCache {
      * our cache we'll add it.
      */
     public async getData(
-        context: Context<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            cache: CacheContextModule;
-            dynamo: DynamoContextModule;
-            actor: ActorContextModule;
-        }>,
+        context: AuthorizeSpaceAccessContext,
         spaceId: SpaceId,
     ): Promise<SpaceAccountsCacheData> {
         // Make sure we're allowed to read data from the space.
@@ -311,13 +307,7 @@ export class SpaceAccountsCache {
      * our cache we return null instead of loading the data.
      */
     public async getDataIfExistsWithoutLoading(
-        context: Context<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            cache: CacheContextModule;
-            dynamo: DynamoContextModule;
-            actor: ActorContextModule;
-        }>,
+        context: AuthorizeSpaceAccessContext,
         spaceId: SpaceId,
     ): Promise<SpaceAccountsCacheData | null> {
         // Make sure we're allowed to read data from the space.

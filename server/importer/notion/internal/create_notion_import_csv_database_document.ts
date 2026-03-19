@@ -8,6 +8,7 @@ import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -124,14 +125,16 @@ export async function createNotionImportCsvDatabaseDocument(
     );
 
     // Create the document
-    await createDocument(context, {
-        id: documentId,
-        spaceId,
-        creatorId,
-        content: documentContent,
-        createFeedEntry: false,
-        from: {type: "Importer", source: {type: "Notion"}},
-    });
+    await impersonateAccountAsSystemContext(context, creatorId, context =>
+        createDocument(context, {
+            id: documentId,
+            spaceId,
+            creatorId,
+            content: documentContent,
+            createFeedEntry: false,
+            from: {type: "Importer", source: {type: "Notion"}},
+        }),
+    );
 
     // Attach files to the document so they can be accessed via the document. Files in
     // CSV tables (FileRowTable elements) need attachment records.

@@ -2,6 +2,7 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {
+    AccountActorContextModule,
     ActorContextModule,
     AnonymousActorContextModule,
     BotActorContextModule,
@@ -138,9 +139,6 @@ export type ServerAccountActionContext = Context<ServerAccountActionContextModul
 
 export type ServerAccountActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor:
-            | SessionActorContextModule
-            | ImpersonatedAccountActorContextModule
-            | BotActorContextModule;
+        actor: AccountActorContextModule;
     }
 >;

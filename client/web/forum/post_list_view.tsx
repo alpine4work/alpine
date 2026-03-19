@@ -1773,6 +1773,7 @@ function PostListView(
                             >
                                 {sideBarLeftSpacer}
                                 <div
+                                    data-testid="FeedEntryView"
                                     className={sprinkles({
                                         position: "relative",
                                         width: "full",

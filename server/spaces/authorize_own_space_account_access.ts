@@ -1,10 +1,6 @@
-import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {AuthorizeSpaceAccessContext} from "~/server/spaces/authorize_space_access.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -17,13 +13,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
  * be a member of the system actor's space.
  */
 export async function authorizeOwnSpaceAccountAccess(
-    context: Context<
-        DynamoContextModules & {
-            process: ProcessContextModule;
-            cache: CacheContextModule;
-            actor: ActorContextModule;
-        }
-    >,
+    context: AuthorizeSpaceAccessContext,
     accountId: AccountId,
     options?: {
         displayMessage?: ErrorDisplayMessage;

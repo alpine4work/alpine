@@ -1,6 +1,8 @@
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {spaceAccountsCache} from "~/server/spaces/internal/space_accounts_cache.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -25,13 +27,7 @@ import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
  * space they just got access to which we want to avoid.
  */
 export async function isAccountMemberOfSpace(
-    context: Context<{
-        process: ProcessContextModule;
-        actor: ActorContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     expectedRole: SpaceRole = "Member",

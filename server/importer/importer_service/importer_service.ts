@@ -1,10 +1,19 @@
 import {S3Client} from "@aws-sdk/client-s3";
 import {defaultProvider} from "@aws-sdk/credential-provider-node";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     createServiceCloudflareR2ContextModule,
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
+import {
+    ChatInjectionContextModule,
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ImporterServiceContextModule} from "~/server/importer/importer_service/importer_service_context_module.js";
@@ -24,6 +33,7 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -113,6 +123,10 @@ export async function run({
             resourceServiceUrl: options.resourceServiceUrl,
         }),
         importerService: importerModule,
+        chatInjection: new ChatInjectionContextModule(chatInjection),
+        documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
+        forumInjection: new ForumInjectionContextModule(forumInjection),
+        tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
     await processContext.tracer.withSpan(

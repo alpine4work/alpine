@@ -23,13 +23,13 @@ import {
     FeedPostEntryModel,
     FeedWelcomeEntryModel,
 } from "~/shared/feed/feed_entry_model.js";
-import {FeedEntryEvent} from "~/shared/feed/feed_entry_schema.js";
-import {parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityIdObject, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
+import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 
 export function FeedFileEntityEntryView({
     entry,
@@ -62,6 +62,13 @@ export function FeedFileEntityEntryView({
                 fileEntity = new FileEntityModel(FileTaskCollectionEntityModelSchema, {
                     ...entry.collection,
                     type: "TaskCollection",
+                });
+                break;
+            }
+            case "Task": {
+                fileEntity = new FileEntityModel(FileTaskEntityModelSchema, {
+                    ...entry.task,
+                    type: "Task",
                 });
                 break;
             }
@@ -103,8 +110,7 @@ export function FeedFileEntityEntryView({
                         <span className={sprinkles({color: "grey-100", fontStyle: "semi-bold"})}>
                             {useAccountModel(entry.sharer).name}
                         </span>{" "}
-                        {getFeedEntryEventMessage(entry.event)} a{" "}
-                        {getFileEntityNoun(fileEntityType)}
+                        {getFeedEntryEventMessage(entry.event, fileEntityType)}
                     </Box>
                     <Box fontSize="50" fontStyle="truncate" color="grey-50">
                         <PrettyAbsoluteDate tooltipPlacement="bottom" date={entry.sharedTime} />
@@ -125,12 +131,19 @@ export function FeedFileEntityEntryView({
     );
 }
 
-function getFeedEntryEventMessage(event: FeedEntryEvent) {
+function getFeedEntryEventMessage(
+    event: Exclude<FeedEntryModel, FeedWelcomeEntryModel | FeedPostEntryModel>["event"],
+    fileEntityType: FileEntityIdObject["type"],
+) {
     switch (event) {
         case "Created":
-            return "created";
+            return `created a ${getFileEntityNoun(fileEntityType)}`;
         case "SharedWithAccessPolicyDefaultGrant":
-            return "shared";
+            return `shared a ${getFileEntityNoun(fileEntityType)}`;
+        case "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant":
+            return "shared a project";
+        case "UpdatedToProjectLayout":
+            return "created a project";
         default:
             throw exhaustive(event);
     }
