@@ -10,13 +10,14 @@ import {
     TextSelection,
     Transaction,
 } from "prosemirror-state";
-import {dropPoint} from "prosemirror-transform";
+import {ReplaceAroundStep, ReplaceStep, dropPoint} from "prosemirror-transform";
 import {
     Decoration,
     DecorationSet,
     DirectEditorProps,
     EditorView,
     __scrollRectIntoView as scrollRectIntoView,
+    __serializeForClipboard as serializeForClipboard,
 } from "prosemirror-view";
 import {
     FocusEvent,
@@ -117,6 +118,7 @@ import {
     isSelectionInContentTable,
 } from "~/client/web/content/state/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/web/content/state/table/content_table_input.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {AppContext, useAppContextIfExists} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
@@ -138,6 +140,7 @@ import {isVirtualKeyboardEvent} from "~/client/web/helpers/events/is_virtual_key
 import {flushSyncIfNotRendering} from "~/client/web/helpers/flush_sync_if_not_rendering.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {
@@ -3180,7 +3183,52 @@ function ContentEditor<Content extends ContentWithReferences>(
             return false;
         };
 
+        // Forked from [`prosemirror-view`'s copy/paste handler][1]. The main reason for
+        // forking is to call `trimSelectionInvisibleExtensionIntoAdjacentNodes()` on the
+        // selection.
+        //
+        // [1]:
+        //     https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L585-L602
+        const handleCopyOrCut = (view: EditorView, event: ClipboardEvent) => {
+            const isCut = event.type === "cut";
+
+            const originalSelection = view.state.selection;
+            if (originalSelection.empty) return false;
+
+            const selection = trimSelectionInvisibleExtensionIntoAdjacentNodes(originalSelection);
+
+            const slice = view.state.doc.slice(selection.$from.pos, selection.$to.pos);
+
+            const {dom, text} = serializeForClipboard(view, slice);
+
+            const clipboardData = event.clipboardData;
+            if (!clipboardData) {
+                // We [expect to always have `clipboardData` based on the browsers we support][1].
+                // So don't add a fallback like the one in `prosemirror-view`.
+                //
+                // [1]: https://caniuse.com/?search=clipboardData
+            } else {
+                event.preventDefault();
+                clipboardData.clearData();
+                clipboardData.setData("text/html", dom.innerHTML);
+                clipboardData.setData("text/plain", text);
+            }
+
+            if (isCut) {
+                view.dispatch(
+                    view.state.tr
+                        .deleteRange(selection.$from.pos, selection.$to.pos)
+                        .scrollIntoView()
+                        .setMeta("uiEvent", "cut"),
+                );
+            }
+
+            return true;
+        };
+
         viewProps.handleDOMEvents = {
+            copy: handleCopyOrCut,
+            cut: handleCopyOrCut,
             mousedown: (view, event) => {
                 const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
 
@@ -5291,13 +5339,15 @@ function handlePasteAfterResolvingReferences(
     ) {
         const transaction = createTransaction();
 
-        transaction.replace(
-            selection.$from.pos - 1,
-            selection.$from.pos + 1,
-            new Slice(slice.content, 0, slice.openEnd),
+        const actualSlice = new Slice(slice.content, 0, slice.openEnd);
+
+        replaceSelection(
+            {from: selection.$from.pos - 1, to: selection.$from.pos + 1},
+            transaction,
+            actualSlice,
         );
 
-        fixNodeSelectionAfterPaste(slice, transaction);
+        fixNodeSelectionAfterPaste(actualSlice, transaction);
         dispatch(transaction.setMeta("paste", true).setMeta("uiEvent", "paste"));
         return;
     }
@@ -5411,6 +5461,55 @@ function handlePasteAfterResolvingReferences(
 
     fixNodeSelectionAfterPaste(slice, transaction);
     dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+}
+
+// This function is derived from `Selection.replace()` from `prosemirror-state`.
+// Useful if you want the same selection replace logic (particularly with regards
+// to how the new selection should be positioned) but don't want to create a
+// `Selection` object.
+//
+// https://github.com/ProseMirror/prosemirror-state/blob/d6fdcd19c4f7f68206b0a8d49649860365672585/src/selection.ts#L70-L89
+function replaceSelection(
+    range: {from: number; to: number},
+    transaction: Transaction,
+    content: Slice,
+) {
+    // Put the new selection at the position after the inserted content. When that
+    // ended in an inline node, search backwards, to get the position after that node.
+    // If not, search forward.
+    let lastNode = content.content.lastChild;
+    let lastParent = null;
+    for (let i = 0; i < content.openEnd; i++) {
+        lastParent = lastNode!;
+        lastNode = lastNode!.lastChild;
+    }
+
+    const mapFrom = transaction.steps.length;
+    const {from, to} = range;
+    const mapping = transaction.mapping.slice(mapFrom);
+    transaction.replaceRange(mapping.map(from), mapping.map(to), content);
+
+    const bias = (lastNode ? lastNode.isInline : lastParent && lastParent.isTextblock) ? -1 : 1;
+
+    // The following code is derived from `selectionToInsertionEnd()` from
+    // `prosemirror-state`.
+    //
+    // https://github.com/ProseMirror/prosemirror-state/blob/d6fdcd19c4f7f68206b0a8d49649860365672585/src/selection.ts#L454-L462
+
+    const lastStepIndex = transaction.steps.length - 1;
+    if (lastStepIndex < mapFrom) return;
+
+    const step = transaction.steps[lastStepIndex];
+    if (!(step instanceof ReplaceStep || step instanceof ReplaceAroundStep)) return;
+
+    const map = transaction.mapping.maps[lastStepIndex]!;
+    let end: number | undefined;
+
+    map.forEach((from, to, newFrom, newTo) => {
+        if (end === undefined) end = newTo;
+    });
+
+    transaction.setSelection(Selection.near(transaction.doc.resolve(assertExists(end)), bias));
 }
 
 /**
