@@ -269,6 +269,65 @@ A collection of best practices to consider while writing frontend code in our co
     - `use_state_without_dependencies.ts`: Local state that reinitializes if anything in a
       dependency array changes. Useful for state that's partially derived from props.
 
+### Avoid the use of the `style` attribute
+
+Don't pass inline `style` to `<Box>` and other sprinkle-supported components. This component expose
+props for all supported styles (see the `<Box>` and `sprinkles()` section above). Use those props
+instead.
+
+The only acceptable use of `style` is when you need a CSS property that is genuinely not supported
+by our design system (e.g. `transform`, `clipPath`, `animationDelay`). In that rare case, apply
+`style` to a plain HTML element (`<div>`, `<span>`) rather than a design component.
+
+```tsx
+// ❌ No — use Box props instead of style
+<Box style={{padding: "1rem", color: "red"}}>Content</Box>
+```
+
+```tsx
+// ✅ Yes — use the supported props
+<Box padding="4" color="red-50">
+    Content
+</Box>
+```
+
+```tsx
+// ✅ Yes — plain element for unsupported CSS properties
+<div style={{transform: "rotate(45deg)"}}>
+    <Box padding="4">Content</Box>
+</div>
+```
+
+### Avoid pixel values
+
+Don't use pixel values for sizing, spacing, or typography. Our rem values are influenced by
+`SpacingScale` (`small`, `medium`, `large`) so they automatically scale across platforms. Pixel
+values bypass this scaling and will look wrong on different screen sizes.
+
+The one exception is borders, where we commonly use `1px` or `2px` regardless of spacing scale.
+
+If you need to compute a precise pixel value at runtime (e.g. for imperative positioning or canvas
+drawing), use `useSpacingScale()` and `convertRemLengthToPx()` from `shared/design/core/spacing.ts`
+to convert from our spacing system to pixels.
+
+```tsx
+// ❌ No — pixel values don't scale with the spacing system
+<div style={{width: "16px", marginTop: "24px"}}>Content</div>
+```
+
+```tsx
+// ✅ Yes — use spacing values which scale with the platform
+<Box width="4" marginTop="6">
+    Content
+</Box>
+```
+
+```tsx
+// ✅ Yes — convert to pixels when you need a precise pixel number
+const spacingScale = useSpacingScale();
+const widthPx = convertRemLengthToPx("4", spacingScale);
+```
+
 ### Let primitive components like `<Button>` and `<Menu>` handle loading states
 
 Many of our primitive components in `client/web/design` let you pass in an `onPress` handler that
