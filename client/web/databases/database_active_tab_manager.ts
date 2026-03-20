@@ -9,7 +9,10 @@ import {
 } from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
-import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
+import type {
+    DatabaseActionObject,
+    DatabaseActionResult,
+} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -18,7 +21,7 @@ import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseId,
     DatabaseMutationId,
-    DatabaseReactiveQueryId,
+    DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
@@ -92,10 +95,10 @@ type WorkerToTabRpc = WebWorkerRpc<
     typeof tabToWorkerDatabaseRpcMethods
 >;
 
-export type ReactiveQueryResult = Result<ReadonlyArray<unknown>, string>;
+export type ReactiveActionResult = Result<unknown, string>;
 
-export interface ReactiveQueryHandle {
-    readonly store: Store<ReactiveQueryResult>;
+export interface ReactiveActionHandle {
+    readonly store: Store<ReactiveActionResult>;
     unwatch(): void;
 }
 
@@ -111,7 +114,7 @@ type DatabaseConnectionCall = <K extends string & keyof typeof tabToWorkerDataba
 
 export interface DatabaseConnection {
     call: DatabaseConnectionCall;
-    watchQuery(sql: string): Promise<ReactiveQueryHandle>;
+    watchAction(actionObject: DatabaseActionObject): Promise<ReactiveActionHandle>;
     close(): void;
 }
 
@@ -171,11 +174,11 @@ export class DatabaseActiveTabServiceWorker {
  * Runs in the dedicated worker. Creates RPC handlers
  * for the main thread connection and any additional
  * ports forwarded from follower tabs. Delegates all
- * reactive query logic to {@link DatabaseClient}.
+ * reactive action logic to {@link DatabaseClient}.
  */
 export class DatabaseActiveTabWorker {
     private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
-    private readonly queryToDatabase = new Map<DatabaseReactiveQueryId, DatabaseId>();
+    private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseId>();
 
     constructor(private readonly dir: OpfsDirectoryHandle) {}
 
@@ -251,41 +254,53 @@ export class DatabaseActiveTabWorker {
                     client.writePagesFromRealtime(input.pages, input.mutationId);
                     return {};
                 },
-                registerReactiveQuery: async input => {
+                registerReactiveAction: async input => {
                     const client = await this.getOrCreateClient(input.databaseId, conn);
-                    this.queryToDatabase.set(input.queryId, input.databaseId);
-                    const result = await client.registerReactiveQuery(
-                        input.queryId,
-                        input.sql,
+                    this.actionToDatabase.set(input.id, input.databaseId);
+                    const result = await client.registerReactiveAction(
+                        input.id,
+                        input.action,
                         conn,
-                        updatedRows => {
-                            void rpc.call("reactiveQueryUpdated", {
-                                queryId: input.queryId,
-                                rows: updatedRows as ReadonlyArray<SchemaSerializedValue>,
+                        output => {
+                            void rpc.call("reactiveActionUpdated", {
+                                id: input.id,
+                                result: {
+                                    name: input.action.name,
+                                    output,
+                                } as DatabaseActionResult,
                             });
                         },
                         error => {
-                            void rpc.call("reactiveQueryError", {
-                                queryId: input.queryId,
+                            void rpc.call("reactiveActionError", {
+                                id: input.id,
                                 message: error instanceof Error ? error.message : String(error),
                             });
                         },
                     );
                     if (result.ok) {
                         return {
-                            rows: result.value as ReadonlyArray<SchemaSerializedValue>,
+                            result: {
+                                name: input.action.name,
+                                output: result.value,
+                            } as DatabaseActionResult,
                             error: null,
                         };
                     }
                     const message =
                         result.error instanceof Error ? result.error.message : String(result.error);
-                    return {rows: [], error: message};
+                    return {
+                        result: {
+                            name: input.action.name,
+                            output: {},
+                        } as DatabaseActionResult,
+                        error: message,
+                    };
                 },
-                unregisterReactiveQuery: async input => {
-                    const dbId = this.queryToDatabase.get(input.queryId) ?? input.databaseId;
+                unregisterReactiveAction: async input => {
+                    const dbId = this.actionToDatabase.get(input.id) ?? input.databaseId;
                     const client = await this.getOrCreateClient(dbId, conn);
-                    client.unregisterReactiveQuery(input.queryId);
-                    this.queryToDatabase.delete(input.queryId);
+                    client.unregisterReactiveAction(input.id);
+                    this.actionToDatabase.delete(input.id);
                     return {};
                 },
             },
@@ -355,8 +370,8 @@ export class DatabaseActiveTabManager {
     private lockHoldResolve: (() => void) | null = null;
     private nextCallId = 0;
     private readonly watches = new Map<
-        DatabaseReactiveQueryId,
-        {sql: string; store: ValueStore<ReactiveQueryResult>}
+        DatabaseReactiveActionId,
+        {actionObject: DatabaseActionObject; store: ValueStore<ReactiveActionResult>}
     >();
 
     constructor(
@@ -398,7 +413,7 @@ export class DatabaseActiveTabManager {
         return {
             call: ((method: string, input: unknown) =>
                 this.callMethod(method, input)) as DatabaseConnectionCall,
-            watchQuery: (sql: string) => this.watchQuery(sql),
+            watchAction: (actionObject: DatabaseActionObject) => this.watchAction(actionObject),
             close: () => this.closeConnection(),
         };
     }
@@ -455,41 +470,41 @@ export class DatabaseActiveTabManager {
         }
     }
 
-    // -- Reactive query watch ------------------------------------------------
+    // -- Reactive action watch -----------------------------------------------
 
-    private async watchQuery(sql: string): Promise<ReactiveQueryHandle> {
-        const queryId = generateId<DatabaseReactiveQueryId>();
-        const store = new ValueStore<ReactiveQueryResult>({ok: true, value: []});
+    private async watchAction(actionObject: DatabaseActionObject): Promise<ReactiveActionHandle> {
+        const id = generateId<DatabaseReactiveActionId>();
+        const store = new ValueStore<ReactiveActionResult>({ok: true, value: {}});
 
-        this.watches.set(queryId, {sql, store});
+        this.watches.set(id, {actionObject, store});
 
-        const result = (await this.callMethod("registerReactiveQuery", {
-            queryId,
-            sql,
-        })) as {rows: ReadonlyArray<unknown>; error: string | null};
+        const result = (await this.callMethod("registerReactiveAction", {
+            id,
+            action: actionObject,
+        })) as {result: DatabaseActionResult; error: string | null};
         if (result.error !== null) {
             store.set({ok: false, error: result.error});
         } else {
-            store.set({ok: true, value: result.rows});
+            store.set({ok: true, value: result.result.output});
         }
 
         return {
             store,
             unwatch: () => {
-                this.watches.delete(queryId);
-                void this.callMethod("unregisterReactiveQuery", {queryId});
+                this.watches.delete(id);
+                void this.callMethod("unregisterReactiveAction", {id});
             },
         };
     }
 
     private async reRegisterWatches(): Promise<void> {
-        for (const [queryId, watch] of this.watches) {
-            const result = (await this.callMethod("registerReactiveQuery", {
-                queryId,
-                sql: watch.sql,
-            })) as {rows: ReadonlyArray<unknown>; error: string | null};
+        for (const [id, watch] of this.watches) {
+            const result = (await this.callMethod("registerReactiveAction", {
+                id,
+                action: watch.actionObject,
+            })) as {result: DatabaseActionResult; error: string | null};
             if (result.error === null) {
-                watch.store.set({ok: true, value: result.rows});
+                watch.store.set({ok: true, value: result.result.output});
             }
         }
     }
@@ -662,15 +677,15 @@ export class DatabaseActiveTabManager {
                     this.deps.reportError?.(input.message);
                     return {};
                 },
-                reactiveQueryUpdated: async input => {
-                    const watch = this.watches.get(input.queryId);
+                reactiveActionUpdated: async input => {
+                    const watch = this.watches.get(input.id);
                     if (watch) {
-                        watch.store.set({ok: true, value: input.rows});
+                        watch.store.set({ok: true, value: input.result.output});
                     }
                     return {};
                 },
-                reactiveQueryError: async input => {
-                    const watch = this.watches.get(input.queryId);
+                reactiveActionError: async input => {
+                    const watch = this.watches.get(input.id);
                     if (watch) {
                         watch.store.set({ok: false, error: input.message});
                     }
@@ -727,15 +742,15 @@ export class DatabaseActiveTabManager {
                     this.deps.reportError?.(input.message);
                     return {};
                 },
-                reactiveQueryUpdated: async input => {
-                    const watch = this.watches.get(input.queryId);
+                reactiveActionUpdated: async input => {
+                    const watch = this.watches.get(input.id);
                     if (watch) {
-                        watch.store.set({ok: true, value: input.rows});
+                        watch.store.set({ok: true, value: input.result.output});
                     }
                     return {};
                 },
-                reactiveQueryError: async input => {
-                    const watch = this.watches.get(input.queryId);
+                reactiveActionError: async input => {
+                    const watch = this.watches.get(input.id);
                     if (watch) {
                         watch.store.set({ok: false, error: input.message});
                     }

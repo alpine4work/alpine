@@ -230,56 +230,46 @@ export class DatabaseClient {
     }
 
     /**
-     * Convenience wrapper: execute raw SQL via the
-     * `rawSql` action.
-     */
-    async execute(
-        conn: DatabaseClientConnection,
-        sql: string,
-    ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        const {rows} = await this.executeAction<"rawSql">(conn, {name: "rawSql", input: {sql}});
-        return rows as ReadonlyArray<Record<string, unknown>>;
-    }
-
-    /**
-     * Execute a read-only query while tracking which
+     * Execute a read-only action while tracking which
      * database pages are read. Uses `pageAccessHook` to
-     * capture reads including cache hits. Throws if the
-     * SQL attempts to write.
+     * capture reads including cache hits. Asserts the
+     * action's `writeLevel` is `"none"`.
      *
      * On missing pages, falls back to the server, then
      * retries locally to build an accurate read-set.
      *
      * The hook is only active during synchronous
-     * `executeLocally` calls — never across an
+     * `executeActionLocally` calls — never across an
      * `await` — so concurrent tracking calls cannot
      * interfere with each other.
      */
-    async executeWithTracking(
+    async executeActionWithTracking<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
-        sql: string,
-    ): Promise<{rows: ReadonlyArray<Record<string, unknown>>; readPages: ReadonlySet<number>}> {
+        actionObject: DatabaseActionObject<N>,
+    ): Promise<{output: DatabaseActionOutput<N>; readPages: ReadonlySet<number>}> {
+        assert(
+            databaseActions[actionObject.name].writeLevel === "none",
+            "executeActionWithTracking only supports read-only actions",
+        );
         try {
-            return this.executeLocallyInReadOnlyTxn(sql);
+            return this.executeActionLocallyInReadOnlyTxn(actionObject);
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
-            await this.executeActionViaServer(
-                conn,
-                {name: "rawSql", input: {sql}},
-                generateId<DatabaseMutationId>(),
-            );
-            return this.executeLocallyInReadOnlyTxn(sql);
+            await this.executeActionViaServer(conn, actionObject, generateId<DatabaseMutationId>());
+            return this.executeActionLocallyInReadOnlyTxn(actionObject);
         }
     }
 
     /**
-     * Executes SQL inside a BEGIN/ROLLBACK transaction
-     * with page-read tracking. Asserts that the SQL does
-     * not write any pages (writes are rolled back and an
-     * assertion error is thrown).
+     * Executes an action inside a BEGIN/ROLLBACK
+     * transaction with page-read tracking. Asserts that
+     * the action does not write any pages (writes are
+     * rolled back and an assertion error is thrown).
      */
-    private executeLocallyInReadOnlyTxn(sql: string): {
-        rows: ReadonlyArray<Record<string, unknown>>;
+    private executeActionLocallyInReadOnlyTxn<N extends DatabaseActionName>(
+        actionObject: DatabaseActionObject<N>,
+    ): {
+        output: DatabaseActionOutput<N>;
         readPages: ReadonlySet<number>;
     } {
         const readPages = new Set<number>();
@@ -291,9 +281,9 @@ export class DatabaseClient {
             if (flags === pageAccessFlagWrite) writeDetected = true;
         });
         try {
-            const rows = this.executeLocally(sql, "none");
-            assert(!writeDetected, "executeWithTracking does not support writes");
-            return {rows, readPages};
+            const output = this.executeActionLocally(actionObject);
+            assert(!writeDetected, "executeActionWithTracking does not support writes");
+            return {output, readPages};
         } finally {
             this.db.pageAccessHook(null);
             try {
@@ -307,15 +297,15 @@ export class DatabaseClient {
         }
     }
 
-    // -- Reactive queries ----------------------------------------------------
+    // -- Reactive actions ----------------------------------------------------
 
-    private readonly reactiveQueries = new Map<
+    private readonly reactiveActions = new Map<
         string,
         {
-            readonly sql: string;
+            readonly actionObject: DatabaseActionObject;
             readPages: ReadonlySet<number> | null;
             readonly conn: DatabaseClientConnection;
-            readonly notify: (rows: ReadonlyArray<Record<string, unknown>>) => void;
+            readonly notify: (output: DatabaseActionOutput<DatabaseActionName>) => void;
             readonly reportError: (error: unknown) => void;
             reExecuting: boolean;
         }
@@ -324,37 +314,43 @@ export class DatabaseClient {
     private invalidationScheduled = false;
 
     /**
-     * Register a reactive query. Executes the query with
-     * page tracking and returns the initial rows. When
-     * pages in the query's read-set are subsequently
-     * written, the query re-executes and {@link notify}
-     * is called with the new rows. If re-execution fails,
-     * {@link reportError} is called with the error.
+     * Register a reactive action. Executes the action
+     * with page tracking and returns the initial output.
+     * When pages in the action's read-set are subsequently
+     * written, the action re-executes and {@link notify}
+     * is called with the new output. If re-execution
+     * fails, {@link reportError} is called with the error.
+     *
+     * The action's `writeLevel` must be `"none"`.
      */
-    async registerReactiveQuery(
-        queryId: string,
-        sql: string,
+    async registerReactiveAction<N extends DatabaseActionName>(
+        id: string,
+        actionObject: DatabaseActionObject<N>,
         conn: DatabaseClientConnection,
-        notify: (rows: ReadonlyArray<Record<string, unknown>>) => void,
+        notify: (output: DatabaseActionOutput<N>) => void,
         reportError: (error: unknown) => void,
-    ): Promise<Result<ReadonlyArray<Record<string, unknown>>>> {
+    ): Promise<Result<DatabaseActionOutput<N>>> {
+        assert(
+            databaseActions[actionObject.name].writeLevel === "none",
+            "reactive actions must have writeLevel \u2018none\u2019",
+        );
         try {
-            const {rows, readPages} = await this.executeWithTracking(conn, sql);
-            this.reactiveQueries.set(queryId, {
-                sql,
+            const {output, readPages} = await this.executeActionWithTracking(conn, actionObject);
+            this.reactiveActions.set(id, {
+                actionObject,
                 readPages,
                 conn,
-                notify,
+                notify: notify as (output: DatabaseActionOutput<DatabaseActionName>) => void,
                 reportError,
                 reExecuting: false,
             });
-            return {ok: true, value: rows};
+            return {ok: true, value: output};
         } catch (error) {
-            this.reactiveQueries.set(queryId, {
-                sql,
+            this.reactiveActions.set(id, {
+                actionObject,
                 readPages: null,
                 conn,
-                notify,
+                notify: notify as (output: DatabaseActionOutput<DatabaseActionName>) => void,
                 reportError,
                 reExecuting: false,
             });
@@ -363,11 +359,11 @@ export class DatabaseClient {
     }
 
     /**
-     * Unregister a reactive query. Stops future
+     * Unregister a reactive action. Stops future
      * invalidation notifications.
      */
-    unregisterReactiveQuery(queryId: string): void {
-        this.reactiveQueries.delete(queryId);
+    unregisterReactiveAction(id: string): void {
+        this.reactiveActions.delete(id);
     }
 
     private scheduleInvalidation(): void {
@@ -382,7 +378,7 @@ export class DatabaseClient {
     }
 
     private async checkInvalidation(writtenPages: ReadonlySet<number>): Promise<void> {
-        for (const [, reg] of this.reactiveQueries) {
+        for (const [, reg] of this.reactiveActions) {
             if (reg.reExecuting) continue;
 
             let overlaps = false;
@@ -400,9 +396,12 @@ export class DatabaseClient {
 
             reg.reExecuting = true;
             try {
-                const {rows, readPages} = await this.executeWithTracking(reg.conn, reg.sql);
+                const {output, readPages} = await this.executeActionWithTracking(
+                    reg.conn,
+                    reg.actionObject,
+                );
                 reg.readPages = readPages;
-                reg.notify(rows);
+                reg.notify(output);
             } catch (error) {
                 reg.reportError(error);
             } finally {
@@ -560,30 +559,6 @@ export class DatabaseClient {
         }
     }
 
-    private executeLocally(
-        sql: string,
-        writeLevel: SqliteWriteLevel = "data",
-    ): ReadonlyArray<Record<string, unknown>> {
-        this.writeLevel = writeLevel;
-        try {
-            return this.db.exec(sql, {
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as ReadonlyArray<Record<string, unknown>>;
-        } catch (error) {
-            const stashed = this.vfs.takeError();
-            if (stashed !== null) {
-                if (stashed instanceof Error) {
-                    stashed.cause = error;
-                }
-                throw stashed;
-            }
-            throw error;
-        } finally {
-            this.writeLevel = null;
-        }
-    }
-
     private async executeActionViaServer<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
@@ -601,9 +576,23 @@ export class DatabaseClient {
      * Writes go directly to the base OPFS store (not
      * optimistic pages). Use for test setup only.
      */
-    executeLocallyForTests(sql: string): ReadonlyArray<Record<string, unknown>> {
+    executeLocallyForTests(sql: string): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
-        return this.executeLocally(sql, "schema+data");
+        this.writeLevel = "schema+data";
+        try {
+            this.db.exec(sql);
+        } catch (error) {
+            const stashed = this.vfs.takeError();
+            if (stashed !== null) {
+                if (stashed instanceof Error) {
+                    stashed.cause = error;
+                }
+                throw stashed;
+            }
+            throw error;
+        } finally {
+            this.writeLevel = null;
+        }
     }
 
     /** Exposed for tests only. Do not use in production code. */

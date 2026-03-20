@@ -8,7 +8,7 @@ import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {
     DatabaseId,
     DatabaseMutationId,
-    DatabaseReactiveQueryId,
+    DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
@@ -40,18 +40,18 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: {},
     },
-    registerReactiveQuery: {
+    registerReactiveAction: {
         input: {
             databaseId: Schema.id<DatabaseId>(),
-            queryId: Schema.id<DatabaseReactiveQueryId>(),
-            sql: Schema.string,
+            id: Schema.id<DatabaseReactiveActionId>(),
+            action: DatabaseActionObjectSchema,
         },
-        output: {rows: Schema.array(Schema.unknown()), error: Schema.string.nullable()},
+        output: {result: DatabaseActionResultSchema, error: Schema.string.nullable()},
     },
-    unregisterReactiveQuery: {
+    unregisterReactiveAction: {
         input: {
             databaseId: Schema.id<DatabaseId>(),
-            queryId: Schema.id<DatabaseReactiveQueryId>(),
+            id: Schema.id<DatabaseReactiveActionId>(),
         },
         output: {},
     },
@@ -79,16 +79,16 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         input: {message: Schema.string},
         output: {},
     },
-    reactiveQueryUpdated: {
+    reactiveActionUpdated: {
         input: {
-            queryId: Schema.id<DatabaseReactiveQueryId>(),
-            rows: Schema.array(Schema.unknown()),
+            id: Schema.id<DatabaseReactiveActionId>(),
+            result: DatabaseActionResultSchema,
         },
         output: {},
     },
-    reactiveQueryError: {
+    reactiveActionError: {
         input: {
-            queryId: Schema.id<DatabaseReactiveQueryId>(),
+            id: Schema.id<DatabaseReactiveActionId>(),
             message: Schema.string,
         },
         output: {},

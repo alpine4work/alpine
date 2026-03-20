@@ -1,20 +1,23 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
-import {useReactiveDatabaseQuery} from "~/client/web/databases/use_reactive_database_query.js";
+import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseReactiveQueryId} from "~/shared/id/types/id_types.js";
+import type {DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
 
 interface WatchEntry {
-    readonly id: DatabaseReactiveQueryId;
+    readonly id: DatabaseReactiveActionId;
     readonly sql: string;
 }
 
 function WatchedQuery(props: {sql: string; onClose: () => void}) {
-    const result = useReactiveDatabaseQuery({sql: props.sql});
+    const result = useReactiveDatabaseAction({
+        name: "readonlyRawSql",
+        input: useMemo(() => ({sql: props.sql}), [props.sql]),
+    });
     const [flashing, setFlashing] = useState(false);
     const isFirstRef = useRef(true);
 
@@ -28,6 +31,8 @@ function WatchedQuery(props: {sql: string; onClose: () => void}) {
         const timer = setTimeout(() => setFlashing(false), 500);
         return () => clearTimeout(timer);
     }, [result]);
+
+    const rows = result?.ok ? result.value.rows : null;
 
     return (
         <Box
@@ -62,7 +67,7 @@ function WatchedQuery(props: {sql: string; onClose: () => void}) {
                     Loading...
                 </Box>
             ) : result.ok ? (
-                <DatabaseResultTable rows={result.value} />
+                <DatabaseResultTable rows={rows!} />
             ) : (
                 <pre
                     className={sprinkles({
@@ -165,7 +170,7 @@ export default function DatabaseSqlRoute() {
                         if (conn == null || query.trim() === "") return;
                         setWatches(prev => [
                             ...prev,
-                            {id: generateId<DatabaseReactiveQueryId>(), sql: query},
+                            {id: generateId<DatabaseReactiveActionId>(), sql: query},
                         ]);
                     }}
                     pressErrorTitle="Failed to watch query"

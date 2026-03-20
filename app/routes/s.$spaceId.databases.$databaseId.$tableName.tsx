@@ -1,10 +1,11 @@
 import {useParams} from "@remix-run/react";
+import {useMemo} from "react";
 import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
-import {useReactiveDatabaseQuery} from "~/client/web/databases/use_reactive_database_query.js";
+import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
@@ -14,6 +15,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {databaseTableDataQuery} from "~/shared/databases/database_queries.js";
 import {LoaderDatabaseQueryResultSchema} from "~/shared/databases/database_query_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
@@ -34,9 +36,13 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
 export default function DatabaseTableRoute() {
     const {tableName} = useParams();
+    assert(tableName != null);
     const loaderData = useLoaderDataWithSchema(LoaderDatabaseQueryResultSchema);
-    const sql = tableName != null ? databaseTableDataQuery(tableName) : null;
-    const result = useReactiveDatabaseQuery({sql, initialData: loaderData});
+    const result = useReactiveDatabaseAction({
+        name: "readonlyRawSql",
+        input: useMemo(() => ({sql: databaseTableDataQuery(tableName)}), [tableName]),
+        initialData: loaderData,
+    });
 
     if (result == null) {
         return (
@@ -59,5 +65,5 @@ export default function DatabaseTableRoute() {
             </pre>
         );
     }
-    return <DatabaseResultTable rows={result.value} />;
+    return <DatabaseResultTable rows={result.value.rows} />;
 }
