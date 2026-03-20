@@ -1,11 +1,12 @@
 import {useParams} from "@remix-run/react";
+import {useMemo} from "react";
 import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
 import {useDatabaseTables} from "~/client/web/databases/database_tables_context.js";
-import {useReactiveDatabaseQuery} from "~/client/web/databases/use_reactive_database_query.js";
+import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
@@ -47,9 +48,15 @@ export default function DatabaseTableRoute() {
     const {tableId} = useParams();
     const tables = useDatabaseTables();
     const loaderData = useLoaderDataWithSchema(LoaderDatabaseQueryResultSchema);
-    const tableName = tables?.get(tableId as DatabaseTableId)?.tableName;
-    const sql = tableName != null ? databaseTableDataQuery(tableName) : null;
-    const result = useReactiveDatabaseQuery({sql, initialData: loaderData});
+    const tableName = tables?.get(tableId as DatabaseTableId)?.tableName ?? null;
+    const result = useReactiveDatabaseAction({
+        name: "readonlyRawSql",
+        input: useMemo(
+            () => (tableName != null ? {sql: databaseTableDataQuery(tableName)} : null),
+            [tableName],
+        ),
+        initialData: loaderData,
+    });
 
     if (result == null) {
         return (
@@ -72,5 +79,5 @@ export default function DatabaseTableRoute() {
             </pre>
         );
     }
-    return <DatabaseResultTable rows={result.value} />;
+    return <DatabaseResultTable rows={result.value.rows} />;
 }

@@ -26,6 +26,15 @@ const testConn: DatabaseClientConnection = {
     reportError() {},
 };
 
+async function execute(
+    client: DatabaseClient,
+    conn: DatabaseClientConnection,
+    sql: string,
+): Promise<ReadonlyArray<Record<string, unknown>>> {
+    const {rows} = await client.executeAction<"rawSql">(conn, {name: "rawSql", input: {sql}});
+    return rows as ReadonlyArray<Record<string, unknown>>;
+}
+
 function createInMemorySyncHandle(): OpfsSyncAccessHandle {
     let buffer = new Uint8Array(0);
     return {
@@ -169,7 +178,7 @@ function pagesToMap(
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
-        const rows = await client.execute(testConn, "SELECT 1 + 1 AS result");
+        const rows = await execute(client, testConn, "SELECT 1 + 1 AS result");
 
         expect(rows).toMatchObject([{result: 2}]);
     });
@@ -180,8 +189,8 @@ describe("DatabaseClient", () => {
         client.executeLocallyForTests(
             "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
         );
-        await client.execute(testConn, "INSERT INTO items (name) VALUES ('alpha'), ('beta')");
-        const rows = await client.execute(testConn, "SELECT * FROM items ORDER BY id");
+        await execute(client, testConn, "INSERT INTO items (name) VALUES ('alpha'), ('beta')");
+        const rows = await execute(client, testConn, "SELECT * FROM items ORDER BY id");
 
         expect(rows).toMatchObject([
             {id: 1, name: "alpha"},
@@ -195,11 +204,13 @@ describe("DatabaseClient", () => {
         client.executeLocallyForTests(
             "CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)",
         );
-        await client.execute(
+        await execute(
+            client,
             testConn,
             "INSERT INTO tasks (status) VALUES ('done'), ('todo'), ('todo'), ('done'), ('done')",
         );
-        const rows = await client.execute(
+        const rows = await execute(
+            client,
             testConn,
             "SELECT status, count(*) AS count FROM tasks GROUP BY status ORDER BY status",
         );
@@ -215,13 +226,13 @@ describe("DatabaseClient", () => {
         const client2 = await DatabaseClient.create(createInMemoryDirectory());
 
         client1.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client1.execute(testConn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client1, testConn, "INSERT INTO t (id) VALUES (1)");
 
         client2.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client2.execute(testConn, "INSERT INTO t (id) VALUES (99)");
+        await execute(client2, testConn, "INSERT INTO t (id) VALUES (99)");
 
-        expect(await client1.execute(testConn, "SELECT * FROM t")).toMatchObject([{id: 1}]);
-        expect(await client2.execute(testConn, "SELECT * FROM t")).toMatchObject([{id: 99}]);
+        expect(await execute(client1, testConn, "SELECT * FROM t")).toMatchObject([{id: 1}]);
+        expect(await execute(client2, testConn, "SELECT * FROM t")).toMatchObject([{id: 99}]);
     });
 });
 
@@ -230,7 +241,8 @@ describe("execute — mutations", () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
 
-        const rows = await client.execute(
+        const rows = await execute(
+            client,
             testConn,
             "INSERT INTO t (name) VALUES ('test') RETURNING *",
         );
@@ -266,7 +278,7 @@ describe("execute — mutations", () => {
             reportError() {},
         };
 
-        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(capturedAction).toMatchObject({
@@ -309,7 +321,7 @@ describe("execute — mutations", () => {
             reportError() {},
         };
 
-        const rows = await local.execute(serverConn, "INSERT INTO t (data) VALUES ('new')");
+        const rows = await execute(local, serverConn, "INSERT INTO t (data) VALUES ('new')");
 
         expect(serverCalled).toBe(true);
         expect(rows).toMatchObject([{inserted: true}]);
@@ -345,7 +357,7 @@ describe("execute — mutations", () => {
         // because the DB has no user data pages yet
         // beyond the schema page.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        const rows = await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        const rows = await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
 
         // DML executes locally — returns no rows.
         expect(rows).toMatchObject([]);
@@ -359,7 +371,7 @@ describe("execute — mutations", () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
         await expect(
-            client.execute(testConn, "INSERT INTO nonexistent VALUES (1)"),
+            execute(client, testConn, "INSERT INTO nonexistent VALUES (1)"),
         ).rejects.toThrow();
     });
 });
@@ -385,7 +397,7 @@ describe("optimistic mutations", () => {
             reportError() {},
         };
 
-        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
@@ -412,14 +424,14 @@ describe("optimistic mutations", () => {
             reportError() {},
         };
 
-        await client.execute(conn, "INSERT INTO t (val) VALUES ('first')");
-        await client.execute(conn, "INSERT INTO t (val) VALUES ('second')");
+        await execute(client, conn, "INSERT INTO t (val) VALUES ('first')");
+        await execute(client, conn, "INSERT INTO t (val) VALUES ('second')");
 
         // Confirm first mutation
         client.writePagesFromRealtime([], mutationIds[0]!, 0);
 
         // Second mutation should still be visible via replay
-        const rows = await client.execute(testConn, "SELECT val FROM t ORDER BY id");
+        const rows = await execute(client, testConn, "SELECT val FROM t ORDER BY id");
         expect(rows).toMatchObject([{val: "second"}]);
     });
 
@@ -443,8 +455,8 @@ describe("optimistic mutations", () => {
             reportError() {},
         };
 
-        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
-        await client.execute(conn, "INSERT INTO t (id) VALUES (2)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (2)");
 
         expect(() => client.writePagesFromRealtime([], mutationIds[1]!, 0)).toThrow(
             "unexpected mutation confirmation order",
@@ -459,7 +471,7 @@ describe("optimistic mutations", () => {
         client.writePagesFromRealtime([], "unknown-mutation-id" as DatabaseMutationId, 0);
 
         // Should succeed without assertion error
-        const rows = await client.execute(testConn, "SELECT count(*) AS n FROM t");
+        const rows = await execute(client, testConn, "SELECT count(*) AS n FROM t");
         expect(rows).toMatchObject([{n: 0}]);
     });
 
@@ -484,7 +496,7 @@ describe("optimistic mutations", () => {
             },
         };
 
-        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(reportedError).toBeInstanceOf(Error);
@@ -509,12 +521,12 @@ describe("optimistic mutations", () => {
             reportError() {},
         };
 
-        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         // Optimistic mutation should be removed — query sees
         // the base state (empty table).
-        const rows = await client.execute(testConn, "SELECT count(*) AS n FROM t");
+        const rows = await execute(client, testConn, "SELECT count(*) AS n FROM t");
         expect(rows).toMatchObject([{n: 0}]);
     });
 
@@ -544,7 +556,7 @@ describe("optimistic mutations", () => {
             },
         };
 
-        await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(reportedError).toBeInstanceOf(Error);
@@ -578,7 +590,7 @@ describe("server fallback", () => {
         const serverConn: DatabaseClientConnection = {
             async executeActionServer(action) {
                 serverCalled = true;
-                const rows = await server.execute(testConn, (action.input as any).sql);
+                const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
                     result: {name: action.name, output: {rows}},
                     readPages: pagesToMap(allPages),
@@ -594,7 +606,7 @@ describe("server fallback", () => {
             reportError() {},
         };
 
-        const rows = await local.execute(serverConn, "SELECT count(*) AS n FROM t");
+        const rows = await execute(local, serverConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
         expect(serverCalled).toBe(true);
@@ -618,7 +630,7 @@ describe("server fallback", () => {
         // First query: server fallback writes missing pages
         const serverConn: DatabaseClientConnection = {
             async executeActionServer(action) {
-                const rows = await server.execute(testConn, (action.input as any).sql);
+                const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
                     result: {name: action.name, output: {rows}},
                     readPages: pagesToMap(allPages),
@@ -633,26 +645,29 @@ describe("server fallback", () => {
             },
             reportError() {},
         };
-        await local.execute(serverConn, "SELECT count(*) AS n FROM t");
+        await execute(local, serverConn, "SELECT count(*) AS n FROM t");
 
         // Second query with a throwing connection — should
         // succeed locally since all pages are now cached.
-        const rows = await local.execute(testConn, "SELECT count(*) AS n FROM t");
+        const rows = await execute(local, testConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
     });
 });
 
-describe("executeWithTracking", () => {
-    test("returns rows and read page set", async () => {
+describe("executeActionWithTracking", () => {
+    test("returns output and read page set", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
+        await execute(client, testConn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const {rows, readPages} = await client.executeWithTracking(testConn, "SELECT * FROM t");
+        const {output, readPages} = await client.executeActionWithTracking(testConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t"},
+        });
 
-        expect(rows).toMatchObject([{id: 1, val: "hello"}]);
+        expect((output as {rows: unknown}).rows).toMatchObject([{id: 1, val: "hello"}]);
         expect(readPages.size).toBeGreaterThan(0);
     });
 
@@ -662,8 +677,8 @@ describe("executeWithTracking", () => {
 
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
-        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
+        await execute(client, testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await execute(client, testConn, "INSERT INTO t2 (id) VALUES (2)");
 
         const schema = db.exec("SELECT name, rootpage FROM sqlite_schema ORDER BY name", {
             returnValue: "resultRows",
@@ -673,8 +688,14 @@ describe("executeWithTracking", () => {
         const t1Root = schema.find(s => s.name === "t1")!.rootpage;
         const t2Root = schema.find(s => s.name === "t2")!.rootpage;
 
-        const {readPages: pagesT1} = await client.executeWithTracking(testConn, "SELECT * FROM t1");
-        const {readPages: pagesT2} = await client.executeWithTracking(testConn, "SELECT * FROM t2");
+        const {readPages: pagesT1} = await client.executeActionWithTracking(testConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t1"},
+        });
+        const {readPages: pagesT2} = await client.executeActionWithTracking(testConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t2"},
+        });
 
         // 0-based page indices (SQLite rootpage is 1-based)
         expect(pagesT1.has(t1Root - 1)).toBe(true);
@@ -686,11 +707,17 @@ describe("executeWithTracking", () => {
 
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "INSERT INTO t1 (id) VALUES (1)");
-        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (2)");
+        await execute(client, testConn, "INSERT INTO t1 (id) VALUES (1)");
+        await execute(client, testConn, "INSERT INTO t2 (id) VALUES (2)");
 
-        const {readPages: pagesT1} = await client.executeWithTracking(testConn, "SELECT * FROM t1");
-        const {readPages: pagesT2} = await client.executeWithTracking(testConn, "SELECT * FROM t2");
+        const {readPages: pagesT1} = await client.executeActionWithTracking(testConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t1"},
+        });
+        const {readPages: pagesT2} = await client.executeActionWithTracking(testConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t2"},
+        });
 
         // Both include page 0 (schema page), but differ
         // on at least one page (each table's root page).
@@ -702,14 +729,14 @@ describe("executeWithTracking", () => {
     test("throws on write attempts without contacting server", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, testConn, "INSERT INTO t (id) VALUES (1)");
 
         let serverCalled = false;
         const conn: DatabaseClientConnection = {
             async executeActionServer() {
                 serverCalled = true;
                 return {
-                    result: {name: "rawSql", output: {rows: []}},
+                    result: {name: "readonlyRawSql", output: {rows: []}},
                     readPages: new Map(),
                 };
             },
@@ -724,14 +751,20 @@ describe("executeWithTracking", () => {
         };
 
         await expect(
-            client.executeWithTracking(conn, "INSERT INTO t (id) VALUES (2)"),
+            client.executeActionWithTracking(conn, {
+                name: "readonlyRawSql",
+                input: {sql: "INSERT INTO t (id) VALUES (2)"},
+            }),
         ).rejects.toThrow("not authorized");
 
         expect(serverCalled).toBe(false);
 
         // Table should be unchanged — the write was rolled back.
-        const {rows} = await client.executeWithTracking(testConn, "SELECT * FROM t");
-        expect(rows).toMatchObject([{id: 1}]);
+        const {output} = await client.executeActionWithTracking(testConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t"},
+        });
+        expect((output as {rows: unknown}).rows).toMatchObject([{id: 1}]);
     });
 
     test("server fallback still produces accurate read set", async () => {
@@ -751,7 +784,7 @@ describe("executeWithTracking", () => {
 
         const serverConn: DatabaseClientConnection = {
             async executeActionServer(action) {
-                const rows = await server.execute(testConn, (action.input as any).sql);
+                const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
                     result: {name: action.name, output: {rows}},
                     readPages: pagesToMap(allPages),
@@ -767,62 +800,62 @@ describe("executeWithTracking", () => {
             reportError() {},
         };
 
-        const {rows, readPages} = await local.executeWithTracking(
-            serverConn,
-            "SELECT count(*) AS n FROM t",
-        );
+        const {output, readPages} = await local.executeActionWithTracking(serverConn, {
+            name: "readonlyRawSql",
+            input: {sql: "SELECT count(*) AS n FROM t"},
+        });
 
-        expect(rows).toMatchObject([{n: 20}]);
+        expect((output as {rows: unknown}).rows).toMatchObject([{n: 20}]);
         // After server fallback + local retry, should have
         // an accurate read set covering multiple pages.
         expect(readPages.size).toBeGreaterThan(0);
     });
 });
 
-describe("registerReactiveQuery", () => {
-    test("returns initial rows", async () => {
+describe("registerReactiveAction", () => {
+    test("returns initial output", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        await client.execute(testConn, "INSERT INTO t (val) VALUES ('hello')");
+        await execute(client, testConn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const result = await client.registerReactiveQuery(
+        const result = await client.registerReactiveAction(
             "q1",
-            "SELECT * FROM t",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t"}},
             testConn,
             () => {},
             () => {},
         );
 
         expect(result.ok).toBe(true);
-        expect(result.value).toMatchObject([{id: 1, val: "hello"}]);
+        expect((result.value as {rows: unknown}).rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
-    test("optimistic mutation invalidates overlapping reactive query", async () => {
+    test("optimistic mutation invalidates overlapping reactive action", async () => {
         const client = await DatabaseClient.create(createInMemoryDirectory());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
-        await client.execute(testConn, "INSERT INTO t (val) VALUES ('v1')");
+        await execute(client, testConn, "INSERT INTO t (val) VALUES ('v1')");
 
-        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
-        await client.registerReactiveQuery(
+        const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
+        await client.registerReactiveAction(
             "q1",
-            "SELECT * FROM t ORDER BY id",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t ORDER BY id"}},
             testConn,
-            rows => {
-                notifications.push(rows);
+            output => {
+                notifications.push(output as {rows: ReadonlyArray<Record<string, unknown>>});
             },
             () => {},
         );
 
         // Optimistic mutation — should trigger invalidation
-        await client.execute(testConn, "INSERT INTO t (val) VALUES ('v2')");
+        await execute(client, testConn, "INSERT INTO t (val) VALUES ('v2')");
 
         // Wait for microtask-based invalidation
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(notifications.length).toBe(1);
-        expect(notifications[0]).toMatchObject([
+        expect(notifications[0]!.rows).toMatchObject([
             {id: 1, val: "v1"},
             {id: 2, val: "v2"},
         ]);
@@ -838,13 +871,13 @@ describe("registerReactiveQuery", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
 
-        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
-        await client.registerReactiveQuery(
+        const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
+        await client.registerReactiveAction(
             "q1",
-            "SELECT * FROM t ORDER BY id",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t ORDER BY id"}},
             testConn,
-            rows => {
-                notifications.push(rows);
+            output => {
+                notifications.push(output as {rows: ReadonlyArray<Record<string, unknown>>});
             },
             () => {},
         );
@@ -867,7 +900,7 @@ describe("registerReactiveQuery", () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(notifications.length).toBe(1);
-        expect(notifications[0]).toMatchObject([
+        expect(notifications[0]!.rows).toMatchObject([
             {id: 1, val: "v1"},
             {id: 2, val: "v2"},
         ]);
@@ -887,13 +920,13 @@ describe("registerReactiveQuery", () => {
         client.executeLocallyForTests("INSERT INTO t2 (id) VALUES (2)");
 
         // Watch only t1
-        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
-        await client.registerReactiveQuery(
+        const notifications: Array<unknown> = [];
+        await client.registerReactiveAction(
             "q1",
-            "SELECT * FROM t1",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t1"}},
             testConn,
-            rows => {
-                notifications.push(rows);
+            output => {
+                notifications.push(output);
             },
             () => {},
         );
@@ -902,7 +935,7 @@ describe("registerReactiveQuery", () => {
         const pagesBefore = await extractPages(dir);
 
         // Mutate t2 only
-        await client.execute(testConn, "INSERT INTO t2 (id) VALUES (3)");
+        await execute(client, testConn, "INSERT INTO t2 (id) VALUES (3)");
 
         const pagesAfter = await extractPages(dir);
         const changedPages = pagesAfter
@@ -928,19 +961,19 @@ describe("registerReactiveQuery", () => {
         expect(notifications.length).toBe(0);
     });
 
-    test("initial failure still registers query, re-executes on page write", async () => {
+    test("initial failure still registers action, re-executes on page write", async () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
-        // Register a query against a table that doesn't
+        // Register an action against a table that doesn't
         // exist yet — initial evaluation will fail.
-        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
-        const result = await client.registerReactiveQuery(
+        const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
+        const result = await client.registerReactiveAction(
             "q1",
-            "SELECT * FROM t ORDER BY id",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t ORDER BY id"}},
             testConn,
-            rows => {
-                notifications.push(rows);
+            output => {
+                notifications.push(output as {rows: ReadonlyArray<Record<string, unknown>>});
             },
             () => {},
         );
@@ -965,28 +998,28 @@ describe("registerReactiveQuery", () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(notifications.length).toBe(1);
-        expect(notifications[0]).toMatchObject([{id: 1, val: "hello"}]);
+        expect(notifications[0]!.rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
-    test("unregisterReactiveQuery stops notifications", async () => {
+    test("unregisterReactiveAction stops notifications", async () => {
         const dir = createInMemoryDirectory();
         const client = await DatabaseClient.create(dir);
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
-        await client.execute(testConn, "INSERT INTO t (id) VALUES (1)");
+        await execute(client, testConn, "INSERT INTO t (id) VALUES (1)");
 
-        const notifications: Array<ReadonlyArray<Record<string, unknown>>> = [];
-        await client.registerReactiveQuery(
+        const notifications: Array<unknown> = [];
+        await client.registerReactiveAction(
             "q1",
-            "SELECT * FROM t",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t"}},
             testConn,
-            rows => {
-                notifications.push(rows);
+            output => {
+                notifications.push(output);
             },
             () => {},
         );
 
-        client.unregisterReactiveQuery("q1");
+        client.unregisterReactiveAction("q1");
 
         // Write pages — should not trigger notification
         const pages = await extractPages(dir);

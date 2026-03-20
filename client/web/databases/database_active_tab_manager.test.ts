@@ -26,7 +26,7 @@ import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseId,
     DatabaseMutationId,
-    DatabaseReactiveQueryId,
+    DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
 
 const testDatabaseId = generateId<DatabaseId>();
@@ -820,8 +820,8 @@ describe("DatabaseActiveTabManager mutations", () => {
     });
 });
 
-describe("Reactive queries", () => {
-    test("registerReactiveQuery returns initial rows", async () => {
+describe("Reactive actions", () => {
+    test("registerReactiveAction returns initial result", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
@@ -836,19 +836,17 @@ describe("Reactive queries", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const queryId = generateId<DatabaseReactiveQueryId>();
-        const result = await conn.call("registerReactiveQuery", {
-            queryId,
-            sql: "SELECT * FROM t",
+        const id = generateId<DatabaseReactiveActionId>();
+        const result = await conn.call("registerReactiveAction", {
+            id,
+            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t"}},
         });
 
-        expect(result).toMatchObject({
-            rows: [{id: 1, val: "hello"}],
-            error: null,
-        });
+        expect(result.error).toBeNull();
+        expect((result.result as any).output.rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
-    test("reactive query re-executes when overlapping pages are written", async () => {
+    test("reactive action re-executes when overlapping pages are written", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
@@ -863,14 +861,14 @@ describe("Reactive queries", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
-        const queryId = generateId<DatabaseReactiveQueryId>();
-        await conn.call("registerReactiveQuery", {
-            queryId,
-            sql: "SELECT * FROM t",
+        const id = generateId<DatabaseReactiveActionId>();
+        await conn.call("registerReactiveAction", {
+            id,
+            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t"}},
         });
 
         // Insert another row — this writes pages that
-        // overlap with the reactive query's read-set.
+        // overlap with the reactive action's read-set.
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
 
         // Write as realtime with newer timestamps.
@@ -891,7 +889,7 @@ describe("Reactive queries", () => {
         await new Promise(resolve => setTimeout(resolve, 50));
     });
 
-    test("reactive query does NOT re-execute when non-overlapping pages are written", async () => {
+    test("reactive action does NOT re-execute when non-overlapping pages are written", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
@@ -912,10 +910,10 @@ describe("Reactive queries", () => {
         await executeSql(conn, "INSERT INTO t2 (val) VALUES ('b')");
 
         // Watch only t1
-        const queryId = generateId<DatabaseReactiveQueryId>();
-        await conn.call("registerReactiveQuery", {
-            queryId,
-            sql: "SELECT * FROM t1",
+        const id = generateId<DatabaseReactiveActionId>();
+        await conn.call("registerReactiveAction", {
+            id,
+            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t1"}},
         });
 
         // Get the page set after setup
@@ -945,14 +943,14 @@ describe("Reactive queries", () => {
             fileSizeInPages: 0,
         });
 
-        // The t1 reactive query should NOT have been
+        // The t1 reactive action should NOT have been
         // invalidated since none of its read pages were
         // written. (This test verifies correctness of
         // per-page invalidation vs blanket invalidation.)
         await new Promise(resolve => setTimeout(resolve, 50));
     });
 
-    test("unregisterReactiveQuery stops re-execution", async () => {
+    test("unregisterReactiveAction stops re-execution", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
@@ -967,17 +965,17 @@ describe("Reactive queries", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
-        const queryId = generateId<DatabaseReactiveQueryId>();
-        await conn.call("registerReactiveQuery", {
-            queryId,
-            sql: "SELECT * FROM t",
+        const id = generateId<DatabaseReactiveActionId>();
+        await conn.call("registerReactiveAction", {
+            id,
+            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t"}},
         });
 
         // Unregister
-        await conn.call("unregisterReactiveQuery", {queryId});
+        await conn.call("unregisterReactiveAction", {id});
 
         // Write pages — should not cause an error even
-        // though the query is gone.
+        // though the action is gone.
         const pages = await extractPages(dir);
         await conn.call("writePagesFromRealtime", {
             pages: pages.map(({pageIndex, timestamp}) => ({
@@ -992,7 +990,7 @@ describe("Reactive queries", () => {
     });
 });
 
-describe("watchQuery", () => {
+describe("watchAction", () => {
     test("returns store with initial data", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
@@ -1008,10 +1006,13 @@ describe("watchQuery", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const handle = await conn.watchQuery("SELECT * FROM t");
+        const handle = await conn.watchAction({
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t"},
+        });
 
         const snapshot = handle.store.getSnapshot();
-        expect(snapshot).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
+        expect(snapshot).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
 
         handle.unwatch();
     });
@@ -1032,10 +1033,13 @@ describe("watchQuery", () => {
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
 
-        const handle = await conn.watchQuery("SELECT * FROM t ORDER BY id");
+        const handle = await conn.watchAction({
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t ORDER BY id"},
+        });
 
         const initial = handle.store.getSnapshot();
-        expect(initial).toMatchObject({ok: true, value: [{id: 1, val: "v1"}]});
+        expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "v1"}]}});
 
         // Extract the seed state as the "before" snapshot.
         const seedPages = await extractPages(dir);
@@ -1073,10 +1077,12 @@ describe("watchQuery", () => {
         const updated = handle.store.getSnapshot();
         expect(updated).toMatchObject({
             ok: true,
-            value: [
-                {id: 1, val: "v1"},
-                {id: 2, val: "v2"},
-            ],
+            value: {
+                rows: [
+                    {id: 1, val: "v1"},
+                    {id: 2, val: "v2"},
+                ],
+            },
         });
 
         handle.unwatch();
@@ -1106,10 +1112,13 @@ describe("watchQuery", () => {
         );
 
         // Watch from follower
-        const handle = await connB.watchQuery("SELECT * FROM t");
+        const handle = await connB.watchAction({
+            name: "readonlyRawSql",
+            input: {sql: "SELECT * FROM t"},
+        });
 
         const initial = handle.store.getSnapshot();
-        expect(initial).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
+        expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
 
         // Kill leader — follower promotes
         locks.release("alpine-db");
@@ -1119,9 +1128,9 @@ describe("watchQuery", () => {
 
         // Watch should still work — verify by checking
         // the store has data (re-registration re-executed
-        // the query on the new leader).
+        // the action on the new leader).
         const afterPromotion = handle.store.getSnapshot();
-        expect(afterPromotion).toMatchObject({ok: true, value: [{id: 1, val: "hello"}]});
+        expect(afterPromotion).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
 
         handle.unwatch();
     });

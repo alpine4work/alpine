@@ -46,6 +46,19 @@ export const databaseActions = {
         },
     }),
 
+    readonlyRawSql: defineDatabaseAction({
+        input: Schema.object({sql: Schema.string}),
+        output: Schema.object({rows: Schema.array(Schema.unknown())}),
+        writeLevel: "none",
+        run(db, {sql}) {
+            const rows = db.exec(sql, {
+                returnValue: "resultRows",
+                rowMode: "object",
+            }) as Array<Record<string, unknown>>;
+            return {rows};
+        },
+    }),
+
     createTable: defineDatabaseAction({
         input: Schema.object({name: Schema.string}),
         output: Schema.object({

@@ -12,8 +12,8 @@ import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js
 
 export type {
     DatabaseConnection,
-    ReactiveQueryHandle,
-    ReactiveQueryResult,
+    ReactiveActionHandle,
+    ReactiveActionResult,
 } from "~/client/web/databases/database_active_tab_manager.js";
 
 /**
