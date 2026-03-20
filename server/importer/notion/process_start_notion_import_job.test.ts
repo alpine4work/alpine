@@ -1334,7 +1334,7 @@ describe("processStartNotionImportJob", () => {
 
             assert(status.type === "Success");
             expect(status.result.teamspaces.get("00f80a22fe3781a094cb00034a90e2b8")).toEqual({
-                documents: {imported: 33, expectedCount: 32},
+                documents: {imported: 34, expectedCount: 32},
                 files: new Map([
                     ["image/jpeg", {expectedCount: 2, imported: 2, size: 750073}],
                     ["image/png", {expectedCount: 8, imported: 8, size: 1761071}],
@@ -2180,6 +2180,7 @@ ${child2.toReference()}`,
                 "Inline 2",
                 "Inline 3",
                 "I\u2019m a double nested page",
+                "I\u2019m a full page database",
                 "I\u2019m a nested page",
                 "Josh Johnson",
                 "Journal",
@@ -2261,6 +2262,7 @@ ${child2.toReference()}`,
                 "Inline 2",
                 "Inline 3",
                 "I\u2019m a double nested page",
+                "I\u2019m a full page database",
                 "I\u2019m a nested page",
                 "Josh Johnson",
                 "Journal",

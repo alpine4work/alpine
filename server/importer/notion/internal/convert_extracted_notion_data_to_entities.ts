@@ -81,6 +81,7 @@ export async function convertExtractedNotionDataToEntities(
         diskPathToUnzippedFiles,
         inlineDatabaseChildren,
         rootLevelCsvDatabases,
+        csvDatabasesRequiringDocuments,
         pathToDocumentId,
         documentIdToPath,
     } = mappedReferencesResult;
@@ -114,13 +115,19 @@ export async function convertExtractedNotionDataToEntities(
         documentIdToPath.set(rootDocumentId, syntheticPath);
     }
 
-    // Create synthetic documents for root-level CSV-only databases. These need
-    // document entries so their children can have proper parent links. Use
+    // Create synthetic documents for CSV-only databases that need their own document.
+    // This covers both root-level databases and databases under pages. Use
     // deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
     const csvDatabaseDocuments = new Map<
         string,
-        {id: DocumentId; teamspaceId: string; childPaths: Array<string>}
+        {
+            id: DocumentId;
+            teamspaceId: string;
+            childPaths: Array<string>;
+            parentPath: string | null;
+        }
     >();
+
     for (const [csvPath, {childPaths, teamspaceId}] of rootLevelCsvDatabases) {
         const csvFileName = csvPath.split("/").pop() ?? "";
         const parsed = parseNotionImportFileName(csvFileName);
@@ -130,9 +137,38 @@ export async function convertExtractedNotionDataToEntities(
             notionWorkspaceId,
             `csv-database:${notionId}`,
         );
-        csvDatabaseDocuments.set(csvPath, {id: documentId, teamspaceId, childPaths});
+        csvDatabaseDocuments.set(csvPath, {
+            id: documentId,
+            teamspaceId,
+            childPaths,
+            parentPath: null,
+        });
         pathToDocumentId.set(csvPath, documentId);
         documentIdToPath.set(documentId, csvPath);
+    }
+
+    for (const [csvPath, {childPaths, teamspaceId, parentPath}] of csvDatabasesRequiringDocuments) {
+        const csvFileName = csvPath.split("/").pop() ?? "";
+        const parsed = parseNotionImportFileName(csvFileName);
+        const notionId = parsed?.notionId ?? csvPath;
+        const documentId = generateDeterministicNotionIdSync<DocumentId>(
+            spaceId,
+            notionWorkspaceId,
+            `csv-database:${notionId}`,
+        );
+        csvDatabaseDocuments.set(csvPath, {id: documentId, teamspaceId, childPaths, parentPath});
+        pathToDocumentId.set(csvPath, documentId);
+        documentIdToPath.set(documentId, csvPath);
+
+        // Add this database to the parent page's children set so it appears in the
+        // parent's "Child documents" section.
+        for (const teamspace of teamspaces) {
+            const parentDoc = teamspace.documents[parentPath];
+            if (parentDoc) {
+                parentDoc.children.add(documentId);
+                break;
+            }
+        }
     }
 
     // TODO: Handle multiple pages at once
@@ -284,12 +320,17 @@ export async function convertExtractedNotionDataToEntities(
                 continue;
             }
 
-            // Create a document for this CSV database
+            // Create a document for this CSV database. Use the parent page's document ID when
+            // the database is under a page, otherwise use the teamspace root.
+            const csvParentId = csvDatabaseInfo.parentPath
+                ? (pathToDocumentId.get(csvDatabaseInfo.parentPath) ?? teamspaceRootDocumentId)
+                : teamspaceRootDocumentId;
+
             await createNotionImportCsvDatabaseDocument(context, {
                 spaceId,
                 creatorId: startedByAccountId,
                 documentId: csvDatabaseInfo.id,
-                parentId: teamspaceRootDocumentId,
+                parentId: csvParentId,
                 csvPath,
                 diskPathToUnzippedFiles,
                 isPublic,
@@ -317,7 +358,9 @@ export async function convertExtractedNotionDataToEntities(
             teamspaceDocuments: teamspace.documents,
             csvDatabaseDocumentIds: new Map(
                 [...csvDatabaseDocuments.entries()]
-                    .filter(([, info]) => info.teamspaceId === teamspace.id)
+                    .filter(
+                        ([, info]) => info.teamspaceId === teamspace.id && info.parentPath === null,
+                    )
                     .map(([csvPath, info]) => [csvPath, info.id]),
             ),
         });

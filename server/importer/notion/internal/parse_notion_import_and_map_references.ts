@@ -105,6 +105,18 @@ export type NotionImportMappedReferencesResult = {
      * @see README.md "Teamspace Root Documents" and "Root-Level CSV Databases".
      */
     rootLevelCsvDatabases: Map<string, {childPaths: Array<string>; teamspaceId: string}>;
+    /**
+     * CSV-only databases under pages that need synthetic documents. Registered
+     * optimistically by `parseNotionImportHierarchyFromIndexHtml` — inline databases
+     * are removed from this map once `inlineReferencedCsvs` is built (see the filter
+     * step below the body-content scanning loop).
+     *
+     * Maps CSV path → {childPaths, teamspaceId, parentPath}.
+     */
+    csvDatabasesRequiringDocuments: Map<
+        string,
+        {childPaths: Array<string>; teamspaceId: string; parentPath: string}
+    >;
     /** Map from file path to document ID for quick lookups. */
     pathToDocumentId: Map<string, DocumentId>;
     /** Map from document ID to file path for reverse lookups. */
@@ -437,12 +449,23 @@ export async function parseNotionImportAndMapReferences(
             hierarchy.teamspaceForPath.get(companionMdPath) ??
             hierarchy.teamspaceForPath.get(path) ??
             hierarchy.rootLevelCsvDatabases.get(path)?.teamspaceId ??
+            hierarchy.csvDatabasesRequiringDocuments.get(path)?.teamspaceId ??
             "";
 
         const csvFilePaths = findFilePathsInCsv(csvContent, csvDir, pathToFileId);
         for (const filePath of csvFilePaths) {
             filePathToTeamspaceId.set(filePath, teamspaceId);
         }
+    }
+
+    // Remove inline databases from csvDatabasesRequiringDocuments. The hierarchy
+    // parser registers ALL CSV-only databases under pages there because it can't
+    // distinguish inline from full-page — that requires reading the parent page's
+    // markdown body. Now that we've scanned body content and know which CSVs are
+    // referenced inline, we remove them. Only full-page CSV databases (not referenced
+    // in body content) remain and get synthetic documents.
+    for (const csvPath of inlineReferencedCsvs) {
+        hierarchy.csvDatabasesRequiringDocuments.delete(csvPath);
     }
 
     // Store children of inline databases before removing them. This allows us to still
@@ -583,10 +606,16 @@ export async function parseNotionImportAndMapReferences(
             documents: tsDocuments,
         });
     }
-    // Add children of root-level CSV databases to inlineDatabaseChildren for cell
-    // linking. These databases aren't inline (not referenced in body content), but
-    // their children should still appear as links in table cells.
-    for (const [csvPath, {childPaths}] of hierarchy.rootLevelCsvDatabases) {
+    // Add children of CSV databases (both root-level and under-page) to
+    // inlineDatabaseChildren for cell linking. These databases aren't inline (not
+    // referenced in body content), but their children should still appear as links in
+    // table cells.
+    const allCsvDatabases = [
+        ...hierarchy.rootLevelCsvDatabases,
+        ...hierarchy.csvDatabasesRequiringDocuments,
+    ];
+
+    for (const [csvPath, {childPaths}] of allCsvDatabases) {
         const childTitleToId = new Map<string, DocumentId>();
         for (const childPath of childPaths) {
             const childDocument = documents[childPath];
@@ -609,6 +638,7 @@ export async function parseNotionImportAndMapReferences(
         diskPathToUnzippedFiles,
         inlineDatabaseChildren,
         rootLevelCsvDatabases: hierarchy.rootLevelCsvDatabases,
+        csvDatabasesRequiringDocuments: hierarchy.csvDatabasesRequiringDocuments,
         pathToDocumentId,
         documentIdToPath,
         filePathToTeamspaceId,

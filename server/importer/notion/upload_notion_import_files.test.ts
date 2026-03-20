@@ -168,6 +168,7 @@ describe("uploadNotionImportFiles", () => {
             diskPathToUnzippedFiles,
             inlineDatabaseChildren: new Map(),
             rootLevelCsvDatabases: new Map(),
+            csvDatabasesRequiringDocuments: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
             filePathToTeamspaceId: new Map([
@@ -243,6 +244,7 @@ describe("uploadNotionImportFiles", () => {
             diskPathToUnzippedFiles,
             inlineDatabaseChildren: new Map(),
             rootLevelCsvDatabases: new Map(),
+            csvDatabasesRequiringDocuments: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
             filePathToTeamspaceId: new Map([["attachments/image.png", "test-teamspace"]]),
@@ -318,6 +320,7 @@ describe("uploadNotionImportFiles", () => {
             diskPathToUnzippedFiles,
             inlineDatabaseChildren: new Map(),
             rootLevelCsvDatabases: new Map(),
+            csvDatabasesRequiringDocuments: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
             filePathToTeamspaceId: new Map([
@@ -393,6 +396,7 @@ describe("uploadNotionImportFiles", () => {
             diskPathToUnzippedFiles,
             inlineDatabaseChildren: new Map(),
             rootLevelCsvDatabases: new Map(),
+            csvDatabasesRequiringDocuments: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
             // Only image.png has a teamspace; orphan.png does not.
@@ -436,6 +440,7 @@ describe("uploadNotionImportFiles", () => {
             diskPathToUnzippedFiles: "/nonexistent/path",
             inlineDatabaseChildren: new Map(),
             rootLevelCsvDatabases: new Map(),
+            csvDatabasesRequiringDocuments: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
             filePathToTeamspaceId: new Map(),
@@ -502,6 +507,7 @@ describe("uploadNotionImportFiles", () => {
             diskPathToUnzippedFiles,
             inlineDatabaseChildren: new Map(),
             rootLevelCsvDatabases: new Map(),
+            csvDatabasesRequiringDocuments: new Map(),
             pathToDocumentId: new Map(),
             documentIdToPath: new Map(),
             filePathToTeamspaceId,

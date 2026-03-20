@@ -194,6 +194,7 @@ async function createTestMappedReferencesResult(config: {
         diskPathToUnzippedFiles,
         inlineDatabaseChildren: new Map(),
         rootLevelCsvDatabases: new Map(),
+        csvDatabasesRequiringDocuments: new Map(),
         pathToDocumentId,
         documentIdToPath,
         filePathToTeamspaceId: new Map(),
@@ -2587,6 +2588,7 @@ Task 2,In Progress,Medium`,
                 // Include the CSV path so the conversion function reads it
                 inlineDatabaseChildren: new Map([[csvPath, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
                 filePathToTeamspaceId: new Map(),
@@ -2730,6 +2732,7 @@ Bob,Designer`,
                     [peopleCsvPath, new Map()],
                 ]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
                 filePathToTeamspaceId: new Map(),
@@ -2855,6 +2858,7 @@ Bob,Designer`,
                 // Include the CSV path so the conversion function reads it
                 inlineDatabaseChildren: new Map([[dataCsvPath, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
                 filePathToTeamspaceId: new Map(),
@@ -2959,6 +2963,7 @@ Write tests,Bob,2024-01-20`,
                 // in inlineDatabaseChildren so the conversion reads it
                 inlineDatabaseChildren: new Map([[csvFileName, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[mdFileName, databaseDocId]]),
                 documentIdToPath: new Map([[databaseDocId, mdFileName]]),
                 filePathToTeamspaceId: new Map(),
@@ -3799,8 +3804,9 @@ Sprint completed successfully.`,
             for (const teamspace of mappedResult.teamspaces) {
                 totalDocuments += Object.keys(teamspace.documents).length;
             }
-            // Add root-level CSV database documents (synthetic documents created for them)
+            // Add CSV database documents (synthetic documents created for them)
             totalDocuments += mappedResult.rootLevelCsvDatabases.size;
+            totalDocuments += mappedResult.csvDatabasesRequiringDocuments.size;
             // Add teamspace root documents
             totalDocuments += mappedResult.teamspaces.length;
 
@@ -3859,8 +3865,9 @@ Sprint completed successfully.`,
             for (const teamspace of mappedResult.teamspaces) {
                 totalDocuments += Object.keys(teamspace.documents).length;
             }
-            // Add root-level CSV database documents (synthetic documents created for them)
+            // Add CSV database documents (synthetic documents created for them)
             totalDocuments += mappedResult.rootLevelCsvDatabases.size;
+            totalDocuments += mappedResult.csvDatabasesRequiringDocuments.size;
             // Add teamspace root documents
             totalDocuments += mappedResult.teamspaces.length;
 

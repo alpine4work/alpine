@@ -11,6 +11,7 @@ const maxIndexHtmlParsingRecursionDepth = 100;
 
 export interface NotionImportParsedHierarchy {
     relationships: Array<{parentPath: string; childPath: string}>;
+
     /**
      * Parent-only relationships: the child has a "Parent document" link to the parent,
      * but does NOT appear in the parent's "Child documents" section. Used for children
@@ -18,20 +19,40 @@ export interface NotionImportParsedHierarchy {
      * separate children section.
      */
     parentOnlyRelationships: Array<{parentPath: string; childPath: string}>;
+
     /** Maps document paths to their teamspace ID. */
     teamspaceForPath: Map<string, string>;
+
     /**
      * Maps CSV paths to the notion IDs of their children (for databases without .md
      * wrappers). Used to track cell links for inline databases that only have .csv
      * files.
      */
     csvOnlyDatabaseChildren: Map<string, Array<string>>;
+
     /**
      * CSV-only databases at the teamspace root level. These don't have .md wrappers,
      * so we need to create synthetic documents for them. Maps CSV path to the child
      * document paths.
      */
     rootLevelCsvDatabases: Map<string, {childPaths: Array<string>; teamspaceId: string}>;
+
+    /**
+     * CSV-only databases under pages that need synthetic documents. These are tracked
+     * separately from `rootLevelCsvDatabases` because they have a parent page and
+     * should be nested under it, not shown at the teamspace root.
+     *
+     * At hierarchy-parsing time we can't tell whether a CSV database under a page is a
+     * full-page database (needs its own document) or an inline database (embedded as a
+     * table). That distinction requires reading the parent page's markdown body, which
+     * happens later in `parseNotionImportAndMapReferences`. So we optimistically
+     * register every CSV database here, and `parseNotionImportAndMapReferences`
+     * removes inline entries once it builds the `inlineReferencedCsvs` set.
+     */
+    csvDatabasesRequiringDocuments: Map<
+        string,
+        {childPaths: Array<string>; teamspaceId: string; parentPath: string}
+    >;
 }
 
 /**
@@ -62,6 +83,7 @@ export function parseNotionImportHierarchyFromIndexHtml(
         teamspaceForPath: new Map(),
         csvOnlyDatabaseChildren: new Map(),
         rootLevelCsvDatabases: new Map(),
+        csvDatabasesRequiringDocuments: new Map(),
     };
 
     // Parse the index.html
@@ -116,6 +138,22 @@ export function parseNotionImportHierarchyFromIndexHtml(
                         parentPath: grandparentPath,
                         childPath: path,
                     });
+
+                    // Also register the CSV database for document creation. See
+                    // `csvDatabasesRequiringDocuments` on the interface for why we register
+                    // optimistically here.
+                    if (teamspaceId) {
+                        const existing = result.csvDatabasesRequiringDocuments.get(parentCsvPath);
+                        if (existing) {
+                            existing.childPaths.push(path);
+                        } else {
+                            result.csvDatabasesRequiringDocuments.set(parentCsvPath, {
+                                childPaths: [path],
+                                parentPath: grandparentPath,
+                                teamspaceId,
+                            });
+                        }
+                    }
                 }
             } else if (teamspaceId) {
                 // The CSV-only database is at the root level (no grandparent). Track this database

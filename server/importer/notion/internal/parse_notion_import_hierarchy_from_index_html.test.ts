@@ -187,6 +187,63 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         });
     });
 
+    test("tracks CSV databases under pages in csvDatabasesRequiringDocuments", () => {
+        const teamspaceId = "teamspace00000000000000000000003";
+        const pageId = "pageparentpageparentpageparentp1";
+        const csvId = "csvdbcsvdbcsvdbcsvdbcsvdbcsvdb04";
+        const childId = "childchildchildchildchildchild04";
+
+        const indexHtml = makeIndexHtml(`
+            <ul id="id::workspace">
+                <li>
+                    <ul id="id::${teamspaceId}">
+                        <li><a>Team A</a></li>
+                        <li>
+                            <ul id="id::${pageId}">
+                                <li><a href="Page.html">Page</a></li>
+                                <li>
+                                    <ul id="id::${csvId}.csv">
+                                        <li><a href="Database.csv">Database</a></li>
+                                        <li>
+                                            <ul id="id::${childId}">
+                                                <li><a href="Row.html">Row</a></li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        `);
+        const notionIdToPath = new Map([
+            [pageId, `Page ${pageId}.md`],
+            [csvId, `Database ${csvId}.csv`],
+            [childId, `Row ${childId}.md`],
+        ]);
+
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
+
+        // The child should have a parent-only relationship to the page (grandparent)
+        expect(result.parentOnlyRelationships).toEqual([
+            {
+                parentPath: `Page ${pageId}.md`,
+                childPath: `Row ${childId}.md`,
+            },
+        ]);
+
+        // The CSV database should be registered for document creation
+        expect(result.csvDatabasesRequiringDocuments.get(`Database ${csvId}.csv`)).toEqual({
+            childPaths: [`Row ${childId}.md`],
+            parentPath: `Page ${pageId}.md`,
+            teamspaceId,
+        });
+
+        // Should NOT be in rootLevelCsvDatabases (it's under a page, not root)
+        expect(result.rootLevelCsvDatabases.has(`Database ${csvId}.csv`)).toBe(false);
+    });
+
     test("handles multiple children under same parent", () => {
         const parentId = "parentparentparentparentparentp1";
         const child1Id = "child1child1child1child1child1c1";
