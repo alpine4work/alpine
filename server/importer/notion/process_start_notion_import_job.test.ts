@@ -1,6 +1,6 @@
+import {jest} from "@jest/globals";
 import {readFileSync} from "fs";
 import {join} from "path";
-
 import {getDocument, getDocumentsTableForTest} from "~/server/documents/data/documents_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -8,7 +8,6 @@ import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/in
 import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
-import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {
     ExportedNotionDatabase,
     ExportedNotionDocument,
@@ -27,6 +26,43 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
+
+// 1x1 transparent PNG (smallest valid PNG) used to mock external image downloads.
+const testPngBytes = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x62, 0x00, 0x00, 0x00, 0x02,
+    0x00, 0x01, 0xe5, 0x27, 0xde, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42,
+    0x60, 0x82,
+]);
+
+// We can't make network requests in CI so we need to mock the external image
+// download module so that the real download function runs but always uses a test
+// fetch that returns a PNG instead of making real network calls. This
+// functionality is tested separately.
+const actualDownloadModule = await import("./internal/download_external_notion_import_images.js");
+jest.unstable_mockModule("./internal/download_external_notion_import_images.js", () => ({
+    ...actualDownloadModule,
+    downloadExternalNotionImportImages: (
+        ...args: Parameters<typeof actualDownloadModule.downloadExternalNotionImportImages>
+    ) =>
+        actualDownloadModule.downloadExternalNotionImportImages(
+            args[0],
+            args[1],
+            args[2],
+            args[3],
+            args[4],
+            args[5],
+            async () =>
+                new Response(testPngBytes.slice(), {headers: {"content-type": "image/png"}}),
+        ),
+}));
+
+// Must be dynamically imported after the mock so the mock is used transitively.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _downloadModule = await import("./internal/download_external_notion_import_images.js");
+const {processStartNotionImportJob} =
+    await import("~/server/importer/notion/process_start_notion_import_job.js");
 
 const context = createTestContext({
     // Inject search so mentions can be resolved when getting documents
@@ -1285,10 +1321,10 @@ describe("processStartNotionImportJob", () => {
             expect(status.result.teamspaces.get("ed5ae4dfdc9b814faf5400032de29467")).toEqual({
                 documents: {imported: 11, expectedCount: 10},
                 files: new Map([
-                    ["application/octet-stream", {expectedCount: 3, imported: 3, size: 837399}],
-                    ["image/jpeg", {expectedCount: 3, imported: 3, size: 977085}],
-                    ["image/png", {expectedCount: 3, imported: 3, size: 3746532}],
+                    ["image/png", {expectedCount: 3, imported: 7, size: 3746532}],
                     ["video/mp4", {expectedCount: 3, imported: 3, size: 4381020}],
+                    ["image/jpeg", {expectedCount: 3, imported: 3, size: 977085}],
+                    ["application/octet-stream", {expectedCount: 3, imported: 3, size: 837399}],
                 ]),
             });
         });

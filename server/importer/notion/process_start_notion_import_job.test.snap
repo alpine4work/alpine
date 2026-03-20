@@ -7479,19 +7479,25 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
         ]
       },
       {
-        "type": "paragraph",
+        "type": "fileRow",
         "content": [
           {
-            "type": "text",
-            "marks": [
-              {
-                "type": "link",
-                "attrs": {
-                  "url": "https://images.openai.com/static-rsc-3/nzKugy7jmO5C5znuy3GX855bKLu8UNxHm4VQ6u6Rnow_1DFtc4vasqVXDlGk-qV6cJ5XBmQKJysQQ2oy3BqTYK8rz5sjjoBQHJHgkOahL7k?purpose=fullsize&v=1"
-                }
-              }
-            ],
-            "text": "Image"
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:8>"
+            }
+          },
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:9>"
+            }
+          },
+          {
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:10>"
+            }
           }
         ]
       },
@@ -7501,59 +7507,14 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
           {
             "type": "file",
             "attrs": {
-              "fileId": "<FILE_ID:8>"
+              "fileId": "<FILE_ID:11>"
             }
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
+          },
           {
-            "type": "text",
-            "marks": [
-              {
-                "type": "link",
-                "attrs": {
-                  "url": "https://images.openai.com/static-rsc-3/II2xLF2ppLgCXjP80MpniTyJ9vCJB0yk46PZ0o3cOevxk_Qo0J4C4cJ6eGbl9VEbBiDEKDkLfhOUouHucjDcoZ2xYAcc5Tkp1GxFGQi75Kc?purpose=fullsize&v=1"
-                }
-              }
-            ],
-            "text": "Image"
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "marks": [
-              {
-                "type": "link",
-                "attrs": {
-                  "url": "https://images.openai.com/static-rsc-3/eKj1FjmSy_p-oO85vuW9L5NZqUsJhs0JrtkqW8p-iyQhAHapJFFXTKoca0Ov1dn6B8wk5XYFd9wWxXJX3QLiuuHQST2K8Wz5CCEVclf_ZI4?purpose=fullsize&v=1"
-                }
-              }
-            ],
-            "text": "Image"
-          }
-        ]
-      },
-      {
-        "type": "paragraph",
-        "content": [
-          {
-            "type": "text",
-            "marks": [
-              {
-                "type": "link",
-                "attrs": {
-                  "url": "https://images.openai.com/static-rsc-3/V6t7VtXNk0f4Aq7HnCAKf-MFD2sOWvICIVg5aYAzhiNYoptEEBjBwLjD0PQajIROWhF2Yk0bpJuPP963VhU4qXhYNRVQOc0omk-FZxPcnu0?purpose=fullsize&v=1"
-                }
-              }
-            ],
-            "text": "Image"
+            "type": "file",
+            "attrs": {
+              "fileId": "<FILE_ID:12>"
+            }
           }
         ]
       },
@@ -8439,7 +8400,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
           {
             "type": "file",
             "attrs": {
-              "fileId": "<FILE_ID:9>"
+              "fileId": "<FILE_ID:13>"
             }
           }
         ]
@@ -8834,7 +8795,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
           {
             "type": "file",
             "attrs": {
-              "fileId": "<FILE_ID:10>"
+              "fileId": "<FILE_ID:14>"
             }
           }
         ]
@@ -9047,7 +9008,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
                       {
                         "type": "file",
                         "attrs": {
-                          "fileId": "<FILE_ID:11>"
+                          "fileId": "<FILE_ID:15>"
                         }
                       }
                     ]
@@ -9101,7 +9062,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
                       {
                         "type": "file",
                         "attrs": {
-                          "fileId": "<FILE_ID:12>"
+                          "fileId": "<FILE_ID:16>"
                         }
                       }
                     ]
@@ -9155,7 +9116,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
                       {
                         "type": "file",
                         "attrs": {
-                          "fileId": "<FILE_ID:13>"
+                          "fileId": "<FILE_ID:17>"
                         }
                       }
                     ]
@@ -9209,7 +9170,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
                       {
                         "type": "file",
                         "attrs": {
-                          "fileId": "<FILE_ID:14>"
+                          "fileId": "<FILE_ID:18>"
                         }
                       }
                     ]
@@ -9220,7 +9181,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
                       {
                         "type": "file",
                         "attrs": {
-                          "fileId": "<FILE_ID:15>"
+                          "fileId": "<FILE_ID:19>"
                         }
                       }
                     ]
@@ -9231,7 +9192,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
                       {
                         "type": "file",
                         "attrs": {
-                          "fileId": "<FILE_ID:16>"
+                          "fileId": "<FILE_ID:20>"
                         }
                       }
                     ]
@@ -9298,7 +9259,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
           {
             "type": "file",
             "attrs": {
-              "fileId": "<FILE_ID:17>"
+              "fileId": "<FILE_ID:21>"
             }
           }
         ]
@@ -9368,7 +9329,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
           {
             "type": "file",
             "attrs": {
-              "fileId": "<FILE_ID:18>"
+              "fileId": "<FILE_ID:22>"
             }
           }
         ]

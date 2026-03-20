@@ -1,5 +1,6 @@
 import {strFromU8} from "fflate";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
+import {downloadExternalNotionImportImages} from "~/server/importer/notion/internal/download_external_notion_import_images.js";
 import {
     findFilePathsInCsv,
     findFilePathsInDatabaseProperties,
@@ -263,6 +264,26 @@ export async function parseNotionImportAndMapReferences(
             pathToFileId.set(path, id);
             filesToUpload[path] = {id};
         }
+    }
+
+    // Download external images referenced in markdown files. Notion sometimes exports
+    // images as external URLs (e.g. `[Image](https://...)`). We download these and
+    // save them to disk so they can be uploaded and referenced like any other file in
+    // the import.
+    const markdownDocumentPaths = Object.keys(documents);
+    const downloadedExternalImages = await downloadExternalNotionImportImages(
+        context,
+        diskPathToUnzippedFiles,
+        markdownDocumentPaths,
+        notionImportItem.spaceId,
+        metadata.workspaceId,
+        notionImportItem.createdTime.getTime(),
+    );
+
+    for (const [relativePath, downloadedFile] of downloadedExternalImages) {
+        allPaths.add(relativePath);
+        pathToFileId.set(relativePath, downloadedFile.id);
+        filesToUpload[relativePath] = {id: downloadedFile.id};
     }
 
     // Apply parent-only relationships (for children of inline databases). These set

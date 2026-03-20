@@ -610,9 +610,40 @@ The parser works in four phases:
   `Files: image.jpg, video.mp4`) and adds them to `files` and `filePathToTeamspaceId`
 - Scans CSV cells for raw file paths (e.g., file names or URL-encoded paths) and adds them to
   `filePathToTeamspaceId` so they get proper teamspace association during upload
-- External URLs (http/https) are ignored
+- External URLs (http/https) are ignored during link resolution (but see Phase 3b below)
 - Detects `hasChildrenHeader` by checking if content before `---` contains only child links
 - Tracks CSV references in body content (after `---`) to identify inline databases
+
+**Phase 3b - Download external images:**
+
+Notion sometimes exports images as external URLs rather than local files. This happens when images
+are hosted externally (e.g. AI-generated images from ChatGPT). These appear as
+`[Image](https://...)` in the markdown—a regular link with the text "Image".
+
+After file classification, the parser scans all markdown files for external image links:
+
+- `[Image](https://...)` — Notion's convention for externally hosted images
+- `![alt](https://...)` — standard markdown image syntax with external URLs
+
+For each external image URL:
+
+1. A GET request is made (not HEAD, because some CDNs like OpenAI's return 405 for HEAD requests)
+2. The response headers are checked before consuming the body — if the content-type is not a
+   recognized image type, the link is left unchanged
+3. If the content-length is >= 1 GB, the link is left unchanged (too large to import)
+4. The body is downloaded and if it exceeds 1 GB, it's discarded
+5. The image is saved to disk with a deterministic filename based on a hash of the URL (e.g.
+   `_downloaded_a1b2c3d4e5f6g7h8.png`)
+6. The markdown on disk is rewritten to replace the URL with a local path using `![Image](path)`
+   syntax so the conversion phase treats it as a file attachment
+7. The downloaded file is added to `filesToUpload` with a deterministic file ID
+
+This allows external images to flow through the existing upload and conversion pipeline—they get
+uploaded to R2 and embedded as `FileRow` elements just like locally exported images.
+
+The Fargate task has internet access (public subnet with `assignPublicIp: ENABLED` and the security
+group allows all outbound traffic), so fetching external URLs works without any additional
+networking configuration.
 
 **Phase 4 - Remove inline databases:**
 

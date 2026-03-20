@@ -14,6 +14,7 @@ ts_project(
         ["test_fixtures/**"],
     ),
     test_deps = [
+        "//:node_modules/@jest/globals",
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
         "//:node_modules/get-port",
