@@ -12,7 +12,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.chat.with.$accountId"
     | "routes/s.$spaceId.create._index"
     | "routes/s.$spaceId.create.more"
-    | "routes/s.$spaceId.databases.$databaseId.$tableId"
+    | "routes/s.$spaceId.databases.$databaseId.$tableOrViewId"
     | "routes/s.$spaceId.databases.$databaseId._index"
     | "routes/s.$spaceId.databases.$databaseId.sql"
     | "routes/s.$spaceId.databases.$databaseId"

@@ -141,26 +141,63 @@ export const databaseActions = {
         },
     }),
 
-    getTableData: defineDatabaseAction({
-        input: Schema.object({tableId: Schema.id<DatabaseTableId>()}),
+    getViewData: defineDatabaseAction({
+        input: Schema.object({tableOrViewId: Schema.string}),
         output: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            viewId: Schema.id<DatabaseViewId>(),
             tableName: Schema.string,
             rows: Schema.array(Schema.unknown()),
         }),
         writeLevel: "none",
-        run(db, {tableId}) {
-            const result = db.exec("SELECT table_name FROM _alpine_tables WHERE id = ?", {
-                bind: [tableId],
+        run(db, {tableOrViewId}) {
+            let tableId: DatabaseTableId;
+            let viewId: DatabaseViewId;
+            let tableName: string;
+
+            // Try to resolve as a table ID first.
+            const tableResult = db.exec("SELECT id, table_name FROM _alpine_tables WHERE id = ?", {
+                bind: [tableOrViewId],
                 returnValue: "resultRows",
                 rowMode: "object",
-            }) as Array<{table_name: string}>;
-            assert(result.length === 1, "Table not found");
-            const tableName = result[0]!.table_name;
+            }) as Array<{id: string; table_name: string}>;
+
+            if (tableResult.length === 1) {
+                tableId = tableResult[0]!.id as DatabaseTableId;
+                tableName = tableResult[0]!.table_name;
+
+                // Pick the first view for this table.
+                const viewResult = db.exec(
+                    "SELECT id FROM _alpine_views WHERE table_id = ? ORDER BY id LIMIT 1",
+                    {bind: [tableId], returnValue: "resultRows", rowMode: "object"},
+                ) as Array<{id: string}>;
+                assert(viewResult.length === 1, "Table has no views");
+                viewId = viewResult[0]!.id as DatabaseViewId;
+            } else {
+                // Try as a view ID.
+                const viewResult = db.exec("SELECT id, table_id FROM _alpine_views WHERE id = ?", {
+                    bind: [tableOrViewId],
+                    returnValue: "resultRows",
+                    rowMode: "object",
+                }) as Array<{id: string; table_id: string}>;
+                assert(viewResult.length === 1, "Table or view not found");
+                viewId = viewResult[0]!.id as DatabaseViewId;
+                tableId = viewResult[0]!.table_id as DatabaseTableId;
+
+                const tableResult2 = db.exec("SELECT table_name FROM _alpine_tables WHERE id = ?", {
+                    bind: [tableId],
+                    returnValue: "resultRows",
+                    rowMode: "object",
+                }) as Array<{table_name: string}>;
+                assert(tableResult2.length === 1, "Table not found");
+                tableName = tableResult2[0]!.table_name;
+            }
+
             const rows = db.exec(`SELECT * FROM "${tableName}"`, {
                 returnValue: "resultRows",
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
-            return {tableName, rows};
+            return {tableId, viewId, tableName, rows};
         },
     }),
 };

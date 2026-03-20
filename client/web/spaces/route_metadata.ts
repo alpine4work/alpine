@@ -43,7 +43,7 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.create._index": {
         errorTitle: "Couldn\u2019t open menu",
     },
-    "routes/s.$spaceId.databases.$databaseId.$tableId": {
+    "routes/s.$spaceId.databases.$databaseId.$tableOrViewId": {
         errorTitle: "Couldn\u2019t open table",
     },
     "routes/s.$spaceId.databases.$databaseId._index": {
