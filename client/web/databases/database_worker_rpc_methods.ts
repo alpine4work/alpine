@@ -23,8 +23,21 @@ const pageDiffEntrySchema = Schema.object({
     diff: pageDiffSchema,
 });
 
+const pageEntrySchema = Schema.object({
+    pageIndex: Schema.integer,
+    timestamp: Schema.integer,
+    data: Schema.bytes,
+});
+
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
+    writeInitialPages: {
+        input: {
+            databaseId: Schema.id<DatabaseId>(),
+            pages: Schema.array(pageEntrySchema),
+        },
+        output: {},
+    },
     executeAction: {
         input: {
             databaseId: Schema.id<DatabaseId>(),

@@ -529,6 +529,20 @@ export class DatabaseClient {
         }
     }
 
+    /**
+     * Write loader-provided pages into the local OPFS
+     * store before cache validation. No invalidation is
+     * scheduled because no reactive actions exist yet.
+     */
+    seedPages(
+        pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
+    ): void {
+        for (const page of pages) {
+            this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, page.data);
+        }
+        this.pageStore.sync();
+    }
+
     isEmpty(): boolean {
         return this.pageStore.isEmpty();
     }

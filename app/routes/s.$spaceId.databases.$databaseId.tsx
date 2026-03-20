@@ -1,5 +1,5 @@
 import {Outlet, useParams} from "@remix-run/react";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
@@ -28,7 +28,7 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
-import type {DatabaseId, DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
@@ -79,12 +79,13 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 }
 
 export default function DatabaseLayoutRoute() {
-    const {databaseName, tables} = useLoaderDataWithSchema(LoaderSchema);
+    const {databaseName, tables, pages} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
     const navigate = useNavigate();
     const reporter = useReporter();
     const [conn, setConn] = useState<DatabaseConnection | null>(null);
+    const initialPagesRef = useRef(pages);
 
     useSearchAffinityViewEntityInteraction(`Database:${databaseId}`);
 
@@ -131,7 +132,8 @@ export default function DatabaseLayoutRoute() {
         let connection: DatabaseConnection | null = null;
         (async () => {
             connection = await connectToDatabase({
-                databaseId: databaseId as DatabaseId,
+                databaseId,
+                initialPages: initialPagesRef.current,
                 executeActionServer,
                 ensureCacheIsUpToDate,
                 reportError,

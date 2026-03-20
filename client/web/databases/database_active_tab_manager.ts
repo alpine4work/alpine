@@ -179,6 +179,10 @@ export class DatabaseActiveTabServiceWorker {
 export class DatabaseActiveTabWorker {
     private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
     private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseId>();
+    private readonly initialPagesByDatabase = new Map<
+        DatabaseId,
+        ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
+    >();
 
     constructor(private readonly dir: OpfsDirectoryHandle) {}
 
@@ -191,6 +195,13 @@ export class DatabaseActiveTabWorker {
             promise = (async () => {
                 const dbDir = await this.dir.getDirectoryHandle(databaseId, {create: true});
                 const client = await DatabaseClient.create(dbDir);
+
+                const initialPages = this.initialPagesByDatabase.get(databaseId);
+                if (initialPages !== undefined) {
+                    this.initialPagesByDatabase.delete(databaseId);
+                    client.seedPages(initialPages);
+                }
+
                 try {
                     await client.ensureCacheIsUpToDate(conn);
                 } catch {
@@ -242,6 +253,16 @@ export class DatabaseActiveTabWorker {
             callMethods: workerToTabDatabaseRpcMethods,
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
+                writeInitialPages: async input => {
+                    if (this.clientPromises.has(input.databaseId)) {
+                        // eslint-disable-next-line no-console
+                        console.warn(
+                            "writeInitialPages called after database client was already created",
+                        );
+                    }
+                    this.initialPagesByDatabase.set(input.databaseId, input.pages);
+                    return {};
+                },
                 executeAction: async input => {
                     const client = await this.getOrCreateClient(input.databaseId, conn);
                     const result = await client.executeAction(conn, input.action);
