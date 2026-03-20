@@ -7,8 +7,9 @@ import type {
     DatabaseActionName,
     DatabaseActionObject,
     DatabaseActionOutput,
+    LoaderDatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {LoaderDatabaseQueryResult} from "~/shared/databases/database_query_schema.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 
 /**
@@ -18,15 +19,15 @@ import type {Result} from "~/shared/helpers/control/result.js";
  * whenever the underlying data changes.
  *
  * Pass `null` for `input` to skip the subscription.
- * When `initialData` is provided and its `sql` matches
- * the current `readonlyRawSql` action's input, the
- * initial rows are returned while the reactive
+ * When `initialData` is provided and its action name and
+ * input match the current subscription (deep equality),
+ * the initial output is returned while the reactive
  * subscription boots up.
  */
 export function useReactiveDatabaseAction<N extends DatabaseActionName>(options: {
     name: N;
     input: DatabaseActionInput<N> | null;
-    initialData?: LoaderDatabaseQueryResult | null;
+    initialData?: LoaderDatabaseActionResult | null;
 }): Result<DatabaseActionOutput<N>, string> | null {
     const {name, input, initialData} = options;
     const conn = useDatabaseConnection();
@@ -56,10 +57,10 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
     if (
         initialData != null &&
         input != null &&
-        name === "readonlyRawSql" &&
-        initialData.sql === (input as {sql: string}).sql
+        initialData.name === name &&
+        isDeepEqual(initialData.input, input)
     ) {
-        return {ok: true, value: {rows: initialData.rows} as DatabaseActionOutput<N>};
+        return {ok: true, value: initialData.output as DatabaseActionOutput<N>};
     }
     return null;
 }

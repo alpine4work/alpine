@@ -224,3 +224,50 @@ export const DatabaseActionResultSchema = Schema.unionWithKey(
         }>;
     },
 );
+
+const readPagesSchema = Schema.map(
+    Schema.integer,
+    Schema.object({
+        timestamp: Schema.integer,
+        data: Schema.bytes,
+    }),
+);
+
+type ReadPages = ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>;
+
+/**
+ * Schema for loader-serialized action results. Includes
+ * the action name, input, output, and the pages read
+ * during execution. Used to pass initial data from SSR
+ * loaders to client-side reactive action hooks.
+ */
+export const LoaderDatabaseActionResultSchema = Schema.unionWithKey(
+    "name",
+    Object.fromEntries(
+        Object.entries(databaseActions).map(([name, def]) => [
+            name,
+            Schema.object({
+                name: Schema.value(name),
+                input: def.input,
+                output: def.output,
+                readPages: readPagesSchema,
+            }),
+        ]),
+    ) as {
+        [K in DatabaseActionName]: ObjectSchema<{
+            readonly name: K;
+            readonly input: DatabaseActionInput<K>;
+            readonly output: DatabaseActionOutput<K>;
+            readonly readPages: ReadPages;
+        }>;
+    },
+);
+
+export type LoaderDatabaseActionResult<N extends DatabaseActionName = DatabaseActionName> = {
+    [K in DatabaseActionName]: {
+        name: K;
+        input: DatabaseActionInput<K>;
+        output: DatabaseActionOutput<K>;
+        readPages: ReadPages;
+    };
+}[N];
