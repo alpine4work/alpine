@@ -94,6 +94,7 @@ export default function DatabaseLayoutRoute() {
                 conn.call("writePagesFromRealtime", {
                     pages: event.pages,
                     mutationId: event.mutationId,
+                    fileSizeInPages: event.fileSizeInPages,
                 });
             }
         },

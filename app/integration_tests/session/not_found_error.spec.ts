@@ -90,6 +90,18 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
+    "databases.$databaseId.$tableId": () => {
+        // The table ID is validated inside the durable object action. If the
+        // database doesn't exist the layout loader will error first.
+    },
+    "databases.$databaseId.sql": () => {
+        // SQL editor route. If the database doesn't exist the layout loader
+        // will error first.
+    },
+    "databases.$databaseId": () => {
+        // Layout route. The _index redirect route already tests database
+        // not found.
+    },
     "databases.$databaseId._index": () => {
         test("not found error for route `databases.$databaseId._index`", async ({
             page,

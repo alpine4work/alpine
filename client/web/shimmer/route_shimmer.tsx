@@ -204,7 +204,10 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
+    "routes/s.$spaceId.databases.$databaseId.$tableId": false,
     "routes/s.$spaceId.databases.$databaseId._index": false,
+    "routes/s.$spaceId.databases.$databaseId.sql": false,
+    "routes/s.$spaceId.databases.$databaseId": false,
     "routes/s.$spaceId.databases.new": false,
     "routes/s.$spaceId.create.more": {
         component: () => <MobileSettingsRowsShimmer titleWidth="12" sectionCounts={[3]} />,

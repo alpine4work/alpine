@@ -431,8 +431,10 @@ describe("ensureCacheIsUpToDate", () => {
         const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
 
         // Exactly at the limit — should dump all into
-        // stalePageIndexes, updatedPages empty.
-        expect(result.updatedPages.size).toBe(0);
+        // stalePageIndexes. Page 0 is always included
+        // in updatedPages so the client has the schema.
+        expect(result.updatedPages.size).toBe(1);
+        expect(result.updatedPages.has(0)).toBe(true);
         expect(result.stalePageIndexes.length).toBe(cacheUpdateStalePageLimit);
     });
 
@@ -506,9 +508,11 @@ describe("ensureCacheIsUpToDate", () => {
 
         const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
 
-        // All pages should be in stalePageIndexes, none
-        // in updatedPages — it's all-or-nothing.
-        expect(result.updatedPages.size).toBe(0);
+        // All pages should be in stalePageIndexes.
+        // Page 0 is always included in updatedPages
+        // so the client has the schema.
+        expect(result.updatedPages.size).toBe(1);
+        expect(result.updatedPages.has(0)).toBe(true);
         expect(result.stalePageIndexes.length).toBe(count);
     });
 });

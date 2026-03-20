@@ -32,6 +32,7 @@ export const ensureCacheIsUpToDateResultConfig = {
         }),
     ),
     stalePageIndexes: Schema.array(Schema.integer),
+    fileSizeInPages: Schema.integer,
 };
 
 /**
@@ -80,6 +81,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
                 }),
             ),
             mutationId: Schema.id<DatabaseMutationId>(),
+            fileSizeInPages: Schema.integer,
         }),
     },
 });

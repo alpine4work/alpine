@@ -286,6 +286,10 @@ export class OpfsPageStore implements VfsFile {
         return data;
     }
 
+    setServerFileSizeInPages(sizeInPages: number): void {
+        this.knownDatabaseSizeInPages = sizeInPages;
+    }
+
     isEmpty(): boolean {
         return this.index.size === 0 && this.optimisticPages.size === 0;
     }

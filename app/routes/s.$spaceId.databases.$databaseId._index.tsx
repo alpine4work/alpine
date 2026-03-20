@@ -7,9 +7,9 @@ import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action
 import {getDatabase} from "~/server/databases/data/get_database.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
-export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
+export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    deserializeSpaceIdForLoader(params.spaceId);
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
 
     // Verify the database exists.
@@ -23,7 +23,12 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const firstTableId = result.tables.keys().next().value;
     const target = firstTableId ?? "sql";
 
-    return redirect(`/s/${spaceId}/databases/${databaseId}/${target}`);
+    // Use a relative redirect so that peek routes (which re-export this
+    // loader) redirect within the peek URL namespace instead of escaping
+    // to the non-peek URL.
+    const url = new URL(request.url);
+    url.pathname = url.pathname.replace(/\/$/, "") + `/${target}`;
+    return redirect(url.pathname + url.search);
 }
 
 export default function DatabaseIndexRoute() {

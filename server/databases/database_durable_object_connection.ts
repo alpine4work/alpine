@@ -11,12 +11,13 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
-import {cacheUpdateStalePageLimit} from "~/shared/databases/sqlite_constants.js";
+import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export interface DatabaseRealtimeEventStub {
     pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
     mutationId: DatabaseMutationId;
+    fileSizeInPages: number;
 }
 
 export class DatabaseDurableObjectConnection {
@@ -68,6 +69,7 @@ export class DatabaseDurableObjectConnection {
                     this._sendEventToAll(this._processContext, {
                         pages: diffPages,
                         mutationId: input.mutationId,
+                        fileSizeInPages: this._durableObjectStorage.getFileSize() / sqlitePageSize,
                     });
                 }
 
@@ -107,7 +109,19 @@ export class DatabaseDurableObjectConnection {
                 }
             }
 
-            return {updatedPages, stalePageIndexes};
+            // Always include page 0 so the client has the schema.
+            if (!updatedPages.has(0)) {
+                const page0 = this._durableObjectStorage.readPage(0);
+                if (page0 !== null && page0.data !== null) {
+                    const clientTs = input.pageTimestampsByIndex.get(0);
+                    if (clientTs === undefined || clientTs !== page0.timestamp) {
+                        updatedPages.set(0, {timestamp: page0.timestamp, data: page0.data});
+                    }
+                }
+            }
+
+            const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
+            return {updatedPages, stalePageIndexes, fileSizeInPages};
         },
     };
 
@@ -124,6 +138,7 @@ export class DatabaseDurableObjectConnection {
             type: "PagesChanged",
             pages: eventStub.pages,
             mutationId: eventStub.mutationId,
+            fileSizeInPages: eventStub.fileSizeInPages,
         };
     }
 }

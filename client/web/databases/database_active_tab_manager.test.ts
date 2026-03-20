@@ -468,12 +468,12 @@ function createTestTab(config: {
                             stalePageIndexes.push(pageIndex);
                         }
                     }
-                    return {updatedPages, stalePageIndexes};
+                    return {updatedPages, stalePageIndexes, fileSizeInPages: 0};
                 }
             } catch {
                 // No index yet
             }
-            return {updatedPages: new Map(), stalePageIndexes: []};
+            return {updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0};
         },
     });
 
@@ -884,6 +884,7 @@ describe("Reactive queries", () => {
         await conn.call("writePagesFromRealtime", {
             pages: newerPages,
             mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 0,
         });
 
         // Wait for microtask-based invalidation to settle.
@@ -941,6 +942,7 @@ describe("Reactive queries", () => {
         await conn.call("writePagesFromRealtime", {
             pages: changedPages,
             mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 0,
         });
 
         // The t1 reactive query should NOT have been
@@ -984,6 +986,7 @@ describe("Reactive queries", () => {
                 diff: [],
             })),
             mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 0,
         });
         await new Promise(resolve => setTimeout(resolve, 50));
     });
@@ -1061,6 +1064,7 @@ describe("watchQuery", () => {
         await conn.call("writePagesFromRealtime", {
             pages: newerPages,
             mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 0,
         });
 
         // Wait for invalidation + re-execution + push

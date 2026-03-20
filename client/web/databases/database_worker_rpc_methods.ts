@@ -37,6 +37,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
             databaseId: Schema.id<DatabaseId>(),
             pages: Schema.array(pageDiffEntrySchema),
             mutationId: Schema.id<DatabaseMutationId>(),
+            fileSizeInPages: Schema.integer,
         },
         output: {},
     },

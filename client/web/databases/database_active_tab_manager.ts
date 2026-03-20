@@ -248,7 +248,11 @@ export class DatabaseActiveTabWorker {
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseId, conn);
-                    client.writePagesFromRealtime(input.pages, input.mutationId);
+                    client.writePagesFromRealtime(
+                        input.pages,
+                        input.mutationId,
+                        input.fileSizeInPages,
+                    );
                     return {};
                 },
                 registerReactiveQuery: async input => {

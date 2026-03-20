@@ -151,17 +151,14 @@ export class DatabaseClient {
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
         const entries = this.pageStore.pageEntries();
-        if (entries.length === 0) return;
 
         const pageTimestampsByIndex = new Map<number, number>();
         for (const entry of entries) {
             pageTimestampsByIndex.set(entry.pageIndex, entry.timestamp);
         }
 
-        const {updatedPages, stalePageIndexes} =
+        const {updatedPages, stalePageIndexes, fileSizeInPages} =
             await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
-
-        if (updatedPages.size === 0 && stalePageIndexes.length === 0) return;
 
         for (const [pageIndex, {timestamp, data}] of updatedPages) {
             this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
@@ -171,6 +168,7 @@ export class DatabaseClient {
             this.pageStore.deletePages(new Set(stalePageIndexes));
         }
 
+        this.pageStore.setServerFileSizeInPages(fileSizeInPages);
         this.pageStore.sync();
     }
 
@@ -426,6 +424,7 @@ export class DatabaseClient {
     writePagesFromRealtime(
         pages: ReadonlyArray<{pageIndex: number; timestamp: number; diff: PageDiff}>,
         mutationId: DatabaseMutationId,
+        fileSizeInPages: number,
     ): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
         assert(
@@ -451,6 +450,7 @@ export class DatabaseClient {
                 }
             }
         }
+        this.pageStore.setServerFileSizeInPages(fileSizeInPages);
         this.pageStore.sync();
         if (anyWritten) {
             this.scheduleInvalidation();

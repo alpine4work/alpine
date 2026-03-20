@@ -21,7 +21,7 @@ const testConn: DatabaseClientConnection = {
         return new Promise(() => {});
     },
     ensureCacheIsUpToDate() {
-        return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+        return Promise.resolve({updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0});
     },
     reportError() {},
 };
@@ -250,14 +250,18 @@ describe("execute — mutations", () => {
                 capturedMutationId = options.mutationId;
                 // Simulate realtime confirmation arriving
                 // before server response (same as production).
-                client.writePagesFromRealtime([], options.mutationId);
+                client.writePagesFromRealtime([], options.mutationId, 0);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                 };
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -296,7 +300,11 @@ describe("execute — mutations", () => {
                 };
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -316,14 +324,18 @@ describe("execute — mutations", () => {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving
                 // before server response.
-                client.writePagesFromRealtime([], options.mutationId);
+                client.writePagesFromRealtime([], options.mutationId, 0);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
                 };
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -364,7 +376,11 @@ describe("optimistic mutations", () => {
                 return new Promise(() => {});
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -373,7 +389,7 @@ describe("optimistic mutations", () => {
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
-        client.writePagesFromRealtime([], capturedMutationId!);
+        client.writePagesFromRealtime([], capturedMutationId!, 0);
     });
 
     test("replays remaining mutations after confirmation", async () => {
@@ -387,7 +403,11 @@ describe("optimistic mutations", () => {
                 return new Promise(() => {});
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -396,7 +416,7 @@ describe("optimistic mutations", () => {
         await client.execute(conn, "INSERT INTO t (val) VALUES ('second')");
 
         // Confirm first mutation
-        client.writePagesFromRealtime([], mutationIds[0]!);
+        client.writePagesFromRealtime([], mutationIds[0]!, 0);
 
         // Second mutation should still be visible via replay
         const rows = await client.execute(testConn, "SELECT val FROM t ORDER BY id");
@@ -414,7 +434,11 @@ describe("optimistic mutations", () => {
                 return new Promise(() => {});
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -422,7 +446,7 @@ describe("optimistic mutations", () => {
         await client.execute(conn, "INSERT INTO t (id) VALUES (1)");
         await client.execute(conn, "INSERT INTO t (id) VALUES (2)");
 
-        expect(() => client.writePagesFromRealtime([], mutationIds[1]!)).toThrow(
+        expect(() => client.writePagesFromRealtime([], mutationIds[1]!, 0)).toThrow(
             "unexpected mutation confirmation order",
         );
     });
@@ -432,7 +456,7 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         // No optimistic mutations queued — just apply pages
-        client.writePagesFromRealtime([], "unknown-mutation-id" as DatabaseMutationId);
+        client.writePagesFromRealtime([], "unknown-mutation-id" as DatabaseMutationId, 0);
 
         // Should succeed without assertion error
         const rows = await client.execute(testConn, "SELECT count(*) AS n FROM t");
@@ -449,7 +473,11 @@ describe("optimistic mutations", () => {
                 throw new InternalError("server rejected mutation");
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError(error) {
                 reportedError = error;
@@ -472,7 +500,11 @@ describe("optimistic mutations", () => {
                 throw new InternalError("server rejected mutation");
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -501,7 +533,11 @@ describe("optimistic mutations", () => {
                 };
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError(error) {
                 reportedError = error;
@@ -549,7 +585,11 @@ describe("server fallback", () => {
                 } as ExecuteActionServerResult;
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -585,7 +625,11 @@ describe("server fallback", () => {
                 } as ExecuteActionServerResult;
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -670,7 +714,11 @@ describe("executeWithTracking", () => {
                 };
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -710,7 +758,11 @@ describe("executeWithTracking", () => {
                 } as ExecuteActionServerResult;
             },
             ensureCacheIsUpToDate() {
-                return Promise.resolve({updatedPages: new Map(), stalePageIndexes: []});
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
             },
             reportError() {},
         };
@@ -809,7 +861,7 @@ describe("registerReactiveQuery", () => {
             timestamp: timestamp + 1000,
             diff: [],
         }));
-        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>(), 0);
 
         // Wait for microtask-based invalidation
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -869,7 +921,7 @@ describe("registerReactiveQuery", () => {
                 diff: [],
             }));
 
-        client.writePagesFromRealtime(changedPages, generateId<DatabaseMutationId>());
+        client.writePagesFromRealtime(changedPages, generateId<DatabaseMutationId>(), 0);
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -908,7 +960,7 @@ describe("registerReactiveQuery", () => {
             timestamp: timestamp + 1000,
             diff: [],
         }));
-        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>(), 0);
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -943,7 +995,7 @@ describe("registerReactiveQuery", () => {
             timestamp: timestamp + 1000,
             diff: [],
         }));
-        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>());
+        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>(), 0);
 
         await new Promise(resolve => setTimeout(resolve, 50));
 

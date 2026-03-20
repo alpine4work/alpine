@@ -1,1 +1,1 @@
-export {default} from "~/app/routes/s.$spaceId.databases.$databaseId.$tableId.js";
+export {default, loader} from "~/app/routes/s.$spaceId.databases.$databaseId.$tableId.js";
