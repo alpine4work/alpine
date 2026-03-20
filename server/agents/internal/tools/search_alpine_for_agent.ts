@@ -8,7 +8,7 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiMessageRoomTarget,
     ApiSearchChatMessageResult,
@@ -17,7 +17,7 @@ import {
     ApiSearchResult,
     ApiSearchResultBodyMatch,
     ApiSearchTaskMessageResult,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

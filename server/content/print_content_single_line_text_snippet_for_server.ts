@@ -4,6 +4,7 @@ import {ContentReferences, ContentWithReferences} from "~/shared/content/content
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -27,16 +28,33 @@ export function printContentSingleLineTextSnippetForServer(content: ContentWithR
 }
 
 export function getContentReferencesForServerPrintSingleLineTextSnippet(
-    references: ContentReferences,
+    references:
+        | ContentReferences
+        | Replace<
+              ContentReferences,
+              {
+                  readonly accountById: ReadonlyMap<
+                      AccountId,
+                      Omit<AccountModelWithoutSpaceData, "avatar">
+                  >;
+              }
+          >,
 ): {
-    getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
+    getAccountIfExists: (
+        accountId: AccountId,
+    ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;
     getFileIfExists: (fileId: FileId) => {readonly contentType: FileContentType} | null;
 } {
     return {
-        getAccountIfExists: accountId => references.accountById.get(accountId)?.initialData ?? null,
+        getAccountIfExists: accountId => {
+            const account = references.accountById.get(accountId);
+            if (!account) return null;
+            if ("initialData" in account) return account.initialData;
+            return account;
+        },
         getSearchEntityIfExists: entityId => {
             const entity = references.searchEntityById.get(entityId);
             if (!entity) return null;

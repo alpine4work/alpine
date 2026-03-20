@@ -1,5 +1,5 @@
 import {AgentLocalDocumentKey} from "~/server/agents/internal/link_references/agent_local_document_content_collection.js";
-import {ApiTaskStatus} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     AccountId,
     ChannelId,

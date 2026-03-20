@@ -930,6 +930,9 @@ importers:
       media-query-parser:
         specifier: 2.0.2
         version: 2.0.2(patch_hash=saj64dz6s226nfs27aiqrqatfi)
+      micromark:
+        specifier: ^4.0.0
+        version: 4.0.0(patch_hash=ztrguam6picxboy74ba35y5pza)(supports-color@10.2.2)
       micromark-extension-frontmatter:
         specifier: ^2.0.0
         version: 2.0.0

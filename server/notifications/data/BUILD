@@ -45,7 +45,7 @@ ts_project(
         "//server/spaces",
         "//server/tasks/data",
         "//shared/accounts",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/chat",
         "//shared/content",
         "//shared/documents",

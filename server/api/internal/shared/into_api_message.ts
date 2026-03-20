@@ -7,7 +7,7 @@ import {
     ApiMessageContentPayloadParentResponse,
     ApiMessagePayloadResponse,
     ApiMessageResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

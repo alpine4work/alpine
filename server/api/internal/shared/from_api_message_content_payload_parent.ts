@@ -1,4 +1,4 @@
-import {ApiMessageContentPayloadParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageContentPayloadParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";

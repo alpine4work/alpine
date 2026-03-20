@@ -1,7 +1,5 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
@@ -20,6 +18,8 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,

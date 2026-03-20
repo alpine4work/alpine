@@ -9,11 +9,11 @@ import {
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
-} from "~/server/api/markdown/print_api_content_to_markdown.js";
+} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentMentionInlineElementResponse,
     ApiContentResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";

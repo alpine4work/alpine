@@ -20,8 +20,8 @@ import {
     printAgentLinkPath,
     printApiPathForAgentLink,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {ApiPath} from "~/shared/api/parse_api_path.js";
-import {ApiTaskStatus} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiPath} from "~/shared/api/specification/parse_api_path.js";
+import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";

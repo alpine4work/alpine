@@ -21,7 +21,7 @@ ts_project(
         "//server/forum/data",
         "//server/search/data/index",
         "//server/spaces",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

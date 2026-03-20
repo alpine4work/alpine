@@ -1,11 +1,11 @@
 /* eslint-disable cyberworlds/string-quotes -- CSV parser needs ASCII straight quotes for proper parsing */
 
+import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {
     ApiContentBlockElementWithFileRow,
     ApiContentFileRowTableBlockElement,
-} from "~/server/api/content/api_content_block_element_with_file_row.js";
-import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
-import {ApiContentInlineElement} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/content/api_content_block_element_with_file_row.js";
+import {ApiContentInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
 
 /**

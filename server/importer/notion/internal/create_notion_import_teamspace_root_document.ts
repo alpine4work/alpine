@@ -1,15 +1,15 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,

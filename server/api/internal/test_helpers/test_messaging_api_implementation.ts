@@ -1,5 +1,4 @@
 import {TestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
@@ -7,7 +6,8 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,

@@ -7,14 +7,14 @@ import {
 } from "~/server/agents/api/api_client.js";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
-import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
+import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiMessageResponse,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";

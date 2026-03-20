@@ -2,7 +2,7 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 

@@ -2,7 +2,7 @@ import {
     ApiBotWebhookNewMessageEventMessageParent,
     ApiBotWebhookNewMessageEventParent,
     ApiBotWebhookNewMessageEventPostParent,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {

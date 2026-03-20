@@ -14,7 +14,7 @@ import {chatGptKnownBotId} from "~/server/bots/settings_default_known_bot_accoun
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
-import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     ChatGptConversationItem,

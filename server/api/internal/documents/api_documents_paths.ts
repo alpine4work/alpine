@@ -1,5 +1,4 @@
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -23,6 +22,7 @@ import {
     pingDocumentCommentStream,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,

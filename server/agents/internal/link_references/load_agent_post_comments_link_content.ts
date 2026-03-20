@@ -19,7 +19,7 @@ import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/int
 import {
     ApiMessageRoomTarget,
     ApiPostResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

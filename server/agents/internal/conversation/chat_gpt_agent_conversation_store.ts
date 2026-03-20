@@ -1,7 +1,7 @@
 import OpenAi from "openai";
 import {AgentConversationStore} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
-import {ApiMentionResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMentionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 

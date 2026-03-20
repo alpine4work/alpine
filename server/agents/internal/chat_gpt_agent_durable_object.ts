@@ -68,8 +68,8 @@ import {
     agentMillicentsPerToken,
 } from "~/server/agents/internal/supported_agent_models.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
-import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
+import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {
     getApiMentionTargetPathIfExists,
     isApiMessageRoom,
@@ -77,12 +77,12 @@ import {
     parseApiMentionTarget,
     parseApiPath,
     printApiMessageRoomPath,
-} from "~/shared/api/parse_api_path.js";
+} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiMentionResponse,
     ApiMessageRoomTarget,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,

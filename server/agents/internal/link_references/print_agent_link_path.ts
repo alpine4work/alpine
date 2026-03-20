@@ -5,7 +5,7 @@ import {
     AgentPostCommentsLink,
 } from "~/server/agents/internal/link_references/agent_link.js";
 import {normalizeMarkdownLinkLabelForPath} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {ApiPath} from "~/shared/api/parse_api_path.js";
+import {ApiPath} from "~/shared/api/specification/parse_api_path.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function printAgentLinkPath(link: AgentLink) {

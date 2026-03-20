@@ -6,7 +6,7 @@ import {
     ApiSearchResultBodyMatch,
     ApiSearchResultBodyMatchItem,
     ApiSearchTaskMessageResult,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";

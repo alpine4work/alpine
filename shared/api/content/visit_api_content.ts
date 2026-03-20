@@ -1,0 +1,141 @@
+import {
+    ApiContentBlockElementWithFileRow,
+    ApiContentFileRowBlockElement,
+    ApiContentFileRowTableBlockElement,
+} from "~/shared/api/content/api_content_block_element_with_file_row.js";
+import {ApiContentExtended} from "~/shared/api/content/from_api_content.js";
+import {
+    ApiContentInlineElement,
+    ApiContentInlineElementMark,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+export type ApiContentVisitor = {
+    readonly visitBlockElement?: (
+        element: ApiContentBlockElementWithFileRow,
+        context: {elements: ReadonlyArray<ApiContentBlockElementWithFileRow>; index: number},
+    ) => void;
+    readonly visitFileRow?: (
+        element: ApiContentFileRowBlockElement | ApiContentFileRowTableBlockElement,
+        context: {elements: ReadonlyArray<ApiContentBlockElementWithFileRow>; index: number},
+    ) => void;
+    readonly visitInlineElement?: (
+        element: ApiContentInlineElement,
+        context: {elements: ReadonlyArray<ApiContentInlineElement>; index: number},
+    ) => void;
+    readonly visitInlineElementMark?: (
+        mark: ApiContentInlineElementMark,
+        context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
+    ) => void;
+};
+
+export function visitApiContent(content: ApiContentExtended, visitor: ApiContentVisitor) {
+    visitApiContentBlockElements(content.elements, visitor);
+}
+
+function visitApiContentBlockElements(
+    elements: ReadonlyArray<ApiContentBlockElementWithFileRow>,
+    visitor: ApiContentVisitor,
+) {
+    for (let index = 0; index < elements.length; index++) {
+        const element = elements[index]!;
+        visitor.visitBlockElement?.(element, {elements, index});
+        if (element.type === "FileRow" || element.type === "FileRowTable") {
+            visitor.visitFileRow?.(element, {elements, index});
+        }
+        visitApiContentBlockElement(element, visitor);
+    }
+}
+
+function visitApiContentBlockElement(
+    element: ApiContentBlockElementWithFileRow,
+    visitor: ApiContentVisitor,
+) {
+    switch (element.type) {
+        case "Paragraph": {
+            visitApiContentInlineElements(element.elements, visitor);
+            break;
+        }
+        case "UnorderedList":
+        case "OrderedList":
+        case "CheckList": {
+            for (const item of element.items) {
+                visitApiContentBlockElements(item.elements, visitor);
+
+                if (item.nestedListElements !== undefined) {
+                    visitApiContentBlockElements(item.nestedListElements, visitor);
+                }
+            }
+            break;
+        }
+        case "Quote": {
+            visitApiContentBlockElements(element.elements, visitor);
+            break;
+        }
+        case "Heading": {
+            visitApiContentInlineElements(element.elements, visitor);
+            break;
+        }
+        case "Divider": {
+            // Dividers don't have children. Nothing to visit here.
+            break;
+        }
+        case "Table": {
+            for (const row of element.rows) {
+                for (const cell of row.cells) {
+                    visitApiContentBlockElements(cell.elements, visitor);
+                }
+            }
+            break;
+        }
+        case "Code": {
+            for (const line of element.lines) {
+                visitApiContentInlineElements(line.elements, visitor);
+            }
+            break;
+        }
+        case "FileRow":
+        case "FileRowTable": {
+            // Handle extended block element types used internally by the importer. FileRow and
+            // FileRowTable are not part of the public API - they're internal types used during
+            // Notion import to represent file attachments. These types don't contain any
+            // inline elements that need visiting, so we can skip them. TODO(#public-api)
+            break;
+        }
+        default:
+            throw exhaustive(element);
+    }
+}
+
+function visitApiContentInlineElements(
+    elements: ReadonlyArray<ApiContentInlineElement>,
+    visitor: ApiContentVisitor,
+) {
+    for (let index = 0; index < elements.length; index++) {
+        const element = elements[index]!;
+        visitor.visitInlineElement?.(element, {elements, index});
+        visitApiContentInlineElement(element, visitor);
+    }
+}
+
+function visitApiContentInlineElement(
+    element: ApiContentInlineElement,
+    visitor: ApiContentVisitor,
+) {
+    if (element.marks !== undefined) {
+        for (let index = 0; index < element.marks.length; index++) {
+            const mark = element.marks[index]!;
+            visitor.visitInlineElementMark?.(mark, {marks: element.marks, index});
+        }
+    }
+
+    switch (element.type) {
+        // Nothing more to visit in these elements.
+        case "Text":
+        case "Break":
+        case "Mention":
+            break;
+        default:
+            throw exhaustive(element);
+    }
+}

@@ -44,15 +44,18 @@ import {
     shouldAgentRespondToRequest,
 } from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {TemporaryDurableObjectStorage} from "~/server/agents/internal/temporary_durable_object_storage.js";
-import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {ApiMessageRoomPath, printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
+import {
+    ApiMessageRoomPath,
+    printApiMessageRoomPath,
+} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiContentTextInlineElement,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     ErrorBase,

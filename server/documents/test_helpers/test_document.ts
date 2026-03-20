@@ -1,8 +1,6 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {DocAttrStep, ReplaceStep, Step} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
-import {fromApiContentBlockElements} from "~/server/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
@@ -19,6 +17,8 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {fromApiContentBlockElements} from "~/shared/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentProsemirrorSchema,

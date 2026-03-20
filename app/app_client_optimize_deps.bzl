@@ -22,7 +22,7 @@ AppClientOptimizeDepsInfo = provider(
 # imports that start with a `~` or `.` since these imports represent local file
 # imports. This regular expression is dumber than a full JavaScript parser. It
 # doesn't ignore imports in comments but it gets the job done.
-IMPORT_REG_EXP = """(?:import +(?:(?:\\{[^}]*\\}|[^ ]+|\\* +as +[^ ]+) +from +)?(?:"([^~.][^"]*)"|'([^~.][^']*)')|import\\([^)]*?(?:"([^~.][^"]*)"|'([^~.][^']*)')[^)]*?\\))"""
+IMPORT_REG_EXP = """(?:import +(?:(?:\\{[^}]*\\}|[^ ]+|\\* +as +[^ ]+) +from +)?(?:"([^~.][^"]*)"|'([^~.][^']*)')|import\\([^)"]*?(?:"([^~.][^"]*)"|'([^~.][^']*)')[^)]*?\\))"""
 
 def _app_client_optimize_deps_aspect_impl(target, ctx):
     optimize_deps = []

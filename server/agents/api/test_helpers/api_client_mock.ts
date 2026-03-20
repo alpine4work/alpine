@@ -9,8 +9,8 @@ import {
     ApiTaskCollection,
     ApiTaskResponse,
     ApiTaskWithoutContent,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";

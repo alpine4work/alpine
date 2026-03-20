@@ -11,7 +11,7 @@ import {createNotificationEventProcessor} from "~/server/notifications/data/proc
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";

@@ -28,7 +28,7 @@ import {
     TokenPayload,
 } from "~/server/tokens/token_payload.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -67,7 +67,7 @@ const addAjvFormats =
 
 const apiSpecificationPath = joinPath(
     runfilesPath,
-    "cyberworlds/shared/api/api_specification_final.yaml",
+    "cyberworlds/shared/api/specification/api_specification_final.yaml",
 );
 
 export async function createApiServiceServer(

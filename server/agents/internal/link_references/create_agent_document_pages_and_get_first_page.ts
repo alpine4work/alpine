@@ -15,8 +15,8 @@ import {
 } from "~/server/agents/internal/link_references/agent_local_document_content_collection.js";
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {visitApiContent} from "~/server/api/content/visit_api_content.js";
-import {ApiContentBlockElementResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {ApiContentBlockElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

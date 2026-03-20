@@ -67,6 +67,10 @@ import {
 } from "~/client/web/documents/internal/document_content_editor_side_decorations.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/web/documents/internal/document_content_editor_web_socket_client.js";
 import {
+    DocumentContentExportFormat,
+    DocumentContentExportModal,
+} from "~/client/web/documents/internal/document_content_export_modal.js";
+import {
     DocumentPresentationController,
     DocumentPresentationControllerRef,
 } from "~/client/web/documents/internal/document_presentation_controller.js";
@@ -173,6 +177,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -298,6 +303,11 @@ export function DocumentContentEditor({
     const blockWidth = useContentBlockWidth();
 
     const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+    const [exportModalState, setExportModalState] = useState<{
+        readonly format: DocumentContentExportFormat;
+        readonly string: string;
+        readonly html: string;
+    } | null>(null);
 
     const [showDuplicateInstructionalModal, setShowDuplicateInstructionalModal] = useState(false);
     const [
@@ -803,7 +813,6 @@ export function DocumentContentEditor({
         ) {
             const onAnimationFinished = sidebarState.mobileState.onAnimationFinishedRef.current;
 
-            // eslint-disable-next-line react-compiler/react-compiler
             sidebarState.mobileState.onAnimationFinishedRef.current = null;
             onAnimationFinished();
         }
@@ -1627,72 +1636,113 @@ export function DocumentContentEditor({
                           ]
                         : []),
                 ],
-                ...(currentAccount
-                    ? [
-                          [
-                              cast<MenuAction>({
-                                  label: "Duplicate",
-                                  iconPlacement: "end",
-                                  pressErrorTitle: "Couldn\u2019t duplicate document",
-                                  onPress: async () => {
-                                      // Get the current document content
-                                      const currentDoc = content.doc;
+                [
+                    currentAccount &&
+                        cast<MenuAction>({
+                            label: "Duplicate",
+                            iconPlacement: "end",
+                            pressErrorTitle: "Couldn\u2019t duplicate document",
+                            onPress: async () => {
+                                // Get the current document content
+                                const currentDoc = content.doc;
 
-                                      // Check for template variables
-                                      const schema =
-                                          extractContentDuplicationVariableSchema(currentDoc);
+                                // Check for template variables
+                                const schema = extractContentDuplicationVariableSchema(currentDoc);
 
-                                      // Navigate to the duplicate interstitial with schema
-                                      const encodedSchema =
-                                          encodeContentDuplicationVariableSchemaForUrl(schema);
+                                // Navigate to the duplicate interstitial with schema
+                                const encodedSchema =
+                                    encodeContentDuplicationVariableSchemaForUrl(schema);
 
-                                      if (encodedSchema !== null) {
-                                          const searchParams = new URLSearchParams();
-                                          searchParams.set(
-                                              "title",
-                                              getDocumentContentTitle(currentDoc),
-                                          );
-                                          searchParams.set("schema", encodedSchema);
+                                if (encodedSchema !== null) {
+                                    const searchParams = new URLSearchParams();
+                                    searchParams.set("title", getDocumentContentTitle(currentDoc));
+                                    searchParams.set("schema", encodedSchema);
 
-                                          await navigate(
-                                              `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
-                                          );
-                                          return;
-                                      }
+                                    await navigate(
+                                        `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
+                                    );
+                                    return;
+                                }
 
-                                      // Show the instructional modal if it hasn't been dismissed
-                                      if (!doNotShowDuplicationInstructionalModalAgain) {
-                                          setShowDuplicateInstructionalModal(true);
-                                          return;
-                                      }
+                                // Show the instructional modal if it hasn't been dismissed
+                                if (!doNotShowDuplicationInstructionalModalAgain) {
+                                    setShowDuplicateInstructionalModal(true);
+                                    return;
+                                }
 
-                                      // No variables - duplicate directly via RPC
-                                      const {documentId: newDocumentId} = await duplicateDocument(
-                                          context,
-                                          {sourceDocumentId: documentId},
-                                      );
+                                // No variables - duplicate directly via RPC
+                                const {documentId: newDocumentId} = await duplicateDocument(
+                                    context,
+                                    {sourceDocumentId: documentId},
+                                );
 
-                                      // Navigate to the new document. Always open in a peek on desktop. To make it clear
-                                      // when you're duplicating from a peek that the new document is a duplicate.
-                                      if (peekStackContext && platform !== "mobile") {
-                                          await peekStackContext.push(
-                                              `/s/${spaceId}/documents/${newDocumentId}`,
-                                          );
-                                      } else {
-                                          await navigate(
-                                              `/s/${spaceId}/documents/${newDocumentId}`,
-                                          );
-                                      }
-                                  },
-                              }),
-                          ],
-                      ]
-                    : []),
+                                // Navigate to the new document. Always open in a peek on desktop. To make it clear
+                                // when you're duplicating from a peek that the new document is a duplicate.
+                                if (peekStackContext && platform !== "mobile") {
+                                    await peekStackContext.push(
+                                        `/s/${spaceId}/documents/${newDocumentId}`,
+                                    );
+                                } else {
+                                    await navigate(`/s/${spaceId}/documents/${newDocumentId}`);
+                                }
+                            },
+                        }),
+                    cast<MenuAction>({
+                        hasChildren: true,
+                        placement: "left",
+                        key: "export",
+                        label: "Export",
+                        actions: [
+                            {
+                                label: "Markdown",
+                                pressErrorTitle: "Couldn\u2019t export to Markdown",
+                                onPress: async () => {
+                                    // The export function has a lot of heavy dependencies, so lazy load it.
+                                    const {exportDocumentContent} =
+                                        await import("~/client/web/documents/internal/export_document_content.js");
+
+                                    const {string, html} = await exportDocumentContent({
+                                        spaceId,
+                                        format: "Markdown",
+                                        content,
+                                    });
+
+                                    setExportModalState({
+                                        format: "Markdown",
+                                        string,
+                                        html,
+                                    });
+                                },
+                            },
+                            {
+                                label: "HTML",
+                                pressErrorTitle: "Couldn\u2019t export to HTML",
+                                onPress: async () => {
+                                    // The export function has a lot of heavy dependencies, so lazy load it.
+                                    const {exportDocumentContent} =
+                                        await import("~/client/web/documents/internal/export_document_content.js");
+
+                                    const {string, html} = await exportDocumentContent({
+                                        spaceId,
+                                        format: "HTML",
+                                        content,
+                                    });
+
+                                    setExportModalState({
+                                        format: "HTML",
+                                        string,
+                                        html,
+                                    });
+                                },
+                            },
+                        ],
+                    }),
+                ].filter(isNonNullable),
             ],
             [
                 accessLevel,
                 clientInfo,
-                content.doc,
+                content,
                 context,
                 currentAccount,
                 doNotShowDuplicationInstructionalModalAgain,
@@ -2346,6 +2396,14 @@ export function DocumentContentEditor({
                     editorRef={editorRef}
                     editorState={editorState}
                     onClose={() => setIsCoverModalOpen(false)}
+                />
+            )}
+            {exportModalState && (
+                <DocumentContentExportModal
+                    format={exportModalState.format}
+                    string={exportModalState.string}
+                    html={exportModalState.html}
+                    onClose={() => setExportModalState(null)}
                 />
             )}
             {showDuplicateInstructionalModal && (

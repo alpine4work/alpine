@@ -1,4 +1,3 @@
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createIntoApiChatMessageContentPayloadParent} from "~/server/api/internal/chat/internal/create_into_api_chat_message_content_payload_parent.js";
 import {
     ApiOperation200JsonResponseType,
@@ -19,7 +18,8 @@ import {
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
-import {ApiChat} from "~/shared/api/types/api_specification_convenience_types.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {ApiChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,

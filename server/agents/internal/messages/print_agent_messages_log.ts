@@ -4,7 +4,7 @@ import escapeHtml from "escape-html";
 import {RootContent} from "mdast";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {ApiMessageContentPayloadParentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageContentPayloadParentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";

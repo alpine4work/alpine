@@ -1,13 +1,13 @@
 import {Node} from "prosemirror-model";
-import {intoApiContentSnippetInlineElementMarks} from "~/server/api/content/into_api_content.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {intoApiContentSnippetInlineElementMarks} from "~/shared/api/content/into_api_content.js";
 import {
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageContentPayloadParentResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";

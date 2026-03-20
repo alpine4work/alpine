@@ -10,7 +10,7 @@ ts_project(
         "//:node_modules/openapi-typescript-helpers",
         "//server/agents/api",
         "//shared/accounts",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

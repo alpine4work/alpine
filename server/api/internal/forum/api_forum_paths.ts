@@ -1,4 +1,3 @@
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createIntoApiPostCommentContentPayloadParent} from "~/server/api/internal/forum/internal/create_into_api_post_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -24,6 +23,7 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,

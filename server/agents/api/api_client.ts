@@ -15,8 +15,8 @@ import {
     ApiMessageContentPayloadParent,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";

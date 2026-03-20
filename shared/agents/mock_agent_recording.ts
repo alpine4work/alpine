@@ -1,4 +1,4 @@
-import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageStreamPartPayload} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 export type MockAgentRecording = ReadonlyArray<MockAgentRecordingAction>;
 

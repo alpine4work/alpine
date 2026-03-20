@@ -12,7 +12,7 @@ ts_project(
     deps = [
         "//:node_modules/openapi-fetch",
         "//:node_modules/openapi-typescript-helpers",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",
         "//shared/tracer",

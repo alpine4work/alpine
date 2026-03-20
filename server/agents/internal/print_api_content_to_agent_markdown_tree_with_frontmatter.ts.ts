@@ -8,8 +8,8 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";

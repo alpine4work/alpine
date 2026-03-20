@@ -1,4 +1,4 @@
-import {ApiMentionResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMentionResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export type AgentConversationState = {

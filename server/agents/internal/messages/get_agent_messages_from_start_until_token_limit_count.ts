@@ -2,7 +2,7 @@ import {ApiClient, getApiMessagesFromStart} from "~/server/agents/api/api_client
 import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messages/load_api_messages_for_agent_batch_count.js";
-import {ApiMessageRoomTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageRoomTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 

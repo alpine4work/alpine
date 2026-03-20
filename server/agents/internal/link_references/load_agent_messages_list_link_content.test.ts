@@ -7,7 +7,7 @@ import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_refe
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

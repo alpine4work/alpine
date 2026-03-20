@@ -1,6 +1,6 @@
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {MockAgentRecording} from "~/shared/agents/mock_agent_recording.js";
-import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";

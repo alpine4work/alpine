@@ -15,7 +15,7 @@ import {
     ApiTaskCollection,
     ApiTaskStatus,
     ApiTaskWithoutContent,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";

@@ -17,8 +17,8 @@ import {
     ApiContent,
     ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
 type ApiContentElement = ApiContent["elements"][number];
 type SendAlertResult = {ok: true} | {ok: false; error: string; statusCode?: number};

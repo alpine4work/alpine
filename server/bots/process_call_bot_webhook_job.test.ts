@@ -15,7 +15,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenPayloadSchema} from "~/server/tokens/token_payload.js";
-import {ApiBotWebhookEvent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

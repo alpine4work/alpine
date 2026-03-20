@@ -10,7 +10,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 

@@ -16,8 +16,11 @@ import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_regis
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ApiMentionTargetPath, parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
-import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiMentionTargetPath,
+    parseApiMentionTarget,
+} from "~/shared/api/specification/parse_api_path.js";
+import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";

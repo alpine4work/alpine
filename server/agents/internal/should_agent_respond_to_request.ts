@@ -1,6 +1,6 @@
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
-import {ApiChat} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 

@@ -7,7 +7,7 @@ import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine
 import {
     ApiMessageRoomTarget,
     ApiSearchResult,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
 import {

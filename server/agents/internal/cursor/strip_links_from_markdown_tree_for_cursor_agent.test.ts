@@ -2,8 +2,8 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {stripLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/internal/cursor/strip_links_from_markdown_tree_for_cursor_agent.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 

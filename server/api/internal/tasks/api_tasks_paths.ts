@@ -1,5 +1,3 @@
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -22,7 +20,9 @@ import {
     pingTaskCommentStream,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
-import {ApiTask} from "~/shared/api/types/api_specification_convenience_types.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
+import {ApiTask} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,

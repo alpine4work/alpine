@@ -1,5 +1,5 @@
-import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
-import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {parseApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
+import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ContentReferencedIds,
     ContentReferencedIdsSchema,

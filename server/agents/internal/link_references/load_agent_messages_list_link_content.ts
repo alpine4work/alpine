@@ -24,11 +24,11 @@ import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {visitDraftApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
+import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     ApiContentResponse,
     ApiMessageRoomTarget,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";

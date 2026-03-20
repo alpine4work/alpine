@@ -1,8 +1,8 @@
-import {parseSimpleContentFromMarkdown} from "~/server/api/content/parse_simple_content_from_markdown.js";
 import {
     chatGptKnownBotId,
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
+import {parseSimpleContentFromMarkdown} from "~/shared/api/content/parse_simple_content_from_markdown.js";
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContent} from "~/shared/content/simple_content_schema.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";

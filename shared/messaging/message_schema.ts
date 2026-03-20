@@ -1,4 +1,4 @@
-import {ApiMentionTargetPath} from "~/shared/api/parse_api_path.js";
+import {ApiMentionTargetPath} from "~/shared/api/specification/parse_api_path.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

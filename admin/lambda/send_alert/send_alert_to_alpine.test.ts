@@ -6,8 +6,8 @@ import {
     sendHoneycombAlertToAlpine,
     sendPagerDutyAlertToAlpine,
 } from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
-import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // Mock environment variables

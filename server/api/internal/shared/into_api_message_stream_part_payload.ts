@@ -1,11 +1,11 @@
 import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
-import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
+import {parseApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiMentionTargetResponse,
     ApiMessageStreamPartPayloadResponse,
     ApiMessageStreamToolCallPartCreateCallTargetResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";

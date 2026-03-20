@@ -58,7 +58,7 @@ import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/space
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createChatMessageNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";

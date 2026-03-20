@@ -1,10 +1,10 @@
-import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {serializeTaskQuerySortCursorForApi} from "~/server/api/internal/tasks/internal/serialize_task_query_sort_cursor_for_api.js";
+import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {
     ApiAccount,
     ApiTaskWithoutContent,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";

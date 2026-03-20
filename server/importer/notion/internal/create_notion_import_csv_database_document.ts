@@ -1,8 +1,4 @@
 import {strFromU8} from "fflate";
-
-import {ApiContentBlockElementWithFileRow} from "~/server/api/content/api_content_block_element_with_file_row.js";
-import {extractFileIdsFromApiContent} from "~/server/api/content/extract_file_ids_from_api_content.js";
-import {ApiContentExtended, fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
@@ -10,6 +6,9 @@ import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/not
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ApiContentBlockElementWithFileRow} from "~/shared/api/content/api_content_block_element_with_file_row.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
+import {ApiContentExtended, fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
