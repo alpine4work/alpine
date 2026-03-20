@@ -1,3 +1,4 @@
+import {redirect} from "@remix-run/node";
 import {useMemo} from "react";
 import {
     deserializeDatabaseIdForLoader,
@@ -17,7 +18,7 @@ import {
     LoaderDatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
 
-export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
+export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     deserializeSpaceIdForLoader(params.spaceId);
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
@@ -30,6 +31,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         name: "getViewData",
         input: {tableOrViewId},
     });
+
+    // If the user navigated with a table ID, redirect to
+    // the resolved view ID for a canonical URL. Uses a
+    // relative redirect so peek routes work correctly.
+    if (result.viewId !== tableOrViewId) {
+        const url = new URL(request.url);
+        url.pathname = url.pathname.replace(/\/[^/]+$/, `/${result.viewId}`);
+        return redirect(url.pathname + url.search);
+    }
 
     return jsonWithSchema(LoaderDatabaseActionResultSchema, {
         name: "getViewData",

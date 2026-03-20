@@ -84,6 +84,7 @@ export default function DatabaseLayoutRoute() {
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
     const navigate = useNavigate();
     const reporter = useReporter();
+    const basePath = `/s/${params.spaceId}/databases/${databaseId}`;
     const [conn, setConn] = useState<DatabaseConnection | null>(null);
     const initialPagesRef = useRef(pages);
 
@@ -164,9 +165,7 @@ export default function DatabaseLayoutRoute() {
                     <Button
                         key={tableId}
                         variant={params.tableOrViewId === tableId ? "neutral" : "quieter"}
-                        onPress={() =>
-                            navigate(`/s/${params.spaceId}/databases/${databaseId}/${tableId}`)
-                        }
+                        onPress={() => navigate(`${basePath}/${tableId}`, {stopPropagation: true})}
                         pressErrorTitle="Failed to navigate"
                     >
                         {table.name}
@@ -174,7 +173,7 @@ export default function DatabaseLayoutRoute() {
                 ))}
                 <Button
                     variant={params.tableOrViewId == null ? "neutral" : "quieter"}
-                    onPress={() => navigate(`/s/${params.spaceId}/databases/${databaseId}/sql`)}
+                    onPress={() => navigate(`${basePath}/sql`, {stopPropagation: true})}
                     pressErrorTitle="Failed to navigate"
                 >
                     SQL
