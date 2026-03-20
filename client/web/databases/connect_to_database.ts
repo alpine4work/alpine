@@ -23,8 +23,9 @@ export type {
  * worker), others proxy queries via MessagePort through
  * the ServiceWorker.
  */
-export function connectToDatabase(options: {
+export async function connectToDatabase(options: {
     databaseId: DatabaseId;
+    initialPages?: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>;
     executeActionServer(
         action: DatabaseActionObject,
         options: {mutationId: DatabaseMutationId},
@@ -113,5 +114,9 @@ export function connectToDatabase(options: {
         reportError: options.reportError,
     });
 
-    return manager.connect();
+    const connection = await manager.connect();
+    if (options.initialPages !== undefined && options.initialPages.length > 0) {
+        void connection.call("writeInitialPages", {pages: options.initialPages});
+    }
+    return connection;
 }

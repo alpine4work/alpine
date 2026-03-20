@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import type {ReactiveActionHandle} from "~/client/web/databases/connect_to_database.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -32,9 +32,22 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
     const {name, input, initialData} = options;
     const conn = useDatabaseConnection();
     const [handle, setHandle] = useState<ReactiveActionHandle | null>(null);
+    const initialDataRef = useRef(initialData);
 
     useEffect(() => {
         if (conn == null || input == null) return;
+
+        const readPages = initialDataRef.current?.readPages;
+        if (readPages !== undefined && readPages.size > 0) {
+            void conn.call("writeInitialPages", {
+                pages: Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
+                    pageIndex,
+                    timestamp,
+                    data,
+                })),
+            });
+        }
+
         let cancelled = false;
         let h: ReactiveActionHandle | null = null;
         (async () => {
