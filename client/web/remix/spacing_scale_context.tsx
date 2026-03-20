@@ -12,6 +12,8 @@ import {
 } from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 /**
@@ -80,6 +82,14 @@ export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): Spacing
  * using `useSpacingScale()` so if the scale changes your component will re-render.
  */
 export function getSpacingScaleWithoutListening(): SpacingScale {
+    // The canonical spacing scale is whatever is set in `data-spacing`.
+    const spacingScale = document.documentElement.getAttribute("data-spacing");
+    if (spacingScale !== null) return spacingScale as SpacingScale;
+
+    return actuallyGetSpacingScaleWithoutListening();
+}
+
+function actuallyGetSpacingScaleWithoutListening(): SpacingScale {
     if (NativeMobileBridge) return "large";
     if (window.innerWidth <= mobilePlatformMaxWindowWidth) return "large";
     if (window.innerWidth >= mediumSpacingScaleMinWindowWidth) return "medium";
@@ -158,6 +168,16 @@ export function subscribeToSpacingScaleChange(listener: () => void): () => void 
     };
 }
 
+let setSpacingScaleOverride: ((spacingScale: SpacingScale | null) => void) | null = null;
+
+/**
+ * Override the spacing scale. Make sure to clean up your spacing scale override
+ * when you're done. Currently this is just used for printing.
+ */
+export function overrideSpacingScale(spacingScale: SpacingScale | null) {
+    assertExists(setSpacingScaleOverride)(spacingScale);
+}
+
 export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
     spacingScale: SpacingScale;
     hasSetSpacingScale: boolean;
@@ -167,9 +187,13 @@ export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
     const hasSetSpacingScale = spacingScaleFromState !== null;
     const spacingScale = spacingScaleFromState ?? getInitialAppRenderSpacingScale(clientInfo);
 
+    const [spacingScaleOverride, actuallySetSpacingScaleOverride] = useState<SpacingScale | null>(
+        null,
+    );
+
     useEffect(() => {
         const update = () => {
-            setSpacingScale(getSpacingScaleWithoutListening());
+            setSpacingScale(actuallyGetSpacingScaleWithoutListening());
         };
 
         const unsubscribe = subscribeToSpacingScaleChange(update);
@@ -177,8 +201,16 @@ export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
         // In case the value changed since the time component rendered.
         update();
 
-        return unsubscribe;
-    }, [clientInfo.isNativeMobile]);
+        assert(!setSpacingScaleOverride);
+        setSpacingScaleOverride = actuallySetSpacingScaleOverride;
+
+        return () => {
+            unsubscribe();
+
+            assert(setSpacingScaleOverride === actuallySetSpacingScaleOverride);
+            setSpacingScaleOverride = null;
+        };
+    }, []);
 
     useEffect(() => {
         if (!hasSetSpacingScale) return;
@@ -193,10 +225,10 @@ export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
     }, [hasSetSpacingScale]);
 
     return {
-        spacingScale,
+        spacingScale: spacingScaleOverride ?? spacingScale,
         hasSetSpacingScale,
         render: (children: ReactNode) => (
-            <SpacingScaleContext.Provider value={spacingScale}>
+            <SpacingScaleContext.Provider value={spacingScaleOverride ?? spacingScale}>
                 {children}
             </SpacingScaleContext.Provider>
         ),

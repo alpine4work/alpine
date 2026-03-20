@@ -872,6 +872,7 @@ export default function SpaceLayoutRoute() {
                                     ? loaderData.currentAccount
                                     : loaderData.currentAccountWithoutSpace
                             }
+                            withMyAccountWebSocket={true}
                         >
                             <SpaceThemeColorManager />
                             <TaskRealtimeClientContextProvider

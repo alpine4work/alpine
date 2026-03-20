@@ -91,7 +91,7 @@ import {
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -1458,6 +1458,15 @@ export function addContentFilePreviewBehaviorBase(
     };
 }
 
+let contentFileImagePreviewContentLoadingState: {
+    count: number;
+    promiseResolver: PromiseResolver<void>;
+} | null = null;
+
+export async function internalWaitForContentFileImagePreviewContentsToLoad() {
+    await contentFileImagePreviewContentLoadingState?.promiseResolver.promise;
+}
+
 export function addContentFilePreviewBehavior(
     getContext: () => AppContext,
     element: HTMLElement,
@@ -1662,7 +1671,7 @@ export function addContentFilePreviewBehavior(
     element.addEventListener("contextmenu", handleContextMenu);
 
     /* ========================================================================== *\
-     *                               Image elements                               *
+     *                               Image elements                               *
     \* ========================================================================== */
 
     const imagePreviewContentElement = element.querySelector<HTMLImageElement>(
@@ -1689,9 +1698,31 @@ export function addContentFilePreviewBehavior(
             element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
         }
 
+        contentFileImagePreviewContentLoadingState ??= {
+            count: 0,
+            promiseResolver: createPromiseResolver(),
+        };
+        contentFileImagePreviewContentLoadingState.count++;
+
         const handleLoad = () => {
             if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
                 element.classList.add(contentStyles.loadedFileImagePreviewClassName);
+            }
+
+            // Wait for the animation to finish before resolving our loading state promise.
+            createTimeout(
+                decrementLoadingStateCount,
+                contentStyles.loadedFileImageAnimationDurationMs,
+            );
+        };
+
+        const decrementLoadingStateCount = () => {
+            assert(contentFileImagePreviewContentLoadingState);
+            contentFileImagePreviewContentLoadingState.count--;
+
+            if (contentFileImagePreviewContentLoadingState.count === 0) {
+                contentFileImagePreviewContentLoadingState.promiseResolver.resolve();
+                contentFileImagePreviewContentLoadingState = null;
             }
         };
 
@@ -1699,7 +1730,10 @@ export function addContentFilePreviewBehavior(
 
         loadedPromise.then(
             () => {
-                if (hasCleanedUp) return;
+                if (hasCleanedUp) {
+                    decrementLoadingStateCount();
+                    return;
+                }
 
                 // If the image was loaded synchronously and the element doesn't currently have the
                 // loaded class name then wait a microtask before adding the loaded class name.
@@ -1715,9 +1749,13 @@ export function addContentFilePreviewBehavior(
                 }
             },
             error => {
-                if (hasCleanedUp) return;
+                if (hasCleanedUp) {
+                    decrementLoadingStateCount();
+                    return;
+                }
 
                 scheduleUncaughtError(error);
+                decrementLoadingStateCount();
             },
         );
 

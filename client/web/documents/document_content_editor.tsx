@@ -177,7 +177,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -1569,7 +1568,7 @@ export function DocumentContentEditor({
             [platform, routeLayout],
         ),
         menuActions: useMemo(
-            () => [
+            (): ReadonlyArray<ReadonlyArray<MenuAction>> => [
                 [
                     {
                         label: "Copy link",
@@ -1636,108 +1635,166 @@ export function DocumentContentEditor({
                           ]
                         : []),
                 ],
-                [
-                    currentAccount &&
+                (() => {
+                    const print = async () => {
+                        await new Promise<void>(resolve => {
+                            const temporaryIframeElement = document.createElement("iframe");
+                            temporaryIframeElement.style.width = "0";
+                            temporaryIframeElement.style.height = "0";
+                            temporaryIframeElement.style.margin = "0";
+                            temporaryIframeElement.style.padding = "0";
+                            temporaryIframeElement.style.border = "0";
+                            temporaryIframeElement.style.opacity = "0";
+                            temporaryIframeElement.style.position = "fixed";
+                            temporaryIframeElement.style.top = "0px";
+                            temporaryIframeElement.src = `/print/document/${documentId}`;
+
+                            // Clean up after the `<iframe>` has finished printing.
+                            const handleMessage = (event: MessageEvent) => {
+                                if (
+                                    event.source === temporaryIframeElement.contentWindow &&
+                                    event.data === "cyberworlds/printed"
+                                ) {
+                                    window.removeEventListener("message", handleMessage);
+                                    temporaryIframeElement.remove();
+                                    resolve();
+                                }
+                            };
+
+                            window.addEventListener("message", handleMessage);
+
+                            assertExists(editorContainerRef.current).appendChild(
+                                temporaryIframeElement,
+                            );
+                        });
+                    };
+
+                    return [
                         cast<MenuAction>({
-                            label: "Duplicate",
-                            iconPlacement: "end",
-                            pressErrorTitle: "Couldn\u2019t duplicate document",
-                            onPress: async () => {
-                                // Get the current document content
-                                const currentDoc = content.doc;
+                            hasChildren: true,
+                            placement: "left",
+                            key: "export",
+                            label: "Export",
+                            actions: [
+                                {
+                                    label: "Markdown",
+                                    pressErrorTitle: "Couldn\u2019t export document to Markdown",
+                                    onPress: async () => {
+                                        // The export function has a lot of heavy dependencies, so lazy load it.
+                                        const {exportDocumentContent} =
+                                            await import("~/client/web/documents/internal/export_document_content.js");
 
-                                // Check for template variables
-                                const schema = extractContentDuplicationVariableSchema(currentDoc);
+                                        const {string, html} = await exportDocumentContent({
+                                            spaceId,
+                                            format: "Markdown",
+                                            content,
+                                        });
 
-                                // Navigate to the duplicate interstitial with schema
-                                const encodedSchema =
-                                    encodeContentDuplicationVariableSchemaForUrl(schema);
+                                        setExportModalState({
+                                            format: "Markdown",
+                                            string,
+                                            html,
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "HTML",
+                                    pressErrorTitle: "Couldn\u2019t export document to HTML",
+                                    onPress: async () => {
+                                        // The export function has a lot of heavy dependencies, so lazy load it.
+                                        const {exportDocumentContent} =
+                                            await import("~/client/web/documents/internal/export_document_content.js");
 
-                                if (encodedSchema !== null) {
-                                    const searchParams = new URLSearchParams();
-                                    searchParams.set("title", getDocumentContentTitle(currentDoc));
-                                    searchParams.set("schema", encodedSchema);
+                                        const {string, html} = await exportDocumentContent({
+                                            spaceId,
+                                            format: "HTML",
+                                            content,
+                                        });
 
-                                    await navigate(
-                                        `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
-                                    );
-                                    return;
-                                }
-
-                                // Show the instructional modal if it hasn't been dismissed
-                                if (!doNotShowDuplicationInstructionalModalAgain) {
-                                    setShowDuplicateInstructionalModal(true);
-                                    return;
-                                }
-
-                                // No variables - duplicate directly via RPC
-                                const {documentId: newDocumentId} = await duplicateDocument(
-                                    context,
-                                    {sourceDocumentId: documentId},
-                                );
-
-                                // Navigate to the new document. Always open in a peek on desktop. To make it clear
-                                // when you're duplicating from a peek that the new document is a duplicate.
-                                if (peekStackContext && platform !== "mobile") {
-                                    await peekStackContext.push(
-                                        `/s/${spaceId}/documents/${newDocumentId}`,
-                                    );
-                                } else {
-                                    await navigate(`/s/${spaceId}/documents/${newDocumentId}`);
-                                }
-                            },
+                                        setExportModalState({
+                                            format: "HTML",
+                                            string,
+                                            html,
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "PDF",
+                                    pressErrorTitle: "Couldn\u2019t export document to PDF",
+                                    onPress: print,
+                                },
+                            ],
                         }),
-                    cast<MenuAction>({
-                        hasChildren: true,
-                        placement: "left",
-                        key: "export",
-                        label: "Export",
-                        actions: [
-                            {
-                                label: "Markdown",
-                                pressErrorTitle: "Couldn\u2019t export to Markdown",
-                                onPress: async () => {
-                                    // The export function has a lot of heavy dependencies, so lazy load it.
-                                    const {exportDocumentContent} =
-                                        await import("~/client/web/documents/internal/export_document_content.js");
+                        cast<MenuAction>({
+                            label: "Print",
+                            pressErrorTitle: "Couldn\u2019t print document",
+                            onPress: print,
+                        }),
+                    ];
+                })(),
+                ...(currentAccount
+                    ? [
+                          [
+                              cast<MenuAction>({
+                                  label: "Duplicate",
+                                  iconPlacement: "end",
+                                  pressErrorTitle: "Couldn\u2019t duplicate document",
+                                  onPress: async () => {
+                                      // Get the current document content
+                                      const currentDoc = content.doc;
 
-                                    const {string, html} = await exportDocumentContent({
-                                        spaceId,
-                                        format: "Markdown",
-                                        content,
-                                    });
+                                      // Check for template variables
+                                      const schema =
+                                          extractContentDuplicationVariableSchema(currentDoc);
 
-                                    setExportModalState({
-                                        format: "Markdown",
-                                        string,
-                                        html,
-                                    });
-                                },
-                            },
-                            {
-                                label: "HTML",
-                                pressErrorTitle: "Couldn\u2019t export to HTML",
-                                onPress: async () => {
-                                    // The export function has a lot of heavy dependencies, so lazy load it.
-                                    const {exportDocumentContent} =
-                                        await import("~/client/web/documents/internal/export_document_content.js");
+                                      // Navigate to the duplicate interstitial with schema
+                                      const encodedSchema =
+                                          encodeContentDuplicationVariableSchemaForUrl(schema);
 
-                                    const {string, html} = await exportDocumentContent({
-                                        spaceId,
-                                        format: "HTML",
-                                        content,
-                                    });
+                                      if (encodedSchema !== null) {
+                                          const searchParams = new URLSearchParams();
+                                          searchParams.set(
+                                              "title",
+                                              getDocumentContentTitle(currentDoc),
+                                          );
+                                          searchParams.set("schema", encodedSchema);
 
-                                    setExportModalState({
-                                        format: "HTML",
-                                        string,
-                                        html,
-                                    });
-                                },
-                            },
-                        ],
-                    }),
-                ].filter(isNonNullable),
+                                          await navigate(
+                                              `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
+                                          );
+                                          return;
+                                      }
+
+                                      // Show the instructional modal if it hasn't been dismissed
+                                      if (!doNotShowDuplicationInstructionalModalAgain) {
+                                          setShowDuplicateInstructionalModal(true);
+                                          return;
+                                      }
+
+                                      // No variables - duplicate directly via RPC
+                                      const {documentId: newDocumentId} = await duplicateDocument(
+                                          context,
+                                          {
+                                              sourceDocumentId: documentId,
+                                          },
+                                      );
+
+                                      // Navigate to the new document. Always open in a peek on desktop. To make it clear
+                                      // when you're duplicating from a peek that the new document is a duplicate.
+                                      if (peekStackContext && platform !== "mobile") {
+                                          await peekStackContext.push(
+                                              `/s/${spaceId}/documents/${newDocumentId}`,
+                                          );
+                                      } else {
+                                          await navigate(
+                                              `/s/${spaceId}/documents/${newDocumentId}`,
+                                          );
+                                      }
+                                  },
+                              }),
+                          ],
+                      ]
+                    : []),
             ],
             [
                 accessLevel,

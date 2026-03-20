@@ -1236,6 +1236,13 @@ globalStyle(fileClassName, {
     // the colors from our placeholder `<img>` and content `<img>` with
     // `mix-blend-mode: plus-lighter`.
     isolation: "isolate",
+
+    "@media": {
+        print: {
+            // Don't break a file across multiple pages when printing.
+            breakInside: "avoid",
+        },
+    },
 });
 
 globalStyle(`${fileClassName} > *`, {

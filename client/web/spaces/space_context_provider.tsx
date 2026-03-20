@@ -15,11 +15,13 @@ export function SpaceContextProvider({
     initialSpace,
     currentAccount,
     currentAccountWithoutSpace,
+    withMyAccountWebSocket,
     children,
 }: {
     initialSpace: SpaceModel;
     currentAccount: AccountModel | null;
     currentAccountWithoutSpace: AccountModelWithoutSpace | null;
+    withMyAccountWebSocket: boolean;
     children?: ReactNode;
 }) {
     const [space, setSpace] = useState(initialSpace);
@@ -40,7 +42,9 @@ export function SpaceContextProvider({
     const {isConnected, subscribeToEvents, subscribeToPongs, toggleShouldConnect} = useWebSocket(
         "MyAccountService",
         MyAccountProtocol,
-        currentAccount !== null ? `/api/durable-objects/my-account/${currentAccount.id}` : null,
+        withMyAccountWebSocket && currentAccount !== null
+            ? `/api/durable-objects/my-account/${currentAccount.id}`
+            : null,
     );
 
     useDevConsoleTool("myAccount", () => ({

@@ -35,8 +35,10 @@ import {MobileFullScreenModalContextProvider} from "~/client/web/design/mobile_f
 import {RootOverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {ReporterContextProvider} from "~/client/web/design/reporter_context_provider.js";
 import {TooltipCoordinationContextProvider} from "~/client/web/design/tooltip_coordination_context_provider.js";
-import {getColorSchemeWithoutListeningIfBrowser} from "~/client/web/helpers/color_scheme.js";
-import {ColorSchemeManager} from "~/client/web/helpers/color_scheme_manager.js";
+import {
+    ColorSchemeManager,
+    getColorSchemeWithoutListeningIfBrowser,
+} from "~/client/web/helpers/color_scheme.js";
 import {useGlobalContextProvider} from "~/client/web/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/web/helpers/global_key_down_event.js";
 import {useAppInitialRenderContextProvider} from "~/client/web/helpers/lifecycle/initial_app_render.js";

@@ -7,6 +7,7 @@ import {Platform, mobilePlatformMaxWindowWidth} from "~/shared/design/core/platf
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 const PlatformContext = createContext<Platform | null>(null);
@@ -64,6 +65,14 @@ export function getInitialAppRenderPlatform(clientInfo: ClientInfo): Platform {
  * using `usePlatform()` so if the platform changes your component will re-render.
  */
 export function getPlatformWithoutListening(): Platform {
+    // The canonical platform is whatever is set in `data-platform`.
+    const platform = document.documentElement.getAttribute("data-platform");
+    if (platform !== null) return platform as Platform;
+
+    return actuallyGetPlatformWithoutListening();
+}
+
+function actuallyGetPlatformWithoutListening(): Platform {
     return !!NativeMobileBridge || window.innerWidth <= mobilePlatformMaxWindowWidth
         ? "mobile"
         : "desktop";
@@ -129,15 +138,27 @@ export function subscribeToPlatformChange(listener: () => void): () => void {
     };
 }
 
+let setPlatformOverride: ((platform: Platform | null) => void) | null = null;
+
+/**
+ * Override the platform. Make sure to clean up your platform override when you're
+ * done. Currently this is just used for printing.
+ */
+export function overridePlatform(platform: Platform | null) {
+    assertExists(setPlatformOverride)(platform);
+}
+
 export function usePlatformContextProvider(clientInfo: ClientInfo): {
     platform: Platform;
     render: (children: ReactNode) => ReactElement;
 } {
     const [platform, setPlatform] = useState(getInitialAppRenderPlatform(clientInfo));
 
+    const [platformOverride, actuallySetPlatformOverride] = useState<Platform | null>(null);
+
     useEffect(() => {
         const update = () => {
-            setPlatform(getPlatformWithoutListening());
+            setPlatform(actuallyGetPlatformWithoutListening());
         };
 
         const unsubscribe = subscribeToPlatformChange(update);
@@ -145,8 +166,16 @@ export function usePlatformContextProvider(clientInfo: ClientInfo): {
         // In case the value changed since the time component rendered.
         update();
 
-        return unsubscribe;
-    }, [clientInfo.isNativeMobile]);
+        assert(!setPlatformOverride);
+        setPlatformOverride = actuallySetPlatformOverride;
+
+        return () => {
+            unsubscribe();
+
+            assert(setPlatformOverride === actuallySetPlatformOverride);
+            setPlatformOverride = null;
+        };
+    }, []);
 
     const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(platform !== "mobile");
 
@@ -167,9 +196,9 @@ export function usePlatformContextProvider(clientInfo: ClientInfo): {
     }, []);
 
     return {
-        platform,
+        platform: platformOverride ?? platform,
         render: (children: ReactNode) => (
-            <PlatformContext.Provider value={platform}>
+            <PlatformContext.Provider value={platformOverride ?? platform}>
                 <CanPrimaryInputHoverContext.Provider value={canPrimaryInputHover}>
                     {children}
                 </CanPrimaryInputHoverContext.Provider>

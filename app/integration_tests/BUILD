@@ -43,6 +43,7 @@ ts_playwright_tests(
         "chat/messaging_message_range_parent_desktop.spec.ts": ["webkit_mobile"],
         "documents/content_editor_file_drop_desktop.spec.ts": ["webkit_mobile"],
         "documents/document_files_desktop.spec.ts": ["webkit_mobile"],
+        "documents/print_document_route_desktop.spec.ts": ["webkit_mobile"],
         "documents/document_share_desktop.spec.ts": ["webkit_mobile"],
         "forum/forum_post_range_message_parent_desktop.spec.ts": ["webkit_mobile"],
         "forum/search_entity_mentions_desktop.spec.ts": ["webkit_mobile"],
