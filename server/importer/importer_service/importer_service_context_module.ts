@@ -34,15 +34,17 @@ export class ImporterServiceContextModule extends ImporterServiceContextModuleBa
      * Reads an uploaded file from S3.
      */
     async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        const getObjectResult = await this._s3Client
-            .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
-            .catch(() => null);
+        return this._context.tracer.withSpan("Read uploaded file", async () => {
+            const getObjectResult = await this._s3Client
+                .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
+                .catch(() => null);
 
-        if (!getObjectResult?.Body) {
-            return null;
-        }
+            if (!getObjectResult?.Body) {
+                return null;
+            }
 
-        return getObjectResult.Body.transformToByteArray();
+            return getObjectResult.Body.transformToByteArray();
+        });
     }
 
     /**
@@ -51,35 +53,37 @@ export class ImporterServiceContextModule extends ImporterServiceContextModuleBa
     async downloadAndUnzipImportToDisk(options: {
         importKey: string;
     }): Promise<{diskPathToUnzippedFiles: string}> {
-        const {importKey} = options;
+        return this._context.tracer.withSpan("Download and unzip import to disk", async () => {
+            const {importKey} = options;
 
-        // Create a temporary directory for the import using the import key as the name
-        const unzipDir = `/tmp/importer/${importKey.replace(/\//g, "_")}`;
-        const zipFilePath = `${unzipDir}.zip`;
+            // Create a temporary directory for the import using the import key as the name
+            const unzipDir = `/tmp/importer/${importKey.replace(/\//g, "_")}`;
+            const zipFilePath = `${unzipDir}.zip`;
 
-        // Download the zip file from S3
-        const getObjectResult = await this._s3Client
-            .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
-            .catch(error => {
-                throw new DataLossError(`Failed to get import file`, {cause: error});
-            });
+            // Download the zip file from S3
+            const getObjectResult = await this._s3Client
+                .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
+                .catch(error => {
+                    throw new DataLossError(`Failed to get import file`, {cause: error});
+                });
 
-        if (!getObjectResult?.Body) {
-            throw new DataLossError(`Import file not found`);
-        }
+            if (!getObjectResult?.Body) {
+                throw new DataLossError(`Import file not found`);
+            }
 
-        // Stream directly to disk to avoid holding the entire file in memory
-        await mkdir(dirname(zipFilePath), {recursive: true});
-        await pipeline(getObjectResult.Body, createWriteStream(zipFilePath));
+            // Stream directly to disk to avoid holding the entire file in memory
+            await mkdir(dirname(zipFilePath), {recursive: true});
+            await pipeline(getObjectResult.Body, createWriteStream(zipFilePath));
 
-        // Unzip to disk
-        await mkdir(unzipDir, {recursive: true});
-        await unzipToDisk(zipFilePath, unzipDir);
+            // Unzip to disk
+            await mkdir(unzipDir, {recursive: true});
+            await unzipToDisk(zipFilePath, unzipDir);
 
-        // Clean up the zip file
-        await unlink(zipFilePath);
+            // Clean up the zip file
+            await unlink(zipFilePath);
 
-        return {diskPathToUnzippedFiles: unzipDir};
+            return {diskPathToUnzippedFiles: unzipDir};
+        });
     }
 
     fork(): ImporterServiceContextModule {

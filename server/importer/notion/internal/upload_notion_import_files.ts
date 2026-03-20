@@ -90,71 +90,90 @@ export async function uploadNotionImportFiles(
     mappedReferencesResult: NotionImportMappedReferencesResult,
     progressState: NotionImporterProgressState,
 ): Promise<void> {
-    const {filesToUpload, diskPathToUnzippedFiles, filePathToTeamspaceId} = mappedReferencesResult;
+    await context.tracer.withSpan("Upload notion import files", async (_tracerContext, span) => {
+        const {filesToUpload, diskPathToUnzippedFiles, filePathToTeamspaceId} =
+            mappedReferencesResult;
 
-    // Build lists of files, separated by heavy vs light.
-    const lightFiles: Array<NotionImportFileToUpload> = [];
-    const heavyFiles: Array<NotionImportFileToUpload> = [];
+        // Build lists of files, separated by heavy vs light.
+        const lightFiles: Array<NotionImportFileToUpload> = [];
+        const heavyFiles: Array<NotionImportFileToUpload> = [];
 
-    for (const [relativeFilePath, {id: fileId}] of Object.entries(filesToUpload)) {
-        const absolutePath = joinPath(diskPathToUnzippedFiles, relativeFilePath);
-        let sizeInBytes: number;
-        try {
-            const stats = statSync(absolutePath);
-            sizeInBytes = stats.size;
-        } catch {
-            // Skip files that don't exist or can't be read.
-            continue;
+        for (const [relativeFilePath, {id: fileId}] of Object.entries(filesToUpload)) {
+            const absolutePath = joinPath(diskPathToUnzippedFiles, relativeFilePath);
+            let sizeInBytes: number;
+            try {
+                const stats = statSync(absolutePath);
+                sizeInBytes = stats.size;
+            } catch {
+                // Skip files that don't exist or can't be read.
+                continue;
+            }
+
+            // NOTE(imjoshin, 2026-02-25) - Skip files that don't belong to any teamspace we're
+            // importing. The Workspace-Flat export in our test fixtures has an orphaned
+            // "Untitled 26c7-4124.md" file — no content, no reference in the index.html, no
+            // copy of it in Notion itself. It's just... there. No pattern that would indicate
+            // when it shows up, but we don't have any reason to import it.
+            const teamspaceId = filePathToTeamspaceId.get(relativeFilePath);
+            if (teamspaceId === undefined) continue;
+
+            const contentType =
+                getPathFileContentTypeIfExists(relativeFilePath) ?? "application/octet-stream";
+            const file = {relativeFilePath, fileId, sizeInBytes, contentType, teamspaceId};
+
+            // Classify as heavy or light using the same routing logic as file processing.
+            // Heavy files (video, audio needing transcoding, large files) are processed
+            // sequentially. Light files (images, small docs) are processed in parallel.
+            const {jobType} = routeFileToProcessor({contentType, contentLength: sizeInBytes});
+            if (jobType === "ProcessFileHeavy") {
+                heavyFiles.push(file);
+            } else {
+                lightFiles.push(file);
+            }
         }
 
-        // NOTE(imjoshin, 2026-02-25) - Skip files that don't belong to any teamspace we're
-        // importing. The Workspace-Flat export in our test fixtures has an orphaned
-        // "Untitled 26c7-4124.md" file — no content, no reference in the index.html, no
-        // copy of it in Notion itself. It's just... there. No pattern that would indicate
-        // when it shows up, but we don't have any reason to import it.
-        const teamspaceId = filePathToTeamspaceId.get(relativeFilePath);
-        if (teamspaceId === undefined) continue;
+        span.addData({common: {count: lightFiles.length + heavyFiles.length}});
 
-        const contentType =
-            getPathFileContentTypeIfExists(relativeFilePath) ?? "application/octet-stream";
-        const file = {relativeFilePath, fileId, sizeInBytes, contentType, teamspaceId};
+        // Helper to upload a single file.
+        const uploadFile = async (file: NotionImportFileToUpload): Promise<void> => {
+            await uploadFileForNotionImport(context, {
+                spaceId,
+                uploaderId,
+                diskPathToUnzippedFiles,
+                relativeFilePath: file.relativeFilePath,
+                fileId: file.fileId,
+                contentLength: file.sizeInBytes,
+                contentType: file.contentType,
+                teamspaceId: file.teamspaceId,
+                progressState,
+            });
+        };
 
-        // Classify as heavy or light using the same routing logic as file processing.
-        // Heavy files (video, audio needing transcoding, large files) are processed
-        // sequentially. Light files (images, small docs) are processed in parallel.
-        const {jobType} = routeFileToProcessor({contentType, contentLength: sizeInBytes});
-        if (jobType === "ProcessFileHeavy") {
-            heavyFiles.push(file);
-        } else {
-            lightFiles.push(file);
+        // Phase 1: Upload light files in parallel using rotating pool.
+        if (lightFiles.length > 0) {
+            await context.tracer.withSpan(
+                "Upload notion import light files",
+                async (_tracerContext, span) => {
+                    span.addData({common: {count: lightFiles.length}});
+                    await uploadFilesWithPool(lightFiles, uploadFile, numberOfConcurrentLightFiles);
+                },
+            );
         }
-    }
 
-    // Helper to upload a single file.
-    const uploadFile = async (file: NotionImportFileToUpload): Promise<void> => {
-        await uploadFileForNotionImport(context, {
-            spaceId,
-            uploaderId,
-            diskPathToUnzippedFiles,
-            relativeFilePath: file.relativeFilePath,
-            fileId: file.fileId,
-            contentLength: file.sizeInBytes,
-            contentType: file.contentType,
-            teamspaceId: file.teamspaceId,
-            progressState,
-        });
-    };
-
-    // Phase 1: Upload light files in parallel using rotating pool.
-    if (lightFiles.length > 0) {
-        await uploadFilesWithPool(lightFiles, uploadFile, numberOfConcurrentLightFiles);
-    }
-
-    // Phase 2: Upload heavy files sequentially (one at a time). Heavy files
-    // (video/audio) use FFmpeg which uses all CPU cores internally.
-    for (const file of heavyFiles) {
-        await uploadFile(file);
-    }
+        // Phase 2: Upload heavy files sequentially (one at a time). Heavy files
+        // (video/audio) use FFmpeg which uses all CPU cores internally.
+        if (heavyFiles.length > 0) {
+            await context.tracer.withSpan(
+                "Upload notion import heavy files",
+                async (_tracerContext, span) => {
+                    span.addData({common: {count: heavyFiles.length}});
+                    for (const file of heavyFiles) {
+                        await uploadFile(file);
+                    }
+                },
+            );
+        }
+    });
 }
 
 /**

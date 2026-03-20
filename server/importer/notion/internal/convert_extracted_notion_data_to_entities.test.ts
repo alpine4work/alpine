@@ -72,7 +72,7 @@ async function unzipAndMapReferencesForTest(
     await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
 
     const result = await parseNotionImportAndMapReferences(
-        {importerService: importer},
+        {tracer: context.tracer, importerService: importer},
         diskPathToUnzippedFiles,
         importItem,
     );

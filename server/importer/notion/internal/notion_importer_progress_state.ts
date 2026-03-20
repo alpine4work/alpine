@@ -27,7 +27,7 @@ export class NotionImporterProgressState {
     private readonly notionImportId: NotionImportId;
     private readonly context: ImporterServiceSystemActionContext;
     private readonly persistIntervalMs: number;
-    private readonly initialResult: NotionImportProcessingOrDoneResult;
+    readonly initialResult: NotionImportProcessingOrDoneResult;
 
     /** Per-teamspace counters for tracking progress. */
     readonly teamspaceCounters = new Map<string, {documents: number; files: Map<string, number>}>();

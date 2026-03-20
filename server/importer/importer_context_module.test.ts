@@ -100,27 +100,44 @@ function createMockEcsClient(): MockEcsClient {
     return mock as unknown as MockEcsClient;
 }
 
-describe("ImporterContextModule", () => {
-    const testBucketName = "test-import-uploads-bucket";
+/**
+ * Creates an `ImporterContextModule` with mock S3/ECS clients, bound to a context
+ * with a test tracer. Returns the mocks and a `run` function that executes an
+ * action within the bound context.
+ */
+function createTestImporterModule({bucketName}: {bucketName?: string} = {}) {
+    const mockS3 = createMockS3Client();
+    const mockEcs = createMockEcsClient();
+    const module = new ImporterContextModule({
+        s3Client: mockS3,
+        bucketName: bucketName ?? "test-import-uploads-bucket",
+        ecsClient: mockEcs,
+        ecsConfig: createMockEcsConfig(),
+    });
 
+    return {
+        mockS3,
+        mockEcs,
+        module,
+        run: <T>(action: (importer: ImporterContextModule) => Promise<T>) =>
+            Context.with({tracer: new TracerContextModule(testTracer), importer: module}, ctx =>
+                action(ctx.importer),
+            ),
+    };
+}
+
+describe("ImporterContextModule", () => {
     // Note: createPresignedUploadUrl cannot be unit tested with a mock S3 client
     // because getSignedUrl from @aws-sdk/s3-request-presigner requires a real S3Client
     // with credential resolution. Integration tests should cover this.
 
     describe("readUploadedFile", () => {
         test("returns file contents from S3", async () => {
-            const mockS3 = createMockS3Client();
+            const {mockS3, run} = createTestImporterModule();
             const fileData = new Uint8Array([1, 2, 3, 4, 5]);
             mockS3.mockGetObjectData = fileData;
 
-            const module = new ImporterContextModule({
-                s3Client: mockS3,
-                bucketName: testBucketName,
-                ecsClient: createMockEcsClient(),
-                ecsConfig: createMockEcsConfig(),
-            });
-
-            const result = await module.readUploadedFile("spa_123/nim_456");
+            const result = await run(importer => importer.readUploadedFile("spa_123/nim_456"));
 
             expect(result).toEqual(fileData);
             expect(mockS3.sentCommands.length).toBe(1);
@@ -128,17 +145,12 @@ describe("ImporterContextModule", () => {
         });
 
         test("uses provided bucket name for GetObject", async () => {
-            const mockS3 = createMockS3Client();
+            const {mockS3, run} = createTestImporterModule({
+                bucketName: "custom-bucket-name",
+            });
             mockS3.mockGetObjectData = new Uint8Array([1]);
 
-            const module = new ImporterContextModule({
-                s3Client: mockS3,
-                bucketName: "custom-bucket-name",
-                ecsClient: createMockEcsClient(),
-                ecsConfig: createMockEcsConfig(),
-            });
-
-            await module.readUploadedFile("test/key");
+            await run(importer => importer.readUploadedFile("test/key"));
 
             const command = mockS3.sentCommands[0] as GetObjectCommand;
             expect(command.input.Bucket).toBe("custom-bucket-name");
@@ -146,33 +158,19 @@ describe("ImporterContextModule", () => {
         });
 
         test("returns null when S3 returns error", async () => {
-            const mockS3 = createMockS3Client();
+            const {mockS3, run} = createTestImporterModule();
             mockS3.mockGetObjectError = InternalError.from("NoSuchKey");
 
-            const module = new ImporterContextModule({
-                s3Client: mockS3,
-                bucketName: testBucketName,
-                ecsClient: createMockEcsClient(),
-                ecsConfig: createMockEcsConfig(),
-            });
-
-            const result = await module.readUploadedFile("nonexistent/key");
+            const result = await run(importer => importer.readUploadedFile("nonexistent/key"));
 
             expect(result).toBeNull();
         });
 
         test("returns null when Body is missing", async () => {
-            const mockS3 = createMockS3Client();
+            const {run} = createTestImporterModule();
             // mockGetObjectData is null by default, so Body will be missing
 
-            const module = new ImporterContextModule({
-                s3Client: mockS3,
-                bucketName: testBucketName,
-                ecsClient: createMockEcsClient(),
-                ecsConfig: createMockEcsConfig(),
-            });
-
-            const result = await module.readUploadedFile("spa_123/nim_456");
+            const result = await run(importer => importer.readUploadedFile("spa_123/nim_456"));
 
             expect(result).toBeNull();
         });
@@ -180,13 +178,7 @@ describe("ImporterContextModule", () => {
 
     describe("fork", () => {
         test("returns a new instance with same s3Client and bucketName", () => {
-            const mockS3 = createMockS3Client();
-            const module = new ImporterContextModule({
-                s3Client: mockS3,
-                bucketName: testBucketName,
-                ecsClient: createMockEcsClient(),
-                ecsConfig: createMockEcsConfig(),
-            });
+            const {module} = createTestImporterModule();
 
             const forked = module.fork();
 
@@ -198,59 +190,53 @@ describe("ImporterContextModule", () => {
     describe("ECS task volume sizing", () => {
         const bytesPerGiB = 1024 * 1024 * 1024;
 
-        function createModuleWithMockEcs(mockEcs: MockEcsClient) {
-            return new ImporterContextModule({
-                s3Client: createMockS3Client(),
-                bucketName: testBucketName,
-                ecsClient: mockEcs,
-                ecsConfig: createMockEcsConfig(),
-            });
-        }
-
         function getVolumeSizeFromCommand(command: RunTaskCommand): number {
             const volumeConfig = command.input.volumeConfigurations?.[0];
             return volumeConfig?.managedEBSVolume?.sizeInGiB ?? 0;
         }
 
         test("uses minimum 1 GiB volume for small files", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
-            await module.startValidateNotionImport({
-                spaceId: "spa_test123" as SpaceId,
-                notionImportId: "nim_test456" as NotionImportId,
-                importZipSize: 1024, // 1 KB - very small
-            });
+            await run(importer =>
+                importer.startValidateNotionImport({
+                    spaceId: "spa_test123" as SpaceId,
+                    notionImportId: "nim_test456" as NotionImportId,
+                    importZipSize: 1024, // 1 KB - very small
+                }),
+            );
 
             expect(mockEcs.sentCommands).toHaveLength(1);
             expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(1);
         });
 
         test("uses minimum 1 GiB volume for files under 1/3 GiB", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
             // 300 MB = 0.29 GiB, which at 3x = 0.88 GiB, rounds up to 1 GiB
             const importZipSize = 300 * 1024 * 1024;
-            await module.startNotionImport({
-                spaceId: "spa_test123" as SpaceId,
-                notionImportId: "nim_test456" as NotionImportId,
-                importZipSize,
-            });
+            await run(importer =>
+                importer.startNotionImport({
+                    spaceId: "spa_test123" as SpaceId,
+                    notionImportId: "nim_test456" as NotionImportId,
+                    importZipSize,
+                }),
+            );
 
             expect(mockEcs.sentCommands).toHaveLength(1);
             expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(1);
         });
 
         test("calculates 3x volume size for 1 GiB file", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
-            await module.startValidateNotionImport({
-                spaceId: "spa_test123" as SpaceId,
-                notionImportId: "nim_test456" as NotionImportId,
-                importZipSize: bytesPerGiB, // 1 GiB
-            });
+            await run(importer =>
+                importer.startValidateNotionImport({
+                    spaceId: "spa_test123" as SpaceId,
+                    notionImportId: "nim_test456" as NotionImportId,
+                    importZipSize: bytesPerGiB, // 1 GiB
+                }),
+            );
 
             expect(mockEcs.sentCommands).toHaveLength(1);
             // 1 GiB \* 3 = 3 GiB
@@ -258,14 +244,15 @@ describe("ImporterContextModule", () => {
         });
 
         test("calculates 3x volume size for 10 GiB file", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
-            await module.startNotionImport({
-                spaceId: "spa_test123" as SpaceId,
-                notionImportId: "nim_test456" as NotionImportId,
-                importZipSize: 10 * bytesPerGiB, // 10 GiB
-            });
+            await run(importer =>
+                importer.startNotionImport({
+                    spaceId: "spa_test123" as SpaceId,
+                    notionImportId: "nim_test456" as NotionImportId,
+                    importZipSize: 10 * bytesPerGiB, // 10 GiB
+                }),
+            );
 
             expect(mockEcs.sentCommands).toHaveLength(1);
             // 10 GiB \* 3 = 30 GiB
@@ -273,30 +260,32 @@ describe("ImporterContextModule", () => {
         });
 
         test("rounds up partial GiB to next whole number", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
             // 500 MB = 0.49 GiB, which at 3x = 1.46 GiB, should round up to 2 GiB
             const importZipSize = 500 * 1024 * 1024;
-            await module.startValidateNotionImport({
-                spaceId: "spa_test123" as SpaceId,
-                notionImportId: "nim_test456" as NotionImportId,
-                importZipSize,
-            });
+            await run(importer =>
+                importer.startValidateNotionImport({
+                    spaceId: "spa_test123" as SpaceId,
+                    notionImportId: "nim_test456" as NotionImportId,
+                    importZipSize,
+                }),
+            );
 
             expect(mockEcs.sentCommands).toHaveLength(1);
             expect(getVolumeSizeFromCommand(mockEcs.sentCommands[0]!)).toBe(2);
         });
 
         test("passes correct environment variables to ECS task", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
-            await module.startValidateNotionImport({
-                spaceId: "spa_myspace" as SpaceId,
-                notionImportId: "nim_myimport" as NotionImportId,
-                importZipSize: 1024,
-            });
+            await run(importer =>
+                importer.startValidateNotionImport({
+                    spaceId: "spa_myspace" as SpaceId,
+                    notionImportId: "nim_myimport" as NotionImportId,
+                    importZipSize: 1024,
+                }),
+            );
 
             const command = mockEcs.sentCommands[0]!;
             const containerOverrides = command.input.overrides?.containerOverrides?.[0];
@@ -312,14 +301,15 @@ describe("ImporterContextModule", () => {
         });
 
         test("uses correct ECS config values", async () => {
-            const mockEcs = createMockEcsClient();
-            const module = createModuleWithMockEcs(mockEcs);
+            const {mockEcs, run} = createTestImporterModule();
 
-            await module.startNotionImport({
-                spaceId: "spa_test" as SpaceId,
-                notionImportId: "nim_test" as NotionImportId,
-                importZipSize: 1024,
-            });
+            await run(importer =>
+                importer.startNotionImport({
+                    spaceId: "spa_test" as SpaceId,
+                    notionImportId: "nim_test" as NotionImportId,
+                    importZipSize: 1024,
+                }),
+            );
 
             const command = mockEcs.sentCommands[0]!;
             expect(command.input.cluster).toBe("test-cluster");

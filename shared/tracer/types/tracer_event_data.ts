@@ -12,6 +12,7 @@ import {
     DocumentId,
     FileId,
     NotificationEventId,
+    NotionImportId,
     PostId,
     RealmId,
     SpaceId,
@@ -541,6 +542,9 @@ export type TracerEventData = {
 
         /** This event involves the file with the following ID. */
         readonly fileId?: FileId;
+
+        /** The Notion import this event is part of. */
+        readonly notionImportId?: NotionImportId;
 
         /**
          * If this event is coming from a peek then this object will be populated with
@@ -1934,6 +1938,36 @@ export type TracerEventData = {
      */
     readonly loops?: {
         readonly contactId?: string;
+    };
+
+    /** Information regarding data importers (e.g. Notion import). */
+    readonly importer?: {
+        /** The importer being used (e.g. "Notion"). */
+        readonly type?: string;
+
+        /** Per-site (teamspace) identification. */
+        readonly site?: {
+            /** The Notion teamspace ID. */
+            readonly notionId?: string;
+        };
+
+        /** Counts of entities created during the import. */
+        readonly created?: {
+            readonly sites?: number;
+            readonly documents?: number;
+        };
+
+        /** Breakdown of uploaded files by category. */
+        readonly uploaded?: {
+            readonly fileCount?: number;
+            readonly fileTotalSize?: number;
+            readonly imageCount?: number;
+            readonly imageTotalSize?: number;
+            readonly videoCount?: number;
+            readonly videoTotalSize?: number;
+            readonly audioCount?: number;
+            readonly audioTotalSize?: number;
+        };
     };
 };
 

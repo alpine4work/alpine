@@ -51,77 +51,84 @@ export async function processStartNotionImportJob(
     assert(importItem.status.type === "Processing");
     const initialResult = importItem.status.result;
 
-    // Download and unzip the import file to disk
-    let diskPathToUnzippedFiles: string;
-    try {
-        const result = await context.importerService.downloadAndUnzipImportToDisk({
-            importKey: importItem.importKey,
-        });
-        diskPathToUnzippedFiles = result.diskPathToUnzippedFiles;
+    await context.tracer.withSpan("Process notion import", async (_tracerContext, span) => {
+        span.addData({importer: {type: "Notion"}});
 
-        // Normalize Notion's export structure (extract nested zips, flatten Export-xxx
-        // dirs)
-        await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
-    } catch {
-        await NotionImporterTable.updateItem(
+        // Download and unzip the import file to disk
+        let diskPathToUnzippedFiles: string;
+        try {
+            const result = await context.importerService.downloadAndUnzipImportToDisk({
+                importKey: importItem.importKey,
+            });
+            diskPathToUnzippedFiles = result.diskPathToUnzippedFiles;
+
+            // Normalize Notion's export structure (extract nested zips, flatten Export-xxx
+            // dirs)
+            await context.tracer.withSpan("Normalize notion export directory", async () => {
+                await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
+            });
+        } catch {
+            await NotionImporterTable.updateItem(
+                context,
+                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
+                item => ({
+                    ...assertExists(item),
+                    status: {
+                        type: "Failed" as const,
+                        error: "Import file not found in S3",
+                        result: initialResult,
+                    },
+                    updatedTime: new Date(),
+                }),
+            );
+
+            throw new DataLossError("Notion import file not found in S3");
+        }
+
+        const parsedNotionImport = await parseNotionImportAndMapReferences(
             context,
-            {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-            item => ({
-                ...assertExists(item),
-                status: {
-                    type: "Failed" as const,
-                    error: "Import file not found in S3",
-                    result: initialResult,
-                },
-                updatedTime: new Date(),
-            }),
+            diskPathToUnzippedFiles,
+            importItem,
         );
 
-        throw new DataLossError("Notion import file not found in S3");
-    }
+        if (!parsedNotionImport) {
+            throw new DataLossError(
+                "Failed to parse Notion export: invalid zip structure or missing workspace metadata",
+            );
+        }
 
-    const parsedNotionImport = await parseNotionImportAndMapReferences(
-        context,
-        diskPathToUnzippedFiles,
-        importItem,
-    );
+        // Track progress with periodic persistence and update the import status to Success
+        // or Failed when done.
+        await NotionImporterProgressState.with(
+            {notionImportId, context, persistIntervalMs: 1000, initialResult},
+            async progressState => {
+                // Process in order: light files (parallel), heavy files (sequential), then
+                // documents. This ordering optimizes resource usage:
+                //
+                // 1. Light files (images, small docs) run in parallel with availableParallelism()
+                //    concurrency
+                // 2. Heavy files (video, audio, large files) run one at a time to avoid CPU
+                //    thrashing
+                // 3. Documents are created last, after all files are uploaded and processing
 
-    if (!parsedNotionImport) {
-        throw new DataLossError(
-            "Failed to parse Notion export: invalid zip structure or missing workspace metadata",
+                // Phase 1 & 2: Upload files (light in parallel, then heavy sequentially)
+                await uploadNotionImportFiles(
+                    context,
+                    importItem.spaceId,
+                    importItem.startedByAccountId,
+                    parsedNotionImport,
+                    progressState,
+                );
+
+                // Phase 3: Create documents (batched 10 at a time)
+                await convertExtractedNotionDataToEntities(
+                    context,
+                    notionImportId,
+                    importItem,
+                    parsedNotionImport,
+                    progressState,
+                );
+            },
         );
-    }
-
-    // Track progress with periodic persistence and update the import status to Success
-    // or Failed when done.
-    await NotionImporterProgressState.with(
-        {notionImportId, context, persistIntervalMs: 1000, initialResult},
-        async progressState => {
-            // Process in order: light files (parallel), heavy files (sequential), then
-            // documents. This ordering optimizes resource usage:
-            //
-            // 1. Light files (images, small docs) run in parallel with availableParallelism()
-            //    concurrency
-            // 2. Heavy files (video, audio) run one at a time to avoid CPU thrashing
-            // 3. Documents are created last, after all files are uploaded and processing
-
-            // Phase 1 & 2: Upload files (light in parallel, then heavy sequentially)
-            await uploadNotionImportFiles(
-                context,
-                importItem.spaceId,
-                importItem.startedByAccountId,
-                parsedNotionImport,
-                progressState,
-            );
-
-            // Phase 3: Create documents (batched 10 at a time)
-            await convertExtractedNotionDataToEntities(
-                context,
-                notionImportId,
-                importItem,
-                parsedNotionImport,
-                progressState,
-            );
-        },
-    );
+    });
 }

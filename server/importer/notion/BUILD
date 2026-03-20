@@ -21,6 +21,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/importer/notion/test_helpers",
         "//server/importer/test_helpers",
+        "//shared/context",
         "//shared/tracer/dev",
     ],
     visibility = [

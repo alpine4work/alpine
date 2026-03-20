@@ -15,9 +15,12 @@ import {
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 /**
  * Helper to parse a Notion import zip using the test importer context. This wraps
@@ -35,10 +38,12 @@ async function parseNotionImportWithTestContext(
     const {diskPathToUnzippedFiles} = await importer.downloadAndUnzipImportToDisk({importKey});
     await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
 
-    return parseNotionImportAndMapReferences(
-        {importerService: importer},
-        diskPathToUnzippedFiles,
-        notionImportItem,
+    return Context.with({tracer: new TracerContextModule(testTracer)}, async ctx =>
+        parseNotionImportAndMapReferences(
+            {tracer: ctx.tracer, importerService: importer},
+            diskPathToUnzippedFiles,
+            notionImportItem,
+        ),
     );
 }
 

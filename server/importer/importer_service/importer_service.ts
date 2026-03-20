@@ -132,7 +132,7 @@ export async function run({
     await processContext.tracer.withSpan(
         `Run importer action ${importerAction}`,
         async (context, span) => {
-            span.addPropagatedData({context: {spaceId}});
+            span.addPropagatedData({context: {spaceId, notionImportId}});
 
             // Create system action context with cache, batch, and actor modules.
             const actionContext: ImporterServiceSystemActionContext = context.clone({

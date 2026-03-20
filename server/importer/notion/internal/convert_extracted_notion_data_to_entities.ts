@@ -3,6 +3,7 @@ import {createDocument, doesDocumentExist} from "~/server/documents/data/documen
 import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
+import {buildSiteFileSpanData} from "~/server/importer/notion/internal/build_site_file_span_data.js";
 import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/internal/create_notion_import_csv_database_document.js";
 import {createNotionImportTeamspaceRootDocument} from "~/server/importer/notion/internal/create_notion_import_teamspace_root_document.js";
 import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
@@ -73,301 +74,348 @@ export async function convertExtractedNotionDataToEntities(
     mappedReferencesResult: NotionImportMappedReferencesResult,
     progressState: NotionImporterProgressState,
 ): Promise<void> {
-    const {spaceId, startedByAccountId, workspaceName} = importItem;
-    const {
-        notionWorkspaceId,
-        teamspaces,
-        filesToUpload,
-        diskPathToUnzippedFiles,
-        inlineDatabaseChildren,
-        rootLevelCsvDatabases,
-        csvDatabasesRequiringDocuments,
-        pathToDocumentId,
-        documentIdToPath,
-    } = mappedReferencesResult;
+    await context.tracer.withSpan(
+        "Convert notion import to entities",
+        async (_tracerContext, span) => {
+            const {spaceId, startedByAccountId, workspaceName} = importItem;
+            const {
+                notionWorkspaceId,
+                teamspaces,
+                filesToUpload,
+                diskPathToUnzippedFiles,
+                inlineDatabaseChildren,
+                rootLevelCsvDatabases,
+                csvDatabasesRequiringDocuments,
+                pathToDocumentId,
+                documentIdToPath,
+            } = mappedReferencesResult;
 
-    /**
-     * Helper to read a file from the unzipped import.
-     */
-    async function readUnzippedFile(relativeFilePath: string): Promise<Uint8Array | null> {
-        return context.importerService.readUnzippedFile({
-            diskPathToUnzippedFiles,
-            relativeFilePath,
-        });
-    }
-
-    // Generate teamspace root document IDs upfront so we can set parent links. Also
-    // add them to documentIdToPath so child documents can resolve their parent title.
-    // Use deterministic IDs based on space ID + workspace ID + teamspace ID for
-    // consistency.
-    const teamspaceRootDocumentIds = new Map<string, DocumentId>();
-    for (const teamspace of teamspaces) {
-        const rootDocumentId = generateDeterministicNotionIdSync<DocumentId>(
-            spaceId,
-            notionWorkspaceId,
-            `teamspace-root:${teamspace.id}`,
-        );
-        teamspaceRootDocumentIds.set(teamspace.id, rootDocumentId);
-        // Use a synthetic path that follows the Notion file name pattern for title
-        // extraction. Use teamspace.id for uniqueness since teamspace names aren't
-        // guaranteed unique.
-        const syntheticPath = `${teamspace.name} ${teamspace.id}.md`;
-        documentIdToPath.set(rootDocumentId, syntheticPath);
-    }
-
-    // Create synthetic documents for CSV-only databases that need their own document.
-    // This covers both root-level databases and databases under pages. Use
-    // deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
-    const csvDatabaseDocuments = new Map<
-        string,
-        {
-            id: DocumentId;
-            teamspaceId: string;
-            childPaths: Array<string>;
-            parentPath: string | null;
-        }
-    >();
-
-    for (const [csvPath, {childPaths, teamspaceId}] of rootLevelCsvDatabases) {
-        const csvFileName = csvPath.split("/").pop() ?? "";
-        const parsed = parseNotionImportFileName(csvFileName);
-        const notionId = parsed?.notionId ?? csvPath; // Fallback to path if parsing fails
-        const documentId = generateDeterministicNotionIdSync<DocumentId>(
-            spaceId,
-            notionWorkspaceId,
-            `csv-database:${notionId}`,
-        );
-        csvDatabaseDocuments.set(csvPath, {
-            id: documentId,
-            teamspaceId,
-            childPaths,
-            parentPath: null,
-        });
-        pathToDocumentId.set(csvPath, documentId);
-        documentIdToPath.set(documentId, csvPath);
-    }
-
-    for (const [csvPath, {childPaths, teamspaceId, parentPath}] of csvDatabasesRequiringDocuments) {
-        const csvFileName = csvPath.split("/").pop() ?? "";
-        const parsed = parseNotionImportFileName(csvFileName);
-        const notionId = parsed?.notionId ?? csvPath;
-        const documentId = generateDeterministicNotionIdSync<DocumentId>(
-            spaceId,
-            notionWorkspaceId,
-            `csv-database:${notionId}`,
-        );
-        csvDatabaseDocuments.set(csvPath, {id: documentId, teamspaceId, childPaths, parentPath});
-        pathToDocumentId.set(csvPath, documentId);
-        documentIdToPath.set(documentId, csvPath);
-
-        // Add this database to the parent page's children set so it appears in the
-        // parent's "Child documents" section.
-        for (const teamspace of teamspaces) {
-            const parentDoc = teamspace.documents[parentPath];
-            if (parentDoc) {
-                parentDoc.children.add(documentId);
-                break;
+            /**
+             * Helper to read a file from the unzipped import.
+             */
+            async function readUnzippedFile(relativeFilePath: string): Promise<Uint8Array | null> {
+                return context.importerService.readUnzippedFile({
+                    diskPathToUnzippedFiles,
+                    relativeFilePath,
+                });
             }
-        }
-    }
 
-    // TODO: Handle multiple pages at once
-    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+            // Generate teamspace root document IDs upfront so we can set parent links. Also
+            // add them to documentIdToPath so child documents can resolve their parent title.
+            // Use deterministic IDs based on space ID + workspace ID + teamspace ID for
+            // consistency.
+            const teamspaceRootDocumentIds = new Map<string, DocumentId>();
+            for (const teamspace of teamspaces) {
+                const rootDocumentId = generateDeterministicNotionIdSync<DocumentId>(
+                    spaceId,
+                    notionWorkspaceId,
+                    `teamspace-root:${teamspace.id}`,
+                );
+                teamspaceRootDocumentIds.set(teamspace.id, rootDocumentId);
+                // Use a synthetic path that follows the Notion file name pattern for title
+                // extraction. Use teamspace.id for uniqueness since teamspace names aren't
+                // guaranteed unique.
+                const syntheticPath = `${teamspace.name} ${teamspace.id}.md`;
+                documentIdToPath.set(rootDocumentId, syntheticPath);
+            }
 
-    // Process each teamspace
-    for (const teamspace of teamspaces) {
-        const isPublic = teamspace.importOption.type === "Public";
-        const teamspaceRootDocumentId = teamspaceRootDocumentIds.get(teamspace.id)!;
+            // Create synthetic documents for CSV-only databases that need their own document.
+            // This covers both root-level databases and databases under pages. Use
+            // deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
+            const csvDatabaseDocuments = new Map<
+                string,
+                {
+                    id: DocumentId;
+                    teamspaceId: string;
+                    childPaths: Array<string>;
+                    parentPath: string | null;
+                }
+            >();
 
-        // Update parent references for children of root-level CSV databases in this
-        // teamspace.
-        for (const [csvPath, {id: csvDocumentId, childPaths}] of csvDatabaseDocuments) {
-            for (const childPath of childPaths) {
-                const childDocument = teamspace.documents[childPath];
-                if (childDocument) {
-                    childDocument.parent = {documentId: csvDocumentId, relativeFilePath: csvPath};
+            for (const [csvPath, {childPaths, teamspaceId}] of rootLevelCsvDatabases) {
+                const csvFileName = csvPath.split("/").pop() ?? "";
+                const parsed = parseNotionImportFileName(csvFileName);
+                const notionId = parsed?.notionId ?? csvPath; // Fallback to path if parsing fails
+                const documentId = generateDeterministicNotionIdSync<DocumentId>(
+                    spaceId,
+                    notionWorkspaceId,
+                    `csv-database:${notionId}`,
+                );
+                csvDatabaseDocuments.set(csvPath, {
+                    id: documentId,
+                    teamspaceId,
+                    childPaths,
+                    parentPath: null,
+                });
+                pathToDocumentId.set(csvPath, documentId);
+                documentIdToPath.set(documentId, csvPath);
+            }
+
+            for (const [
+                csvPath,
+                {childPaths, teamspaceId, parentPath},
+            ] of csvDatabasesRequiringDocuments) {
+                const csvFileName = csvPath.split("/").pop() ?? "";
+                const parsed = parseNotionImportFileName(csvFileName);
+                const notionId = parsed?.notionId ?? csvPath;
+                const documentId = generateDeterministicNotionIdSync<DocumentId>(
+                    spaceId,
+                    notionWorkspaceId,
+                    `csv-database:${notionId}`,
+                );
+                csvDatabaseDocuments.set(csvPath, {
+                    id: documentId,
+                    teamspaceId,
+                    childPaths,
+                    parentPath,
+                });
+                pathToDocumentId.set(csvPath, documentId);
+                documentIdToPath.set(documentId, csvPath);
+
+                // Add this database to the parent page's children set so it appears in the
+                // parent's "Child documents" section.
+                for (const teamspace of teamspaces) {
+                    const parentDoc = teamspace.documents[parentPath];
+                    if (parentDoc) {
+                        parentDoc.children.add(documentId);
+                        break;
+                    }
                 }
             }
-        }
 
-        // Update parent for first-layer documents (those with no parent). They should have
-        // the teamspace root document as their parent. Note: relativeFilePath is empty
-        // because the teamspace root is a synthetic document.
-        for (const [, documentInfo] of Object.entries(teamspace.documents)) {
-            if (documentInfo.parent === null) {
-                documentInfo.parent = {documentId: teamspaceRootDocumentId, relativeFilePath: ""};
+            // TODO: Handle multiple pages at once
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+
+            let totalDocumentCount = 0;
+            for (const ts of teamspaces) {
+                totalDocumentCount += Object.keys(ts.documents).length;
             }
-        }
+            span.addData({common: {count: totalDocumentCount}});
 
-        // Process each document in the teamspace
-        for (const [filePath, documentInfo] of Object.entries(teamspace.documents)) {
-            // Read the file content using the context module
-            const fileContent = assertExists(await readUnzippedFile(filePath));
-            const rawContent = strFromU8(fileContent);
-            // ============================================================ Preprocess markdown
-            // for database properties
-            // ============================================================ Notion exports
-            // database row pages with property lines separated by single newlines (e.g.,
-            // "Status: Done\nPriority: High"). In markdown, single newlines don't create
-            // paragraph breaks - they become spaces. We convert single newlines between
-            // property-like lines to double newlines so the markdown parser creates separate
-            // paragraphs, which we can then detect and format in API content.
-            const currentDir = filePath.includes("/")
-                ? filePath.slice(0, filePath.lastIndexOf("/"))
-                : "";
-            const preprocessedContent = preprocessNotionDatabaseProperties(
-                rawContent,
-                currentDir,
-                filesToUpload,
-            );
+            // Process each teamspace
+            for (const teamspace of teamspaces) {
+                const isPublic = teamspace.importOption.type === "Public";
+                const teamspaceRootDocumentId = teamspaceRootDocumentIds.get(teamspace.id)!;
 
-            // ============================================================ Parse markdown to
-            // API content ============================================================
-            const rawApiContent = parseApiContentFromMarkdown(preprocessedContent, {
-                spaceId,
-                dangerouslyAllowImageContentType: true,
-            });
+                // Update parent references for children of root-level CSV databases in this
+                // teamspace.
+                for (const [csvPath, {id: csvDocumentId, childPaths}] of csvDatabaseDocuments) {
+                    for (const childPath of childPaths) {
+                        const childDocument = teamspace.documents[childPath];
+                        if (childDocument) {
+                            childDocument.parent = {
+                                documentId: csvDocumentId,
+                                relativeFilePath: csvPath,
+                            };
+                        }
+                    }
+                }
 
-            // ============================================================ Transform API
-            // content for Alpine's format
-            // ============================================================
-            const {title, content: finalApiContent} =
-                await reformatNotionApiContentIntoOurDesiredFormat(context, rawApiContent, {
+                // Update parent for first-layer documents (those with no parent). They should have
+                // the teamspace root document as their parent. Note: relativeFilePath is empty
+                // because the teamspace root is a synthetic document.
+                for (const [, documentInfo] of Object.entries(teamspace.documents)) {
+                    if (documentInfo.parent === null) {
+                        documentInfo.parent = {
+                            documentId: teamspaceRootDocumentId,
+                            relativeFilePath: "",
+                        };
+                    }
+                }
+
+                // Process each document in the teamspace
+                for (const [filePath, documentInfo] of Object.entries(teamspace.documents)) {
+                    // Read the file content using the context module
+                    const fileContent = assertExists(await readUnzippedFile(filePath));
+                    const rawContent = strFromU8(fileContent);
+                    // ============================================================ Preprocess markdown
+                    // for database properties
+                    // ============================================================ Notion exports
+                    // database row pages with property lines separated by single newlines (e.g.,
+                    // "Status: Done\nPriority: High"). In markdown, single newlines don't create
+                    // paragraph breaks - they become spaces. We convert single newlines between
+                    // property-like lines to double newlines so the markdown parser creates separate
+                    // paragraphs, which we can then detect and format in API content.
+                    const currentDir = filePath.includes("/")
+                        ? filePath.slice(0, filePath.lastIndexOf("/"))
+                        : "";
+                    const preprocessedContent = preprocessNotionDatabaseProperties(
+                        rawContent,
+                        currentDir,
+                        filesToUpload,
+                    );
+
+                    // ============================================================ Parse markdown to
+                    // API content ============================================================
+                    const rawApiContent = parseApiContentFromMarkdown(preprocessedContent, {
+                        spaceId,
+                        dangerouslyAllowImageContentType: true,
+                    });
+
+                    // ============================================================ Transform API
+                    // content for Alpine's format
+                    // ============================================================
+                    const {title, content: finalApiContent} =
+                        await reformatNotionApiContentIntoOurDesiredFormat(context, rawApiContent, {
+                            spaceId,
+                            pathToDocumentId,
+                            documentIdToPath,
+                            parentId: documentInfo.parent?.documentId ?? null,
+                            childIds: documentInfo.children,
+                            hasChildrenHeader: documentInfo.hasChildrenHeader,
+                            filePath,
+                            diskPathToUnzippedFiles,
+                            inlineDatabaseChildren,
+                            filesToUpload,
+                        });
+
+                    // Convert API content to ProseMirror document
+                    const bodyContent = fromApiContent<ApiContentExtended>(
+                        DocumentContentProsemirrorSchema,
+                        finalApiContent,
+                    );
+
+                    // Create access policy based on teamspace import option
+                    const accessPolicy: AccessPolicy = {
+                        accountGrantById: new Map([
+                            [startedByAccountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: isPublic ? {level: "Edit"} : null,
+                        urlGrant: null,
+                    };
+
+                    // Build the document content with title
+                    const titleNode = DocumentContentProsemirrorSchema.node("title", {}, [
+                        DocumentContentProsemirrorSchema.text(title),
+                    ]);
+
+                    // Get body nodes (skip the doc wrapper from fromApiContent)
+                    const bodyNodes = bodyContent.content.content;
+
+                    const documentContent = assertDocumentContent(
+                        DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
+                            titleNode,
+                            ...bodyNodes,
+                        ]),
+                    );
+
+                    // Skip duplicate documents. Deterministic IDs mean re-importing the same Notion
+                    // workspace produces the same document IDs.
+                    if (await doesDocumentExist(context, documentInfo.id)) {
+                        continue;
+                    }
+
+                    // Attach files to the document so they can be accessed via the document. Files are
+                    // uploaded separately, but they need attachment records to be viewable when the
+                    // document is loaded. We extract file IDs from the final content because
+                    // additional files may have been added during content transformation (e.g., from
+                    // CSV tables).
+                    //
+                    // It's important that we attach the files before creating the document! So that if
+                    // you open a document after it's created you don't get "file not attached"
+                    // crashes.
+                    const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
+                    await runAllPromises(
+                        [...fileIdsInContent].map(fileId =>
+                            attachFileToDocumentAsSystem(context, spaceId, fileId, documentInfo.id),
+                        ),
+                    );
+
+                    // Create the document
+                    await impersonateAccountAsSystemContext(context, startedByAccountId, context =>
+                        createDocument(context, {
+                            id: documentInfo.id,
+                            spaceId,
+                            creatorId: startedByAccountId,
+                            content: documentContent,
+                            createFeedEntry: false,
+                            from: {type: "Importer", source: {type: "Notion"}},
+                        }),
+                    );
+
+                    // Increment document counter via state manager (periodically persisted)
+                    progressState.incrementDocumentCounter(teamspace.id);
+                }
+
+                // Create documents for root-level CSV-only databases
+                for (const [csvPath, csvDatabaseInfo] of csvDatabaseDocuments) {
+                    if (csvDatabaseInfo.teamspaceId !== teamspace.id) continue;
+
+                    // Skip duplicate CSV database documents
+                    if (await doesDocumentExist(context, csvDatabaseInfo.id)) {
+                        continue;
+                    }
+
+                    // Create a document for this CSV database. Use the parent page's document ID when
+                    // the database is under a page, otherwise use the teamspace root.
+                    const csvParentId = csvDatabaseInfo.parentPath
+                        ? (pathToDocumentId.get(csvDatabaseInfo.parentPath) ??
+                          teamspaceRootDocumentId)
+                        : teamspaceRootDocumentId;
+
+                    await createNotionImportCsvDatabaseDocument(context, {
+                        spaceId,
+                        creatorId: startedByAccountId,
+                        documentId: csvDatabaseInfo.id,
+                        parentId: csvParentId,
+                        csvPath,
+                        diskPathToUnzippedFiles,
+                        isPublic,
+                        inlineDatabaseChildren,
+                        filesToUpload,
+                    });
+
+                    // Increment document counter via state manager (periodically persisted)
+                    progressState.incrementDocumentCounter(teamspace.id);
+                }
+
+                // Skip duplicate teamspace root documents
+                if (await doesDocumentExist(context, teamspaceRootDocumentId)) {
+                    continue;
+                }
+
+                // Create a teamspace root document with list of first-layer children
+                await createNotionImportTeamspaceRootDocument(context, {
                     spaceId,
-                    pathToDocumentId,
-                    documentIdToPath,
-                    parentId: documentInfo.parent?.documentId ?? null,
-                    childIds: documentInfo.children,
-                    hasChildrenHeader: documentInfo.hasChildrenHeader,
-                    filePath,
-                    diskPathToUnzippedFiles,
-                    inlineDatabaseChildren,
-                    filesToUpload,
+                    workspaceName: assertExists(workspaceName),
+                    creatorId: startedByAccountId,
+                    teamspaceName: teamspace.name,
+                    isPublic,
+                    teamspaceRootDocumentId,
+                    teamspaceDocuments: teamspace.documents,
+                    csvDatabaseDocumentIds: new Map(
+                        [...csvDatabaseDocuments.entries()]
+                            .filter(
+                                ([, info]) =>
+                                    info.teamspaceId === teamspace.id && info.parentPath === null,
+                            )
+                            .map(([csvPath, info]) => [csvPath, info.id]),
+                    ),
                 });
 
-            // Convert API content to ProseMirror document
-            const bodyContent = fromApiContent<ApiContentExtended>(
-                DocumentContentProsemirrorSchema,
-                finalApiContent,
-            );
+                // Increment document counter for teamspace root
+                progressState.incrementDocumentCounter(teamspace.id);
 
-            // Create access policy based on teamspace import option
-            const accessPolicy: AccessPolicy = {
-                accountGrantById: new Map([[startedByAccountId, {level: "Manage", generation: 0}]]),
-                defaultGrant: isPublic ? {level: "Edit"} : null,
-                urlGrant: null,
-            };
-
-            // Build the document content with title
-            const titleNode = DocumentContentProsemirrorSchema.node("title", {}, [
-                DocumentContentProsemirrorSchema.text(title),
-            ]);
-
-            // Get body nodes (skip the doc wrapper from fromApiContent)
-            const bodyNodes = bodyContent.content.content;
-
-            const documentContent = assertDocumentContent(
-                DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
-                    titleNode,
-                    ...bodyNodes,
-                ]),
-            );
-
-            // Skip duplicate documents. Deterministic IDs mean re-importing the same Notion
-            // workspace produces the same document IDs.
-            if (await doesDocumentExist(context, documentInfo.id)) {
-                continue;
+                // Emit per-teamspace conversion span with final site metrics.
+                const counters = progressState.teamspaceCounters.get(teamspace.id);
+                const expectedStats = progressState.initialResult.teamspaces.get(teamspace.id);
+                if (counters && expectedStats) {
+                    context.tracer.withSpanSync(
+                        "Convert notion import site",
+                        (_tracerContext, siteSpan) => {
+                            siteSpan.addData({
+                                importer: {
+                                    site: {notionId: teamspace.id},
+                                    created: {documents: counters.documents},
+                                    uploaded: buildSiteFileSpanData(expectedStats.files),
+                                },
+                            });
+                        },
+                    );
+                }
             }
-
-            // Attach files to the document so they can be accessed via the document. Files are
-            // uploaded separately, but they need attachment records to be viewable when the
-            // document is loaded. We extract file IDs from the final content because
-            // additional files may have been added during content transformation (e.g., from
-            // CSV tables).
-            //
-            // It's important that we attach the files before creating the document! So that if
-            // you open a document after it's created you don't get "file not attached"
-            // crashes.
-            const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
-            await runAllPromises(
-                [...fileIdsInContent].map(fileId =>
-                    attachFileToDocumentAsSystem(context, spaceId, fileId, documentInfo.id),
-                ),
-            );
-
-            // Create the document
-            await impersonateAccountAsSystemContext(context, startedByAccountId, context =>
-                createDocument(context, {
-                    id: documentInfo.id,
-                    spaceId,
-                    creatorId: startedByAccountId,
-                    content: documentContent,
-                    createFeedEntry: false,
-                    from: {type: "Importer", source: {type: "Notion"}},
-                }),
-            );
-
-            // Increment document counter via state manager (periodically persisted)
-            progressState.incrementDocumentCounter(teamspace.id);
-        }
-
-        // Create documents for root-level CSV-only databases
-        for (const [csvPath, csvDatabaseInfo] of csvDatabaseDocuments) {
-            if (csvDatabaseInfo.teamspaceId !== teamspace.id) continue;
-
-            // Skip duplicate CSV database documents
-            if (await doesDocumentExist(context, csvDatabaseInfo.id)) {
-                continue;
-            }
-
-            // Create a document for this CSV database. Use the parent page's document ID when
-            // the database is under a page, otherwise use the teamspace root.
-            const csvParentId = csvDatabaseInfo.parentPath
-                ? (pathToDocumentId.get(csvDatabaseInfo.parentPath) ?? teamspaceRootDocumentId)
-                : teamspaceRootDocumentId;
-
-            await createNotionImportCsvDatabaseDocument(context, {
-                spaceId,
-                creatorId: startedByAccountId,
-                documentId: csvDatabaseInfo.id,
-                parentId: csvParentId,
-                csvPath,
-                diskPathToUnzippedFiles,
-                isPublic,
-                inlineDatabaseChildren,
-                filesToUpload,
-            });
-
-            // Increment document counter via state manager (periodically persisted)
-            progressState.incrementDocumentCounter(teamspace.id);
-        }
-
-        // Skip duplicate teamspace root documents
-        if (await doesDocumentExist(context, teamspaceRootDocumentId)) {
-            continue;
-        }
-
-        // Create a teamspace root document with list of first-layer children
-        await createNotionImportTeamspaceRootDocument(context, {
-            spaceId,
-            workspaceName: assertExists(workspaceName),
-            creatorId: startedByAccountId,
-            teamspaceName: teamspace.name,
-            isPublic,
-            teamspaceRootDocumentId,
-            teamspaceDocuments: teamspace.documents,
-            csvDatabaseDocumentIds: new Map(
-                [...csvDatabaseDocuments.entries()]
-                    .filter(
-                        ([, info]) => info.teamspaceId === teamspace.id && info.parentPath === null,
-                    )
-                    .map(([csvPath, info]) => [csvPath, info.id]),
-            ),
-        });
-
-        // Increment document counter for teamspace root
-        progressState.incrementDocumentCounter(teamspace.id);
-    }
+        },
+    );
 }
 
 // ============================================================================

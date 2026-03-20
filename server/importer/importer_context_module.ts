@@ -101,49 +101,59 @@ export class ImporterContextModule extends ImporterContextModuleBase {
         contentType: string;
         contentLength: number;
     }): Promise<PresignedUploadUrlResult> {
-        const presignedUploadUrl = await getSignedUrl(
-            this._s3Client,
-            new PutObjectCommand({
-                Bucket: this._bucketName,
-                Key: importKey,
-                ContentType: contentType,
-                ContentLength: contentLength,
-            }),
-            {expiresIn: 24 * 60 * 60},
-        );
+        return this._context.tracer.withSpan("Create presigned upload URL", async (_, span) => {
+            span.addData({file: {contentType, contentLength}});
 
-        return {presignedUploadUrl, importKey};
+            const presignedUploadUrl = await getSignedUrl(
+                this._s3Client,
+                new PutObjectCommand({
+                    Bucket: this._bucketName,
+                    Key: importKey,
+                    ContentType: contentType,
+                    ContentLength: contentLength,
+                }),
+                {expiresIn: 24 * 60 * 60},
+            );
+
+            return {presignedUploadUrl, importKey};
+        });
     }
 
     async hasUploadedFile(importKey: string): Promise<boolean> {
-        try {
-            await this._s3Client.send(
-                new HeadObjectCommand({Bucket: this._bucketName, Key: importKey}),
-            );
-            return true;
-        } catch {
-            return false;
-        }
+        return this._context.tracer.withSpan("Check uploaded file exists", async () => {
+            try {
+                await this._s3Client.send(
+                    new HeadObjectCommand({Bucket: this._bucketName, Key: importKey}),
+                );
+                return true;
+            } catch {
+                return false;
+            }
+        });
     }
 
     // TODO: Stream this file to disk before reading it
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/75j9w76k2chdpbnv04pa4sg8qw
     async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        const getObjectResult = await this._s3Client
-            .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
-            .catch(() => null);
+        return this._context.tracer.withSpan("Read uploaded file", async () => {
+            const getObjectResult = await this._s3Client
+                .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
+                .catch(() => null);
 
-        if (!getObjectResult?.Body) {
-            return null;
-        }
+            if (!getObjectResult?.Body) {
+                return null;
+            }
 
-        return getObjectResult.Body.transformToByteArray();
+            return getObjectResult.Body.transformToByteArray();
+        });
     }
 
     async deleteUploadedFile(importKey: string): Promise<void> {
-        await this._s3Client.send(
-            new DeleteObjectCommand({Bucket: this._bucketName, Key: importKey}),
-        );
+        await this._context.tracer.withSpan("Delete uploaded file", async () => {
+            await this._s3Client.send(
+                new DeleteObjectCommand({Bucket: this._bucketName, Key: importKey}),
+            );
+        });
     }
 
     async startValidateNotionImport(options: {
@@ -151,11 +161,13 @@ export class ImporterContextModule extends ImporterContextModuleBase {
         notionImportId: NotionImportId;
         importZipSize: number;
     }): Promise<void> {
-        await this._runImporterTask({
-            action: "ValidateNotionImport",
-            spaceId: options.spaceId,
-            notionImportId: options.notionImportId,
-            importZipSize: options.importZipSize,
+        await this._context.tracer.withSpan("Start validate notion import", async () => {
+            await this._runImporterTask({
+                action: "ValidateNotionImport",
+                spaceId: options.spaceId,
+                notionImportId: options.notionImportId,
+                importZipSize: options.importZipSize,
+            });
         });
     }
 
@@ -164,11 +176,13 @@ export class ImporterContextModule extends ImporterContextModuleBase {
         notionImportId: NotionImportId;
         importZipSize: number;
     }): Promise<void> {
-        await this._runImporterTask({
-            action: "StartNotionImport",
-            spaceId: options.spaceId,
-            notionImportId: options.notionImportId,
-            importZipSize: options.importZipSize,
+        await this._context.tracer.withSpan("Start notion import", async () => {
+            await this._runImporterTask({
+                action: "StartNotionImport",
+                spaceId: options.spaceId,
+                notionImportId: options.notionImportId,
+                importZipSize: options.importZipSize,
+            });
         });
     }
 
@@ -193,53 +207,63 @@ export class ImporterContextModule extends ImporterContextModuleBase {
         notionImportId: NotionImportId;
         importZipSize: number;
     }): Promise<void> {
-        // Calculate EBS volume size: 3x zip size, converted to GiB, rounded up. Minimum 1
-        // GiB for EBS volumes.
-        const requiredGiB = Math.ceil(
-            (params.importZipSize * importerTaskVolumeFactor) / bytesPerGiB,
-        );
-        const volumeSizeGiB = Math.max(1, requiredGiB);
+        await this._context.tracer.withSpan("Run importer task", async (_, span) => {
+            span.addData({
+                importer: {type: "Notion"},
+                common: {contentLength: params.importZipSize},
+            });
 
-        await this._ecsClient.send(
-            new RunTaskCommand({
-                cluster: this._ecsConfig.cluster,
-                taskDefinition: this._ecsConfig.taskDefinition,
-                launchType: "FARGATE",
-                networkConfiguration: {
-                    awsvpcConfiguration: {
-                        subnets: this._ecsConfig.subnets,
-                        securityGroups: this._ecsConfig.securityGroups,
-                        assignPublicIp: "ENABLED",
+            // Calculate EBS volume size: 3x zip size, converted to GiB, rounded up. Minimum 1
+            // GiB for EBS volumes.
+            const requiredGiB = Math.ceil(
+                (params.importZipSize * importerTaskVolumeFactor) / bytesPerGiB,
+            );
+            const volumeSizeGiB = Math.max(1, requiredGiB);
+
+            await this._ecsClient.send(
+                new RunTaskCommand({
+                    cluster: this._ecsConfig.cluster,
+                    taskDefinition: this._ecsConfig.taskDefinition,
+                    launchType: "FARGATE",
+                    networkConfiguration: {
+                        awsvpcConfiguration: {
+                            subnets: this._ecsConfig.subnets,
+                            securityGroups: this._ecsConfig.securityGroups,
+                            assignPublicIp: "ENABLED",
+                        },
                     },
-                },
-                volumeConfigurations: [
-                    {
-                        name: importerVolumeName,
-                        managedEBSVolume: {
-                            sizeInGiB: volumeSizeGiB,
-                            volumeType: "gp3",
-                            roleArn: this._ecsConfig.ebsVolumeRoleArn,
-                            filesystemType: "ext4",
-                            terminationPolicy: {
-                                deleteOnTermination: true,
+                    volumeConfigurations: [
+                        {
+                            name: importerVolumeName,
+                            managedEBSVolume: {
+                                sizeInGiB: volumeSizeGiB,
+                                volumeType: "gp3",
+                                roleArn: this._ecsConfig.ebsVolumeRoleArn,
+                                filesystemType: "ext4",
+                                terminationPolicy: {
+                                    deleteOnTermination: true,
+                                },
                             },
                         },
-                    },
-                ],
-                overrides: {
-                    containerOverrides: [
-                        {
-                            name: "Container",
-                            environment: [
-                                {name: "IMPORTER_ACTION", value: params.action},
-                                {name: "SPACE_ID", value: params.spaceId},
-                                {name: "NOTION_IMPORT_ID", value: params.notionImportId},
-                            ],
-                        },
                     ],
-                },
-            }),
-        );
+                    overrides: {
+                        containerOverrides: [
+                            {
+                                name: "Container",
+                                environment: [
+                                    {name: "IMPORTER_ACTION", value: params.action},
+                                    {name: "SPACE_ID", value: params.spaceId},
+                                    {
+                                        name: "NOTION_IMPORT_ID",
+                                        value: params.notionImportId,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                }),
+            );
+        });
     }
 
     fork(): ImporterContextModule {

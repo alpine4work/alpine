@@ -195,6 +195,7 @@ const TracerEventDataSchema = {
         postId: Schema.id(),
         chatId: Schema.id(),
         fileId: Schema.id(),
+        notionImportId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),
@@ -655,8 +656,30 @@ const TracerEventDataSchema = {
             },
         },
     },
+
     loops: {
         contactId: Schema.string,
+    },
+
+    importer: {
+        type: Schema.string,
+        site: {
+            notionId: Schema.string,
+        },
+        created: {
+            sites: Schema.integer,
+            documents: Schema.integer,
+        },
+        uploaded: {
+            fileCount: Schema.integer,
+            fileTotalSize: Schema.integer,
+            imageCount: Schema.integer,
+            imageTotalSize: Schema.integer,
+            videoCount: Schema.integer,
+            videoTotalSize: Schema.integer,
+            audioCount: Schema.integer,
+            audioTotalSize: Schema.integer,
+        },
     },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
