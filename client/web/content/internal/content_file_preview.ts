@@ -84,10 +84,6 @@ import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
@@ -100,9 +96,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 /**
@@ -390,7 +385,7 @@ function renderContentFileProcessingPreview(
         }),
     );
 
-    const placeholder = generateFileProcessingPreviewPlaceholder(file);
+    const placeholder = generateFileProcessingPreviewPlaceholder(file.id, layout);
     const svg = renderFileProcessingPreviewPlaceholder(placeholder, {
         className: classNames(
             pulseAnimationClassName,
@@ -611,6 +606,102 @@ function renderContentFileImagePreviewInner(
         html.appendChild(placeholderImageHtml);
     }
 
+    // If the file's aspect ratio doesn't match the layout aspect ratio, we need to
+    // letter box the file. The file will be rendered with `object-fit: contain` and we
+    // need to do something with the rest of the space in the file. So we render the
+    // image placeholder behind the image with `object-fit: cover`.
+    if (!adjustments.hasTransparentBackground) {
+        // If the file is smaller than the space we've allocated for it, we need to
+        // letterbox the file.
+        let needsLetterbox = fileSize.width < layout.width || fileSize.height < layout.height;
+
+        let containedFileWidth: number;
+        let containedFileHeight: number;
+
+        const fileSizeAspectRatio = fileSize.width / fileSize.height;
+        const layoutAspectRatio = layout.width / layout.height;
+
+        if (fileSizeAspectRatio < layoutAspectRatio) {
+            containedFileWidth = fileSize.width * (layout.height / fileSize.height);
+            containedFileHeight = layout.height;
+
+            if (Math.round(layout.width) !== Math.round(containedFileWidth)) {
+                needsLetterbox = true;
+            }
+        } else {
+            containedFileWidth = layout.width;
+            containedFileHeight = fileSize.height * (layout.width / fileSize.width);
+
+            if (Math.round(layout.height) !== Math.round(containedFileHeight)) {
+                needsLetterbox = true;
+            }
+        }
+
+        if (needsLetterbox) {
+            const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+
+            const letterboxImageHtml = new HtmlElementGenerator("img");
+            html.appendChild(letterboxImageHtml);
+
+            letterboxImageHtml.setAttribute(
+                "class",
+                contentStyles.fileImagePreviewLetterboxClassName,
+            );
+            // The placeholder image is purely decorative. It shouldn't be visible to assistive
+            // technologies.
+            letterboxImageHtml.setAttribute("aria-hidden", "true");
+            letterboxImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
+
+            const letterboxBorderHtml = new HtmlElementGenerator("div");
+            html.appendChild(letterboxBorderHtml);
+
+            // Use CSS `clip-path` to cut out the space inside the letterbox where the image
+            // will be rendered. So if there's any transparency in the image the transparency
+            // will render over our background color instead of the letterbox.
+            //
+            // We do round to the nearest pixel to avoid subpixel rendering artifacts at the
+            // edges which does mean transparent pixels at the edges may render over the
+            // letterbox but we think this is acceptable for now.
+            if (fileSizeAspectRatio < layoutAspectRatio) {
+                const barWidth = (layout.width - containedFileWidth) / 2;
+
+                letterboxImageHtml.setAttribute(
+                    "style",
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${layout.height} H 0 Z M ${layout.width - Math.ceil(barWidth)} 0 H ${layout.width} V ${layout.height} H ${layout.width - Math.ceil(barWidth)} Z')`,
+                );
+
+                letterboxBorderHtml.setAttribute(
+                    "class",
+                    contentStyles.fileImagePreviewLetterboxVerticalBorderClassName,
+                );
+
+                letterboxBorderHtml.setAttribute(
+                    "style",
+                    `top: ${contentStyles.fileBorderWidth}px; height: ${layout.height - contentStyles.fileBorderWidth * 2}px; left: ${barWidth}px; width: ${containedFileWidth}px`,
+                );
+            } else {
+                const barHeight = (layout.height - containedFileHeight) / 2;
+
+                letterboxImageHtml.setAttribute(
+                    "style",
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    `clip-path: path('M 0 0 H ${layout.width} V ${Math.ceil(barHeight)} H 0 Z M 0 ${layout.height - Math.ceil(barHeight)} H ${layout.width} V ${layout.height} H 0 Z')`,
+                );
+
+                letterboxBorderHtml.setAttribute(
+                    "class",
+                    contentStyles.fileImagePreviewLetterboxHorizontalBorderClassName,
+                );
+
+                letterboxBorderHtml.setAttribute(
+                    "style",
+                    `top: ${barHeight}px; height: ${containedFileHeight}px; left: ${contentStyles.fileBorderWidth}px; width: ${layout.width - contentStyles.fileBorderWidth * 2}px`,
+                );
+            }
+        }
+    }
+
     // Render the image if we have a signed preview URL and the signature isn't
     // expired.
     //
@@ -643,50 +734,22 @@ function renderContentFileImagePreviewInner(
             const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2 * transformScale);
             const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3 * transformScale);
 
-            const aspectRatio = filePreviewSize.width / filePreviewSize.height;
-            const isOutsideAspectRatioRange =
-                aspectRatio < minFilePreviewAspectRatio || aspectRatio > maxFilePreviewAspectRatio;
+            // If the file is smaller than our desired resize width then don't bother resizing
+            // since resizing will be a noop.
+            image1xSource =
+                filePreviewSize.width <= image1xWidth
+                    ? imageSourceBase
+                    : `${imageSourceBase}&width=${image1xWidth}`;
 
-            if (!isOutsideAspectRatioRange) {
-                // If the file is smaller than our desired resize width then don't bother resizing
-                // since resizing will be a noop.
-                image1xSource =
-                    filePreviewSize.width <= image1xWidth
-                        ? imageSourceBase
-                        : `${imageSourceBase}&width=${image1xWidth}`;
+            image2xSource =
+                filePreviewSize.width <= image2xWidth
+                    ? imageSourceBase
+                    : `${imageSourceBase}&width=${image2xWidth}`;
 
-                image2xSource =
-                    filePreviewSize.width <= image2xWidth
-                        ? imageSourceBase
-                        : `${imageSourceBase}&width=${image2xWidth}`;
-
-                image3xSource =
-                    filePreviewSize.width <= image3xWidth
-                        ? imageSourceBase
-                        : `${imageSourceBase}&width=${image3xWidth}`;
-            }
-
-            // If we're outside the aspect ratio range then we always want to resize our file.
-            // Since resizing will also crop the file to our aspect ratio range. This will
-            // result in a smaller file to download.
-            else {
-                const defaultWidth = getFilePreviewImageResizeWidth(filePreviewSize.width);
-
-                image1xSource =
-                    filePreviewSize.width <= image1xWidth
-                        ? `${imageSourceBase}&width=${defaultWidth}`
-                        : `${imageSourceBase}&width=${image1xWidth}`;
-
-                image2xSource =
-                    filePreviewSize.width <= image2xWidth
-                        ? `${imageSourceBase}&width=${defaultWidth}`
-                        : `${imageSourceBase}&width=${image2xWidth}`;
-
-                image3xSource =
-                    filePreviewSize.width <= image3xWidth
-                        ? `${imageSourceBase}&width=${defaultWidth}`
-                        : `${imageSourceBase}&width=${image3xWidth}`;
-            }
+            image3xSource =
+                filePreviewSize.width <= image3xWidth
+                    ? imageSourceBase
+                    : `${imageSourceBase}&width=${image3xWidth}`;
         }
 
         let imageSrcset: string;
@@ -1053,21 +1116,16 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
  * placeholders that we'll render before we have the real data for the image.
  */
 function generateFileProcessingPreviewPlaceholder(
-    file: FileModelData,
+    fileId: FileId,
+    layout: {width: number; height: number},
 ): ReadonlyArray<ReadonlyArray<ColorWithShade>> {
-    const fileSize = getFilePreviewSize(file);
-
     const baseSize = Math.floor(fileImagePreviewPlaceholderBaseSize * 0.6);
 
-    const aspectRatio = clamp(
-        minFilePreviewAspectRatio,
-        fileSize.width / fileSize.height,
-        maxFilePreviewAspectRatio,
-    );
-    const width = fileSize.width < fileSize.height ? baseSize : Math.round(baseSize * aspectRatio);
-    const height = fileSize.width < fileSize.height ? Math.round(baseSize / aspectRatio) : baseSize;
+    const aspectRatio = layout.width / layout.height;
+    const width = layout.width < layout.height ? baseSize : Math.round(baseSize * aspectRatio);
+    const height = layout.width < layout.height ? Math.round(baseSize / aspectRatio) : baseSize;
 
-    const stableRandom = new StableRandom(`FileLoadingPlaceholder:${file.id}-${width}-${height}`);
+    const stableRandom = new StableRandom(`FileLoadingPlaceholder:${fileId}-${width}-${height}`);
 
     const pixelCount = width * height;
     const backgroundPixelCount = Math.round((4 / 5) * pixelCount);

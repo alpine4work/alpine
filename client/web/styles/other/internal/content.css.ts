@@ -1348,6 +1348,8 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
     }),
 );
 
+export const fileBorderWidth = 0.5;
+
 // We add a border around images to prevent images from bleeding into the
 // background. Say you have a screenshot of a web design with an off white
 // background. Rendering that without a border on our pure white background will
@@ -1365,7 +1367,7 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     zIndex: "40",
     position: "absolute",
     inset: "0",
-    boxShadow: `inset 0 0 0 0.5px ${colorSchemeVars["grey-5-translucent"]}`,
+    boxShadow: `inset 0 0 0 ${fileBorderWidth}px ${colorSchemeVars["grey-5-translucent"]}`,
 });
 
 globalStyle(`${fileClassName}${fileEntityClassName}:not(${fileImageViewerClassName})::before`, {
@@ -1436,8 +1438,8 @@ export const fileImagePreviewContentClassName = style({
     transform: "translate(-50%, -50%)",
     width: "100%",
     height: "100%",
-    objectPosition: "center top",
-    objectFit: "cover",
+    objectPosition: "center",
+    objectFit: "contain",
     // Images need to be selectable so we get Chrome's selection highlight effect.
     userSelect: "text",
     // Start at opacity 0. We'll animate to opacity 1 when
@@ -1487,8 +1489,8 @@ export const fileImagePreviewPlaceholderClassName = style({
     transform: `translate(-50%, -50%)`,
     width: "100%",
     height: "100%",
-    objectPosition: "center top",
-    objectFit: "cover",
+    objectPosition: "center",
+    objectFit: "contain",
     pointerEvents: "none",
     // Start at opacity 1. We'll animate to opacity 0 when
     // `loadedFileImagePreviewClassName` is added.
@@ -1508,6 +1510,42 @@ export const fileImagePreviewPlaceholderClassName = style({
             transition: `opacity ${loadedFileImageAnimationDurationMs}ms ease-in-out`,
         },
     },
+});
+
+export const fileImagePreviewLetterboxClassName = style({
+    zIndex: "0",
+    position: "absolute",
+    // While most images are 100% and 100% height, we need to center images smaller
+    // than `fileMinSize`.
+    top: "50%",
+    left: "50%",
+    transform: `translate(-50%, -50%)`,
+    width: "100%",
+    height: "100%",
+    objectPosition: "center",
+    objectFit: "cover",
+    pointerEvents: "none",
+    opacity: 0.2,
+});
+
+export const fileImagePreviewLetterboxVerticalBorderClassName = style({
+    zIndex: "20",
+    position: "absolute",
+    pointerEvents: "none",
+    borderLeftColor: colorSchemeVars["grey-5-translucent"],
+    borderLeftWidth: fileBorderWidth,
+    borderRightColor: colorSchemeVars["grey-5-translucent"],
+    borderRightWidth: fileBorderWidth,
+});
+
+export const fileImagePreviewLetterboxHorizontalBorderClassName = style({
+    zIndex: "20",
+    position: "absolute",
+    pointerEvents: "none",
+    borderTopColor: colorSchemeVars["grey-5-translucent"],
+    borderTopWidth: fileBorderWidth,
+    borderBottomColor: colorSchemeVars["grey-5-translucent"],
+    borderBottomWidth: fileBorderWidth,
 });
 
 export const fileEntityPreviewSubscribeButtonBellIconClassName = style({

@@ -563,7 +563,7 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "Some text afterwards for anch",
-        html: `<div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;" data-pm-slice="1 1 []"><img src="${resourceServiceUrl}/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" crossorigin="anonymous" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="384" height="512"></div><p>Some text afterwards for anch</p>`,
+        html: `<div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;" data-pm-slice="1 1 []"><img src="${resourceServiceUrl}/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" crossorigin="anonymous" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="600" height="512"></div><p>Some text afterwards for anch</p>`,
     });
 
     expect(

@@ -364,7 +364,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     format: "heif",
                     size: expect.any(Number),
                     width: 400,
-                    height: 299,
+                    height: 300,
                     space: "srgb",
                     channels: 3,
                     depth: "uchar",
@@ -394,7 +394,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     format: "heif",
                     size: expect.any(Number),
                     width: 500,
-                    height: 374,
+                    height: 375,
                     space: "srgb",
                     channels: 3,
                     depth: "uchar",
@@ -1632,7 +1632,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             format: "heif",
             size: expect.any(Number),
             width: 100,
-            height: 238,
+            height: 1195,
             space: "srgb",
             channels: 4,
             depth: "uchar",
@@ -1663,7 +1663,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
 
         const expectedPath = joinPath(
             runfilesPath,
-            "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_cropped.avif",
+            "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_resized.avif",
         );
 
         const result = await looksSame(actualContents, expectedPath, {
@@ -1713,8 +1713,8 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
         expect(await sharp(resizeBody).metadata()).toEqual({
             format: "heif",
             size: expect.any(Number),
-            width: 400,
-            height: 952,
+            width: 352,
+            height: 4200,
             space: "srgb",
             channels: 4,
             depth: "uchar",
@@ -1776,7 +1776,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             format: "heif",
             size: expect.any(Number),
             width: 600,
-            height: 189,
+            height: 50,
             space: "srgb",
             channels: 4,
             depth: "uchar",
@@ -1792,7 +1792,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
 
         const expectedPath = joinPath(
             runfilesPath,
-            "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_rotated_cropped.avif",
+            "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_rotated_resized.avif",
         );
 
         const result = await looksSame(actualContents, expectedPath, {
@@ -1843,7 +1843,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             format: "heif",
             size: expect.any(Number),
             width: 800,
-            height: 252,
+            height: 67,
             space: "srgb",
             channels: 4,
             depth: "uchar",
@@ -1873,7 +1873,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             format: "heif",
             size: expect.any(Number),
             width: 1200,
-            height: 377,
+            height: 100,
             space: "srgb",
             channels: 4,
             depth: "uchar",

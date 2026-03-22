@@ -1,6 +1,7 @@
 let filePreviewImageResizeWidths: Set<number> | null = null;
+let filePreviewImageMaxResizeWidth: number | null = null;
 
-function getFilePreviewImageResizeWidths() {
+function getFilePreviewImageResizeWidths(): ReadonlySet<number> {
     if (filePreviewImageResizeWidths === null) {
         // Only 6 sizes below 1400 for us to choose from when resizing. This increases the
         // chance of cache hits. We need to include larger sizes when rendering file
@@ -52,4 +53,20 @@ export function getFilePreviewImageResizeWidth(width: number): number {
  */
 export function isFilePreviewImageResizeWidth(width: number): boolean {
     return getFilePreviewImageResizeWidths().has(width);
+}
+
+/**
+ * Get the largest supported preview resize width. We also use this as a
+ * conservative max image dimension for preview content generation.
+ */
+export function getFilePreviewImageMaxResizeWidth(): number {
+    if (filePreviewImageMaxResizeWidth === null) {
+        let maxResizeWidth = 0;
+        for (const resizeWidth of getFilePreviewImageResizeWidths()) {
+            maxResizeWidth = Math.max(maxResizeWidth, resizeWidth);
+        }
+        filePreviewImageMaxResizeWidth = maxResizeWidth;
+    }
+
+    return filePreviewImageMaxResizeWidth;
 }

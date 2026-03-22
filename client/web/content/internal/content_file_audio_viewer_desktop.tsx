@@ -16,6 +16,7 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/web/content/internal/content_file_viewer_shared_styles.js";
 import {getContentFileViewerSrc} from "~/client/web/content/internal/load_content_file_viewer_data.js";
+import {minAspectRatioIfNotSingleFileRow} from "~/client/web/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/web/design/box.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
@@ -31,7 +32,6 @@ import {
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {minFilePreviewAspectRatio} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlFragmentGenerator} from "~/shared/helpers/html/html_generator.js";
@@ -113,7 +113,7 @@ function ContentFileAudioViewerDesktopInner({
 
     const viewerMarginXPx = convertRemLengthToPx(contentFileViewerDesktopMarginX, spacingScale);
     const width = viewerSize.width - viewerMarginXPx * 2;
-    const height = width * minFilePreviewAspectRatio;
+    const height = width * minAspectRatioIfNotSingleFileRow;
 
     const containerRef = useRef<HTMLDivElement>(null);
 

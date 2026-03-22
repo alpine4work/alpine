@@ -256,7 +256,7 @@ test("layouts single tall image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts iPhone screenshot", () => {
@@ -267,7 +267,7 @@ test("layouts iPhone screenshot", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts cinema scope image", () => {
@@ -289,7 +289,7 @@ test("layouts vertical cinema scope image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts small icon image", () => {
@@ -300,7 +300,7 @@ test("layouts small icon image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 76, width: 76, widthFr: 0.126667}]);
+    ).toEqual([{height: 76, width: 600, widthFr: 1}]);
 });
 
 test("layouts moderate vertical image", () => {
@@ -311,7 +311,7 @@ test("layouts moderate vertical image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts moderate horizontal image", () => {
@@ -322,7 +322,7 @@ test("layouts moderate horizontal image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 100, width: 318, widthFr: 0.53}]);
+    ).toEqual([{height: 76, width: 600, widthFr: 1}]);
 });
 
 test("layouts extreme vertical image", () => {
@@ -333,7 +333,7 @@ test("layouts extreme vertical image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts extreme horizontal image", () => {
@@ -344,7 +344,7 @@ test("layouts extreme horizontal image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 188.679, width: 600, widthFr: 1}]);
+    ).toEqual([{height: 76, width: 600, widthFr: 1}]);
 });
 
 test("layouts two similar images in a row", () => {
@@ -416,8 +416,8 @@ test("layouts standard and wide image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 159.09, width: 212.261, widthFr: 0.35855},
-        {height: 159.09, width: 379.739, widthFr: 0.64145},
+        {height: 159.346, width: 212.604, widthFr: 0.359128},
+        {height: 159.346, width: 379.396, widthFr: 0.640872},
     ]);
 });
 
@@ -450,8 +450,8 @@ test("layouts two iPhone screenshots in a row", () => {
             },
         ),
     ).toEqual([
-        {height: 512, width: 236.571, widthFr: 0.399614},
-        {height: 512, width: 236.571, widthFr: 0.399614},
+        {height: 512, width: 296, widthFr: 0.5},
+        {height: 512, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -477,6 +477,23 @@ test("layouts three iPhone screenshots in a row", () => {
     ]);
 });
 
+test("layouts moderate horizontal image and iPhone screenshot in a row", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [moderateHorizontalFile.initialData, phoneScreenshotFile.initialData],
+            {
+                maxFileCount: 3,
+                blockWidth: 600,
+                platform: "desktop",
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 200, width: 476.19, widthFr: 0.804376},
+        {height: 200, width: 115.81, widthFr: 0.195624},
+    ]);
+});
+
 test("layouts small icon and standard image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([iconFile.initialData, standardFile.initialData], {
@@ -486,8 +503,8 @@ test("layouts small icon and standard image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 76, width: 76, widthFr: 0.128378},
-        {height: 76, width: 101.401, widthFr: 0.171286},
+        {height: 76, width: 296, widthFr: 0.5},
+        {height: 76, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -500,8 +517,8 @@ test("layouts small icon and tall image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 76, width: 76, widthFr: 0.128378},
-        {height: 76, width: 76, widthFr: 0.128378},
+        {height: 76, width: 296, widthFr: 0.5},
+        {height: 76, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -514,8 +531,8 @@ test("layouts two audio files in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 93.082, width: 296, widthFr: 0.5},
-        {height: 93.082, width: 296, widthFr: 0.5},
+        {height: 124.32, width: 296, widthFr: 0.5},
+        {height: 124.32, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -558,6 +575,23 @@ test("layouts two file entities", () => {
     ).toEqual([
         {height: 225.412, width: 296, widthFr: 0.5},
         {height: 225.412, width: 296, widthFr: 0.5},
+    ]);
+});
+
+test("throws unsatisfiable constraint for two file entities in a narrow row", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [`Document:${generateId<DocumentId>()}`, `Document:${generateId<DocumentId>()}`],
+            {
+                maxFileCount: 3,
+                blockWidth: 150,
+                platform: "desktop",
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 76, width: 76, widthFr: 0.535211},
+        {height: 76, width: 76, widthFr: 0.535211},
     ]);
 });
 
@@ -842,9 +876,9 @@ test("floats vertical banner image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 99.834,
+        width: 135.114,
         widthFr: 1,
-        height: 237.7,
+        height: 321.7,
     });
 });
 

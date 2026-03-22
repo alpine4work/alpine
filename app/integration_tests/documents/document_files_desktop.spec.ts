@@ -29,7 +29,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     // Make sure the viewport size never changes since we'll need precise pixel
     // placement when dropping an image.
-    await page.setViewportSize({width: 1280, height: 720});
+    await page.setViewportSize({width: 1280, height: 1000});
 
     await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document.id}`);
@@ -92,7 +92,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
-            clientY: 164,
+            clientY: 60,
             dataTransfer: file1DataTransfer,
         });
 
@@ -270,7 +270,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
-            clientY: 169,
+            clientY: 60,
             dataTransfer: file2DataTransfer,
         });
 
@@ -285,8 +285,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 399,
-            clientY: 602,
+            clientX: 310,
+            clientY: 460,
             dataTransfer: file2DataTransfer,
         });
 
@@ -301,8 +301,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 955,
-            clientY: 602,
+            clientX: 1020,
+            clientY: 460,
             dataTransfer: file2DataTransfer,
         });
 
@@ -317,8 +317,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 175,
-            clientY: 602,
+            clientX: 310,
+            clientY: 460,
             dataTransfer: file2DataTransfer,
         });
 
@@ -333,8 +333,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 1068,
-            clientY: 602,
+            clientX: 1020,
+            clientY: 460,
             dataTransfer: file2DataTransfer,
         });
 
@@ -375,8 +375,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
-        clientX: 1068,
-        clientY: 602,
+        clientX: 1020,
+        clientY: 460,
         dataTransfer: file2DataTransfer,
     });
 
@@ -465,7 +465,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 742,
-            clientY: 416,
+            clientY: 500,
             dataTransfer: file3DataTransfer,
         });
 
@@ -481,7 +481,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 500,
-            clientY: 322,
+            clientY: 260,
             dataTransfer: file3DataTransfer,
         });
 
@@ -497,7 +497,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
-            clientY: 169,
+            clientY: 60,
             dataTransfer: file3DataTransfer,
         });
 
@@ -512,7 +512,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 436,
+            clientX: 310,
             clientY: 353,
             dataTransfer: file3DataTransfer,
         });
@@ -528,7 +528,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 916,
+            clientX: 1020,
             clientY: 396,
             dataTransfer: file3DataTransfer,
         });
@@ -544,7 +544,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 239,
+            clientX: 310,
             clientY: 396,
             dataTransfer: file3DataTransfer,
         });
@@ -560,7 +560,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 1095,
+            clientX: 1020,
             clientY: 396,
             dataTransfer: file3DataTransfer,
         });
@@ -576,7 +576,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 622,
+            clientX: 594,
             clientY: 396,
             dataTransfer: file3DataTransfer,
         });
@@ -634,8 +634,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
-        clientX: 1068,
-        clientY: 602,
+        clientX: 1020,
+        clientY: 396,
         dataTransfer: file3DataTransfer,
     });
 
@@ -742,7 +742,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
-            clientY: 169,
+            clientY: 60,
             dataTransfer: file1DataTransfer,
         });
 

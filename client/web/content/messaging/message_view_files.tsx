@@ -38,7 +38,6 @@ import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {messageViewFilesFileMaxHeight} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
@@ -141,9 +140,6 @@ export function MessageViewFiles({
                         blockWidth,
                         platform,
                         spacingScale,
-                        // Smaller max height than we have for content file row nodes so tall images don't
-                        // take up too much of the screen.
-                        maxHeight: messageViewFilesFileMaxHeight,
                     });
 
                     fileRows.push({files, fileDatas, fileLayouts});
@@ -172,6 +168,9 @@ export function MessageViewFiles({
                             // Left align message files instead of center aligning message files. This matches
                             // the more conversational format of messages as opposed to the carefully edited
                             // prose format of documents.
+                            //
+                            // NOTE(calebmer, 2026-03-12): I don't think this matters anymore now that we
+                            // layout file rows with the requirement that we always fills the block width.
                             "justify-content: start",
                         ].join("; "),
                     );

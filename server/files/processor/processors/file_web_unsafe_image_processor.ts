@@ -15,6 +15,7 @@ import {
     FileWebUnsafeImageContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
+import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -75,6 +76,12 @@ export function createFileWebUnsafeImageProcessor(
 
                         await sharp(inputPath, {pages: 1})
                             .timeout({seconds: sharpTimeoutSeconds})
+                            .resize({
+                                width: getFilePreviewImageMaxResizeWidth(),
+                                height: getFilePreviewImageMaxResizeWidth(),
+                                fit: "inside",
+                                withoutEnlargement: true,
+                            })
                             // AVIF is our preferred format for generating preview images ([source][1],
                             // [source][2]). AVIF has full browser support, provides better compression than
                             // JPEG and WebP, and has alpha channel support (unlike JPEG).

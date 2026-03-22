@@ -33,10 +33,7 @@ import {
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
@@ -161,9 +158,11 @@ export async function resizeFile(
     const widthString = url.searchParams.get("width");
     if (!widthString) throw new InvalidArgumentError("Missing required `width` URL search param");
 
-    const width = parseInt(widthString, 10);
-    if (!/^\d+$/.test(widthString) || !Number.isInteger(width) || width <= 0)
+    const requestedWidth = parseInt(widthString, 10);
+    if (!/^\d+$/.test(widthString) || !Number.isInteger(requestedWidth) || requestedWidth <= 0)
         throw new InvalidArgumentError("`width` URL search param must be a positive integer");
+    const maxResizeWidth = getFilePreviewImageMaxResizeWidth();
+    const width = Math.min(requestedWidth, maxResizeWidth);
 
     const variant = url.searchParams.get("variant");
     if (variant !== null && variant !== "preview" && variant !== "alternative") {
@@ -310,26 +309,16 @@ export async function resizeFile(
                 });
 
                 const filter = [
-                    // Crop the image so it doesn't exceed our min/max aspect ratio. We render the
-                    // resized image in a preview so generating extra image that won't be displayed
-                    // in the preview box is wasteful since we'd need to send those bytes to the
-                    // client only to crop them out.
-                    //
-                    // We position the cropped image as if `object-position: center top` is set.
-                    //
-                    // https://ffmpeg.org/ffmpeg-filters.html#crop
-                    //
-                    // eslint-disable-next-line cyberworlds/string-quotes
-                    `crop='h=min(ih,iw/${minFilePreviewAspectRatio})':'w=min(iw,ih*${maxFilePreviewAspectRatio})':y=0:x=iw/2-ow/2`,
                     // Actually perform the resize! Some notes:
                     //
-                    // - Maintain the aspect ratio by setting -1 for height
-                    // - Avoid upscaling with the `min()` expression
+                    // - Maintain the aspect ratio.
+                    // - Avoid upscaling with the `min()` expressions.
+                    // - Bound both width and height by our maximum file preview resize width.
                     //
                     // https://trac.ffmpeg.org/wiki/Scaling
                     //
                     // eslint-disable-next-line cyberworlds/string-quotes
-                    `scale='min(${width},iw)':-1`,
+                    `scale='min(${width},iw)':${maxResizeWidth}:force_original_aspect_ratio=decrease`,
                 ].join(",");
 
                 const subprocess = spawn(

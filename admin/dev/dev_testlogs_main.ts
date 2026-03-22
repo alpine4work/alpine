@@ -322,6 +322,13 @@ async function getTestOutputPlaywrightTraces(testName: string, testOutputPath: s
         let relativePathPrefix = pathRelative("app/integration_tests", testName);
         let relativePathSuffix = "";
 
+        const runRelativePathPrefixMatch = relativePathPrefix.match(
+            /\/run_(?:[1-9][0-9]*)_of_(?:[1-9][0-9]*)$/,
+        );
+        if (runRelativePathPrefixMatch) {
+            relativePathPrefix = relativePathPrefix.slice(0, -runRelativePathPrefixMatch[0].length);
+        }
+
         if (relativePathPrefix.endsWith("_chromium_test")) {
             relativePathPrefix = relativePathPrefix.slice(0, -14);
             relativePathSuffix = "-chromium";

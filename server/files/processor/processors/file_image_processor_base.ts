@@ -10,10 +10,6 @@ import {
     fileImagePreviewPlaceholderBaseSize,
 } from "~/shared/files/file_image_preview_placeholder.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -43,7 +39,7 @@ export async function processFileImagePreviewPlaceholder(
 ): Promise<FileImagePreviewPlaceholder> {
     const {
         data: outputData,
-        info: {channels, width, height},
+        info: {channels, width},
     } = await context.tracer.withSpan(
         `sharp generate ${getFileContentTypeName(contentType)} placeholder`,
         (context, span) => {
@@ -89,50 +85,14 @@ export async function processFileImagePreviewPlaceholder(
 
     assert(channels === 3 || channels === 4);
 
-    const aspectRatio = width / height;
-
-    if (aspectRatio < minFilePreviewAspectRatio) {
-        const croppedHeight = Math.round(width / minFilePreviewAspectRatio);
-
-        const outputDataSubarray = outputData.subarray(0, width * croppedHeight * channels);
-
-        return FileImagePreviewPlaceholder.fromSerialized([
-            channels === 4,
-            width,
-            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
-            // fixing for now.
-            // @ts-expect-error
-            outputDataSubarray,
-        ]);
-    } else if (aspectRatio > maxFilePreviewAspectRatio) {
-        const croppedWidth = Math.round(height * maxFilePreviewAspectRatio);
-        const cropStartX = Math.round((width - croppedWidth) / 2);
-        const croppedOutputData = new Uint8Array(croppedWidth * height * channels);
-
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < croppedWidth; x++) {
-                for (let c = 0; c < channels; c++) {
-                    croppedOutputData[(y * croppedWidth + x) * channels + c] =
-                        outputData[(y * width + (cropStartX + x)) * channels + c]!;
-                }
-            }
-        }
-
-        return FileImagePreviewPlaceholder.fromSerialized([
-            channels === 4,
-            croppedWidth,
-            croppedOutputData,
-        ]);
-    } else {
-        return FileImagePreviewPlaceholder.fromSerialized([
-            channels === 4,
-            width,
-            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
-            // fixing for now.
-            // @ts-expect-error
-            outputData,
-        ]);
-    }
+    return FileImagePreviewPlaceholder.fromSerialized([
+        channels === 4,
+        width,
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
+        outputData,
+    ]);
 }
 
 export function processImageFile(

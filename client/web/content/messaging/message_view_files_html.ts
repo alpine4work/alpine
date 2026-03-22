@@ -9,7 +9,6 @@ import {renderContentFilePreview} from "~/client/web/content/internal/content_fi
 import {computeContentFileRowLikeLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {messageViewFilesFileMaxHeight} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
@@ -100,8 +99,6 @@ export function renderMessageViewFiles(
             blockWidth: blockWidthPx,
             platform,
             spacingScale,
-            // Match `<MessageViewFiles>` so tall previews don't dominate the message.
-            maxHeight: messageViewFilesFileMaxHeight,
         });
 
         const fileRowHtml = filesContainerHtml.appendChild(new HtmlElementGenerator("div"));
@@ -120,6 +117,12 @@ export function renderMessageViewFiles(
                 "display: grid",
                 "grid-template-rows: 1fr",
                 `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${widthFr}fr`).join(" ")}`,
+                // Left align message files instead of center aligning message files. This matches
+                // the more conversational format of messages as opposed to the carefully edited
+                // prose format of documents.
+                //
+                // NOTE(calebmer, 2026-03-12): I don't think this matters anymore now that we
+                // layout file rows with the requirement that we always fills the block width.
                 "justify-content: start",
             ].join("; "),
         );

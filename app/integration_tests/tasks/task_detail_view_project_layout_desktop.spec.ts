@@ -166,7 +166,10 @@ test("floating create shows parent before typing and creates a subtask when typi
     await expect(page2.getByText("Floating child task")).toBeHidden();
 
     await page1.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}).click();
-    await page1.keyboard.type("Floating child task");
+    await page1
+        .getByTestId("TaskDetailViewMain")
+        .getByRole("textbox", {name: "Title"})
+        .pressSequentially("Floating child task");
 
     await expect(page2.getByText("Floating child task")).toBeVisible();
 
@@ -193,8 +196,8 @@ test("can create a project from create menu in fullscreen and focused", async ({
     const titleInput = page.getByPlaceholder("Untitled");
     await expect(titleInput).toBeFocused();
 
-    await page.keyboard.type("Create menu project");
-    await page.keyboard.press("Enter");
+    await titleInput.pressSequentially("Create menu project");
+    await titleInput.press("Enter");
 
     await expect(page).not.toHaveURL(/[?&]create/);
     await expect(page.getByText("Create menu project", {exact: true})).toBeVisible();

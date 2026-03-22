@@ -20,10 +20,7 @@ import {
     FilePdfDocumentContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -110,7 +107,7 @@ export function processPdfDocumentFile(
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     signal;
 
-    const previewSizeWithoutModification = (async () => {
+    const previewSizeWithoutModificationPromise = (async () => {
         let retryCount = 0;
 
         while (true) {
@@ -202,11 +199,7 @@ export function processPdfDocumentFile(
         contentLength: number;
         data: ReadableStream;
     }> => {
-        const {
-            width: actualWidth,
-            height: actualHeight,
-            scale,
-        } = await previewSizeWithoutModification;
+        const {width, height, scale} = await previewSizeWithoutModificationPromise;
 
         await context.tracer.withSpan(
             `sharp reformat ${getFileContentTypeName(
@@ -220,47 +213,19 @@ export function processPdfDocumentFile(
                     },
                 });
 
-                let sharpInstance = sharp(inputPath, {pages: 1}).timeout({
-                    seconds: sharpTimeoutSeconds,
-                });
+                // HEIF has an upper bound on image dimensions. Keep preview _metadata_ at full
+                // resolution, but downscale preview content so AVIF encoding succeeds.
+                const previewContentScale = Math.min(
+                    1,
+                    getFilePreviewImageMaxResizeWidth() / Math.max(width, height),
+                );
+                const previewContentWidth = Math.max(1, Math.round(width * previewContentScale));
+                const previewContentHeight = Math.max(1, Math.round(height * previewContentScale));
 
-                const aspectRatio = actualWidth / actualHeight;
-                let previewWidth: number;
-                let previewHeight: number;
+                let sharpInstance = sharp(inputPath, {pages: 1})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    .resize({width: previewContentWidth, height: previewContentHeight})
 
-                // If the PDF is beyond our min/max aspect ratio bounds then we crop the PDF
-                // preview to a valid size.
-                if (aspectRatio <= minFilePreviewAspectRatio) {
-                    previewWidth = actualWidth;
-                    previewHeight = Math.round(actualWidth / minFilePreviewAspectRatio);
-
-                    sharpInstance = sharpInstance.resize({
-                        width: previewWidth,
-                        height: previewHeight,
-                        fit: "cover",
-                        position: "top",
-                    });
-                } else if (aspectRatio >= maxFilePreviewAspectRatio) {
-                    previewWidth = Math.round(actualHeight * maxFilePreviewAspectRatio);
-                    previewHeight = actualHeight;
-
-                    sharpInstance = sharpInstance.resize({
-                        width: previewWidth,
-                        height: previewHeight,
-                        fit: "cover",
-                        position: "centre",
-                    });
-                } else {
-                    previewWidth = actualWidth;
-                    previewHeight = actualHeight;
-
-                    sharpInstance = sharpInstance.resize({
-                        width: previewWidth,
-                        height: previewHeight,
-                    });
-                }
-
-                sharpInstance = sharpInstance
                     // AVIF is our preferred format for generating preview images ([source][1],
                     // [source][2]). AVIF has full browser support, provides better compression than
                     // JPEG and WebP, and has alpha channel support (unlike JPEG).
@@ -284,14 +249,34 @@ export function processPdfDocumentFile(
                     .toFormat("avif", {quality: 80});
 
                 if (extractPreview) {
-                    const extractLeft = clamp(0, extractPreview.left * scale, previewWidth);
-                    const extractTop = clamp(0, extractPreview.top * scale, previewHeight);
+                    const extractScale = scale * previewContentScale;
+
+                    const extractLeft = clamp(
+                        0,
+                        extractPreview.left * extractScale,
+                        previewContentWidth,
+                    );
+                    const extractTop = clamp(
+                        0,
+                        extractPreview.top * extractScale,
+                        previewContentHeight,
+                    );
+                    const extractWidth = clamp(
+                        0,
+                        extractPreview.width * extractScale,
+                        previewContentWidth - extractLeft,
+                    );
+                    const extractHeight = clamp(
+                        0,
+                        extractPreview.height * extractScale,
+                        previewContentHeight - extractTop,
+                    );
 
                     sharpInstance = sharpInstance.extract({
-                        left: extractLeft,
-                        width: clamp(0, extractPreview.width * scale, previewWidth - extractLeft),
-                        top: extractTop,
-                        height: clamp(0, extractPreview.height * scale, previewHeight - extractTop),
+                        left: Math.round(extractLeft),
+                        top: Math.round(extractTop),
+                        width: Math.round(extractWidth),
+                        height: Math.round(extractHeight),
                     });
                 }
 
@@ -322,30 +307,10 @@ export function processPdfDocumentFile(
         }
     })();
 
-    let previewSizePromise = previewSizeWithoutModification.then(previewSize => {
-        const aspectRatio = previewSize.width / previewSize.height;
-
-        // If the PDF is beyond our min/max aspect ratio bounds then we crop the PDF
-        // preview to a valid size.
-        if (aspectRatio <= minFilePreviewAspectRatio) {
-            return {
-                ...previewSize,
-                width: previewSize.width,
-                height: Math.round(previewSize.width / minFilePreviewAspectRatio),
-            };
-        } else if (aspectRatio >= maxFilePreviewAspectRatio) {
-            return {
-                ...previewSize,
-                width: Math.round(previewSize.height * maxFilePreviewAspectRatio),
-                height: previewSize.height,
-            };
-        } else {
-            return previewSize;
-        }
-    });
+    let previewSizePromise = previewSizeWithoutModificationPromise;
 
     if (extractPreview) {
-        previewSizePromise = previewSizeWithoutModification.then(
+        previewSizePromise = previewSizeWithoutModificationPromise.then(
             ({width, height, scale, hasAlpha}) => ({
                 width: clamp(0, width, extractPreview.width * scale),
                 height: clamp(0, height, extractPreview.height * scale),

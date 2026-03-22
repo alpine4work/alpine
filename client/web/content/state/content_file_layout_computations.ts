@@ -6,10 +6,6 @@ import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/core/spa
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -32,6 +28,53 @@ const smallFallbackFileSize = {width: smallFallbackFileWidth, height: smallFallb
 
 // Aspect ratio of letter paper. https://en.wikipedia.org/wiki/Letter_(paper_size)
 const letterPaperAspectRatio = 17 / 22;
+
+/**
+ * The minimum width:height aspect ratio we support when rendering images. Images
+ * with a taller aspect ratio will be cropped. Super tall images start to look bad
+ * with our layout engine since either they take over the page (forcing you to
+ * scroll) or if we want to keep images to a max height we'd have to start
+ * shrinking the image until there's barely any visible width remaining. So instead
+ * we limit how tall images can get before we start cropping.
+ *
+ * Three tall aspect ratios we want to support without cropping:
+ *
+ * 1. Large phones. The [largest iPhone is 9:19.5][1] (~0.46) which is greater than
+ *    21:50 (0.42). We don't want to crop iPhone screenshots.
+ *
+ * 2. [Ultrawide 21:9 (~0.43) monitors][2]. In case a user has turned their monitor
+ *    vertically and took a screenshot. We don't want to crop that screenshot.
+ *
+ * 3. The [standard for "Big Screen Cinema" (Cinemascope) is 2.35:1][3] (1:2.35 is
+ *    ~0.43). While it's unlikely someone would rotate a cinema shot vertically, we
+ *    use the inverse of our minimum aspect ratio as our maximum aspect ratio. So
+ *    we want to make sure a cinema shot works horizontally without being cropped.
+ *
+ * 4. Paper print outs. [Letter paper aspect ratio is 17:22][4] (~0.77) which is
+ *    greater than 0.42 so letter paper doesn't crop.
+ *
+ * We picked 21:50 to just barely include Ultrawide monitors. We could do 2:5 which
+ * is simpler but we may already be pushing the limits of what can look good
+ * visually with 21:50.
+ *
+ * [1]: https://iosref.com/res#iphone
+ * [2]: https://en.wikipedia.org/wiki/Ultrawide_formats
+ * [3]: https://elitescreens.com/understanding-aspect-ratio
+ * [4]: https://en.wikipedia.org/wiki/Letter_(paper_size)
+ */
+export const minAspectRatioIfNotSingleFileRow = 21 / 50;
+
+/**
+ * The maximum width:height aspect ratio we support when rendering images. Images
+ * with a wider aspect ratio will be cropped. Super wide image start to look bad
+ * with our layout engine since they start shrinking (to stay within the document's
+ * bounds) until there's barely any visible height.
+ *
+ * It's the inverse of `minAspectRatioIfNotSingleFileRow`. Wider images may look
+ * better than taller images so we could consider increasing this if there's a good
+ * use case.
+ */
+const maxAspectRatioIfNotSingleFileRow = minAspectRatioIfNotSingleFileRow ** -1;
 
 // Round numbers to 3 decimal places so we sending less data over the network in
 // our generated HTML.
@@ -133,6 +176,18 @@ export function computeContentFileRowLikeLayout<
             );
         }
 
+        // If there's only one file then we want the file to fill the entire row width.
+        // We'll use a letterboxed design to make sure the entire file is visible.
+        if (files.length === 1) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Eq,
+                    blockWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+        }
         // Add `width` bounds. `width` should be larger than our min file size and less
         // than the file's original width (since making a small file larger will start to
         // add resize artifacts).
@@ -140,50 +195,28 @@ export function computeContentFileRowLikeLayout<
         // The maximum width is also implicitly bound by the constraint we add below this
         // loop adding up all `widthVariables` and requiring that they're less than our
         // file row's width.
-        {
-            const maxWidth = width !== null ? Math.max(minWidth, width) : null;
+        else {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Ge,
+                    minWidth,
+                    kiwi.Strength.required,
+                ),
+            );
 
-            if (minWidth === maxWidth) {
+            if (width === null) {
+                // If there's no `maxWidth` (because there's no `width`) then we want the file to
+                // be close to a fair share of the block width. But it's perfectly fine to break
+                // this constraint.
                 solver.addConstraint(
                     new kiwi.Constraint(
                         widthVariable,
                         kiwi.Operator.Eq,
-                        minWidth,
-                        kiwi.Strength.required,
+                        fairlySplitBlockWidth,
+                        kiwi.Strength.weak,
                     ),
                 );
-            } else {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        widthVariable,
-                        kiwi.Operator.Ge,
-                        minWidth,
-                        kiwi.Strength.required,
-                    ),
-                );
-
-                if (maxWidth !== null) {
-                    solver.addConstraint(
-                        new kiwi.Constraint(
-                            widthVariable,
-                            kiwi.Operator.Le,
-                            maxWidth,
-                            kiwi.Strength.required,
-                        ),
-                    );
-                } else {
-                    // If there's no `maxWidth` (because there's no `width`) then we want the file to
-                    // be close to a fair share of the block width. But it's perfectly fine to break
-                    // this constraint.
-                    solver.addConstraint(
-                        new kiwi.Constraint(
-                            widthVariable,
-                            kiwi.Operator.Eq,
-                            fairlySplitBlockWidth,
-                            kiwi.Strength.weak,
-                        ),
-                    );
-                }
             }
         }
 
@@ -241,6 +274,8 @@ export function computeContentFileRowLikeLayout<
             }
         }
 
+        const aspectRatio = (width ?? fairlySplitBlockWidth) / height;
+
         // Maintain the aspect ratio of the file as best we can. This constraint isn't
         // required, the solver may break it if necessary.
         //
@@ -251,11 +286,16 @@ export function computeContentFileRowLikeLayout<
             new kiwi.Constraint(
                 widthVariable.minus(
                     heightVariable.multiply(
-                        clamp(
-                            minFilePreviewAspectRatio,
-                            (width ?? fairlySplitBlockWidth) / height,
-                            maxFilePreviewAspectRatio,
-                        ),
+                        // If there's only one file in the row then we try to reach its aspect ratio since
+                        // it won't cause other files in the row to be squished. This is mostly for very
+                        // wide files allowing them to be fully visible without letterboxing.
+                        files.length === 1
+                            ? aspectRatio
+                            : clamp(
+                                  minAspectRatioIfNotSingleFileRow,
+                                  aspectRatio,
+                                  maxAspectRatioIfNotSingleFileRow,
+                              ),
                     ),
                 ),
                 width !== null ? kiwi.Operator.Eq : kiwi.Operator.Ge,
@@ -274,7 +314,7 @@ export function computeContentFileRowLikeLayout<
     // width or we're taking the full screen on smaller devices. If the file row width
     // isn't exactly what we expect then we'll have to start cropping content in the
     // file.
-    {
+    if (files.length > 1) {
         let widthExpression: kiwi.Variable | kiwi.Expression = sizeVariables[0]!.width;
 
         for (let i = 1; i < sizeVariables.length; i++) {
@@ -284,33 +324,25 @@ export function computeContentFileRowLikeLayout<
                 .plus(widthVariable);
         }
 
+        // Strength that's stronger than `kiwi.Strength.strong` but still isn't required.
+        const strongerStrength = kiwi.Strength.create(2.0, 0.0, 0.0);
+
+        // We think it's most aesthetically pleasing when files fill our row's full width.
+        //
         // If all the files in the row were `minWidth` and still wouldn't fit in
         // `blockWidth` then we remove the constraint that our widths must sum up to
         // `blockWidth`. This only kicks in for recursive document file entities which end
         // up rendering documents at a very small size.
-        if (
-            blockWidth >=
-            minWidth * maxFileCount + contentStyles.fileRowGapWidthRem * remPx * (maxFileCount - 1)
-        ) {
-            solver.addConstraint(
-                new kiwi.Constraint(
-                    widthExpression,
-                    kiwi.Operator.Le,
-                    blockWidth,
-                    kiwi.Strength.required,
-                ),
-            );
-        }
-
-        // We think it's most aesthetically pleasing when files fill our row's full width.
-        // However, it might not be possible to fill the full width so this constraint
-        // isn't required.
         solver.addConstraint(
             new kiwi.Constraint(
                 widthExpression,
                 kiwi.Operator.Eq,
                 blockWidth,
-                kiwi.Strength.medium,
+                blockWidth >=
+                    minWidth * maxFileCount +
+                        contentStyles.fileRowGapWidthRem * remPx * (maxFileCount - 1)
+                    ? kiwi.Strength.required
+                    : strongerStrength,
             ),
         );
     }
@@ -545,9 +577,9 @@ export function computeContentFileFloatLayout(
             widthVariable.minus(
                 heightVariable.multiply(
                     clamp(
-                        minFilePreviewAspectRatio,
+                        minAspectRatioIfNotSingleFileRow,
                         (width ?? fileFloatMaxWidth) / height,
-                        maxFilePreviewAspectRatio,
+                        maxAspectRatioIfNotSingleFileRow,
                     ),
                 ),
             ),
@@ -603,32 +635,6 @@ export function computeContentFileFloatLayout(
         height: round3(heightVariable.value()),
     };
 }
-
-/**
- * We treat all files as half their actual size in order to prevent up-scaling on
- * retina displays.
- *
- * A retina display is one where [`devicePixelRatio`][1] is greater than 1. Most
- * retina display's have a `devicePixelRatio` of 2. (Some newer iPhones have a
- * `devicePixelRatio` of 3.)
- *
- * The theory here is that these days enough displays are retina displays that we
- * should make sure files look crisp on retina displays and gracefully degrade on
- * non-retina displays. Additionally, we're betting that most image files are
- * optimized to look good on retina displays (since they're probably being produced
- * on retina displays).
- *
- * Basically all mobile phones have retina displays. Many monitors also have retina
- * displays.
- *
- * So to make sure a 400x300 image looks crisp on a retina display (with a
- * `devicePixelRatio` of 2) then we need to render the image at 200x150 (half the
- * original size). We apply this down-scaling constant to images so the size we use
- * for layout is the half the actual file's size.
- *
- * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio
- */
-const fileImagePreviewSizeDownScale = 2;
 
 declare global {
     // eslint-disable-next-line no-var
@@ -727,7 +733,7 @@ export function getFilePreviewSize(file: FileModelData | null): {
         case "Audio": {
             // Use the larger `remPx` size (mobile). The file will be scaled down as necessary.
             const width = largeFallbackFileWidth;
-            const height = width / maxFilePreviewAspectRatio;
+            const height = width / maxAspectRatioIfNotSingleFileRow;
             return {width, height};
         }
         case "Code": {
@@ -745,23 +751,17 @@ export function getFilePreviewSize(file: FileModelData | null): {
             if (file.preview.size === "Processing") return largeFallbackFileSize;
             if (file.preview.size === "Error") return smallFallbackFileSize;
 
-            // Don't downscale SVG vector images. Since they can scale up
-            const downScale =
-                file.contentType === "image/svg+xml" ? 1 : fileImagePreviewSizeDownScale;
-
             return {
                 width:
                     file.preview.size.width /
-                    // Files that already are at a scale of 2 or more don't need to be downscaled. We
-                    // render PDFs at 2x their actual width/height so they look good on retina displays
-                    // at their proper size.
-                    Math.max(downScale, file.preview.size.scale),
+                    // We render PDFs at 2x their actual width/height so they look good on retina
+                    // displays at their proper size.
+                    Math.max(1, file.preview.size.scale),
                 height:
                     file.preview.size.height /
-                    // Files that already are at a scale of 2 or more don't need to be downscaled. We
-                    // render PDFs at 2x their actual width/height so they look good on retina displays
-                    // at their proper size.
-                    Math.max(downScale, file.preview.size.scale),
+                    // We render PDFs at 2x their actual width/height so they look good on retina
+                    // displays at their proper size.
+                    Math.max(1, file.preview.size.scale),
             };
         }
         default:
