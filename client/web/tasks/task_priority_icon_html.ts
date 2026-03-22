@@ -1,5 +1,9 @@
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
-import {colorSchemeVars, pingAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {
+    colorSchemeVars,
+    pingAnimationWithDelayClassName,
+    sprinkles,
+} from "~/client/web/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
@@ -113,7 +117,7 @@ function renderTaskPriorityIconUrgent({
         const pingContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
         pingContainerHtml.setAttribute(
             "class",
-            `${pingAnimationClassName} ${taskPriorityIconUrgentPingContainerClassName}`,
+            `${pingAnimationWithDelayClassName} ${taskPriorityIconUrgentPingContainerClassName}`,
         );
 
         // eslint-disable-next-line cyberworlds/string-quotes

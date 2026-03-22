@@ -180,6 +180,12 @@ function Button(
         isPressed?: boolean;
 
         /**
+         * Should we show the hovered style even if the button isn't currently hovered?
+         * Useful if there's some secondary hover target for this icon button.
+         */
+        isHovered?: boolean;
+
+        /**
          * Is the button disabled? Does not display a reason tooltip like when you use
          * `disabledReason`. Generally you should prefer `disabledReason`. If you set
          * `disabledReason` then you don't have to set `isDisabled`. Disabled actions may
@@ -312,6 +318,7 @@ function Button(
         shouldSubmitForm = false,
         withoutFocusOnPress = false,
         isPressed: isPressedFromProps = false,
+        isHovered: isHoveredFromProps = false,
         onPress,
         pressErrorTitle,
         paddingX = "3",
@@ -415,10 +422,12 @@ function Button(
 
     const isPressed = isPressedFromButton || isPressedFromProps;
 
-    const {hoverProps, isHovered} = useHover({
+    const {hoverProps, isHovered: isHoveredFromState} = useHover({
         onHoverStart,
         onHoverEnd,
     });
+
+    const isHovered = isHoveredFromProps || isHoveredFromState;
 
     // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our hover
     // styles even though we aren't receiving pointer events since there's a cover over

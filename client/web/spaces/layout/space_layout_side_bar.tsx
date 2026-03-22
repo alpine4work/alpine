@@ -20,7 +20,7 @@ import {
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
-import {SpaceLayoutSideBarSearchHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_hint.js";
+import {SpaceLayoutSideBarSearchEducationHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_education_hint.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceSideBarSpacing} from "~/client/web/spaces/route_metadata.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
@@ -126,7 +126,9 @@ export function SpaceLayoutSideBar({
                         >
                             <House />
                         </IconButton>
-                        <SpaceLayoutSideBarSearchHint isSearchModalOpen={isSearchModalOpen}>
+                        <SpaceLayoutSideBarSearchEducationHint
+                            isSearchModalOpen={isSearchModalOpen}
+                        >
                             {isHintVisible => (
                                 <IconButton
                                     size="lg"
@@ -143,7 +145,7 @@ export function SpaceLayoutSideBar({
                                     <MagnifyingGlass />
                                 </IconButton>
                             )}
-                        </SpaceLayoutSideBarSearchHint>
+                        </SpaceLayoutSideBarSearchEducationHint>
                         <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
                         <SpaceLayoutSideBarCreateButton />
                     </Box>

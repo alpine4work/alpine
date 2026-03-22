@@ -174,12 +174,14 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
     capabilities,
     rowMaxWidth,
     withoutBorderTop,
+    hasDecorativeGhostRowBackground,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     rowMaxWidth: Spacing | null;
     withoutBorderTop: boolean;
+    hasDecorativeGhostRowBackground: boolean;
     focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
@@ -215,21 +217,14 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
                 focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
             />
-            <Box
-                display="flex"
-                justifyContent="center"
-                color="grey-60"
-                paddingY="4"
-                cursor={!capabilities.isReadOnly ? "text" : undefined}
-                {...useOutOfBoundsClickSelection({
-                    isDisabled: capabilities.isReadOnly,
-                    accept: () => true,
-                    onSelect: () => focusPreviousTaskTitleEnd("MoreUnloadedTasks"),
-                    onSelectAll: () => focusPreviousTaskTitleAll("MoreUnloadedTasks"),
-                })}
-            >
-                <SpinnerGap className={spinAnimationClassName} size={spacing["6"]} weight="light" />
-            </Box>
+            <TaskRowViewPaddingBottom
+                rowMaxWidth={rowMaxWidth}
+                isInert={capabilities.isReadOnly}
+                hasNextGridView={false}
+                hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
+                focusTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
+                focusTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
+            />
         </Box>
     );
 });

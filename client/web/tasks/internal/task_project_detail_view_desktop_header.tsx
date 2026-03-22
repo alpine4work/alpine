@@ -193,6 +193,8 @@ function TaskProjectDetailViewDesktopHeader(
                                     shareButton.withHiddenCommentAccessLevel
                                 }
                                 onCopyLink={shareButton.onCopyLink}
+                                activationHint={shareButton.activationHint}
+                                onActivationHintHide={shareButton.onActivationHintHide}
                             />
                         </Box>
                     )}

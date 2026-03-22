@@ -2764,6 +2764,9 @@ export function useTaskGridViewVirtualizedListBase({
                                     capabilities={capabilities}
                                     rowMaxWidth={rowMaxWidth}
                                     withoutBorderTop={withoutBorderTop}
+                                    hasDecorativeGhostRowBackground={
+                                        hasDecorativeGhostRowBackground
+                                    }
                                     focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                                     focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                                 />

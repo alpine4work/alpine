@@ -715,6 +715,7 @@ function CreateWidgetSecondaryItem({
                 id={id}
                 role="menuitem"
                 tabIndex={isFirstItem ? 0 : -1}
+                aria-labelledby={`${id}-label`}
                 {...pressProps}
                 display="flex"
                 flexDirection={!isMobileLayout ? "row" : "column"}
@@ -734,7 +735,7 @@ function CreateWidgetSecondaryItem({
                                 {icon}
                             </IconContext.Provider>
                         </Box>
-                        <Box fontSize="100" style={{whiteSpace: "nowrap"}}>
+                        <Box id={`${id}-label`} fontSize="100" style={{whiteSpace: "nowrap"}}>
                             {withCreateVerbBeforeItemName
                                 ? `${createVerb} ${name}`
                                 : startOfSentenceName}

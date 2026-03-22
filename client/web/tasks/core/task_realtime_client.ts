@@ -308,13 +308,63 @@ export class TaskRealtimeClient {
                 const newTaskSubscriptionsArray = Array.from(newTaskSubscriptions);
                 const newCollectionSubscriptionsArray = Array.from(newCollectionSubscriptions);
 
-                const newQueryLimits = newQueriesArray.map(
-                    query =>
+                const newQueryLimits = newQueriesArray.map(query =>
+                    Math.max(
                         // If we're re-subscribing to a query that had many tasks then we want to load all
                         // those tasks back. If the query requested to load more tasks then add those on as
                         // well.
                         query.taskOrderStore.getSnapshot().length +
-                        query.loadMoreTaskCountStore.getSnapshot(),
+                            query.loadMoreTaskCountStore.getSnapshot(),
+
+                        // NOTE(calebmer, 2026-03-20): There's a race condition bug here I don't have a
+                        // great solution for. Let's say you create a task and then immediately add a
+                        // subtask. The task will start as a ghost task then typing in that subtask will
+                        // cause the task (and its subtask) to be created. This will call the `subscribe()`
+                        // procedure for the newly created task's children. But what `limit` should we use?
+                        // We only have 1 task in this query on the client currently. Before 2026-03-20
+                        // we'd send `limit: 1`.
+                        //
+                        // The issue with sending `limit: 1` is let's say while we're waiting on the server
+                        // to return the query and while we're waiting we create two new subtasks. Let's
+                        // say the sequence of events is this:
+                        //
+                        // 1. Client creates subtask A
+                        // 2. Client calls `subscribe({limit: 1})`
+                        // 3. Client creates subtask B
+                        // 4. Client creates subtask C
+                        // 5. `TaskRealtimeService` receives actions for newly created subtask B
+                        // 6. `TaskRealtimeService` receives actions for newly created subtask C
+                        // 7. `TaskRealtimeService` finishes the OpenSearch query for
+                        //    `subscribe({limit: 1})`
+                        // 8. `TaskRealtimeService` returns to the client ONLY subtask A and
+                        //    `loadedState: {type: "Partial"}` (since the client only asked for 1 task)
+                        //
+                        // Now the client re-renders the grid view showing ONLY subtask A and a loading
+                        // indicator (because of `loadedState: {type: "Partial"}`). The client knew
+                        // subtasks B and C existed but not at the time it called `subscribe()`.
+                        //
+                        // The fix is to always ask for at least `limit: 100` when subscribing to a query.
+                        // To account for race conditions where the client task count at `subscribe()`
+                        // request time is less than the task count at `subscribe()` response time. 100 is
+                        // a completely arbitrary number. This bug could still reproduce if somehow the
+                        // user creates 100 tasks before `subscribe()` responds. However, it wouldn't be
+                        // that big of a deal since the screen would at least be filled with data and the
+                        // jank may happen offscreen.
+                        //
+                        // This doesn't feel like a principled fix but I don't know what a principled fix
+                        // would be. I found this bug while writing the `onboarding_desktop.spec.ts` test
+                        // which gave me a reliable reproduction. But I'm pretty sure I've seen this bug
+                        // before I just didn't know how to go about reproducing it at the time.
+                        //
+                        // You can see this bug in action in [this video][1] which is a run of the
+                        // `onboarding_desktop.spec.ts` test. Specifically 0:19-0:20. The bug happens
+                        // really fast. You may need to download the video and step through it
+                        // frame-by-frame to see the bug.
+                        //
+                        // [1]:
+                        //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/p4pmy1kbn8xyvdpwaa141jaarg
+                        100,
+                    ),
                 );
 
                 // When either:

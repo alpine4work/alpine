@@ -108,9 +108,7 @@ export const taskGridViewMoreUnloadedTasksHeight = addRemLengths(
     taskRowViewMinHeight,
     taskRowViewMinHeight,
     taskRowViewMinHeight,
-    "4",
-    "6",
-    "4",
+    taskGridViewPaddingBottomWithoutNext,
 );
 
 export const taskGridViewExplicitLoadMoreButtonHeight = addRemLengths(

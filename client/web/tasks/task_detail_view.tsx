@@ -221,6 +221,7 @@ import {
 } from "~/shared/tasks/task_error_messages.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
@@ -245,6 +246,7 @@ export function TaskDetailView({
     taskId: possiblyGhostTaskId,
     store,
     taskSubscription,
+    layout,
     initialChildrenQuery,
     initialFilters,
     initialFilterReferences,
@@ -260,10 +262,13 @@ export function TaskDetailView({
     initialComments,
     initialScrollToCommentIndex,
     commitActionTransactionAndCreateIfNeeded,
+    shareActivationHint,
+    onShareActivationHintHide,
 }: {
     taskId: TaskId;
     store: TaskClientStore;
     taskSubscription: TaskClientTaskSubscription | null;
+    layout: TaskLayout | null;
     initialChildrenQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -298,6 +303,8 @@ export function TaskDetailView({
             finally: (callback: () => void) => void;
         }
     >;
+    shareActivationHint: {willBeVisible: true; isVisible: boolean} | null;
+    onShareActivationHintHide: () => void;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -467,15 +474,9 @@ export function TaskDetailView({
             [taskSubscription?.taskEntryStore],
         ),
     );
-    const layout = useStore(
-        useMemo(
-            () =>
-                taskSubscription
-                    ? taskSubscription.taskEntryStore.map(({task}) => task?.getLayout() ?? null)
-                    : new ConstStore(initialFields.layout),
-            [initialFields.layout, taskSubscription],
-        ),
-    );
+
+    // We could calculate `layout` from `taskSubscription` but given the parent
+    // component already calculates `layout` for us we take it as a prop.
     const isWideProjectLayout = layout === "Project" && routeLayout === "wide";
 
     const statusButtonRef = useRef<HTMLElement>(null);
@@ -821,7 +822,7 @@ export function TaskDetailView({
         explicitLoadMoreButton: useMemo(() => {
             // Project tasks don't have an explicit load more button. Rather they infinite load
             // on scroll.
-            if (!isWideProjectLayout) return;
+            if (isWideProjectLayout) return;
 
             return {
                 totalTaskCount: childTaskCount,
@@ -1513,7 +1514,8 @@ export function TaskDetailView({
         onConfirm: () => void;
     } | null>(null);
 
-    // State for the duplicate instructional modal
+    // TODO(calebmer): Should this be an account setting? This was added as local
+    // storage before we had account settings.
     const [showDuplicateInstructionalModal, setShowDuplicateInstructionalModal] = useState(false);
     const [
         doNotShowDuplicationInstructionalModalAgain,
@@ -2025,6 +2027,8 @@ export function TaskDetailView({
                   );
                   await writeTextToClipboard(url.toString());
               },
+              activationHint: shareActivationHint,
+              onActivationHintHide: onShareActivationHintHide,
           }
         : undefined;
 

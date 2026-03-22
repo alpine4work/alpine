@@ -221,6 +221,7 @@ function ShareOverlay(
             contain={isVisible}
         >
             <Box
+                data-testid="ShareOverlay"
                 id={id}
                 // Let initial focus from `<OverlayTriggerButton>` go somewhere other than the add
                 // people text input.

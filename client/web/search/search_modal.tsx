@@ -420,6 +420,7 @@ export function SearchModal({
                 }}
             >
                 <Box
+                    data-testid="SearchModal"
                     width="full"
                     height="full"
                     overflow="hidden"

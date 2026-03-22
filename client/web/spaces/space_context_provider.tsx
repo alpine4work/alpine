@@ -86,11 +86,6 @@ export function SpaceContextProvider({
             : null,
     );
 
-    useDevConsoleTool("myAccount", () => ({
-        id: currentAccount?.id ?? currentAccountWithoutSpace?.id ?? null,
-        toggleShouldConnect,
-    }));
-
     const hasCurrentAccountWithoutSpace = currentAccountWithoutSpace !== null;
 
     const [currentAccountSettings, , actuallyUpdateCurrentAccountSettingsOptimistically] =
@@ -165,6 +160,15 @@ export function SpaceContextProvider({
         isInitialAppRender,
         updateCurrentAccountSettings,
     ]);
+
+    useDevConsoleTool("myAccount", () => ({
+        id: currentAccount?.id ?? currentAccountWithoutSpace?.id ?? null,
+        toggleShouldConnect,
+        settings: currentAccountSettings,
+        resetOnboarding: () => {
+            updateCurrentAccountSettings({type: "ResetOnboardingForDev"});
+        },
+    }));
 
     return (
         <SpaceContextDefinition.Provider

@@ -5177,6 +5177,7 @@ exports[`file row (one file, channel entity) 1`] = `
   >
     <div
       class="content_file"
+      data-testid="ContentFileEntityPreview:Channel"
     >
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"

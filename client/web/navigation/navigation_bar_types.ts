@@ -46,6 +46,8 @@ export type NavigationBarShareButtonProps = {
     readonly withoutEditAccessLevel?: boolean;
     readonly withHiddenCommentAccessLevel?: boolean;
     readonly onCopyLink: () => MaybePromise<void>;
+    readonly activationHint?: {readonly willBeVisible: true; readonly isVisible: boolean} | null;
+    readonly onActivationHintHide?: () => void;
 };
 
 export type NavigationBarProps = {

@@ -12,6 +12,7 @@ import {
 } from "~/client/web/documents/document_content_editor.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
@@ -185,7 +186,8 @@ export default function DocumentRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
     const context = useAppContext();
-    const {space} = useSpaceContext();
+    const routeLayout = useRouteLayout();
+    const {space, currentAccountSettings, updateCurrentAccountSettings} = useSpaceContext();
 
     const documentId = deserializeDocumentIdForLoader(params.documentId);
 
@@ -215,6 +217,9 @@ export default function DocumentRoute() {
 
     const [isCreating, setIsCreating] = useState(initialDocument === null);
 
+    // Remember if the component was being created when we mounted.
+    const [wasCreating] = useState(isCreating);
+
     // Remove the `focus` search param.
     useEffect(() => {
         if (searchParams.has("focus")) {
@@ -236,6 +241,18 @@ export default function DocumentRoute() {
     // Don't update affinity score while creating.
     useSearchAffinityViewEntityInteraction(!isCreating ? `Document:${documentId}` : null);
 
+    // Only show the share activation hint on a document the user created on desktop
+    // when they haven't seen the share activation hint before.
+    const willShareActivationHintBeVisible =
+        wasCreating && routeLayout === "wide" && currentAccountSettings.shareActivationHint;
+
+    const [isShareActivationHintVisible, setIsShareActivationHintVisible] = useState(false);
+
+    // Once the share hint is dismissed, stop showing the hint.
+    if (isShareActivationHintVisible && !willShareActivationHintBeVisible) {
+        setIsShareActivationHintVisible(false);
+    }
+
     return (
         <DocumentContentEditor
             // Re-render when the document changes
@@ -255,12 +272,21 @@ export default function DocumentRoute() {
                 // Don't update affinity score while creating.
                 if (isCreating) return;
 
-                markSearchAffinityLowIntentUpdateEntityInteraction(
+                const count = markSearchAffinityLowIntentUpdateEntityInteraction(
                     context,
                     space.id,
                     `Document:${documentId}`,
                     {isVeryLow: true},
                 );
+
+                // Show the share hint after 24 seconds of editing. It doesn't have to be 24
+                // seconds of continuous editing. Could be one edit, then wait 24 seconds, then
+                // another edit. As of 2025-03-19
+                // `markSearchAffinityLowIntentUpdateEntityInteraction()` is configured to record
+                // affinity points every 24 seconds.
+                if (willShareActivationHintBeVisible && count >= 2) {
+                    setIsShareActivationHintVisible(true);
+                }
             }}
             onCommentThreadChange={commentThreadId => {
                 const newSearchParams = new URLSearchParams(searchParams);
@@ -276,6 +302,17 @@ export default function DocumentRoute() {
                     replace: true,
                     unstable_shouldRevalidate: false,
                 });
+            }}
+            shareActivationHint={
+                // If we're going to show the share activation hint after some editing we need to
+                // communicate that. So `<ShareButton>` can tell the hint oracle to suppress all
+                // other hints until we're ready to show the share activation hint.
+                willShareActivationHintBeVisible
+                    ? {willBeVisible: true, isVisible: isShareActivationHintVisible}
+                    : null
+            }
+            onShareActivationHintHide={() => {
+                updateCurrentAccountSettings({type: "HideShareActivationHint"});
             }}
         />
     );

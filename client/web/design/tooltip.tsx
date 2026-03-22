@@ -336,6 +336,13 @@ export type TooltipProps = {
     offset?: Spacing;
 
     /**
+     * How far the tooltip should move along the reference.
+     *
+     * Defaults to `0`.
+     */
+    offsetAlong?: Spacing | `-${Spacing}`;
+
+    /**
      * Do we show the tooltip if our target is focused?
      *
      * Defaults to `true`.
@@ -405,6 +412,7 @@ function Tooltip(
         placement = "top",
         fallbackPlacements,
         offset = defaultTooltipOffset,
+        offsetAlong = "0",
         isVisibleWhenFocused = true,
         isVisibleWhenFocusWithin = false,
         isVisibleAfterPress = false,
@@ -1034,6 +1042,7 @@ function Tooltip(
                 placement={placement}
                 fallbackPlacements={fallbackPlacements}
                 offset={offset}
+                offsetAlong={offsetAlong}
                 overlay={
                     <Box
                         ref={tooltipRef}
@@ -1054,6 +1063,7 @@ function Tooltip(
         placement,
         fallbackPlacements,
         offset,
+        offsetAlong,
         tooltipId,
         content,
         children,

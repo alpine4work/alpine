@@ -11,10 +11,12 @@ import {
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {
     getCurrentDate,
     useCurrentDate,
@@ -68,6 +70,7 @@ import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
@@ -396,7 +399,9 @@ export default function TaskRoute() {
 function TaskRouteInner() {
     const clientInfo = useClientInfo();
     const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
+    const routeLayout = useRouteLayout();
+    const {currentAccount, currentAccountSettings, updateCurrentAccountSettings} =
+        useSpaceContext();
     const currentDate = useCurrentDate();
     const {taskId, spaceId} = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -404,6 +409,9 @@ function TaskRouteInner() {
     assert(spaceId && isId<SpaceId>(spaceId));
 
     const createSearchParam = searchParams.get("create");
+
+    // Remember if the component was being created when we mounted.
+    const [wasCreating] = useState(createSearchParam !== null);
 
     const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
 
@@ -528,10 +536,6 @@ function TaskRouteInner() {
     const initialScrollToCommentIndex = commentIndexString
         ? parseInt(commentIndexString, 10)
         : null;
-
-    const affinityManager = useTaskClientStoreSearchAffinityManager(
-        taskSubscription ? `Task:${taskId}` : null,
-    );
 
     const defaultInitialFields = useMemo(
         (): TaskQueryNormalizedFiltersInitialFields => ({
@@ -806,6 +810,47 @@ function TaskRouteInner() {
         },
     );
 
+    const layout = useStore(
+        useMemo(
+            () =>
+                taskSubscription
+                    ? taskSubscription.taskEntryStore.map(({task}) => task?.getLayout() ?? null)
+                    : new ConstStore(initialFields.layout),
+            [initialFields.layout, taskSubscription],
+        ),
+    );
+
+    // Only show the share activation hint on a project the user created on desktop
+    // when they haven't seen the share activation hint before.
+    const willShareActivationHintBeVisible =
+        wasCreating &&
+        routeLayout === "wide" &&
+        layout === "Project" &&
+        currentAccountSettings.shareActivationHint;
+
+    const [isShareActivationHintVisible, setIsShareActivationHintVisible] = useState(false);
+
+    // Once the share hint is dismissed, stop showing the hint.
+    if (isShareActivationHintVisible && !willShareActivationHintBeVisible) {
+        setIsShareActivationHintVisible(false);
+    }
+
+    const affinityManager = useTaskClientStoreSearchAffinityManager(
+        taskSubscription ? `Task:${taskId}` : null,
+        {
+            onMarkLowIntentUpdateInteraction: useEvent(count => {
+                // Show the share hint after 24 seconds of editing. It doesn't have to be 24
+                // seconds of continuous editing. Could be one edit, then wait 24 seconds, then
+                // another edit. As of 2025-03-19
+                // `markSearchAffinityLowIntentUpdateEntityInteraction()` is configured to record
+                // affinity points every 24 seconds.
+                if (willShareActivationHintBeVisible && count >= 2) {
+                    setIsShareActivationHintVisible(true);
+                }
+            }),
+        },
+    );
+
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
@@ -818,6 +863,7 @@ function TaskRouteInner() {
                 taskId={taskId}
                 store={store}
                 taskSubscription={taskSubscription}
+                layout={layout}
                 initialChildrenQuery={
                     childrenQuery
                         ? {
@@ -875,6 +921,17 @@ function TaskRouteInner() {
                 shouldInitiallyFocus={shouldInitiallyFocus}
                 initialComments={initialComments}
                 initialScrollToCommentIndex={initialScrollToCommentIndex}
+                shareActivationHint={
+                    // If we're going to show the share activation hint after some editing we need to
+                    // communicate that. So `<ShareButton>` can tell the hint oracle to suppress all
+                    // other hints until we're ready to show the share activation hint.
+                    willShareActivationHintBeVisible
+                        ? {willBeVisible: true, isVisible: isShareActivationHintVisible}
+                        : null
+                }
+                onShareActivationHintHide={() => {
+                    updateCurrentAccountSettings({type: "HideShareActivationHint"});
+                }}
             />
         </TaskGridViewDndContext>,
     );

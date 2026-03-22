@@ -192,11 +192,26 @@ function OverlayAnimated(
         if (fadeOutAnimationRef.current !== null) {
             let isCancelled = false;
 
-            void fadeOutAnimationRef.current.finished.finally(() => {
+            const run = () => {
                 if (isCancelled) return;
                 fadeOutAnimationRef.current = null;
                 setState(prevState => ({...prevState, isAnimating: false}));
-            });
+            };
+
+            // NOTE(calebmer, 2026-03-20): Annoyingly, it looks like Playwright with faked
+            // clocks (`page.clock.install()`) doesn't run the `finally()` callback of Motion
+            // promises. So we never set `isAnimating: false` when closing overlays which means
+            // the overlay stays open. Work around this by using `setTimeout()` in integration
+            // tests.
+            if (process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest) {
+                setTimeout(
+                    run,
+                    (fadeOutAnimationRef.current.duration - fadeOutAnimationRef.current.time) *
+                        1000,
+                );
+            } else {
+                void fadeOutAnimationRef.current.finished.finally(run);
+            }
 
             return () => {
                 isCancelled = true;
@@ -290,11 +305,26 @@ function OverlayAnimated(
                 ease: parseCubicBezier(overlayFadeInOutTimingFunction),
             });
 
-            void fadeOutAnimationRef.current.finished.finally(() => {
+            const run = () => {
                 if (isCancelled) return;
                 fadeOutAnimationRef.current = null;
                 setState(prevState => ({...prevState, isAnimating: false}));
-            });
+            };
+
+            // NOTE(calebmer, 2026-03-20): Annoyingly, it looks like Playwright with faked
+            // clocks (`page.clock.install()`) doesn't run the `finally()` callback of Motion
+            // promises. So we never set `isAnimating: false` when closing overlays which means
+            // the overlay stays open. Work around this by using `setTimeout()` in integration
+            // tests.
+            if (process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest) {
+                setTimeout(
+                    run,
+                    (fadeOutAnimationRef.current.duration - fadeOutAnimationRef.current.time) *
+                        1000,
+                );
+            } else {
+                void fadeOutAnimationRef.current.finished.finally(run);
+            }
         });
 
         return () => {

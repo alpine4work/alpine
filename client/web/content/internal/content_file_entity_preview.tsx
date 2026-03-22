@@ -116,6 +116,13 @@ export function renderContentFileEntityPreview(
 
     assert(html instanceof HtmlElementGenerator);
 
+    if (process.env.NODE_ENV !== "production") {
+        html.setAttribute(
+            "data-testid",
+            `ContentFileEntityPreview:${fileEntityId.split(":", 2)[0]!}`,
+        );
+    }
+
     html.setAttribute(
         "class",
         classNames(html.getAttribute("class"), contentStyles.fileEntityClassName),

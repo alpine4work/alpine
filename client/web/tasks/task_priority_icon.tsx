@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {colorSchemeVars, pingAnimationClassName} from "~/client/web/styles/styles.js";
+import {colorSchemeVars, pingAnimationWithDelayClassName} from "~/client/web/styles/styles.js";
 import {
     taskPriorityIconClassName,
     taskPriorityIconUrgentCircleFillHighlightedClassName,
@@ -67,7 +67,7 @@ export function TaskPriorityIcon({
                     {shouldHighlightUrgent && (
                         <div
                             className={classNames(
-                                pingAnimationClassName,
+                                pingAnimationWithDelayClassName,
                                 taskPriorityIconUrgentPingContainerClassName,
                             )}
                         >

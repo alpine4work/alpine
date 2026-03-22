@@ -17,6 +17,7 @@ import {createDocumentNotFoundError} from "~/shared/documents/document_error_mes
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
@@ -133,14 +134,16 @@ export default function ChangelogRoute() {
                                         initialScroll={null}
                                         initialSpellCheckIgnoredLints={spellCheckIgnoredLints}
                                         shouldInitiallyFocus={false}
-                                        onCreate={() => {}}
+                                        onCreate={noop}
                                         onContentChange={content => {
                                             updateMetaTitle(
                                                 `${getDocumentContentTitle(content)}${metaTitlePostfix}`,
                                             );
                                         }}
-                                        onContentLocalChange={() => {}}
-                                        onCommentThreadChange={() => {}}
+                                        onContentLocalChange={noop}
+                                        onCommentThreadChange={noop}
+                                        shareActivationHint={null}
+                                        onShareActivationHintHide={noop}
                                     />
                                 </div>
                             </ContextMenuContextProvider>

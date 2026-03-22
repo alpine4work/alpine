@@ -9,6 +9,7 @@ import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const SessionStorageSchema = Schema.object({
     lastUpdateTime: Schema.float.nullable().default(null),
+    count: Schema.integer.default(0),
 });
 
 const sessionStorageBySearchAffinityEntityId = new Map<
@@ -28,6 +29,10 @@ let scheduledPersistSessionStorageSearchAffinityEntityIds: Set<SearchAffinityEnt
  *
  * Our convention is to call this hook from a route file in `app/routes` to make it
  * easier to manage/audit how this hook gets used.
+ *
+ * Returns the number of `markSearchAffinityEntityInteraction()` calls we've made
+ * for this entity in this session. If the user closes their browser then opens
+ * Alpine back up a day later our count will be reset to 0.
  */
 export function markSearchAffinityLowIntentUpdateEntityInteraction(
     context: AppContext,
@@ -41,10 +46,10 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
         // entire thing low intent (vs very low intent).
         isVeryLow?: boolean;
     } = {},
-) {
+): number {
     const currentTime = Date.now();
 
-    const {lastUpdateTime} = getOrSetDefaultMapValue(
+    const {lastUpdateTime, count: oldCount} = getOrSetDefaultMapValue(
         sessionStorageBySearchAffinityEntityId,
         entityId,
         () =>
@@ -58,8 +63,11 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
     );
 
     const updateThrottleDuration = (1000 * 60 * 2) / 5; // 2min / 5 = 24s
+    let count = oldCount;
 
     if (lastUpdateTime === null || updateThrottleDuration < currentTime - lastUpdateTime) {
+        count += 1;
+
         // If this errs it will show up in our telemetry but we don't care about it here.
         void markSearchAffinityEntityInteraction(context, {
             spaceId,
@@ -67,10 +75,12 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
             interaction: {type: isVeryLow ? "VeryLowIntentUpdate" : "LowIntentUpdate"},
         });
 
-        sessionStorageBySearchAffinityEntityId.set(entityId, {lastUpdateTime: currentTime});
+        sessionStorageBySearchAffinityEntityId.set(entityId, {lastUpdateTime: currentTime, count});
         schedulePersistSessionStorageEntityIdsIfNeeded();
         scheduledPersistSessionStorageSearchAffinityEntityIds!.add(entityId);
     }
+
+    return count;
 }
 
 function schedulePersistSessionStorageEntityIdsIfNeeded() {

@@ -259,6 +259,8 @@ export function DocumentContentEditor({
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
+    shareActivationHint,
+    onShareActivationHintHide,
 }: {
     documentId: DocumentId;
     initialDocument: DocumentModel | null;
@@ -273,9 +275,11 @@ export function DocumentContentEditor({
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
     onCreate: () => void;
-    onContentChange?: (content: DocumentContent) => void;
-    onContentLocalChange?: () => void;
-    onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
+    onContentChange: (content: DocumentContent) => void;
+    onContentLocalChange: () => void;
+    onCommentThreadChange: (commentThreadId: DocumentCommentThreadId | null) => void;
+    shareActivationHint: {willBeVisible: true; isVisible: boolean} | null;
+    onShareActivationHintHide: () => void;
 }) {
     const context = useAppContext();
     const reporter = useReporter();
@@ -308,6 +312,8 @@ export function DocumentContentEditor({
         readonly html: string;
     } | null>(null);
 
+    // TODO(calebmer): Should this be an account setting? This was added as local
+    // storage before we had account settings.
     const [showDuplicateInstructionalModal, setShowDuplicateInstructionalModal] = useState(false);
     const [
         doNotShowDuplicationInstructionalModalAgain,
@@ -1837,6 +1843,8 @@ export function DocumentContentEditor({
                   },
                   isReadOnly: !hasManageAccessLevel,
                   onCopyLink,
+                  activationHint: shareActivationHint,
+                  onActivationHintHide: onShareActivationHintHide,
               }
             : undefined,
         desktopAdditionalActions: content.doc.attrs.hasPresentShortcut ? (

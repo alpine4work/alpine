@@ -171,6 +171,27 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "shareActivationHint": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {}
+                                        },
+                                        "optional": true
+                                    },
+                                    "searchEducationHint": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "hasOpenedFeed": {
+                                                    "valueSchema": {
+                                                        "type": "Boolean"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
