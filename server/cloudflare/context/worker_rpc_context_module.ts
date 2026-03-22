@@ -140,21 +140,12 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
             }
         }
 
-        const spaceIdFromSpan = firstCall.span.getContextSpaceIdIfExists();
-
         (async () => {
             let route: string;
             let url: URL;
 
             const headers: {[key: string]: string} = {
                 "content-type": "application/json",
-                // As an optimization, include the space ID from our `TracerSpan` in RPC calls
-                // which we'll use to authorize whether the current account has access to the
-                // requested space.
-                //
-                // This does not provide any security guarantees! This is purely a performance
-                // optimization to authorize the session and space access at once.
-                ...(spaceIdFromSpan ? {"cyberworlds-space-id-hint": spaceIdFromSpan} : {}),
             };
 
             let body: unknown;

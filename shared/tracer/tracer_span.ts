@@ -3,8 +3,8 @@ import {getOrSetErrorOriginalTracerSpan} from "~/shared/error/error_original_tra
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {SpaceId, TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
@@ -571,31 +571,5 @@ export class TracerSpan extends TracerBase {
                 })),
             ),
         });
-    }
-
-    /**
-     * Get the value of `context.spaceId` in our span's event data if it exists. If it
-     * does not exist we return null.
-     *
-     * Avoid using this for anything critical which needs access to the `SpaceId`! Your
-     * code may run in unexpected scenarios (e.g. a system context) or there may be a
-     * logging bug where `SpaceId` doesn't exist.
-     *
-     * You may use this for performance hints if useful.
-     */
-    public getContextSpaceIdIfExists(): SpaceId | null {
-        let eventData: LinkedList<TracerEventFullData> = this._eventData;
-
-        while (eventData !== null) {
-            if (eventData.value.context?.spaceId !== undefined)
-                return eventData.value.context.spaceId;
-
-            eventData = eventData.next;
-        }
-
-        const spaceId = this._propagatedEventFlatData?.["context.space_id"];
-        if (typeof spaceId === "string" && isId<SpaceId>(spaceId)) return spaceId;
-
-        return null;
     }
 }

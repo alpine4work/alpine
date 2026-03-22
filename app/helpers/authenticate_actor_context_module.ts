@@ -1,4 +1,4 @@
-import {getSessionIfExists as actuallyGetSessionIfExists} from "~/server/accounts/get_session_if_exists.js";
+import {getSessionIfExists} from "~/server/accounts/get_session_if_exists.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
     ActorContextModule,
@@ -6,17 +6,14 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Authenticates using the information from an HTTP request to create a
@@ -46,41 +43,13 @@ export async function authenticateActorContextModule(
         tokenAgent,
         sessionCookie,
         authorizationHeader,
-        spaceIdHint,
     }: {
         tokenAgent: TokenAgent;
         sessionCookie: SessionCookie | null;
         authorizationHeader: string | null;
-        spaceIdHint: SpaceId | null;
     },
 ): Promise<ActorContextModule> {
     const sessionCookiePayload = await sessionCookie?.getIfExists();
-
-    // Optimization: When loading our session from the database, also attempt to load
-    // whether the account associated with the session is a member of the space we're
-    // in. We try to determine the `SpaceId` we're in through various hint heuristics.
-    // It's not required that we know the `SpaceId` here, if we don't know the
-    // `SpaceId` we'll authorize the account later.
-    const getSessionIfExists = async (
-        sessionId: SessionId,
-        accountId: AccountId,
-    ): Promise<{
-        id: SessionId;
-        accountId: AccountId;
-    } | null> => {
-        if (!spaceIdHint) {
-            return actuallyGetSessionIfExists(context, sessionId, accountId);
-        }
-
-        const [session] = await runAllPromises([
-            actuallyGetSessionIfExists(context, sessionId, accountId),
-            // This function caches its result for the duration of the request. Which is why we
-            // can call it here and ignore the output.
-            isAccountMemberOfSpaceWithoutAuthorization(context, spaceIdHint, accountId),
-        ]);
-
-        return session;
-    };
 
     if (sessionCookiePayload && authorizationHeader) {
         throw new InvalidArgumentError(
@@ -90,22 +59,25 @@ export async function authenticateActorContextModule(
 
     // 1. Session cookie authentication
     if (sessionCookiePayload) {
-        const session = await getSessionIfExists(
-            sessionCookiePayload.sessionId,
-            sessionCookiePayload.accountId,
-        );
-        if (!session) {
+        const sessionAccountId = await getSessionIfExists(context, sessionCookiePayload.sessionId);
+        if (sessionAccountId === null) {
             // Remove our session cookie if the session was deleted from the database.
             sessionCookie!.dangerouslySet(null);
             return AnonymousActorContextModule.dangerouslyNew("AppClient");
+        }
+
+        if (sessionAccountId !== sessionCookiePayload.accountId) {
+            throw new InternalError(
+                "Session cookie `AccountId` doesn\u2019t match session `AccountId`",
+            );
         }
 
         // If we receive a session cookie, we treat the request as if it came from a user's
         // web browser and use the `AppClient` service name.
         return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
             "AppClient",
-            session.id,
-            session.accountId,
+            sessionCookiePayload.sessionId,
+            sessionAccountId,
         );
     }
 
@@ -125,17 +97,25 @@ export async function authenticateActorContextModule(
 
         switch (authorizationHeaderPayload.type) {
             case "Session": {
-                const session = await getSessionIfExists(
+                const sessionAccountId = await getSessionIfExists(
+                    context,
                     authorizationHeaderPayload.sessionId,
-                    authorizationHeaderPayload.accountId,
                 );
-                if (!session) {
+
+                if (sessionAccountId === null) {
                     throw new PermissionDeniedError("Session not found");
                 }
+
+                if (sessionAccountId !== authorizationHeaderPayload.accountId) {
+                    throw new InternalError(
+                        "`Authorization` header `AccountId` doesn\u2019t match session `AccountId`",
+                    );
+                }
+
                 return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
                     serviceName,
-                    session.id,
-                    session.accountId,
+                    authorizationHeaderPayload.sessionId,
+                    sessionAccountId,
                 );
             }
             case "System": {

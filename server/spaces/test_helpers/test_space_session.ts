@@ -15,10 +15,10 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export class TestSpaceSession extends TestSession {
     public readonly space: TestSpace;
 
-    private constructor(space: TestSpace, account: TestAccount, id: SessionId, createdTime: Date) {
+    private constructor(space: TestSpace, account: TestAccount, id: SessionId) {
         assert(space.context === account.context);
 
-        super(account, id, createdTime);
+        super(account, id);
 
         this.space = space;
     }
@@ -28,7 +28,6 @@ export class TestSpaceSession extends TestSession {
             this.space.withContext(context),
             this.account.withContext(context),
             this.id,
-            this.createdTime,
         );
     }
 
@@ -39,22 +38,22 @@ export class TestSpaceSession extends TestSession {
 
         const id = generateId<SessionId>();
 
-        const {createdTime} = await createSessionForTest(space.context, {
+        await createSessionForTest(space.context, {
             id,
             accountId: account.id,
         });
 
-        return new TestSpaceSession(space, account, id, createdTime);
+        return new TestSpaceSession(space, account, id);
     }
 
     public static async forSpace(session: TestSession, space: TestSpace) {
         await authorizeSpaceAccess(session.action(), space.id);
-        return new TestSpaceSession(space, session.account, session.id, session.createdTime);
+        return new TestSpaceSession(space, session.account, session.id);
     }
 
     public async forSpace(space: TestSpace) {
         await authorizeSpaceAccess(this.action(), space.id);
-        return new TestSpaceSession(space, this.account, this.id, this.createdTime);
+        return new TestSpaceSession(space, this.account, this.id);
     }
 
     /**

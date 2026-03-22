@@ -108,12 +108,6 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
         const [firstCall, ...otherCalls] = callBatch;
         assert(firstCall);
 
-        const spaceIdRegExp = /^\/s\/([^/]+)(?:\/|$)/;
-        const spaceIdFromUrl =
-            typeof window !== "undefined"
-                ? new URL(window.location.href).pathname.match(spaceIdRegExp)?.[1]
-                : undefined;
-
         await fetchWithTracer(
             firstCall.span,
             otherCalls.length === 0 ? `/api/rpc/${firstCall.name}` : "/api/rpc/_batch",
@@ -123,12 +117,6 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
-                    // As an optimization, include the space ID from our URL in RPC calls which we'll
-                    // use to authorize whether the current account has access to the requested space.
-                    //
-                    // This does not provide any security guarantees! This is purely a performance
-                    // optimization to authorize the session and space access at once.
-                    ...(spaceIdFromUrl ? {"cyberworlds-space-id-hint": spaceIdFromUrl} : {}),
                 },
                 body:
                     otherCalls.length === 0

@@ -7,7 +7,6 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
@@ -16,11 +15,11 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
+    InternalError,
     InvalidArgumentError,
     PermissionDeniedError,
     UnauthenticatedError,
 } from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -44,13 +43,10 @@ export async function createActorContextModuleFromAuthorizationHeader(
 
     switch (authorizationHeaderPayload.type) {
         case "Session": {
-            return await createDynamoActorSessionContextModule(
-                context,
-                requestHeaders,
-                tokenAgent,
-                spaceId,
-                {serviceName, authorizationHeaderPayload},
-            );
+            return createDynamoActorSessionContextModule(context, requestHeaders, tokenAgent, {
+                serviceName,
+                authorizationHeaderPayload,
+            });
         }
         case "System": {
             if (spaceId !== authorizationHeaderPayload.spaceId) {
@@ -93,7 +89,6 @@ export async function createDynamoActorSessionContextModule(
     }>,
     requestHeaders: Headers,
     tokenAgent: TokenAgent,
-    spaceId?: SpaceId,
     parsedHeaders?: {
         serviceName: TokenServiceName;
         authorizationHeaderPayload: SessionTokenPayload;
@@ -109,34 +104,25 @@ export async function createDynamoActorSessionContextModule(
         );
     }
 
-    // Optimization: When loading our session from the database, also attempt to load
-    // whether the account associated with the session is a member of the space we're
-    // in.
-    const spaceIdPromiseItem = spaceId
-        ? () =>
-              isAccountMemberOfSpaceWithoutAuthorization(
-                  context,
-                  spaceId,
-                  authorizationHeaderPayload.accountId,
-              )
-        : () => {};
+    const sessionAccountId = await getSessionIfExists(
+        context,
+        authorizationHeaderPayload.sessionId,
+    );
 
-    const [session] = await runAllPromises([
-        getSessionIfExists(
-            context,
-            authorizationHeaderPayload.sessionId,
-            authorizationHeaderPayload.accountId,
-        ),
-        spaceIdPromiseItem(),
-    ]);
-
-    if (!session) {
+    if (sessionAccountId === null) {
         throw new PermissionDeniedError("Session not found");
     }
+
+    if (sessionAccountId !== authorizationHeaderPayload.accountId) {
+        throw new InternalError(
+            "`Authorization` header `AccountId` doesn\u2019t match session `AccountId`",
+        );
+    }
+
     return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
         serviceName,
-        session.id,
-        session.accountId,
+        authorizationHeaderPayload.sessionId,
+        sessionAccountId,
     );
 }
 

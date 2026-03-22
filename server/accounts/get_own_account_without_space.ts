@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * Get the actor's account.
  */
-export async function getOwnAccount(
+export async function getOwnAccountWithoutSpace(
     context: Context<
         DynamoContextModules & {cache: CacheContextModule; actor: SessionActorContextModule}
     >,

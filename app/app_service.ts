@@ -106,7 +106,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
@@ -619,12 +618,7 @@ async function createAppService({
                             loader: loaderContextModule,
                             cache: CacheContextModule.new(),
                             batch: BatchContextModule.new(),
-                            actor: createActorContextModule(
-                                request,
-                                url,
-                                tokenAgent,
-                                sessionCookie,
-                            ),
+                            actor: createActorContextModule(request, tokenAgent, sessionCookie),
                         },
                         context => {
                             // Only include `route`, `platform`, and other information about the client state
@@ -714,7 +708,6 @@ async function createAppService({
 
 function createActorContextModule(
     request: Request,
-    url: URL,
     tokenAgent: TokenAgent,
     sessionCookie: SessionCookie,
 ) {
@@ -730,18 +723,10 @@ function createActorContextModule(
     }>(async context => {
         const authorizationHeader = request.headers.get("authorization");
 
-        const spaceIdStringHint =
-            request.headers.get("cyberworlds-space-id-hint") ??
-            url.pathname.match(/^\/s\/([a-zA-Z0-9]+)(?:\/|$)/)?.[1];
-
-        const spaceIdHint =
-            spaceIdStringHint && isId<SpaceId>(spaceIdStringHint) ? spaceIdStringHint : null;
-
         return authenticateActorContextModule(context, {
             tokenAgent,
             sessionCookie,
             authorizationHeader,
-            spaceIdHint,
         });
     });
 }

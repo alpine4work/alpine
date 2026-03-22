@@ -118,9 +118,12 @@ type TracerEventHttpHeaderNameMap = {
     // Cyberworlds custom headers
     "cyberworlds-durable-object-id-name": true;
     "cyberworlds-durable-object-if-initialized": true;
-    "cyberworlds-space-id-hint": true;
     "cyberworlds-route": true;
     "cyberworlds-transient-error": true;
+
+    // DEPRECATED: We keep this around for tracer event backwards compatibility but we
+    // don't use this header anymore.
+    "cyberworlds-space-id-hint": true;
 
     // Loops headers
     //

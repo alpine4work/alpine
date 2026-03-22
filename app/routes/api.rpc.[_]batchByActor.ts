@@ -5,8 +5,6 @@ import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     RpcHttpBatchByActorCallInputSchema,
     RpcHttpBatchCallErrorOutputSchema,
@@ -27,11 +25,6 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
             throw new InvalidArgumentError("Expected at least one call in batch");
         }
 
-        const spaceIdStringHint = request.headers.get("cyberworlds-space-id-hint");
-
-        const spaceIdHint =
-            spaceIdStringHint && isId<SpaceId>(spaceIdStringHint) ? spaceIdStringHint : null;
-
         // Authenticate each actor and create a context object for that actor.
         const contextByActorIndex = await runAllPromises(
             batchCall.actors.map(async actor => {
@@ -40,7 +33,6 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
                     // We never allow session authentication for the `/api/rpc/_batchByActor` route.
                     sessionCookie: null,
                     authorizationHeader: actor.authorization,
-                    spaceIdHint,
                 });
 
                 return loaderContext.clone({actor: actorContextModule});
