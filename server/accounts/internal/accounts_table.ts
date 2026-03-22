@@ -1,6 +1,6 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {AccountsSettingsSchema} from "~/shared/accounts/accounts_settings.js";
+import {AccountSettingsSchema} from "~/shared/accounts/accounts_settings.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
@@ -144,7 +144,7 @@ export const AccountsTable = DynamoTableSchema.new({
                      */
                     name: "Settings",
                     sortKeyAttributes: {},
-                    attributes: AccountsSettingsSchema,
+                    attributes: AccountSettingsSchema,
                 },
                 {
                     /**

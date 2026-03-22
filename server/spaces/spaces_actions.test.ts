@@ -1660,8 +1660,10 @@ test("`getOwnAccountIfExists()` can read own account even if an invite is pendin
         getAccountIfExists(removedSession.action(), space.id, removedSession.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 
-    // Should not throw if getting own account
-    await getOwnAccountIfExists(removedSession.action(), space.id, removedSession.account.id);
+    // Should throw on removed account without flag
+    await expect(
+        getOwnAccountIfExists(removedSession.action(), space.id, removedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
 
     // Should throw on invited account without flag
     await expect(

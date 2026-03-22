@@ -12,6 +12,7 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
@@ -30,6 +31,9 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
         context,
         spaceId,
         context.actor.getAccountId(),
+        // Use strong consistency in case we're coming from sign up or some other flow
+        // which just updated our account state.
+        {consistency: "Strong"},
     );
 
     if (!currentAccount) {
@@ -58,12 +62,12 @@ export default function HomeRoute() {
 
     const onRejectInviteAndMarkAsSpam = async () => {
         // Let the sub route handle the rejection.
-        navigate(`/s/${context.space.id}/invite/reject-and-mark-as-spam`);
+        await navigate(`/s/${context.space.id}/invite/reject-and-mark-as-spam`);
     };
 
     const onAcceptInvite = async () => {
         // We want to manually handle the invite acceptance here to avoid another redirect
-        // to /accept and then home.
+        // to `/accept` and then home.
         await acceptSpaceAccountInvite(appContext, {
             spaceId: context.space.id,
         });
@@ -72,13 +76,13 @@ export default function HomeRoute() {
         const to = urlParams.get("to");
         const destination = to ? `/s/${context.space.id}${to}` : `/s/${context.space.id}`;
 
-        // We use from=invite to tell remix to revalidate our space loader data This will
-        // re-evalutate permissions and let the user immediately click on resources
-        navigate(`${destination}?from=invite`, {replace: true});
+        // We use from=invite to tell remix to revalidate our space loader data. This will
+        // re-evalutate permissions and let the user immediately click on resources.
+        await navigate(`${destination}?from=invite`, {replace: true});
     };
 
     const initialAppRenderId = useInitialAppRenderId();
-    const [idForGeneration] = useState(initialAppRenderId ?? generateId());
+    const [idForGeneration] = useState(() => initialAppRenderId ?? generateId());
     const blobsSettings = useMemo(() => {
         return {
             seed: idForGeneration.replaceAll(/[^a-zA-Z0-9]/g, ""),
@@ -96,42 +100,53 @@ export default function HomeRoute() {
                 justifyContent="center"
                 alignItems="center"
                 flexDirection="column"
-                gap="4"
+                gap="8"
             >
-                <LogoWordmark size="32" />
+                <a
+                    href="https://www.alpine.inc"
+                    target="_blank"
+                    rel="noreferrer"
+                    className={sprinkles({display: "block", cursor: "pointer"})}
+                >
+                    <LogoWordmark size="32" />
+                </a>
                 <Box
                     display="flex"
                     flexDirection="column"
-                    gap="4"
+                    gap="6"
                     width="full"
                     maxWidth="96"
                     backgroundColor="grey-0"
                     borderRadius="2"
                     boxShadow="elevation-30"
                     padding="8"
-                    textAlign="center"
-                    alignItems="center"
                 >
-                    <SpaceAvatar space={context.space} size="16" />
-                    <Box textAlign="center">You&#x2019;ve been invited to join</Box>
-                    <Box fontStyle="semi-bold" textAlign="center" fontSize="300">
-                        {context.space.name}
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        gap="3"
+                        marginLeft="-8"
+                    >
+                        <SpaceAvatar space={context.space} size="10" />
+                        <Box fontStyle="truncate-bold" fontSize="400" userSelect="text">
+                            {context.space.name}
+                        </Box>
                     </Box>
-                    <Box>
-                        Someone has added you to their workspace. Accept to start collaborating.
+                    <Box color="grey-60" fontSize="100" userSelect="text" style={{lineHeight: 1.5}}>
+                        You&#x2019;ve been invited to join {context.space.name} on Alpine. Alpine is
+                        a shared space where your team can work together.
                     </Box>
-                    <Box marginTop="4" width="full">
-                        <Button
-                            variant="accent"
-                            height="8"
-                            paddingX="3"
-                            fullWidth
-                            pressErrorTitle="Couldn&#x2019;t accept invite"
-                            onPress={onAcceptInvite}
-                        >
-                            Join {context.space.name}
-                        </Button>
-                    </Box>
+                    <Button
+                        variant="accent"
+                        fontSize="100"
+                        height="9"
+                        fullWidth
+                        pressErrorTitle="Couldn&#x2019;t accept invite"
+                        onPress={onAcceptInvite}
+                    >
+                        Join {context.space.name}
+                    </Button>
                 </Box>
                 <Button
                     variant="quieter"

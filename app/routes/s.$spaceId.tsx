@@ -77,17 +77,17 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
-import {getOwnAccount} from "~/server/accounts/get_own_account.js";
+import {getOwnAccountAndSettingsWithoutSpace} from "~/server/accounts/get_own_account_and_settings_without_space.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
-import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
+import {getOwnAccountAndSettingsIfExists} from "~/server/spaces/get_own_account_and_settings_if_exists.js";
 import {getSpace} from "~/server/spaces/get_space.js";
-import {getSpaceThemeColor} from "~/server/spaces/get_space_theme_color.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {AccountSettingsSchema} from "~/shared/accounts/accounts_settings.js";
 import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
@@ -105,7 +105,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone, isTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
@@ -117,8 +116,6 @@ import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
     updateOurAccountName,
-    updateOurAccountObservedTimeZone,
-    updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     registerOurAccountAppleDeviceToken,
@@ -144,12 +141,14 @@ export const LoaderSchema = Schema.union({
         type: Schema.value("WithAccess"),
         space: SpaceModel.schema(),
         currentAccount: AccountModel.schema,
+        settings: AccountSettingsSchema,
         inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
     }),
     WithoutAccess: Schema.object({
         type: Schema.value("WithoutAccess"),
         space: SpaceModel.schema(),
         currentAccountWithoutSpace: AccountModelWithoutSpace.schema.nullable(),
+        settings: AccountSettingsSchema.nullable(),
     }),
 });
 
@@ -175,6 +174,7 @@ export function links(): Array<LinkDescriptor> {
             type: "font/woff2",
             crossOrigin: "anonymous",
         },
+
         // Rationale for the styles here:
         //
         // - `overflow: hidden`: Turn off scrolling on `body` when in a space which comes
@@ -238,23 +238,24 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
         }
 
         case "Anonymous": {
-            const themeColor = await getSpaceThemeColor(context, spaceId, {consistency});
             const space = new SpaceModel({
                 id: spaceId,
                 version: -1,
                 // If you don't have space access, you're not allowed to see the space's name. Use
                 // an empty string as a placeholder.
                 name: "",
-                avatars: {
-                    darkTheme: null,
-                    lightTheme: null,
-                },
-                themeColor,
+                avatars: {darkTheme: null, lightTheme: null},
+                themeColor: defaultThemeColor,
             });
 
             return jsonWithSchema(
                 LoaderSchema,
-                {type: "WithoutAccess", space, currentAccountWithoutSpace: null},
+                {
+                    type: "WithoutAccess",
+                    space,
+                    currentAccountWithoutSpace: null,
+                    settings: null,
+                },
                 {propagateEventData: {context: {withoutSpaceAccess: true}}},
             );
         }
@@ -271,26 +272,28 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
             try {
                 // Await on data that we absolutely need first
-                const [currentAccount, currentSpace, inboxResult] = await runAllPromises([
-                    getOwnAccountIfExists(
-                        sessionContext,
-                        spaceId,
-                        sessionContext.actor.getAccountId(),
-                        {consistency},
-                    ),
+                const [currentAccountAndSettings, currentSpace, inboxResult] = await runAllPromises(
+                    [
+                        getOwnAccountAndSettingsIfExists(
+                            sessionContext,
+                            spaceId,
+                            sessionContext.actor.getAccountId(),
+                            {consistency},
+                        ),
 
-                    // If we're in an `InvitePending` state, we need to return the space data for the
-                    // invite screen.
-                    getSpace(sessionContext, spaceId, {consistency, allowInvitePending: true}),
+                        // If we're in an `InvitePending` state, we need to return the space data for the
+                        // invite screen.
+                        getSpace(sessionContext, spaceId, {consistency, allowInvitePending: true}),
 
-                    // If `getInbox()` throws because we don't have space access, that's fine. This
-                    // might be a user with a pending invite. We want to load the inbox item here in
-                    // parallel with our other data in case we need it. If there's an error, catch the
-                    // error and throw later after we know we have space access.
-                    captureResultPromise(
-                        getInbox(context.actor.authorizeSession(), {spaceId, consistency}),
-                    ),
-                ]);
+                        // If `getInbox()` throws because we don't have space access, that's fine. This
+                        // might be a user with a pending invite. We want to load the inbox item here in
+                        // parallel with our other data in case we need it. If there's an error, catch the
+                        // error and throw later after we know we have space access.
+                        captureResultPromise(
+                            getInbox(context.actor.authorizeSession(), {spaceId, consistency}),
+                        ),
+                    ],
+                );
 
                 space = currentSpace;
 
@@ -300,7 +303,8 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 const currentPathname = url.pathname;
                 const invitePathRoot = `/s/${spaceId}/invite`;
                 const accountIsInvitePending =
-                    currentAccount?.initialData.space.state.type === "InvitePending";
+                    currentAccountAndSettings?.account.initialData.space.state.type ===
+                    "InvitePending";
 
                 if (accountIsInvitePending && !currentPathname.startsWith(invitePathRoot)) {
                     const to =
@@ -312,7 +316,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
                 // It's probably safe to assert here since `getSpace()` will throw if the account
                 // doesn't have access (and doesn't have an `InvitePending` state).
-                if (!currentAccount) {
+                if (!currentAccountAndSettings) {
                     throw createAuthorizeSpaceAccessPermissionDeniedError(
                         space.id,
                         sessionContext.actor.getAccountId(),
@@ -324,7 +328,8 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 return jsonWithSchema(LoaderSchema, {
                     type: "WithAccess",
                     space,
-                    currentAccount,
+                    currentAccount: currentAccountAndSettings.account,
+                    settings: currentAccountAndSettings.settings,
                     inbox,
                 });
             } catch (error) {
@@ -342,27 +347,31 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 );
                 if (spaceAuthorizationResult.ok) throw error;
 
-                const account = await getOwnAccount(sessionContext, {consistency});
+                const {account, settings} = await getOwnAccountAndSettingsWithoutSpace(
+                    sessionContext,
+                    {consistency},
+                );
 
-                const limitedSpace = new SpaceModel({
+                // If `space` is non-`null` that means we had access to the `SpaceModel`. The most
+                // likely reason is we're an `InvitePending` account for the space. If `space` is
+                // null then use a mock space object since the user doesn't have access to space
+                // data.
+                space ??= new SpaceModel({
                     id: spaceId,
                     version: -1,
                     // If you don't have space access, you're not allowed to see the space's name. Use
                     // an empty string as a placeholder.
-                    name: space?.name || "",
-                    avatars: {
-                        darkTheme: null,
-                        lightTheme: null,
-                    },
-                    // Theme color is not private, so include it for the invite page styling.
-                    themeColor: space?.themeColor || defaultThemeColor,
+                    name: "",
+                    avatars: {darkTheme: null, lightTheme: null},
+                    themeColor: defaultThemeColor,
                 });
 
                 return jsonWithSchema(
                     LoaderSchema,
                     {
                         type: "WithoutAccess",
-                        space: limitedSpace,
+                        space,
+                        settings,
                         currentAccountWithoutSpace: account,
                     },
                     {propagateEventData: {context: {withoutSpaceAccess: true}}},
@@ -454,36 +463,6 @@ export default function SpaceLayoutRoute() {
             attachDevConsoleForAccountInProduction();
         }
     }, [loaderData, spaceId]);
-
-    const lastOpenedSpaceIdRef = useRef<SpaceId | null>(null);
-    useEffect(() => {
-        if (lastOpenedSpaceIdRef.current === spaceId) return;
-        lastOpenedSpaceIdRef.current = spaceId;
-
-        // Only update lastOpenedSpaceId if the account has access to the space
-        if (loaderData.type !== "WithAccess") return;
-
-        void updateOurLastOpenedSpaceId(context, {
-            lastOpenedSpaceId: spaceId,
-        });
-    }, [spaceId, context, loaderData.type]);
-
-    const observedTimeZoneRef = useRef<TimeZone | null>(null);
-    useEffect(() => {
-        if (observedTimeZoneRef.current === clientInfo.timeZone) return;
-        observedTimeZoneRef.current = clientInfo.timeZone;
-        const account =
-            loaderData.type === "WithAccess"
-                ? loaderData.currentAccount
-                : loaderData.currentAccountWithoutSpace;
-        if (!account) return;
-
-        // Never update an account's timezone to null or undefined, it's better if it has
-        // an old value than a null value
-        if (!clientInfo.timeZone || !isTimeZone(clientInfo.timeZone)) return;
-
-        void updateOurAccountObservedTimeZone(context, {timeZone: clientInfo.timeZone});
-    }, [clientInfo.timeZone, context, loaderData]);
 
     const accountRegistry = useAccountRegistryForSpaceId(spaceId);
 
@@ -769,8 +748,6 @@ export default function SpaceLayoutRoute() {
 
     return (
         <GlobalKeyDownEvent
-            // Re-render everything when the space changes.
-            key={spaceId}
             onGlobalKeyDown={event => {
                 switch (event.key) {
                     // Disable Home/End browser behavior when not focused in a text input. When focused
@@ -863,6 +840,12 @@ export default function SpaceLayoutRoute() {
                 <GlobalLoadingIndicatorContextProvider>
                     {globalLoadingIndicator => (
                         <SpaceContextProvider
+                            // Reset state when the space or account changes.
+                            key={`${loaderData.space.id}-${
+                                loaderData.type === "WithAccess"
+                                    ? loaderData.currentAccount.id
+                                    : loaderData.currentAccountWithoutSpace?.id
+                            }`}
                             initialSpace={loaderData.space}
                             currentAccount={
                                 loaderData.type === "WithAccess" ? loaderData.currentAccount : null
@@ -872,6 +855,7 @@ export default function SpaceLayoutRoute() {
                                     ? loaderData.currentAccount
                                     : loaderData.currentAccountWithoutSpace
                             }
+                            initialSettings={loaderData.settings}
                             withMyAccountWebSocket={true}
                         >
                             <SpaceThemeColorManager />

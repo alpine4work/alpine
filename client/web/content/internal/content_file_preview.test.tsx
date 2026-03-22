@@ -7,6 +7,7 @@ import {ReactContextModule} from "~/client/web/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/web/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -38,6 +39,7 @@ const context: AppContext = Context.new({
     tracer: new TracerContextModule(testTracer),
     rpc: new TestRpcContextModule(),
     react: ReactContextModule.newForClient(),
+    batch: BatchContextModule.new(),
     constants: new ConstantsContextModule({
         edgeServiceUrl: "https://test.cyberworlds.dev",
         resourceServiceUrl: resourceServiceUrl,

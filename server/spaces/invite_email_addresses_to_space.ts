@@ -1,6 +1,6 @@
 import {createAccountWithEmailAddressTransactionEntries} from "~/server/accounts/create_account_transaction_entries.js";
 import {getAccountIdByEmailAddressIfExists} from "~/server/accounts/get_account_id_by_email_address_if_exists.js";
-import {getOwnAccount} from "~/server/accounts/get_own_account.js";
+import {getOwnAccountWithoutSpace} from "~/server/accounts/get_own_account_without_space.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -229,7 +229,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
         const [actorAccount, {spaceItem, account, newSpaceAccountItem, transactionEntries}] =
             await runAllPromises([
-                getOwnAccount(context),
+                getOwnAccountWithoutSpace(context),
                 getAddSpaceAccountTransactionEntries(context, {
                     currentTime,
                     space: {type: "Existing", id: spaceId},

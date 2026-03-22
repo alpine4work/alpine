@@ -5,6 +5,7 @@ import {AppContext} from "~/client/web/context/app_context.js";
 import {ReactContextModule} from "~/client/web/context/react_context_module.js";
 import {searchWordTypingDebounceMs} from "~/client/web/search/core/search_word_typing_debounce_ms.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -39,6 +40,7 @@ const context: AppContext = Context.new({
     tracer: new TracerContextModule(testTracer),
     rpc: new TestRpcContextModule(),
     react: ReactContextModule.newForClient(),
+    batch: BatchContextModule.new(),
     constants: new ConstantsContextModule({
         edgeServiceUrl: "https://test.cyberworlds.dev",
         resourceServiceUrl: "http://localhost",

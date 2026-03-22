@@ -9,8 +9,10 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 /**
  * You're allowed to read your own account even if you don't have access to the
@@ -29,15 +31,22 @@ export async function getOwnAccountIfExists(
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel | null> {
-    await authorizeOwnSpaceAccountAccess(context, accountId);
+    const [, account] = await runAllPromises([
+        authorizeOwnSpaceAccountAccess(context, accountId),
 
-    const account = await getAccountIfExistsWithoutAuthorization(
-        context,
-        spaceId,
-        accountId,
-        options,
-    );
+        // Optimization: Start loading the account even before authorization completes.
+        getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options),
+    ]);
+
     if (!account) return null;
+
+    // Can only access your account in `Active` and `InvitePending` states.
+    if (account.initialData.space.state.type === "Removed") {
+        throw createAuthorizeSpaceAccessPermissionDeniedError(
+            spaceId,
+            context.actor.getPossiblyBotAccountId(),
+        );
+    }
 
     // Sanity check: session actors can't be bots. This should be enforced throughout
     // the system but we have a sanity check here just in case we slipped up somewhere.

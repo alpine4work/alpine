@@ -55,9 +55,7 @@ export async function createAccountForTest(
     };
 
     const accountSettingsItem: AccountSettingsItem = {
-        partitionType: "Account",
-        sortRangeType: "Settings",
-        accountId: id,
+        ...getInitialAccountSettingsItem(id),
         observedTimeZone,
     };
 

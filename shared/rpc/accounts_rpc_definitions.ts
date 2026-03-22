@@ -1,4 +1,5 @@
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {AccountSettingsActionSchema} from "~/shared/accounts/accounts_settings.js";
 import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -55,6 +56,19 @@ export const updateOurAccountName = defineRpc({
     },
 });
 
+export const updateOurAccountSettings = defineRpc({
+    name: "updateOurAccountSettings",
+    isIdempotent: true,
+    input: {
+        actions: Schema.array(AccountSettingsActionSchema).minLength(1),
+    },
+    output: {},
+});
+
+/**
+ * @deprecated Use the new `updateAccountSettings()` RPC instead. Can delete this
+ * after we've deployed the change to remove all callsites to this RPC.
+ */
 export const updateOurLastOpenedSpaceId = defineRpc({
     name: "updateOurLastOpenedSpaceId",
     isIdempotent: true,
@@ -64,6 +78,10 @@ export const updateOurLastOpenedSpaceId = defineRpc({
     output: {},
 });
 
+/**
+ * @deprecated Use the new `updateAccountSettings()` RPC instead. Can delete this
+ * after we've deployed the change to remove all callsites to this RPC.
+ */
 export const updateOurAccountObservedTimeZone = defineRpc({
     name: "updateOurAccountObservedTimeZone",
     isIdempotent: true,

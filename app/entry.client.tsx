@@ -13,6 +13,7 @@ import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {updateNativeMobileThemeColors} from "~/client/web/remix/update_native_mobile_theme_colors.js";
 import {ClientRpcContextModule} from "~/client/web/rpc/client_rpc_context_module.js";
 import {createClientTracer} from "~/client/web/tracer/client_tracer.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
@@ -53,6 +54,7 @@ async function main() {
         tracer: new TracerContextModule(tracer),
         rpc: new ClientRpcContextModule(),
         react: ReactContextModule.newForClient(),
+        batch: BatchContextModule.new(),
     });
 
     // Don't block the browser's main thread with the initial render.

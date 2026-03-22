@@ -1,5 +1,6 @@
 import {createContext, useContext} from "react";
 import {ReactContextModule} from "~/client/web/context/react_context_module.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -13,6 +14,7 @@ export type AppContext = Context<{
     tracer: TracerContextModule;
     rpc: RpcContextModuleBase;
     react: ReactContextModule;
+    batch: BatchContextModule;
 }>;
 
 const AppReactContext = createContext<AppContext | null>(null);

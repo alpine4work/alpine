@@ -1,4 +1,6 @@
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {AccountSettings, AccountSettingsAction} from "~/shared/accounts/accounts_settings.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -35,6 +37,20 @@ export type SpaceContext = {
      * property.
      */
     readonly currentAccountWithoutSpace: AccountModelWithoutSpace | null;
+
+    /**
+     * Settings associated with the current account. If this is an anonymous account
+     * then the value of this will be `initialAccountSettings`.
+     */
+    readonly currentAccountSettings: AccountSettings;
+
+    /**
+     * Update the current account's settings. Optimistically updates
+     * `currentAccountSettings` while we wait for the server to confirm the update.
+     */
+    readonly updateCurrentAccountSettings: (
+        action: AccountSettingsAction,
+    ) => SafeFloatingPromise<unknown>;
 
     /**
      * If the new space has a lower version than the current space then we don't update

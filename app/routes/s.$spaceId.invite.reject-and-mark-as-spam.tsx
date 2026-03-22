@@ -27,6 +27,9 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
         context,
         spaceId,
         context.actor.getAccountId(),
+        // Use strong consistency in case we're coming from sign up or some other flow
+        // which just updated our account state.
+        {consistency: "Strong"},
     );
 
     if (!currentAccount) {

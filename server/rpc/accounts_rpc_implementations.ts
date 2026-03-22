@@ -9,8 +9,7 @@ import {scheduleTryOnDesktopEmail} from "~/server/accounts/schedule_try_on_deskt
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
-import {updateOurAccountObservedTimeZone} from "~/server/accounts/update_our_account_observed_time_zone.js";
-import {updateOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/update_our_last_opened_space_id.js";
+import {updateOurAccountSettings} from "~/server/accounts/update_our_account_settings.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -74,14 +73,21 @@ export default implementRpcs(definitions, {
         },
     },
 
+    updateOurAccountSettings: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await updateOurAccountSettings(context.actor.authorizeSession(), input.actions);
+            return {};
+        },
+    },
+
     updateOurLastOpenedSpaceId: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await updateOurLastOpenedSpaceId(
-                context.actor.authorizeSession(),
-                input.lastOpenedSpaceId,
-            );
-
+            await updateOurAccountSettings(context.actor.authorizeSession(), {
+                type: "UpdateLastOpenedSpaceId",
+                spaceId: input.lastOpenedSpaceId,
+            });
             return {};
         },
     },
@@ -89,13 +95,14 @@ export default implementRpcs(definitions, {
     updateOurAccountObservedTimeZone: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await updateOurAccountObservedTimeZone(
-                context.actor.authorizeSession(),
-                input.timeZone,
-            );
+            await updateOurAccountSettings(context.actor.authorizeSession(), {
+                type: "UpdateObservedTimeZone",
+                timeZone: input.timeZone,
+            });
             return {};
         },
     },
+
     getAccountByIdAsAdmin: {
         visibility: ["AppClient"],
         execute: async (context, input) => {

@@ -1,4 +1,5 @@
 import {AccountSettingsItem, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {AccountItemAndSettingsItemContextCache} from "~/server/accounts/internal/get_account_item_and_settings_item.js";
 import {getInitialAccountSettingsItem} from "~/server/accounts/internal/get_initial_account_settings_item.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
@@ -32,6 +33,17 @@ export async function getAccountSettingsItem(
     // Calling `getAccount(unknownAccountId)` should always fail with a not found
     // error.
     if (accountId === unknownAccountId) return getInitialAccountSettingsItem(accountId);
+
+    {
+        // If we've already loaded the account item with its avatar then we don't need to
+        // load the attributes item separately.
+        const item = await AccountItemAndSettingsItemContextCache.getIfExists(
+            context,
+            consistency,
+            accountId,
+        );
+        if (item) return item.settingsItem;
+    }
 
     return AccountSettingsItemContextCache.get(
         context,

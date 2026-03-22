@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import {getOurStripeCustomerId} from "~/server/accounts/get_our_stripe_customer_id.js";
-import {getOwnAccount} from "~/server/accounts/get_own_account.js";
+import {getOwnAccountWithoutSpace} from "~/server/accounts/get_own_account_without_space.js";
 import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_customer_id.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getLatestEmailAddressByAccountId} from "~/server/spaces/get_latest_email_address_by_account_id.js";
@@ -33,7 +33,7 @@ export async function ensureAccountHasStripeCustomerId({
         return currentCustomerId;
     }
 
-    const account = await getOwnAccount(context);
+    const account = await getOwnAccountWithoutSpace(context);
     const email = await getLatestEmailAddressByAccountId(context, account.id);
 
     // TODO: someday we should update the stripe customer when their name changes

@@ -3,6 +3,7 @@ import {
     AccountItemWithoutAvatar,
     AccountsTable,
 } from "~/server/accounts/internal/accounts_table.js";
+import {AccountItemAndSettingsItemContextCache} from "~/server/accounts/internal/get_account_item_and_settings_item.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {
@@ -40,10 +41,23 @@ export async function getAccountItemWithoutAvatarIfExists(
     // error.
     if (accountId === unknownAccountId) return null;
 
-    // If we've already load the account item with its avatar then we don't need to
-    // load the attributes item separately.
-    const item = await AccountItemContextCache.getIfExists(context, consistency, accountId);
-    if (item) return item;
+    {
+        // If we've already loaded the account item with its avatar then we don't need to
+        // load the attributes item separately.
+        const item = await AccountItemAndSettingsItemContextCache.getIfExists(
+            context,
+            consistency,
+            accountId,
+        );
+        if (item) return item.accountItem;
+    }
+
+    {
+        // If we've already loaded the account item with its avatar then we don't need to
+        // load the attributes item separately.
+        const item = await AccountItemContextCache.getIfExists(context, consistency, accountId);
+        if (item) return item;
+    }
 
     return AccountItemWithoutAvatarContextCache.get(
         context,

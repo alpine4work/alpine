@@ -111,6 +111,7 @@ export default function ChangelogRoute() {
                         initialSpace={space}
                         currentAccount={null}
                         currentAccountWithoutSpace={null}
+                        initialSettings={null}
                         withMyAccountWebSocket={false}
                     >
                         <PeekStackContextProvider globalLoadingIndicator={globalLoadingIndicator}>

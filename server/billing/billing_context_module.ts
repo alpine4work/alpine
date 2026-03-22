@@ -1,5 +1,5 @@
 import {Stripe} from "stripe";
-import {getOwnAccount} from "~/server/accounts/get_own_account.js";
+import {getOwnAccountWithoutSpace} from "~/server/accounts/get_own_account_without_space.js";
 import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ensureAccountHasStripeCustomerId} from "~/server/billing/internal/ensure_account_has_stripe_customer_id.js";
 import {processStripeWebhook} from "~/server/billing/process_stripe_webhook.js";
@@ -51,7 +51,7 @@ export class BillingContextModule extends BillingContextModuleBase {
                         stripe: this._stripe,
                         span,
                     }),
-                    getOwnAccount(context, {consistency: "Strong"}),
+                    getOwnAccountWithoutSpace(context, {consistency: "Strong"}),
                 ]);
 
                 if (account.initialData.plan === "LifetimeAccess") {

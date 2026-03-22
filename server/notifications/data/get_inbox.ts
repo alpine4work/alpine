@@ -24,35 +24,45 @@ export async function getInbox(
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     const accountId = context.actor.getAccountId();
 
-    await runAllPromises([
-        authorizeSpaceAccess(context, spaceId),
+    const spaceAuthorizationPromise = authorizeSpaceAccess(context, spaceId);
+
+    const [, , inbox] = await runAllPromises([
+        spaceAuthorizationPromise,
 
         // Bots don't have an inbox.
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
+
+        // Optimization: Start loading the inbox in parallel with space access
+        // authorization. Instead of waiting for space access authorization to finish.
+        context.dynamo.retryTransaction(async context => {
+            const inbox = await InboxTable.getRealtimeItemIfExists(
+                context,
+                {
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
+                    spaceId,
+                    accountId,
+                },
+                {consistency},
+            );
+            if (inbox) return inbox;
+
+            // Wait until we've confirmed we have space access before creating the initial
+            // inbox item if no inbox item currently exists.
+            await spaceAuthorizationPromise;
+
+            // If the inbox item doesn't exist yet, let's create one.
+            const {getEvent} = await InboxTable.createItem(
+                context,
+                getInitialInboxItem(spaceId, accountId),
+                // By default condition check errors from `createItem()` call won't retry. Make
+                // sure we handle race conditions by retrying on condition check error.
+                {isConditionCheckErrorRetriable: true},
+            );
+
+            return (await getEvent(context)).item;
+        }),
     ]);
 
-    return context.dynamo.retryTransaction(async context => {
-        const inbox = await InboxTable.getRealtimeItemIfExists(
-            context,
-            {
-                partitionType: "Account",
-                sortRangeType: "InboxAttributes",
-                spaceId,
-                accountId,
-            },
-            {consistency},
-        );
-        if (inbox) return inbox;
-
-        // If the inbox item doesn't exist yet, let's create one.
-        const {getEvent} = await InboxTable.createItem(
-            context,
-            getInitialInboxItem(spaceId, accountId),
-            // By default condition check errors from `createItem()` call won't retry. Make
-            // sure we handle race conditions by retrying on condition check error.
-            {isConditionCheckErrorRetriable: true},
-        );
-
-        return (await getEvent(context)).item;
-    });
+    return inbox;
 }
