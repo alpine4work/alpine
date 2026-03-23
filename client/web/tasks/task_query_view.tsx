@@ -431,7 +431,7 @@ export function TaskQueryView({
         // (though not impossible) to implement. (You need to setup a separate task
         // subscription for the pinned row.) And because it's not clear to me what the best
         // UX here is. Disabling a bunch of behavior doesn't feel right though.
-        getMoveTaskToQueryActions: () => null,
+        getMoveTasksToQueryActions: () => null,
         // Can't remove task from custom view query. That would require updating filtered
         // fields in potentially unexpected ways. For instance if it's filter to
         // `priority = null` then what do we do? Assign the `Low` priority? This would be

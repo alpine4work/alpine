@@ -37,17 +37,16 @@ export type TaskGridViewVirtualizedListViewRef = {
 assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
 
 export type TaskGridViewVirtualizedListEvents = MemoObject<{
-    readonly getMoveTaskToRootQueryActions: (
-        taskId: TaskId,
+    readonly getMoveTasksToRootQueryActions: (
+        taskIds: ReadonlyArray<TaskId>,
         position:
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId}
-            | {type: "Position"; position: TaskPosition},
+            | {type: "Below"; taskId: TaskId},
     ) => {
         actions: Array<TaskActionModel>;
-        position: TaskPosition;
+        positions: Array<TaskPosition>;
     } | null;
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     readonly getItemCount: () => number;

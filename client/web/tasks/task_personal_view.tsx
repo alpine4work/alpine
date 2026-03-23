@@ -45,7 +45,7 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {TaskFloatingCreateButton} from "~/client/web/tasks/internal/task_floating_create_button.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewColumnHeader} from "~/client/web/tasks/internal/task_grid_view_column_header.js";
@@ -102,6 +102,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
@@ -555,65 +556,83 @@ export function TaskPersonalView({
             runningItemCount,
             events.getActiveItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             if (!activeQuery) return null;
 
             const time1 = store.clock.now();
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(time3, activeQuery.query, position)
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                activeQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneeStatus",
-                        assigneeStatus: {
-                            type: "Active",
-                            activatedTime: new TaskFilterableTime({
-                                absoluteTime: time2,
-                                setterTimeZone: timeZone,
-                            }),
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneeStatus",
+                            assigneeStatus: {
+                                type: "Active",
+                                activatedTime: new TaskFilterableTime({
+                                    absoluteTime: time2,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -724,7 +743,7 @@ export function TaskPersonalView({
             runningItemCount,
             events.getOverdueItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             if (!overdueQuery) return null;
 
             assert(
@@ -742,56 +761,70 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time3,
-                          overdueQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                overdueQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateDueDate",
-                        dueDate: currentDate,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateDueDate",
+                            dueDate: currentDate,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -923,7 +956,7 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueTodayItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             if (!dueTodayQuery) return null;
 
             assert(
@@ -937,56 +970,70 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time3,
-                          dueTodayQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                dueTodayQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateDueDate",
-                        dueDate: currentDate,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateDueDate",
+                            dueDate: currentDate,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -1116,7 +1163,7 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueSoonItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             if (!dueSoonQuery) return null;
 
             assert(
@@ -1135,56 +1182,70 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time3,
-                          dueSoonQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                dueSoonQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateDueDate",
-                        dueDate: currentDate,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateDueDate",
+                            dueDate: currentDate,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -1327,66 +1388,84 @@ export function TaskPersonalView({
         // NOTE(ifitzsimmons, 2026-02-22): The closed section only ever shows up when
         // filters are applied, which means that users can never actually edit grid view
         // items in the closed section.
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             if (!closedQuery) return null;
 
             const time1 = store.clock.now();
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(time3, closedQuery.query, position)
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                closedQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateStatus",
-                        status: {
-                            type: "Closed",
-                            closerId: currentAccount.id,
-                            closedTime: new TaskFilterableTime({
-                                absoluteTime: time2,
-                                setterTimeZone: timeZone,
-                            }),
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: currentAccount.id,
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: time2,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -1561,53 +1640,67 @@ export function TaskPersonalView({
             runningItemCount,
             events.getRemainingItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             if (!remainingQuery) return null;
 
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time2,
-                          remainingQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time2,
+                remainingQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [

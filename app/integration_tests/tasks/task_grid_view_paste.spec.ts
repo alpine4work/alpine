@@ -2,10 +2,13 @@ import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
 
@@ -1110,6 +1113,115 @@ test("can paste a formatted list and it will create tasks in an already nested t
         ],
         [true, "AFTER"],
     ]);
+});
+
+test("pasting child tasks in an expanded parent gives each pasted child a unique parent order key", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
+
+    const beforeTask = await TestTask.create(session, {title: "BEFORE"});
+    const parentTask = await TestTask.create(session, {title: "PARENT"});
+    const afterTask = await TestTask.create(session, {title: "AFTER"});
+
+    await beforeTask.addCollection(session, collection);
+    await parentTask.addCollection(session, collection);
+    await afterTask.addCollection(session, collection);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+
+    await expectTaskGridView(page, [
+        [true, "BEFORE"],
+        [true, "PARENT"],
+        [true, "AFTER"],
+    ]);
+
+    await page
+        .getByTestId(`TaskRowView:${parentTask.id}`)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+
+    await expectTaskGridView(page, [
+        [true, "BEFORE"],
+        [[true, "PARENT"], [[true, ""]]],
+        [true, "AFTER"],
+    ]);
+
+    await page.evaluate(async () => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob(
+                    [
+                        `\
+<ul>
+    <li>Task 1</li>
+    <li>Task 2</li>
+    <li>Task 3</li>
+    <li>Task 4</li>
+    <li>Task 5</li>
+</ul>
+`,
+                    ],
+                    {type: "text/html"},
+                ),
+            }),
+        ]);
+    });
+
+    await page.keyboard.press("ControlOrMeta+v");
+
+    await expectTaskGridView(page, [
+        [true, "BEFORE"],
+        [
+            [true, "PARENT"],
+            [
+                [true, "Task 1"],
+                [true, "Task 2"],
+                [true, "Task 3"],
+                [true, "Task 4"],
+                [true, "Task 5"],
+            ],
+        ],
+        [true, "AFTER"],
+    ]);
+
+    const pastedChildTaskIds: Array<TaskId> = [];
+    for (const taskRowIndex of [2, 3, 4, 5, 6]) {
+        const rowTestId = await page
+            .getByTestId(/^TaskRowView:/)
+            .nth(taskRowIndex)
+            .getAttribute("data-testid");
+        pastedChildTaskIds.push(assertExists(rowTestId).replace(/^TaskRowView:/, "") as TaskId);
+    }
+
+    await expect(async () => {
+        const pastedChildOrderKeys: Array<string> = [];
+
+        for (const pastedChildTaskId of pastedChildTaskIds) {
+            const taskDoc = assertExists(
+                await getTaskIndexDocIfExistsForTest(context, space.id, pastedChildTaskId, {
+                    realtime: true,
+                }),
+            );
+
+            expect(taskDoc.parent.taskId.value).toEqual(parentTask.id);
+            pastedChildOrderKeys.push(taskDoc.parent.rawPosition.value.orderKey);
+        }
+
+        // Make sure all the child order keys are unique.
+        expect(new Set(pastedChildOrderKeys).size).toEqual(pastedChildOrderKeys.length);
+    }).toPass({timeout: 5000});
 });
 
 test("can paste a formatted list and it will create tasks in a detail view\u2019s subtasks", async ({

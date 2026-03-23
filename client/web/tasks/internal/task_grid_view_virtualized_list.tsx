@@ -214,17 +214,16 @@ export type TaskGridViewVirtualizedListProps = {
      * Will be used when hitting `Enter` to create a new task or `Shift+Tab` to move a
      * task out of a parent task and into the query.
      */
-    getMoveTaskToQueryActions: (
-        taskId: TaskId,
+    getMoveTasksToQueryActions: (
+        taskIds: ReadonlyArray<TaskId>,
         position:
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId}
-            | {type: "Position"; position: TaskPosition},
+            | {type: "Below"; taskId: TaskId},
     ) => {
         actions: Array<TaskActionModel>;
-        position: TaskPosition;
+        positions: Array<TaskPosition>;
     } | null;
 
     /**
@@ -941,7 +940,7 @@ export function useTaskGridViewVirtualizedListBase({
     store,
     query: rootQueryWithInitialState,
     affinityManager,
-    getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
+    getMoveTasksToQueryActions: getMoveTasksToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     commitActionTransaction: commitActionTransactionFromProps,
     structuralItemKeyPrefix = "",
@@ -1534,7 +1533,7 @@ export function useTaskGridViewVirtualizedListBase({
     \* ========================================================================== */
 
     const events: TaskGridViewVirtualizedListEvents = useEvents({
-        getMoveTaskToRootQueryActions,
+        getMoveTasksToRootQueryActions,
         getMaybeRemoveTaskFromRootQueryActions,
         pushUndoStackEntry: pushUndoStackEntryFromProps,
         scrollToAnchorPosition: scrollToAnchorPositionFromProps,

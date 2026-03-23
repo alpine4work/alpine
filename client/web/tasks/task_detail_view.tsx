@@ -112,7 +112,7 @@ import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_ta
 import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {createTaskDetailViewInheritedAccessPolicyExplanations} from "~/client/web/tasks/internal/create_task_detail_view_inherited_access_policy_explanations.js";
 import {createTaskEffectiveAccessPolicyStore} from "~/client/web/tasks/internal/create_task_entry_effective_access_policy_store.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/web/tasks/internal/get_task_status_menu_actions.js";
 import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {showTaskDeleteConfirmationModalDialog} from "~/client/web/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
@@ -197,7 +197,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -840,7 +840,7 @@ export function TaskDetailView({
         affinityManager,
         rowMaxWidth: !isWideProjectLayout ? contentStyles.contentMaxWidth : undefined,
         viewRef: !isWideProjectLayout ? nonProjectChildrenViewRef : projectChildrenViewRef,
-        getMoveTaskToQueryActions: (childTaskId, position) => {
+        getMoveTasksToQueryActions: (childTaskIds, position) => {
             // During `?create` flows we can render a ghost subtask row before the children
             // query subscription is available.
             const childrenQuery = childrenQueryState.activeQuery.isAvailable
@@ -850,7 +850,8 @@ export function TaskDetailView({
             // If the query is auto-sorted we disable features that allow moving tasks into the
             // query. Like hitting shift-tab to dedent or hitting enter to create a new task.
             // We may want to re-enable some of these someday in auto-sorted queries. See the
-            // comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more discussion.
+            // comment on `getMoveTasksToQueryActions` in `<TaskQueryView>` for more
+            // discussion.
             //
             // For ghost tasks, we always consider `childrenQuery` to be manually sorted.
             if (childrenQuery && !isTaskQueryManuallySorted(childrenQuery.sorts)) return null;
@@ -858,37 +859,58 @@ export function TaskDetailView({
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            const actualPosition: TaskPosition =
-                position.type !== "Position"
-                    ? childrenQuery
-                        ? getNewTaskPositionForQuerySortedByPosition(time2, childrenQuery, position)
-                        : {orderTime: time2, orderKey: initialOrderKey}
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId: childTaskId,
-                    taskAction: {
-                        type: "UpdateParentTaskId",
-                        parentTaskId: possiblyGhostTaskId,
+            const actualPositions = childrenQuery
+                ? getNewTaskPositionsForQuerySortedByPosition(
+                      time2,
+                      childrenQuery,
+                      position,
+                      childTaskIds.length,
+                  )
+                : {
+                      orderTime: time2,
+                      orderKeys: generateOrderKeysBetween(null, null, childTaskIds.length),
+                  };
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < childTaskIds.length; index++) {
+                const childTaskId = childTaskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId: childTaskId,
+                        taskAction: {
+                            type: "UpdateParentTaskId",
+                            parentTaskId: possiblyGhostTaskId,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId: childTaskId,
-                    taskAction: {
-                        type: "UpdateParentPosition",
-                        parentPosition: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId: childTaskId,
+                        taskAction: {
+                            type: "UpdateParentPosition",
+                            parentPosition: position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {

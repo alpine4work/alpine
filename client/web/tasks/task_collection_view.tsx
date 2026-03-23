@@ -36,7 +36,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {isTaskClientStoreCollectionEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_collection_entry_deleted.js";
 import {
     TaskCollectionViewDesktopHeader,
@@ -90,6 +90,7 @@ import {
     taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQueryFilter,
     serializeTaskQueryFiltersSearchParam,
@@ -636,7 +637,7 @@ export function TaskCollectionView({
         query: queryState.activeQuery.query,
         affinityManager,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow",
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
             const query = queryState.activeQuery.query.query;
@@ -644,48 +645,66 @@ export function TaskCollectionView({
             // If the query is auto-sorted we disable features that allow moving tasks into the
             // query. Like hitting shift-tab to dedent or hitting enter to create a new task.
             // We may want to re-enable some of these someday in auto-sorted queries. See the
-            // comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more discussion.
+            // comment on `getMoveTasksToQueryActions` in `<TaskQueryView>` for more
+            // discussion.
             if (!isTaskQueryManuallySorted(query.sorts)) return null;
 
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(time2, query, position)
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const taskCollections = store.getTaskEntrySnapshot(taskId)?.task?.getCollections();
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time2,
+                query,
+                actualPosition,
+                taskIds.length,
+            );
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "AddCollection",
-                        collectionId: collectionSubscription.collectionId,
-                        orderKey: generateOrderKeyBetween(
-                            taskCollections?.getLastOrderKey() ?? null,
-                            null,
-                        ),
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+                const taskCollections = store.getTaskEntrySnapshot(taskId)?.task?.getCollections();
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collectionSubscription.collectionId,
+                            orderKey: generateOrderKeyBetween(
+                                taskCollections?.getLastOrderKey() ?? null,
+                                null,
+                            ),
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateCollectionPosition",
-                        collectionId: collectionSubscription.collectionId,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId: collectionSubscription.collectionId,
+                            position: position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {

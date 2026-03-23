@@ -6,11 +6,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {
-    generateOrderKeyBetween,
-    initialOrderKey,
-    isOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
+import {OrderKey, generateOrderKeysBetween, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
@@ -20,7 +16,7 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
  * Get the `TaskPosition` for a new task in a query that's sorted by
  * `TaskPosition`s (e.g. the my tasks view or child task query).
  *
- * This function is to help implement the `getMoveTaskToQueryActions()` prop of
+ * This function is to help implement the `getMoveTasksToQueryActions()` prop of
  * `useTaskGridViewVirtualizedList()`.
  */
 export function getNewTaskPositionForQuerySortedByPosition(
@@ -32,6 +28,35 @@ export function getNewTaskPositionForQuerySortedByPosition(
         | {type: "Above"; taskId: TaskId}
         | {type: "Below"; taskId: TaskId},
 ): TaskPosition {
+    const {orderTime, orderKeys} = getNewTaskPositionsForQuerySortedByPosition(
+        time,
+        query,
+        position,
+        1,
+    );
+    return {orderTime, orderKey: orderKeys[0]!};
+}
+
+/**
+ * Get the `TaskPosition`s for new tasks in a query that's sorted by
+ * `TaskPosition`s (e.g. the my tasks view or child task query).
+ *
+ * This function is to help implement the `getMoveTasksToQueryActions()` prop of
+ * `useTaskGridViewVirtualizedList()`.
+ */
+export function getNewTaskPositionsForQuerySortedByPosition(
+    time: HybridLogicalTime,
+    query: TaskClientQuery,
+    position:
+        | {type: "Start"}
+        | {type: "End"}
+        | {type: "Above"; taskId: TaskId}
+        | {type: "Below"; taskId: TaskId},
+    count: number,
+): {
+    readonly orderTime: HybridLogicalTime;
+    readonly orderKeys: ReadonlyArray<OrderKey>;
+} {
     assert(query.sorts.length > 0);
     const firstQuerySort = query.sorts[0]!;
     assert(
@@ -46,7 +71,7 @@ export function getNewTaskPositionForQuerySortedByPosition(
             if (firstQuerySort.direction === "Descending") {
                 return {
                     orderTime: time,
-                    orderKey: initialOrderKey,
+                    orderKeys: generateOrderKeysBetween(null, null, count).reverse(),
                 };
             }
 
@@ -55,22 +80,24 @@ export function getNewTaskPositionForQuerySortedByPosition(
             if (!firstCursor) {
                 return {
                     orderTime: time,
-                    orderKey: initialOrderKey,
+                    orderKeys: generateOrderKeysBetween(null, null, count),
                 };
             }
 
             const firstTaskId = getTaskQuerySortCursorTaskId(firstCursor);
 
-            return getNewTaskPositionForQuerySortedByPosition(time, query, {
-                type: "Above",
-                taskId: firstTaskId,
-            });
+            return getNewTaskPositionsForQuerySortedByPosition(
+                time,
+                query,
+                {type: "Above", taskId: firstTaskId},
+                count,
+            );
         }
         case "End": {
             if (firstQuerySort.direction === "Ascending") {
                 return {
                     orderTime: time,
-                    orderKey: initialOrderKey,
+                    orderKeys: generateOrderKeysBetween(null, null, count),
                 };
             }
 
@@ -79,16 +106,18 @@ export function getNewTaskPositionForQuerySortedByPosition(
             if (!lastCursor) {
                 return {
                     orderTime: time,
-                    orderKey: initialOrderKey,
+                    orderKeys: generateOrderKeysBetween(null, null, count).reverse(),
                 };
             }
 
             const lastTaskId = getTaskQuerySortCursorTaskId(lastCursor);
 
-            return getNewTaskPositionForQuerySortedByPosition(time, query, {
-                type: "Below",
-                taskId: lastTaskId,
-            });
+            return getNewTaskPositionsForQuerySortedByPosition(
+                time,
+                query,
+                {type: "Below", taskId: lastTaskId},
+                count,
+            );
         }
         case "Above":
         case "Below": {
@@ -149,13 +178,16 @@ export function getNewTaskPositionForQuerySortedByPosition(
                     ? position2.orderKey
                     : null;
 
+            const orderKeys =
+                (position.type === "Above" && firstQuerySort.direction === "Ascending") ||
+                (position.type === "Below" && firstQuerySort.direction === "Descending")
+                    ? generateOrderKeysBetween(orderKey2, position1.orderKey, count)
+                    : generateOrderKeysBetween(position1.orderKey, orderKey2, count);
+
             return {
                 orderTime: position1.orderTime,
-                orderKey:
-                    (position.type === "Above" && firstQuerySort.direction === "Ascending") ||
-                    (position.type === "Below" && firstQuerySort.direction === "Descending")
-                        ? generateOrderKeyBetween(orderKey2, position1.orderKey)
-                        : generateOrderKeyBetween(position1.orderKey, orderKey2),
+                orderKeys:
+                    firstQuerySort.direction === "Descending" ? orderKeys.reverse() : orderKeys,
             };
         }
         default:

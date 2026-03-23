@@ -303,8 +303,8 @@ function TaskRowView(
         withPaddingBottom,
         hasNextGridView,
         hasDecorativeGhostRowBackground,
-        getMoveTaskToQueryActions,
-        getMoveTaskToRootQueryActions,
+        getMoveTasksToQueryActions,
+        getMoveTasksToRootQueryActions,
         getMaybeRemoveTaskFromQueryActions,
         createTaskAbove,
         createTaskBelowAndFocus,
@@ -353,20 +353,8 @@ function TaskRowView(
         withPaddingBottom?: boolean;
         hasNextGridView: boolean;
         hasDecorativeGhostRowBackground: boolean;
-        getMoveTaskToQueryActions: (
-            taskId: TaskId,
-            position:
-                | {type: "Start"}
-                | {type: "End"}
-                | {type: "Above"; taskId: TaskId}
-                | {type: "Below"; taskId: TaskId}
-                | {type: "Position"; position: TaskPosition},
-        ) => {
-            actions: Array<TaskActionModel>;
-            position: TaskPosition;
-        } | null;
-        getMoveTaskToRootQueryActions: (
-            taskId: TaskId,
+        getMoveTasksToQueryActions: (
+            taskIds: ReadonlyArray<TaskId>,
             position:
                 | {type: "Start"}
                 | {type: "End"}
@@ -374,7 +362,18 @@ function TaskRowView(
                 | {type: "Below"; taskId: TaskId},
         ) => {
             actions: Array<TaskActionModel>;
-            position: TaskPosition;
+            positions: Array<TaskPosition>;
+        } | null;
+        getMoveTasksToRootQueryActions: (
+            taskIds: ReadonlyArray<TaskId>,
+            position:
+                | {type: "Start"}
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => {
+            actions: Array<TaskActionModel>;
+            positions: Array<TaskPosition>;
         } | null;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         createTaskAbove: () => void;
@@ -1200,7 +1199,7 @@ function TaskRowView(
                         ];
 
                         if (!options?.withoutMoveGhostTaskToQuery) {
-                            for (const action of getMoveTaskToQueryActions(ghostTaskId, {
+                            for (const action of getMoveTasksToQueryActions([ghostTaskId], {
                                 type: isFirstRow ? "Start" : "End",
                             })?.actions ?? []) {
                                 actions.push(action);
@@ -1501,7 +1500,7 @@ function TaskRowView(
             parents,
             nextIndentation,
             areChildTasksExpanded,
-            getMoveTaskToRootQueryActions,
+            getMoveTasksToRootQueryActions,
             setRowZIndex,
         });
 
@@ -1518,7 +1517,7 @@ function TaskRowView(
                 isPositionedAbove={true}
                 isVerticallyFlipped={true}
                 getDropActions={taskId =>
-                    getMoveTaskToRootQueryActions(taskId, {
+                    getMoveTasksToRootQueryActions([taskId], {
                         type: "Above",
                         taskId: getTaskQuerySortCursorTaskId(cursor),
                     })?.actions ?? []
@@ -1799,7 +1798,7 @@ function TaskRowView(
                     focusCell={focusCell}
                     focusNextCell={focusNextCell}
                     focusPreviousCell={focusPreviousCell}
-                    getMoveTaskToQueryActions={getMoveTaskToQueryActions}
+                    getMoveTasksToQueryActions={getMoveTasksToQueryActions}
                     getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
                     commitActionTransaction={commitActionTransaction}
                 />

@@ -44,7 +44,10 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {
+    getNewTaskPositionForQuerySortedByPosition,
+    getNewTaskPositionsForQuerySortedByPosition,
+} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewColumnHeader as TaskGridViewActualColumnHeader} from "~/client/web/tasks/internal/task_grid_view_column_header.js";
 import {TaskGridViewTaskKey} from "~/client/web/tasks/internal/task_grid_view_task_key.js";
@@ -702,58 +705,77 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     // If this is the root query then the new task needs to be added to that query.
     // Otherwise we want to add the new task at the same indentation level that our
     // task is currently at.
-    const getMoveTaskToQueryActions: (
-        taskId: TaskId,
+    const getMoveTasksToQueryActions: (
+        taskIds: ReadonlyArray<TaskId>,
         position:
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId}
-            | {type: "Position"; position: TaskPosition},
+            | {type: "Below"; taskId: TaskId},
     ) => {
         actions: Array<TaskActionModel>;
-        position: TaskPosition;
+        positions: Array<TaskPosition>;
     } | null =
         query === rootQuery
-            ? events.getMoveTaskToRootQueryActions
-            : (newTaskId, position) => {
+            ? events.getMoveTasksToRootQueryActions
+            : (taskIds, actualPosition) => {
                   const time1 = store.clock.now();
                   const time2 = store.clock.now();
 
                   // `query` can only be null if `rootQuery` is null.
                   assert(query !== null);
 
-                  const actualPosition =
-                      position.type !== "Position"
-                          ? getNewTaskPositionForQuerySortedByPosition(time2, query, position)
-                          : position.position;
+                  const positions: Array<TaskPosition> = [];
 
-                  const actions: Array<TaskActionModel> = [
-                      {
-                          type: "UpdateTask",
-                          time: time1,
-                          taskId: newTaskId,
-                          taskAction: {
-                              type: "UpdateParentTaskId",
-                              parentTaskId: getTaskQuerySortCursorTaskId(
-                                  assertExists(parents[parents.length - 1]).cursor,
-                              ),
+                  const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                      time2,
+                      query,
+                      actualPosition,
+                      taskIds.length,
+                  );
+
+                  for (const orderKey of actualPositions.orderKeys) {
+                      positions.push({
+                          orderTime: actualPositions.orderTime,
+                          orderKey,
+                      });
+                  }
+
+                  const parentTaskId = getTaskQuerySortCursorTaskId(
+                      assertExists(parents[parents.length - 1]).cursor,
+                  );
+
+                  const actions: Array<TaskActionModel> = [];
+
+                  for (let index = 0; index < taskIds.length; index++) {
+                      const taskId = taskIds[index]!;
+                      const position = positions[index]!;
+
+                      actions.push(
+                          {
+                              type: "UpdateTask",
+                              time: time1,
+                              taskId,
+                              taskAction: {
+                                  type: "UpdateParentTaskId",
+                                  parentTaskId,
+                              },
                           },
-                      },
-                      {
-                          type: "UpdateTask",
-                          time: time2,
-                          taskId: newTaskId,
-                          taskAction: {
-                              type: "UpdateParentPosition",
-                              parentPosition: actualPosition,
+                          {
+                              type: "UpdateTask",
+                              time: time2,
+                              taskId,
+                              taskAction: {
+                                  type: "UpdateParentPosition",
+                                  parentPosition: position,
+                              },
                           },
-                      },
-                  ];
+                      );
+                  }
 
                   return {
                       actions,
-                      position: actualPosition,
+                      positions,
                   };
               };
 
@@ -798,8 +820,8 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         creatorTimeZone: timeZone,
                     },
                 },
-                ...(getMoveTaskToQueryActions(
-                    newTaskId,
+                ...(getMoveTasksToQueryActions(
+                    [newTaskId],
                     taskId ? {type: "Above", taskId} : {type: "End"},
                 )?.actions ?? []),
             ],
@@ -834,7 +856,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             creatorTimeZone: timeZone,
                         },
                     },
-                    ...(getMoveTaskToQueryActions(newTaskId, {type: "Start"})?.actions ?? []),
+                    ...(getMoveTasksToQueryActions([newTaskId], {type: "Start"})?.actions ?? []),
                 ],
                 {undoManager},
             );
@@ -976,7 +998,8 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         creatorTimeZone: timeZone,
                     },
                 },
-                ...(getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId})?.actions ?? []),
+                ...(getMoveTasksToQueryActions([newTaskId], {type: "Below", taskId})?.actions ??
+                    []),
             ],
             {undoManager},
         );
@@ -1145,7 +1168,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             events.commitActionTransaction(
                 () => [
-                    ...(events.getMoveTaskToRootQueryActions(taskId, {
+                    ...(events.getMoveTasksToRootQueryActions([taskId], {
                         type: "Below",
                         taskId: oldParentTaskId,
                     })?.actions ?? []),
@@ -1390,8 +1413,8 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             withPaddingBottom={withPaddingBottom}
             hasNextGridView={hasNextGridView}
             hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
-            getMoveTaskToRootQueryActions={events.getMoveTaskToRootQueryActions}
-            getMoveTaskToQueryActions={getMoveTaskToQueryActions}
+            getMoveTasksToRootQueryActions={events.getMoveTasksToRootQueryActions}
+            getMoveTasksToQueryActions={getMoveTasksToQueryActions}
             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
             createTaskAbove={createTaskAbove}
             createTaskBelowAndFocus={createTaskBelowAndFocus}
