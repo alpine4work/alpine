@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import chalk from "chalk";
 import fs from "fs-extra";
 import {basename, join as joinPath} from "path";
@@ -40,7 +41,7 @@ async function getStackTraceInput(): Promise<string> {
     try {
         const clipboard = await runProcess("pbpaste", []);
         if (clipboard.trim() !== "" && looksLikeStackTrace(clipboard)) {
-            process.stderr.write(chalk.dim("Using stack trace from clipboard.") + "\n\n");
+            console.error(chalk.dim("Using stack trace from clipboard.") + "\n");
             return clipboard;
         }
     } catch {
@@ -48,7 +49,7 @@ async function getStackTraceInput(): Promise<string> {
     }
 
     // No clipboard stack trace. Prompt the user.
-    process.stderr.write("Paste a stack trace, then press Ctrl-D:\n");
+    console.error("Paste a stack trace, then press Ctrl-D:");
     return readStdin();
 }
 
@@ -115,37 +116,6 @@ async function downloadSourcemaps(commitSha: string): Promise<string | null> {
     return cacheDir;
 }
 
-async function findSourcemapsDir(commitSha: string): Promise<string> {
-    // Try the given commit and up to 4 ancestors.
-    let sha = commitSha;
-    for (let i = 0; i < 5; i++) {
-        if (i > 0) {
-            process.stderr.write(
-                chalk.dim(
-                    `No sourcemap artifact for ${sha.slice(0, 10)}, trying parent commit...`,
-                ) + "\n",
-            );
-            sha = (await runProcess("git", ["rev-parse", `${sha}~1`])).trim();
-        }
-
-        const dir = await downloadSourcemaps(sha);
-        if (dir !== null) {
-            if (i > 0) {
-                process.stderr.write(
-                    chalk.dim(`Using sourcemaps from ancestor commit ${sha.slice(0, 10)}.`) +
-                        "\n\n",
-                );
-            }
-            return dir;
-        }
-    }
-
-    throw new UnknownError(
-        `No sourcemap artifact found for ${commitSha.slice(0, 10)} or its 4 ancestors.\n` +
-            `Make sure the commit was deployed after sourcemap uploads were enabled.`,
-    );
-}
-
 async function loadSourcemapConsumers(
     sourcemapsDir: string,
 ): Promise<Map<string, SourceMapConsumer>> {
@@ -178,6 +148,18 @@ async function loadSourcemapConsumers(
     }
 
     return consumers;
+}
+
+/** Returns the set of JS filenames referenced in stack frames. */
+function extractStackTraceFilenames(stackTrace: string): Set<string> {
+    const filenames = new Set<string>();
+    for (const line of stackTrace.split("\n")) {
+        const match = stackFramePattern.exec(line);
+        if (match?.groups) {
+            filenames.add(basename(match.groups.url!));
+        }
+    }
+    return filenames;
 }
 
 function resolveStackTrace(stackTrace: string, consumers: Map<string, SourceMapConsumer>): string {
@@ -254,27 +236,74 @@ async function main(): Promise<void> {
     }
 
     if (!commitSha) {
-        process.stderr.write(chalk.dim("Fetching deployed commit...") + "\n");
+        console.error(chalk.dim("Fetching deployed commit..."));
         commitSha = await getDeployedCommitSha();
-        process.stderr.write(chalk.dim(`Deployed commit: ${commitSha.slice(0, 10)}`) + "\n");
+        console.error(chalk.dim(`Deployed commit: ${commitSha.slice(0, 10)}`));
     }
 
-    process.stderr.write(chalk.dim("Downloading sourcemaps...") + "\n");
-    const sourcemapsDir = await findSourcemapsDir(commitSha);
+    const neededFilenames = extractStackTraceFilenames(stackTrace);
 
-    process.stderr.write(chalk.dim("Loading sourcemaps...") + "\n\n");
-    const consumers = await loadSourcemapConsumers(sourcemapsDir);
+    // Try the deploy commit and walk back through ancestors until we find sourcemaps
+    // whose chunk hashes match the stack trace.
+    const maxAncestors = 5;
+    let consumers: Map<string, SourceMapConsumer> | undefined;
+    let sha = commitSha;
 
-    if (consumers.size === 0) {
-        throw new UnknownError("No sourcemap files found in artifact.");
+    for (let i = 0; i < maxAncestors; i++) {
+        if (i > 0) {
+            console.error(
+                chalk.dim(
+                    `Sourcemaps for ${sha.slice(0, 10)} don\u2019t match stack trace chunks, trying parent...`,
+                ),
+            );
+            sha = (await runProcess("git", ["rev-parse", `${sha}~1`])).trim();
+        }
+
+        console.error(chalk.dim(`Downloading sourcemaps for ${sha.slice(0, 10)}...`));
+        const sourcemapsDir = await downloadSourcemaps(sha);
+
+        if (sourcemapsDir === null) {
+            continue;
+        }
+
+        const candidate = await loadSourcemapConsumers(sourcemapsDir);
+
+        if (candidate.size === 0) {
+            continue;
+        }
+
+        // Check if any of the stack trace filenames match these sourcemaps.
+        let hasMatch = false;
+        for (const filename of neededFilenames) {
+            if (candidate.has(filename)) {
+                hasMatch = true;
+                break;
+            }
+        }
+
+        if (hasMatch) {
+            consumers = candidate;
+            if (i > 0) {
+                console.error(chalk.dim(`Found matching sourcemaps at ${sha.slice(0, 10)}.`));
+            }
+            break;
+        }
+
+        // No match — clean up and try the next ancestor.
+        for (const consumer of candidate.values()) {
+            consumer.destroy();
+        }
     }
 
-    const resolved = resolveStackTrace(stackTrace, consumers);
-    process.stdout.write(resolved);
-
-    if (!resolved.endsWith("\n")) {
-        process.stdout.write("\n");
+    if (!consumers) {
+        throw new UnknownError(
+            `No sourcemaps matching the stack trace chunks found for ${commitSha.slice(0, 10)} ` +
+                `or its ${maxAncestors - 1} ancestors.`,
+        );
     }
+
+    console.error();
+    console.log(resolveStackTrace(stackTrace, consumers));
 
     // Clean up wasm resources.
     for (const consumer of consumers.values()) {
@@ -283,7 +312,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(error => {
-    // eslint-disable-next-line no-console
     console.error(error);
     process.exitCode = 1;
 });
