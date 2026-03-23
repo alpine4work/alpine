@@ -1,5 +1,6 @@
 import {strFromU8} from "fflate";
-import {createDocument, doesDocumentExist} from "~/server/documents/data/documents_actions.js";
+import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
@@ -183,9 +184,6 @@ export async function convertExtractedNotionDataToEntities(
                 }
             }
 
-            // TODO: Handle multiple pages at once
-            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
-
             let totalDocumentCount = 0;
             for (const ts of teamspaces) {
                 totalDocumentCount += Object.keys(ts.documents).length;
@@ -223,19 +221,21 @@ export async function convertExtractedNotionDataToEntities(
                     }
                 }
 
-                // Process each document in the teamspace
-                for (const [filePath, documentInfo] of Object.entries(teamspace.documents)) {
+                async function createDocumentFromNotionDocument(
+                    filePath: string,
+                    documentInfo: (typeof teamspace.documents)[string],
+                ) {
                     // Read the file content using the context module
                     const fileContent = assertExists(await readUnzippedFile(filePath));
                     const rawContent = strFromU8(fileContent);
-                    // ============================================================ Preprocess markdown
-                    // for database properties
-                    // ============================================================ Notion exports
-                    // database row pages with property lines separated by single newlines (e.g.,
-                    // "Status: Done\nPriority: High"). In markdown, single newlines don't create
-                    // paragraph breaks - they become spaces. We convert single newlines between
-                    // property-like lines to double newlines so the markdown parser creates separate
-                    // paragraphs, which we can then detect and format in API content.
+                    // ============================================================ \
+                    // Preprocess markdown for database properties \
+                    // ============================================================ \
+                    // Notion exports database row pages with property lines separated by single
+                    // newlines (e.g., "Status: Done\nPriority: High"). In markdown, single newlines
+                    // don't create paragraph breaks - they become spaces. We convert single newlines
+                    // between property-like lines to double newlines so the markdown parser creates
+                    // separate paragraphs, which we can then detect and format in API content.
                     const currentDir = filePath.includes("/")
                         ? filePath.slice(0, filePath.lastIndexOf("/"))
                         : "";
@@ -245,15 +245,16 @@ export async function convertExtractedNotionDataToEntities(
                         filesToUpload,
                     );
 
-                    // ============================================================ Parse markdown to
-                    // API content ============================================================
+                    // ============================================================ \
+                    // Parse markdown to API content \
+                    // ============================================================ \
                     const rawApiContent = parseApiContentFromMarkdown(preprocessedContent, {
                         spaceId,
                         dangerouslyAllowImageContentType: true,
                     });
 
-                    // ============================================================ Transform API
-                    // content for Alpine's format
+                    // ============================================================ \
+                    // Transform API content for Alpine's format \
                     // ============================================================
                     const {title, content: finalApiContent} =
                         await reformatNotionApiContentIntoOurDesiredFormat(context, rawApiContent, {
@@ -299,10 +300,30 @@ export async function convertExtractedNotionDataToEntities(
                         ]),
                     );
 
-                    // Skip duplicate documents. Deterministic IDs mean re-importing the same Notion
-                    // workspace produces the same document IDs.
-                    if (await doesDocumentExist(context, documentInfo.id)) {
-                        continue;
+                    try {
+                        // Create the document
+                        await impersonateAccountAsSystemContext(
+                            context,
+                            startedByAccountId,
+                            context =>
+                                createDocument(context, {
+                                    id: documentInfo.id,
+                                    spaceId,
+                                    creatorId: startedByAccountId,
+                                    content: documentContent,
+                                    createFeedEntry: false,
+                                    from: {type: "Importer", source: {type: "Notion"}},
+                                }),
+                        );
+                    } catch (error) {
+                        if (isDynamoConditionCheckError(error)) {
+                            // DynamoDB throws a condition check error if the document already exists. Noop if
+                            // the doc exists. Deterministic IDs mean re-importing the same Notion workspace
+                            // produces the same document IDs.
+                            return;
+                        }
+
+                        throw error;
                     }
 
                     // Attach files to the document so they can be accessed via the document. Files are
@@ -310,10 +331,6 @@ export async function convertExtractedNotionDataToEntities(
                     // document is loaded. We extract file IDs from the final content because
                     // additional files may have been added during content transformation (e.g., from
                     // CSV tables).
-                    //
-                    // It's important that we attach the files before creating the document! So that if
-                    // you open a document after it's created you don't get "file not attached"
-                    // crashes.
                     const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
                     await runAllPromises(
                         [...fileIdsInContent].map(fileId =>
@@ -321,30 +338,20 @@ export async function convertExtractedNotionDataToEntities(
                         ),
                     );
 
-                    // Create the document
-                    await impersonateAccountAsSystemContext(context, startedByAccountId, context =>
-                        createDocument(context, {
-                            id: documentInfo.id,
-                            spaceId,
-                            creatorId: startedByAccountId,
-                            content: documentContent,
-                            createFeedEntry: false,
-                            from: {type: "Importer", source: {type: "Notion"}},
-                        }),
-                    );
-
                     // Increment document counter via state manager (periodically persisted)
                     progressState.incrementDocumentCounter(teamspace.id);
                 }
 
-                // Create documents for root-level CSV-only databases
-                for (const [csvPath, csvDatabaseInfo] of csvDatabaseDocuments) {
-                    if (csvDatabaseInfo.teamspaceId !== teamspace.id) continue;
-
-                    // Skip duplicate CSV database documents
-                    if (await doesDocumentExist(context, csvDatabaseInfo.id)) {
-                        continue;
-                    }
+                async function createDocumentFromNotionDatabase(
+                    csvPath: string,
+                    csvDatabaseInfo: {
+                        id: DocumentId;
+                        teamspaceId: string;
+                        childPaths: Array<string>;
+                        parentPath: string | null;
+                    },
+                ) {
+                    if (csvDatabaseInfo.teamspaceId !== teamspace.id) return;
 
                     // Create a document for this CSV database. Use the parent page's document ID when
                     // the database is under a page, otherwise use the teamspace root.
@@ -353,45 +360,73 @@ export async function convertExtractedNotionDataToEntities(
                           teamspaceRootDocumentId)
                         : teamspaceRootDocumentId;
 
-                    await createNotionImportCsvDatabaseDocument(context, {
-                        spaceId,
-                        creatorId: startedByAccountId,
-                        documentId: csvDatabaseInfo.id,
-                        parentId: csvParentId,
-                        csvPath,
-                        diskPathToUnzippedFiles,
-                        isPublic,
-                        inlineDatabaseChildren,
-                        filesToUpload,
-                    });
+                    try {
+                        await createNotionImportCsvDatabaseDocument(context, {
+                            spaceId,
+                            creatorId: startedByAccountId,
+                            documentId: csvDatabaseInfo.id,
+                            parentId: csvParentId,
+                            csvPath,
+                            diskPathToUnzippedFiles,
+                            isPublic,
+                            inlineDatabaseChildren,
+                            filesToUpload,
+                        });
+                    } catch (error) {
+                        if (isDynamoConditionCheckError(error)) {
+                            // DynamoDB throws a condition check error if the document already exists. Noop if
+                            // the doc exists. Deterministic IDs mean re-importing the same Notion workspace
+                            // produces the same document IDs.
+                            return;
+                        }
+
+                        throw error;
+                    }
 
                     // Increment document counter via state manager (periodically persisted)
                     progressState.incrementDocumentCounter(teamspace.id);
                 }
 
-                // Skip duplicate teamspace root documents
-                if (await doesDocumentExist(context, teamspaceRootDocumentId)) {
-                    continue;
-                }
+                await runAllPromises([
+                    ...Object.entries(teamspace.documents).map(([filePath, documentInfo]) =>
+                        createDocumentFromNotionDocument(filePath, documentInfo),
+                    ),
+                    ...[...csvDatabaseDocuments.entries()].map(([csvPath, csvDatabaseInfo]) =>
+                        createDocumentFromNotionDatabase(csvPath, csvDatabaseInfo),
+                    ),
+                ]);
 
                 // Create a teamspace root document with list of first-layer children
-                await createNotionImportTeamspaceRootDocument(context, {
-                    spaceId,
-                    workspaceName: assertExists(workspaceName),
-                    creatorId: startedByAccountId,
-                    teamspaceName: teamspace.name,
-                    isPublic,
-                    teamspaceRootDocumentId,
-                    teamspaceDocuments: teamspace.documents,
-                    csvDatabaseDocumentIds: new Map(
-                        [...csvDatabaseDocuments.entries()]
-                            .filter(
-                                ([, info]) =>
-                                    info.teamspaceId === teamspace.id && info.parentPath === null,
-                            )
-                            .map(([csvPath, info]) => [csvPath, info.id]),
-                    ),
-                });
+                try {
+                    await createNotionImportTeamspaceRootDocument(context, {
+                        spaceId,
+                        workspaceName: assertExists(workspaceName),
+                        creatorId: startedByAccountId,
+                        teamspaceName: teamspace.name,
+                        isPublic,
+                        teamspaceRootDocumentId,
+                        teamspaceDocuments: teamspace.documents,
+                        csvDatabaseDocumentIds: new Map(
+                            [...csvDatabaseDocuments.entries()]
+                                .filter(
+                                    ([, info]) =>
+                                        info.teamspaceId === teamspace.id &&
+                                        info.parentPath === null,
+                                )
+                                .map(([csvPath, info]) => [csvPath, info.id]),
+                        ),
+                    });
+                } catch (error) {
+                    if (isDynamoConditionCheckError(error)) {
+                        // DynamoDB throws a condition check error if the document already exists. Noop if
+                        // the doc exists. Deterministic IDs mean re-importing the same Notion workspace
+                        // produces the same document IDs.
+
+                        // no op
+                    } else {
+                        throw error;
+                    }
+                }
 
                 // Increment document counter for teamspace root
                 progressState.incrementDocumentCounter(teamspace.id);
@@ -402,8 +437,8 @@ export async function convertExtractedNotionDataToEntities(
                 if (counters && expectedStats) {
                     context.tracer.withSpanSync(
                         "Convert notion import site",
-                        (_tracerContext, siteSpan) => {
-                            siteSpan.addData({
+                        (_tracerContext, span) => {
+                            span.addData({
                                 importer: {
                                     site: {notionId: teamspace.id},
                                     created: {documents: counters.documents},
