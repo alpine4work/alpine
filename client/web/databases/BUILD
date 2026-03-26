@@ -18,6 +18,7 @@ ts_project(
         "//client/web/remix",
         "//client/web/spaces",
         "//client/web/styles",
+        "//client/web/virtualized",
         "//client/web/web_socket",
         "//shared/databases",
         "//shared/design",

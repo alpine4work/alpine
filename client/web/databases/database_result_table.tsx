@@ -1,7 +1,100 @@
+import {Memo, useMemo} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewItem,
+} from "~/client/web/virtualized/virtualized_scroll_view.js";
 
-export function DatabaseResultTable({rows}: {rows: ReadonlyArray<unknown>}) {
+type DatabaseResultTableField = {
+    readonly name: string;
+    readonly columnName: string;
+    readonly width: number;
+};
+
+const defaultFieldWidth = 200;
+
+const alwaysRenderHeader: ReadonlyArray<number> = [0];
+
+/**
+ * Renders database rows in a virtualized grid with a
+ * sticky header. When `fields` is provided, uses view
+ * field metadata for column names and widths. Otherwise
+ * infers columns from row object keys (for raw SQL).
+ */
+export function DatabaseResultTable({
+    fields,
+    rows: rawRows,
+}: {
+    fields?: ReadonlyArray<DatabaseResultTableField> | undefined;
+    rows: ReadonlyArray<unknown>;
+}) {
+    const rows = rawRows as ReadonlyArray<Record<string, unknown>>;
+
+    const resolvedFields = useMemo(() => {
+        if (fields != null) return fields;
+        if (rows.length === 0) return [];
+        return Object.keys(rows[0]!).map(key => ({
+            name: key,
+            columnName: key,
+            width: defaultFieldWidth,
+        }));
+    }, [fields, rows]);
+
+    const renderItem: Memo<(index: number) => VirtualizedScrollViewItem> = useMemo(
+        () =>
+            function renderItem(index: number): VirtualizedScrollViewItem {
+                if (index === 0) {
+                    return {
+                        key: "header",
+                        minHeight: 32,
+                        zIndex: "10",
+                        withManualLayout: true,
+                        render({ref, offset, shouldRenderWithRelativePositioning}) {
+                            return (
+                                <div
+                                    style={
+                                        shouldRenderWithRelativePositioning
+                                            ? {position: "relative"}
+                                            : {
+                                                  position: "absolute",
+                                                  top: offset,
+                                                  left: 0,
+                                                  right: 0,
+                                                  bottom: 0,
+                                              }
+                                    }
+                                >
+                                    <div
+                                        ref={ref}
+                                        style={{
+                                            position: shouldRenderWithRelativePositioning
+                                                ? "relative"
+                                                : "sticky",
+                                            top: shouldRenderWithRelativePositioning
+                                                ? undefined
+                                                : 0,
+                                            minHeight: 32,
+                                        }}
+                                    >
+                                        <DatabaseResultTableHeaderRow fields={resolvedFields} />
+                                    </div>
+                                </div>
+                            );
+                        },
+                    };
+                }
+
+                const row = rows[index - 1]!;
+                const rowKey = typeof row._id === "string" ? row._id : `row-${index}`;
+                return {
+                    key: rowKey,
+                    minHeight: 32,
+                    node: <DatabaseResultTableDataRow fields={resolvedFields} row={row} />,
+                };
+            },
+        [resolvedFields, rows],
+    );
+
     if (rows.length === 0) {
         return (
             <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
@@ -9,68 +102,71 @@ export function DatabaseResultTable({rows}: {rows: ReadonlyArray<unknown>}) {
             </Box>
         );
     }
-    const columns = Object.keys(rows[0] as Record<string, unknown>);
+
     return (
-        <Box
-            overflow="auto"
-            borderRadius="1"
-            boxShadow="elevation-5-with-grey-10-border"
-            style={{maxHeight: 400}}
-        >
-            <table
-                className={sprinkles({
-                    width: "full",
-                    fontSize: "75",
-                    fontStyle: "code",
-                })}
-                style={{borderCollapse: "collapse"}}
-            >
-                <thead>
-                    <tr>
-                        {columns.map(col => (
-                            <th
-                                key={col}
-                                className={sprinkles({
-                                    backgroundColor: "grey-5",
-                                    color: "grey-80",
-                                    padding: "2",
-                                })}
-                                style={{
-                                    textAlign: "left",
-                                    borderBottom: "1px solid var(--grey-10)",
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                {col}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((row, i) => {
-                        const record = row as Record<string, unknown>;
-                        return (
-                            <tr key={i}>
-                                {columns.map(col => (
-                                    <td
-                                        key={col}
-                                        className={sprinkles({
-                                            padding: "2",
-                                            color: "grey-100",
-                                        })}
-                                        style={{
-                                            borderBottom: "1px solid var(--grey-10)",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
-                                        {record[col] == null ? "NULL" : String(record[col])}
-                                    </td>
-                                ))}
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+        <Box flexGrow="1" overflow="hidden">
+            <VirtualizedScrollView
+                itemCount={rows.length + 1}
+                bufferedItemHeight={32}
+                renderItem={renderItem}
+                alwaysRenderAdditionalItemIndexes={alwaysRenderHeader}
+            />
+        </Box>
+    );
+}
+
+function DatabaseResultTableHeaderRow({fields}: {fields: ReadonlyArray<DatabaseResultTableField>}) {
+    return (
+        <Box display="flex">
+            {fields.map(field => (
+                <Box
+                    key={field.columnName}
+                    backgroundColor="grey-5"
+                    color="grey-80"
+                    fontSize="75"
+                    fontStyle="truncate-semi-bold"
+                    padding="2"
+                    textAlign="left"
+                    borderBottom="grey-10"
+                    style={{
+                        width: field.width,
+                        minWidth: field.width,
+                        maxWidth: field.width,
+                    }}
+                >
+                    {field.name}
+                </Box>
+            ))}
+        </Box>
+    );
+}
+
+function DatabaseResultTableDataRow({
+    fields,
+    row,
+}: {
+    fields: ReadonlyArray<DatabaseResultTableField>;
+    row: Record<string, unknown>;
+}) {
+    return (
+        <Box display="flex">
+            {fields.map(field => (
+                <Box
+                    key={field.columnName}
+                    fontSize="75"
+                    fontStyle="truncate"
+                    padding="2"
+                    color="grey-100"
+                    borderBottom="grey-10"
+                    style={{
+                        width: field.width,
+                        minWidth: field.width,
+                        maxWidth: field.width,
+                    }}
+                >
+                    {row[field.columnName] == null ? "NULL" : String(row[field.columnName])}
+                </Box>
+            ))}
         </Box>
     );
 }

@@ -31,6 +31,15 @@ const alpineViewRow = new SqliteRowFormatter(
     }),
 );
 
+const alpineViewFieldRow = new SqliteRowFormatter(
+    Schema.object({
+        id: Schema.id<DatabaseFieldId>(),
+        name: Schema.string,
+        columnName: Schema.string.originalPropertyKey("column_name"),
+        width: Schema.integer,
+    }),
+);
+
 /**
  * Defines a database action with typed input/output
  * schemas, a write level, and a shared `run()` function
@@ -159,6 +168,14 @@ export const databaseActions = {
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
             tableName: Schema.string,
+            fields: Schema.array(
+                Schema.object({
+                    id: Schema.id<DatabaseFieldId>(),
+                    name: Schema.string,
+                    columnName: Schema.string.originalPropertyKey("column_name"),
+                    width: Schema.integer,
+                }),
+            ),
             rows: Schema.array(Schema.unknown()),
         }),
         writeLevel: "none",
@@ -199,11 +216,21 @@ export const databaseActions = {
                 tableName = table.tableName;
             }
 
+            const fields = alpineViewFieldRow.all(
+                db,
+                `SELECT f.id, f.name, f.column_name, vf.width
+                 FROM _alpine_view_fields vf
+                 JOIN _alpine_fields f ON f.id = vf.field_id
+                 WHERE vf.view_id = ?
+                 ORDER BY vf.position`,
+                [viewId],
+            );
+
             const rows = db.exec(`SELECT * FROM "${tableName}"`, {
                 returnValue: "resultRows",
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
-            return {tableId, viewId, tableName, rows};
+            return {tableId, viewId, tableName, fields, rows};
         },
     }),
 };

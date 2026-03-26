@@ -79,5 +79,5 @@ export default function DatabaseViewRoute() {
             </pre>
         );
     }
-    return <DatabaseResultTable rows={result.value.rows} />;
+    return <DatabaseResultTable fields={result.value.fields} rows={result.value.rows} />;
 }
