@@ -58,3 +58,4 @@ export type DatabaseReactiveActionId = NominalRandomIdType<"DatabaseReactiveActi
 export type DatabaseTableId = NominalChronologicalIdType<"DatabaseTable">;
 export type DatabaseFieldId = NominalChronologicalIdType<"DatabaseField">;
 export type DatabaseViewId = NominalChronologicalIdType<"DatabaseView">;
+export type DatabaseRowId = NominalChronologicalIdType<"DatabaseRow">;

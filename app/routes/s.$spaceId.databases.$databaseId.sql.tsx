@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
-import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
+import {DatabaseRawResultTable} from "~/client/web/databases/database_raw_result_table.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -67,7 +67,7 @@ function WatchedQuery(props: {sql: string; onClose: () => void}) {
                     Loading...
                 </Box>
             ) : result.ok ? (
-                <DatabaseResultTable rows={rows!} />
+                <DatabaseRawResultTable rows={rows!} />
             ) : (
                 <pre
                     className={sprinkles({
@@ -190,7 +190,7 @@ export default function DatabaseSqlRoute() {
                     {error}
                 </pre>
             )}
-            {rows != null && <DatabaseResultTable rows={rows} />}
+            {rows != null && <DatabaseRawResultTable rows={rows} />}
             {watches.length > 0 && (
                 <Box display="flex" flexDirection="column" gap="2">
                     <Box fontSize="100" fontStyle="semi-bold">

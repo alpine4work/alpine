@@ -10,7 +10,12 @@ import {
 import {SqliteRowFormatter} from "~/shared/databases/internal/sqlite_row_formatter.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseFieldId,
+    DatabaseRowId,
+    DatabaseTableId,
+    DatabaseViewId,
+} from "~/shared/id/types/id_types.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 // -- Row formatters ----------------------------------------------------------
@@ -37,6 +42,14 @@ const alpineViewFieldRow = new SqliteRowFormatter(
         name: Schema.string,
         columnName: Schema.string.originalPropertyKey("column_name"),
         width: Schema.integer,
+    }),
+);
+
+const alpineFieldRow = new SqliteRowFormatter(
+    Schema.object({
+        id: Schema.id<DatabaseFieldId>(),
+        tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+        columnName: Schema.string.originalPropertyKey("column_name"),
     }),
 );
 
@@ -231,6 +244,30 @@ export const databaseActions = {
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
             return {tableId, viewId, tableName, fields, rows};
+        },
+    }),
+
+    updateCellValue: defineDatabaseAction({
+        input: Schema.object({
+            fieldId: Schema.id<DatabaseFieldId>(),
+            rowId: Schema.id<DatabaseRowId>(),
+            value: Schema.string,
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run(db, {fieldId, rowId, value}) {
+            const field = alpineFieldRow.one(
+                db,
+                "SELECT id, table_id, column_name FROM _alpine_fields WHERE id = ?",
+                [fieldId],
+            );
+            const table = alpineTableRow.one(db, "SELECT * FROM _alpine_tables WHERE id = ?", [
+                field.tableId,
+            ]);
+            db.exec(`UPDATE "${table.tableName}" SET "${field.columnName}" = ? WHERE _id = ?`, {
+                bind: [value, rowId],
+            });
+            return {};
         },
     }),
 };
