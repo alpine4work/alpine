@@ -51,16 +51,18 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             input: {
                 action: DatabaseActionObjectSchema,
                 mutationId: Schema.id<DatabaseMutationId>(),
+                returnResult: Schema.boolean.default(true),
+                returnPages: Schema.boolean.default(true),
             },
             output: {
-                result: DatabaseActionResultSchema,
+                result: DatabaseActionResultSchema.nullable(),
                 readPages: Schema.map(
                     Schema.integer,
                     Schema.object({
                         timestamp: Schema.integer,
                         data: Schema.bytes,
                     }),
-                ),
+                ).nullable(),
             },
         },
         ensureCacheIsUpToDate: {

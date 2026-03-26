@@ -114,11 +114,17 @@ export default function DatabaseLayoutRoute() {
     const {executeActionServer, ensureCacheIsUpToDate, reportError} = useEvents({
         executeActionServer: async (
             action: {name: "rawSql"; input: {readonly sql: string}},
-            options: {mutationId: DatabaseMutationId},
+            options: {
+                mutationId: DatabaseMutationId;
+                returnResult?: boolean;
+                returnPages?: boolean;
+            },
         ) => {
             return procedures.executeAction({
                 action,
                 mutationId: options.mutationId,
+                returnResult: options.returnResult ?? true,
+                returnPages: options.returnPages ?? true,
             });
         },
         ensureCacheIsUpToDate: async (pageTimestampsByIndex: ReadonlyMap<number, number>) => {

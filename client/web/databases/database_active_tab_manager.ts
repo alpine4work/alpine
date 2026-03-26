@@ -336,6 +336,8 @@ export class DatabaseActiveTabWorker {
                 rpc.call("executeActionServer", {
                     action,
                     mutationId: options.mutationId,
+                    returnResult: options.returnResult ?? true,
+                    returnPages: options.returnPages ?? true,
                 }),
             ensureCacheIsUpToDate: async pageTimestampsByIndex =>
                 rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
@@ -410,7 +412,11 @@ export class DatabaseActiveTabManager {
             addUnloadListener(callback: () => void): void;
             executeActionServer(
                 action: DatabaseActionObject,
-                options: {mutationId: DatabaseMutationId},
+                options: {
+                    mutationId: DatabaseMutationId;
+                    returnResult?: boolean;
+                    returnPages?: boolean;
+                },
             ): Promise<ExecuteActionServerResult>;
             ensureCacheIsUpToDate(
                 pageTimestampsByIndex: ReadonlyMap<number, number>,
@@ -690,6 +696,8 @@ export class DatabaseActiveTabManager {
                 executeActionServer: async input => {
                     const result = await this.deps.executeActionServer(input.action, {
                         mutationId: input.mutationId,
+                        returnResult: input.returnResult,
+                        returnPages: input.returnPages,
                     });
                     return {
                         result: result.result as SchemaSerializedValue as any,
@@ -755,6 +763,8 @@ export class DatabaseActiveTabManager {
                 executeActionServer: async input => {
                     const result = await this.deps.executeActionServer(input.action, {
                         mutationId: input.mutationId,
+                        returnResult: input.returnResult,
+                        returnPages: input.returnPages,
                     });
                     return {
                         result: result.result as SchemaSerializedValue as any,

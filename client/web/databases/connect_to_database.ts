@@ -28,7 +28,11 @@ export async function connectToDatabase(options: {
     initialPages?: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>;
     executeActionServer(
         action: DatabaseActionObject,
-        options: {mutationId: DatabaseMutationId},
+        options: {
+            mutationId: DatabaseMutationId;
+            returnResult?: boolean;
+            returnPages?: boolean;
+        },
     ): Promise<ExecuteActionServerResult>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,

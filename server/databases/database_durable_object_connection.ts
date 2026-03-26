@@ -74,8 +74,10 @@ export class DatabaseDurableObjectConnection {
                 }
 
                 return {
-                    result: {name: input.action.name, output: result.result} as any,
-                    readPages: result.readPages,
+                    result: input.returnResult
+                        ? ({name: input.action.name, output: result.result} as any)
+                        : null,
+                    readPages: input.returnPages ? result.readPages : null,
                 };
             });
         },
