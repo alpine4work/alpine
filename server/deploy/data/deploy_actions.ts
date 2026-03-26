@@ -15,7 +15,7 @@ import {
 } from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {wait} from "~/shared/helpers/async/wait.js";
+
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -458,16 +458,12 @@ async function resolveDeployItemDispatchedDeploymentResult(
         return {ok: true, value: dispatchedDeployment};
     }
 
+    // After we execute
+    // `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches` the
+    // workflow run is started asynchronously. Use exponential backoff to poll until we
+    // find a matching deploy run.
     return captureResultPromise(async () => {
-        let attemptCount = 0;
-
-        // After we execute
-        // `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches` the
-        // workflow run is started asynchronously. Keep retrying until we find a matching
-        // deploy run.
-        while (true) {
-            attemptCount++;
-
+        return retryWithExponentialBackoff(async retry => {
             const searchWorkflowRunsResult = await context.github.request(
                 "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
                 {
@@ -490,12 +486,7 @@ async function resolveDeployItemDispatchedDeploymentResult(
                 )[0];
 
             if (!workflowRun) {
-                if (attemptCount >= 20) {
-                    throw new NotFoundError("Couldn\u2019t find workflow run for dispatch");
-                } else {
-                    await wait(500);
-                    continue;
-                }
+                return retry(new NotFoundError("Couldn\u2019t find workflow run for dispatch"));
             }
 
             // If the workflow has concluded, consider `dispatchedDeployment` to be unset so we
@@ -507,7 +498,7 @@ async function resolveDeployItemDispatchedDeploymentResult(
                 commitSha: dispatchedDeployment.commitSha,
                 search: dispatchedDeployment.search,
             };
-        }
+        });
     });
 }
 
