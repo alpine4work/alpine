@@ -3,6 +3,7 @@ import {useDatabaseConnection} from "~/client/web/databases/database_connection_
 import {Box} from "~/client/web/design/box.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -285,7 +286,6 @@ function DatabaseResultTableCell({
     const conn = useDatabaseConnection();
     const committedValue = value == null ? "" : String(value);
     const inputRef = useRef<HTMLInputElement>(null);
-    const originalValueRef = useRef(committedValue);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isEditing && inputRef.current != null) {
@@ -330,31 +330,30 @@ function DatabaseResultTableCell({
                 <input
                     ref={inputRef}
                     defaultValue={editValue}
+                    className={sprinkles({
+                        width: "full",
+                        height: "full",
+                        paddingX: "2",
+                        fontSize: "75",
+                        backgroundColor: "grey-0",
+                        color: "grey-100",
+                    })}
                     style={{
-                        width: "100%",
-                        height: "100%",
                         minHeight: 32,
                         boxSizing: "border-box",
                         border: "2px solid var(--color-blue-50)",
                         borderRadius: 0,
                         outline: "none",
-                        padding: "0 8px",
-                        fontSize: "var(--font-size-75)",
                         fontFamily: "inherit",
-                        background: "var(--color-white)",
                     }}
                     onBlur={e => {
                         commitValue(e.currentTarget.value);
                         dispatch({type: "blur"});
                     }}
                     onKeyDown={e => {
-                        if (e.key === "Enter") {
+                        if (e.key === "Enter" || e.key === "Escape") {
                             e.preventDefault();
                             commitValue(e.currentTarget.value);
-                            dispatch({type: "blur"});
-                        } else if (e.key === "Escape") {
-                            e.preventDefault();
-                            e.currentTarget.value = originalValueRef.current;
                             dispatch({type: "blur"});
                         }
                         e.stopPropagation();
