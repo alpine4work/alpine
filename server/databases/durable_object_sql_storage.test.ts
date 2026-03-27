@@ -522,3 +522,175 @@ describe("ensureCacheIsUpToDate", () => {
         expect(result.stalePageIndexes.length).toBe(count);
     });
 });
+
+// ---------------------------------------------------------------------------
+// Per-browser page tracking integration tests
+// ---------------------------------------------------------------------------
+
+function createTrackedConnection(
+    doStorage: DatabaseDurableObjectStorage,
+    tracker: BrowserPageTracker,
+    browserId: BrowserId,
+) {
+    const connectionId = generateId<WebSocketConnectionId>();
+    return new DatabaseDurableObjectConnection({
+        server: null as any,
+        storage: null as any,
+        durableObjectStorage: doStorage,
+        processContext: null as any,
+        sendEventToAll: () => {},
+        browserId,
+        connectionId,
+        browserPageTracker: tracker,
+    });
+}
+
+describe("per-browser page tracking", () => {
+    test("ensureCacheIsUpToDate sets matching pages in tracker", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+                [2, makePage(0xcc)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts1 = doStorage.readPage(1)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // Page 0 and 1 match, page 2 is stale (wrong ts)
+        await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, ts1],
+                [2, 999],
+            ]),
+        );
+
+        // Tracker should know browser has pages 0 and 1.
+        // Page 2 was returned as updatedPages, not matching.
+        const allPages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+            [2, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        const filtered = tracker.filterReadPages(browserId, allPages);
+        expect(filtered.size).toBe(1);
+        expect(filtered.has(2)).toBe(true);
+    });
+
+    test("acknowledgePages adds pages to tracker", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        await conn.procedures.acknowledgePages(null as any, {pageIndexes: [5, 6, 7]}, null as any);
+
+        const pages = new Map([
+            [5, {timestamp: 1, data: new Uint8Array(1)}],
+            [6, {timestamp: 1, data: new Uint8Array(1)}],
+            [8, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        const filtered = tracker.filterReadPages(browserId, pages);
+        expect(filtered.size).toBe(1);
+        expect(filtered.has(8)).toBe(true);
+    });
+
+    test("handleClose unregisters connection from tracker", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        tracker.setPages(browserId, [0, 1]);
+        conn.handleClose();
+
+        // After close, entry should be deleted (last connection).
+        // filterReadPages returns everything for an unknown browser.
+        const pages = new Map([[0, {timestamp: 1, data: new Uint8Array(1)}]]);
+        expect(tracker.filterReadPages(browserId, pages)).toEqual(pages);
+    });
+
+    test("two connections from same browser share page set", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn1 = createTrackedConnection(doStorage, tracker, browserId);
+        const conn2 = createTrackedConnection(doStorage, tracker, browserId);
+
+        await conn1.procedures.acknowledgePages(null as any, {pageIndexes: [0, 1]}, null as any);
+        await conn2.procedures.acknowledgePages(null as any, {pageIndexes: [2, 3]}, null as any);
+
+        const pages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+            [2, {timestamp: 1, data: new Uint8Array(1)}],
+            [3, {timestamp: 1, data: new Uint8Array(1)}],
+            [4, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        const filtered = tracker.filterReadPages(browserId, pages);
+        expect(filtered.size).toBe(1);
+        expect(filtered.has(4)).toBe(true);
+    });
+
+    test("closing one of two connections preserves page set", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn1 = createTrackedConnection(doStorage, tracker, browserId);
+        createTrackedConnection(doStorage, tracker, browserId);
+
+        tracker.setPages(browserId, [0, 1]);
+        conn1.handleClose();
+
+        // Entry should still exist — conn2 is still open
+        const pages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
+    });
+
+    test("ensureCacheIsUpToDate replaces page set on each call", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts1 = doStorage.readPage(1)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // First sync: both pages match
+        await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, ts1],
+            ]),
+        );
+
+        // Second sync: only page 0 sent (page 1 not in client cache)
+        await ensureCacheIsUpToDate(conn, new Map([[0, ts0]]));
+
+        // Tracker should only know about page 0 now
+        const pages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        const filtered = tracker.filterReadPages(browserId, pages);
+        expect(filtered.size).toBe(1);
+        expect(filtered.has(1)).toBe(true);
+    });
+});
