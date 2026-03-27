@@ -2,7 +2,6 @@ import {
     type Dispatch,
     type Memo,
     startTransition,
-    useCallback,
     useEffect,
     useMemo,
     useOptimistic,
@@ -15,10 +14,12 @@ import {Box} from "~/client/web/design/box.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
+    type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -53,6 +54,7 @@ type SelectionAction =
     | {type: "enter"}
     | {type: "clear"}
     | {type: "type"; character: string}
+    | {type: "select"; rowId: DatabaseRowId; fieldId: DatabaseFieldId}
     | {type: "deselect"};
 
 function selectionReducer(
@@ -79,6 +81,13 @@ function selectionReducer(
         case "type":
             if (state == null) return null;
             return {...state, isEditing: true, initialEditValue: action.character};
+        case "select":
+            return {
+                rowId: action.rowId,
+                fieldId: action.fieldId,
+                isEditing: false,
+                initialEditValue: null,
+            };
         case "deselect":
             return null;
     }
@@ -107,38 +116,84 @@ export function DatabaseResultTable({
     const [selection, dispatch] = useReducer(selectionReducer, null);
     const [addingField, setAddingField] = useState<string | null>(null);
 
+    const scrollViewRef = useRef<VirtualizedScrollViewRef>(null);
+
     const [optimisticFields, addOptimisticField] = useOptimistic(
         fields,
         (prev, newField: DatabaseResultTableField) =>
             prev.some(f => f.id === newField.id) ? prev : [...prev, newField],
     );
 
-    console.log({optimisticFields});
+    const fieldIndexById = useMemo(() => {
+        const map = new Map<DatabaseFieldId, number>();
+        for (let i = 0; i < optimisticFields.length; i++) {
+            map.set(optimisticFields[i]!.id, i);
+        }
+        return map;
+    }, [optimisticFields]);
 
-    const handleGlobalKeyDown = useCallback(
-        (e: KeyboardEvent) => {
-            if (selection == null || selection.isEditing) return;
+    const moveSelection = useEvent((deltaRow: number, deltaField: number) => {
+        if (selection == null) return;
 
-            if (e.key === "Enter") {
-                e.preventDefault();
-                e.stopPropagation();
-                dispatch({type: "enter"});
-            } else if (e.key === "Backspace" || e.key === "Delete") {
-                e.preventDefault();
-                e.stopPropagation();
-                dispatch({type: "clear"});
-            } else if (e.key === "Escape") {
-                e.preventDefault();
-                e.stopPropagation();
-                dispatch({type: "deselect"});
-            } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-                e.preventDefault();
-                e.stopPropagation();
-                dispatch({type: "type", character: e.key});
-            }
-        },
-        [selection],
-    );
+        // Virtual index 0 is the header; data rows start at 1.
+        const virtualIndex = scrollViewRef.current?.getIndexByKeyIfExists(selection.rowId);
+        const fieldIndex = fieldIndexById.get(selection.fieldId);
+        if (virtualIndex == null || fieldIndex == null) return;
+
+        const rowIndex = virtualIndex - 1;
+        const nextRowIndex = Math.max(0, Math.min(rows.length - 1, rowIndex + deltaRow));
+        const nextFieldIndex = Math.max(
+            0,
+            Math.min(optimisticFields.length - 1, fieldIndex + deltaField),
+        );
+
+        if (nextRowIndex === rowIndex && nextFieldIndex === fieldIndex) return;
+
+        dispatch({
+            type: "select",
+            rowId: rows[nextRowIndex]!._id as DatabaseRowId,
+            fieldId: optimisticFields[nextFieldIndex]!.id,
+        });
+    });
+
+    const handleGlobalKeyDown = useEvent((e: KeyboardEvent) => {
+        if (selection == null || selection.isEditing) return;
+
+        if (e.key === "Enter") {
+            e.preventDefault();
+            e.stopPropagation();
+            dispatch({type: "enter"});
+        } else if (e.key === "Backspace" || e.key === "Delete") {
+            e.preventDefault();
+            e.stopPropagation();
+            dispatch({type: "clear"});
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            dispatch({type: "deselect"});
+        } else if (
+            e.key === "ArrowUp" ||
+            e.key === "ArrowDown" ||
+            e.key === "ArrowLeft" ||
+            e.key === "ArrowRight"
+        ) {
+            e.preventDefault();
+            e.stopPropagation();
+            const deltaRow = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+            const deltaField = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+            moveSelection(deltaRow, deltaField);
+        } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            dispatch({type: "type", character: e.key});
+        }
+    });
+
+    const selectedRowId = selection?.rowId ?? null;
+    useEffect(() => {
+        if (selectedRowId == null) return;
+        scrollViewRef.current?.scrollToKeyIfExists(selectedRowId, {withAnchor: false});
+    }, [selectedRowId]);
 
     const renderItem: Memo<(index: number) => VirtualizedScrollViewItem> = useMemo(
         () =>
@@ -227,12 +282,23 @@ export function DatabaseResultTable({
                             rowId={rowId}
                             selection={selection}
                             dispatch={dispatch}
+                            moveSelection={moveSelection}
                             showGhostCell={addingField !== null}
                         />
                     ),
                 };
             },
-        [optimisticFields, rows, selection, addingField, conn, tableId, viewId, addOptimisticField],
+        [
+            optimisticFields,
+            rows,
+            selection,
+            addingField,
+            conn,
+            tableId,
+            viewId,
+            addOptimisticField,
+            moveSelection,
+        ],
     );
 
     if (rows.length === 0) {
@@ -247,6 +313,7 @@ export function DatabaseResultTable({
         <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
             <Box flexGrow="1" overflow="hidden">
                 <VirtualizedScrollView
+                    ref={scrollViewRef}
                     itemCount={rows.length + 1}
                     bufferedItemHeight={32}
                     renderItem={renderItem}
@@ -358,6 +425,7 @@ function DatabaseResultTableDataRow({
     rowId,
     selection,
     dispatch,
+    moveSelection,
     showGhostCell,
 }: {
     fields: ReadonlyArray<DatabaseResultTableField>;
@@ -365,6 +433,7 @@ function DatabaseResultTableDataRow({
     rowId: DatabaseRowId;
     selection: DatabaseResultTableSelection;
     dispatch: Dispatch<SelectionAction>;
+    moveSelection: (deltaRow: number, deltaField: number) => void;
     showGhostCell: boolean;
 }) {
     return (
@@ -387,6 +456,7 @@ function DatabaseResultTableDataRow({
                         isEditing={isEditing}
                         initialEditValue={initialEditValue}
                         dispatch={dispatch}
+                        moveSelection={moveSelection}
                     />
                 );
             })}
@@ -412,6 +482,7 @@ function DatabaseResultTableCell({
     isEditing,
     initialEditValue,
     dispatch,
+    moveSelection,
 }: {
     field: DatabaseResultTableField;
     value: unknown;
@@ -420,26 +491,24 @@ function DatabaseResultTableCell({
     isEditing: boolean;
     initialEditValue: string | null;
     dispatch: Dispatch<SelectionAction>;
+    moveSelection: (deltaRow: number, deltaField: number) => void;
 }) {
     const conn = useDatabaseConnection();
     const [committedValue, setCommittedValue] = useOptimistic(value == null ? "" : String(value));
 
-    const commitValue = useCallback(
-        (newValue: string) => {
-            if (conn == null) return;
-            if (newValue === committedValue) return;
-            startTransition(async () => {
-                setCommittedValue(newValue);
-                await conn.call("executeAction", {
-                    action: {
-                        name: "updateCellValue" as const,
-                        input: {fieldId: field.id, rowId, value: newValue},
-                    },
-                });
+    const commitValue = useEvent((newValue: string) => {
+        if (conn == null) return;
+        if (newValue === committedValue) return;
+        startTransition(async () => {
+            setCommittedValue(newValue);
+            await conn.call("executeAction", {
+                action: {
+                    name: "updateCellValue" as const,
+                    input: {fieldId: field.id, rowId, value: newValue},
+                },
             });
-        },
-        [conn, field.id, rowId, committedValue, setCommittedValue],
-    );
+        });
+    });
 
     const shouldShowBorder = isSelected && !isEditing;
 
@@ -464,6 +533,7 @@ function DatabaseResultTableCell({
                     initialValue={initialEditValue ?? committedValue}
                     commitValue={commitValue}
                     dispatch={dispatch}
+                    moveSelection={moveSelection}
                 />
             }
         >
@@ -489,11 +559,13 @@ function DatabaseResultTableCellEditor({
     initialValue,
     commitValue,
     dispatch,
+    moveSelection,
 }: {
     ref?: React.Ref<HTMLElement>;
     initialValue: string;
     commitValue: (value: string) => void;
     dispatch: Dispatch<SelectionAction>;
+    moveSelection: (deltaRow: number, deltaField: number) => void;
 }) {
     const [editValue, setEditValue] = useState(initialValue);
     const localRef = useRef<HTMLTextAreaElement>(null);
@@ -530,7 +602,11 @@ function DatabaseResultTableCellEditor({
                     dispatch({type: "blur"});
                 }}
                 onKeyDown={e => {
-                    if (e.key === "Enter" || e.key === "Escape") {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitValue((e.currentTarget as HTMLTextAreaElement).value);
+                        moveSelection(1, 0);
+                    } else if (e.key === "Escape") {
                         e.preventDefault();
                         commitValue((e.currentTarget as HTMLTextAreaElement).value);
                         dispatch({type: "blur"});

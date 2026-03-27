@@ -5,7 +5,6 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
-    useResizeObserver,
 } from "~/client/web/helpers/use_resize_observer.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
