@@ -15,7 +15,7 @@ ts_project(
         "//admin/local_redirect:wrangler",
         "//app:app_static_production",
         "//server/edge:wrangler",
-        "//server/agents:wrangler",
+        "//server/agents/bots:wrangler",
         "//server/resources:wrangler",
     ],
     deps = [

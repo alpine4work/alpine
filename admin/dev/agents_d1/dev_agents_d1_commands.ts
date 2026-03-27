@@ -53,7 +53,7 @@ async function runDevAgentsD1Process(
     {consumeOutput}: {consumeOutput?: boolean} = {},
 ): Promise<string | null> {
     const dbPath = joinPath(devEnvPaths.data, "agents/d1");
-    const wranglerPath = joinPath(runfilesPath, "cyberworlds/server/agents/wrangler_dev.sh");
+    const wranglerPath = joinPath(runfilesPath, "cyberworlds/server/agents/bots/wrangler_dev.sh");
 
     const wranglerArguments = ["d1", ...args, "--persist-to", dbPath];
 
@@ -148,10 +148,14 @@ export async function runDevAgentsD1StatusCommand({quiet = false}: {quiet?: bool
 
     // Check git status for local changes in migration files
     const workspacePath = getWorkspacePath();
-    const gitStatus = await runProcess("git", ["status", "server/agents/internal/d1/migrations/"], {
-        cwd: workspacePath,
-        env: process.env,
-    });
+    const gitStatus = await runProcess(
+        "git",
+        ["status", "server/agents/bost/internal/d1/migrations/"],
+        {
+            cwd: workspacePath,
+            env: process.env,
+        },
+    );
 
     if (gitStatus.includes("nothing to commit")) {
         if (!quiet) console.log("Committed migration which hasn\u2019t been applied");
@@ -231,7 +235,7 @@ export async function runDevAgentsD1GenerateCommand({
         "--config",
         joinPath(
             runfilesPath,
-            "cyberworlds/server/agents/internal/d1/agent_usage_drizzle.config.cjs",
+            "cyberworlds/server/agents/bots/internal/d1/agent_usage_drizzle.config.cjs",
         ),
         "--name",
         snakeCaseName,
@@ -241,7 +245,7 @@ export async function runDevAgentsD1GenerateCommand({
     }
 
     await runProcessWithInheritedStdio(
-        joinPath(runfilesPath, "cyberworlds/server/agents/drizzle_kit.sh"),
+        joinPath(runfilesPath, "cyberworlds/server/agents/bots/drizzle_kit.sh"),
         drizzleArgs,
         {
             cwd: workspacePath,
