@@ -336,9 +336,14 @@ export class DatabaseActiveTabWorker {
                 rpc.call("executeActionServer", {
                     action,
                     mutationId: options.mutationId,
+                    returnResult: options.returnResult ?? true,
+                    returnPages: options.returnPages ?? true,
                 }),
             ensureCacheIsUpToDate: async pageTimestampsByIndex =>
                 rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
+            acknowledgePages: pageIndexes => {
+                void rpc.call("acknowledgePages", {pageIndexes});
+            },
             reportError: error => {
                 void rpc.call("reportError", {
                     message: error instanceof Error ? error.message : String(error),
@@ -410,11 +415,16 @@ export class DatabaseActiveTabManager {
             addUnloadListener(callback: () => void): void;
             executeActionServer(
                 action: DatabaseActionObject,
-                options: {mutationId: DatabaseMutationId},
+                options: {
+                    mutationId: DatabaseMutationId;
+                    returnResult?: boolean;
+                    returnPages?: boolean;
+                },
             ): Promise<ExecuteActionServerResult>;
             ensureCacheIsUpToDate(
                 pageTimestampsByIndex: ReadonlyMap<number, number>,
             ): Promise<EnsureCacheIsUpToDateResult>;
+            acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
             reportError?(message: string): void;
         },
     ) {}
@@ -690,6 +700,8 @@ export class DatabaseActiveTabManager {
                 executeActionServer: async input => {
                     const result = await this.deps.executeActionServer(input.action, {
                         mutationId: input.mutationId,
+                        returnResult: input.returnResult,
+                        returnPages: input.returnPages,
                     });
                     return {
                         result: result.result as SchemaSerializedValue as any,
@@ -698,6 +710,10 @@ export class DatabaseActiveTabManager {
                 },
                 ensureCacheIsUpToDate: async input =>
                     this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
+                acknowledgePages: async input => {
+                    this.deps.acknowledgePages(input.pageIndexes);
+                    return {};
+                },
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};
@@ -755,6 +771,8 @@ export class DatabaseActiveTabManager {
                 executeActionServer: async input => {
                     const result = await this.deps.executeActionServer(input.action, {
                         mutationId: input.mutationId,
+                        returnResult: input.returnResult,
+                        returnPages: input.returnPages,
                     });
                     return {
                         result: result.result as SchemaSerializedValue as any,
@@ -763,6 +781,10 @@ export class DatabaseActiveTabManager {
                 },
                 ensureCacheIsUpToDate: async input =>
                     this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
+                acknowledgePages: async input => {
+                    this.deps.acknowledgePages(input.pageIndexes);
+                    return {};
+                },
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};

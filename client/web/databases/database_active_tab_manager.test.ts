@@ -390,7 +390,11 @@ function createTestTab(config: {
     databaseId?: DatabaseId;
     executeActionServer?: (
         action: {name: string; input: unknown},
-        options: {mutationId: DatabaseMutationId},
+        options: {
+            mutationId: DatabaseMutationId;
+            returnResult?: boolean;
+            returnPages?: boolean;
+        },
     ) => Promise<ExecuteActionServerResult>;
 }): {
     manager: DatabaseActiveTabManager;
@@ -475,6 +479,7 @@ function createTestTab(config: {
             }
             return {updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0};
         },
+        acknowledgePages: () => {},
     });
 
     return {

@@ -59,11 +59,16 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 export interface DatabaseClientConnection {
     executeActionServer(
         action: DatabaseActionObject,
-        options: {mutationId: DatabaseMutationId},
+        options: {
+            mutationId: DatabaseMutationId;
+            returnResult?: boolean;
+            returnPages?: boolean;
+        },
     ): Promise<ExecuteActionServerResult>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
     ): Promise<EnsureCacheIsUpToDateResult>;
+    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
     reportError(error: unknown): void;
 }
 
@@ -164,6 +169,10 @@ export class DatabaseClient {
             this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
         }
 
+        if (updatedPages.size > 0) {
+            conn.acknowledgePages([...updatedPages.keys()]);
+        }
+
         if (stalePageIndexes.length > 0) {
             this.pageStore.deletePages(new Set(stalePageIndexes));
         }
@@ -213,7 +222,11 @@ export class DatabaseClient {
         // Send to server in the background.
         void (async () => {
             try {
-                await conn.executeActionServer(actionObject, {mutationId});
+                await conn.executeActionServer(actionObject, {
+                    mutationId,
+                    returnResult: false,
+                    returnPages: false,
+                });
                 assert(
                     !this.optimisticQueue.some(m => m.mutationId === mutationId),
                     "mutation not confirmed via realtime before server responded",
@@ -253,7 +266,14 @@ export class DatabaseClient {
             return this.executeActionLocallyInReadOnlyTxn(actionObject);
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
-            await this.executeActionViaServer(conn, actionObject, generateId<DatabaseMutationId>());
+            await this.executeActionViaServer(
+                conn,
+                actionObject,
+                generateId<DatabaseMutationId>(),
+                {
+                    returnResult: false,
+                },
+            );
             return this.executeActionLocallyInReadOnlyTxn(actionObject);
         }
     }
@@ -577,12 +597,33 @@ export class DatabaseClient {
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
         mutationId: DatabaseMutationId,
-    ): Promise<DatabaseActionOutput<N>> {
-        const serverResult = await conn.executeActionServer(actionObject, {mutationId});
+    ): Promise<DatabaseActionOutput<N>>;
+    private async executeActionViaServer<N extends DatabaseActionName>(
+        conn: DatabaseClientConnection,
+        actionObject: DatabaseActionObject<N>,
+        mutationId: DatabaseMutationId,
+        options: {returnResult: false},
+    ): Promise<void>;
+    private async executeActionViaServer<N extends DatabaseActionName>(
+        conn: DatabaseClientConnection,
+        actionObject: DatabaseActionObject<N>,
+        mutationId: DatabaseMutationId,
+        options?: {returnResult?: boolean},
+    ): Promise<DatabaseActionOutput<N> | void> {
+        const returnResult = options?.returnResult ?? true;
+        const serverResult = await conn.executeActionServer(actionObject, {
+            mutationId,
+            returnResult,
+        });
         this.pageStore.clearOptimisticPages();
-        this.applyServerPages(serverResult.readPages);
+        if (serverResult.readPages !== null) {
+            this.applyServerPages(serverResult.readPages);
+            conn.acknowledgePages([...serverResult.readPages.keys()]);
+        }
         this.replayOptimisticQueue();
-        return (serverResult.result as DatabaseActionResult<N>).output;
+        if (returnResult) {
+            return (serverResult.result as DatabaseActionResult<N>).output;
+        }
     }
 
     /**

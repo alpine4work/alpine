@@ -8,6 +8,7 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {
     DatabaseDurableObjectConnection,
     DatabaseRealtimeEventStub,
@@ -18,8 +19,9 @@ import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import type {BrowserId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseDurableObjectRoute = "Main" | "Action" | "NotFound";
@@ -31,6 +33,7 @@ class DatabaseDurableObject {
     private readonly _storage: DurableObjectStorage;
     private readonly _durableObjectStorage: DatabaseDurableObjectStorage;
     private readonly _processContext: WorkerProcessContext;
+    private readonly _browserPageTracker = new BrowserPageTracker();
 
     private readonly _webSocketServer: WebSocketServer<
         WorkerProcessContextModules,
@@ -82,7 +85,11 @@ class DatabaseDurableObject {
             typeof DatabaseRealtimeProtocol,
             DatabaseRealtimeEventStub,
             DatabaseDurableObjectConnection
-        >(this._processContext, DatabaseRealtimeProtocol, () => {
+        >(this._processContext, DatabaseRealtimeProtocol, ({connectionId, searchParams}) => {
+            const browserId = searchParams.get("browserId") as BrowserId | null;
+            if (browserId === null) {
+                throw new InvalidArgumentError("Missing browserId query parameter");
+            }
             return new DatabaseDurableObjectConnection({
                 server: this._server,
                 processContext: this._processContext,
@@ -91,6 +98,9 @@ class DatabaseDurableObject {
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
+                browserId,
+                connectionId,
+                browserPageTracker: this._browserPageTracker,
             });
         });
     }

@@ -3,6 +3,7 @@ import {
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
@@ -12,7 +13,11 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {
+    BrowserId,
+    DatabaseMutationId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.js";
 
 export interface DatabaseRealtimeEventStub {
     pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
@@ -29,6 +34,9 @@ export class DatabaseDurableObjectConnection {
         event: DatabaseRealtimeEventStub,
     ) => void;
     private readonly _processContext: WorkerProcessContext;
+    private readonly _browserId: BrowserId;
+    private readonly _connectionId: WebSocketConnectionId;
+    private readonly _browserPageTracker: BrowserPageTracker;
 
     constructor({
         server,
@@ -36,18 +44,28 @@ export class DatabaseDurableObjectConnection {
         durableObjectStorage,
         processContext,
         sendEventToAll,
+        browserId,
+        connectionId,
+        browserPageTracker,
     }: {
         server: DatabaseServer;
         storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
+        browserId: BrowserId;
+        connectionId: WebSocketConnectionId;
+        browserPageTracker: BrowserPageTracker;
     }) {
         this._server = server;
         this._storage = storage;
         this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
+        this._browserId = browserId;
+        this._connectionId = connectionId;
+        this._browserPageTracker = browserPageTracker;
+        this._browserPageTracker.registerConnection(browserId, connectionId);
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -73,9 +91,15 @@ export class DatabaseDurableObjectConnection {
                     });
                 }
 
+                const readPages = input.returnPages
+                    ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
+                    : null;
+
                 return {
-                    result: {name: input.action.name, output: result.result} as any,
-                    readPages: result.readPages,
+                    result: input.returnResult
+                        ? ({name: input.action.name, output: result.result} as any)
+                        : null,
+                    readPages,
                 };
             });
         },
@@ -120,10 +144,30 @@ export class DatabaseDurableObjectConnection {
                 }
             }
 
+            // Tell the tracker which pages the client
+            // already has valid copies of: all client pages
+            // minus those we're updating or marking stale.
+            const staleSet = new Set(stalePageIndexes);
+            const matchingPages: Array<number> = [];
+            for (const pageIndex of input.pageTimestampsByIndex.keys()) {
+                if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
+                    matchingPages.push(pageIndex);
+                }
+            }
+            this._browserPageTracker.setPages(this._browserId, matchingPages);
+
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
             return {updatedPages, stalePageIndexes, fileSizeInPages};
         },
+        acknowledgePages: async (_context, input) => {
+            this._browserPageTracker.addPages(this._browserId, input.pageIndexes);
+            return {};
+        },
     };
+
+    public handleClose(): void {
+        this._browserPageTracker.unregisterConnection(this._browserId, this._connectionId);
+    }
 
     public async authorize(): Promise<void> {
         // No-op for now. Authorization is handled by

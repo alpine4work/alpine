@@ -77,10 +77,12 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         input: {
             action: DatabaseActionObjectSchema,
             mutationId: Schema.id<DatabaseMutationId>(),
+            returnResult: Schema.boolean.default(true),
+            returnPages: Schema.boolean.default(true),
         },
         output: {
-            result: DatabaseActionResultSchema,
-            readPages: Schema.map(Schema.integer, pageValueSchema),
+            result: DatabaseActionResultSchema.nullable(),
+            readPages: Schema.map(Schema.integer, pageValueSchema).nullable(),
         },
     },
     ensureCacheIsUpToDate: {
@@ -88,6 +90,10 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
             pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
         },
         output: ensureCacheIsUpToDateResultConfig,
+    },
+    acknowledgePages: {
+        input: {pageIndexes: Schema.array(Schema.integer)},
+        output: {},
     },
     reportError: {
         input: {message: Schema.string},

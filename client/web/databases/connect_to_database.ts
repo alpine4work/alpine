@@ -28,11 +28,16 @@ export async function connectToDatabase(options: {
     initialPages?: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>;
     executeActionServer(
         action: DatabaseActionObject,
-        options: {mutationId: DatabaseMutationId},
+        options: {
+            mutationId: DatabaseMutationId;
+            returnResult?: boolean;
+            returnPages?: boolean;
+        },
     ): Promise<ExecuteActionServerResult>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
     ): Promise<EnsureCacheIsUpToDateResult>;
+    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
     reportError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
@@ -111,6 +116,7 @@ export async function connectToDatabase(options: {
         },
         executeActionServer: options.executeActionServer,
         ensureCacheIsUpToDate: options.ensureCacheIsUpToDate,
+        acknowledgePages: options.acknowledgePages,
         reportError: options.reportError,
     });
 

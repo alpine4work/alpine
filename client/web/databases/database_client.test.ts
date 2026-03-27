@@ -23,6 +23,7 @@ const testConn: DatabaseClientConnection = {
     ensureCacheIsUpToDate() {
         return Promise.resolve({updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0});
     },
+    acknowledgePages() {},
     reportError() {},
 };
 
@@ -275,6 +276,7 @@ describe("execute — mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -318,6 +320,7 @@ describe("execute — mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -349,6 +352,7 @@ describe("execute — mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -394,6 +398,7 @@ describe("optimistic mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -421,6 +426,7 @@ describe("optimistic mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -452,6 +458,7 @@ describe("optimistic mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -491,6 +498,7 @@ describe("optimistic mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError(error) {
                 reportedError = error;
             },
@@ -518,6 +526,7 @@ describe("optimistic mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -551,6 +560,7 @@ describe("optimistic mutations", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError(error) {
                 reportedError = error;
             },
@@ -603,6 +613,7 @@ describe("server fallback", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -643,6 +654,7 @@ describe("server fallback", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
         await execute(local, serverConn, "SELECT count(*) AS n FROM t");
@@ -747,6 +759,7 @@ describe("executeActionWithTracking", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
@@ -797,6 +810,7 @@ describe("executeActionWithTracking", () => {
                     fileSizeInPages: 0,
                 });
             },
+            acknowledgePages() {},
             reportError() {},
         };
 
