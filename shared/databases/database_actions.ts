@@ -8,6 +8,8 @@ import {
     formatUniqueSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
 import {SqliteRowFormatter} from "~/shared/databases/internal/sqlite_row_formatter.js";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- will be used after sql conversion
+import {sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {

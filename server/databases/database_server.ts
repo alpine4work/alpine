@@ -13,6 +13,7 @@ import {
 } from "~/shared/databases/database_actions.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
+import {sql} from "~/shared/databases/sql.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {
@@ -29,6 +30,7 @@ import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const vfsNamePrefix = "alpine-server";
 let vfsCounter = 0;
@@ -126,7 +128,10 @@ export class DatabaseServer {
         runSqliteMigrations(this.db);
 
         // Seed a default table for new databases.
-        const tableCount = this.db.selectValue("SELECT COUNT(*) FROM _alpine_tables") as number;
+        const tableCount = sql`SELECT COUNT(*) FROM _alpine_tables`.selectValue(
+            this.db,
+            Schema.integer,
+        );
         if (tableCount === 0) {
             databaseActions.createTable.run(this.db, {name: "Table"});
         }
@@ -143,16 +148,13 @@ export class DatabaseServer {
         return new DatabaseServer(sqlite3, storage);
     }
 
-    execute(sql: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
+    execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
         const {
             result: rows,
             readPages,
             changedPages,
         } = this._executeInTransaction(options.allowWrites, db => {
-            return db.exec(sql, {
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as Array<Record<string, unknown>>;
+            return sql.raw(query).selectAllUnknown(db);
         });
         return {rows, readPages, changedPages};
     }

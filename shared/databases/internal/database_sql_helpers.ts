@@ -1,7 +1,12 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import type {DatabaseFieldType} from "~/shared/databases/database_field_type.js";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- will be used after sql conversion
+import {sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- will be used after sql conversion
+import {Schema} from "~/shared/schema/schema.js";
+
 /**
  * Slugify a human-readable name into a SQL-safe
  * identifier, then deduplicate against `existing` by

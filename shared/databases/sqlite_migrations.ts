@@ -1,5 +1,7 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Ordered list of schema migrations for Alpine's internal
@@ -55,7 +57,7 @@ export const sqliteMigrations: ReadonlyArray<string> = [
  * migrations have already been applied.
  */
 export function runSqliteMigrations(db: Database): void {
-    const version = db.selectValue("PRAGMA user_version") as number;
+    const version = sql`PRAGMA user_version`.selectValue(db, Schema.integer);
     assert(
         version <= sqliteMigrations.length,
         `database user_version (${version}) is ahead of known migrations (${sqliteMigrations.length})`,

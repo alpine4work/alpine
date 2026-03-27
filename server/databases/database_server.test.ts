@@ -2,7 +2,9 @@
 
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
+import {sql} from "~/shared/databases/sql.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 class InMemoryStorage implements DatabaseServerStorage {
     private pages = new Map<number, {data: Uint8Array | null; timestamp: number}>();
@@ -46,8 +48,8 @@ class InMemoryStorage implements DatabaseServerStorage {
 async function createServerWithSchema(...statements: Array<string>): Promise<DatabaseServer> {
     const server = await DatabaseServer.create(new InMemoryStorage());
     const db = server.unsafeGetDbForTests();
-    for (const sql of statements) {
-        db.exec(sql);
+    for (const stmt of statements) {
+        db.exec(stmt);
     }
     return server;
 }
@@ -58,7 +60,7 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema();
             const db = server.unsafeGetDbForTests();
 
-            expect(db.selectValue("SELECT 1 + 1")).toBe(2);
+            expect(sql`SELECT 1 + 1`.selectValue(db, Schema.integer)).toBe(2);
 
             server.close();
         });
@@ -112,8 +114,8 @@ describe("DatabaseServer", () => {
             db.exec("INSERT INTO a VALUES (1)");
             db.exec("INSERT INTO b VALUES (10, 1)");
 
-            expect(db.selectValue("SELECT COUNT(*) FROM a")).toBe(1);
-            expect(db.selectValue("SELECT COUNT(*) FROM b")).toBe(1);
+            expect(sql`SELECT COUNT(*) FROM a`.selectValue(db, Schema.integer)).toBe(1);
+            expect(sql`SELECT COUNT(*) FROM b`.selectValue(db, Schema.integer)).toBe(1);
 
             server.close();
         });
@@ -332,13 +334,11 @@ describe("DatabaseServer", () => {
             // Get each table's root page (SQLite's rootpage is
             // 1-based; our storage is 0-based).
             const db = server.unsafeGetDbForTests();
-            const schema = db.exec(
-                "SELECT name, rootpage FROM sqlite_schema WHERE type = 'table' ORDER BY name",
-                {
-                    returnValue: "resultRows",
-                    rowMode: "object",
-                },
-            ) as Array<{name: string; rootpage: number}>;
+            const schema =
+                sql`SELECT name, rootpage FROM sqlite_schema WHERE type = 'table' ORDER BY name`.selectAll(
+                    db,
+                    {name: Schema.string, rootpage: Schema.integer},
+                );
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(`SELECT * FROM "${name}"`, {allowWrites: "none"});
@@ -1124,8 +1124,12 @@ describe("DatabaseServer", () => {
                 "INSERT INTO t2 VALUES (2)",
             );
 
-            expect(server1.unsafeGetDbForTests().selectValue("SELECT id FROM t1")).toBe(1);
-            expect(server2.unsafeGetDbForTests().selectValue("SELECT id FROM t2")).toBe(2);
+            expect(
+                sql`SELECT id FROM t1`.selectValue(server1.unsafeGetDbForTests(), Schema.integer),
+            ).toBe(1);
+            expect(
+                sql`SELECT id FROM t2`.selectValue(server2.unsafeGetDbForTests(), Schema.integer),
+            ).toBe(2);
 
             server1.close();
             server2.close();
