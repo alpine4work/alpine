@@ -37,6 +37,7 @@ export async function connectToDatabase(options: {
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
     ): Promise<EnsureCacheIsUpToDateResult>;
+    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
     reportError?(message: string): void;
 }): Promise<DatabaseConnection> {
     const manager = new DatabaseActiveTabManager({
@@ -115,6 +116,7 @@ export async function connectToDatabase(options: {
         },
         executeActionServer: options.executeActionServer,
         ensureCacheIsUpToDate: options.ensureCacheIsUpToDate,
+        acknowledgePages: options.acknowledgePages,
         reportError: options.reportError,
     });
 

@@ -341,6 +341,9 @@ export class DatabaseActiveTabWorker {
                 }),
             ensureCacheIsUpToDate: async pageTimestampsByIndex =>
                 rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
+            acknowledgePages: pageIndexes => {
+                void rpc.call("acknowledgePages", {pageIndexes});
+            },
             reportError: error => {
                 void rpc.call("reportError", {
                     message: error instanceof Error ? error.message : String(error),
@@ -421,6 +424,7 @@ export class DatabaseActiveTabManager {
             ensureCacheIsUpToDate(
                 pageTimestampsByIndex: ReadonlyMap<number, number>,
             ): Promise<EnsureCacheIsUpToDateResult>;
+            acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
             reportError?(message: string): void;
         },
     ) {}
@@ -706,6 +710,10 @@ export class DatabaseActiveTabManager {
                 },
                 ensureCacheIsUpToDate: async input =>
                     this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
+                acknowledgePages: async input => {
+                    this.deps.acknowledgePages(input.pageIndexes);
+                    return {};
+                },
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};
@@ -773,6 +781,10 @@ export class DatabaseActiveTabManager {
                 },
                 ensureCacheIsUpToDate: async input =>
                     this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
+                acknowledgePages: async input => {
+                    this.deps.acknowledgePages(input.pageIndexes);
+                    return {};
+                },
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};

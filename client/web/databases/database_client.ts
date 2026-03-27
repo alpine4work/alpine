@@ -68,6 +68,7 @@ export interface DatabaseClientConnection {
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
     ): Promise<EnsureCacheIsUpToDateResult>;
+    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
     reportError(error: unknown): void;
 }
 
@@ -166,6 +167,10 @@ export class DatabaseClient {
 
         for (const [pageIndex, {timestamp, data}] of updatedPages) {
             this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
+        }
+
+        if (updatedPages.size > 0) {
+            conn.acknowledgePages([...updatedPages.keys()]);
         }
 
         if (stalePageIndexes.length > 0) {
@@ -613,6 +618,7 @@ export class DatabaseClient {
         this.pageStore.clearOptimisticPages();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
+            conn.acknowledgePages([...serverResult.readPages.keys()]);
         }
         this.replayOptimisticQueue();
         if (returnResult) {

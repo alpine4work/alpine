@@ -160,6 +160,7 @@ export class WebSocketServer<
     private readonly _createConnection: (connection: {
         accountId: AccountId;
         connectionId: WebSocketConnectionId;
+        searchParams: URLSearchParams;
         sendEvent: (
             context: Context<ProcessContextModules>,
             event: EventStub,
@@ -197,6 +198,7 @@ export class WebSocketServer<
         createConnection: (connection: {
             accountId: AccountId;
             connectionId: WebSocketConnectionId;
+            searchParams: URLSearchParams;
             sendEvent: (
                 context: Context<ProcessContextModules>,
                 event: EventStub,
@@ -324,6 +326,7 @@ export class WebSocketServer<
         const actualConnection = this._createConnection({
             accountId,
             connectionId,
+            searchParams: new URL(request.url).searchParams,
             sendEvent: (context, event) => {
                 return connection.sendEvent(context, event);
             },
@@ -566,6 +569,7 @@ export class WebSocketServer<
         originalConnectActionContext: Context<
             ActionContextModules & {actor: SessionActorContextModule}
         >,
+        {searchParams}: {searchParams?: URLSearchParams} = {},
     ): Promise<
         WebSocketServerTestConnection<
             ProcessContextModules,
@@ -597,6 +601,7 @@ export class WebSocketServer<
         const actualConnection = this._createConnection({
             accountId,
             connectionId,
+            searchParams: searchParams ?? new URLSearchParams(),
             sendEvent: (context, event) => {
                 return connection.sendEvent(context, event);
             },

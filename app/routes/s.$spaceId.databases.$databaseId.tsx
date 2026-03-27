@@ -14,6 +14,7 @@ import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
@@ -82,6 +83,7 @@ export default function DatabaseLayoutRoute() {
     const {databaseName, tables, pages} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
+    const browserId = useBrowserId();
     const navigate = useNavigate();
     const reporter = useReporter();
     const basePath = `/s/${params.spaceId}/databases/${databaseId}`;
@@ -102,7 +104,7 @@ export default function DatabaseLayoutRoute() {
         },
     });
 
-    const wsUrl = `/api/durable-objects/databases/${databaseId}`;
+    const wsUrl = `/api/durable-objects/databases/${databaseId}?browserId=${browserId}`;
 
     const {procedures} = useWebSocket(
         "DatabaseService",
@@ -111,7 +113,7 @@ export default function DatabaseLayoutRoute() {
         events.handleEvent,
     );
 
-    const {executeActionServer, ensureCacheIsUpToDate, reportError} = useEvents({
+    const {executeActionServer, ensureCacheIsUpToDate, acknowledgePages, reportError} = useEvents({
         executeActionServer: async (
             action: {name: "rawSql"; input: {readonly sql: string}},
             options: {
@@ -130,6 +132,9 @@ export default function DatabaseLayoutRoute() {
         ensureCacheIsUpToDate: async (pageTimestampsByIndex: ReadonlyMap<number, number>) => {
             return procedures.ensureCacheIsUpToDate({pageTimestampsByIndex});
         },
+        acknowledgePages: (pageIndexes: ReadonlyArray<number>) => {
+            void procedures.acknowledgePages({pageIndexes: [...pageIndexes]});
+        },
         reportError: (message: string) => {
             reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
         },
@@ -143,6 +148,7 @@ export default function DatabaseLayoutRoute() {
                 initialPages: initialPagesRef.current,
                 executeActionServer,
                 ensureCacheIsUpToDate,
+                acknowledgePages,
                 reportError,
             });
             setConn(connection);
@@ -150,7 +156,7 @@ export default function DatabaseLayoutRoute() {
         return () => {
             connection?.close();
         };
-    }, [databaseId, executeActionServer, ensureCacheIsUpToDate, reportError]);
+    }, [databaseId, executeActionServer, ensureCacheIsUpToDate, acknowledgePages, reportError]);
 
     return (
         <Box

@@ -91,6 +91,10 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: ensureCacheIsUpToDateResultConfig,
     },
+    acknowledgePages: {
+        input: {pageIndexes: Schema.array(Schema.integer)},
+        output: {},
+    },
     reportError: {
         input: {message: Schema.string},
         output: {},

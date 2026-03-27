@@ -479,6 +479,7 @@ function createTestTab(config: {
             }
             return {updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0};
         },
+        acknowledgePages: () => {},
     });
 
     return {

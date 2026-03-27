@@ -71,6 +71,12 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             },
             output: ensureCacheIsUpToDateResultConfig,
         },
+        acknowledgePages: {
+            input: {
+                pageIndexes: Schema.array(Schema.integer),
+            },
+            output: {},
+        },
     },
     events: {
         PagesChanged: Schema.object({
