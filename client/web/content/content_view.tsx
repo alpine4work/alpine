@@ -1,6 +1,4 @@
 import classNames from "classnames";
-import Color from "color";
-import {animate} from "motion";
 import {Link as LinkIcon} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
@@ -36,6 +34,7 @@ import {addContentFileEntityPreviewBehavior} from "~/client/web/content/internal
 import {addContentFilePreviewBehavior} from "~/client/web/content/internal/content_file_preview.js";
 import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/web/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
+import {runContentViewJumpAnimation} from "~/client/web/content/run_content_view_jump_animation.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/web/content/state/add_unfocusable_button_behavior_to_element.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {
@@ -52,7 +51,6 @@ import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/web/design/pretty_absolute_date.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/web/design/tooltip.js";
-import {getColorSchemeWithoutListeningIfBrowser} from "~/client/web/helpers/color_scheme.js";
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -84,7 +82,6 @@ import {
     linkClassName,
     paragraphClassName,
 } from "~/shared/design/core/constant_class_names.js";
-import {easeOutCubic} from "~/shared/design/core/easing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     FileEntityId,
@@ -110,12 +107,6 @@ import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore, undefinedStore} from "~/shared/store/const_store.js";
-
-export const jumpAnimationDurationMs = 3000;
-const jumpAnimationFadeInDurationMs = 70;
-const jumpAnimationFadeOutDurationMs = 500;
-const jumpAnimationSolidDurationMs =
-    jumpAnimationDurationMs - jumpAnimationFadeInDurationMs - jumpAnimationFadeOutDurationMs;
 
 const ContentViewCodeBlockDecorationsSchema = Schema.array(
     Schema.object({
@@ -1029,32 +1020,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 jumpAnimation !== null &&
                 element.classList.contains(contentStyles.jumpAnimationClassName)
             ) {
-                const colorScheme = assertExists(getColorSchemeWithoutListeningIfBrowser());
-
-                const backgroundColor = contentStyles.jumpAnimationBackgroundColor[colorScheme];
-
-                const transparentBackgroundColor = Color(backgroundColor).alpha(0).hexa();
-
-                const animation = animate([
-                    [element, {backgroundColor: transparentBackgroundColor}, {duration: 0}],
-                    [
-                        element,
-                        {backgroundColor},
-                        {duration: jumpAnimationFadeInDurationMs / 1000, ease: "linear"},
-                    ],
-                    [element, {backgroundColor}, {duration: jumpAnimationSolidDurationMs / 1000}],
-                    [
-                        element,
-                        {backgroundColor: transparentBackgroundColor},
-                        {
-                            duration: jumpAnimationFadeOutDurationMs / 1000,
-                            ease: easeOutCubic,
-                        },
-                    ],
-                ]);
-
-                // Synchronize all animations based on the provided `startTime`.
-                animation.time = (Date.now() - jumpAnimation.startTime.getTime()) / 1000;
+                runContentViewJumpAnimation(element, jumpAnimation.startTime);
             }
         }
 

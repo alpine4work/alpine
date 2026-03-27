@@ -7,20 +7,21 @@ import {
     ContentInlineNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {
+    FileNounCountState,
+    printContentSingleLineTextSnippetForFileRow,
+} from "~/shared/content/print_content_single_line_text_snippet_for_file_row.js";
+import {
     RenderContentMentionToTextSearchEntity,
     renderContentMentionToText,
 } from "~/shared/content/render_content_mention_to_text.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
-import {getFileContentTypeStartOfSentenceNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {getFileEntityStartOfSentenceNoun} from "~/shared/files/get_file_entity_noun.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
-import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -121,7 +122,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     let breakPunctuation: {marks: ReadonlyArray<Mark>; text: string} | null = null;
     let preservedMarks: ReadonlyArray<Mark> = emptyArray;
     const orderListItemNumberByNode = new Map<Node, number>();
-    let fileNounNumberState: {noun: string; number: number} | null;
+    let fileNounNumberState: FileNounCountState = null;
     let isTrimmingStart = false;
 
     const print = (text: string) => {
@@ -280,31 +281,23 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             }
             case "fileRow":
             case "fileRowTable": {
-                for (const childNode of node.content.content) {
-                    const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
+                const fileIds = Array.from(
+                    node.content.content,
+                    (childNode): FileId | FileEntityId | null => childNode.attrs.fileId,
+                );
 
-                    let noun: string;
-                    if (!fileId) {
-                        noun = getFileContentTypeStartOfSentenceNoun("application/octet-stream");
-                    } else if (isId<FileId>(fileId)) {
-                        const file = getFileIfExists(fileId);
-                        noun = getFileContentTypeStartOfSentenceNoun(file?.contentType);
-                    } else {
-                        noun = getFileEntityStartOfSentenceNoun(parseFileEntityId(fileId).type);
-                    }
+                const fileRow = printContentSingleLineTextSnippetForFileRow(
+                    fileIds,
+                    getFileIfExists,
+                    fileNounNumberState,
+                );
 
-                    const fileNounNumber =
-                        fileNounNumberState?.noun === noun ? fileNounNumberState.number + 1 : 1;
-
-                    if (fileNounNumber > 1) {
-                        print(`${noun} ${fileNounNumber}`);
-                    } else {
-                        print(noun);
-                    }
-
-                    fileNounNumberState = {noun, number: fileNounNumber};
+                for (const text of fileRow.parts) {
+                    print(text);
                     breakPunctuation = {marks: emptyArray, text: "."};
                 }
+
+                fileNounNumberState = fileRow.nextState;
                 break;
             }
             case "table": {

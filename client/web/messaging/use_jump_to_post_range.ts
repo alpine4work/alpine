@@ -1,5 +1,5 @@
 import {Memo, RefObject, useRef, useState} from "react";
-import {jumpAnimationDurationMs} from "~/client/web/content/content_view.js";
+import {jumpAnimationDurationMs} from "~/client/web/content/run_content_view_jump_animation.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";

@@ -33,6 +33,7 @@ import {
 } from "~/client/web/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageContentPayloadParentWithMessages} from "~/client/web/content/messaging/message_input_base.js";
 import {MessageViewFiles} from "~/client/web/content/messaging/message_view_files.js";
+import {runContentViewJumpAnimation} from "~/client/web/content/run_content_view_jump_animation.js";
 import {
     ContextMenuActions,
     addContextMenuActionsToPreviousSection,
@@ -248,6 +249,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const accountAvatarContainerRef = useRef<HTMLDivElement>(null);
     const contentContainerRef = useRef<HTMLDivElement>(null);
     const touchReplyIconRef = useRef<HTMLDivElement>(null);
+    const fileOnlyJumpAnimationOverlayRef = useRef<HTMLDivElement>(null);
 
     const {
         shouldMergeWithPreviousMessage,
@@ -495,8 +497,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 contextMenuActions.push(menuActions);
             }
 
-            // Add reaction action for file-only messages (messages with files but no text
-            // content). Reply is not available since there's no text to quote.
+            // Add reply and reaction actions for file-only messages (messages with files but
+            // no text content). The reply preview will be the file nouns (e.g. "Image" or
+            // "Image. Image 2. Image 3").
             else if (
                 !isReadOnly &&
                 !message.isOptimistic &&
@@ -505,6 +508,19 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 isContentEmpty(message.payload.content.doc) &&
                 message.stream === null
             ) {
+                contextMenuActions.push([
+                    {
+                        label: "Reply",
+                        icon: <ArrowArcRight />,
+                        iconPlacement: "end",
+                        onPress: () => {
+                            disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame();
+                            window.getSelection()?.removeAllRanges();
+                            events.onReplyToMessage();
+                        },
+                    },
+                ]);
+
                 contextMenuActions.push([
                     messageViewReactionContextMenuAction({
                         message,
@@ -903,6 +919,30 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return {from, to, startTime: jumpState.animation.startTime};
     }, [jumpState, message.payload]);
+
+    // For file-only messages (messages with empty content but files), the
+    // jumpAnimation won't be applied via ContentView since ContentView isn't rendered.
+    // Instead, we apply the animation directly to an overlay element.
+    const isFileOnlyMessage =
+        message.payload.type === "Content" &&
+        isContentEmpty(message.payload.content.doc) &&
+        message.payload.files.length > 0;
+
+    useEffect(() => {
+        if (!isFileOnlyMessage) return;
+        if (!jumpAnimation) return;
+
+        const overlayElement = fileOnlyJumpAnimationOverlayRef.current;
+        if (!overlayElement) return;
+
+        const animation = runContentViewJumpAnimation(overlayElement, jumpAnimation.startTime, {
+            highlightType: "Border",
+        });
+
+        return () => {
+            animation.stop();
+        };
+    }, [isFileOnlyMessage, jumpAnimation]);
 
     const reactionsByPos = useMemo(() => {
         if (message.payload.type !== "Content") return emptyMap;
@@ -1578,28 +1618,67 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 {message.payload.type === "Content" &&
                                     message.payload.files.length > 0 && (
                                         <>
-                                            <MessageViewFiles
-                                                attachmentTarget={fileAttachmentTarget}
-                                                files={message.payload.files}
-                                                paddingTop={
-                                                    contentPayloadNode !== null
-                                                        ? // It feels like too much space when we have a single line of text over a file. So
-                                                          // special case a single non-standalone margin node above a file and in this case
-                                                          // use paragraph margins instead of standalone block margins.
-                                                          message.payload.content.doc.childCount ===
-                                                              1 &&
-                                                          !hasStandaloneMarginByContentBlockNodeTypeName[
-                                                              message.payload.content.doc
-                                                                  .firstChild!.type.name
-                                                          ]
-                                                            ? contentStyles.paragraphMargin
-                                                            : message.payload.content.doc.lastChild!
-                                                                    .type.name === "divider"
-                                                              ? contentStyles.messageDividerMargin
-                                                              : contentStyles.standaloneBlockMargin
-                                                        : undefined
-                                                }
-                                            />
+                                            <div
+                                                className={sprinkles({position: "relative"})}
+                                                style={{
+                                                    paddingTop: (() => {
+                                                        if (contentPayloadNode === null)
+                                                            return undefined;
+                                                        // It feels like too much space when we have a single line of text over a file. So
+                                                        // special case a single non-standalone margin node above a file and in this case
+                                                        // use paragraph margins instead of standalone block margins.
+                                                        if (
+                                                            message.payload.content.doc
+                                                                .childCount === 1 &&
+                                                            !hasStandaloneMarginByContentBlockNodeTypeName[
+                                                                message.payload.content.doc
+                                                                    .firstChild!.type.name
+                                                            ]
+                                                        ) {
+                                                            return spacing[
+                                                                contentStyles.paragraphMargin
+                                                            ];
+                                                        }
+                                                        if (
+                                                            message.payload.content.doc.lastChild!
+                                                                .type.name === "divider"
+                                                        ) {
+                                                            return spacing[
+                                                                contentStyles.messageDividerMargin
+                                                            ];
+                                                        }
+                                                        return spacing[
+                                                            contentStyles.standaloneBlockMargin
+                                                        ];
+                                                    })(),
+                                                }}
+                                            >
+                                                <MessageViewFiles
+                                                    attachmentTarget={fileAttachmentTarget}
+                                                    files={message.payload.files}
+                                                />
+                                                {isFileOnlyMessage && jumpAnimation !== null && (
+                                                    <div
+                                                        ref={fileOnlyJumpAnimationOverlayRef}
+                                                        className={sprinkles({
+                                                            position: "absolute",
+                                                            pointerEvents: "none",
+                                                        })}
+                                                        style={{
+                                                            // File previews have z-index up to 20, so use 30 to appear on top.
+                                                            zIndex: 30,
+                                                            top: -7,
+                                                            left: -7,
+                                                            right: -7,
+                                                            bottom: -7,
+                                                            borderStyle: "solid",
+                                                            borderWidth: 4,
+                                                            borderRadius: 7,
+                                                            borderColor: "transparent",
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
                                             {(message.payload.filesReactions.get().size > 0 ||
                                                 // If this is the last message and the message is from a user other than our own
                                                 // then we want to render the party even if there are no reactions so you can leave
