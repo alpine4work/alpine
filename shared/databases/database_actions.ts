@@ -7,11 +7,29 @@ import {
     checkConstraintForColumn,
     toSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
+import {SqliteRowFormatter} from "~/shared/databases/internal/sqlite_row_formatter.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
+
+// -- Row formatters ----------------------------------------------------------
+
+const alpineTableRow = new SqliteRowFormatter(
+    Schema.object({
+        id: Schema.id<DatabaseTableId>(),
+        name: Schema.string,
+        tableName: Schema.string.originalPropertyKey("table_name"),
+    }),
+);
+
+const alpineViewRow = new SqliteRowFormatter(
+    Schema.object({
+        id: Schema.id<DatabaseViewId>(),
+        tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+        name: Schema.string,
+    }),
+);
 
 /**
  * Defines a database action with typed input/output
@@ -126,41 +144,66 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run(db) {
-            const rows = db.exec("SELECT id, name, table_name FROM _alpine_tables ORDER BY id", {
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as Array<{id: string; name: string; table_name: string}>;
+            const rows = alpineTableRow.all(db, "SELECT * FROM _alpine_tables ORDER BY id");
             const tables = new Map<DatabaseTableId, {name: string; tableName: string}>();
             for (const row of rows) {
-                tables.set(row.id as DatabaseTableId, {
-                    name: row.name,
-                    tableName: row.table_name,
-                });
+                tables.set(row.id, {name: row.name, tableName: row.tableName});
             }
             return {tables};
         },
     }),
 
-    getTableData: defineDatabaseAction({
-        input: Schema.object({tableId: Schema.id<DatabaseTableId>()}),
+    getViewData: defineDatabaseAction({
+        input: Schema.object({tableOrViewId: Schema.string}),
         output: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            viewId: Schema.id<DatabaseViewId>(),
             tableName: Schema.string,
             rows: Schema.array(Schema.unknown()),
         }),
         writeLevel: "none",
-        run(db, {tableId}) {
-            const result = db.exec("SELECT table_name FROM _alpine_tables WHERE id = ?", {
-                bind: [tableId],
-                returnValue: "resultRows",
-                rowMode: "object",
-            }) as Array<{table_name: string}>;
-            assert(result.length === 1, "Table not found");
-            const tableName = result[0]!.table_name;
+        run(db, {tableOrViewId}) {
+            let tableId: DatabaseTableId;
+            let viewId: DatabaseViewId;
+            let tableName: string;
+
+            // Try to resolve as a table ID first.
+            const tableResult = alpineTableRow.oneOrNone(
+                db,
+                "SELECT * FROM _alpine_tables WHERE id = ?",
+                [tableOrViewId],
+            );
+
+            if (tableResult !== null) {
+                tableId = tableResult.id;
+                tableName = tableResult.tableName;
+
+                // Pick the first view for this table.
+                const view = alpineViewRow.one(
+                    db,
+                    "SELECT * FROM _alpine_views WHERE table_id = ? ORDER BY id LIMIT 1",
+                    [tableId],
+                );
+                viewId = view.id;
+            } else {
+                // Try as a view ID.
+                const view = alpineViewRow.one(db, "SELECT * FROM _alpine_views WHERE id = ?", [
+                    tableOrViewId,
+                ]);
+                viewId = view.id;
+                tableId = view.tableId;
+
+                const table = alpineTableRow.one(db, "SELECT * FROM _alpine_tables WHERE id = ?", [
+                    tableId,
+                ]);
+                tableName = table.tableName;
+            }
+
             const rows = db.exec(`SELECT * FROM "${tableName}"`, {
                 returnValue: "resultRows",
                 rowMode: "object",
             }) as Array<Record<string, unknown>>;
-            return {tableName, rows};
+            return {tableId, viewId, tableName, rows};
         },
     }),
 };

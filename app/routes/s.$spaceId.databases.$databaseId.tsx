@@ -176,7 +176,7 @@ export default function DatabaseLayoutRoute() {
                 {Array.from(tables, ([tableId, table]) => (
                     <Button
                         key={tableId}
-                        variant={params.tableId === tableId ? "neutral" : "quieter"}
+                        variant={params.tableOrViewId === tableId ? "neutral" : "quieter"}
                         onPress={() => navigate(`${basePath}/${tableId}`, {stopPropagation: true})}
                         pressErrorTitle="Failed to navigate"
                     >
@@ -184,7 +184,7 @@ export default function DatabaseLayoutRoute() {
                     </Button>
                 ))}
                 <Button
-                    variant={params.tableId == null ? "neutral" : "quieter"}
+                    variant={params.tableOrViewId == null ? "neutral" : "quieter"}
                     onPress={() => navigate(`${basePath}/sql`, {stopPropagation: true})}
                     pressErrorTitle="Failed to navigate"
                 >
