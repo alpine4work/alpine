@@ -1,79 +1,47 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     alpineFieldTypeToSqliteType,
     checkConstraintForColumn,
-    toSqlName,
+    formatUniqueSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
-import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
-import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 
-const sqlite3Promise = sqlite3InitModule();
-let dbCounter = 0;
+const empty = new Set<string>();
 
-async function createDb(): Promise<Database> {
-    const sqlite3 = await sqlite3Promise;
-    const db = new sqlite3.oo1.DB(`/test-helpers-${dbCounter++}.sqlite3`, "ct");
-    registerSqliteCustomFunctions(db);
-    runSqliteMigrations(db);
-    return db;
-}
+// -- formatUniqueSqlName ------------------------------------------------------
 
-// -- toSqlName ---------------------------------------------------------------
-
-describe("toSqlName", () => {
-    test("slugifies a simple name", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "My Table")).toBe("my_table");
-        db.close();
+describe("formatUniqueSqlName", () => {
+    test("slugifies a simple name", () => {
+        expect(formatUniqueSqlName("My Table", empty)).toBe("my_table");
     });
 
-    test("collapses runs of underscores", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "a---b___c")).toBe("a_b_c");
-        db.close();
+    test("collapses runs of underscores", () => {
+        expect(formatUniqueSqlName("a---b___c", empty)).toBe("a_b_c");
     });
 
-    test("strips leading underscores", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "_alpine_foo")).toBe("alpine_foo");
-        db.close();
+    test("strips leading underscores", () => {
+        expect(formatUniqueSqlName("_alpine_foo", empty)).toBe("alpine_foo");
     });
 
-    test("rewrites sqlite_ prefix to x_sqlite_", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "sqlite_master")).toBe("x_sqlite_master");
-        db.close();
+    test("rewrites sqlite_ prefix to x_sqlite_", () => {
+        expect(formatUniqueSqlName("sqlite_master", empty)).toBe("x_sqlite_master");
     });
 
-    test("prefixes x_ when starts with digit", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "123abc")).toBe("x_123abc");
-        db.close();
+    test("prefixes x_ when starts with digit", () => {
+        expect(formatUniqueSqlName("123abc", empty)).toBe("x_123abc");
     });
 
-    test("prefixes x_ when empty after slugification", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "!!!")).toBe("x");
-        db.close();
+    test("prefixes x_ when empty after slugification", () => {
+        expect(formatUniqueSqlName("!!!", empty)).toBe("x");
     });
 
-    test("strips trailing underscores", async () => {
-        const db = await createDb();
-        expect(toSqlName(db, "foo___")).toBe("foo");
-        db.close();
+    test("strips trailing underscores", () => {
+        expect(formatUniqueSqlName("foo___", empty)).toBe("foo");
     });
 
-    test("appends _2, _3 for uniqueness", async () => {
-        const db = await createDb();
-        db.exec(`INSERT INTO _alpine_tables (name, table_name) VALUES ('t', 'tasks')`);
-        expect(toSqlName(db, "Tasks")).toBe("tasks_2");
-
-        db.exec(`INSERT INTO _alpine_tables (name, table_name) VALUES ('t', 'tasks_2')`);
-        expect(toSqlName(db, "Tasks")).toBe("tasks_3");
-        db.close();
+    test("appends _2, _3 for uniqueness", () => {
+        expect(formatUniqueSqlName("Tasks", new Set(["tasks"]))).toBe("tasks_2");
+        expect(formatUniqueSqlName("Tasks", new Set(["tasks", "tasks_2"]))).toBe("tasks_3");
     });
 });
 

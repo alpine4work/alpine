@@ -21,7 +21,13 @@ import {
     VirtualizedScrollViewItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import type {
+    DatabaseFieldId,
+    DatabaseRowId,
+    DatabaseTableId,
+    DatabaseViewId,
+} from "~/shared/id/types/id_types.js";
 
 type DatabaseResultTableField = {
     readonly id: DatabaseFieldId;
@@ -86,14 +92,25 @@ function selectionReducer(
  * column names, widths, and field IDs for cell editing.
  */
 export function DatabaseResultTable({
+    tableId,
+    viewId,
     fields,
     rows: rawRows,
 }: {
+    tableId: DatabaseTableId;
+    viewId: DatabaseViewId;
     fields: ReadonlyArray<DatabaseResultTableField>;
     rows: ReadonlyArray<unknown>;
 }) {
+    const conn = useDatabaseConnection();
     const rows = rawRows as ReadonlyArray<Record<string, unknown>>;
     const [selection, dispatch] = useReducer(selectionReducer, null);
+    const [addingField, setAddingField] = useState<string | null>(null);
+
+    const [optimisticFields, addOptimisticField] = useOptimistic(
+        fields,
+        (prev, newField: DatabaseResultTableField) => [...prev, newField],
+    );
 
     const handleGlobalKeyDown = useCallback(
         (e: KeyboardEvent) => {
@@ -157,7 +174,36 @@ export function DatabaseResultTable({
                                             zIndex: 2,
                                         }}
                                     >
-                                        <DatabaseResultTableHeaderRow fields={fields} />
+                                        <DatabaseResultTableHeaderRow
+                                            fields={optimisticFields}
+                                            addingField={addingField}
+                                            onAddingFieldChange={setAddingField}
+                                            onCommitField={(fieldName: string) => {
+                                                if (conn == null) return;
+                                                startTransition(async () => {
+                                                    const fieldId =
+                                                        generateChronologicalId<DatabaseFieldId>();
+                                                    addOptimisticField({
+                                                        id: fieldId,
+                                                        name: fieldName,
+                                                        columnName: "__pending__",
+                                                        width: 200,
+                                                    });
+                                                    setAddingField(null);
+                                                    await conn.call("executeAction", {
+                                                        action: {
+                                                            name: "addField" as const,
+                                                            input: {
+                                                                fieldId,
+                                                                tableId,
+                                                                viewId,
+                                                                name: fieldName,
+                                                            },
+                                                        },
+                                                    });
+                                                });
+                                            }}
+                                        />
                                     </div>
                                 </div>
                             );
@@ -173,16 +219,17 @@ export function DatabaseResultTable({
                     minHeight: 32,
                     node: (
                         <DatabaseResultTableDataRow
-                            fields={fields}
+                            fields={optimisticFields}
                             row={row}
                             rowId={rowId}
                             selection={selection}
                             dispatch={dispatch}
+                            showGhostCell={addingField !== null}
                         />
                     ),
                 };
             },
-        [fields, rows, selection],
+        [optimisticFields, rows, selection, addingField, conn, tableId, viewId, addOptimisticField],
     );
 
     if (rows.length === 0) {
@@ -209,7 +256,25 @@ export function DatabaseResultTable({
 
 // -- Header row ---------------------------------------------------------------
 
-function DatabaseResultTableHeaderRow({fields}: {fields: ReadonlyArray<DatabaseResultTableField>}) {
+function DatabaseResultTableHeaderRow({
+    fields,
+    addingField,
+    onAddingFieldChange,
+    onCommitField,
+}: {
+    fields: ReadonlyArray<DatabaseResultTableField>;
+    addingField: string | null;
+    onAddingFieldChange: (value: string | null) => void;
+    onCommitField: (name: string) => void;
+}) {
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (addingField !== null) {
+            inputRef.current?.focus();
+        }
+    }, [addingField !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+
     return (
         <Box display="flex">
             {fields.map(field => (
@@ -230,6 +295,54 @@ function DatabaseResultTableHeaderRow({fields}: {fields: ReadonlyArray<DatabaseR
                     {field.name}
                 </Box>
             ))}
+            {addingField !== null && (
+                <Box backgroundColor="grey-5" style={{width: 200, minWidth: 200, maxWidth: 200}}>
+                    <input
+                        ref={inputRef}
+                        value={addingField}
+                        onChange={e => onAddingFieldChange(e.currentTarget.value)}
+                        onBlur={() => {
+                            if (addingField.trim() !== "") {
+                                onCommitField(addingField.trim());
+                            } else {
+                                onAddingFieldChange(null);
+                            }
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (addingField.trim() !== "") {
+                                    onCommitField(addingField.trim());
+                                } else {
+                                    onAddingFieldChange(null);
+                                }
+                            } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                onAddingFieldChange(null);
+                            }
+                            e.stopPropagation();
+                        }}
+                        className={sprinkles({
+                            width: "full",
+                            padding: "2",
+                            fontSize: "75",
+                            color: "grey-80",
+                        })}
+                    />
+                </Box>
+            )}
+            <Box
+                backgroundColor="grey-5"
+                color="grey-40"
+                fontSize="75"
+                fontStyle="truncate-semi-bold"
+                padding="2"
+                style={{width: 32, minWidth: 32, cursor: "pointer"}}
+                textAlign="center"
+                onClick={() => onAddingFieldChange("")}
+            >
+                +
+            </Box>
         </Box>
     );
 }
@@ -242,12 +355,14 @@ function DatabaseResultTableDataRow({
     rowId,
     selection,
     dispatch,
+    showGhostCell,
 }: {
     fields: ReadonlyArray<DatabaseResultTableField>;
     row: Record<string, unknown>;
     rowId: DatabaseRowId;
     selection: DatabaseResultTableSelection;
     dispatch: Dispatch<SelectionAction>;
+    showGhostCell: boolean;
 }) {
     return (
         <Box display="flex">
@@ -272,6 +387,14 @@ function DatabaseResultTableDataRow({
                     />
                 );
             })}
+            {showGhostCell && (
+                <Box
+                    fontSize="75"
+                    padding="2"
+                    borderTop="grey-10"
+                    style={{width: 200, minWidth: 200, maxWidth: 200}}
+                />
+            )}
         </Box>
     );
 }

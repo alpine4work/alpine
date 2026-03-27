@@ -1,46 +1,34 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
-import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseFieldType} from "~/shared/databases/database_field_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-
 /**
- * Derive a unique, SQL-safe table name from a
- * human-readable name.
+ * Slugify a human-readable name into a SQL-safe
+ * identifier, then deduplicate against `existing` by
+ * appending `_2`, `_3`, etc. as needed.
+ *
+ * The slug will never start with `_` (leading
+ * underscores are stripped during slugification).
  */
-export function toSqlName(db: Database, name: string): string {
-    // Slugify: lowercase, replace non-alphanumeric
-    // with `_`, collapse runs.
+export function formatUniqueSqlName(name: string, existing: ReadonlySet<string>): string {
     let slug = name
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "_")
         .replace(/_+/g, "_");
 
-    // Strip leading underscores.
     slug = slug.replace(/^_+/, "");
 
-    // Rewrite sqlite_ prefix.
     if (slug.startsWith("sqlite_")) {
         slug = "x_" + slug;
     }
 
-    // If empty or starts with digit, prefix x_.
     if (slug === "" || /^[0-9]/.test(slug)) {
         slug = "x_" + slug;
     }
 
-    // Strip trailing underscores.
     slug = slug.replace(/_+$/, "");
 
-    // Ensure uniqueness against existing table names.
-    const existing = new Set(
-        (
-            db.exec("SELECT table_name FROM _alpine_tables", {
-                returnValue: "resultRows",
-                rowMode: "array",
-            }) as Array<[string]>
-        ).map(row => row[0]),
-    );
+    assert(!slug.startsWith("_"), "slugified SQL name should never start with _");
 
     if (!existing.has(slug)) return slug;
 

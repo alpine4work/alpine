@@ -5,7 +5,7 @@ import {serializeDatabaseFieldType} from "~/shared/databases/database_field_type
 import {
     alpineFieldTypeToSqliteType,
     checkConstraintForColumn,
-    toSqlName,
+    formatUniqueSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
 import {SqliteRowFormatter} from "~/shared/databases/internal/sqlite_row_formatter.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
@@ -108,7 +108,15 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         run(db, {name}) {
-            const tableName = toSqlName(db, name);
+            const existingTableNames = new Set(
+                (
+                    db.exec("SELECT table_name FROM _alpine_tables", {
+                        returnValue: "resultRows",
+                        rowMode: "array",
+                    }) as Array<[string]>
+                ).map(row => row[0]),
+            );
+            const tableName = formatUniqueSqlName(name, existingTableNames);
             const tableId = generateChronologicalId<DatabaseTableId>();
 
             db.exec(`INSERT INTO _alpine_tables (id, name, table_name) VALUES (?, ?, ?)`, {
@@ -267,6 +275,65 @@ export const databaseActions = {
             db.exec(`UPDATE "${table.tableName}" SET "${field.columnName}" = ? WHERE _id = ?`, {
                 bind: [value, rowId],
             });
+            return {};
+        },
+    }),
+
+    addField: defineDatabaseAction({
+        input: Schema.object({
+            fieldId: Schema.id<DatabaseFieldId>(),
+            tableId: Schema.id<DatabaseTableId>(),
+            viewId: Schema.id<DatabaseViewId>(),
+            name: Schema.string,
+        }),
+        output: Schema.object({}),
+        writeLevel: "schema+data",
+        run(db, {fieldId, tableId, viewId, name}) {
+            const table = alpineTableRow.one(db, "SELECT * FROM _alpine_tables WHERE id = ?", [
+                tableId,
+            ]);
+
+            const existingColumnNames = new Set(
+                (
+                    db.exec("SELECT column_name FROM _alpine_fields WHERE table_id = ?", {
+                        returnValue: "resultRows",
+                        rowMode: "array",
+                        bind: [tableId],
+                    }) as Array<[string]>
+                ).map(row => row[0]),
+            );
+            const columnName = formatUniqueSqlName(name, existingColumnNames);
+            const fieldType = serializeDatabaseFieldType({type: "plainText"});
+
+            db.exec(
+                `INSERT INTO _alpine_fields (id, table_id, name, column_name, type)
+                 VALUES (?, ?, ?, ?, ?)`,
+                {bind: [fieldId, tableId, name, columnName, fieldType]},
+            );
+
+            const sqliteType = alpineFieldTypeToSqliteType("plainText");
+            const check = checkConstraintForColumn(columnName, sqliteType, true);
+
+            db.exec(
+                `ALTER TABLE "${table.tableName}"
+                 ADD COLUMN "${columnName}" ${sqliteType}_alpine_${fieldId} NOT NULL DEFAULT ''
+                 ${check}`,
+            );
+
+            const maxPos = (
+                db.exec("SELECT MAX(position) FROM _alpine_view_fields WHERE view_id = ?", {
+                    returnValue: "resultRows",
+                    rowMode: "array",
+                    bind: [viewId],
+                }) as Array<[number | null]>
+            )[0]![0];
+
+            db.exec(
+                `INSERT INTO _alpine_view_fields (view_id, field_id, position, width)
+                 VALUES (?, ?, ?, ?)`,
+                {bind: [viewId, fieldId, (maxPos ?? -1) + 1, 200]},
+            );
+
             return {};
         },
     }),
