@@ -663,8 +663,8 @@ async function createArtifacts() {
             server: new MutexValue<ArtifactServer | null>(null),
         },
         {
-            bazelTarget: "//server/agents",
-            executablePath: "server/agents/agents.sh",
+            bazelTarget: "//server/agents/bots",
+            executablePath: "server/agents/bots/bots.sh",
             stdioPrefix: "agn",
             ports: {
                 publicPort: agentsDevPort,
