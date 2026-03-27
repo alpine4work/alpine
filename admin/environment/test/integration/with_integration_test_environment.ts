@@ -597,7 +597,7 @@ export function actuallyCreateIntegrationTestEnvironment(
             fs.mkdir(agentsD1LocalDataPath, {recursive: true}).then(async () => {
                 const agentsD1LocalDataTarPath = joinPath(
                     runfilesPath,
-                    "cyberworlds/server/agents/agents_d1_local_data.tar.gz",
+                    "cyberworlds/server/agents/bots/agents_d1_local_data.tar.gz",
                 );
 
                 await runProcess(
@@ -904,7 +904,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         apiServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
         agentServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/server/agents/agents.sh"),
+            joinPath(runfilesPath, "cyberworlds/server/agents/bots/agents.sh"),
             [
                 `--port=${agentServicePort}`,
                 `--cacheLocalDataPath=${agentsCacheLocalDataPath}`,

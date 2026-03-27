@@ -34,9 +34,9 @@ export type AgentMessageStreamPart = {
  * Manages message streaming for agents. You stream text into this class with
  * `pushText()` and you turn that text into parts with `update()`.
  *
- * NOTE(calebmer): This class would make more sense in `//server/agents` since it's
- * specifically geared for LLM stream processing but we want to have access to this
- * class for the tests in this file.
+ * NOTE(calebmer): This class would make more sense in `//server/agents/bots` since
+ * it's specifically geared for LLM stream processing but we want to have access to
+ * this class for the tests in this file.
  */
 export class AgentMessageStream {
     private readonly _spaceId: SpaceId;

@@ -6,8 +6,8 @@ filegroup(
     name = "integration_data",
     srcs = [
         "//app:app_test",
-        "//server/agents",
-        "//server/agents:agents_d1_local_data",
+        "//server/agents/bots",
+        "//server/agents/bots:agents_d1_local_data",
         "//server/api",
         "//server/apns:apns_development_certificates",
         "//server/edge",
