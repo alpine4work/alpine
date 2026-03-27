@@ -12,8 +12,7 @@
  *   function, recursive.
  * - `"data"` — above + DML: insert, update, delete,
  *   savepoint.
- * - `"schema+data"` — above + DDL: everything except
- *   pragma.
+ * - `"schema+data"` — above + DDL + pragma: everything.
  */
 export type SqliteWriteLevel = "none" | "data" | "schema+data";
 
@@ -100,6 +99,6 @@ export function isSqliteActionAllowed(
     if (writeLevel === "data") {
         return false;
     }
-    // "schema+data" — allow everything except pragma.
-    return action !== "pragma";
+    // "schema+data" — allow everything.
+    return true;
 }

@@ -109,8 +109,11 @@ export function DatabaseResultTable({
 
     const [optimisticFields, addOptimisticField] = useOptimistic(
         fields,
-        (prev, newField: DatabaseResultTableField) => [...prev, newField],
+        (prev, newField: DatabaseResultTableField) =>
+            prev.some(f => f.id === newField.id) ? prev : [...prev, newField],
     );
+
+    console.log({optimisticFields});
 
     const handleGlobalKeyDown = useCallback(
         (e: KeyboardEvent) => {
@@ -180,6 +183,7 @@ export function DatabaseResultTable({
                                             onAddingFieldChange={setAddingField}
                                             onCommitField={(fieldName: string) => {
                                                 if (conn == null) return;
+                                                setAddingField(null);
                                                 startTransition(async () => {
                                                     const fieldId =
                                                         generateChronologicalId<DatabaseFieldId>();
@@ -189,7 +193,6 @@ export function DatabaseResultTable({
                                                         columnName: "__pending__",
                                                         width: 200,
                                                     });
-                                                    setAddingField(null);
                                                     await conn.call("executeAction", {
                                                         action: {
                                                             name: "addField" as const,

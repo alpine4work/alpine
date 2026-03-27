@@ -210,6 +210,14 @@ export class DatabaseActiveTabWorker {
                     // client will fall back to the server for
                     // missing pages on demand.
                 }
+
+                // Pre-fetch schema pages so optimistic mutations
+                // can read metadata without hitting the server.
+                void client.executeAction(conn, {
+                    name: "ensureSchemaPagesLoaded",
+                    input: {},
+                });
+
                 return client;
             })();
             this.clientPromises.set(databaseId, promise);

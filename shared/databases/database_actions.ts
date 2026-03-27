@@ -99,6 +99,19 @@ export const databaseActions = {
         },
     }),
 
+    ensureSchemaPagesLoaded: defineDatabaseAction({
+        input: Schema.object({}),
+        output: Schema.object({}),
+        writeLevel: "none",
+        run(db) {
+            db.exec("SELECT * FROM _alpine_tables", {returnValue: "resultRows"});
+            db.exec("SELECT * FROM _alpine_fields", {returnValue: "resultRows"});
+            db.exec("SELECT * FROM _alpine_views", {returnValue: "resultRows"});
+            db.exec("SELECT * FROM _alpine_view_fields", {returnValue: "resultRows"});
+            return {};
+        },
+    }),
+
     createTable: defineDatabaseAction({
         input: Schema.object({name: Schema.string}),
         output: Schema.object({
