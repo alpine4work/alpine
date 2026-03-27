@@ -1,6 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import type {DatabaseFieldType} from "~/shared/databases/database_field_type.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -64,20 +65,21 @@ export function checkConstraintForColumn(
     columnName: string,
     sqliteType: string,
     notNull: boolean,
-): string {
+): SqlQuery {
+    const col = sql.identifier(columnName);
     switch (sqliteType) {
         case "TEXT":
             return notNull
-                ? `CHECK(typeof(${columnName}) = 'text')`
-                : `CHECK(typeof(${columnName}) = 'text' OR ${columnName} IS NULL)`;
+                ? sql`CHECK(typeof(${col}) = 'text')`
+                : sql`CHECK(typeof(${col}) = 'text' OR ${col} IS NULL)`;
         case "REAL":
             return notNull
-                ? `CHECK(typeof(${columnName}) IN ('real', 'integer'))`
-                : `CHECK(typeof(${columnName}) IN ('real', 'integer') OR ${columnName} IS NULL)`;
+                ? sql`CHECK(typeof(${col}) IN ('real', 'integer'))`
+                : sql`CHECK(typeof(${col}) IN ('real', 'integer') OR ${col} IS NULL)`;
         case "INTEGER":
             return notNull
-                ? `CHECK(typeof(${columnName}) = 'integer')`
-                : `CHECK(typeof(${columnName}) = 'integer' OR ${columnName} IS NULL)`;
+                ? sql`CHECK(typeof(${col}) = 'integer')`
+                : sql`CHECK(typeof(${col}) = 'integer' OR ${col} IS NULL)`;
         default:
             assert(false, `unsupported SQLite type: ${sqliteType}`);
     }

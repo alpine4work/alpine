@@ -133,7 +133,7 @@ export const databaseActions = {
                 name ${sql.raw(sqliteType)}_alpine_${sql.raw(fieldId)} NOT NULL DEFAULT '',
                 CHECK(is_id(_id)),
                 CHECK(datetime(_created_at) IS NOT NULL),
-                ${sql.raw(nameCheck)}
+                ${nameCheck}
             ) WITHOUT ROWID`.exec(db);
 
             sql`CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(tableName)}(_created_at)`.exec(
@@ -300,7 +300,7 @@ export const databaseActions = {
 
             sql`ALTER TABLE ${sql.identifier(table.tableName)}
                 ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(fieldId)} NOT NULL DEFAULT ''
-                ${sql.raw(check)}`.exec(db);
+                ${check}`.exec(db);
 
             const maxPos =
                 sql`SELECT MAX(position) FROM _alpine_view_fields WHERE view_id = ${viewId}`.selectValue(

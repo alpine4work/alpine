@@ -213,10 +213,14 @@ export class DatabaseActiveTabWorker {
 
                 // Pre-fetch schema pages so optimistic mutations
                 // can read metadata without hitting the server.
-                void client.executeAction(conn, {
-                    name: "ensureSchemaPagesLoaded",
-                    input: {},
-                });
+                // Best-effort — may fail if the local cache is
+                // empty; pages will be fetched on demand.
+                void client
+                    .executeAction(conn, {
+                        name: "ensureSchemaPagesLoaded",
+                        input: {},
+                    })
+                    .catch(() => {});
 
                 return client;
             })();

@@ -99,6 +99,8 @@ export function isSqliteActionAllowed(
     if (writeLevel === "data") {
         return false;
     }
-    // "schema+data" — allow everything.
+    // "schema+data" — allow everything. Pragmas must be
+    // allowed here because SQLite fires them internally
+    // during DDL (e.g. ALTER TABLE).
     return true;
 }

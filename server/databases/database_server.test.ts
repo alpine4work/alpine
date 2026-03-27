@@ -988,12 +988,14 @@ describe("DatabaseServer", () => {
             server.close();
         });
 
-        test("PRAGMA is rejected", async () => {
+        test("PRAGMA is allowed at schema+data level", async () => {
             const server = await createServerWithSchema();
 
+            // PRAGMAs must be allowed at schema+data because
+            // SQLite fires them internally during DDL.
             expect(() =>
                 server.execute("PRAGMA table_list", {allowWrites: "schema+data"}),
-            ).toThrow();
+            ).not.toThrow();
 
             server.close();
         });
