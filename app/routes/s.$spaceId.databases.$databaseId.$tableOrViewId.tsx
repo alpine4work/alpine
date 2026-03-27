@@ -4,7 +4,7 @@ import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {DatabaseResultTable} from "~/client/web/databases/database_result_table.js";
+import {DatabaseGridView} from "~/client/web/databases/database_grid_view.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -80,7 +80,7 @@ export default function DatabaseViewRoute() {
         );
     }
     return (
-        <DatabaseResultTable
+        <DatabaseGridView
             tableId={result.value.tableId}
             viewId={result.value.viewId}
             fields={result.value.fields}

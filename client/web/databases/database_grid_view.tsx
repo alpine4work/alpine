@@ -30,7 +30,7 @@ import type {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
 
-type DatabaseResultTableField = {
+type DatabaseGridViewField = {
     readonly id: DatabaseFieldId;
     readonly name: string;
     readonly columnName: string;
@@ -41,7 +41,7 @@ const alwaysRenderHeader: ReadonlyArray<number> = [0];
 
 // -- Selection state ----------------------------------------------------------
 
-type DatabaseResultTableSelection = {
+type DatabaseGridViewSelection = {
     rowId: DatabaseRowId;
     fieldId: DatabaseFieldId;
     isEditing: boolean;
@@ -58,9 +58,9 @@ type SelectionAction =
     | {type: "deselect"};
 
 function selectionReducer(
-    state: DatabaseResultTableSelection,
+    state: DatabaseGridViewSelection,
     action: SelectionAction,
-): DatabaseResultTableSelection {
+): DatabaseGridViewSelection {
     switch (action.type) {
         case "click":
             return {
@@ -100,7 +100,7 @@ function selectionReducer(
  * with a sticky header. Uses view field metadata for
  * column names, widths, and field IDs for cell editing.
  */
-export function DatabaseResultTable({
+export function DatabaseGridView({
     tableId,
     viewId,
     fields,
@@ -108,7 +108,7 @@ export function DatabaseResultTable({
 }: {
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
-    fields: ReadonlyArray<DatabaseResultTableField>;
+    fields: ReadonlyArray<DatabaseGridViewField>;
     rows: ReadonlyArray<unknown>;
 }) {
     const conn = useDatabaseConnection();
@@ -120,7 +120,7 @@ export function DatabaseResultTable({
 
     const [optimisticFields, addOptimisticField] = useOptimistic(
         fields,
-        (prev, newField: DatabaseResultTableField) =>
+        (prev, newField: DatabaseGridViewField) =>
             prev.some(f => f.id === newField.id) ? prev : [...prev, newField],
     );
 
@@ -232,7 +232,7 @@ export function DatabaseResultTable({
                                             zIndex: 2,
                                         }}
                                     >
-                                        <DatabaseResultTableHeaderRow
+                                        <DatabaseGridViewHeaderRow
                                             fields={optimisticFields}
                                             addingField={addingField}
                                             onAddingFieldChange={setAddingField}
@@ -276,7 +276,7 @@ export function DatabaseResultTable({
                     key: rowId,
                     minHeight: 32,
                     node: (
-                        <DatabaseResultTableDataRow
+                        <DatabaseGridViewDataRow
                             fields={optimisticFields}
                             row={row}
                             rowId={rowId}
@@ -301,14 +301,6 @@ export function DatabaseResultTable({
         ],
     );
 
-    if (rows.length === 0) {
-        return (
-            <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
-                No rows returned.
-            </Box>
-        );
-    }
-
     return (
         <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
             <Box flexGrow="1" overflow="hidden">
@@ -326,13 +318,13 @@ export function DatabaseResultTable({
 
 // -- Header row ---------------------------------------------------------------
 
-function DatabaseResultTableHeaderRow({
+function DatabaseGridViewHeaderRow({
     fields,
     addingField,
     onAddingFieldChange,
     onCommitField,
 }: {
-    fields: ReadonlyArray<DatabaseResultTableField>;
+    fields: ReadonlyArray<DatabaseGridViewField>;
     addingField: string | null;
     onAddingFieldChange: (value: string | null) => void;
     onCommitField: (name: string) => void;
@@ -419,7 +411,7 @@ function DatabaseResultTableHeaderRow({
 
 // -- Data row -----------------------------------------------------------------
 
-function DatabaseResultTableDataRow({
+function DatabaseGridViewDataRow({
     fields,
     row,
     rowId,
@@ -428,10 +420,10 @@ function DatabaseResultTableDataRow({
     moveSelection,
     showGhostCell,
 }: {
-    fields: ReadonlyArray<DatabaseResultTableField>;
+    fields: ReadonlyArray<DatabaseGridViewField>;
     row: Record<string, unknown>;
     rowId: DatabaseRowId;
-    selection: DatabaseResultTableSelection;
+    selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
     showGhostCell: boolean;
@@ -447,7 +439,7 @@ function DatabaseResultTableDataRow({
                 const initialEditValue = isSelected ? selection!.initialEditValue : null;
 
                 return (
-                    <DatabaseResultTableCell
+                    <DatabaseGridViewCell
                         key={field.columnName}
                         field={field}
                         value={row[field.columnName]}
@@ -474,7 +466,7 @@ function DatabaseResultTableDataRow({
 
 // -- Cell ---------------------------------------------------------------------
 
-function DatabaseResultTableCell({
+function DatabaseGridViewCell({
     field,
     value,
     rowId,
@@ -484,7 +476,7 @@ function DatabaseResultTableCell({
     dispatch,
     moveSelection,
 }: {
-    field: DatabaseResultTableField;
+    field: DatabaseGridViewField;
     value: unknown;
     rowId: DatabaseRowId;
     isSelected: boolean;
@@ -529,7 +521,7 @@ function DatabaseResultTableCell({
             preventOverflow={false}
             sameWidth
             overlay={
-                <DatabaseResultTableCellEditor
+                <DatabaseGridViewCellEditor
                     initialValue={initialEditValue ?? committedValue}
                     commitValue={commitValue}
                     dispatch={dispatch}
@@ -554,7 +546,7 @@ function DatabaseResultTableCell({
     );
 }
 
-function DatabaseResultTableCellEditor({
+function DatabaseGridViewCellEditor({
     ref,
     initialValue,
     commitValue,
