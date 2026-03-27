@@ -69,7 +69,8 @@ export type OverlayPlacement =
     | "left"
     | "left-start"
     | "left-end"
-    | "center";
+    | "center"
+    | "cover-top";
 
 export type OverlayRef = {
     /**
@@ -496,7 +497,10 @@ function Overlay(
 
                 return {
                     strategy: "absolute" as const,
-                    placement: placement === "center" ? "top-start" : placement,
+                    placement:
+                        placement === "center" || placement === "cover-top"
+                            ? "top-start"
+                            : placement,
                     modifiers: [
                         {
                             name: "preventOverflow",
@@ -505,7 +509,7 @@ function Overlay(
                         },
                         {
                             name: "flip",
-                            enabled: placement !== "center",
+                            enabled: placement !== "center" && placement !== "cover-top",
                             options: {
                                 fallbackPlacements,
                                 padding,
@@ -537,18 +541,28 @@ function Overlay(
                                       },
                                   },
                               }
-                            : {
-                                  name: "offset",
-                                  enabled: true,
-                                  options: {
-                                      offset: [
-                                          offsetAlong
-                                              ? convertRemLengthToPx(offsetAlong, spacingScale)
-                                              : 0,
-                                          offset ? convertRemLengthToPx(offset, spacingScale) : 0,
-                                      ],
-                                  },
-                              },
+                            : placement === "cover-top"
+                              ? {
+                                    name: "offset",
+                                    enabled: true,
+                                    options: {
+                                        offset: ({popper}: {popper: Rect}) => {
+                                            return [0, -popper.height];
+                                        },
+                                    },
+                                }
+                              : {
+                                    name: "offset",
+                                    enabled: true,
+                                    options: {
+                                        offset: [
+                                            offsetAlong
+                                                ? convertRemLengthToPx(offsetAlong, spacingScale)
+                                                : 0,
+                                            offset ? convertRemLengthToPx(offset, spacingScale) : 0,
+                                        ],
+                                    },
+                                },
                         {
                             name: "sameWidth",
                             enabled: sameWidth,

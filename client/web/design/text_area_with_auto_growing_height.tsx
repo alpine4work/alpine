@@ -2,6 +2,11 @@ import {Ref, TextareaHTMLAttributes, forwardRef, useRef} from "react";
 import {ScriptBeforeAppInitialRender} from "~/client/web/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
+import {
+    addResizeListenerForElement,
+    removeResizeListenerForElement,
+    useResizeObserver,
+} from "~/client/web/helpers/use_resize_observer.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
@@ -42,6 +47,26 @@ function TextAreaWithAutoGrowingHeight(
         // sometimes scroll the `<textarea>` when you input a character.
         element.scrollTop = 0;
     }, [platform, props.value]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const element = assertExists(internalRef.current);
+
+        // we also set up a resize observer for the element because external factors
+        // can cause the width to change, which needs to cascade to a height change too.
+        let lastWidth = element.offsetWidth;
+        const listener = () => {
+            if (lastWidth === element.offsetWidth) return;
+            lastWidth = element.offsetWidth;
+            element.style.height = "0px";
+            element.style.height = `${element.scrollHeight}px`;
+        };
+
+        addResizeListenerForElement(element, listener);
+
+        return () => {
+            removeResizeListenerForElement(element, listener);
+        };
+    }, []);
 
     return (
         <>

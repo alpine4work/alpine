@@ -1,9 +1,11 @@
 import {
     type Dispatch,
     type Memo,
+    startTransition,
     useCallback,
     useEffect,
     useMemo,
+    useOptimistic,
     useReducer,
     useRef,
     useState,
@@ -13,8 +15,6 @@ import {Box} from "~/client/web/design/box.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -154,6 +154,7 @@ export function DatabaseResultTable({
                                                 ? undefined
                                                 : 0,
                                             minHeight: 32,
+                                            zIndex: 2,
                                         }}
                                     >
                                         <DatabaseResultTableHeaderRow fields={fields} />
@@ -220,7 +221,6 @@ function DatabaseResultTableHeaderRow({fields}: {fields: ReadonlyArray<DatabaseR
                     fontStyle="truncate-semi-bold"
                     padding="2"
                     textAlign="left"
-                    borderBottom="grey-10"
                     style={{
                         width: field.width,
                         minWidth: field.width,
@@ -296,27 +296,23 @@ function DatabaseResultTableCell({
     dispatch: Dispatch<SelectionAction>;
 }) {
     const conn = useDatabaseConnection();
-    const committedValue = value == null ? "" : String(value);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (isEditing && textareaRef.current != null) {
-            textareaRef.current.focus();
-        }
-    }, [isEditing]);
+    const [committedValue, setCommittedValue] = useOptimistic(value == null ? "" : String(value));
 
     const commitValue = useCallback(
         (newValue: string) => {
             if (conn == null) return;
             if (newValue === committedValue) return;
-            conn.call("executeAction", {
-                action: {
-                    name: "updateCellValue" as const,
-                    input: {fieldId: field.id, rowId, value: newValue},
-                },
+            startTransition(async () => {
+                setCommittedValue(newValue);
+                await conn.call("executeAction", {
+                    action: {
+                        name: "updateCellValue" as const,
+                        input: {fieldId: field.id, rowId, value: newValue},
+                    },
+                });
             });
         },
-        [conn, field.id, rowId, committedValue],
+        [conn, field.id, rowId, committedValue, setCommittedValue],
     );
 
     const shouldShowBorder = isSelected && !isEditing;
@@ -326,21 +322,19 @@ function DatabaseResultTableCell({
         minWidth: field.width,
         maxWidth: field.width,
         ...(shouldShowBorder
-            ? {marginTop: -1, zIndex: 1, position: "relative" as const}
+            ? {marginBottom: -1, zIndex: 1, position: "relative" as const}
             : undefined),
     };
 
     return (
         <Overlay
             isVisible={isEditing}
-            placement="bottom-start"
-            offset="-8"
+            placement="cover-top"
             fallbackPlacements={[]}
             preventOverflow={false}
             sameWidth
             overlay={
                 <DatabaseResultTableCellEditor
-                    textareaRef={textareaRef}
                     initialValue={initialEditValue ?? committedValue}
                     commitValue={commitValue}
                     dispatch={dispatch}
@@ -352,12 +346,13 @@ function DatabaseResultTableCell({
                 fontStyle="truncate"
                 padding="2"
                 color="grey-100"
-                borderBottom={shouldShowBorder ? undefined : "grey-10"}
+                borderTop={shouldShowBorder ? undefined : "grey-10"}
+                borderLeft={shouldShowBorder ? undefined : "transparent"}
                 border={shouldShowBorder ? "theme-40-const" : undefined}
                 style={cellStyle}
                 onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
             >
-                {value == null ? "NULL" : String(value)}
+                {committedValue}
             </Box>
         </Overlay>
     );
@@ -365,13 +360,11 @@ function DatabaseResultTableCell({
 
 function DatabaseResultTableCellEditor({
     ref,
-    textareaRef,
     initialValue,
     commitValue,
     dispatch,
 }: {
     ref?: React.Ref<HTMLElement>;
-    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     initialValue: string;
     commitValue: (value: string) => void;
     dispatch: Dispatch<SelectionAction>;
@@ -379,39 +372,33 @@ function DatabaseResultTableCellEditor({
     const [editValue, setEditValue] = useState(initialValue);
     const localRef = useRef<HTMLTextAreaElement>(null);
 
-    // Re-measure height after the Overlay has positioned
-    // and applied sameWidth. The initial layout effect in
-    // TextAreaWithAutoGrowingHeight runs before the Overlay
-    // sizes the container, so scrollHeight is wrong.
     useEffect(() => {
         const textarea = localRef.current;
         if (textarea) {
-            textarea.style.height = "0px";
-            textarea.style.height = `${textarea.scrollHeight}px`;
+            textarea.focus();
+            textarea.selectionStart = textarea.value.length;
+            textarea.selectionEnd = textarea.value.length;
         }
     }, []);
 
     return (
-        <div ref={ref as React.Ref<HTMLDivElement>}>
+        <Box
+            ref={ref as React.Ref<HTMLDivElement>}
+            border="theme-40-const"
+            backgroundColor="grey-0"
+        >
             <TextAreaWithAutoGrowingHeight
-                ref={useMergedRefs(textareaRef, localRef)}
+                ref={localRef}
                 value={editValue}
                 onChange={e => setEditValue(e.currentTarget.value)}
                 className={sprinkles({
                     width: "full",
                     padding: "2",
                     fontSize: "75",
-                    backgroundColor: "grey-0",
                     color: "grey-100",
-                    border: "theme-40-const",
+                    // border: "theme-40-const",
+                    // backgroundColor: "grey-0",
                 })}
-                style={{
-                    marginTop: -1,
-                    boxSizing: "border-box",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    lineHeight: "inherit",
-                }}
                 onBlur={() => {
                     commitValue(editValue);
                     dispatch({type: "blur"});
@@ -425,6 +412,6 @@ function DatabaseResultTableCellEditor({
                     e.stopPropagation();
                 }}
             />
-        </div>
+        </Box>
     );
 }
