@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "@sqlite",
         "//:node_modules/@types/react",
+        "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//admin/external_types:sqlite",
         "//client/web/context",

@@ -9,8 +9,10 @@ import {
     useRef,
     useState,
 } from "react";
+import {Plus} from "phosphor-react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {Box} from "~/client/web/design/box.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -280,6 +282,7 @@ export function DatabaseGridView({
                             fields={optimisticFields}
                             row={row}
                             rowId={rowId}
+                            isFirstRow={index === 1}
                             selection={selection}
                             dispatch={dispatch}
                             moveSelection={moveSelection}
@@ -338,11 +341,10 @@ function DatabaseGridViewHeaderRow({
     }, [addingField !== null]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <Box display="flex">
+        <Box display="flex" backgroundColor="grey-5">
             {fields.map(field => (
                 <Box
                     key={field.columnName}
-                    backgroundColor="grey-5"
                     color="grey-80"
                     fontSize="75"
                     fontStyle="truncate-semi-bold"
@@ -358,7 +360,7 @@ function DatabaseGridViewHeaderRow({
                 </Box>
             ))}
             {addingField !== null && (
-                <Box backgroundColor="grey-5" style={{width: 200, minWidth: 200, maxWidth: 200}}>
+                <Box style={{width: 200, minWidth: 200, maxWidth: 200}}>
                     <input
                         ref={inputRef}
                         value={addingField}
@@ -394,16 +396,20 @@ function DatabaseGridViewHeaderRow({
                 </Box>
             )}
             <Box
-                backgroundColor="grey-5"
-                color="grey-40"
-                fontSize="75"
-                fontStyle="truncate-semi-bold"
-                padding="2"
-                style={{width: 32, minWidth: 32, cursor: "pointer"}}
-                textAlign="center"
-                onClick={() => onAddingFieldChange("")}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                width="8"
+                flexShrink="0"
             >
-                +
+                <IconButton
+                    description="Add field"
+                    size="sm"
+                    variant="quiet-above-grey-5-background"
+                    onPress={() => onAddingFieldChange("")}
+                >
+                    <Plus />
+                </IconButton>
             </Box>
         </Box>
     );
@@ -415,6 +421,7 @@ function DatabaseGridViewDataRow({
     fields,
     row,
     rowId,
+    isFirstRow,
     selection,
     dispatch,
     moveSelection,
@@ -423,13 +430,14 @@ function DatabaseGridViewDataRow({
     fields: ReadonlyArray<DatabaseGridViewField>;
     row: Record<string, unknown>;
     rowId: DatabaseRowId;
+    isFirstRow: boolean;
     selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
     showGhostCell: boolean;
 }) {
     return (
-        <Box display="flex">
+        <Box display="flex" borderBottom="grey-10">
             {fields.map(field => {
                 const isSelected =
                     selection != null &&
@@ -444,6 +452,7 @@ function DatabaseGridViewDataRow({
                         field={field}
                         value={row[field.columnName]}
                         rowId={rowId}
+                        isFirstRow={isFirstRow}
                         isSelected={isSelected}
                         isEditing={isEditing}
                         initialEditValue={initialEditValue}
@@ -456,7 +465,6 @@ function DatabaseGridViewDataRow({
                 <Box
                     fontSize="75"
                     padding="2"
-                    borderTop="grey-10"
                     style={{width: 200, minWidth: 200, maxWidth: 200}}
                 />
             )}
@@ -470,6 +478,7 @@ function DatabaseGridViewCell({
     field,
     value,
     rowId,
+    isFirstRow,
     isSelected,
     isEditing,
     initialEditValue,
@@ -479,6 +488,7 @@ function DatabaseGridViewCell({
     field: DatabaseGridViewField;
     value: unknown;
     rowId: DatabaseRowId;
+    isFirstRow: boolean;
     isSelected: boolean;
     isEditing: boolean;
     initialEditValue: string | null;
@@ -504,15 +514,6 @@ function DatabaseGridViewCell({
 
     const shouldShowBorder = isSelected && !isEditing;
 
-    const cellStyle: React.CSSProperties = {
-        width: field.width,
-        minWidth: field.width,
-        maxWidth: field.width,
-        ...(shouldShowBorder
-            ? {marginBottom: -1, zIndex: 1, position: "relative" as const}
-            : undefined),
-    };
-
     return (
         <Overlay
             isVisible={isEditing}
@@ -534,10 +535,18 @@ function DatabaseGridViewCell({
                 fontStyle="truncate"
                 padding="2"
                 color="grey-100"
-                borderTop={shouldShowBorder ? undefined : "grey-10"}
-                borderLeft={shouldShowBorder ? undefined : "transparent"}
-                border={shouldShowBorder ? "theme-40-const" : undefined}
-                style={cellStyle}
+                border={shouldShowBorder ? "theme-40-const" : "transparent"}
+                style={{
+                    width: field.width,
+                    minWidth: field.width,
+                    maxWidth: field.width,
+                    marginTop: isFirstRow ? undefined : -1,
+                    marginBottom: -1,
+                    marginRight: -1,
+                    ...(shouldShowBorder
+                        ? {zIndex: 1, position: "relative" as const}
+                        : undefined),
+                }}
                 onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
             >
                 {committedValue}
