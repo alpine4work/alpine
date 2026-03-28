@@ -1,9 +1,12 @@
-import {Root} from "mdast";
+import {Parent, Root} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {quoteMarkdown} from "~/server/agents/web/pages/internal/quote_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
@@ -74,6 +77,9 @@ export async function parseAgentWebDocumentPage(
     let pageNumber = 1;
     let title: string | null = null;
 
+    const pageLinkPath = pageLink ? new UrlPath(pageLink.path) : null;
+    if (pageLinkPath) pageNumber = parseInt(pageLinkPath.searchParams.get("page") ?? "1", 10);
+
     {
         const firstChild = root.children[0];
 
@@ -83,10 +89,7 @@ export async function parseAgentWebDocumentPage(
         }
     }
 
-    if (pageLink) {
-        const pageLinkPath = new UrlPath(pageLink.path);
-        pageNumber = parseInt(pageLinkPath.searchParams.get("page") ?? "1", 10);
-
+    {
         const lastChild = root.children[root.children.length - 1];
 
         if (
@@ -97,15 +100,40 @@ export async function parseAgentWebDocumentPage(
         ) {
             const nextPageLinkPath = new UrlPath(lastChild.children[0].url);
 
-            if (
-                pageLinkPath.pathname === nextPageLinkPath.pathname &&
-                nextPageLinkPath.searchParams.get("page") === `${pageNumber + 1}`
-            ) {
-                root.children.pop();
-                isLastPage = false;
+            if (nextPageLinkPath.searchParams.has("page")) {
+                if (!pageLinkPath) {
+                    throw new InvalidArgumentError(
+                        "Can\u2019t add pagination link when creating document",
+                        {
+                            displayMessage: errorDisplayMessage`You can\u2019t add a pagination link to the end of the document you\u2019re creating. To create a document, fully write out its content without splitting the content into pages. Pagination links will be added automatically when the document is read with the \`read\` tool. Try again but remove the ${quoteMarkdown(lastChild.children)} pagination link at the end of your document.`,
+                        },
+                    );
+                } else if (
+                    pageLinkPath.pathname === nextPageLinkPath.pathname &&
+                    nextPageLinkPath.searchParams.get("page") === `${pageNumber + 1}`
+                ) {
+                    root.children.pop();
+                    isLastPage = false;
+                }
             }
         }
     }
+
+    const traverse = (node: Parent) => {
+        for (const childNode of node.children) {
+            if ("children" in childNode) {
+                traverse(childNode);
+            }
+
+            if (childNode.type === "heading" && childNode.depth === 1) {
+                throw new InvalidArgumentError("Documents can only have a single heading level 1", {
+                    displayMessage: errorDisplayMessage`A document can only have one Markdown h1 (e.g. \`# My Document\`) and the h1 must be placed at the beginning of the document. You added an additional Markdown h1 ${quoteMarkdown(childNode.children)}. Try again but remove the additional Markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).`,
+                });
+            }
+        }
+    };
+
+    traverse(root);
 
     const content = await parseApiContentFromAgentWebMarkdownTree(storage, root, {
         documentId: pageLink?.id,
@@ -122,6 +150,15 @@ export async function parseAgentWebDocumentPage(
             content,
         };
     } else {
+        if (!pageLink) {
+            throw new InvalidArgumentError(
+                "Can\u2019t create document as a tail page, can only create document as a head page",
+                {
+                    displayMessage: errorDisplayMessage`A title is required to create a document. Try again but start the new document with a Markdown h1 (e.g. \`# My Document\`).`,
+                },
+            );
+        }
+
         return {
             type: "TailPage",
             pageNumber,

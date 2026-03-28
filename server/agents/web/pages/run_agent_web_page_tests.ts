@@ -40,7 +40,7 @@ export function runAgentWebPageTests<PageLink, Page>({
             name: string;
             pageLink: PageLink;
             markdown: string;
-            newParseError?: string;
+            createParseError?: string;
         } & (
             | {
                   page: Page;
@@ -169,7 +169,7 @@ export function runAgentWebPageTests<PageLink, Page>({
             });
 
             test("parses new page from markdown", async () => {
-                if (!testCase.newParseError) {
+                if (!testCase.createParseError && !testCase.parseError) {
                     expect(
                         normalizePage(
                             await parse(storage, null, parseMarkdownTree(testCase.markdown)),
@@ -190,7 +190,7 @@ export function runAgentWebPageTests<PageLink, Page>({
                     }
 
                     expect(renderErrorDisplayMessage(error.displayMessage)).toEqual(
-                        testCase.parseError ?? "",
+                        testCase.parseError ?? testCase.createParseError ?? "",
                     );
                 }
             });
