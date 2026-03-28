@@ -4,10 +4,11 @@ import {
     ApiContent,
     ApiContentBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type ApiContentAgentWebMarkdownParserOptions = {
     readonly spaceId: SpaceId;
+    readonly documentId: DocumentId | null;
 };
 
 export async function parseApiContentFromAgentWebMarkdown(
@@ -18,6 +19,7 @@ export async function parseApiContentFromAgentWebMarkdown(
     const parser = new AgentWebMarkdownStreamParser({
         storage,
         spaceId: options.spaceId,
+        documentId: options.documentId,
     });
 
     parser.pushText(null, markdown);

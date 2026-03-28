@@ -677,6 +677,11 @@ function* parseApiContentBlockElementFromMarkdown(
                   })
                 | null = null;
 
+            let commentTagState: {
+                phase: "<comment>" | "<comment id>";
+                id: string | null;
+            } | null = null;
+
             let codeTagState: {
                 phase: "<pre>" | "<pre>..." | "<code>" | "<code class>" | "<code>..." | "</code>";
                 class: string | null;
@@ -931,6 +936,10 @@ function* parseApiContentBlockElementFromMarkdown(
                                 markTagState = {phase: "<mark>", class: null, dataComment: null};
                                 break;
                             }
+                            case "comment": {
+                                commentTagState = {phase: "<comment>", id: null};
+                                break;
+                            }
                             case "pre": {
                                 if (codeTagState !== null) break;
 
@@ -1103,6 +1112,18 @@ function* parseApiContentBlockElementFromMarkdown(
                             markTagState = null;
                         }
 
+                        if (
+                            commentTagState !== null &&
+                            commentTagState.id !== null &&
+                            isId<DocumentCommentThreadId>(commentTagState.id)
+                        ) {
+                            markStack.pushForHtmlTag("comment", {
+                                type: "Comment",
+                                threadId: commentTagState.id,
+                            });
+                            commentTagState = null;
+                        }
+
                         if (codeTagState?.phase === "<pre>") {
                             codeTagState.phase = "<pre>...";
                         }
@@ -1151,7 +1172,8 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "em":
                             case "i":
                             case "del":
-                            case "mark": {
+                            case "mark":
+                            case "comment": {
                                 markStack.popForHtmlTag(tagName);
                                 break;
                             }
@@ -1412,6 +1434,13 @@ function* parseApiContentBlockElementFromMarkdown(
                             }
                         }
 
+                        if (commentTagState?.phase === "<comment>") {
+                            if (attributeName === "id") {
+                                commentTagState.phase = "<comment id>";
+                                commentTagState.id = "";
+                            }
+                        }
+
                         if (codeTagState?.phase === "<code>" && attributeName === "class") {
                             codeTagState.phase = "<code class>";
                             codeTagState.class = "";
@@ -1473,6 +1502,10 @@ function* parseApiContentBlockElementFromMarkdown(
                             markTagState.dataComment += attributeData;
                         }
 
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
+                        }
+
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
                         }
@@ -1514,6 +1547,10 @@ function* parseApiContentBlockElementFromMarkdown(
                             markTagState.dataComment += attributeData;
                         }
 
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
+                        }
+
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
                         }
@@ -1547,6 +1584,10 @@ function* parseApiContentBlockElementFromMarkdown(
 
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.phase = "<mark>";
+                        }
+
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.phase = "<comment>";
                         }
 
                         if (codeTagState?.phase === "<code class>") {
@@ -2437,6 +2478,11 @@ function* parseApiContentInlineElementFromMarkdown(
                 dataComment: string | null;
             } | null = null;
 
+            let commentTagState: {
+                phase: "<comment>" | "<comment id>";
+                id: string | null;
+            } | null = null;
+
             const tokenizer = new HtmlTokenizer(
                 {},
                 {
@@ -2457,6 +2503,10 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                             case "mark": {
                                 markTagState = {phase: "<mark>", class: null, dataComment: null};
+                                break;
+                            }
+                            case "comment": {
+                                commentTagState = {phase: "<comment>", id: null};
                                 break;
                             }
                             case "strong":
@@ -2536,6 +2586,18 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                             markTagState = null;
                         }
+
+                        if (
+                            commentTagState !== null &&
+                            commentTagState.id !== null &&
+                            isId<DocumentCommentThreadId>(commentTagState.id)
+                        ) {
+                            markStack.pushForHtmlTag("comment", {
+                                type: "Comment",
+                                threadId: commentTagState.id,
+                            });
+                            commentTagState = null;
+                        }
                     },
                     onclosetag: (start, end) => {
                         const tagName = content.value.slice(start, end).toLowerCase();
@@ -2543,6 +2605,7 @@ function* parseApiContentInlineElementFromMarkdown(
                         switch (tagName) {
                             case "a":
                             case "mark":
+                            case "comment":
                             case "strong":
                             case "b":
                             case "em":
@@ -2586,6 +2649,13 @@ function* parseApiContentInlineElementFromMarkdown(
                                 markTagState.dataComment = "";
                             }
                         }
+
+                        if (commentTagState?.phase === "<comment>") {
+                            if (attributeName === "id") {
+                                commentTagState.phase = "<comment id>";
+                                commentTagState.id = "";
+                            }
+                        }
                     },
                     onattribdata: (start, end) => {
                         const attributeData = content.value.slice(start, end);
@@ -2600,6 +2670,10 @@ function* parseApiContentInlineElementFromMarkdown(
 
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.dataComment += attributeData;
+                        }
+
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
                         }
                     },
                     onattribentity: codepoint => {
@@ -2616,6 +2690,10 @@ function* parseApiContentInlineElementFromMarkdown(
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.dataComment += attributeData;
                         }
+
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
+                        }
                     },
                     onattribend: () => {
                         if (anchorTagState?.phase === "<a href>") {
@@ -2628,6 +2706,10 @@ function* parseApiContentInlineElementFromMarkdown(
 
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.phase = "<mark>";
+                        }
+
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.phase = "<comment>";
                         }
                     },
 

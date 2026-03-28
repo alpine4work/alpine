@@ -16,6 +16,9 @@ export interface AgentWebSessionStorage {
     readonly lastPageLinkPathByKey: AgentWebSessionStorageCollection<AgentWebPageKey, string>;
 
     // NOCOMMIT: Document
+    readonly urlByTruncatedUrl: AgentWebSessionStorageCollection<string, string>;
+
+    // NOCOMMIT: Document
     readonly dedupeNumberByTruncatedUrlAndUrl: AgentWebSessionStorageCollection<
         `${string} ${string}`,
         number
@@ -29,8 +32,8 @@ export interface AgentWebSessionStorage {
 
     // NOCOMMIT: Document
     readonly documentCommentThreadIdByNumber: AgentWebSessionStorageCollection<
-        `${number}`,
-        `${DocumentId}-${DocumentCommentThreadId}`
+        `${DocumentId}-${number}`,
+        DocumentCommentThreadId
     >;
 
     // NOCOMMIT: Document

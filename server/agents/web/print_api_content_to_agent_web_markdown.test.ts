@@ -73,6 +73,7 @@ const storage: AgentWebSessionStorage = {
     mutex: new Mutex(),
     pageLinkByPath: createAgentWebSessionStorageCollection(),
     lastPageLinkPathByKey: createAgentWebSessionStorageCollection(),
+    urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
     dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
     documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
     documentCommentThreadIdByNumber: createAgentWebSessionStorageCollection(),
@@ -1236,26 +1237,30 @@ for (const {name, content: expectedContent, markdown: expectedMarkdown} of testC
     // eslint-disable-next-line jest/valid-title
     describe(name, () => {
         test("prints to agent web markdown", async () => {
+            const contextDocumentId = generateId<DocumentId>();
+
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
                 expectedContent,
-                {spaceId, documentId},
+                {spaceId, documentId: contextDocumentId},
             );
 
             expect(actualMarkdown).toEqual(expectedMarkdown);
         });
 
         test("parses agent web markdown back to content", async () => {
+            const contextDocumentId = generateId<DocumentId>();
+
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
                 expectedContent,
-                {spaceId, documentId},
+                {spaceId, documentId: contextDocumentId},
             );
 
             const actualContent = await parseApiContentFromAgentWebMarkdown(
                 storage,
                 actualMarkdown,
-                {spaceId},
+                {spaceId, documentId: contextDocumentId},
             );
 
             expect(normalizeApiContent(actualContent)).toEqual(

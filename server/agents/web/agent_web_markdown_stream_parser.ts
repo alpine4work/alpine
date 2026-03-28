@@ -1,4 +1,6 @@
-import {BlockContent, DefinitionContent, Parent, Root} from "mdast";
+import escapeHtml from "escape-html";
+import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import {BlockContent, DefinitionContent, Html, Parent, Root} from "mdast";
 import {AgentWebPageKeyObject} from "~/server/agents/web/agent_web_page_key.js";
 import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
@@ -14,10 +16,12 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AgentMessageStreamPart = {
@@ -32,6 +36,7 @@ export type AgentMessageStreamPart = {
 export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null> {
     private readonly _storage: AgentWebSessionStorage;
     private readonly _spaceId: SpaceId;
+    private readonly _documentId: DocumentId | null;
 
     private _firstHeadingDepth: number | null = null;
 
@@ -50,9 +55,18 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
 
     private _parts: Array<AgentMessageStreamPart> = [];
 
-    constructor({storage, spaceId}: {storage: AgentWebSessionStorage; spaceId: SpaceId}) {
+    constructor({
+        storage,
+        spaceId,
+        documentId,
+    }: {
+        storage: AgentWebSessionStorage;
+        spaceId: SpaceId;
+        documentId: DocumentId | null;
+    }) {
         this._storage = storage;
         this._spaceId = spaceId;
+        this._documentId = documentId;
     }
 
     /**
@@ -101,6 +115,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
         const {firstHeadingDepth, markdownParts} = await parseTextIntoMarkdownParts(
             this._storage,
             this._spaceId,
+            this._documentId,
             this._firstHeadingDepth,
             this._textState,
         );
@@ -287,6 +302,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
 async function parseTextIntoMarkdownParts(
     storage: AgentWebSessionStorage,
     spaceId: SpaceId,
+    documentId: DocumentId | null,
     firstHeadingDepth: number | null,
     textState: {text: string} | null,
 ): Promise<{
@@ -339,6 +355,14 @@ async function parseTextIntoMarkdownParts(
         for (let index = 0; index < node.children.length; index++) {
             const childNode = node.children[index]!;
 
+            if (childNode.type === "html") {
+                const promise = traverseMarkdownHtmlNode(storage, spaceId, documentId, childNode);
+
+                promiseWaiter.waitUntil(async () => {
+                    node.children[index] = await promise;
+                });
+            }
+
             // We increment headings by 1 for agent web Markdown. So decrement them back by 1.
             if (childNode.type === "heading") {
                 firstHeadingDepth ??= childNode.depth;
@@ -358,9 +382,19 @@ async function parseTextIntoMarkdownParts(
 
             if (childNode.type === "link") {
                 promiseWaiter.waitUntil(async () => {
+                    // If this isn't a relative mention link, it may be a truncated URL. Let's try
+                    // looking it up.
+                    if (!childNode.url.startsWith("/")) {
+                        const url = await storage.urlByTruncatedUrl.get(childNode.url);
+                        if (url !== undefined) {
+                            childNode.url = url;
+                            return;
+                        }
+                    }
+
                     // This link looks like a mention, let's add the correct link to the Markdown tree
                     // before parsing into content.
-                    if (childNode.url.startsWith("/") || !/[a-zA-Z0-9]+:/.test(childNode.url)) {
+                    if (!/[a-zA-Z0-9]+:/.test(childNode.url)) {
                         let url = childNode.url;
 
                         // Add a leading slash in case the LLM forgot to add one.
@@ -385,7 +419,7 @@ async function parseTextIntoMarkdownParts(
                                 spaceId,
                                 isAccountShortName:
                                     pageLink.type === "Account"
-                                        ? url.endsWith("#short") ||
+                                        ? childNode.url.endsWith("#short") ||
                                           printMarkdownPhrasingContentText(childNode.children) !==
                                               printAgentWebPageLinkLabel(pageLink)
                                         : undefined,
@@ -411,6 +445,292 @@ async function parseTextIntoMarkdownParts(
         firstHeadingDepth,
         markdownParts: Array.from(splitMarkdownTreeIntoParts(markdownRoot)),
     };
+}
+
+async function traverseMarkdownHtmlNode(
+    storage: AgentWebSessionStorage,
+    spaceId: SpaceId,
+    documentId: DocumentId | null,
+    node: Html,
+): Promise<Html> {
+    let anchorTagState: {
+        href: {
+            isOpen: boolean;
+            attributeEndIndex: number;
+            data: {startIndex: number; endIndex: number; value: string} | null;
+        } | null;
+    } | null = null;
+
+    let commentTagState: {
+        id: {
+            isOpen: boolean;
+            attributeEndIndex: number;
+            data: {startIndex: number; endIndex: number; value: string} | null;
+        } | null;
+    } | null = null;
+
+    let tableTagState: {
+        dataWidth: {
+            isOpen: boolean;
+            attributeEndIndex: number;
+            data: {startIndex: number; endIndex: number; value: string} | null;
+        } | null;
+        dataColumnWidths: {
+            isOpen: boolean;
+            attributeEndIndex: number;
+            data: {startIndex: number; endIndex: number; value: string} | null;
+        } | null;
+    } | null = null;
+
+    const replacements: Array<{
+        startIndex: number;
+        endIndex: number;
+        string: Promise<string | null>;
+    }> = [];
+
+    const tokenizer = new HtmlTokenizer(
+        {},
+        {
+            ontext: noop,
+            ontextentity: noop,
+
+            onopentagname: (startIndex, endIndex) => {
+                const tagName = node.value.slice(startIndex, endIndex).toLowerCase();
+
+                switch (tagName) {
+                    case "a": {
+                        anchorTagState = {href: null};
+                        break;
+                    }
+                    case "comment": {
+                        commentTagState = {id: null};
+                        break;
+                    }
+                    case "table": {
+                        tableTagState = {dataWidth: null, dataColumnWidths: null};
+                        break;
+                    }
+                }
+            },
+            onopentagend: () => {
+                if (anchorTagState) {
+                    if (anchorTagState.href?.data) {
+                        const truncatedUrl = anchorTagState.href.data.value;
+
+                        replacements.push({
+                            startIndex: anchorTagState.href.data.startIndex,
+                            endIndex: anchorTagState.href.data.endIndex,
+                            string: (async () => {
+                                const url = await storage.urlByTruncatedUrl.get(truncatedUrl);
+                                if (url === undefined) return null;
+                                return escapeHtml(url);
+                            })(),
+                        });
+                    }
+
+                    anchorTagState = null;
+                }
+
+                if (commentTagState) {
+                    if (commentTagState.id?.data) {
+                        const numberString = commentTagState.id.data.value;
+                        const number = parseInt(numberString, 10);
+
+                        if (documentId && !isNaN(number)) {
+                            replacements.push({
+                                startIndex: commentTagState.id.data.startIndex,
+                                endIndex: commentTagState.id.data.endIndex,
+                                string: (async () => {
+                                    const commentThreadId =
+                                        await storage.documentCommentThreadIdByNumber.get(
+                                            `${documentId}-${number}`,
+                                        );
+
+                                    if (commentThreadId === undefined) return null;
+
+                                    return escapeHtml(commentThreadId);
+                                })(),
+                            });
+                        }
+                    }
+
+                    commentTagState = null;
+                }
+
+                if (tableTagState) {
+                    if (tableTagState.dataWidth?.data) {
+                        const truncatedWidth = tableTagState.dataWidth.data.value;
+
+                        replacements.push({
+                            startIndex: tableTagState.dataWidth.data.startIndex,
+                            endIndex: tableTagState.dataWidth.data.endIndex,
+                            string: (async () => {
+                                const width =
+                                    await storage.tableWidthByTruncatedWidth.get(truncatedWidth);
+
+                                if (width === undefined) return null;
+
+                                return JSON.stringify(width);
+                            })(),
+                        });
+                    }
+
+                    if (tableTagState.dataColumnWidths?.data) {
+                        const truncatedColumnWidths = tableTagState.dataColumnWidths.data.value;
+
+                        replacements.push({
+                            startIndex: tableTagState.dataColumnWidths.data.startIndex,
+                            endIndex: tableTagState.dataColumnWidths.data.endIndex,
+                            string: (async () => {
+                                const columnWidths =
+                                    await storage.tableColumnWidthsByTruncatedColumnWidths.get(
+                                        truncatedColumnWidths,
+                                    );
+
+                                if (columnWidths === undefined) return null;
+
+                                return JSON.stringify(columnWidths).slice(1, -1);
+                            })(),
+                        });
+                    }
+
+                    tableTagState = null;
+                }
+            },
+            onclosetag: noop,
+
+            onattribname: (startIndex, endIndex) => {
+                const attributeName = node.value.slice(startIndex, endIndex).toLowerCase();
+
+                if (anchorTagState && attributeName === "href") {
+                    anchorTagState.href = {
+                        isOpen: true,
+                        attributeEndIndex: endIndex,
+                        data: null,
+                    };
+                }
+
+                if (commentTagState && attributeName === "id") {
+                    commentTagState.id = {
+                        isOpen: true,
+                        attributeEndIndex: endIndex,
+                        data: null,
+                    };
+                }
+
+                if (tableTagState) {
+                    if (attributeName === "data-width") {
+                        tableTagState.dataWidth = {
+                            isOpen: true,
+                            attributeEndIndex: endIndex,
+                            data: null,
+                        };
+                    }
+
+                    if (attributeName === "data-column-widths") {
+                        tableTagState.dataColumnWidths = {
+                            isOpen: true,
+                            attributeEndIndex: endIndex,
+                            data: null,
+                        };
+                    }
+                }
+            },
+            onattribdata: (startIndex, endIndex) => {
+                const attributeData = node.value.slice(startIndex, endIndex);
+
+                const addAttributeData = (state: {
+                    attributeEndIndex: number;
+                    data: {startIndex: number; endIndex: number; value: string} | null;
+                }) => {
+                    state.data ??= {startIndex, endIndex, value: ""};
+                    state.data.endIndex = endIndex;
+                    state.data.value += attributeData;
+                };
+
+                if (anchorTagState?.href?.isOpen) addAttributeData(anchorTagState.href);
+                if (commentTagState?.id?.isOpen) addAttributeData(commentTagState.id);
+                if (tableTagState?.dataWidth?.isOpen) addAttributeData(tableTagState.dataWidth);
+                if (tableTagState?.dataColumnWidths?.isOpen)
+                    addAttributeData(tableTagState.dataColumnWidths);
+            },
+            onattribentity: codepoint => {
+                const attributeData = String.fromCodePoint(codepoint);
+
+                const addAttributeEntity = (state: {
+                    attributeEndIndex: number;
+                    data: {startIndex: number; endIndex: number; value: string} | null;
+                }) => {
+                    const lastIndex = state.data?.endIndex ?? state.attributeEndIndex;
+
+                    let startIndex = node.value.slice(lastIndex).indexOf("&");
+                    assert(startIndex !== -1);
+                    startIndex += lastIndex;
+
+                    let endIndex = node.value.slice(startIndex + 1).indexOf(";");
+                    assert(endIndex !== -1);
+                    endIndex += startIndex + 1;
+                    endIndex += 1;
+
+                    state.data ??= {startIndex, endIndex, value: ""};
+                    state.data.endIndex = endIndex;
+                    state.data.value += attributeData;
+                };
+
+                if (anchorTagState?.href?.isOpen) addAttributeEntity(anchorTagState.href);
+                if (commentTagState?.id?.isOpen) addAttributeEntity(commentTagState.id);
+                if (tableTagState?.dataWidth?.isOpen) addAttributeEntity(tableTagState.dataWidth);
+                if (tableTagState?.dataColumnWidths?.isOpen)
+                    addAttributeEntity(tableTagState.dataColumnWidths);
+            },
+            onattribend: () => {
+                if (anchorTagState?.href?.isOpen) {
+                    anchorTagState.href.isOpen = false;
+                }
+
+                if (commentTagState?.id?.isOpen) {
+                    commentTagState.id.isOpen = false;
+                }
+
+                if (tableTagState?.dataWidth?.isOpen) {
+                    tableTagState.dataWidth.isOpen = false;
+                }
+
+                if (tableTagState?.dataColumnWidths?.isOpen) {
+                    tableTagState.dataColumnWidths.isOpen = false;
+                }
+            },
+
+            oncdata: noop,
+            oncomment: noop,
+            ondeclaration: noop,
+            onend: noop,
+            onprocessinginstruction: noop,
+            onselfclosingtag: noop,
+        },
+    );
+
+    tokenizer.write(node.value);
+
+    const actualReplacements = await runAllPromises(
+        replacements
+            // We must apply replacements in reverse order to avoid index shifting.
+            .sort((a, b) => b.startIndex - a.startIndex)
+            .map(async ({startIndex, endIndex, string}) => ({
+                startIndex,
+                endIndex,
+                string: await string,
+            })),
+    );
+
+    let newValue = node.value;
+
+    for (const {startIndex, endIndex, string} of actualReplacements) {
+        if (string === null) continue;
+        newValue = newValue.slice(0, startIndex) + string + newValue.slice(endIndex);
+    }
+
+    return {...node, value: newValue};
 }
 
 function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockContent>> {

@@ -217,7 +217,7 @@ async function traverseApiContentMarkdownNode(
 async function traverseApiContentMarkdownHtmlNode(
     storage: AgentWebSessionStorage,
     node: Html,
-    options: ApiContentAgentWebMarkdownPrinterOptions,
+    {documentId}: ApiContentAgentWebMarkdownPrinterOptions,
     state: ApiContentAgentWebMarkdownPrinterState,
 ): Promise<Html> {
     let anchorTagState: {
@@ -303,13 +303,13 @@ async function traverseApiContentMarkdownHtmlNode(
                             startIndex: commentTagState.id.data.startIndex,
                             endIndex: commentTagState.id.data.endIndex,
                             string: storage.mutex.withLock(async () => {
-                                if (!options.documentId) {
+                                if (!documentId) {
                                     throw new InternalError(
                                         "`documentId` is required when printing comment marks",
                                     );
                                 }
 
-                                const id: `${DocumentId}-${DocumentCommentThreadId}` = `${options.documentId}-${commentThreadId}`;
+                                const id: `${DocumentId}-${DocumentCommentThreadId}` = `${documentId}-${commentThreadId}`;
 
                                 let number = await storage.documentCommentThreadNumberById.get(id);
 
@@ -320,7 +320,7 @@ async function traverseApiContentMarkdownHtmlNode(
 
                                     const actualId =
                                         await storage.documentCommentThreadIdByNumber.get(
-                                            `${number}`,
+                                            `${documentId}-${number}`,
                                         );
 
                                     // If the number isn't in use then let's use it!
@@ -330,10 +330,10 @@ async function traverseApiContentMarkdownHtmlNode(
                                             number,
                                         );
                                         await storage.documentCommentThreadIdByNumber.put(
-                                            `${number}`,
-                                            id,
+                                            `${documentId}-${number}`,
+                                            commentThreadId,
                                         );
-                                    } else if (actualId !== id) {
+                                    } else if (`${documentId}-${actualId}` !== id) {
                                         // If the number is in use but by a different comment thread then we'll need to
                                         // make a `list()` call to figure out the right number.
                                         number = undefined;
@@ -345,15 +345,15 @@ async function traverseApiContentMarkdownHtmlNode(
                                 if (number === undefined) {
                                     const threads =
                                         await storage.documentCommentThreadNumberById.list({
-                                            prefix: `${options.documentId}-`,
+                                            prefix: `${documentId}-`,
                                         });
 
                                     number = threads.size + 1;
 
                                     await storage.documentCommentThreadNumberById.put(id, number);
                                     await storage.documentCommentThreadIdByNumber.put(
-                                        `${number}`,
-                                        id,
+                                        `${documentId}-${number}`,
+                                        commentThreadId,
                                     );
                                 }
 
@@ -631,11 +631,14 @@ async function traverseApiContentMarkdownHtmlNode(
     tokenizer.write(node.value);
 
     const actualReplacements = await runAllPromises(
-        replacements.reverse().map(async ({startIndex, endIndex, string}) => ({
-            startIndex,
-            endIndex,
-            string: await string,
-        })),
+        replacements
+            // We must apply replacements in reverse order to avoid index shifting.
+            .sort((a, b) => b.startIndex - a.startIndex)
+            .map(async ({startIndex, endIndex, string}) => ({
+                startIndex,
+                endIndex,
+                string: await string,
+            })),
     );
 
     let newValue = node.value;
@@ -662,7 +665,14 @@ function printAgentWebMarkdownUrl(storage: AgentWebSessionStorage, url: string):
 
         await storage.dedupeNumberByTruncatedUrlAndUrl.put(`${truncatedUrl} ${url}`, dedupeNumber);
 
-        return addDedupeNumberToTruncatedAgentWebMarkdownUrl(truncatedUrl, dedupeNumber);
+        const actualTruncatedUrl = addDedupeNumberToTruncatedAgentWebMarkdownUrl(
+            truncatedUrl,
+            dedupeNumber,
+        );
+
+        await storage.urlByTruncatedUrl.put(actualTruncatedUrl, url);
+
+        return actualTruncatedUrl;
     });
 }
 
