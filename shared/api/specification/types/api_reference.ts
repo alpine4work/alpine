@@ -1,3 +1,4 @@
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     AccountId,
     ChannelId,
@@ -5,11 +6,12 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type ApiTarget =
+export type ApiReference =
     | {
           readonly type: "Account";
           readonly id: AccountId;
@@ -58,4 +60,8 @@ export type ApiTarget =
     | {
           readonly type: "TaskCollection";
           readonly id: TaskCollectionId;
+      }
+    | {
+          readonly type: "Site";
+          readonly id: SiteId;
       };

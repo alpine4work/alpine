@@ -1381,7 +1381,7 @@ test("adding collections through repeated patch requests appends them to the end
     ).toEqual([initialCollection.id, ...appendedCollections.map(collection => collection.id)]);
 });
 
-describe("/tasks/{id}/mention", () => {
+describe("/tasks/{id}/reference", () => {
     test("can read task mention with open status", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -1394,7 +1394,7 @@ describe("/tasks/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/mention`, {
+            await server.GET(`/tasks/${task.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1402,13 +1402,11 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Task",
-                        id: task.id,
-                        status: {type: "Open", isActive: false},
-                    },
+                reference: {
+                    type: "Task",
+                    id: task.id,
                     title: "Test Task Title",
+                    status: {type: "Open", isActive: false},
                 },
             },
         });
@@ -1427,7 +1425,7 @@ describe("/tasks/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/mention`, {
+            await server.GET(`/tasks/${task.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1435,13 +1433,11 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Task",
-                        id: task.id,
-                        status: {type: "Closed"},
-                    },
+                reference: {
+                    type: "Task",
+                    id: task.id,
                     title: "Closed Task",
+                    status: {type: "Closed"},
                 },
             },
         });
@@ -1461,7 +1457,7 @@ describe("/tasks/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/mention`, {
+            await server.GET(`/tasks/${task.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1469,13 +1465,11 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Task",
-                        id: task.id,
-                        status: {type: "Open", isActive: true},
-                    },
+                reference: {
+                    type: "Task",
+                    id: task.id,
                     title: "Active Task",
+                    status: {type: "Open", isActive: true},
                 },
             },
         });
@@ -1494,7 +1488,7 @@ describe("/tasks/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/mention`, {
+            await server.GET(`/tasks/${task.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1518,7 +1512,7 @@ describe("/tasks/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${generateId<TaskId>()}/mention`, {
+            await server.GET(`/tasks/${generateId<TaskId>()}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1543,7 +1537,7 @@ describe("/tasks/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/tasks/${task.id}/mention`, {
+            await server.GET(`/tasks/${task.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1551,13 +1545,11 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Task",
-                        id: task.id,
-                        status: {type: "Open", isActive: false},
-                    },
+                reference: {
+                    type: "Task",
+                    id: task.id,
                     title: "Scoped Task",
+                    status: {type: "Open", isActive: false},
                 },
             },
         });
@@ -1930,7 +1922,7 @@ test("can\u2019t read task collection information for non-existent collection", 
     });
 });
 
-describe("/task-collections/{id}/mention", () => {
+describe("/task-collections/{id}/reference", () => {
     test("can read task collection mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -1946,7 +1938,7 @@ describe("/task-collections/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/task-collections/${collection.id}/mention`, {
+            await server.GET(`/task-collections/${collection.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -1954,11 +1946,9 @@ describe("/task-collections/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "TaskCollection",
-                        id: collection.id,
-                    },
+                reference: {
+                    type: "TaskCollection",
+                    id: collection.id,
                     title: "My Project Tasks",
                 },
             },
@@ -1980,7 +1970,7 @@ describe("/task-collections/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/task-collections/${collection.id}/mention`, {
+            await server.GET(`/task-collections/${collection.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -2006,7 +1996,7 @@ describe("/task-collections/{id}/mention", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await server.GET(`/task-collections/${generateId<TaskCollectionId>()}/mention`, {
+            await server.GET(`/task-collections/${generateId<TaskCollectionId>()}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({

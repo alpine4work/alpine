@@ -63,7 +63,7 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/AccountWithoutSpace"
 
-    /accounts/{id}/mention:
+    /accounts/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -77,18 +77,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/AccountMentionTarget"
-                                            title:
-                                                type: string
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/AccountReference"
 
     /spaces/{id}:
         parameters:
@@ -280,6 +275,25 @@ paths:
                                                         type: object
                                                         additionalProperties: true
 
+    /chats:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, chat]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                chat:
+                                    $ref: "#/components/schemas/CreateChatRequestBodyChat"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetChat"}
+
     /chats/{id}:
         parameters:
             - name: id
@@ -289,20 +303,9 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, chat]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    chat:
-                                        $ref: "#/components/schemas/Chat"
+                "200": {$ref: "#/components/responses/GetChat"}
 
-    /chats/{id}/mention:
+    /chats/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -316,20 +319,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/ChatMentionTarget"
-                                            title:
-                                                type: string
+                                    reference:
+                                        $ref: "#/components/schemas/ChatReference"
 
     # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
     # endpoints that deal with content. This variant should return a string for
@@ -375,8 +371,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -482,8 +478,6 @@ paths:
                                     required: [title, content]
                                     additionalProperties: false
                                     properties:
-                                        title:
-                                            type: string
                                         creator:
                                             type: object
                                             required: [id]
@@ -491,6 +485,8 @@ paths:
                                             properties:
                                                 id:
                                                     $ref: "#/components/schemas/AccountId"
+                                        title:
+                                            type: string
                                         content:
                                             $ref: "#/components/schemas/Content"
             responses:
@@ -532,7 +528,7 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetDocument"}
 
-    /documents/{id}/mention:
+    /documents/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -546,20 +542,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/DocumentMentionTarget"
-                                            title:
-                                                type: string
+                                    reference:
+                                        $ref: "#/components/schemas/DocumentReference"
 
     /documents/{id}/threads/{threadId}:
         parameters:
@@ -579,13 +568,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, commentThread]
+                                required: [spaceId, thread]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    commentThread:
-                                        $ref: "#/components/schemas/DocumentCommentThread"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThread"
 
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
@@ -627,22 +616,16 @@ paths:
                       minimum: 1
                       maximum: 100
                       default: 10
-                # TODO(calebmer, #public-api): Bikeshed this naming. I like it because we can
-                # consistently communicate the same pagination concept across all paginated API
-                # endpoints. But `index` here could be clearer for messages.
                 - name: cursor
                   in: query
                   schema:
                       type: integer
-                # TODO(calebmer, #public-api): Bikeshed this name when we ship the public API.
-                # Ian's proposal is `order=ascending`/`order=descending`. Which matches SQL
-                # language, could feel more natural.
                 - name: from
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -808,7 +791,7 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/PostPreview"
 
-    /channels/{id}/mention:
+    /channels/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -822,20 +805,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/ChannelMentionTarget"
-                                            title:
-                                                type: string
+                                    reference:
+                                        $ref: "#/components/schemas/ChannelReference"
 
     /posts:
         post:
@@ -845,24 +821,31 @@ paths:
                     application/json:
                         schema:
                             type: object
-                            # TODO(ifitzsimmons, #ai): Eventually, we'll allow posts to be created
-                            # without a channel. That's the reason this endpoint isn't formatted
-                            # like `/channels/{id}/posts`. However, since we can't support post
-                            # creation outside of channels right now, users are required to provide
-                            # a channelId in the request. Going from required to optional will be
-                            # a backwards compatible change when the time comes.
-                            required: [channelId, content]
+                            required: [spaceId, post]
                             additionalProperties: false
-                            # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
-                            # bodies for objects of the same type. So `GetPost` should be
-                            # assignable to this request body.
                             properties:
-                                channelId:
-                                    $ref: "#/components/schemas/ChannelId"
-                                createdTimeZone:
-                                    $ref: "#/components/schemas/TimeZone"
-                                content:
-                                    $ref: "#/components/schemas/Content"
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                post:
+                                    type: object
+                                    # TODO(ifitzsimmons, #ai): Eventually, we'll allow posts to be created
+                                    # without a channel. That's the reason this endpoint isn't formatted
+                                    # like `/channels/{id}/posts`. However, since we can't support post
+                                    # creation outside of channels right now, users are required to provide
+                                    # a channelId in the request. Going from required to optional will be
+                                    # a backwards compatible change when the time comes.
+                                    required: [channelId, content]
+                                    properties:
+                                        createdTimeZone:
+                                            $ref: "#/components/schemas/TimeZone"
+                                        channel:
+                                            type: object
+                                            required: [id]
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/ChannelId"
+                                        content:
+                                            $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetPost"}
@@ -878,7 +861,7 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetPost"}
 
-    /posts/{id}/mention:
+    /posts/{id}/preview:
         parameters:
             - name: id
               in: path
@@ -892,13 +875,35 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, post]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        $ref: "#/components/schemas/Mention"
+                                    post:
+                                        $ref: "#/components/schemas/PostPreview"
+
+    /posts/{id}/reference:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, reference]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/PostReference"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -940,8 +945,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -1068,7 +1073,7 @@ paths:
                                             $ref: "#/components/schemas/SearchResult"
 
     # TODO(#site-api): Implement site API.
-    /sites/{id}/mention:
+    /sites/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -1082,20 +1087,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/SiteMentionTarget"
-                                            title:
-                                                type: string
+                                    reference:
+                                        $ref: "#/components/schemas/SiteReference"
 
     /tasks:
         post:
@@ -1213,7 +1211,7 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTaskNotes"}
 
-    /tasks/{id}/mention:
+    /tasks/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -1227,20 +1225,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/TaskMentionTarget"
-                                            title:
-                                                type: string
+                                    reference:
+                                        $ref: "#/components/schemas/TaskReference"
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -1282,8 +1273,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -1475,7 +1466,7 @@ paths:
                                     collection:
                                         $ref: "#/components/schemas/TaskCollection"
 
-    /task-collections/{id}/mention:
+    /task-collections/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -1489,20 +1480,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target, title]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/TaskCollectionMentionTarget"
-                                            title:
-                                                type: string
+                                    reference:
+                                        $ref: "#/components/schemas/TaskCollectionReference"
 
     /task-collections/{id}/tasks:
         parameters:
@@ -1602,20 +1586,25 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required:
-                                [spaceId, botId, botAccountId, attempt, accessToken, eventId, event]
+                            required: [spaceId, botAccount, attempt, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
-                                botId:
-                                    $ref: "#/components/schemas/BotId"
-                                botAccountId:
-                                    $ref: "#/components/schemas/AccountId"
-                                # TODO(calebmer, #public-api): Remove `accountId` after this commit deploys.
-                                # It's only here for backwards compatibility purposes.
-                                accountId:
-                                    $ref: "#/components/schemas/AccountId"
+                                botAccount:
+                                    type: object
+                                    required: [id, bot]
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
+                                        bot:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/BotId"
                                 attempt:
                                     type: integer
                                     minimum: 1
@@ -1660,6 +1649,19 @@ components:
                                                 description:
                                                     If true, it indicates that the request should
                                                     succeed if tried again.
+
+        GetChat:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, chat]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            chat:
+                                $ref: "#/components/schemas/Chat"
 
         GetDocument:
             content:
@@ -1718,16 +1720,13 @@ components:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId, nextCursor, totalMessageCount, messages]
+                        required: [spaceId, totalMessageCount, nextCursor, messages]
                         additionalProperties: false
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             totalMessageCount:
                                 type: integer
-                            # TODO(calebmer, #public-api): My dream is for the API browser to return this
-                            # as a link. So you can conveniently paginate through the API in your browser
-                            # by clicking `nextCursor`.
                             nextCursor:
                                 type: [integer, "null"]
                                 minimum: 0
@@ -1808,9 +1807,11 @@ components:
                                 $ref: "#/components/schemas/Post"
 
     requestBodies:
-        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
-        # bodies for objects of the same type. So `GetMessage` should be
-        # assignable to `CreateMessage`.
+        # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
+        # assignable to request bodies for objects of the same type. So `GetMessage`
+        # should be assignable to `CreateMessage`.
+        #
+        # This means we need to nest these properties in a `message` object right?
         CreateMessage:
             required: true
             content:
@@ -1833,9 +1834,9 @@ components:
                                 items:
                                     $ref: "#/components/schemas/MessageContentPayloadFile"
 
-        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
-        # bodies for objects of the same type. So `GetMessageStreamPart` should be
-        # assignable to `PutMessageStreamPart`.
+        # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
+        # assignable to request bodies for objects of the same type. So
+        # `GetMessageStreamPart` should be assignable to `PutMessageStreamPart`.
         PutMessageStreamPart:
             required: true
             content:
@@ -1860,6 +1861,10 @@ components:
 
         TimeZone:
             type: string
+
+        FileContentType:
+            type: string
+            enum: {{fileContentTypes}}
 
         # =========================================================================== #
         #                                     IDs                                     #
@@ -1930,14 +1935,10 @@ components:
             enum: [Red, Orange, Yellow, Green, Cyan, Blue, Indigo, Purple, Pink]
 
         # =========================================================================== #
-        #                               Mention targets                               #
+        #                                 References                                  #
         # =========================================================================== #
 
-        # TODO: Rename *MentionTarget to *Target. These are shared between
-        # mentions and previews, so "Mention" in the name is misleading.
-        # Skip Accounts (no account previews)
-
-        AccountMentionTarget:
+        AccountReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1947,7 +1948,30 @@ components:
                 id:
                     $ref: "#/components/schemas/AccountId"
 
-        ChannelMentionTarget:
+        AccountReference_Response:
+            type: object
+            required: [type, id, title, shortName]
+            additionalProperties: false
+            properties: &accountReferenceResponseProperties
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                # NOCOMMIT: Make sure `title` is the long name in mentions
+                title:
+                    type: string
+                # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
+                bot:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
+
+        ChannelReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1957,7 +1981,19 @@ components:
                 id:
                     $ref: "#/components/schemas/ChannelId"
 
-        ChatMentionTarget:
+        ChannelReference_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                title:
+                    type: string
+
+        ChatReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1967,7 +2003,19 @@ components:
                 id:
                     $ref: "#/components/schemas/ChatId"
 
-        DocumentMentionTarget:
+        ChatReference_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                title:
+                    type: string
+
+        DocumentReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1977,7 +2025,19 @@ components:
                 id:
                     $ref: "#/components/schemas/DocumentId"
 
-        PostMentionTarget:
+        DocumentReference_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+
+        PostReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1986,6 +2046,64 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
+
+        PostReference_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+                title:
+                    type: string
+
+        TaskReference:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+
+        TaskReference_Response:
+            type: object
+            required: [type, id, title, status]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                title:
+                    type: string
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+
+        TaskCollectionReference:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionReference_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                title:
+                    type: string
 
         # TODO(#sites-api): We may want to add a mention response type for sites
         # that includes the first entity id in the site. I'm still not sure how
@@ -1997,7 +2115,7 @@ components:
         # id. Rerouting to the first entity in the site makes sense in the app since
         # we render the site chrome around the entity. For the API, that "reroute"
         # may be pretty confusing/jarring for clients.
-        SiteMentionTarget:
+        SiteReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -2007,79 +2125,59 @@ components:
                 id:
                     $ref: "#/components/schemas/SiteId"
 
-        TaskMentionTarget:
+        SiteReference_Response:
             type: object
-            required: [type, id]
+            required: [type, id, title]
             additionalProperties: false
             properties:
                 type:
-                    const: Task
+                    const: Site
                 id:
-                    $ref: "#/components/schemas/TaskId"
+                    $ref: "#/components/schemas/SiteId"
+                title:
+                    type: string
 
-        TaskMentionTarget_Response:
-            type: object
-            required: [type, id, status]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-
-        TaskCollectionMentionTarget:
-            type: object
-            required: [type, id]
-            additionalProperties: false
-            properties:
-                type:
-                    const: TaskCollection
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
-
-        MentionTarget:
+        MentionReference:
             oneOf:
-                - $ref: "#/components/schemas/AccountMentionTarget"
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/SiteMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/AccountReference"
+                - $ref: "#/components/schemas/ChannelReference"
+                - $ref: "#/components/schemas/ChatReference"
+                - $ref: "#/components/schemas/DocumentReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
+                - $ref: "#/components/schemas/TaskCollectionReference"
+                - $ref: "#/components/schemas/SiteReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountMentionTarget"
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Site: "#/components/schemas/SiteMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Account: "#/components/schemas/AccountReference"
+                    Channel: "#/components/schemas/ChannelReference"
+                    Chat: "#/components/schemas/ChatReference"
+                    Document: "#/components/schemas/DocumentReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference"
+                    Site: "#/components/schemas/SiteReference"
 
-        PreviewTarget:
+        PreviewReference:
             oneOf:
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/SiteMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/ChannelReference"
+                - $ref: "#/components/schemas/ChatReference"
+                - $ref: "#/components/schemas/DocumentReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
+                - $ref: "#/components/schemas/TaskCollectionReference"
+                - $ref: "#/components/schemas/SiteReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Site: "#/components/schemas/SiteMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Channel: "#/components/schemas/ChannelReference"
+                    Chat: "#/components/schemas/ChatReference"
+                    Document: "#/components/schemas/DocumentReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference"
+                    Site: "#/components/schemas/SiteReference"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -2429,14 +2527,6 @@ components:
                     const: File
                 id:
                     $ref: "#/components/schemas/FileId"
-                # Ignored on write but ensures ContentFileBlockElement_Response
-                # is compatible as input.
-                contentType:
-                    type: string
-                    enum: {{fileContentTypes}}
-                contentLength:
-                    type: integer
-                    minimum: 0
 
         ContentFileBlockElement_Response:
             type: object
@@ -2448,40 +2538,20 @@ components:
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
-                    type: string
-                    enum: {{fileContentTypes}}
+                    $ref: "#/components/schemas/FileContentType"
                 contentLength:
                     type: integer
                     minimum: 0
 
         ContentPreviewBlockElement:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Preview
-                target:
-                    $ref: "#/components/schemas/PreviewTarget"
-                # Ignored on write but ensures ContentPreviewBlockElement_Response
-                # is compatible as input.
-                title:
-                    type: string
-
-        # TODO: Auto-generate _Response variants from their base types instead
-        # of duplicating fields manually.
-        ContentPreviewBlockElement_Response:
-            type: object
-            required: [type, target, title]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                target:
-                    $ref: "#/components/schemas/PreviewTarget"
-                title:
-                    type: string
-                    minLength: 1
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
 
         ContentFileGalleryBlockElement:
             type: object
@@ -2513,13 +2583,6 @@ components:
             required: [element]
             additionalProperties: false
             properties:
-                # Fractional width from 0 to 1 representing the item's share
-                # of the row width. Values in a row sum to 1. Ignored on
-                # write, populated on read.
-                width:
-                    type: number
-                    minimum: 0
-                    maximum: 1
                 element:
                     oneOf:
                         - $ref: "#/components/schemas/ContentFileBlockElement"
@@ -2612,73 +2675,22 @@ components:
 
         ContentMentionInlineElement:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Mention
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
-                isAccountShortName:
-                    type: boolean
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentInlineElementMark"
-
-        ContentMentionInlineElement_Response:
-            type: object
-            required: [type, target, title]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Mention
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
                 # TODO(calebmer, #public-api): Document that `title` is loaded using the search
                 # index so may be stale by up to 90s! (60s for slow document reindexing + 10s
                 # for OpenSearch refresh interval. Say 90s to give us enough buffer.)
-                title:
-                    type: string
-                    minLength: 1
+                reference:
+                    $ref: "#/components/schemas/MentionReference"
                 isAccountShortName:
                     type: boolean
                 marks:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
-
-        # Simpler mention type that's compatible with `ContentMentionInlineElement` but
-        # without extra element properties like `type` and `marks`.
-        Mention:
-            type: object
-            required: [target]
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
-
-        Mention_Response:
-            type: object
-            required: [target, title]
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
-                title:
-                    type: string
 
         ContentInlineElementMark:
             oneOf:
@@ -2763,13 +2775,18 @@ components:
 
         ContentInlineElementCommentMark:
             type: object
-            required: [type, threadId]
+            required: [type, thread]
             additionalProperties: false
             properties:
                 type:
                     const: Comment
-                threadId:
-                    $ref: "#/components/schemas/DocumentThreadId"
+                thread:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
 
         ContentCodeBlockElementTextInlineElement:
             type: object
@@ -2820,8 +2837,13 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
+                bot:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
 
         Space:
             type: object
@@ -2837,31 +2859,37 @@ components:
             type: object
             required: [id, name, shortName, space]
             additionalProperties: false
-            properties:
+            properties: &accountProperties
                 id:
                     $ref: "#/components/schemas/AccountId"
                 name:
                     $ref: "#/components/schemas/LabelString"
                 shortName:
-                    type: string
-                    minLength: 1
-                    maxLength: 50
-                botId:
-                    $ref: "#/components/schemas/BotId"
-                space:
+                    $ref: "#/components/schemas/LabelString"
+                bot:
                     type: object
-                    required: [role, addedTime]
+                    required: [id]
                     additionalProperties: false
                     properties:
-                        role:
-                            type: string
-                            enum: [Owner, Admin, Member]
-                        addedTime:
-                            $ref: "#/components/schemas/DateTime"
-                        # TODO(calebmer, #public-api): Bikeshed what the right way to expose account
-                        # state over the public API is.
-                        inactive:
-                            $ref: "#/components/schemas/AccountSpaceInactive"
+                        id:
+                            $ref: "#/components/schemas/BotId"
+                space:
+                    $ref: "#/components/schemas/AccountSpace"
+
+        AccountSpace:
+            type: object
+            required: [role, addedTime]
+            additionalProperties: false
+            properties:
+                role:
+                    type: string
+                    enum: [Owner, Admin, Member]
+                addedTime:
+                    $ref: "#/components/schemas/DateTime"
+                # TODO(calebmer, #public-api-blocking): Switch this to `state` and add an
+                # `Active` variant.
+                inactive:
+                    $ref: "#/components/schemas/AccountSpaceInactive"
 
         AccountSpaceInactive:
             oneOf:
@@ -3169,7 +3197,7 @@ components:
 
         DirectChat:
             type: object
-            required: [type, id, members]
+            required: [type, id, members, reference]
             additionalProperties: false
             properties:
                 type:
@@ -3185,6 +3213,15 @@ components:
                         properties:
                             account:
                                 $ref: "#/components/schemas/Account"
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                reference:
+                    type: object
+                    required: [title]
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
 
         RoomChat:
             type: object
@@ -3195,6 +3232,59 @@ components:
                     const: Room
                 id:
                     $ref: "#/components/schemas/ChatId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        CreateChatRequestBodyChat:
+            oneOf:
+                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat"
+                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat"
+                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
+
+        CreateChatRequestBodyDirectChat:
+            type: object
+            required: [type, members]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Direct
+                # TODO(#public-api): Should we add additional properties from `DirectChat` here
+                # so if you pass in a `DirectChat` object, it would work?
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required: [account]
+                        additionalProperties: false
+                        properties:
+                            account:
+                                type: object
+                                required: [id]
+                                additionalProperties: false
+                                properties:
+                                    id:
+                                        $ref: "#/components/schemas/AccountId"
+                                    # Allow properties from `Account` or `AccountReference` when declaring this
+                                    # account. These properties are ignored but it allows you to pass an object
+                                    # from the API response in as input.
+                                    #
+                                    # TODO(#public-api): Make sure these properties are hidden in the
+                                    # documentation!
+                                    <<: [*accountProperties, *accountReferenceResponseProperties]
+
+        CreateChatRequestBodyRoomChat:
+            type: object
+            required: [type, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Room
+                # TODO(#public-api): Should we add additional properties from `RoomChat` here
+                # so if you pass in a `RoomChat` object, it would work?
                 name:
                     $ref: "#/components/schemas/LabelString"
 
@@ -3230,7 +3320,7 @@ components:
                 title:
                     type: string
 
-        DocumentCommentThread:
+        DocumentThread:
             type: object
             required:
                 [
@@ -3285,7 +3375,7 @@ components:
             type: object
             # `channel` is intentionally optional since we may allow users to create posts
             # that aren't in a channel in the future.
-            required: [id, author, createdTime, createdTimeZone, content, contentPreview]
+            required: [id, author, createdTime, createdTimeZone, content, reference]
             additionalProperties: false
             properties:
                 id:
@@ -3302,19 +3392,31 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
-                contentPreview:
-                    type: string
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                reference:
+                    type: object
+                    required: [title]
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
 
-        # TODO(ifitzsimmons, #ai): Add a `/posts/{id}/preview` endpoint that returns a
-        # a `PostPreview`
-        # https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
+        # TODO(calebmer, #public-api): The intent here is that a `/channels/{id}/posts`
+        # endpoint would return this object insted of a `Post`. We need a
+        # `contentSnippet` on this object then you'll have a small post with a "read
+        # more" link.
         PostPreview:
             type: object
-            required: [id, author, createdTime, createdTimeZone]
+            # `channel` is intentionally optional since we may allow users to create posts
+            # that aren't in a channel in the future.
+            required: [id, author, createdTime, createdTimeZone, reference]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/PostId"
+                # For any useful rendering of a post, you need the author's name. Which is why
+                # we include more than just the `AccountId`.
                 author:
                     $ref: "#/components/schemas/Account"
                 createdTime:
@@ -3323,6 +3425,15 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                reference:
+                    type: object
+                    required: [title]
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
 
         Task:
             type: object
@@ -3744,7 +3855,7 @@ components:
 
         MessageContentPayloadPostParent:
             type: object
-            required: [type, author, contentSnippet]
+            required: [type]
             additionalProperties: false
             properties:
                 type:
@@ -3779,18 +3890,18 @@ components:
 
         MessageStreamPart:
             type: object
-            required: [index, version, payload, createdTime]
+            required: [index, createdTime, version, payload]
             additionalProperties: false
             properties:
                 index:
                     type: integer
                     minimum: 0
-                version:
-                    type: integer
-                    minimum: 0
                 createdTime:
                     type: string
                     format: date-time
+                version:
+                    type: integer
+                    minimum: 0
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload"
 
@@ -3850,13 +3961,13 @@ components:
 
         MessageStreamToolCallPartPayloadReadCall:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Read
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
+                reference:
+                    $ref: "#/components/schemas/MentionReference"
 
         MessageStreamToolCallPartPayloadSearchCall:
             type: object
@@ -3870,27 +3981,27 @@ components:
 
         MessageStreamToolCallPartPayloadCreateCall:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Create
-                target:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget"
+                reference:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference"
 
-        MessageStreamToolCallPartCreateCallTarget:
+        MessageStreamToolCallPartCreateCallReference:
             oneOf:
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/DocumentReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
+                - $ref: "#/components/schemas/TaskCollectionReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Document: "#/components/schemas/DocumentReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference"
 
         # =========================================================================== #
         #                                  Webhooks                                   #
@@ -3898,48 +4009,58 @@ components:
 
         BotWebhookEvent:
             oneOf:
-                - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
-                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent"
+                - $ref: "#/components/schemas/BotWebhookCreatedPostEvent"
             discriminator:
                 propertyName: type
                 mapping:
-                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
-                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
+                    CreatedMessage: "#/components/schemas/BotWebhookCreatedMessageEvent"
+                    CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
 
-        BotWebhookNewMessageEvent:
+        BotWebhookCreatedMessageEvent:
             type: object
-            required: [type, room, index, authorId, createdTimeZone]
+            required: [type, room, index, author, createdTimeZone]
             additionalProperties: false
             properties:
                 type:
-                    const: NewMessage
+                    const: CreatedMessage
                 room:
-                    $ref: "#/components/schemas/MessageRoomTarget"
+                    $ref: "#/components/schemas/MessageRoomReference"
                 index:
                     type: integer
                     minimum: 0
-                authorId:
-                    $ref: "#/components/schemas/AccountId"
+                author:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 createdTimeZone:
                     $ref: "#/components/schemas/TimeZone"
+                parent:
+                    $ref: "#/components/schemas/BotWebhookCreatedMessageEventParent"
                 wasMentioned:
                     type: boolean
-                viewingTarget:
-                    $ref: "#/components/schemas/MentionTarget"
-                parent:
-                    $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
+                viewing:
+                    type: object
+                    required: [reference]
+                    additionalProperties: false
+                    properties:
+                        reference:
+                            $ref: "#/components/schemas/MentionReference"
 
-        BotWebhookNewMessageEventParent:
+        BotWebhookCreatedMessageEventParent:
             oneOf:
-                - $ref: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
-                - $ref: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEventMessageParent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEventPostParent"
             discriminator:
                 propertyName: type
                 mapping:
-                    Message: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
-                    Post: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+                    Message: "#/components/schemas/BotWebhookCreatedMessageEventMessageParent"
+                    Post: "#/components/schemas/BotWebhookCreatedMessageEventPostParent"
 
-        BotWebhookNewMessageEventMessageParent:
+        BotWebhookCreatedMessageEventMessageParent:
             type: object
             required: [type, index, author]
             additionalProperties: false
@@ -3956,7 +4077,7 @@ components:
                         id:
                             $ref: "#/components/schemas/AccountId"
 
-        BotWebhookNewMessageEventPostParent:
+        BotWebhookCreatedMessageEventPostParent:
             type: object
             required: [type, author]
             additionalProperties: false
@@ -3971,17 +4092,27 @@ components:
                         id:
                             $ref: "#/components/schemas/AccountId"
 
-        BotWebhookNewPostEvent:
+        BotWebhookCreatedPostEvent:
             type: object
-            required: [type, postId, authorId, createdTimeZone]
+            required: [type, post, author, createdTimeZone]
             additionalProperties: false
             properties:
                 type:
-                    const: NewPost
-                postId:
-                    $ref: "#/components/schemas/PostId"
-                authorId:
-                    $ref: "#/components/schemas/AccountId"
+                    const: CreatedPost
+                post:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/PostId"
+                author:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 createdTimeZone:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
@@ -3989,7 +4120,7 @@ components:
 
         MessageContentPayloadParentContentSnippet:
             type: object
-            required: [isTruncated, elements]
+            required: [elements, isTruncated]
             additionalProperties: false
             properties:
                 elements:
@@ -4023,21 +4154,22 @@ components:
                     Strike: "#/components/schemas/ContentInlineElementStrikeMark"
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
 
-        MessageRoomTarget:
+        MessageRoomReference:
             oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoom"
-                - $ref: "#/components/schemas/DocumentCommentRoom"
-                - $ref: "#/components/schemas/PostCommentRoom"
-                - $ref: "#/components/schemas/TaskCommentRoom"
+                - $ref: "#/components/schemas/ChatMessageRoomReference"
+                - $ref: "#/components/schemas/DocumentThreadMessageRoomReference"
+                - $ref: "#/components/schemas/PostMessageRoomReference"
+                - $ref: "#/components/schemas/TaskMessageRoomReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Chat: "#/components/schemas/ChatMessageRoom"
-                    DocumentCommentThread: "#/components/schemas/DocumentCommentRoom"
-                    Post: "#/components/schemas/PostCommentRoom"
-                    Task: "#/components/schemas/TaskCommentRoom"
+                    Chat: "#/components/schemas/ChatMessageRoomReference"
+                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomReference"
+                    Post: "#/components/schemas/PostMessageRoomReference"
+                    Task: "#/components/schemas/TaskMessageRoomReference"
 
-        ChatMessageRoom:
+        # NOCOMMIT: Get rid of these? Replace with actual reference types.
+        ChatMessageRoomReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -4047,19 +4179,19 @@ components:
                 id:
                     $ref: "#/components/schemas/ChatId"
 
-        DocumentCommentRoom:
+        DocumentThreadMessageRoomReference:
             type: object
             required: [type, id, threadId]
             additionalProperties: false
             properties:
                 type:
-                    const: DocumentCommentThread
+                    const: DocumentThread
                 id:
                     $ref: "#/components/schemas/DocumentId"
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
 
-        PostCommentRoom:
+        PostMessageRoomReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -4069,7 +4201,7 @@ components:
                 id:
                     $ref: "#/components/schemas/PostId"
 
-        TaskCommentRoom:
+        TaskMessageRoomReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -4120,25 +4252,39 @@ components:
 
         SearchAccountResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch, shortName]
             additionalProperties: false
             properties:
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Account
-                id:
-                    $ref: "#/components/schemas/AccountId"
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
+                # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
+                bot:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
 
         SearchChannelResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
                 bodyMatch:
@@ -4147,36 +4293,28 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Channel
-                id:
-                    $ref: "#/components/schemas/ChannelId"
 
         SearchChatResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
 
         SearchChatMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, index, author]
+            required: [type, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: ChatMessage
                 id:
@@ -4184,16 +4322,24 @@ components:
                 index:
                     type: integer
                     minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchDocumentResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
                 bodyMatch:
@@ -4202,22 +4348,12 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Document
-                id:
-                    $ref: "#/components/schemas/DocumentId"
 
         SearchDocumentMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, threadId, index, author]
+            required: [type, id, threadId, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
                 type:
                     const: DocumentMessage
                 id:
@@ -4227,42 +4363,40 @@ components:
                 index:
                     type: integer
                     minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchPostResult:
             type: object
-            required: [title, bodyMatch, type, id, author]
+            required: [type, id, title, bodyMatch, author]
             additionalProperties: false
             properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                type:
-                    const: Post
-                id:
-                    $ref: "#/components/schemas/PostId"
-                author:
-                    $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchPostMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, index, author]
+            required: [type, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
                 type:
                     const: PostMessage
                 id:
@@ -4270,10 +4404,14 @@ components:
                 index:
                     type: integer
                     minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchSiteResult:
             type: object
@@ -4293,35 +4431,29 @@ components:
 
         SearchTaskResult:
             type: object
-            required: [title, bodyMatch, type, id, status]
+            required: [type, id, title, bodyMatch, status]
             additionalProperties: false
             properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
 
         SearchTaskMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, index, author]
+            required: [type, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
                 type:
                     const: TaskMessage
                 id:
@@ -4329,26 +4461,30 @@ components:
                 index:
                     type: integer
                     minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchTaskCollectionResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: TaskCollection
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
 
         SearchResultBodyMatch:
             type: array

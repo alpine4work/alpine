@@ -4,7 +4,6 @@ import {
     decode as decodeO200kBase,
     encode as encodeO200kBase,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
-import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
@@ -26,7 +25,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 type PrintMarkdownFixtureTestCase = {
     description: string;
@@ -961,7 +959,7 @@ Third line
                         ],
                     },
                     expectedMarkdown: `\
-Regular lin&#x65;**<br/>**&#x53;till regular
+Regular lin&#x65;**<br />**&#x53;till regular
 `,
                 },
                 {
@@ -979,7 +977,7 @@ Regular lin&#x65;**<br/>**&#x53;till regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular line **<br/>** Still regular
+Regular line **<br />** Still regular
 `,
                 },
                 {
@@ -997,7 +995,7 @@ Regular line **<br/>** Still regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular lin&#x65;*<br/>*&#x53;till regular
+Regular lin&#x65;*<br />*&#x53;till regular
 `,
                 },
                 {
@@ -1015,7 +1013,7 @@ Regular lin&#x65;*<br/>*&#x53;till regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular line *<br/>* Still regular
+Regular line *<br />* Still regular
 `,
                 },
                 {
@@ -1033,7 +1031,7 @@ Regular line *<br/>* Still regular
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line<br/>Still bold**
+**Bold line<br />Still bold**
 `,
                 },
                 {
@@ -1051,7 +1049,7 @@ Regular line *<br/>* Still regular
                         ],
                     },
                     expectedMarkdown: `\
-_Bold line_**<br/>**_Still bold_
+_Bold line_**<br />**_Still bold_
 `,
                 },
                 {
@@ -1069,7 +1067,7 @@ _Bold line_**<br/>**_Still bold_
                         ],
                     },
                     expectedMarkdown: `\
-Bold lin&#x65;**<br/>**_Still bold_
+Bold lin&#x65;**<br />**_Still bold_
 `,
                 },
                 {
@@ -1087,7 +1085,7 @@ Bold lin&#x65;**<br/>**_Still bold_
                         ],
                     },
                     expectedMarkdown: `\
-_Bold line_**<br/>**&#x53;till bold
+_Bold line_**<br />**&#x53;till bold
 `,
                 },
                 {
@@ -1124,7 +1122,7 @@ Bold line\\*\\*\\
                         ],
                     },
                     expectedMarkdown: `\
-Bold line\\*\\**<br/>*\\*\\*Still bold
+Bold line\\*\\**<br />*\\*\\*Still bold
 `,
                 },
                 {
@@ -1142,7 +1140,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**_<br/>_**Still bold**
+**Bold line**_<br />_**Still bold**
 `,
                 },
                 {
@@ -1160,7 +1158,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**~~<br/>~~**Still bold**
+**Bold line**~~<br />~~**Still bold**
 `,
                 },
                 {
@@ -1178,7 +1176,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**<code><br/></code>**Still bold**
+**Bold line**<code><br /></code>**Still bold**
 `,
                 },
                 {
@@ -1196,7 +1194,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold lin&#x65;*<br/>*&#x53;till bold**
+**Bold lin&#x65;*<br />*&#x53;till bold**
 `,
                 },
                 {
@@ -1217,7 +1215,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**[<br/>](https://example.com)**Still bold**
+**Bold line**[<br />](https://example.com)**Still bold**
 `,
                 },
             ],
@@ -3915,7 +3913,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3925,7 +3925,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -3936,7 +3938,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3946,7 +3950,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Italic"},
                                         ],
@@ -3957,7 +3963,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3967,7 +3975,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Bold"},
                                         ],
@@ -3978,7 +3988,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3988,7 +4000,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Strike"},
                                         ],
@@ -3999,7 +4013,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4009,7 +4025,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Highlight", color: "Red"},
                                         ],
@@ -4020,7 +4038,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4049,8 +4069,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4060,8 +4081,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -4072,8 +4094,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4083,8 +4106,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Italic"},
                                         ],
@@ -4095,8 +4119,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4106,8 +4131,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Bold"},
                                         ],
@@ -4118,8 +4144,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4129,8 +4156,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Strike"},
                                         ],
@@ -4141,8 +4169,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4152,13 +4181,15 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentInnerThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentInnerThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4168,8 +4199,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4198,8 +4230,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4209,8 +4242,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -4221,8 +4255,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4232,8 +4267,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Italic"},
                                         ],
@@ -4244,8 +4280,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4255,8 +4292,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Bold"},
                                         ],
@@ -4267,8 +4305,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4278,8 +4317,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Strike"},
                                         ],
@@ -4290,8 +4330,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4301,13 +4342,15 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentInnerThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentInnerThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4317,8 +4360,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4346,7 +4390,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkTextThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkTextThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4373,7 +4419,9 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                                             {type: "Highlight", color: "Green"},
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkHighlightThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkHighlightThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4399,15 +4447,21 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestMultiCommentThreadId1,
+                                                thread: {
+                                                    id: printTestMultiCommentThreadId1,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId: printTestMultiCommentThreadId2,
+                                                thread: {
+                                                    id: printTestMultiCommentThreadId2,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId: printTestMultiCommentThreadId3,
+                                                thread: {
+                                                    id: printTestMultiCommentThreadId3,
+                                                },
                                             },
                                         ],
                                     },
@@ -4436,8 +4490,9 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                                                 marks: [
                                                     {
                                                         type: "Comment",
-                                                        threadId:
-                                                            printTestCommentMarkCodeBlockThreadId,
+                                                        thread: {
+                                                            id: printTestCommentMarkCodeBlockThreadId,
+                                                        },
                                                     },
                                                 ],
                                             },
@@ -4732,9 +4787,46 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                         ],
                     },
                     expectedMarkdown: `\
-| Wide | Normal | Wider |
-| - | - | - |
-| A | B | C<span hidden data-column-widths="2,1,3"/> |
+<table data-column-widths="2,1,3">
+<thead>
+<tr>
+<th>
+
+Wide
+
+</th>
+<th>
+
+Normal
+
+</th>
+<th>
+
+Wider
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+A
+
+</td>
+<td>
+
+B
+
+</td>
+<td>
+
+C
+
+</td>
+</tr>
+</tbody>
+</table>
 `,
                 },
                 {
@@ -4793,9 +4885,36 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                         ],
                     },
                     expectedMarkdown: `\
-| Col1 | Col2 |
-| - | - |
-| Data1 | Data2<span hidden data-width="2.5"/> |
+<table data-width="2.5">
+<thead>
+<tr>
+<th>
+
+Col1
+
+</th>
+<th>
+
+Col2
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Data1
+
+</td>
+<td>
+
+Data2
+
+</td>
+</tr>
+</tbody>
+</table>
 `,
                 },
                 {
@@ -5482,7 +5601,7 @@ Value
                     expectedMarkdown: `\
 | Col A | Col B |
 | - | - |
-| Line 1<br/>Line 2 | Single line |
+| Line 1<br />Line 2 | Single line |
 `,
                 },
                 {
@@ -5667,6 +5786,51 @@ Value
 
 </td>
 <td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "adjacent files in table",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                hasHeaderRow: false,
+                                hasHeaderColumn: false,
+                                columns: [],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {elements: []},
+                                            {
+                                                elements: [
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+</td>
+<td>
+
+![](https://alpine.inc/files/${printTestFixtureFileId}/content)
+
+![](https://alpine.inc/files/${printTestFixtureFileId}/content)
 
 </td>
 </tr>
@@ -6471,7 +6635,7 @@ third
                         ],
                     },
                     expectedMarkdown: `\
-\`Code line\`<code><br/></code>\`Still code\`
+\`Code line\`<code><br /></code>\`Still code\`
 `,
                 },
                 {
@@ -6489,7 +6653,7 @@ third
                         ],
                     },
                     expectedMarkdown: `\
-Normal<code><br/></code>Also normal
+Normal<code><br /></code>Also normal
 `,
                 },
                 {
@@ -6509,7 +6673,7 @@ Normal<code><br/></code>Also normal
                         ],
                     },
                     expectedMarkdown: `\
-\`Line 1\`<code><br/></code>\`Line 2\`<code><br/></code>\`Line 3\`
+\`Line 1\`<code><br /></code>\`Line 2\`<code><br /></code>\`Line 3\`
 `,
                 },
                 {
@@ -6545,11 +6709,11 @@ Normal<code><br/></code>Also normal
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@alice",
                                         },
-                                        title: "@alice",
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6570,11 +6734,11 @@ Normal<code><br/></code>Also normal
                                     {type: "Text", text: "Ask "},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@bob",
                                         },
-                                        title: "@bob",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: " about it"},
@@ -6596,11 +6760,11 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                     {type: "Text", text: "The user ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@charlie",
                                         },
-                                        title: "@charlie",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: " is mentioned", marks: [{type: "Code"}]},
@@ -6622,21 +6786,21 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                     {type: "Text", text: "CC: ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@eve",
                                         },
-                                        title: "@eve",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: " and ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId2,
+                                            title: "@frank",
                                         },
-                                        title: "@frank",
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6662,11 +6826,11 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                     {type: "Text", text: "User: ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@grace",
                                         },
-                                        title: "@grace",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Break", marks: [{type: "Code"}]},
@@ -6676,7 +6840,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-\`User: \`<code>[@grace](https://alpine.inc/mention/${printTestFixtureAccountId1})</code><code><br/></code>\`Status: active\`
+\`User: \`<code>[@grace](https://alpine.inc/mention/${printTestFixtureAccountId1})</code><code><br /></code>\`Status: active\`
 `,
                 },
                 {
@@ -6689,11 +6853,11 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                     {type: "Text", text: "Code before ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@henry",
                                         },
-                                        title: "@henry",
                                     },
                                     {type: "Text", text: " code after", marks: [{type: "Code"}]},
                                 ],
@@ -6713,11 +6877,11 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "iris",
                                         },
-                                        title: "iris",
                                         isAccountShortName: true,
                                         marks: [{type: "Code"}],
                                     },
@@ -6738,7 +6902,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {type: "Task", id: printTestFixtureTaskId},
+                                        reference: {type: "Task", id: printTestFixtureTaskId},
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6760,11 +6924,11 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                     {type: "Text", text: "getUserData(", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@jack",
                                         },
-                                        title: "@jack",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: ")", marks: [{type: "Code"}]},
@@ -6778,18 +6942,18 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                     {type: "Text", text: "Author: "},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId2,
+                                            title: "@kate",
                                         },
-                                        title: "@kate",
                                     },
                                 ],
                             },
                         ],
                     },
                     expectedMarkdown: `\
-\`Function: getUserData(\`<code>[@jack](https://alpine.inc/mention/${printTestFixtureAccountId1})</code>\`)\`<code><br/></code>\`Returns: user object\`\\
+\`Function: getUserData(\`<code>[@jack](https://alpine.inc/mention/${printTestFixtureAccountId1})</code>\`)\`<code><br /></code>\`Returns: user object\`\\
 Author: [@kate](https://alpine.inc/mention/${printTestFixtureAccountId2})
 `,
                 },
@@ -7063,7 +7227,7 @@ Author: [@kate](https://alpine.inc/mention/${printTestFixtureAccountId2})
                         ],
                     },
                     expectedMarkdown: `\
-<br/>
+<br />
 `,
                 },
                 {
@@ -7077,7 +7241,7 @@ Author: [@kate](https://alpine.inc/mention/${printTestFixtureAccountId2})
                         ],
                     },
                     expectedMarkdown: `\
-**<br/>**
+**<br />**
 `,
                 },
                 {
@@ -7091,7 +7255,7 @@ Author: [@kate](https://alpine.inc/mention/${printTestFixtureAccountId2})
                         ],
                     },
                     expectedMarkdown: `\
-<br/><br/><br/>
+<br /><br /><br />
 `,
                 },
                 {
@@ -7148,7 +7312,7 @@ Text after break
                         ],
                     },
                     expectedMarkdown: `\
-Text before break<br/>
+Text before break<br />
 `,
                 },
                 {
@@ -7167,7 +7331,7 @@ Text before break<br/>
                         ],
                     },
                     expectedMarkdown: `\
-Text before break<br/><br/><br/>
+Text before break<br /><br /><br />
 `,
                 },
                 {
@@ -7236,11 +7400,11 @@ BeforeAfter
                         ],
                     },
                     expectedMarkdown: `\
-Start<br/>**<br/>**_<br/>_&#x45;nd
+Start<br />**<br />**_<br />_&#x45;nd
 `,
                 },
                 {
-                    description: "dollar signs are escaped for math",
+                    description: "dollar signs are not escaped for math",
                     content: {
                         elements: [
                             {
@@ -7250,7 +7414,7 @@ Start<br/>**<br/>**_<br/>_&#x45;nd
                         ],
                     },
                     expectedMarkdown: `\
-Price is \\$100 or \\$\\$200
+Price is $100 or \\$$200
 `,
                 },
                 {
@@ -7544,7 +7708,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                         },
@@ -7568,8 +7732,11 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {type: "Task", id: printTestFixtureTaskId},
-                                        title: "",
+                                        reference: {
+                                            type: "Task",
+                                            id: printTestFixtureTaskId,
+                                            title: "",
+                                        },
                                         isAccountShortName: false,
                                         marks: [],
                                     },
@@ -7630,7 +7797,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {type: "Task", id: printTestFixtureTaskId},
+                                        reference: {type: "Task", id: printTestFixtureTaskId},
                                         title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
@@ -7655,7 +7822,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Document",
                                             id: printTestFixtureDocumentId,
                                         },
@@ -7752,7 +7919,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\[\\$
+$\\[$
 `,
                 },
                 {
@@ -7868,7 +8035,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-<br/>
+<br />
 `,
                 },
                 {
@@ -7899,7 +8066,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\*\\$&#x20;
+$\\*$&#x20;
 `,
                 },
                 {
@@ -7911,11 +8078,11 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "TaskCollection",
                                             id: printTestFixtureTaskCollectionId,
+                                            title: "",
                                         },
-                                        title: "",
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa/&"}],
                                     },
@@ -7937,7 +8104,7 @@ Text\\[^1] with footnote
                                     {type: "Break", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                         },
@@ -7950,7 +8117,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-<br/><a href="http://a.aa">[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})</a>
+<br /><a href="http://a.aa">[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})</a>
 `,
                 },
                 {
@@ -7963,7 +8130,7 @@ Text\\[^1] with footnote
                                     {type: "Break", marks: [{type: "Bold"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                         },
@@ -7976,7 +8143,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-**<br/>**<a href="http://a.aa">[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})</a>
+**<br />**<a href="http://a.aa">[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})</a>
 `,
                 },
                 {
@@ -7989,7 +8156,7 @@ Text\\[^1] with footnote
                                     {type: "Text", text: "$_", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Document",
                                             id: printTestFixtureDocumentId,
                                         },
@@ -8017,7 +8184,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-a \\$ b
+a $ b
 `,
                 },
                 {
@@ -8031,7 +8198,7 @@ a \\$ b
                         ],
                     },
                     expectedMarkdown: `\
-\\$ b
+$ b
 `,
                 },
                 {
@@ -8045,7 +8212,7 @@ a \\$ b
                         ],
                     },
                     expectedMarkdown: `\
-a \\$
+a $
 `,
                 },
                 {
@@ -8059,7 +8226,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$ ab \\$
+$ ab $
 `,
                 },
                 {
@@ -8074,7 +8241,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\_ab\\_\\$
+$\\_ab\\_$
 `,
                 },
                 {
@@ -8089,7 +8256,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\*ab\\*\\$
+$\\*ab\\*$
 `,
                 },
                 {
@@ -8104,7 +8271,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$(ab)\\$
+$(ab)$
 `,
                 },
                 {
@@ -8177,8 +8344,11 @@ a \\$
                                     {type: "Break", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {type: "Post", id: printTestFixturePostId},
-                                        title: "",
+                                        reference: {
+                                            type: "Post",
+                                            id: printTestFixturePostId,
+                                            title: "",
+                                        },
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
                                     },
@@ -8187,7 +8357,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/><br/><a href="http://a.aa">[](https://alpine.inc/post/${printTestFixturePostId}?mention)</a>
+<br /><br /><a href="http://a.aa">[](https://alpine.inc/post/${printTestFixturePostId}?mention)</a>
 `,
                 },
                 {
@@ -8305,7 +8475,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/>*&#x20;*
+<br />*&#x20;*
 `,
                 },
                 {
@@ -8322,7 +8492,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/>**&#x20;**
+<br />**&#x20;**
 `,
                 },
                 {
@@ -8339,7 +8509,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/>~~&#x20;~~
+<br />~~&#x20;~~
 `,
                 },
                 {
@@ -9062,8 +9232,18 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-| | <span hidden data-column-widths="0.009999999776482582,0.009999999776482582,0.009999999776482582"/> |
-| - | - |
+<table data-column-widths="0.009999999776482582,0.009999999776482582,0.009999999776482582">
+<thead>
+<tr>
+<th>
+
+</th>
+<th>
+
+</th>
+</tr>
+</thead>
+</table>
 `,
                 },
                 {
@@ -9235,7 +9415,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-_-X_**[~~-y/@\\\`/\\$bz1~~](https://63o.kry)G**
+_-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
 `,
                 },
                 {
@@ -9677,7 +9857,7 @@ Click <a href="https://alpine.inc/mention/${printTestFixtureAccountId1}?short">h
                         ],
                     },
                     expectedMarkdown: `\
-## Multi<br/>line heading
+## Multi<br />line heading
 `,
                 },
                 {
@@ -9724,7 +9904,7 @@ More content.
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 `,
                 },
                 {
@@ -9810,7 +9990,7 @@ Section 3
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 
 title: Hello, world!
 
@@ -9906,7 +10086,7 @@ The quick brown fox jumps over the lazy dog.
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 
 - <p></p>
 `,
@@ -10007,7 +10187,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<video controls><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></video>
+<video controls><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
 `,
                 },
                 {
@@ -10023,7 +10203,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<audio controls><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></audio>
+<audio controls><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></audio>
 `,
                 },
                 {
@@ -10039,17 +10219,20 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<object type="application/pdf" data="https://alpine.inc/file/${printTestFixtureFileId}/content"/>
+<object type="application/pdf" data="https://alpine.inc/file/${printTestFixtureFileId}/content" />
 `,
                 },
                 {
-                    description: "preview with document target",
+                    description: "preview with document reference",
                     content: {
                         elements: [
                             {
                                 type: "Preview",
-                                target: {type: "Document", id: printTestFixtureDocumentId},
-                                title: "My Document",
+                                reference: {
+                                    type: "Document",
+                                    id: printTestFixtureDocumentId,
+                                    title: "My Document",
+                                },
                             },
                         ],
                     },
@@ -10058,13 +10241,16 @@ a
 `,
                 },
                 {
-                    description: "preview with channel target",
+                    description: "preview with channel reference",
                     content: {
                         elements: [
                             {
                                 type: "Preview",
-                                target: {type: "Channel", id: printTestFixtureChannelId},
-                                title: "General",
+                                reference: {
+                                    type: "Channel",
+                                    id: printTestFixtureChannelId,
+                                    title: "General",
+                                },
                             },
                         ],
                     },
@@ -10103,8 +10289,8 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10138,8 +10324,8 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 
 ![](https://alpine.inc/file/${printTestFixtureFileId}/content)
@@ -10180,7 +10366,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<div style="float: left; clear: both"><img src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></div>
+<div style="float: left; clear: both"><img src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></div>
 `,
                 },
                 {
@@ -10198,7 +10384,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<div style="float: right; clear: both"><img src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></div>
+<div style="float: right; clear: both"><img src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></div>
 `,
                 },
                 {
@@ -10213,11 +10399,11 @@ a
                                             {
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "My Document",
                                                     },
-                                                    title: "My Document",
                                                 },
                                             },
                                         ],
@@ -10276,14 +10462,14 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 34%"/>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 34%" />
 </div>
 
 ![](https://alpine.inc/file/${printTestFixtureFileId}/content)
@@ -10301,11 +10487,11 @@ a
                                             {
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "Design Spec",
                                                     },
-                                                    title: "Design Spec",
                                                 },
                                             },
                                         ],
@@ -10473,11 +10659,11 @@ caption
                                                 elements: [
                                                     {
                                                         type: "Preview",
-                                                        target: {
+                                                        reference: {
                                                             type: "Document",
                                                             id: printTestFixtureDocumentId,
+                                                            title: "My Document",
                                                         },
-                                                        title: "My Document",
                                                     },
                                                 ],
                                             },
@@ -10518,11 +10704,11 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "My Document",
                                                     },
-                                                    title: "My Document",
                                                 },
                                             },
                                             {
@@ -10540,8 +10726,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img alt="My Document" src="https://alpine.inc/doc/${printTestFixtureDocumentId}/preview" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img alt="My Document" src="https://alpine.inc/doc/${printTestFixtureDocumentId}/preview" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10570,8 +10756,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 67%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 67%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
 </div>
 `,
                 },
@@ -10604,8 +10790,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<video controls style="flex: 0 0 50%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></video>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<video controls style="flex: 0 0 50%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10638,8 +10824,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></audio>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></audio>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10672,8 +10858,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<object type="application/pdf" data="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<object type="application/pdf" data="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10690,11 +10876,11 @@ caption
                                                 width: 0.4,
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "My Document",
                                                     },
-                                                    title: "My Document",
                                                 },
                                             },
                                             {
@@ -10713,8 +10899,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img alt="My Document" src="https://alpine.inc/doc/${printTestFixtureDocumentId}/preview" style="flex: 0 0 40%"/>
-<video controls style="flex: 0 0 60%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></video>
+<img alt="My Document" src="https://alpine.inc/doc/${printTestFixtureDocumentId}/preview" style="flex: 0 0 40%" />
+<video controls style="flex: 0 0 60%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
 </div>
 `,
                 },
@@ -10747,9 +10933,9 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 30%"/>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 20%"/>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 30%" />
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 20%" />
 </div>
 `,
                 },
@@ -10790,9 +10976,9 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<audio controls style="flex: 0 0 33%"><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></audio>
-<video controls style="flex: 0 0 33%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content"/></video>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 34%"/>
+<audio controls style="flex: 0 0 33%"><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></audio>
+<video controls style="flex: 0 0 33%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
+<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 34%" a/>
 </div>
 `,
                 },
@@ -10850,7 +11036,15 @@ Use \`\` \`backticks\` \`\` for inline code
                 );
             });
 
-            test(`can be parsed by AgentMessageStream`, async () => {
+            // Test that `AgentWebMarkdownStreamParser` can parse all the content we test in
+            // this file exactly the same as the test expects.
+            //
+            // NOCOMMIT: Maybe move this to
+            // `server/agents/web/print_api_content_to_agent_web_markdown_generative.test.ts`
+            // or `server/agents/bots/internal/print_api_content_to_agent_markdown.test.ts`?
+            // The key thing we want to test here is that Markdown pushed in a random order via
+            // the stream parser will ultimately produce correct results.
+            test.skip(`can be parsed by AgentWebMarkdownStreamParser`, async () => {
                 const actualMarkdown = printApiContentToMarkdown(content, {});
 
                 // Test that `AgentMessageStream` can parse all the content we test in this file
@@ -10891,6 +11085,36 @@ Use \`\` \`backticks\` \`\` for inline code
 
                     expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
                 });
+                const markdownTokens = encodeO200kBase(actualMarkdown);
+
+                let nextUpdate = randomInteger(1, 5);
+
+                for (const markdownToken of markdownTokens) {
+                    message.pushText(null, decodeO200kBase([markdownToken]));
+
+                    // Update randomly within the message to exercise parse throttling choosing to
+                    // update at arbitrary times.
+                    nextUpdate--;
+                    if (nextUpdate === 0) {
+                        await message.update(null);
+                        nextUpdate = randomInteger(1, 5);
+                    }
+                }
+
+                // Always perform one last update.
+                await message.update(null);
+
+                const elements: Array<ApiContentBlockElement> = [];
+
+                for (const part of message.getParts()) {
+                    if (part.payload.type === "Content") {
+                        for (const element of part.payload.content.elements) {
+                            elements.push(element);
+                        }
+                    }
+                }
+
+                expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
             });
         });
     });

@@ -2,8 +2,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "test_helpers",
-    testonly = True,
     visibility = ["//visibility:public"],
+    # IMPORTANT: We try to keep the first-party dependency list for this markdown
+    # parser/printer pretty small. We'd like to open source this code someday! So
+    # instead of requesting markdown from our API a developer could run the
+    # markdown printer directly on whatever content they're working with. If
+    # they're writing code in Node.js. If can also work as a reference
+    # specification for "Alpine flavored markdown".
     deps = [
         "//:node_modules/fast-check",
         "//shared/api/content",
@@ -11,7 +16,5 @@ ts_project(
         "//shared/api/specification",
         "//shared/helpers",
         "//shared/id",
-        "//shared/tracer",
     ],
 )
-

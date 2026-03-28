@@ -257,7 +257,7 @@ export const apiDocumentsPaths: Pick<
         },
     },
 
-    "/documents/{id}/mention": {
+    "/documents/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -270,11 +270,9 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Document",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Document",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -359,7 +357,7 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    commentThread: {
+                    thread: {
                         id: commentThread.id,
                         createdTime: serializeDateString(commentThread.createdTime),
                         isResolved: commentThread.isResolved,
@@ -403,7 +401,7 @@ export const apiDocumentsPaths: Pick<
     "/documents/{id}/threads/{threadId}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getDocumentCommentPayloadsFromEnd(context, {
                           documentId: pathParameters.id,
                           commentThreadId: pathParameters.threadId,
@@ -426,7 +424,7 @@ export const apiDocumentsPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;

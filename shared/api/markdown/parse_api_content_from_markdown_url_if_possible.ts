@@ -1,7 +1,7 @@
 import {
     ApiContentFileBlockElement,
     ApiContentPreviewBlockElement,
-    ApiMentionTarget,
+    ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isId} from "~/shared/id/id.js";
 import {
@@ -16,9 +16,9 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export function parseApiMentionTargetFromMarkdownUrlIfPossible(
+export function parseApiMentionReferenceFromMarkdownUrlIfPossible(
     urlString: URL | string,
-): ApiMentionTarget | null {
+): ApiMentionReference | null {
     let url: URL;
     try {
         url = new URL(urlString);
@@ -41,7 +41,7 @@ export function parseApiMentionTargetFromMarkdownUrlIfPossible(
     // `mention` search param.
     if (!url.searchParams.has("mention")) return null;
 
-    return parseApiMentionTargetFromMarkdownPathnameSegmentsIfPossible(pathnameSegments);
+    return parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(pathnameSegments);
 }
 
 /**
@@ -78,18 +78,18 @@ export function parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossibl
 
     // Preview URL: `/{entityType}/{entityId}/preview`
     if (pathnameSegments[pathnameSegments.length - 1] === "preview") {
-        const target = parseApiMentionTargetFromMarkdownPathnameSegmentsIfPossible(
+        const reference = parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(
             pathnameSegments.slice(0, -1),
         );
-        if (target !== null) return {type: "Preview", target};
+        if (reference !== null) return {type: "Preview", reference};
     }
 
     return null;
 }
 
-function parseApiMentionTargetFromMarkdownPathnameSegmentsIfPossible(
+function parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(
     pathnameSegments: Array<string>,
-): Exclude<ApiMentionTarget, {type: "Account"}> | null {
+): Exclude<ApiMentionReference, {type: "Account"}> | null {
     if (pathnameSegments.length !== 2) return null;
 
     const pathnameSegment1 = pathnameSegments[0]!;

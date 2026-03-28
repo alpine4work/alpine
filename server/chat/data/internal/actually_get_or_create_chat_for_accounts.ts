@@ -12,6 +12,7 @@ import {
 import {getOptimisticChatId} from "~/server/chat/data/internal/get_optimistic_chat_id.js";
 import {getSharedChats} from "~/server/chat/data/internal/get_shared_chats.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
@@ -20,6 +21,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -47,11 +49,13 @@ export function actuallyGetOrCreateChatForAccounts(
         actorAccountId,
         otherAccountIds,
         initialSharedChatsPromise,
+        consistency = "Eventual",
     }: {
         spaceId: SpaceId;
         actorAccountId: AccountId;
         otherAccountIds: ReadonlyArray<AccountId>;
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<ChatForAccountsResult> {
     return context.tracer.withSpan("Get or create chat", async (context, span) => {
@@ -174,6 +178,7 @@ export function actuallyGetOrCreateChatForAccounts(
                         const optimisticChatItem = await getChatItemIfExistsForAuthorization(
                             context,
                             optimisticChatId,
+                            {consistency},
                         );
                         return {optimisticChatId, optimisticChatItem};
                     })(),
@@ -188,20 +193,24 @@ export function actuallyGetOrCreateChatForAccounts(
                     // try strong consistency.
                     runAllPromises(
                         Array.from(otherAccountIds, accountId =>
-                            getAccountIfExists(context, spaceId, accountId, {
-                                consistency: "Eventual",
-                            }).then(account => {
-                                if (account) return account;
-                                return getAccount(context, spaceId, accountId, {
-                                    consistency: "StrongWithinCache",
-                                });
-                            }),
+                            consistency !== "Eventual"
+                                ? getAccount(context, spaceId, accountId, {consistency})
+                                : getAccountIfExists(context, spaceId, accountId, {
+                                      consistency: "Eventual",
+                                  }).then(account => {
+                                      if (account) return account;
+                                      return getAccount(context, spaceId, accountId, {
+                                          consistency: "StrongWithinCache",
+                                      });
+                                  }),
                         ),
                     ),
                 ]);
 
             if (isActorBotAccount && otherAccounts.every(account => account.botId)) {
-                throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts");
+                throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts", {
+                    displayMessage: errorDisplayMessage`Can\u2019t create a chat with only bot accounts. Try again but include at least one human account in the chat.`,
+                });
             }
 
             // If the optimistic `ChatId` does not exist then create a new chat with the
@@ -240,7 +249,24 @@ export function actuallyGetOrCreateChatForAccounts(
             }
 
             const sharedChats = await ((isInitialAttempt ? initialSharedChatsPromise : null) ??
-                getSharedChats(context, {spaceId, actorAccountId, otherAccountIds}));
+                getSharedChats(
+                    // TODO(calebmer, #public-api): When creating a chat consider also creating account
+                    // -> chat items so we can replace `AccountChatsIndex` (which can only be queried
+                    // with eventual consistency) with a strongly consistent read. Otherwise the API
+                    // won't have read-after-write semantics for the `POST /chats` endpoint in some
+                    // cases. (If you hit this endpoint twice with the same `accountId`s one after the
+                    // other in quick succession you may get two different `ChatId`s.)
+                    //
+                    // It might even be worth considering putting all of an account's chats into one
+                    // DynamoDB item? To solve race conditions where we try to create two chats with
+                    // the same `AccountId`s _at the same time_ and end up with different `ChatId`s.
+                    //
+                    // Not considering this blocking for now since the endpoint is `POST /chats`,
+                    // `POST` implies there could be side effects. Also, it seems pretty rare to have
+                    // this problem in practice for now.
+                    context.dynamo.unexpectStrongReadConsistency(),
+                    {spaceId, actorAccountId, otherAccountIds},
+                ));
 
             const firstSharedChat = sharedChats[0];
 

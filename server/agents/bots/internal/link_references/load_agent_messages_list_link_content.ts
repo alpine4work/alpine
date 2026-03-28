@@ -27,7 +27,7 @@ import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_obj
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     ApiContentResponse,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -347,7 +347,7 @@ async function getMarkdownContentForPageFromMiddle({
     };
 }
 
-function getMessageRoom(link: AgentPaginatedMessagesListLink): ApiMessageRoomTarget {
+function getMessageRoom(link: AgentPaginatedMessagesListLink): ApiMessageRoomReference {
     switch (link.type) {
         case "ChatMessages":
             return {type: "Chat", id: link.chatId};

@@ -14,6 +14,8 @@ import {ApiContentMentionInlineElementResponse} from "~/shared/api/specification
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+// NOCOMMIT: Delete and replace with `print_api_content_to_markdown.ts`
+
 /**
  * Print API content to Markdown for an agent. Strips some Markdown formatting that
  * we think is too technical for an LLM. For example, removes URLs from links. We

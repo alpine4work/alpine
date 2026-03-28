@@ -1240,7 +1240,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 body: {
                     payload: {
                         type: "ToolCall",
-                        call: {type: "Read", target: {type: "Document", id: documentId}},
+                        call: {type: "Read", reference: {type: "Document", id: documentId}},
                     },
                 },
             }),
@@ -3278,7 +3278,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
                 authorId,
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
-                viewingTarget: {type: "Document", id: documentId},
+                viewing: {reference: {type: "Document", id: documentId}},
             },
         });
 
@@ -3287,8 +3287,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
             data: {
                 spaceId,
                 mention: {
-                    target: {type: "Document", id: documentId},
-                    title: "Test Document",
+                    reference: {type: "Document", id: documentId, title: "Test Document"},
                 },
             },
         });
@@ -3441,7 +3440,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
                 authorId,
                 createdTimeZone: defaultTimeZone,
                 wasMentioned: true,
-                viewingTarget: {type: "Document", id: documentId},
+                viewing: {reference: {type: "Document", id: documentId}},
             },
         });
 

@@ -1,6 +1,7 @@
 import {Locale} from "~/shared/helpers/intl/locale.js";
 
 const wordNumbers = new Map<number, string>([
+    [0, "zero"],
     [1, "one"],
     [2, "two"],
     [3, "three"],

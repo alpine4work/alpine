@@ -336,10 +336,10 @@ main().catch(error => {
  *
  * In our schema we have `ContentMentionInlineElement` and
  * `ContentMentionInlineElement_Response`. `ContentMentionInlineElement_Response`
- * contains data loaded from the mention target (e.g. `title` and eventually data
- * like the task status). However when creating a mention the user won't have this
- * data available so they'll simply use `ContentMentionInlineElement` which does
- * not include this data.
+ * contains data loaded from the mention reference (e.g. `title` and eventually
+ * data like the task status). However when creating a mention the user won't have
+ * this data available so they'll simply use `ContentMentionInlineElement` which
+ * does not include this data.
  *
  * So this distinction needs to bubble all the way up the JSON schema. Ultimately
  * we need both a `Content` schema and a `Content_Response` schema. Where `Content`
@@ -350,6 +350,12 @@ main().catch(error => {
  * specialization for each schema that references `ContentMentionInlineElement`.
  */
 function specialize(specification: unknown) {
+    // Add any properties in `_Response` as optional properties to the base schema and
+    // `_Request` schema. This is needed to make sure we can accept a `_Response`
+    // object as request input. Otherwise a `_Response` object would be rejected by
+    // `additionalProperties: false`.
+    addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(specification);
+
     let iterationCount = 0;
     let specializationsBySchemaName = findSpecializations(specification);
 
@@ -479,6 +485,48 @@ function applySpecializationToSchema(
         }
 
         applySpecializationToSchema(specialization, schemaNames, keyValue);
+    }
+}
+
+function addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(specification: unknown) {
+    assert(isObject(specification));
+    assert(isObject(specification.components));
+    assert(isObject(specification.components.schemas));
+
+    const {schemas} = specification.components;
+
+    for (const [schemaName, responseSchema] of Object.entries(schemas)) {
+        if (!schemaName.endsWith("_Response")) continue;
+
+        if (!isObject(responseSchema)) continue;
+        if (responseSchema.type !== "object") continue;
+        if (!isObject(responseSchema.properties)) continue;
+
+        const responseSchemaProperties = responseSchema.properties;
+
+        const add = (schema: Record<string, unknown>) => {
+            assert(isObject(schema.properties));
+
+            for (const [propertyKey, propertySchema] of Object.entries(responseSchemaProperties)) {
+                if (hasOwnProperty(schema.properties, propertyKey)) continue;
+
+                // @ts-expect-error: TypeScript doesn't like the type narrowing from
+                // `hasOwnProperty()` above.
+                schema.properties[propertyKey] = JSON.parse(JSON.stringify(propertySchema));
+            }
+        };
+
+        const baseSchemaName = schemaName.slice(0, -"_Response".length);
+        const baseSchema = schemas[baseSchemaName];
+        const requestSchema = schemas[`${baseSchemaName}_Request`];
+
+        if (isObject(baseSchema) && baseSchema.type === "object") {
+            add(baseSchema);
+        }
+
+        if (isObject(requestSchema) && requestSchema.type === "object") {
+            add(requestSchema);
+        }
     }
 }
 

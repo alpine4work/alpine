@@ -1339,7 +1339,7 @@ test("converts account mention into API content", () => {
                     {type: "Text", text: "Hello "},
                     {
                         type: "Mention",
-                        target: {type: "Account", id: accountId},
+                        reference: {type: "Account", id: accountId},
                         title: "Unknown",
                         isAccountShortName: false,
                     },
@@ -1366,7 +1366,7 @@ test("converts account mention with short name into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Account", id: accountId},
+                        reference: {type: "Account", id: accountId},
                         title: "Unknown",
                         isAccountShortName: true,
                     },
@@ -1392,7 +1392,7 @@ test("converts document mention into API content", () => {
                     {type: "Text", text: "See "},
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                         title: "Unknown document",
                     },
                 ],
@@ -1416,7 +1416,7 @@ test("converts channel mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Channel", id: channelId},
+                        reference: {type: "Channel", id: channelId},
                         title: "Unknown channel",
                     },
                 ],
@@ -1440,7 +1440,7 @@ test("converts task mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Task", id: taskId, status: {type: "Closed"}},
+                        reference: {type: "Task", id: taskId, status: {type: "Closed"}},
                         title: "Unknown task",
                     },
                 ],
@@ -1464,7 +1464,7 @@ test("converts task collection mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "TaskCollection", id: taskCollectionId},
+                        reference: {type: "TaskCollection", id: taskCollectionId},
                         title: "Unknown task collection",
                     },
                 ],
@@ -1488,7 +1488,7 @@ test("converts post mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Post", id: postId},
+                        reference: {type: "Post", id: postId},
                         title: "Unknown post",
                     },
                 ],
@@ -1652,7 +1652,7 @@ test("converts marked mention into API content", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {type: "Account", id: accountId},
+                            reference: {type: "Account", id: accountId},
                             title: "Unknown",
                             isAccountShortName: false,
                             marks: [{type: "Bold"}, {type: "Italic"}],
@@ -2661,7 +2661,11 @@ test("converts text with comment mark into API content", () => {
                     type: "Paragraph",
                     elements: [
                         {type: "Text", text: "This is "},
-                        {type: "Text", text: "commented", marks: [{type: "Comment", threadId}]},
+                        {
+                            type: "Text",
+                            text: "commented",
+                            marks: [{type: "Comment", thread: {id: threadId}}],
+                        },
                         {type: "Text", text: " text"},
                     ],
                 },
@@ -2734,7 +2738,7 @@ test("converts text with combined highlight and comment marks into API content",
                             type: "Text",
                             text: "highlighted and commented",
                             marks: [
-                                {type: "Comment", threadId},
+                                {type: "Comment", thread: {id: threadId}},
                                 {type: "Highlight", color: "Blue"},
                             ],
                         },
@@ -2772,7 +2776,7 @@ test("converts text with highlight, comment, and other marks into API content", 
                             type: "Text",
                             text: "bold highlighted commented",
                             marks: [
-                                {type: "Comment", threadId},
+                                {type: "Comment", thread: {id: threadId}},
                                 {type: "Bold"},
                                 {type: "Italic"},
                                 {type: "Highlight", color: "Purple"},
@@ -2813,9 +2817,9 @@ test("converts text with multiple comment marks into API content", () => {
                             type: "Text",
                             text: "multiple comments",
                             marks: [
-                                {type: "Comment", threadId: threadId1},
-                                {type: "Comment", threadId: threadId2},
-                                {type: "Comment", threadId: threadId3},
+                                {type: "Comment", thread: {id: threadId1}},
+                                {type: "Comment", thread: {id: threadId2}},
+                                {type: "Comment", thread: {id: threadId3}},
                             ],
                         },
                         {type: "Text", text: " on it"},
@@ -4308,7 +4312,7 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "Preview",
-                    target: {type: "Document", id: testDocumentId},
+                    reference: {type: "Document", id: testDocumentId},
                     title: "My Document",
                 },
             ],
@@ -4325,7 +4329,7 @@ describe("file block elements", () => {
                         side: "Left",
                         element: {
                             type: "Preview",
-                            target: {type: "Channel", id: testChannelId},
+                            reference: {type: "Channel", id: testChannelId},
                             title: "General",
                         },
                     },
@@ -4357,7 +4361,7 @@ describe("file block elements", () => {
                                         width: 0.662162,
                                         element: {
                                             type: "Preview",
-                                            target: {
+                                            reference: {
                                                 type: "Document",
                                                 id: testDocumentId,
                                             },

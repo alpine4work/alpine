@@ -3,7 +3,7 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/markdown/get_api_mention_reference_noun.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentBlockElementResponse,
@@ -19,9 +19,9 @@ import {
     ApiContentResponse,
     ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementRowResponse,
-    ApiMentionTargetResponse,
+    ApiMentionReferenceResponse,
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
-    ApiPreviewTargetResponse,
+    ApiPreviewReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -34,11 +34,7 @@ import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {
-    FileEntityIdObject,
-    isFileEntityId,
-    parseFileEntityId,
-} from "~/shared/files/file_entity_id.js";
+import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -854,13 +850,78 @@ function intoApiContentFileOrPreviewElement(
     if (isFileEntityId(fileId)) {
         const entityIdObject = parseFileEntityId(fileId);
 
-        const target = fileEntityIdObjectToPreviewTarget(entityIdObject, options);
-
         const title =
             options.getSearchEntityMentionTitleIfExists(fileId) ??
-            `Unknown ${getApiMentionTargetNoun(entityIdObject.type)}`;
+            `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
-        return {type: "Preview", target, title};
+        let reference: ApiPreviewReferenceResponse;
+
+        switch (entityIdObject.type) {
+            case "Channel": {
+                reference = {
+                    type: "Channel",
+                    id: entityIdObject.channelId,
+                    title,
+                };
+                break;
+            }
+            case "Chat": {
+                reference = {
+                    type: "Chat",
+                    id: entityIdObject.chatId,
+                    title,
+                };
+                break;
+            }
+            case "Document": {
+                reference = {
+                    type: "Document",
+                    id: entityIdObject.documentId,
+                    title,
+                };
+                break;
+            }
+            case "Post": {
+                reference = {
+                    type: "Post",
+                    id: entityIdObject.postId,
+                    title,
+                };
+                break;
+            }
+            case "Task": {
+                reference = {
+                    type: "Task",
+                    id: entityIdObject.taskId,
+                    title,
+                    status: intoApiTaskStatus(
+                        options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
+                            "Closed",
+                    ),
+                };
+                break;
+            }
+            case "TaskCollection": {
+                reference = {
+                    type: "TaskCollection",
+                    id: entityIdObject.collectionId,
+                    title,
+                };
+                break;
+            }
+            case "Site": {
+                reference = {
+                    type: "Site",
+                    id: entityIdObject.siteId,
+                    title,
+                };
+                break;
+            }
+            default:
+                throw exhaustive(entityIdObject);
+        }
+
+        return {type: "Preview", reference};
     }
 
     assert(isId<FileId>(fileId));
@@ -871,37 +932,6 @@ function intoApiContentFileOrPreviewElement(
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,
     };
-}
-
-function fileEntityIdObjectToPreviewTarget(
-    entityIdObject: FileEntityIdObject,
-    options: ApiContentMarkdownIntoOptionsForConversion,
-): ApiPreviewTargetResponse {
-    switch (entityIdObject.type) {
-        case "Channel":
-            return {type: "Channel", id: entityIdObject.channelId};
-        case "Chat":
-            return {type: "Chat", id: entityIdObject.chatId};
-        case "Document":
-            return {type: "Document", id: entityIdObject.documentId};
-        case "Post":
-            return {type: "Post", id: entityIdObject.postId};
-        case "Site":
-            return {type: "Site", id: entityIdObject.siteId};
-        case "Task":
-            return {
-                type: "Task",
-                id: entityIdObject.taskId,
-                status: intoApiTaskStatus(
-                    options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
-                        "Closed",
-                ),
-            };
-        case "TaskCollection":
-            return {type: "TaskCollection", id: entityIdObject.collectionId};
-        default:
-            throw exhaustive(entityIdObject);
-    }
 }
 
 function intoApiContentInlineElements(
@@ -941,15 +971,21 @@ function intoApiContentInlineElement(
             const mention: ContentMention = node.attrs.mention;
 
             if (mention.type === "Account") {
+                const title =
+                    options.getAccountMentionTitleIfExists(mention.accountId, {isShort: false}) ??
+                    "Unknown";
+                const shortName =
+                    options.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
+                    title;
+
                 return {
                     type: "Mention",
-                    target: {
+                    reference: {
                         type: "Account",
                         id: mention.accountId,
+                        title,
+                        shortName,
                     },
-                    title:
-                        options.getAccountMentionTitleIfExists(mention.accountId, mention) ??
-                        "Unknown",
                     isAccountShortName: mention.isShort,
                     marks:
                         node.marks.length > 0
@@ -959,34 +995,42 @@ function intoApiContentInlineElement(
             } else {
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
-                let target: ApiMentionTargetResponse;
+                const title =
+                    options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
+                    `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
+
+                let reference: ApiMentionReferenceResponse;
 
                 switch (entityIdObject.type) {
                     case "Document": {
-                        target = {
+                        reference = {
                             type: "Document",
                             id: entityIdObject.documentId,
+                            title,
                         };
                         break;
                     }
                     case "Channel": {
-                        target = {
+                        reference = {
                             type: "Channel",
                             id: entityIdObject.channelId,
+                            title,
                         };
                         break;
                     }
                     case "Chat": {
-                        target = {
+                        reference = {
                             type: "Chat",
                             id: entityIdObject.chatId,
+                            title,
                         };
                         break;
                     }
                     case "Task": {
-                        target = {
+                        reference = {
                             type: "Task",
                             id: entityIdObject.taskId,
+                            title,
                             status: intoApiTaskStatus(
                                 options.getSearchTaskEntityDisplayStatusIfExists(
                                     entityIdObject.taskId,
@@ -997,23 +1041,26 @@ function intoApiContentInlineElement(
                         break;
                     }
                     case "TaskCollection": {
-                        target = {
+                        reference = {
                             type: "TaskCollection",
                             id: entityIdObject.collectionId,
+                            title,
                         };
                         break;
                     }
                     case "Post": {
-                        target = {
+                        reference = {
                             type: "Post",
                             id: entityIdObject.postId,
+                            title,
                         };
                         break;
                     }
                     case "Site": {
-                        target = {
+                        reference = {
                             type: "Site",
                             id: entityIdObject.siteId,
+                            title,
                         };
                         break;
                     }
@@ -1023,10 +1070,7 @@ function intoApiContentInlineElement(
 
                 return {
                     type: "Mention",
-                    target,
-                    title:
-                        options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
-                        `Unknown ${getApiMentionTargetNoun(target.type)}`,
+                    reference,
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)
@@ -1069,7 +1113,7 @@ function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMar
         case "comment": {
             return {
                 type: "Comment",
-                threadId: mark.attrs.commentThreadId,
+                thread: {id: mark.attrs.commentThreadId},
             };
         }
         default:

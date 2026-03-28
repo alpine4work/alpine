@@ -945,7 +945,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
             type: "Paragraph",
             elements: [
                 {type: "Text", text: "Parent document: "},
-                {type: "Mention", target: {type: "Document", id: parentId}},
+                {type: "Mention", reference: {type: "Document", id: parentId}},
             ],
         });
     }
@@ -970,7 +970,9 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: childId}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: childId}},
+                            ],
                         },
                     ],
                 });
@@ -1023,7 +1025,10 @@ function isApiContentOnlyChildMentions(
                     return false;
                 }
                 if (inline.type === "Mention") {
-                    if (inline.target.type !== "Document" || !childIds.has(inline.target.id)) {
+                    if (
+                        inline.reference.type !== "Document" ||
+                        !childIds.has(inline.reference.id)
+                    ) {
                         return false;
                     }
                 }
@@ -1039,8 +1044,8 @@ function isApiContentOnlyChildMentions(
                             }
                             if (inline.type === "Mention") {
                                 if (
-                                    inline.target.type !== "Document" ||
-                                    !childIds.has(inline.target.id)
+                                    inline.reference.type !== "Document" ||
+                                    !childIds.has(inline.reference.id)
                                 ) {
                                     return false;
                                 }
@@ -1562,7 +1567,7 @@ function transformMdLinksToMentions(
                 // Replace the element in the parent array using context
                 context.elements[context.index] = {
                     type: "Mention",
-                    target: {type: "Document", id: documentId},
+                    reference: {type: "Document", id: documentId},
                 };
             }
         },

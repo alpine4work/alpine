@@ -125,7 +125,7 @@ export const apiForumPaths: Pick<
         },
     },
 
-    "/channels/{id}/mention": {
+    "/channels/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -138,11 +138,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Channel",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Channel",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -212,19 +210,21 @@ export const apiForumPaths: Pick<
                     spaceId: post.spaceId,
                     post: {
                         id: post.id,
+                        author,
                         createdTime: serializeDateString(post.createdTime),
                         createdTimeZone: post.createdTimeZone,
                         channel: {
                             id: channelId,
                             name: post.channelName,
                         },
-                        author,
                         content: contentWithReferences,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channelName,
-                            content,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(references),
-                        ),
+                        reference: {
+                            title: createPostSearchEntityTitle(
+                                post.channelName,
+                                content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+                            ),
+                        },
                     },
                 },
             };
@@ -278,20 +278,22 @@ export const apiForumPaths: Pick<
                             name: post.channel.name,
                         },
                         content: post.content.content,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channel.name,
-                            post.content.originalContent,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(
-                                post.content.references,
+                        reference: {
+                            title: createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
                             ),
-                        ),
+                        },
                     },
                 },
             };
         },
     },
 
-    "/posts/{id}/mention": {
+    "/posts/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -304,11 +306,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Post",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Post",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -345,7 +345,7 @@ export const apiForumPaths: Pick<
     "/posts/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getPostCommentPayloadsFromEnd(context, {
                           postId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -366,7 +366,7 @@ export const apiForumPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;

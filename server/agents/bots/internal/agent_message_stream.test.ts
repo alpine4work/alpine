@@ -1,4 +1,4 @@
-import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
+import {AgentMessageStream} from "~/server/agents/bots/internal/agent_message_stream.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";

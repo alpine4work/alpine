@@ -3,6 +3,7 @@ import parseInlineStyle from "inline-style-parser";
 import {
     BlockContent,
     DefinitionContent,
+    HtmlData,
     List,
     ListItem,
     PhrasingContent,
@@ -21,11 +22,15 @@ import {gfmTable} from "micromark-extension-gfm-table";
 import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
 import {
+    normalizeApiContentBlockElement,
+    normalizeApiContentInlineElementMarks,
+    normalizeApiReference,
+} from "~/shared/api/markdown/normalize_api_content.js";
+import {
     ApiContentFileOrPreviewBlockElement,
     parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible,
-    parseApiMentionTargetFromMarkdownUrlIfPossible,
-} from "~/shared/api/markdown/internal/parse_api_content_from_markdown_url_if_possible.js";
-import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
+    parseApiMentionReferenceFromMarkdownUrlIfPossible,
+} from "~/shared/api/markdown/parse_api_content_from_markdown_url_if_possible.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
     ApiContent,
@@ -56,9 +61,24 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+
+export type ApiContentMarkdownParserOptions = {
+    /**
+     * When true, we add `width`s to `FileGallery` element rows that distribute the
+     * files equally within the row.
+     *
+     * This is used by `parseApiContentFromAgentWebMarkdown()` because the goal of that
+     * function is to return `ApiContentResponse` which requires the `width` property.
+     * `parseApiContentFromAgentWebMarkdown()` can't add widths itself because it
+     * doesn't save file gallery widths in storage (an agent doesn't care about file
+     * gallery widths).
+     */
+    readonly withDummyFileGalleryElementLayout?: boolean;
+};
 
 export {actuallyParseApiContentFromMarkdown as parseApiContentFromMarkdown};
 export {parseApiContentFromMarkdown as parseApiContentFromMarkdownTree};
@@ -92,9 +112,12 @@ type ApiContentMarkdownParserDefinitions = {
 // [2]: https://github.com/syntax-tree/mdast-util-math
 // [3]:
 //     https://genai.stackexchange.com/questions/386/how-does-chatgpt-render-math-in-markdown-output
-function actuallyParseApiContentFromMarkdown(markdown: string): ApiContent {
+function actuallyParseApiContentFromMarkdown(
+    markdown: string,
+    options?: ApiContentMarkdownParserOptions,
+): ApiContent {
     const root = parseMarkdownTree(markdown);
-    return parseApiContentFromMarkdown(root);
+    return parseApiContentFromMarkdown(root, options);
 }
 
 export function parseMarkdownTree(
@@ -122,7 +145,7 @@ export function parseMarkdownTree(
             gfmStrikethrough({singleTilde: false}),
             gfmTable(),
             gfmTaskListItem(),
-            math(),
+            math({singleDollarTextMath: false}),
             // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
             // Markdown but we want to reserve the syntax so we have the ability to use
             // frontmatter in the future.
@@ -144,7 +167,10 @@ export function parseMarkdownTree(
     });
 }
 
-function parseApiContentFromMarkdown(root: Root): ApiContent {
+function parseApiContentFromMarkdown(
+    root: Root,
+    options: ApiContentMarkdownParserOptions = emptyObject,
+): ApiContent {
     const definitions: ApiContentMarkdownParserDefinitions = {
         futureDefinitionsByIdentifier: new Map(),
         pastDefinitionsByIdentifier: new Map(),
@@ -174,6 +200,7 @@ function parseApiContentFromMarkdown(root: Root): ApiContent {
         elements: Array.from(
             parseApiContentBlockElementsFromMarkdown(
                 root.children as Array<BlockContent | DefinitionContent>,
+                options,
                 definitions,
                 {withTableHtml: true},
             ),
@@ -181,59 +208,9 @@ function parseApiContentFromMarkdown(root: Root): ApiContent {
     };
 }
 
-/**
- * Merge adjacent standalone File/Preview elements into a FileGallery in-place.
- * Each merged element becomes a single-item row.
- */
-function mergeAdjacentFileElements(elements: Array<ApiContentBlockElement>) {
-    let i = 0;
-
-    while (i < elements.length - 1) {
-        const element = elements[i]!;
-        const next = elements[i + 1]!;
-
-        if (
-            (element.type === "File" || element.type === "Preview") &&
-            (next.type === "File" || next.type === "Preview" || next.type === "FileGallery")
-        ) {
-            const gallery: ApiContentBlockElement =
-                next.type === "FileGallery"
-                    ? {type: "FileGallery", rows: [{items: [{element}]}, ...next.rows]}
-                    : {
-                          type: "FileGallery",
-                          rows: [{items: [{element}]}, {items: [{element: next}]}],
-                      };
-
-            elements.splice(i, 2, gallery);
-            continue;
-        }
-
-        if (element.type === "FileGallery") {
-            if (next.type === "FileGallery") {
-                elements.splice(i, 2, {
-                    type: "FileGallery",
-                    rows: [...element.rows, ...next.rows],
-                });
-
-                continue;
-            }
-
-            if (next.type === "File" || next.type === "Preview") {
-                elements.splice(i, 2, {
-                    type: "FileGallery",
-                    rows: [...element.rows, {items: [{element: next}]}],
-                });
-
-                continue;
-            }
-        }
-
-        i++;
-    }
-}
-
 function* parseApiContentBlockElementsFromMarkdown(
     contents: Array<BlockContent | DefinitionContent>,
+    options: ApiContentMarkdownParserOptions,
     definitions: ApiContentMarkdownParserDefinitions,
     // Required option so caller must make a choice on whether to enable this property
     // or not.
@@ -306,12 +283,37 @@ function* parseApiContentBlockElementsFromMarkdown(
 
         const element = pending;
         pending = null;
-        yield element;
+
+        if (element.type !== "FileGallery" || !options.withDummyFileGalleryElementLayout) {
+            yield element;
+        } else {
+            // If requested then add dummy `width` properties to `FileGallery` items where the
+            // items are distributed evenly within their row.
+            //
+            // We have the same logic in `normalizeApiContent()`.
+            yield {
+                ...element,
+                rows: element.rows.map(row => ({
+                    ...row,
+                    items: row.items.map((item, index) => ({
+                        ...item,
+                        width:
+                            index !== row.items.length - 1
+                                ? Math.round((1 / row.items.length) * 100) / 100
+                                : (100 -
+                                      (row.items.length - 1) *
+                                          Math.round((1 / row.items.length) * 100)) /
+                                  100,
+                    })),
+                })),
+            };
+        }
     }
 
     for (const content of contents) {
         for (const element of parseApiContentBlockElementFromMarkdown(
             content,
+            options,
             definitions,
             tableState,
         )) {
@@ -345,6 +347,7 @@ const inlineHtmlMediaTagPattern = /^<(video|audio|object)\b/i;
 
 function* parseApiContentBlockElementFromMarkdown(
     content: BlockContent | DefinitionContent,
+    options: ApiContentMarkdownParserOptions,
     definitions: ApiContentMarkdownParserDefinitions,
     tableState: ApiContentBlockElementsMarkdownTableState | null,
 ): IterableIterator<ApiContentBlockElement> {
@@ -363,13 +366,43 @@ function* parseApiContentBlockElementFromMarkdown(
             if (content.children.length === 1 && firstChild?.type === "image") {
                 const imageNode = firstChild;
 
-                const fileOrPreview =
+                const fileOrPreviewElement =
                     parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
                         imageNode.url,
                     );
 
-                if (fileOrPreview !== null) {
-                    yield fileOrPreview;
+                if (firstChild.data?.fileElement) {
+                    // If we were provided a `fileElement` then use it. Since it may have response
+                    // properties like `contentType` and `contentLength`. Though make sure it matches
+                    // the parsed file element first.
+                    assert(
+                        isDeepEqual(
+                            fileOrPreviewElement,
+                            normalizeApiContentBlockElement(firstChild.data.fileElement),
+                        ),
+                    );
+
+                    yield firstChild.data.fileElement;
+                    break;
+                }
+
+                if (firstChild.data?.previewElement) {
+                    // If we were provided a `previewElement` then use it. Since it may have response
+                    // properties like `reference.title`. Though make sure it matches the parsed
+                    // preview element first.
+                    assert(
+                        isDeepEqual(
+                            fileOrPreviewElement,
+                            normalizeApiContentBlockElement(firstChild.data.previewElement),
+                        ),
+                    );
+
+                    yield firstChild.data.previewElement;
+                    break;
+                }
+
+                if (fileOrPreviewElement !== null) {
+                    yield fileOrPreviewElement;
                     break;
                 }
             }
@@ -415,10 +448,18 @@ function* parseApiContentBlockElementFromMarkdown(
                     // Concatenate all adjacent html children into a single string for the block HTML
                     // parser.
                     let combinedHtml = "";
+                    let combinedData: HtmlData | undefined;
                     for (let i = mediaStartIndex; i <= mediaEndIndex; i++) {
                         const child = content.children[i]!;
                         if (child.type === "html") {
                             combinedHtml += child.value;
+                            if (child.data?.fileOrPreviewElementByUrl) {
+                                combinedData ??= {};
+                                combinedData.fileOrPreviewElementByUrl ??= new Map();
+                                for (const [key, value] of child.data.fileOrPreviewElementByUrl) {
+                                    combinedData.fileOrPreviewElementByUrl.set(key, value);
+                                }
+                            }
                         }
                     }
 
@@ -438,7 +479,8 @@ function* parseApiContentBlockElementFromMarkdown(
 
                     // Parse the combined inline HTML as block-level HTML to extract the media element.
                     yield* parseApiContentBlockElementFromMarkdown(
-                        {type: "html", value: combinedHtml},
+                        {type: "html", value: combinedHtml, data: combinedData},
+                        options,
                         definitions,
                         tableState,
                     );
@@ -486,6 +528,7 @@ function* parseApiContentBlockElementFromMarkdown(
                     ...(orderStart !== undefined ? {orderStart} : {}),
                     items: parseContentListBlockElementItems(
                         content.children,
+                        options,
                         definitions,
                         intoApiContentListBlockElementItem,
                     ),
@@ -532,6 +575,7 @@ function* parseApiContentBlockElementFromMarkdown(
                         type: "UnorderedList",
                         items: parseContentListBlockElementItems(
                             group.items,
+                            options,
                             definitions,
                             intoApiContentListBlockElementItem,
                         ),
@@ -541,6 +585,7 @@ function* parseApiContentBlockElementFromMarkdown(
                         type: "CheckList",
                         items: parseContentListBlockElementItems(
                             group.items,
+                            options,
                             definitions,
                             intoApiContentCheckListBlockElementItem,
                         ),
@@ -556,6 +601,7 @@ function* parseApiContentBlockElementFromMarkdown(
                     flatMapIterable(
                         parseApiContentBlockElementsFromMarkdown(
                             content.children,
+                            options,
                             definitions,
                             // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
                             // if we see table HTML.
@@ -626,6 +672,11 @@ function* parseApiContentBlockElementFromMarkdown(
                       attrName: string;
                   })
                 | null = null;
+
+            let commentTagState: {
+                phase: "<comment>" | "<comment id>";
+                id: string | null;
+            } | null = null;
 
             let codeTagState: {
                 phase: "<pre>" | "<pre>..." | "<code>" | "<code class>" | "<code>..." | "</code>";
@@ -771,8 +822,19 @@ function* parseApiContentBlockElementFromMarkdown(
                 }
 
                 if (mediaUrl) {
-                    const element =
+                    let element =
                         parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(mediaUrl);
+
+                    const dataElement = content.data?.fileOrPreviewElementByUrl?.get(mediaUrl);
+                    if (dataElement) {
+                        // If we were provided a `fileElement` then use it. Since it may have response
+                        // properties like `contentType` and `contentLength`. Though make sure it matches
+                        // the parsed file element first.
+                        assert(isDeepEqual(element, normalizeApiContentBlockElement(dataElement)));
+
+                        element = dataElement;
+                    }
+
                     if (element !== null) {
                         if (divFileState?.containerType === "file-gallery-row") {
                             // Widths are response-only metadata computed by the server. We don't need to parse
@@ -877,6 +939,10 @@ function* parseApiContentBlockElementFromMarkdown(
                             }
                             case "mark": {
                                 markTagState = {phase: "<mark>", class: null, dataComment: null};
+                                break;
+                            }
+                            case "comment": {
+                                commentTagState = {phase: "<comment>", id: null};
                                 break;
                             }
                             case "pre": {
@@ -1025,7 +1091,7 @@ function* parseApiContentBlockElementFromMarkdown(
                             ) {
                                 markStack.pushForHtmlTag("mark", {
                                     type: "Comment",
-                                    threadId: markTagState.dataComment,
+                                    thread: {id: markTagState.dataComment},
                                 });
                             } else {
                                 let color: ApiContentInlineElementHighlightMarkColor | null = null;
@@ -1049,6 +1115,18 @@ function* parseApiContentBlockElementFromMarkdown(
                                 });
                             }
                             markTagState = null;
+                        }
+
+                        if (
+                            commentTagState !== null &&
+                            commentTagState.id !== null &&
+                            isId<DocumentCommentThreadId>(commentTagState.id)
+                        ) {
+                            markStack.pushForHtmlTag("comment", {
+                                type: "Comment",
+                                thread: {id: commentTagState.id},
+                            });
+                            commentTagState = null;
                         }
 
                         if (codeTagState?.phase === "<pre>") {
@@ -1099,7 +1177,8 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "em":
                             case "i":
                             case "del":
-                            case "mark": {
+                            case "mark":
+                            case "comment": {
                                 markStack.popForHtmlTag(tagName);
                                 break;
                             }
@@ -1360,6 +1439,13 @@ function* parseApiContentBlockElementFromMarkdown(
                             }
                         }
 
+                        if (commentTagState?.phase === "<comment>") {
+                            if (attributeName === "id") {
+                                commentTagState.phase = "<comment id>";
+                                commentTagState.id = "";
+                            }
+                        }
+
                         if (codeTagState?.phase === "<code>" && attributeName === "class") {
                             codeTagState.phase = "<code class>";
                             codeTagState.class = "";
@@ -1421,6 +1507,10 @@ function* parseApiContentBlockElementFromMarkdown(
                             markTagState.dataComment += attributeData;
                         }
 
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
+                        }
+
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
                         }
@@ -1462,6 +1552,10 @@ function* parseApiContentBlockElementFromMarkdown(
                             markTagState.dataComment += attributeData;
                         }
 
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
+                        }
+
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
                         }
@@ -1495,6 +1589,10 @@ function* parseApiContentBlockElementFromMarkdown(
 
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.phase = "<mark>";
+                        }
+
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.phase = "<comment>";
                         }
 
                         if (codeTagState?.phase === "<code class>") {
@@ -1588,8 +1686,6 @@ function* parseApiContentBlockElementFromMarkdown(
         }
         case "table": {
             let columnCount = 0;
-            let width: number | null = null;
-            let columnWidths: Array<number> | null = null;
 
             const rows = content.children.map(row => {
                 columnCount = Math.max(columnCount, row.children.length);
@@ -1600,14 +1696,6 @@ function* parseApiContentBlockElementFromMarkdown(
                             parseAndMergeApiContentInlineElementsFromMarkdown(
                                 cell.children,
                                 definitions,
-                                {
-                                    onSpanDataWidth: newWidth => {
-                                        width = newWidth;
-                                    },
-                                    onSpanDataColumnWidths: newColumnWidths => {
-                                        columnWidths = newColumnWidths;
-                                    },
-                                },
                             ),
                         );
 
@@ -1629,10 +1717,8 @@ function* parseApiContentBlockElementFromMarkdown(
 
             yield {
                 type: "Table",
-                width: width ?? 1,
-                columns: createArrayWithLength(columnCount, columnIndex => ({
-                    width: columnWidths?.[columnIndex] ?? 1,
-                })),
+                width: 1,
+                columns: createArrayWithLength(columnCount, () => ({width: 1})),
                 hasHeaderRow: true,
                 hasHeaderColumn: undefined,
                 rows,
@@ -1860,8 +1946,6 @@ class ApiContentBlockElementsMarkdownTableState {
                                 elements.pop();
                             }
 
-                            mergeAdjacentFileElements(elements);
-
                             return {elements};
                         }),
                     };
@@ -1979,10 +2063,6 @@ class ApiContentBlockElementsMarkdownTableState {
 function* parseAndMergeApiContentInlineElementsFromMarkdown(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
-    callbacks?: {
-        onSpanDataWidth?: (width: number | null) => void;
-        onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
-    },
 ): IterableIterator<ApiContentInlineElement> {
     let lastElement: ApiContentInlineElement | undefined;
 
@@ -1990,7 +2070,6 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
         contents,
         definitions,
         new ApiContentInlineElementsMarkdownParserMarkStack(),
-        callbacks,
     )) {
         // Merge any adjacent text elements with the same marks.
         if (
@@ -2067,10 +2146,6 @@ function* parseApiContentInlineElementsFromMarkdown(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
-    callbacks?: {
-        onSpanDataWidth?: (width: number | null) => void;
-        onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
-    },
 ): IterableIterator<ApiContentInlineElement> {
     let index = 0;
 
@@ -2095,7 +2170,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -2)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2109,7 +2183,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(2)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2135,7 +2208,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -1)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2149,7 +2221,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(1)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2175,7 +2246,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -1)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2189,7 +2259,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(1)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2214,7 +2283,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -2)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2223,7 +2291,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                         content2,
                         definitions,
                         markStack,
-                        callbacks,
                     );
                     markStack.pop();
 
@@ -2232,7 +2299,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(2)},
                             definitions,
                             markStack,
-                            callbacks,
                         );
                     }
 
@@ -2242,7 +2308,7 @@ function* parseApiContentInlineElementsFromMarkdown(
             }
         }
 
-        yield* parseApiContentInlineElementFromMarkdown(content, definitions, markStack, callbacks);
+        yield* parseApiContentInlineElementFromMarkdown(content, definitions, markStack);
 
         index += 1;
     }
@@ -2252,12 +2318,6 @@ function* parseApiContentInlineElementFromMarkdown(
     content: PhrasingContent,
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
-    callbacks:
-        | {
-              onSpanDataWidth?: (width: number | null) => void;
-              onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
-          }
-        | undefined,
 ): IterableIterator<ApiContentInlineElement> {
     switch (content.type) {
         case "strong": {
@@ -2299,10 +2359,23 @@ function* parseApiContentInlineElementFromMarkdown(
                 // Noop
             }
 
-            const mentionTarget =
-                url !== undefined ? parseApiMentionTargetFromMarkdownUrlIfPossible(url) : null;
+            let mentionReference =
+                url !== undefined ? parseApiMentionReferenceFromMarkdownUrlIfPossible(url) : null;
 
-            if (mentionTarget === null) {
+            // If a mention reference was already parsed for us then let's use that instead. It
+            // may be a response specialization and contain additional properties like `title`.
+            if (content.data?.mentionReference) {
+                assert(
+                    isDeepEqual(
+                        mentionReference,
+                        normalizeApiReference(content.data.mentionReference),
+                    ),
+                );
+
+                mentionReference = content.data.mentionReference;
+            }
+
+            if (mentionReference === null) {
                 markStack.push({type: "Link", url: content.url});
 
                 yield* parseApiContentInlineElementsFromMarkdown(
@@ -2314,11 +2387,11 @@ function* parseApiContentInlineElementFromMarkdown(
                 markStack.pop();
             } else {
                 const isAccountShortName =
-                    mentionTarget.type === "Account" && url?.searchParams.has("short");
+                    mentionReference.type === "Account" && url?.searchParams.has("short");
 
                 yield {
                     type: "Mention",
-                    target: mentionTarget,
+                    reference: mentionReference,
                     isAccountShortName: isAccountShortName || undefined,
                     marks: markStack.getMarks(),
                 };
@@ -2399,9 +2472,9 @@ function* parseApiContentInlineElementFromMarkdown(
                 dataComment: string | null;
             } | null = null;
 
-            let spanTagState: {
-                workingWidth: string | null;
-                workingColumnWidths: string | null;
+            let commentTagState: {
+                phase: "<comment>" | "<comment id>";
+                id: string | null;
             } | null = null;
 
             const tokenizer = new HtmlTokenizer(
@@ -2426,6 +2499,10 @@ function* parseApiContentInlineElementFromMarkdown(
                                 markTagState = {phase: "<mark>", class: null, dataComment: null};
                                 break;
                             }
+                            case "comment": {
+                                commentTagState = {phase: "<comment>", id: null};
+                                break;
+                            }
                             case "strong":
                             case "b": {
                                 markStack.pushForHtmlTag(tagName, {type: "Bold"});
@@ -2442,13 +2519,6 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                             case "code": {
                                 markStack.pushForHtmlTag(tagName, {type: "Code"});
-                                break;
-                            }
-                            case "span": {
-                                spanTagState = {
-                                    workingWidth: null,
-                                    workingColumnWidths: null,
-                                };
                                 break;
                             }
                             case "table":
@@ -2485,7 +2555,7 @@ function* parseApiContentInlineElementFromMarkdown(
                             ) {
                                 markStack.pushForHtmlTag("mark", {
                                     type: "Comment",
-                                    threadId: markTagState.dataComment,
+                                    thread: {id: markTagState.dataComment},
                                 });
                             } else {
                                 let color: ApiContentInlineElementHighlightMarkColor | null = null;
@@ -2511,8 +2581,16 @@ function* parseApiContentInlineElementFromMarkdown(
                             markTagState = null;
                         }
 
-                        if (spanTagState !== null) {
-                            spanTagState = null;
+                        if (
+                            commentTagState !== null &&
+                            commentTagState.id !== null &&
+                            isId<DocumentCommentThreadId>(commentTagState.id)
+                        ) {
+                            markStack.pushForHtmlTag("comment", {
+                                type: "Comment",
+                                thread: {id: commentTagState.id},
+                            });
+                            commentTagState = null;
                         }
                     },
                     onclosetag: (start, end) => {
@@ -2521,6 +2599,7 @@ function* parseApiContentInlineElementFromMarkdown(
                         switch (tagName) {
                             case "a":
                             case "mark":
+                            case "comment":
                             case "strong":
                             case "b":
                             case "em":
@@ -2565,11 +2644,10 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                         }
 
-                        if (spanTagState !== null) {
-                            if (attributeName === "data-width") {
-                                spanTagState.workingWidth = "";
-                            } else if (attributeName === "data-column-widths") {
-                                spanTagState.workingColumnWidths = "";
+                        if (commentTagState?.phase === "<comment>") {
+                            if (attributeName === "id") {
+                                commentTagState.phase = "<comment id>";
+                                commentTagState.id = "";
                             }
                         }
                     },
@@ -2588,12 +2666,8 @@ function* parseApiContentInlineElementFromMarkdown(
                             markTagState.dataComment += attributeData;
                         }
 
-                        if (typeof spanTagState?.workingWidth === "string") {
-                            spanTagState.workingWidth += attributeData;
-                        }
-
-                        if (typeof spanTagState?.workingColumnWidths === "string") {
-                            spanTagState.workingColumnWidths += attributeData;
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
                         }
                     },
                     onattribentity: codepoint => {
@@ -2611,12 +2685,8 @@ function* parseApiContentInlineElementFromMarkdown(
                             markTagState.dataComment += attributeData;
                         }
 
-                        if (typeof spanTagState?.workingWidth === "string") {
-                            spanTagState.workingWidth += attributeData;
-                        }
-
-                        if (typeof spanTagState?.workingColumnWidths === "string") {
-                            spanTagState.workingColumnWidths += attributeData;
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.id += attributeData;
                         }
                     },
                     onattribend: () => {
@@ -2632,37 +2702,8 @@ function* parseApiContentInlineElementFromMarkdown(
                             markTagState.phase = "<mark>";
                         }
 
-                        // Try to parse `data-width` attribute.
-                        if (typeof spanTagState?.workingWidth === "string") {
-                            let width: number | null = parseFloat(spanTagState.workingWidth ?? "");
-                            if (isNaN(width)) width = null;
-
-                            callbacks?.onSpanDataWidth?.(width);
-
-                            spanTagState.workingWidth = null;
-                        }
-
-                        // Try to parse `data-column-widths` attribute.
-                        if (typeof spanTagState?.workingColumnWidths === "string") {
-                            let columnWidths: Array<number> | null;
-                            try {
-                                columnWidths = JSON.parse(`[${spanTagState.workingColumnWidths}]`);
-
-                                if (
-                                    !Array.isArray(columnWidths) ||
-                                    columnWidths.some(
-                                        columnWidth => typeof columnWidth !== "number",
-                                    )
-                                ) {
-                                    columnWidths = null;
-                                }
-                            } catch {
-                                columnWidths = null;
-                            }
-
-                            callbacks?.onSpanDataColumnWidths?.(columnWidths);
-
-                            spanTagState.workingColumnWidths = null;
+                        if (commentTagState?.phase === "<comment id>") {
+                            commentTagState.phase = "<comment>";
                         }
                     },
 
@@ -2738,6 +2779,7 @@ function parseContentListBlockElementItems<
     OutputListItem extends ApiContentListBlockElementItem | ApiContentCheckListBlockElementItem,
 >(
     inputListItems: ReadonlyArray<InputListItem>,
+    options: ApiContentMarkdownParserOptions,
     definitions: ApiContentMarkdownParserDefinitions,
     createOutputListItem: (
         inputListItem: InputListItem,
@@ -2752,6 +2794,7 @@ function parseContentListBlockElementItems<
 
             for (const element of parseApiContentBlockElementsFromMarkdown(
                 item.children,
+                options,
                 definitions,
                 // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
                 // if we see table HTML.

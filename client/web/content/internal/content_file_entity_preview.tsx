@@ -27,7 +27,7 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
@@ -172,10 +172,7 @@ export function renderContentFileEntityPreview(
                     : isPermissionDeniedError
                       ? `Private ${entityNoun}`
                       : `Couldn\u2019t preview ${entityNoun}`,
-                displayMessage:
-                    error instanceof ErrorBase
-                        ? (error.displayMessage ?? defaultErrorDisplayMessage)
-                        : defaultErrorDisplayMessage,
+                displayMessage: getErrorDisplayMessage(error),
                 platform,
                 spacingScale,
             }),

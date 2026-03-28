@@ -122,10 +122,10 @@ export class AgentMessageStream {
                 const firstMarkdownPart = markdownParts[0]!;
 
                 const getFirstPartContent = () => {
-                    return parseApiContentFromMarkdownTree({
-                        type: "root",
-                        children: firstMarkdownPart,
-                    });
+                    return parseApiContentFromMarkdownTree(
+                        {type: "root", children: firstMarkdownPart},
+                        {spaceId: this._spaceId},
+                    );
                 };
 
                 if (
@@ -240,10 +240,10 @@ export class AgentMessageStream {
                           },
                 );
 
-                const partContent = parseApiContentFromMarkdownTree({
-                    type: "root",
-                    children: markdownPart,
-                });
+                const partContent = parseApiContentFromMarkdownTree(
+                    {type: "root", children: markdownPart},
+                    {spaceId: this._spaceId},
+                );
 
                 const part: AgentMessageStreamPart = {
                     index: this._parts.length,
@@ -353,6 +353,7 @@ export class AgentMessageStream {
                             node.children[index] = {
                                 type: "link",
                                 url: printApiMentionPathToMentionLinkUrl(mentionTarget, {
+                                    spaceId: this._spaceId,
                                     isAccountShortName: undefined,
                                 }),
                                 children: childNode.children,
@@ -367,7 +368,9 @@ export class AgentMessageStream {
 
                             node.children[index] = {
                                 type: "link",
-                                url: printAppUrlFromApiNotMentionPath(targetPathObject),
+                                url: printAppUrlFromApiNotMentionPath(targetPathObject, {
+                                    spaceId: this._spaceId,
+                                }),
                                 children: childNode.children,
                                 position: childNode.position,
                             };

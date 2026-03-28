@@ -1,3 +1,4 @@
+import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
@@ -5,7 +6,7 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentResponse,
-    ApiDocumentCommentThreadResponse,
+    ApiDocumentThreadResponse,
     ApiMessageResponse,
     ApiPostResponse,
     ApiTaskCollection,
@@ -90,8 +91,13 @@ export class ApiClientMock implements ApiClient {
 
     constructor() {
         afterEach(() => {
-            this.assertAllMocksUsed();
-            this.reset();
+            try {
+                this.assertAllMocksUsed();
+            } finally {
+                // Reset even if the above assert throws so we don't poison future tests with old
+                // config.
+                this.reset();
+            }
         });
     }
 
@@ -104,6 +110,10 @@ export class ApiClientMock implements ApiClient {
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["get"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("GET", path, response, params);
@@ -115,6 +125,10 @@ export class ApiClientMock implements ApiClient {
     mockPut<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["put"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("PUT", path, response, params);
@@ -126,6 +140,10 @@ export class ApiClientMock implements ApiClient {
     mockPost<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["post"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("POST", path, response, params);
@@ -137,6 +155,10 @@ export class ApiClientMock implements ApiClient {
     mockDelete<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["delete"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("DELETE", path, response, params);
@@ -148,6 +170,10 @@ export class ApiClientMock implements ApiClient {
     mockPatch<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["patch"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("PATCH", path, response, params);
@@ -162,7 +188,16 @@ export class ApiClientMock implements ApiClient {
         this.spyConfigs.push({method, path});
     }
 
-    private addMock(method: HttpMethod, path: string, response: MockResponseConfig, params?: any) {
+    private addMock(
+        method: HttpMethod,
+        path: string,
+        response: MockResponseConfig,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
+        params?: any,
+    ) {
         const mockConfig = this.findMatchingMock(method, path, params);
         if (mockConfig) {
             mockConfig.responses.push(response);
@@ -275,8 +310,14 @@ export class ApiClientMock implements ApiClient {
             }
 
             // If matcher has params, they must match exactly
-            if (config.matcher.params !== undefined) {
-                return isDeepEqual(config.matcher.params, params);
+            //
+            // We use `jsonStableStringify()` instead of `isDeepEqual()` to use JSON deep
+            // equality semantics. For example ignoring `undefined` properties on objects.
+            if (
+                config.matcher.params !== undefined &&
+                jsonStableStringify(config.matcher.params) !== jsonStableStringify(params)
+            ) {
+                return false;
             }
 
             // No params specified in matcher, so any params are acceptable
@@ -351,18 +392,20 @@ export class ApiClientMock implements ApiClient {
         }).length;
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetChatMessagesList(
         spaceId: SpaceId,
         chatId: ChatId,
         responseData: {
             totalMessageCount?: number;
             nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
+            messages?: ReadonlyArray<ApiMessageResponse>;
         },
         // If you don't provide this, it'll match any page info in the order that you call
         // the mock.
         pageInfo?: {
-            from?: "start" | "end";
+            from?: "Start" | "End";
             // undefined means the query is starting at the begining of the list of comments
             cursor: number | undefined;
             limit: number;
@@ -394,6 +437,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -428,18 +473,20 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocumentThread(
         spaceId: SpaceId,
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
-        responseData: Partial<Omit<ApiDocumentCommentThreadResponse, "id">>,
+        responseData: Partial<Omit<ApiDocumentThreadResponse, "id">>,
     ): void {
         this.mockGet(
             "/documents/{id}/threads/{threadId}",
             {
                 data: {
                     spaceId,
-                    commentThread: {
+                    thread: {
                         id: commentThreadId,
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),
                         isResolved: responseData.isResolved ?? false,
@@ -455,6 +502,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocumentCommentsList(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -497,6 +546,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetPost(
         spaceId: SpaceId,
         postId: PostId,
@@ -518,8 +569,8 @@ export class ApiClientMock implements ApiClient {
                         author: responseData.author ?? createApiAccountMock({}),
                         createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
                         content: responseData.content ?? defaultContent,
-                        contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),
+                        reference: responseData.reference ?? {title: "Test Post Content Preview"},
                         ...responseData,
                     },
                     spaceId,
@@ -529,6 +580,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetPostCommentsList(
         spaceId: SpaceId,
         postId: PostId,
@@ -572,6 +625,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTask(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -604,6 +659,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCommentsList(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -645,6 +702,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCollection(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
@@ -665,6 +724,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCollectionTasks(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,

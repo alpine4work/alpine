@@ -14,7 +14,7 @@ import {
     ApiContentMentionInlineElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElementCellBlockElement,
-    ApiPreviewTarget,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
@@ -295,14 +295,14 @@ function fromApiContentFileOrPreviewElement(
             });
         case "Preview":
             return schema.nodes.file!.create({
-                fileId: previewTargetToFileEntityId(element.target),
+                fileId: previewReferenceToFileEntityId(element.reference),
             });
         default:
             throw exhaustive(element);
     }
 }
 
-function previewTargetToFileEntityId(target: ApiPreviewTarget): string {
+function previewReferenceToFileEntityId(target: ApiPreviewReference): string {
     // Construct a FileEntityId (`Type:id`) from the preview target.
     switch (target.type) {
         case "Channel":
@@ -354,41 +354,49 @@ function fromApiContentMentionInlineElement(
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
-    const mentionTarget = element.target;
+    const mentionReference = element.reference;
     let mention: ContentMention;
 
-    if (mentionTarget.type === "Account") {
+    if (mentionReference.type === "Account") {
         mention = {
             type: "Account",
-            accountId: mentionTarget.id,
+            accountId: mentionReference.id,
             isShort: element.isAccountShortName ?? false,
         };
     } else {
         let entityId: SearchMentionEntityId;
 
-        switch (mentionTarget.type) {
+        switch (mentionReference.type) {
             case "Document": {
-                entityId = `Document:${mentionTarget.id}`;
+                entityId = `Document:${mentionReference.id}`;
                 break;
             }
             case "Channel": {
-                entityId = `Channel:${mentionTarget.id}`;
+                entityId = `Channel:${mentionReference.id}`;
+                break;
+            }
+            case "Chat": {
+                entityId = `Chat:${mentionReference.id}`;
                 break;
             }
             case "Task": {
-                entityId = `Task:${mentionTarget.id}`;
+                entityId = `Task:${mentionReference.id}`;
                 break;
             }
             case "TaskCollection": {
-                entityId = `TaskCollection:${mentionTarget.id}`;
+                entityId = `TaskCollection:${mentionReference.id}`;
                 break;
             }
             case "Post": {
-                entityId = `Post:${mentionTarget.id}`;
+                entityId = `Post:${mentionReference.id}`;
+                break;
+            }
+            case "Site": {
+                entityId = `Site:${mentionReference.id}`;
                 break;
             }
             default:
-                throw new InternalError("Couldn\u2019t parse mention target path");
+                throw exhaustive(mentionReference);
         }
 
         mention = {
@@ -433,7 +441,7 @@ function fromApiContentInlineElementMark(
         case "Comment": {
             if (!schema.marks.comment) return;
 
-            return schema.marks.comment.create({commentThreadId: mark.threadId});
+            return schema.marks.comment.create({commentThreadId: mark.thread.id});
         }
         default:
             throw exhaustive(mark);
