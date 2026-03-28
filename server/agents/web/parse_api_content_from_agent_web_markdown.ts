@@ -1,34 +1,33 @@
-import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
+import {Root} from "mdast";
+import {convertMarkdownTreeToAgentWebMarkdownTree} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
-    ApiContentBlockElementResponse,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    parseApiContentFromMarkdownTree,
+    parseMarkdownTree,
+} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 export async function parseApiContentFromAgentWebMarkdown(
     storage: AgentWebSessionStorage,
     markdown: string,
+    options?: {documentId?: DocumentId | null},
+): Promise<ApiContentResponse> {
+    const root = parseMarkdownTree(markdown);
+    return parseApiContentFromAgentWebMarkdownTree(storage, root, options);
+}
+
+export async function parseApiContentFromAgentWebMarkdownTree(
+    storage: AgentWebSessionStorage,
+    root: Root,
     {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
 ): Promise<ApiContentResponse> {
-    const parser = new AgentWebMarkdownStreamParser({
-        storage,
-        documentId,
-    });
+    ({root} = await convertMarkdownTreeToAgentWebMarkdownTree(storage, documentId, null, root));
 
-    parser.pushText(null, markdown);
-
-    const elements: Array<ApiContentBlockElementResponse> = [];
-
-    for (const {part} of await parser.update(null)) {
-        // We only push text so there should be only content parts.
-        if (part.payload.type !== "Content") continue;
-
-        for (const element of part.payload.content.elements) {
-            elements.push(element);
-        }
-    }
-
-    return {elements};
+    // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
+    // make sure to provide enough information that our parse function can return
+    // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
+    // `ApiContentMentionInlineElementResponse` object).
+    return parseApiContentFromMarkdownTree(root, {spaceId: storage.spaceId}) as ApiContentResponse;
 }

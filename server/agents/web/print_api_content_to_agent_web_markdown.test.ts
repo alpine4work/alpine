@@ -1,5 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes */
 
+import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
 import {
     AgentWebSessionStorage,
     AgentWebSessionStorageCollection,
@@ -8,11 +9,11 @@ import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
+import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {
-    normalizeApiContent,
-    normalizeApiContentResponse,
-} from "~/shared/api/markdown/normalize_api_content.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiContentBlockElementResponse,
+    ApiContentResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
@@ -1577,6 +1578,40 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
                 actualMarkdown,
                 {documentId: contextDocumentId},
             );
+
+            expect(normalizeApiContentResponse(actualContent)).toEqual(
+                normalizeApiContentResponse(expectedContent),
+            );
+        });
+
+        test("parses agent web markdown back to content with `AgentWebMarkdownStreamParser`", async () => {
+            const contextDocumentId = generateId<DocumentId>();
+
+            const actualMarkdown = await printApiContentToAgentWebMarkdown(
+                storage,
+                expectedContent,
+                {documentId: contextDocumentId},
+            );
+
+            const parser = new AgentWebMarkdownStreamParser({
+                storage,
+                documentId: contextDocumentId,
+            });
+
+            parser.pushText(null, actualMarkdown);
+
+            const elements: Array<ApiContentBlockElementResponse> = [];
+
+            for (const {part} of await parser.update(null)) {
+                // We only push text so there should be only content parts.
+                if (part.payload.type !== "Content") continue;
+
+                for (const element of part.payload.content.elements) {
+                    elements.push(element);
+                }
+            }
+
+            const actualContent: ApiContentResponse = {elements};
 
             expect(normalizeApiContentResponse(actualContent)).toEqual(
                 normalizeApiContentResponse(expectedContent),

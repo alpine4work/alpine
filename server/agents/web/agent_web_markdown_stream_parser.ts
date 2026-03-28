@@ -1,7 +1,6 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {BlockContent, DefinitionContent, Html, Parent, Root} from "mdast";
-import {AgentWebPageKeyObject} from "~/server/agents/web/agent_web_page_key.js";
+import {BlockContent, DefinitionContent, Html, Root, RootContent} from "mdast";
 import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
@@ -22,13 +21,12 @@ import {
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AgentWebMarkdownStreamPart = {
@@ -138,8 +136,8 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                     return parseApiContentFromMarkdownTree(
                         {type: "root", children: firstMarkdownPart},
                         {spaceId: this._storage.spaceId},
-                        // In our Markdown `parseTextIntoMarkdownParts()` pre-processing we make sure to
-                        // provide enough information that our parse function can return
+                        // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
+                        // make sure to provide enough information that our parse function can return
                         // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
                         // `ApiContentMentionInlineElementResponse` object).
                     ) as ApiContentResponse;
@@ -260,8 +258,8 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                 const partContent = parseApiContentFromMarkdownTree(
                     {type: "root", children: markdownPart},
                     {spaceId: this._storage.spaceId},
-                    // In our Markdown `parseTextIntoMarkdownParts()` pre-processing we make sure to
-                    // provide enough information that our parse function can return
+                    // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
+                    // make sure to provide enough information that our parse function can return
                     // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
                     // `ApiContentMentionInlineElementResponse` object).
                 ) as ApiContentResponse;
@@ -383,7 +381,7 @@ async function parseTextIntoMarkdownParts(
         }
     }
 
-    const markdownRoot = parseMarkdownTree(text, {
+    let markdownRoot = parseMarkdownTree(text, {
         // TODO(ifitzsimmons, #ai): remove this mdast patch Allow parsing
         // `Check out [My Document][]` as a link even if there is no definition for
         // `My Document`. We'll figure out the right link in our code.
@@ -402,29 +400,68 @@ async function parseTextIntoMarkdownParts(
         allowResourceWithoutClose: true,
     });
 
-    const promiseWaiter = new PromiseWaiter();
+    // Apply the reverse of all our agent web markdown transformation logic in
+    // `printApiContentToAgentWebMarkdownTree()`.
+    ({firstHeadingDepth, root: markdownRoot} = await convertMarkdownTreeToAgentWebMarkdownTree(
+        storage,
+        documentId,
+        firstHeadingDepth,
+        markdownRoot,
+    ));
 
+    return {
+        firstHeadingDepth,
+        markdownParts: Array.from(splitMarkdownTreeIntoParts(markdownRoot)),
+    };
+}
+
+export async function convertMarkdownTreeToAgentWebMarkdownTree(
+    storage: AgentWebSessionStorage,
+    documentId: DocumentId | null,
+    firstHeadingDepth: number | null,
+    root: Root,
+): Promise<{firstHeadingDepth: number | null; root: Root}> {
     // Loop through our Markdown content. All of our internal links are stored as
     // shorthand link representations. So for a Document titled "Dinosaurs are cool",
     // the markdown link looks like "[Dinosaurs are cool](document/dinosaurs-are-cool)"
     // We do this for token efficiency and also to give the LLM more context about the
     // linked content. When streaming these links back to the client, we need to
     // replace the shorthand link with the actual link to the internal entity.
-    const traverse = (node: Parent) => {
-        for (let index = 0; index < node.children.length; index++) {
-            const childNode = node.children[index]!;
+    const traverse = async (node: RootContent): Promise<RootContent> => {
+        // Make sure we set `firstHeadingDepth` before we descend into the children and
+        // `await`. This makes sure the first heading in the tree is what actually
+        // initializes our `firstHeadingDepth`.
+        if (firstHeadingDepth === null && node.type === "heading") {
+            firstHeadingDepth = node.depth;
+        }
 
-            if (childNode.type === "html") {
-                const promise = traverseMarkdownHtmlNode(storage, documentId, childNode);
+        if ("children" in node) {
+            let hasAnyChildNodeChanged = false;
 
-                promiseWaiter.waitUntil(async () => {
-                    node.children[index] = await promise;
-                });
+            const newChildNodes = await runAllPromises(
+                node.children.map(async childNode => {
+                    const newChildNode = await traverse(childNode);
+                    hasAnyChildNodeChanged ||= newChildNode !== childNode;
+                    return newChildNode;
+                }),
+            );
+
+            if (hasAnyChildNodeChanged) {
+                node = {
+                    ...node,
+                    // Trust that our traverse function created the right type of nodes here.
+                    children: newChildNodes as any,
+                };
             }
+        }
 
+        switch (node.type) {
+            case "html": {
+                return traverseMarkdownHtmlNode(storage, documentId, node);
+            }
             // We increment headings by 1 for agent web Markdown. So decrement them back by 1.
-            if (childNode.type === "heading") {
-                firstHeadingDepth ??= childNode.depth;
+            case "heading": {
+                assert(firstHeadingDepth !== null);
 
                 // If an agent outputs a heading 1 then we won't decrement future headings. We
                 // assume the agent doesn't understand that we reserve heading 1 for entity titles.
@@ -434,125 +471,128 @@ async function parseTextIntoMarkdownParts(
                 // at level 2) then we need to decrement the heading level to match our
                 // `printApiContentToaGentWebMarkdown()` behavior making sure we correctly parse
                 // back content we showed to the agent.
-                if (firstHeadingDepth !== 1) {
-                    childNode.depth = Math.max(1, childNode.depth - 1) as 1 | 2 | 3 | 4 | 5 | 6;
+                if (firstHeadingDepth === 1) return node;
+
+                const newDepth = Math.max(1, node.depth - 1) as 1 | 2 | 3 | 4 | 5 | 6;
+                return {...node, depth: newDepth};
+            }
+            case "link": {
+                if (!node.url.startsWith("/")) {
+                    // If this isn't a relative mention link, it may be a truncated URL. Let's try
+                    // looking it up.
+                    let urlString = (await storage.urlByTruncatedUrl.get(node.url)) ?? node.url;
+
+                    // Try parsing URL.
+                    let url: URL | undefined;
+                    try {
+                        url = new URL(urlString);
+                    } catch {
+                        // Noop
+                    }
+
+                    // If the LLM output a URL that can be parsed as a mention then remove the
+                    // `mention` search param! The LLM is only allowed to create mentions via the agent
+                    // web markdown syntax. We can't allow the LLM to create mentions this way since we
+                    // won't be able to create a response mention object with `title`.
+                    if (url && parseApiMentionTargetIfPossible(storage.spaceId, url)) {
+                        url.searchParams.delete("mention");
+                        urlString = url.toString();
+                    }
+
+                    node = {...node, url: urlString};
+                }
+
+                // This link looks like a mention, let's add the correct link to the Markdown tree
+                // before parsing into content.
+                if (!/[a-zA-Z0-9]+:/.test(node.url)) {
+                    let path = node.url;
+
+                    // Add a leading slash in case the LLM forgot to add one.
+                    if (!path.startsWith("/")) path = `/${path}`;
+
+                    // Remove the hash part of the URL before resolving. Just like in an actual web
+                    // server! The hash part is only visible to the client, it's not visible to the
+                    // server. So it doesn't change server resolution.
+                    path = path.replace(/#.*$/, "");
+
+                    // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
+                    // mentionable, `pageLink` will be null. We need to build a plain link for non
+                    // mentionable content and we also need to swap the label so something more user
+                    // friendly (`mentionLabel`).
+                    const pageLink = await storage.pageLinkByPath.get(path);
+
+                    if (!pageLink) return node;
+
+                    const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
+                        storage.spaceId,
+                        pageLink,
+                    );
+
+                    switch (mentionTargetResult.type) {
+                        case "Url": {
+                            return {
+                                type: "link",
+                                url: mentionTargetResult.url,
+                                children: node.children,
+                                position: node.position,
+                            };
+                        }
+                        case "MentionTarget": {
+                            const isAccountShortName =
+                                pageLink.type === "Account"
+                                    ? node.url.endsWith("#short") ||
+                                      printMarkdownPhrasingContentText(node.children) !==
+                                          printAgentWebPageLinkLabel(pageLink)
+                                    : undefined;
+
+                            return {
+                                type: "link",
+                                url: printApiMentionTargetToMentionLinkUrl(
+                                    mentionTargetResult.target,
+                                    {spaceId: storage.spaceId, isAccountShortName},
+                                ),
+                                children: printApiMentionTargetToMentionLinkLabel(
+                                    mentionTargetResult.target,
+                                ),
+                                position: node.position,
+                                data: {
+                                    mentionElement: {
+                                        type: "Mention",
+                                        target: mentionTargetResult.target,
+                                        isAccountShortName,
+                                    },
+                                },
+                            };
+                        }
+                        default:
+                            throw exhaustive(mentionTargetResult);
+                    }
                 }
             }
-
-            if (childNode.type === "link") {
-                promiseWaiter.waitUntil(async () => {
-                    if (!childNode.url.startsWith("/")) {
-                        // If this isn't a relative mention link, it may be a truncated URL. Let's try
-                        // looking it up.
-                        let urlString =
-                            (await storage.urlByTruncatedUrl.get(childNode.url)) ?? childNode.url;
-
-                        // Try parsing URL.
-                        let url: URL | undefined;
-                        try {
-                            url = new URL(urlString);
-                        } catch {
-                            // Noop
-                        }
-
-                        // If the LLM output a URL that can be parsed as a mention then remove the
-                        // `mention` search param! The LLM is only allowed to create mentions via the agent
-                        // web markdown syntax. We can't allow the LLM to create mentions this way since we
-                        // won't be able to create a response mention object with `title`.
-                        if (url && parseApiMentionTargetIfPossible(storage.spaceId, url)) {
-                            url.searchParams.delete("mention");
-                            urlString = url.toString();
-                        }
-
-                        childNode.url = urlString;
-                    }
-
-                    // This link looks like a mention, let's add the correct link to the Markdown tree
-                    // before parsing into content.
-                    if (!/[a-zA-Z0-9]+:/.test(childNode.url)) {
-                        let path = childNode.url;
-
-                        // Add a leading slash in case the LLM forgot to add one.
-                        if (!path.startsWith("/")) path = `/${path}`;
-
-                        // Remove the hash part of the URL before resolving. Just like in an actual web
-                        // server! The hash part is only visible to the client, it's not visible to the
-                        // server. So it doesn't change server resolution.
-                        path = path.replace(/#.*$/, "");
-
-                        // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
-                        // mentionable, `pageLink` will be null. We need to build a plain link for non
-                        // mentionable content and we also need to swap the label so something more user
-                        // friendly (`mentionLabel`).
-                        const pageLink = await storage.pageLinkByPath.get(path);
-
-                        if (!pageLink) return;
-
-                        const mentionTargetResult =
-                            createAgentWebPageLinkApiMentionTargetIfPossible(
-                                storage.spaceId,
-                                pageLink,
-                            );
-
-                        switch (mentionTargetResult.type) {
-                            case "Url": {
-                                node.children[index] = {
-                                    type: "link",
-                                    url: mentionTargetResult.url,
-                                    children: childNode.children,
-                                    position: childNode.position,
-                                };
-                                break;
-                            }
-                            case "MentionTarget": {
-                                const isAccountShortName =
-                                    pageLink.type === "Account"
-                                        ? childNode.url.endsWith("#short") ||
-                                          printMarkdownPhrasingContentText(childNode.children) !==
-                                              printAgentWebPageLinkLabel(pageLink)
-                                        : undefined;
-
-                                node.children[index] = {
-                                    type: "link",
-                                    url: printApiMentionTargetToMentionLinkUrl(
-                                        mentionTargetResult.target,
-                                        {spaceId: storage.spaceId, isAccountShortName},
-                                    ),
-                                    children: printApiMentionTargetToMentionLinkLabel(
-                                        mentionTargetResult.target,
-                                    ),
-                                    position: childNode.position,
-                                    data: {
-                                        mentionElement: {
-                                            type: "Mention",
-                                            target: mentionTargetResult.target,
-                                            isAccountShortName,
-                                        },
-                                    },
-                                };
-                                break;
-                            }
-                            default:
-                                throw exhaustive(mentionTargetResult);
-                        }
-                    }
-                });
-            }
-
-            if ("children" in childNode) {
-                traverse(childNode);
-            }
+            default:
+                return node;
         }
     };
 
-    traverse(markdownRoot);
+    let hasAnyChildNodeChanged = false;
 
-    await promiseWaiter.wait();
+    const newChildNodes = await runAllPromises(
+        root.children.map(async childNode => {
+            const newChildNode = await traverse(childNode);
+            hasAnyChildNodeChanged ||= newChildNode !== childNode;
+            return newChildNode;
+        }),
+    );
 
-    return {
-        firstHeadingDepth,
-        markdownParts: Array.from(splitMarkdownTreeIntoParts(markdownRoot)),
-    };
+    if (hasAnyChildNodeChanged) {
+        root = {
+            ...root,
+            // Trust that our traverse function created the right type of nodes here.
+            children: newChildNodes as any,
+        };
+    }
+
+    return {firstHeadingDepth, root};
 }
 
 async function traverseMarkdownHtmlNode(
@@ -1122,28 +1162,4 @@ function getListStartAndPreviousNumberOfItemsInListIfExists<
         numberOfItemsInList,
         previousListOrderStart,
     };
-}
-
-function printAgentWebPageKeyToLinkUrl(
-    key: AgentWebPageKeyObject,
-    options: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
-): string {
-    switch (key.type) {
-        case "Account":
-        case "Channel":
-        case "Document":
-        case "Task":
-        case "TaskCollection":
-            return printApiMentionTargetToMentionLinkUrl(key, options);
-        case "ChatMessages":
-            return printApiMentionTargetToMentionLinkUrl({type: "Chat", id: key.id}, options);
-        case "PostMessages":
-            return printApiMentionTargetToMentionLinkUrl({type: "Post", id: key.id}, options);
-        case "DocumentMessages":
-            return `https://alpine.inc/s/${options.spaceId}/documents/${key.id}?comments=${key.threadId}`;
-        case "TaskMessages":
-            return printApiMentionTargetToMentionLinkUrl({type: "Task", id: key.id}, options);
-        default:
-            throw exhaustive(key);
-    }
 }
