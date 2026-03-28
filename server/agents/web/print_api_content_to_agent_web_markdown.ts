@@ -173,8 +173,6 @@ async function traverseApiContentMarkdownNode(
                 //
                 // We shouldn't see this much in practice because the client shouldn't set
                 // `isAccountShortName` if the short name is identical to the long name.
-                //
-                // NOCOMMIT: Make sure the `read` tool throws away the hash part.
                 if (
                     mentionElement.target.type === "Account" &&
                     mentionElement.isAccountShortName &&
@@ -639,7 +637,22 @@ async function traverseApiContentMarkdownHtmlNode(
  */
 function printAgentWebMarkdownUrl(storage: AgentWebSessionStorage, url: string): Promise<string> {
     return storage.mutex.withLock(async () => {
-        const truncatedUrl = truncateUrlForAgentWebMarkdown(url);
+        let truncatedUrl = url;
+
+        // Don't allow the user to type a link starting with `/`. The agent may think it
+        // can use the `read` tool call to lookup the link but it can't. This also allows
+        // our page parsing logic (e.g. `agent_web_document_page.ts`) to reliably assume a
+        // link that starts with `/` is an Alpine web page.
+        //
+        // Any links that start with `/` we prefix with `https://alpine.inc` since if you
+        // clicked on such a link in the product that's where one would expect the link
+        // would take you. In practice, when you try to open the URL from the product we
+        // open `about:blank#blocked`.
+        if (truncatedUrl.startsWith("/")) {
+            truncatedUrl = `https://alpine.inc${truncatedUrl}`;
+        }
+
+        truncatedUrl = truncateUrlForAgentWebMarkdown(truncatedUrl);
         if (url === truncatedUrl) return url;
 
         const urlsForTruncatedUrl = await storage.dedupeNumberByTruncatedUrlAndUrl.list({

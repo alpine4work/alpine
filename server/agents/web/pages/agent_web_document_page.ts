@@ -1,5 +1,4 @@
 import {Root} from "mdast";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
@@ -23,8 +22,6 @@ export type AgentWebDocumentPage =
           readonly isLastPage: boolean;
           readonly content: ApiContentResponse;
       };
-
-// NOCOMMIT: Make sure we never print a URL that starts with `/`
 
 export async function printAgentWebDocumentPage(
     storage: AgentWebSessionStorage,
@@ -94,7 +91,7 @@ export async function parseAgentWebDocumentPage(
 
         if (
             lastChild?.type === "paragraph" &&
-            lastChild.children.length === 0 &&
+            lastChild.children.length === 1 &&
             lastChild.children[0]!.type === "link" &&
             lastChild.children[0].url.startsWith("/")
         ) {

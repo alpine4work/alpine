@@ -445,6 +445,28 @@ Visit <a href="https://example.com">example</a> for more
 `,
     },
     {
+        name: "link mark starting with slash",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Visit "},
+                        {
+                            type: "Text",
+                            text: "this doc",
+                            marks: [{type: "Link", url: "/document/hello-world"}],
+                        },
+                        {type: "Text", text: " for more"},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Visit [this doc](https://alpine.inc/document/hello-world) for more
+`,
+    },
+    {
         name: "link mark",
         content: {
             elements: [
