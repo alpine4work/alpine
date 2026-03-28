@@ -10,7 +10,10 @@ import {
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import type {
+    DatabaseActionInput,
+    DatabaseActionName,
     DatabaseActionObject,
+    DatabaseActionOutput,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
@@ -114,6 +117,10 @@ type DatabaseConnectionCall = <K extends string & keyof typeof tabToWorkerDataba
 
 export interface DatabaseConnection {
     call: DatabaseConnectionCall;
+    executeAction<N extends DatabaseActionName>(
+        name: N,
+        input: DatabaseActionInput<N>,
+    ): Promise<DatabaseActionOutput<N>>;
     watchAction(actionObject: DatabaseActionObject): Promise<ReactiveActionHandle>;
     close(): void;
 }
@@ -457,9 +464,17 @@ export class DatabaseActiveTabManager {
             this.setupLockWait();
         }
 
+        const call = ((method: string, input: unknown) =>
+            this.callMethod(method, input)) as DatabaseConnectionCall;
+
         return {
-            call: ((method: string, input: unknown) =>
-                this.callMethod(method, input)) as DatabaseConnectionCall,
+            call,
+            async executeAction(name, input) {
+                const response = await call("executeAction", {
+                    action: {name, input} as DatabaseActionObject,
+                });
+                return (response.result as DatabaseActionResult).output as any;
+            },
             watchAction: (actionObject: DatabaseActionObject) => this.watchAction(actionObject),
             close: () => this.closeConnection(),
         };

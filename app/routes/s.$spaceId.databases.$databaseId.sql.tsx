@@ -148,13 +148,8 @@ export default function DatabaseSqlRoute() {
                         if (conn == null) return;
                         setError(null);
                         try {
-                            const response = await conn.call("executeAction", {
-                                action: {name: "rawSql" as const, input: {sql: query}},
-                            });
-                            const result = response.result as unknown as {
-                                output: {rows: Array<Record<string, unknown>>};
-                            };
-                            setRows(result.output.rows);
+                            const result = await conn.executeAction("rawSql", {sql: query});
+                            setRows(result.rows);
                         } catch (e) {
                             setError(e instanceof Error ? e.message : String(e));
                             setRows(null);

@@ -64,6 +64,98 @@ function defineDatabaseAction<Input, Output>(def: {
     return def;
 }
 
+/**
+ * Add a field to an existing table: resolves the table
+ * name, generates a unique column name, computes the
+ * next view position, inserts metadata into
+ * `_alpine_fields` and `_alpine_view_fields`, then runs
+ * `ALTER TABLE ADD COLUMN` with the appropriate type
+ * affinity and CHECK constraint.
+ */
+function createField(
+    db: Database,
+    {
+        fieldId,
+        tableId,
+        viewId,
+        name,
+    }: {
+        fieldId: DatabaseFieldId;
+        tableId: DatabaseTableId;
+        viewId: DatabaseViewId;
+        name: string;
+    },
+): void {
+    const table = sql`
+        SELECT
+            *
+        FROM
+            _alpine_tables
+        WHERE
+            id = ${tableId}
+    `.selectOne(db, alpineTableConfig);
+
+    const existingColumnNames = new Set(
+        sql`
+            SELECT
+                column_name
+            FROM
+                _alpine_fields
+            WHERE
+                table_id = ${tableId}
+        `
+            .selectAll(db, {columnName: Schema.string.originalPropertyKey("column_name")})
+            .map(row => row.columnName),
+    );
+    const columnName = formatUniqueSqlName(name, existingColumnNames);
+
+    const maxPos = sql`
+        SELECT
+            MAX(position)
+        FROM
+            _alpine_view_fields
+        WHERE
+            view_id = ${viewId}
+    `.selectValue(db, Schema.integer.nullable());
+
+    const fieldType = serializeDatabaseFieldType({type: "plainText"});
+
+    sql`
+        INSERT INTO
+            _alpine_fields (id, table_id, name, column_name, type)
+        VALUES
+            (
+                ${fieldId},
+                ${tableId},
+                ${name},
+                ${columnName},
+                ${fieldType}
+            )
+    `.exec(db);
+
+    sql`
+        INSERT INTO
+            _alpine_view_fields (view_id, field_id, position, width)
+        VALUES
+            (
+                ${viewId},
+                ${fieldId},
+                ${(maxPos ?? -1) + 1},
+                ${200}
+            )
+    `.exec(db);
+
+    const sqliteType = alpineFieldTypeToSqliteType("plainText");
+    const check = checkConstraintForColumn(columnName, sqliteType, true);
+
+    sql`
+        ALTER TABLE ${sql.identifier(table.tableName)}
+        ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
+            fieldId,
+        )} NOT NULL DEFAULT '' ${check}
+    `.exec(db);
+}
+
 export const databaseActions = {
     rawSql: defineDatabaseAction({
         input: Schema.object({sql: Schema.string}),
@@ -151,41 +243,6 @@ export const databaseActions = {
                     )
             `.exec(db);
 
-            const fieldType = serializeDatabaseFieldType({type: "plainText"});
-            const fieldId = generateChronologicalId<DatabaseFieldId>();
-            sql`
-                INSERT INTO
-                    _alpine_fields (id, table_id, name, column_name, type)
-                VALUES
-                    (
-                        ${fieldId},
-                        ${tableId},
-                        ${"Name"},
-                        ${"name"},
-                        ${fieldType}
-                    )
-            `.exec(db);
-
-            const sqliteType = alpineFieldTypeToSqliteType("plainText");
-            const nameCheck = checkConstraintForColumn("name", sqliteType, true);
-
-            sql`
-                CREATE TABLE ${sql.identifier(tableName)} (
-                    _id TEXT PRIMARY KEY DEFAULT (generate_id ()),
-                    _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
-                    name ${sql.raw(sqliteType)}_alpine_${sql.raw(fieldId)} NOT NULL DEFAULT '',
-                    CHECK (is_id (_id)),
-                    CHECK (DATETIME(_created_at) IS NOT NULL),
-                    ${nameCheck}
-                ) WITHOUT ROWID
-            `.exec(db);
-
-            sql`
-                CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
-                    tableName,
-                )} (_created_at)
-            `.exec(db);
-
             const viewId = generateChronologicalId<DatabaseViewId>();
             sql`
                 INSERT INTO
@@ -199,15 +256,21 @@ export const databaseActions = {
             `.exec(db);
 
             sql`
-                INSERT INTO
-                    _alpine_view_fields (view_id, field_id, position, width)
-                VALUES
-                    (
-                        ${viewId},
-                        ${fieldId},
-                        ${0},
-                        ${200}
-                    )
+                CREATE TABLE ${sql.identifier(tableName)} (
+                    _id TEXT PRIMARY KEY DEFAULT (generate_id ()),
+                    _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+                    CHECK (is_id (_id)),
+                    CHECK (DATETIME(_created_at) IS NOT NULL)
+                ) WITHOUT ROWID
+            `.exec(db);
+
+            const fieldId = generateChronologicalId<DatabaseFieldId>();
+            createField(db, {fieldId, tableId, viewId, name: "Name"});
+
+            sql`
+                CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
+                    tableName,
+                )} (_created_at)
             `.exec(db);
 
             return {tableId, tableName, viewId};
@@ -380,7 +443,7 @@ export const databaseActions = {
         },
     }),
 
-    addField: defineDatabaseAction({
+    createField: defineDatabaseAction({
         input: Schema.object({
             fieldId: Schema.id<DatabaseFieldId>(),
             tableId: Schema.id<DatabaseTableId>(),
@@ -390,74 +453,7 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "schema+data",
         run(db, {fieldId, tableId, viewId, name}) {
-            const table = sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${tableId}
-            `.selectOne(db, alpineTableConfig);
-
-            const existingColumnNames = new Set(
-                sql`
-                    SELECT
-                        column_name
-                    FROM
-                        _alpine_fields
-                    WHERE
-                        table_id = ${tableId}
-                `
-                    .selectAll(db, {columnName: Schema.string.originalPropertyKey("column_name")})
-                    .map(row => row.columnName),
-            );
-            const columnName = formatUniqueSqlName(name, existingColumnNames);
-            const fieldType = serializeDatabaseFieldType({type: "plainText"});
-
-            sql`
-                INSERT INTO
-                    _alpine_fields (id, table_id, name, column_name, type)
-                VALUES
-                    (
-                        ${fieldId},
-                        ${tableId},
-                        ${name},
-                        ${columnName},
-                        ${fieldType}
-                    )
-            `.exec(db);
-
-            const sqliteType = alpineFieldTypeToSqliteType("plainText");
-            const check = checkConstraintForColumn(columnName, sqliteType, true);
-
-            sql`
-                ALTER TABLE ${sql.identifier(table.tableName)}
-                ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
-                    fieldId,
-                )} NOT NULL DEFAULT '' ${check}
-            `.exec(db);
-
-            const maxPos = sql`
-                SELECT
-                    MAX(position)
-                FROM
-                    _alpine_view_fields
-                WHERE
-                    view_id = ${viewId}
-            `.selectValue(db, Schema.integer.nullable());
-
-            sql`
-                INSERT INTO
-                    _alpine_view_fields (view_id, field_id, position, width)
-                VALUES
-                    (
-                        ${viewId},
-                        ${fieldId},
-                        ${(maxPos ?? -1) + 1},
-                        ${200}
-                    )
-            `.exec(db);
-
+            createField(db, {fieldId, tableId, viewId, name});
             return {};
         },
     }),

@@ -250,16 +250,11 @@ export function DatabaseGridView({
                                                         columnName: "__pending__",
                                                         width: 200,
                                                     });
-                                                    await conn.call("executeAction", {
-                                                        action: {
-                                                            name: "addField" as const,
-                                                            input: {
-                                                                fieldId,
-                                                                tableId,
-                                                                viewId,
-                                                                name: fieldName,
-                                                            },
-                                                        },
+                                                    await conn.executeAction("createField", {
+                                                        fieldId,
+                                                        tableId,
+                                                        viewId,
+                                                        name: fieldName,
                                                     });
                                                 });
                                             }}
@@ -503,11 +498,10 @@ function DatabaseGridViewCell({
         if (newValue === committedValue) return;
         startTransition(async () => {
             setCommittedValue(newValue);
-            await conn.call("executeAction", {
-                action: {
-                    name: "updateCellValue" as const,
-                    input: {fieldId: field.id, rowId, value: newValue},
-                },
+            await conn.executeAction("updateCellValue", {
+                fieldId: field.id,
+                rowId,
+                value: newValue,
             });
         });
     });
