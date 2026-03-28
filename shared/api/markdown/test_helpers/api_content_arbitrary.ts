@@ -1,0 +1,576 @@
+import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
+import {
+    isSimpleApiContentTableBlockElementForTest,
+    printApiMentionTargetToMentionLinkUrl,
+} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
+import {
+    ApiContentBlockElementResponse,
+    ApiContentBreakInlineElement,
+    ApiContentCheckListBlockElementItemResponse,
+    ApiContentCheckListBlockElementResponse,
+    ApiContentCodeBlockElement,
+    ApiContentCodeBlockElementTextInlineElement,
+    ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentDividerBlockElement,
+    ApiContentFileBlockElementResponse,
+    ApiContentFileFloatBlockElementResponse,
+    ApiContentFileGalleryBlockElementResponse,
+    ApiContentHeadingBlockElementResponse,
+    ApiContentInlineElementCommentMark,
+    ApiContentInlineElementHighlightMark,
+    ApiContentInlineElementLinkMark,
+    ApiContentInlineElementMark,
+    ApiContentInlineElementResponse,
+    ApiContentListBlockElementItemResponse,
+    ApiContentListBlockElementResponse,
+    ApiContentMentionInlineElementResponse,
+    ApiContentOrderedListBlockElementResponse,
+    ApiContentParagraphBlockElementResponse,
+    ApiContentPreviewBlockElementResponse,
+    ApiContentQuoteBlockElementBlockElementResponse,
+    ApiContentQuoteBlockElementResponse,
+    ApiContentResponse,
+    ApiContentTableBlockElementCellBlockElementResponse,
+    ApiContentTableBlockElementResponse,
+    ApiContentTextInlineElement,
+    ApiContentUnorderedListBlockElementResponse,
+    ApiMentionTargetResponse,
+    ApiPreviewTargetResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
+import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
+import {
+    AccountId,
+    ChannelId,
+    ChatId,
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+    PostId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
+
+export const apiContentArbitrarySpaceId = generateId<SpaceId>();
+
+// Use TypeScript `Record` so we get a type error when a type is added to the
+// union, reminding us that we need to add another entry.
+function createUnionArbitrary<Element extends {readonly type: string}>(
+    object: Record<Element["type"], MaybeWeightedArbitrary<Element>>,
+): Arbitrary<Element> {
+    const arbitraries: Array<MaybeWeightedArbitrary<Element>> = Object.values(object);
+    return fc.oneof(...arbitraries);
+}
+
+function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
+    return fc
+        .uint8Array({minLength: idByteLength, maxLength: idByteLength})
+        .map(bytes => encodeId<Value>(bytes));
+}
+
+const ApiMentionTargetTitleArbitrary = fc.oneof(
+    {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},
+    {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
+);
+
+const ApiPreviewTargetArbitraries = {
+    Channel: fc.record({
+        type: fc.constant("Channel"),
+        id: createIdArbitrary<ChannelId>(),
+        title: ApiMentionTargetTitleArbitrary,
+    }),
+    Chat: fc.record({
+        type: fc.constant("Chat"),
+        id: createIdArbitrary<ChatId>(),
+        title: ApiMentionTargetTitleArbitrary,
+    }),
+    Document: fc.record({
+        type: fc.constant("Document"),
+        id: createIdArbitrary<DocumentId>(),
+        title: ApiMentionTargetTitleArbitrary,
+    }),
+    Post: fc.record({
+        type: fc.constant("Post"),
+        id: createIdArbitrary<PostId>(),
+        title: ApiMentionTargetTitleArbitrary,
+    }),
+    Task: fc.record({
+        type: fc.constant("Task"),
+        id: createIdArbitrary<TaskId>(),
+        title: ApiMentionTargetTitleArbitrary,
+        status: fc.oneof(
+            fc.constant({type: "Open", isActive: false}),
+            fc.constant({type: "Open", isActive: true}),
+            fc.constant({type: "Closed", isActive: false}),
+        ),
+    }),
+    TaskCollection: fc.record({
+        type: fc.constant("TaskCollection"),
+        id: createIdArbitrary<TaskCollectionId>(),
+        title: ApiMentionTargetTitleArbitrary,
+    }),
+};
+
+const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
+    ...ApiPreviewTargetArbitraries,
+    Account: fc.record({
+        type: fc.constant("Account"),
+        id: createIdArbitrary<AccountId>(),
+        title: ApiMentionTargetTitleArbitrary,
+        shortName: ApiMentionTargetTitleArbitrary,
+    }),
+});
+
+const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
+    fc.record({
+        type: fc.constant("Link"),
+        url: fc.oneof(
+            {weight: 50, arbitrary: fc.webUrl()},
+            {weight: 1, arbitrary: fc.string({unit: "grapheme"})},
+
+            // We have special handling for link marks that look like mentions so they're not
+            // parsed as mention nodes. Make sure we generate mention-looking URLs.
+            {
+                weight: 1,
+                arbitrary: fc
+                    .tuple(ApiMentionTargetArbitrary, fc.boolean())
+                    .map(([targetPathObject, isAccountShortName]) =>
+                        printApiMentionTargetToMentionLinkUrl(targetPathObject, {
+                            spaceId: apiContentArbitrarySpaceId,
+                            isAccountShortName,
+                        }),
+                    ),
+            },
+        ),
+    });
+
+const ApiContentInlineElementHighlightMarkArbitrary: Arbitrary<ApiContentInlineElementHighlightMark> =
+    fc.record({
+        type: fc.constant("Highlight"),
+        color: fc.oneof(
+            fc.constant("Red"),
+            fc.constant("Orange"),
+            fc.constant("Green"),
+            fc.constant("Blue"),
+            fc.constant("Purple"),
+        ),
+    });
+
+const ApiContentInlineElementCommentMarkArbitrary: Arbitrary<ApiContentInlineElementCommentMark> =
+    fc.record({
+        type: fc.constant("Comment"),
+        threadId: createIdArbitrary<DocumentCommentThreadId>(),
+    });
+
+const ApiContentInlineElementMarkArbitrary = createUnionArbitrary<ApiContentInlineElementMark>({
+    Bold: fc.constant({type: "Bold"}),
+    Italic: fc.constant({type: "Italic"}),
+    Strike: fc.constant({type: "Strike"}),
+    Code: fc.constant({type: "Code"}),
+    Link: ApiContentInlineElementLinkMarkArbitrary,
+    Highlight: ApiContentInlineElementHighlightMarkArbitrary,
+    Comment: ApiContentInlineElementCommentMarkArbitrary,
+});
+
+const ApiContentTextInlineElementTextArbitrary = fc.oneof(
+    {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},
+    {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
+);
+
+const ApiContentTextInlineElementArbitrary: Arbitrary<ApiContentTextInlineElement> = fc.record({
+    type: fc.constant("Text"),
+    text: ApiContentTextInlineElementTextArbitrary,
+    marks: fc.oneof(
+        {arbitrary: fc.constant([]), weight: 5},
+        fc.array(ApiContentInlineElementMarkArbitrary, {
+            maxLength: apiContentInlineElementMarkTypeNormalizedOrder.length,
+        }),
+    ),
+});
+
+const ApiContentBreakInlineElementArbitrary: Arbitrary<ApiContentBreakInlineElement> = fc.record({
+    type: fc.constant("Break"),
+    marks: fc.oneof(
+        {arbitrary: fc.constant([]), weight: 50},
+        fc.array(ApiContentInlineElementMarkArbitrary, {
+            maxLength: apiContentInlineElementMarkTypeNormalizedOrder.length,
+        }),
+    ),
+});
+
+const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =
+    fc.record({
+        type: fc.constant("File"),
+        id: fc.oneof(
+            {weight: 100, arbitrary: createIdArbitrary<FileId>()},
+            {weight: 1, arbitrary: fc.constant(unknownFileId)},
+        ),
+        contentType: fc.oneof(
+            fc.constant("image/png"),
+            fc.constant("image/jpeg"),
+            fc.constant("video/mp4"),
+            fc.constant("audio/mpeg"),
+            fc.constant("application/pdf"),
+            fc.constant("application/yaml"),
+            fc.constant("application/octet-stream"),
+        ),
+        contentLength: fc.integer({min: 0}),
+    });
+
+const ApiPreviewTargetArbitrary = createUnionArbitrary<ApiPreviewTargetResponse>(
+    ApiPreviewTargetArbitraries,
+);
+
+const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Preview"),
+        target: ApiPreviewTargetArbitrary,
+        title: fc.string({minLength: 1, maxLength: 20}),
+    });
+
+const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGalleryBlockElementResponse> =
+    fc.record({
+        type: fc.constant("FileGallery"),
+        rows: fc.array(
+            fc
+                .array(
+                    fc.oneof(
+                        ApiContentFileBlockElementArbitrary,
+                        ApiContentPreviewBlockElementArbitrary,
+                    ),
+                    {minLength: 1, maxLength: 3},
+                )
+                .map(elements => {
+                    // Generate integer-percent-friendly widths that round-trip cleanly through the
+                    // printer (which rounds to integer percents). Derive the last from 100 -
+                    // sum(previous) so they sum to exactly 100, then divide by 100.
+                    let percentSum = 0;
+                    const items = elements.map((element, i) => {
+                        const percent =
+                            i < elements.length - 1
+                                ? Math.round(100 / elements.length)
+                                : 100 - percentSum;
+
+                        percentSum += percent;
+                        return {width: percent / 100, element};
+                    });
+                    return {items};
+                }),
+            {minLength: 1},
+        ),
+    });
+
+const ApiContentFileFloatBlockElementArbitrary: Arbitrary<ApiContentFileFloatBlockElementResponse> =
+    fc.record({
+        type: fc.constant("FileFloat"),
+        side: fc.oneof(fc.constant("Left"), fc.constant("Right")),
+        element: fc.oneof(
+            ApiContentFileBlockElementArbitrary,
+            ApiContentPreviewBlockElementArbitrary,
+        ),
+    });
+
+const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElementResponse> =
+    fc.record({
+        type: fc.constant("Mention"),
+        target: ApiMentionTargetArbitrary,
+        isAccountShortName: fc.boolean(),
+        marks: fc.oneof(
+            {arbitrary: fc.constant([]), weight: 30},
+            fc.array(ApiContentInlineElementMarkArbitrary, {
+                maxLength: apiContentInlineElementMarkTypeNormalizedOrder.length,
+            }),
+        ),
+    });
+
+const ApiContentInlineElementArbitrary = createUnionArbitrary<ApiContentInlineElementResponse>({
+    Text: {arbitrary: ApiContentTextInlineElementArbitrary, weight: 50},
+    Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
+    Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
+});
+
+const ApiContentInlineElementArbitraryForSimpleTable =
+    createUnionArbitrary<ApiContentInlineElementResponse>({
+        Text: {
+            arbitrary: ApiContentTextInlineElementArbitrary.filter(element => {
+                // `printSimpleApiContentTableBlockElementToMarkdownIfPossible()` has to bail out
+                // in this case. So don't allow these elements in the simple table arbitrary.
+                const hasSimpleTableBailOutCase =
+                    element.marks?.some(mark => mark.type === "Code") &&
+                    element.text.includes("\\|");
+
+                return !hasSimpleTableBailOutCase;
+            }),
+            weight: 50,
+        },
+        Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
+        Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
+    });
+
+const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Paragraph"),
+        elements: fc.array(ApiContentInlineElementArbitrary),
+    });
+
+const ApiContentParagraphBlockElementArbitraryForSimpleTable: Arbitrary<ApiContentParagraphBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Paragraph"),
+        elements: fc.array(ApiContentInlineElementArbitraryForSimpleTable),
+    });
+
+const {
+    ApiContentUnorderedListBlockElementArbitrary,
+    ApiContentOrderedListBlockElementArbitrary,
+    ApiContentCheckListBlockElementArbitrary,
+} = fc.letrec<{
+    ApiContentListBlockElementArbitrary: ApiContentListBlockElementResponse;
+    ApiContentListBlockElementItemArbitrary: ApiContentListBlockElementItemResponse;
+    ApiContentCheckListBlockElementItemArbitrary: ApiContentCheckListBlockElementItemResponse;
+    ApiContentUnorderedListBlockElementArbitrary: ApiContentUnorderedListBlockElementResponse;
+    ApiContentOrderedListBlockElementArbitrary: ApiContentOrderedListBlockElementResponse;
+    ApiContentCheckListBlockElementArbitrary: ApiContentCheckListBlockElementResponse;
+}>(tie => {
+    const ApiContentListBlockElementArbitrary: Arbitrary<ApiContentListBlockElementResponse> =
+        fc.oneof(
+            tie("ApiContentUnorderedListBlockElementArbitrary"),
+            tie("ApiContentOrderedListBlockElementArbitrary"),
+            tie("ApiContentCheckListBlockElementArbitrary"),
+        );
+
+    const ListItemElementArbitrary = fc.oneof(
+        {
+            weight: 200,
+            arbitrary: fc.tuple(ApiContentParagraphBlockElementArbitrary),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentParagraphBlockElementArbitrary,
+                ApiContentParagraphBlockElementArbitrary,
+            ),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentParagraphBlockElementArbitrary,
+                ApiContentParagraphBlockElementArbitrary,
+                ApiContentParagraphBlockElementArbitrary,
+            ),
+        },
+        {weight: 1, arbitrary: fc.tuple()},
+    );
+
+    const NestedListItemElementArbitrary = fc.oneof(
+        {maxDepth: 5},
+        {weight: 200, arbitrary: fc.tuple()},
+        {weight: 20, arbitrary: fc.tuple(ApiContentListBlockElementArbitrary)},
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentListBlockElementArbitrary,
+                ApiContentListBlockElementArbitrary,
+            ),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentListBlockElementArbitrary,
+                ApiContentListBlockElementArbitrary,
+                ApiContentListBlockElementArbitrary,
+            ),
+        },
+    );
+
+    const ApiContentListBlockElementItemArbitrary: Arbitrary<ApiContentListBlockElementItemResponse> =
+        fc.record({
+            elements: ListItemElementArbitrary,
+            nestedListElements: NestedListItemElementArbitrary,
+        });
+
+    const ApiContentCheckListBlockElementItemArbitrary: Arbitrary<ApiContentCheckListBlockElementItemResponse> =
+        fc.record({
+            checked: fc.boolean(),
+            elements: ListItemElementArbitrary,
+            nestedListElements: NestedListItemElementArbitrary,
+        });
+
+    const ApiContentUnorderedListBlockElementArbitrary: Arbitrary<ApiContentUnorderedListBlockElementResponse> =
+        fc.record({
+            type: fc.constant("UnorderedList"),
+            items: fc.array(ApiContentListBlockElementItemArbitrary),
+        });
+
+    const ApiContentOrderedListBlockElementArbitrary: Arbitrary<ApiContentOrderedListBlockElementResponse> =
+        fc.record({
+            type: fc.constant("OrderedList"),
+            items: fc.array(ApiContentListBlockElementItemArbitrary),
+        });
+
+    const ApiContentCheckListBlockElementArbitrary: Arbitrary<ApiContentCheckListBlockElementResponse> =
+        fc.record({
+            type: fc.constant("CheckList"),
+            items: fc.array(ApiContentCheckListBlockElementItemArbitrary),
+        });
+
+    return {
+        ApiContentListBlockElementArbitrary,
+        ApiContentListBlockElementItemArbitrary,
+        ApiContentUnorderedListBlockElementArbitrary,
+        ApiContentOrderedListBlockElementArbitrary,
+        ApiContentCheckListBlockElementArbitrary,
+        ApiContentCheckListBlockElementItemArbitrary,
+    };
+});
+
+const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Quote"),
+        elements: fc.array(
+            createUnionArbitrary<ApiContentQuoteBlockElementBlockElementResponse>({
+                Paragraph: ApiContentParagraphBlockElementArbitrary,
+                UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
+                OrderedList: ApiContentOrderedListBlockElementArbitrary,
+                CheckList: ApiContentCheckListBlockElementArbitrary,
+            }),
+        ),
+    });
+
+const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Heading"),
+        level: fc.oneof(fc.constant(1), fc.constant(2), fc.constant(3)),
+        elements: fc.array(ApiContentInlineElementArbitrary),
+    });
+
+const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElement> = fc.record({
+    type: fc.constant("Divider"),
+});
+
+const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
+    createUnionArbitrary<ApiContentCodeBlockElementTextInlineElementMark>({
+        Bold: fc.constant({type: "Bold"}),
+        Italic: fc.constant({type: "Italic"}),
+        Strike: fc.constant({type: "Strike"}),
+        Link: ApiContentInlineElementLinkMarkArbitrary,
+        Highlight: ApiContentInlineElementHighlightMarkArbitrary,
+        Comment: ApiContentInlineElementCommentMarkArbitrary,
+    });
+
+const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContentCodeBlockElementTextInlineElement> =
+    fc.record({
+        type: fc.constant("Text"),
+        text: ApiContentTextInlineElementTextArbitrary,
+        marks: fc.oneof(
+            {arbitrary: fc.constant([]), weight: 5},
+            fc.array(ApiContentCodeBlockElementTextInlineElementMarkArbitrary, {
+                maxLength: apiContentInlineElementMarkTypeNormalizedOrder.length,
+            }),
+        ),
+    });
+
+const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElement> = fc.record({
+    type: fc.constant("Code"),
+    language: fc.oneof(
+        ...mapIterable(
+            getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
+            language => fc.constant(language),
+        ),
+    ),
+    lines: fc.array(
+        fc.record({elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary)}),
+    ),
+});
+
+// Schema requires tableCell{2,} so tables must have at least 2 columns
+const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElementResponse> =
+    fc.oneof(
+        // Simple table that should be formatted as a GFM table.
+        fc
+            .record({
+                type: fc.constant("Table"),
+                width: fc.constant(1),
+                hasHeaderRow: fc.constant(true),
+                hasHeaderColumn: fc.constant(false),
+                columns: fc.array(fc.record({width: fc.constant(1)}), {minLength: 2}),
+                rows: fc.array(
+                    fc.record({
+                        cells: fc.array(
+                            fc.record({
+                                elements: fc.tuple(
+                                    ApiContentParagraphBlockElementArbitraryForSimpleTable,
+                                ),
+                            }),
+                            {minLength: 2},
+                        ),
+                    }),
+                ),
+            })
+            .map(table => {
+                // Make sure we can print the table as a GFM table.
+                assert(isSimpleApiContentTableBlockElementForTest(table));
+                return table;
+            }),
+
+        // Arbitrary table that's not limited to simple constructs that'll work in a GFM
+        // table.
+        fc.record({
+            type: fc.constant("Table"),
+            width: fc.float({min: 1, max: 20, noNaN: true}),
+            hasHeaderRow: fc.boolean(),
+            hasHeaderColumn: fc.boolean(),
+            columns: fc.array(
+                fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
+                {minLength: 2},
+            ),
+            rows: fc.array(
+                fc.record({
+                    cells: fc.array(
+                        fc.record({
+                            elements: fc.array(
+                                createUnionArbitrary<ApiContentTableBlockElementCellBlockElementResponse>(
+                                    {
+                                        Paragraph: ApiContentParagraphBlockElementArbitrary,
+                                        UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
+                                        OrderedList: ApiContentOrderedListBlockElementArbitrary,
+                                        Quote: ApiContentQuoteBlockElementArbitrary,
+                                        Code: ApiContentCodeBlockElementArbitrary,
+                                        CheckList: ApiContentCheckListBlockElementArbitrary,
+                                        File: ApiContentFileBlockElementArbitrary,
+                                        Preview: ApiContentPreviewBlockElementArbitrary,
+                                    },
+                                ),
+                            ),
+                        }),
+                        {minLength: 2},
+                    ),
+                }),
+            ),
+        }),
+    );
+
+const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElementResponse>({
+    Paragraph: {arbitrary: ApiContentParagraphBlockElementArbitrary, weight: 20},
+    UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
+    OrderedList: ApiContentOrderedListBlockElementArbitrary,
+    CheckList: ApiContentCheckListBlockElementArbitrary,
+    Quote: ApiContentQuoteBlockElementArbitrary,
+    Heading: ApiContentHeadingBlockElementArbitrary,
+    Divider: ApiContentDividerBlockElementArbitrary,
+    Code: ApiContentCodeBlockElementArbitrary,
+    Table: ApiContentTableBlockElementArbitrary,
+    File: ApiContentFileBlockElementArbitrary,
+    FileGallery: ApiContentFileGalleryBlockElementArbitrary,
+    FileFloat: ApiContentFileFloatBlockElementArbitrary,
+    Preview: ApiContentPreviewBlockElementArbitrary,
+});
+
+export const ApiContentArbitrary: Arbitrary<ApiContentResponse> = fc.record({
+    elements: fc.array(ApiContentBlockElementArbitrary),
+});

@@ -321,7 +321,55 @@ async function parseTextIntoMarkdownParts(
         /<\/?[a-zA-Z][a-zA-Z0-9-]*[\x00-\x3D\x3F-\x7F]*$/,
     );
     if (incompleteHtmlTagMatch) {
-        text = text.slice(0, -incompleteHtmlTagMatch[0].length);
+        const newText = text.slice(0, -incompleteHtmlTagMatch[0].length);
+        const backslashCount = newText.match(/\\+$/)?.[0]?.length ?? 0;
+        if (backslashCount % 2 === 0) {
+            const incompleteHtmlTagText = text.slice(-incompleteHtmlTagMatch[0].length);
+            let hasError = false;
+
+            const tokenizer = new HtmlTokenizer(
+                {},
+                {
+                    onattribname: (startIndex, endIndex) => {
+                        // Handle the following case:
+                        //
+                        // ```
+                        // \`\`\`java
+                        // <A
+                        // \`\`\`
+                        // ```
+                        //
+                        // In this case `incompleteHtmlTagMatch` matches `"<A\n```\n"`. So we need to
+                        // detect when there are backticks inside the incomplete HTML tag and bail out
+                        // since this HTML tag is actually code block text that has been completed.
+                        if (incompleteHtmlTagText.slice(startIndex, endIndex).includes("`")) {
+                            hasError = true;
+                        }
+                    },
+
+                    onattribdata: noop,
+                    onattribentity: noop,
+                    onattribend: noop,
+                    oncdata: noop,
+                    onclosetag: noop,
+                    oncomment: noop,
+                    ondeclaration: noop,
+                    onend: noop,
+                    onopentagend: noop,
+                    onopentagname: noop,
+                    onprocessinginstruction: noop,
+                    onselfclosingtag: noop,
+                    ontext: noop,
+                    ontextentity: noop,
+                },
+            );
+
+            tokenizer.write(incompleteHtmlTagText);
+
+            if (!hasError) {
+                text = newText;
+            }
+        }
     }
 
     const markdownRoot = parseMarkdownTree(text, {

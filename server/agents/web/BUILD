@@ -2,7 +2,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "web",
-    test_deps = ["//server/cloudflare"],
+    test_deps = [
+        "//:node_modules/fast-check",
+        "//server/cloudflare",
+        "//shared/api/markdown/test_helpers",
+    ],
     # IMPORTANT: We try to keep the first-party dependency list for our agent
     # service family pretty small. Since long term, we want an ecosystem of
     # agent developers. So we should be ready to open source the code in

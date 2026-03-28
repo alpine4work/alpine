@@ -12,6 +12,7 @@ import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.j
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -82,6 +83,7 @@ const storage: AgentWebSessionStorage = {
 };
 
 const testCases: Array<{
+    only?: CommitBlocker;
     name: string;
     content: ApiContentResponse;
     markdown: string;
@@ -1231,10 +1233,53 @@ Value
 </pre>
 `,
     },
+    {
+        name: "unfinished escaped HTML tag at content end",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "<", marks: []},
+                        {type: "Text", text: "A", marks: []},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+\\<A
+`,
+    },
+    {
+        only: "NOCOMMIT",
+        name: "unfinished HTML tag inside code block",
+        content: {
+            elements: [
+                {
+                    type: "Code",
+                    language: "java",
+                    lines: [
+                        {
+                            elements: [
+                                {type: "Text", text: "<", marks: []},
+                                {type: "Text", text: "A", marks: []},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+\`\`\`java
+<A
+\`\`\`
+`,
+    },
 ];
 
-for (const {name, content: expectedContent, markdown: expectedMarkdown} of testCases) {
-    // eslint-disable-next-line jest/valid-title
+for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of testCases) {
+    const describe = only ? globalThis.describe.only : globalThis.describe;
+
     describe(name, () => {
         test("prints to agent web markdown", async () => {
             const contextDocumentId = generateId<DocumentId>();

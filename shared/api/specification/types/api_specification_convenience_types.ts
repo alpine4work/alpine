@@ -41,6 +41,9 @@ export type ApiContentOrderedListBlockElementResponse =
 export type ApiContentCheckListBlockElement =
     ApiSpecification.components["schemas"]["ContentCheckListBlockElement"];
 
+export type ApiContentCheckListBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElement_Response"];
+
 export type ApiContentListBlockElement =
     ApiSpecification.components["schemas"]["ContentListBlockElement"];
 
