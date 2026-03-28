@@ -210,6 +210,13 @@ export class DatabaseServer {
         try {
             const result = fn(this.db);
 
+            // Run PRAGMA optimize after schema+data actions
+            // so that any ANALYZE updates are included in the
+            // committed page changes sent via realtime.
+            if (writeLevel === "schema+data") {
+                this.db.exec("PRAGMA optimize");
+            }
+
             if (writeLevel !== "none") {
                 this.db.exec("COMMIT");
                 assert(this.action.type === "execute");
