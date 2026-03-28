@@ -17,6 +17,15 @@ import {
     type DatabaseActionInput,
     LoaderDatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Schema} from "~/shared/schema/schema.js";
+
+const LoaderSchema = Schema.object({
+    schema: LoaderDatabaseActionResultSchema,
+    rows: LoaderDatabaseActionResultSchema,
+});
+
+export {LoaderSchema as ViewLoaderSchema};
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
@@ -27,45 +36,62 @@ export async function loader({request, params, context: unauthenticatedContext}:
     await getDatabase(context, databaseId);
 
     const tableOrViewId = params.tableOrViewId!;
-    const {result, readPages} = await fetchDatabaseAction(context, databaseId, {
-        name: "getViewData",
-        input: {tableOrViewId},
-    });
+    const actionInput = {tableOrViewId};
+
+    const [schemaResult, rowsResult] = await runAllPromises([
+        fetchDatabaseAction(context, databaseId, {name: "getViewSchema", input: actionInput}),
+        fetchDatabaseAction(context, databaseId, {name: "getViewRows", input: actionInput}),
+    ]);
 
     // If the user navigated with a table ID, redirect to
     // the resolved view ID for a canonical URL. Uses a
     // relative redirect so peek routes work correctly.
-    if (result.viewId !== tableOrViewId) {
+    if (schemaResult.result.viewId !== tableOrViewId) {
         const url = new URL(request.url);
-        url.pathname = url.pathname.replace(/\/[^/]+$/, `/${result.viewId}`);
+        url.pathname = url.pathname.replace(/\/[^/]+$/, `/${schemaResult.result.viewId}`);
         return redirect(url.pathname + url.search);
     }
 
-    return jsonWithSchema(LoaderDatabaseActionResultSchema, {
-        name: "getViewData",
-        input: {tableOrViewId},
-        output: result,
-        readPages,
+    return jsonWithSchema(LoaderSchema, {
+        schema: {
+            name: "getViewSchema",
+            input: actionInput,
+            output: schemaResult.result,
+            readPages: schemaResult.readPages,
+        },
+        rows: {
+            name: "getViewRows",
+            input: actionInput,
+            output: rowsResult.result,
+            readPages: rowsResult.readPages,
+        },
     });
 }
 
 export default function DatabaseViewRoute() {
-    const loaderData = useLoaderDataWithSchema(LoaderDatabaseActionResultSchema);
-    const {tableOrViewId} = loaderData.input as DatabaseActionInput<"getViewData">;
-    const result = useReactiveDatabaseAction({
-        name: "getViewData",
-        input: useMemo(() => ({tableOrViewId}), [tableOrViewId]),
-        initialData: loaderData,
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
+    const {tableOrViewId} = loaderData.schema.input as DatabaseActionInput<"getViewSchema">;
+    const input = useMemo(() => ({tableOrViewId}), [tableOrViewId]);
+
+    const schemaResult = useReactiveDatabaseAction({
+        name: "getViewSchema",
+        input,
+        initialData: loaderData.schema,
+    });
+    const rowsResult = useReactiveDatabaseAction({
+        name: "getViewRows",
+        input,
+        initialData: loaderData.rows,
     });
 
-    if (result == null) {
+    if (schemaResult == null || rowsResult == null) {
         return (
             <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
                 Loading...
             </Box>
         );
     }
-    if (!result.ok) {
+    if (!schemaResult.ok) {
         return (
             <pre
                 className={sprinkles({
@@ -75,16 +101,30 @@ export default function DatabaseViewRoute() {
                     padding: "2",
                 })}
             >
-                {result.error}
+                {schemaResult.error}
+            </pre>
+        );
+    }
+    if (!rowsResult.ok) {
+        return (
+            <pre
+                className={sprinkles({
+                    fontSize: "75",
+                    fontStyle: "code",
+                    color: "red-60",
+                    padding: "2",
+                })}
+            >
+                {rowsResult.error}
             </pre>
         );
     }
     return (
         <DatabaseGridView
-            tableId={result.value.tableId}
-            viewId={result.value.viewId}
-            fields={result.value.fields}
-            rows={result.value.rows}
+            tableId={schemaResult.value.tableId}
+            viewId={schemaResult.value.viewId}
+            fields={schemaResult.value.fields}
+            rows={rowsResult.value.rows}
         />
     );
 }

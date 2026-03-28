@@ -64,6 +64,66 @@ function defineDatabaseAction<Input, Output>(def: {
     return def;
 }
 
+/**
+ * Resolves a `tableOrViewId` (which may be either a
+ * table ID or a view ID) into the canonical triple of
+ * `{tableId, viewId, tableName}`. Checks the view path
+ * first since that is the happy path after URL
+ * canonicalization.
+ */
+function resolveTableOrViewId(
+    db: Database,
+    tableOrViewId: string,
+): {tableId: DatabaseTableId; viewId: DatabaseViewId; tableName: string} {
+    // Happy path: try as a view ID first since URLs are
+    // canonicalized to view IDs after the first redirect.
+    const viewResult = sql`
+        SELECT
+            *
+        FROM
+            _alpine_views
+        WHERE
+            id = ${tableOrViewId}
+    `.selectOneOrNone(db, alpineViewConfig);
+
+    if (viewResult !== null) {
+        const table = sql`
+            SELECT
+                *
+            FROM
+                _alpine_tables
+            WHERE
+                id = ${viewResult.tableId}
+        `.selectOne(db, alpineTableConfig);
+        return {tableId: table.id, viewId: viewResult.id, tableName: table.tableName};
+    }
+
+    // Fallback: resolve as a table ID and pick its first view.
+    const tableResult = sql`
+        SELECT
+            *
+        FROM
+            _alpine_tables
+        WHERE
+            id = ${tableOrViewId}
+    `.selectOne(db, alpineTableConfig);
+
+    const view = sql`
+        SELECT
+            *
+        FROM
+            _alpine_views
+        WHERE
+            table_id = ${tableResult.id}
+        ORDER BY
+            id
+        LIMIT
+            1
+    `.selectOne(db, alpineViewConfig);
+
+    return {tableId: tableResult.id, viewId: view.id, tableName: tableResult.tableName};
+}
+
 export const databaseActions = {
     rawSql: defineDatabaseAction({
         input: Schema.object({sql: Schema.string}),
@@ -243,7 +303,7 @@ export const databaseActions = {
         },
     }),
 
-    getViewData: defineDatabaseAction({
+    getViewSchema: defineDatabaseAction({
         input: Schema.object({tableOrViewId: Schema.string}),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
@@ -257,65 +317,10 @@ export const databaseActions = {
                     width: Schema.integer,
                 }),
             ),
-            rows: Schema.array(Schema.unknown()),
         }),
         writeLevel: "none",
         run(db, {tableOrViewId}) {
-            let tableId: DatabaseTableId;
-            let viewId: DatabaseViewId;
-            let tableName: string;
-
-            // Try to resolve as a table ID first.
-            const tableResult = sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${tableOrViewId}
-            `.selectOneOrNone(db, alpineTableConfig);
-
-            if (tableResult !== null) {
-                tableId = tableResult.id;
-                tableName = tableResult.tableName;
-
-                // Pick the first view for this table.
-                const view = sql`
-                    SELECT
-                        *
-                    FROM
-                        _alpine_views
-                    WHERE
-                        table_id = ${tableId}
-                    ORDER BY
-                        id
-                    LIMIT
-                        1
-                `.selectOne(db, alpineViewConfig);
-                viewId = view.id;
-            } else {
-                // Try as a view ID.
-                const view = sql`
-                    SELECT
-                        *
-                    FROM
-                        _alpine_views
-                    WHERE
-                        id = ${tableOrViewId}
-                `.selectOne(db, alpineViewConfig);
-                viewId = view.id;
-                tableId = view.tableId;
-
-                const table = sql`
-                    SELECT
-                        *
-                    FROM
-                        _alpine_tables
-                    WHERE
-                        id = ${tableId}
-                `.selectOne(db, alpineTableConfig);
-                tableName = table.tableName;
-            }
+            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
             const fields = sql`
                 SELECT
@@ -332,13 +337,30 @@ export const databaseActions = {
                     vf.position
             `.selectAll(db, alpineViewFieldConfig);
 
+            return {tableId, viewId, tableName, fields};
+        },
+    }),
+
+    getViewRows: defineDatabaseAction({
+        input: Schema.object({tableOrViewId: Schema.string}),
+        output: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            viewId: Schema.id<DatabaseViewId>(),
+            tableName: Schema.string,
+            rows: Schema.array(Schema.unknown()),
+        }),
+        writeLevel: "none",
+        run(db, {tableOrViewId}) {
+            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+
             const rows = sql`
                 SELECT
                     *
                 FROM
                     ${sql.identifier(tableName)}
             `.selectAllUnknown(db);
-            return {tableId, viewId, tableName, fields, rows};
+
+            return {tableId, viewId, tableName, rows};
         },
     }),
 

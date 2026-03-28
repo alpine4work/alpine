@@ -1,3 +1,4 @@
+import {Plus} from "phosphor-react";
 import {
     type Dispatch,
     type Memo,
@@ -9,7 +10,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {Plus} from "phosphor-react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
