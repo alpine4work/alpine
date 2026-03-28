@@ -16,38 +16,65 @@ import {
     ApiContentMentionInlineElementResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+
+export type ApiContentAgentWebMarkdownPrinterOptions = {
+    /**
+     * The `SpaceId` of the content we're printing. The `SpaceId` is added to generated
+     * mention links.
+     */
+    readonly spaceId: SpaceId;
+
+    /**
+     * If we are printing a document then this is the `DocumentId`. This is required if
+     * we find comment marks in the content otherwise we'll throw.
+     */
+    readonly documentId: DocumentId | null;
+};
+
+type ApiContentAgentWebMarkdownPrinterState = {
+    lastDocumentCommentThreadNumber: number | null;
+};
 
 export async function printApiContentToAgentWebMarkdown(
     storage: AgentWebSessionStorage,
     content: ApiContentResponse,
-    {spaceId}: {spaceId: SpaceId},
+    options: ApiContentAgentWebMarkdownPrinterOptions,
 ) {
-    const markdownTree = await printApiContentToAgentWebMarkdownTree(storage, content, {spaceId});
+    const markdownTree = await printApiContentToAgentWebMarkdownTree(storage, content, options);
     return printMarkdownTree(markdownTree);
 }
 
 async function printApiContentToAgentWebMarkdownTree(
     storage: AgentWebSessionStorage,
     content: ApiContentResponse,
-    {spaceId}: {spaceId: SpaceId},
+    options: ApiContentAgentWebMarkdownPrinterOptions,
 ) {
+    const state: ApiContentAgentWebMarkdownPrinterState = {
+        lastDocumentCommentThreadNumber: null,
+    };
+
     const node = printApiContentToMarkdownTree(content, {
-        spaceId,
-        // Our LLMs don't need to know the width of columns in a table. The potentially
-        // long floats will consume a lot of tokens and may confuse the LLM.
-        withSimpleCommentMarkHtml: true,
+        spaceId: options.spaceId,
+        withCommentTagHtml: true,
     });
 
     let hasAnyChildNodeChanged = false;
 
     const newChildNodes = await runAllPromises(
         node.children.map(async childNode => {
-            const newChildNode = await traverseApiContentMarkdownNode(storage, childNode);
+            const newChildNode = await traverseApiContentMarkdownNode(
+                storage,
+                childNode,
+                options,
+                state,
+            );
             hasAnyChildNodeChanged ||= newChildNode !== childNode;
             return newChildNode;
         }),
@@ -65,6 +92,8 @@ async function printApiContentToAgentWebMarkdownTree(
 async function traverseApiContentMarkdownNode(
     storage: AgentWebSessionStorage,
     node: RootContent,
+    options: ApiContentAgentWebMarkdownPrinterOptions,
+    state: ApiContentAgentWebMarkdownPrinterState,
 ): Promise<RootContent> {
     // Traverse children first. This gives us our best chance at deterministically
     // ordering `storage` function calls (so any functions that produce a sequence,
@@ -74,7 +103,12 @@ async function traverseApiContentMarkdownNode(
 
         const newChildNodes = await runAllPromises(
             node.children.map(async childNode => {
-                const newChildNode = await traverseApiContentMarkdownNode(storage, childNode);
+                const newChildNode = await traverseApiContentMarkdownNode(
+                    storage,
+                    childNode,
+                    options,
+                    state,
+                );
                 hasAnyChildNodeChanged ||= newChildNode !== childNode;
                 return newChildNode;
             }),
@@ -99,7 +133,7 @@ async function traverseApiContentMarkdownNode(
             return {...node, depth: newDepth};
         }
         case "html": {
-            return traverseApiContentMarkdownHtmlNode(storage, node);
+            return traverseApiContentMarkdownHtmlNode(storage, node, options, state);
         }
         case "link": {
             // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g. a chat
@@ -152,9 +186,19 @@ async function traverseApiContentMarkdownNode(
 async function traverseApiContentMarkdownHtmlNode(
     storage: AgentWebSessionStorage,
     node: Html,
+    options: ApiContentAgentWebMarkdownPrinterOptions,
+    state: ApiContentAgentWebMarkdownPrinterState,
 ): Promise<Html> {
     let anchorTagState: {
         href: {
+            isOpen: boolean;
+            attributeEndIndex: number;
+            data: {startIndex: number; endIndex: number; value: string} | null;
+        } | null;
+    } | null = null;
+
+    let commentTagState: {
+        id: {
             isOpen: boolean;
             attributeEndIndex: number;
             data: {startIndex: number; endIndex: number; value: string} | null;
@@ -190,6 +234,10 @@ async function traverseApiContentMarkdownHtmlNode(
                         anchorTagState = {href: null};
                         break;
                     }
+                    case "comment": {
+                        commentTagState = {id: null};
+                        break;
+                    }
                     case "table": {
                         tableTagState = {dataWidth: null, dataColumnWidths: null};
                         break;
@@ -210,6 +258,87 @@ async function traverseApiContentMarkdownHtmlNode(
                     }
 
                     anchorTagState = null;
+                }
+
+                if (commentTagState) {
+                    if (commentTagState.id?.data) {
+                        // Safe since `printApiContentToMarkdown()` should only print `data-comment` if
+                        // with a valid `DocumentCommentThreadId`.
+                        const commentThreadId = assertId<DocumentCommentThreadId>(
+                            commentTagState.id.data.value,
+                        );
+
+                        replacements.push({
+                            startIndex: commentTagState.id.data.startIndex,
+                            endIndex: commentTagState.id.data.endIndex,
+                            string: storage.mutex.withLock(async () => {
+                                if (!options.documentId) {
+                                    throw new InternalError(
+                                        "`documentId` is required when printing comment marks",
+                                    );
+                                }
+
+                                const id: `${DocumentId}-${DocumentCommentThreadId}` = `${options.documentId}-${commentThreadId}`;
+
+                                let number = await storage.documentCommentThreadNumberById.get(id);
+
+                                // Optimization: Avoid a `list()` call to get the next number if
+                                // `lastDocumentCommentThreadNumber + 1` isn't already in use.
+                                if (number === undefined && state.lastDocumentCommentThreadNumber) {
+                                    number = state.lastDocumentCommentThreadNumber + 1;
+
+                                    const actualId =
+                                        await storage.documentCommentThreadIdByNumber.get(
+                                            `${number}`,
+                                        );
+
+                                    // If the number isn't in use then let's use it!
+                                    if (actualId === undefined) {
+                                        await storage.documentCommentThreadNumberById.put(
+                                            id,
+                                            number,
+                                        );
+                                        await storage.documentCommentThreadIdByNumber.put(
+                                            `${number}`,
+                                            id,
+                                        );
+                                    } else if (actualId !== id) {
+                                        // If the number is in use but by a different comment thread then we'll need to
+                                        // make a `list()` call to figure out the right number.
+                                        number = undefined;
+                                    }
+                                }
+
+                                // Make a `list()` call to figure out the total number of comment threads we've
+                                // seen and use a comment thread number that's one more than that.
+                                if (number === undefined) {
+                                    const threads =
+                                        await storage.documentCommentThreadNumberById.list({
+                                            prefix: `${options.documentId}-`,
+                                        });
+
+                                    number = threads.size + 1;
+
+                                    await storage.documentCommentThreadNumberById.put(id, number);
+                                    await storage.documentCommentThreadIdByNumber.put(
+                                        `${number}`,
+                                        id,
+                                    );
+                                }
+
+                                if (
+                                    state.lastDocumentCommentThreadNumber === null ||
+                                    state.lastDocumentCommentThreadNumber < number
+                                ) {
+                                    state.lastDocumentCommentThreadNumber = number;
+                                }
+
+                                return `${number}`;
+                            }),
+                        });
+                    }
+
+                    commentTagState = null;
                 }
 
                 if (tableTagState) {
@@ -368,6 +497,14 @@ async function traverseApiContentMarkdownHtmlNode(
                     };
                 }
 
+                if (commentTagState && attributeName === "id") {
+                    commentTagState.id = {
+                        isOpen: true,
+                        attributeEndIndex: endIndex,
+                        data: null,
+                    };
+                }
+
                 if (tableTagState) {
                     if (attributeName === "data-width") {
                         tableTagState.dataWidth = {
@@ -399,6 +536,7 @@ async function traverseApiContentMarkdownHtmlNode(
                 };
 
                 if (anchorTagState?.href?.isOpen) addAttributeData(anchorTagState.href);
+                if (commentTagState?.id?.isOpen) addAttributeData(commentTagState.id);
                 if (tableTagState?.dataWidth?.isOpen) addAttributeData(tableTagState.dataWidth);
                 if (tableTagState?.dataColumnWidths?.isOpen)
                     addAttributeData(tableTagState.dataColumnWidths);
@@ -427,6 +565,7 @@ async function traverseApiContentMarkdownHtmlNode(
                 };
 
                 if (anchorTagState?.href?.isOpen) addAttributeEntity(anchorTagState.href);
+                if (commentTagState?.id?.isOpen) addAttributeEntity(commentTagState.id);
                 if (tableTagState?.dataWidth?.isOpen) addAttributeEntity(tableTagState.dataWidth);
                 if (tableTagState?.dataColumnWidths?.isOpen)
                     addAttributeEntity(tableTagState.dataColumnWidths);
@@ -434,6 +573,10 @@ async function traverseApiContentMarkdownHtmlNode(
             onattribend: () => {
                 if (anchorTagState?.href?.isOpen) {
                     anchorTagState.href.isOpen = false;
+                }
+
+                if (commentTagState?.id?.isOpen) {
+                    commentTagState.id.isOpen = false;
                 }
 
                 if (tableTagState?.dataWidth?.isOpen) {

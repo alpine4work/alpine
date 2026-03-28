@@ -11,12 +11,22 @@ import {ApiContentResponse} from "~/shared/api/specification/types/api_specifica
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();
 const otherDocumentId = generateId<DocumentId>();
 const taskId = generateId<TaskId>();
+const threadId1 = generateId<DocumentCommentThreadId>();
+const threadId2 = generateId<DocumentCommentThreadId>();
+const threadId3 = generateId<DocumentCommentThreadId>();
+const threadId4 = generateId<DocumentCommentThreadId>();
+const threadId5 = generateId<DocumentCommentThreadId>();
 
 const exampleUrl = `https://example.com/${generateId()}/${generateId()}/${generateId()}`;
 const exampleTruncatedUrl = exampleUrl.slice(0, 40) + "…" + exampleUrl.slice(-10);
@@ -57,6 +67,8 @@ const storage: AgentWebSessionStorage = {
     pageKeyByLinkPath: createAgentWebSessionStorageCollection(),
     lastPageLinkPathByKey: createAgentWebSessionStorageCollection(),
     dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
+    documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
+    documentCommentThreadIdByNumber: createAgentWebSessionStorageCollection(),
     tableWidthByTruncatedWidth: createAgentWebSessionStorageCollection(),
     tableColumnWidthsByTruncatedColumnWidths: createAgentWebSessionStorageCollection(),
 };
@@ -986,6 +998,123 @@ Value
 </table>
 `,
     },
+    {
+        name: "comment transformation reuses comment thread number",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "alpha",
+                            marks: [{type: "Comment", threadId: threadId1}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "beta",
+                            marks: [{type: "Comment", threadId: threadId2}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "gamma",
+                            marks: [{type: "Comment", threadId: threadId1}],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<comment id="1">alpha</comment> <comment id="2">beta</comment> <comment id="1">gamma</comment>
+`,
+    },
+    {
+        name: "comment transformation increments comment numbers",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "one",
+                            marks: [{type: "Comment", threadId: threadId1}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "two",
+                            marks: [{type: "Comment", threadId: threadId2}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "three",
+                            marks: [{type: "Comment", threadId: threadId3}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "four",
+                            marks: [{type: "Comment", threadId: threadId4}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "five",
+                            marks: [{type: "Comment", threadId: threadId5}],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<comment id="1">one</comment> <comment id="2">two</comment> <comment id="3">three</comment> <comment id="4">four</comment> <comment id="5">five</comment>
+`,
+    },
+    {
+        name: "comment transformation in code blocks",
+        content: {
+            elements: [
+                {
+                    type: "Code",
+                    language: "html",
+                    lines: [
+                        {
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "alpha",
+                                    marks: [{type: "Comment", threadId: threadId1}],
+                                },
+                                {type: "Text", text: " "},
+                                {
+                                    type: "Text",
+                                    text: "beta",
+                                    marks: [{type: "Comment", threadId: threadId2}],
+                                },
+                                {type: "Text", text: " "},
+                                {
+                                    type: "Text",
+                                    text: "gamma",
+                                    marks: [{type: "Comment", threadId: threadId1}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<pre>
+<code class="language-html">
+<comment id="1">alpha</comment> <comment id="2">beta</comment> <comment id="1">gamma</comment>
+</code>
+</pre>
+`,
+    },
 ];
 
 for (const {name, content: expectedContent, markdown: expectedMarkdown} of testCases) {
@@ -995,7 +1124,7 @@ for (const {name, content: expectedContent, markdown: expectedMarkdown} of testC
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
                 expectedContent,
-                {spaceId},
+                {spaceId, documentId},
             );
 
             expect(actualMarkdown).toEqual(expectedMarkdown);

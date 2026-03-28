@@ -69,7 +69,8 @@ export type ApiContentMarkdownPrinterOptions = {
     readonly spaceId: SpaceId;
 
     /**
-     * If `true` then we convert comment marks to simple `<comment>` tags.
+     * If `true` then we convert comment marks to `<comment>` tags. Which isn't valid
+     * HTML but we feel will be easier for an agent to understand.
      *
      * ```html
      * <mark data-comment="1234567890">commented text</mark>
@@ -78,10 +79,10 @@ export type ApiContentMarkdownPrinterOptions = {
      * becomes
      *
      * ```html
-     * <comment>commented text</comment>
+     * <comment id="1234567890">commented text</comment>
      * ```
      */
-    readonly withSimpleCommentMarkHtml?: boolean;
+    readonly withCommentTagHtml?: boolean;
 };
 
 export {actuallyPrintApiContentToMarkdown as printApiContentToMarkdown};
@@ -570,7 +571,7 @@ function printApiContentCodeBlockElementToMarkdown(
                         html += "</mark>";
                         break;
                     case "Comment": {
-                        html += options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
+                        html += options.withCommentTagHtml ? "</comment>" : "</mark>";
                         break;
                     }
                     default:
@@ -604,9 +605,17 @@ function printApiContentCodeBlockElementToMarkdown(
                         break;
                     }
                     case "Comment": {
+<<<<<<< HEAD
                         html += options.withSimpleCommentMarkHtml
                             ? "<comment>"
                             : `<mark data-comment="${mark.threadId}">`;
+=======
+                        html += options.withCommentTagHtml
+                            ? // eslint-disable-next-line cyberworlds/string-quotes
+                              `<comment id="${mark.threadId}">`
+                            : // eslint-disable-next-line cyberworlds/string-quotes
+                              `<mark data-comment="${mark.threadId}">`;
+>>>>>>> 6deb03513 (Add comment mark printing)
                         break;
                     }
                     default:
@@ -639,7 +648,7 @@ function printApiContentCodeBlockElementToMarkdown(
                     html += "</mark>";
                     break;
                 case "Comment":
-                    html += options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
+                    html += options.withCommentTagHtml ? "</comment>" : "</mark>";
                     break;
                 default:
                     throw exhaustive(mark);
@@ -1523,10 +1532,10 @@ function* printApiContentInlineElementMarkToMarkdown(
             break;
         }
         case "Comment": {
-            const openHtml = options.withSimpleCommentMarkHtml
-                ? "<comment>"
+            const openHtml = options.withCommentTagHtml
+                ? `<comment id="${mark.threadId}">`
                 : `<mark data-comment="${mark.threadId}">`;
-            const closeHtml = options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
+            const closeHtml = options.withCommentTagHtml ? "</comment>" : "</mark>";
 
             yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
             yield* content;
