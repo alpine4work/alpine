@@ -12,6 +12,7 @@ import {
 } from "~/server/search/data/index/search_entity_index.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {getSpace} from "~/server/spaces/get_space.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -43,25 +44,25 @@ export const apiSpacesPaths: Pick<
         },
     },
 
-    "/accounts/{id}/mention": {
+    "/accounts/{id}/reference": {
         get: async (context, {pathParameters}) => {
             // We load the account data using the `SpaceId` the bot is instantiated in. So if
             // an account was removed from the space then our bot will see old data.
-            const account = await getAccountWithoutAvatar(
-                context,
-                context.actor.getSpaceId(),
-                pathParameters.id,
-                {consistency: "StrongWithinCache"},
-            );
+            const spaceId = context.actor.getSpaceId();
+
+            const account = await getAccountWithoutAvatar(context, spaceId, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
 
             return {
                 content: {
-                    mention: {
-                        target: {
-                            type: "Account",
-                            id: pathParameters.id,
-                        },
+                    spaceId,
+                    reference: {
+                        type: "Account",
+                        id: pathParameters.id,
                         title: account.name,
+                        shortName: getAccountShortNameWithoutFullNameTooltip(account),
+                        botId: account.botId ?? undefined,
                     },
                 },
             };

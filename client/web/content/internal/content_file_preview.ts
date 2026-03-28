@@ -45,7 +45,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {
@@ -693,7 +693,7 @@ function renderContentFileImagePreviewInner(
                 letterboxImageHtml.setAttribute(
                     "style",
                     // eslint-disable-next-line cyberworlds/string-quotes
-                    `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${layout.height} H 0 Z M ${layout.width - Math.ceil(barWidth)} 0 H ${layout.width} V ${layout.height} H ${layout.width - Math.ceil(barWidth)} Z')`,
+                    `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${layout.height.toFixed(3)} H 0 Z M ${(layout.width - Math.ceil(barWidth)).toFixed(3)} 0 H ${layout.width.toFixed(3)} V ${layout.height.toFixed(3)} H ${(layout.width - Math.ceil(barWidth)).toFixed(3)} Z')`,
                 );
             } else {
                 const barHeight = (layout.height - containedFileHeight) / 2;
@@ -701,7 +701,7 @@ function renderContentFileImagePreviewInner(
                 letterboxImageHtml.setAttribute(
                     "style",
                     // eslint-disable-next-line cyberworlds/string-quotes
-                    `clip-path: path('M 0 0 H ${layout.width} V ${Math.ceil(barHeight)} H 0 Z M 0 ${layout.height - Math.ceil(barHeight)} H ${layout.width} V ${layout.height} H 0 Z')`,
+                    `clip-path: path('M 0 0 H ${layout.width.toFixed(3)} V ${Math.ceil(barHeight)} H 0 Z M 0 ${(layout.height - Math.ceil(barHeight)).toFixed(3)} H ${layout.width.toFixed(3)} V ${layout.height.toFixed(3)} H 0 Z')`,
                 );
             }
         }
@@ -849,7 +849,7 @@ function renderContentFileCodePreview(
     // instead of the unscaled element height. To reproduce the bug which caused us to
     // add this: Scale down a code preview by adding another file to its file row. Then
     // add a comment to the code preview.
-    html.setAttribute("style", `height: ${layout.height}px`);
+    html.setAttribute("style", `height: ${layout.height.toFixed(3)}px`);
 
     appendImageHtmlForSelection(html, platform);
 
@@ -887,9 +887,9 @@ function renderContentFileCodePreview(
 
     containerHtml.setAttribute(
         "style",
-        `width: ${blockWidth / initialScale}px; height: ${round6(
-            layout.height / scale,
-        )}px; transform-origin: top left; transform: scale(${round6(scale)})`,
+        `width: ${blockWidth / initialScale}px; height: ${(layout.height / scale).toFixed(
+            3,
+        )}px; transform-origin: top left; transform: scale(${scale.toFixed(6)})`,
     );
 
     const preHtml = new HtmlElementGenerator("pre");
@@ -943,12 +943,6 @@ function renderContentFileCodePreview(
                 throw exhaustive(contentItem);
         }
     }
-}
-
-// Round numbers to 3 decimal places so we sending less data over the network in
-// our generated HTML.
-function round6(n: number) {
-    return Math.round(n * 10 ** 6) / 10 ** 6;
 }
 
 /**
@@ -1084,8 +1078,8 @@ export function renderFileImagePreviewPlaceholder(
     const rectWidth = rectWidthBase + -translateX * 2;
     const rectHeight = rectHeightBase + -translateY * 2;
 
-    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round6(
-        blurStdDeviation,
+    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${blurStdDeviation.toFixed(
+        6,
     )}" color-interpolation-filters="sRGB" /></filter><g filter="url(#blur)">`;
 
     for (let y = 0; y < pixelGrid.length; y++) {
@@ -1101,12 +1095,12 @@ export function renderFileImagePreviewPlaceholder(
 
             svg +=
                 `<rect ` +
-                `x="${round6(x * rectWidthBase + translateX)}" ` +
-                `y="${round6(y * rectHeightBase + translateY)}" ` +
+                `x="${(x * rectWidthBase + translateX).toFixed(6)}" ` +
+                `y="${(y * rectHeightBase + translateY).toFixed(6)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get any
                 // gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${round6(rectWidth)}" ` +
-                `height="${round6(rectHeight)}" ` +
+                `width="${rectWidth.toFixed(6)}" ` +
+                `height="${rectHeight.toFixed(6)}" ` +
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;
@@ -1232,8 +1226,8 @@ function renderFileProcessingPreviewPlaceholder(
     const scaleX = (pixelGridWidth + -translateX * 2) / pixelGridWidth;
     const scaleY = (pixelGridHeight + -translateY * 2) / pixelGridHeight;
 
-    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round6(
-        blurStdDeviation,
+    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${blurStdDeviation.toFixed(
+        6,
     )}" color-interpolation-filters="sRGB" /></filter><g filter="url(#blur)">`;
 
     for (let y = 0; y < pixelGrid.length; y++) {
@@ -1244,12 +1238,12 @@ function renderFileProcessingPreviewPlaceholder(
 
             svg +=
                 `<rect ` +
-                `x="${round6(x * scaleX + translateX)}" ` +
-                `y="${round6(y * scaleY + translateY)}" ` +
+                `x="${(x * scaleX + translateX).toFixed(6)}" ` +
+                `y="${(y * scaleY + translateY).toFixed(6)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get any
                 // gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${round6(scaleX)}" ` +
-                `height="${round6(scaleY)}" ` +
+                `width="${scaleX.toFixed(6)}" ` +
+                `height="${scaleY.toFixed(6)}" ` +
                 `style="fill: ${colorSchemeVars[pixel]}" />`;
         }
     }

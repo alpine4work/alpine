@@ -106,7 +106,11 @@ export async function createNotionImportTeamspaceRootDocument(
                 text: `This teamspace was imported from the ${workspaceName} workspace in Notion by `,
                 marks: [{type: "Italic"}],
             },
-            {type: "Mention", target: {type: "Account", id: creatorId}, marks: [{type: "Italic"}]},
+            {
+                type: "Mention",
+                reference: {type: "Account", id: creatorId},
+                marks: [{type: "Italic"}],
+            },
             {type: "Text", text: ` on ${dateStr}.`, marks: [{type: "Italic"}]},
         ],
     });
@@ -128,7 +132,7 @@ export async function createNotionImportTeamspaceRootDocument(
                     elements: [
                         {
                             type: "Mention" as const,
-                            target: {type: "Document" as const, id: document.id},
+                            reference: {type: "Document" as const, id: document.id},
                         },
                     ],
                 },

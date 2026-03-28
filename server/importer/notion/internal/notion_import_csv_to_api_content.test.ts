@@ -158,7 +158,9 @@ Task 2,Pending`;
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: "doc1"}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: "doc1"}},
+                            ],
                         },
                     ],
                 },
@@ -171,7 +173,9 @@ Task 2,Pending`;
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: "doc2"}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: "doc2"}},
+                            ],
                         },
                     ],
                 },
@@ -205,7 +209,9 @@ Task 1,Done`;
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: "doc1"}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: "doc1"}},
+                            ],
                         },
                     ],
                 },

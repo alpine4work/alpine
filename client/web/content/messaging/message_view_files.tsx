@@ -38,7 +38,7 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -161,11 +161,11 @@ export function MessageViewFiles({
                     fileRowHtml.setAttribute(
                         "style",
                         [
-                            `height: ${Math.max(...fileLayouts.map(({height}) => height))}px`,
+                            `height: ${Math.max(...fileLayouts.map(({height}) => height)).toFixed(3)}px`,
                             "display: grid",
                             "grid-template-rows: 1fr",
                             `grid-template-columns: ${fileLayouts
-                                .map(({widthFr}) => `${widthFr}fr`)
+                                .map(({widthFr}) => `${widthFr.toFixed(6)}fr`)
                                 .join(" ")}`,
                             // Left align message files instead of center aligning message files. This matches
                             // the more conversational format of messages as opposed to the carefully edited

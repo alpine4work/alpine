@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";

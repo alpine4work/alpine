@@ -2,7 +2,7 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {getTaskNotesContentWithCustomReferences} from "~/server/tasks/data/get_task_notes_content_with_custom_references.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 

@@ -7,7 +7,12 @@ import {
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {
+    ChannelId,
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+} from "~/shared/id/types/id_types.js";
 
 // Inline HTML elements tests
 test("inline HTML <strong> tag", () => {
@@ -846,8 +851,6 @@ test("HTML table with invalid data attributes", () => {
             {
                 type: "Table",
                 width: 1,
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 columns: [{width: 1}, {width: 1}],
                 rows: [
                     {
@@ -857,7 +860,7 @@ test("HTML table with invalid data attributes", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Cell"}]},
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -887,7 +890,7 @@ test("HTML table with empty cells", () => {
                 rows: [
                     {
                         cells: [
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                             {
                                 elements: [
                                     {
@@ -896,7 +899,7 @@ test("HTML table with empty cells", () => {
                                     },
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -943,7 +946,6 @@ test("HTML table with irregular rows", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "B"}]},
                                 ],
                             },
-                            {elements: []},
                         ],
                     },
                     {
@@ -953,8 +955,7 @@ test("HTML table with irregular rows", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "C"}]},
                                 ],
                             },
-                            {elements: []},
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                     {
@@ -1091,8 +1092,6 @@ Regular text
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -1104,7 +1103,6 @@ Regular text
                                             {
                                                 type: "Text",
                                                 text: " # Heading in cell Regular text ",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1118,7 +1116,6 @@ Regular text
                                             {
                                                 type: "Text",
                                                 text: "## Another heading",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1157,8 +1154,6 @@ After divider
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -1170,7 +1165,6 @@ After divider
                                             {
                                                 type: "Text",
                                                 text: "Before divider",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1180,9 +1174,7 @@ After divider
                                     },
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "After divider", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "After divider"}],
                                     },
                                 ],
                             },
@@ -1194,7 +1186,6 @@ After divider
                                             {
                                                 type: "Text",
                                                 text: "Regular content",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1236,8 +1227,6 @@ More content
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -1255,9 +1244,7 @@ More content
                                     },
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "Some content", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "Some content"}],
                                     },
                                     {
                                         type: "Paragraph",
@@ -1275,13 +1262,11 @@ More content
                                     },
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "More content", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "More content"}],
                                     },
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -1317,7 +1302,7 @@ test("empty blockquote creates empty Quote element", () => {
         elements: [
             {
                 type: "Quote",
-                elements: [],
+                elements: [{type: "Paragraph", elements: []}],
             },
         ],
     });
@@ -1581,7 +1566,7 @@ test("mention with short name format", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Account", id: accountId},
+                        reference: {type: "Account", id: accountId},
                         isAccountShortName: true,
                     },
                 ],
@@ -1601,7 +1586,7 @@ test("channel mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Channel", id: channelId},
+                        reference: {type: "Channel", id: channelId},
                     },
                 ],
             },
@@ -1620,7 +1605,7 @@ test("document mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                     },
                 ],
             },
@@ -1637,7 +1622,7 @@ test("document mention with autolink syntax", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                     },
                 ],
             },
@@ -1655,7 +1640,7 @@ test("parses mention from alpine.inc", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                     },
                 ],
             },
@@ -1709,7 +1694,7 @@ test("post mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Post", id: postId},
+                        reference: {type: "Post", id: postId},
                     },
                 ],
             },
@@ -1728,7 +1713,7 @@ test("task mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Task", id: taskId},
+                        reference: {type: "Task", id: taskId},
                     },
                 ],
             },
@@ -1749,7 +1734,7 @@ test("task collection mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "TaskCollection", id: collectionId},
+                        reference: {type: "TaskCollection", id: collectionId},
                     },
                 ],
             },
@@ -1804,7 +1789,7 @@ test("link with invalid mention ID", () => {
 });
 
 // GFM table with span attributes
-test("GFM table with span data-width", () => {
+test("GFM table with span data-width isn't supported anymore", () => {
     expect(
         parseApiContentFromMarkdown(
             `| Col 1 | Col 2 |
@@ -1815,7 +1800,7 @@ test("GFM table with span data-width", () => {
         elements: [
             {
                 type: "Table",
-                width: 2.5,
+                width: 1,
                 columns: [{width: 1}, {width: 1}],
                 hasHeaderRow: true,
                 rows: [
@@ -1853,7 +1838,7 @@ test("GFM table with span data-width", () => {
     });
 });
 
-test("GFM table with span data-column-widths", () => {
+test("GFM table with span data-column-widths isn't supported anymore", () => {
     expect(
         parseApiContentFromMarkdown(
             `| A | B | C |
@@ -1865,7 +1850,7 @@ test("GFM table with span data-column-widths", () => {
             {
                 type: "Table",
                 width: 1,
-                columns: [{width: 2}, {width: 1}, {width: 3}],
+                columns: [{width: 1}, {width: 1}, {width: 1}],
                 hasHeaderRow: true,
                 rows: [
                     {
@@ -2432,9 +2417,14 @@ test("completely empty HTML table", () => {
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
-                rows: [],
+                rows: [
+                    {
+                        cells: [
+                            {elements: [{type: "Paragraph", elements: []}]},
+                            {elements: [{type: "Paragraph", elements: []}]},
+                        ],
+                    },
+                ],
             },
         ],
     });
@@ -2453,9 +2443,14 @@ test("HTML table with empty row", () => {
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
-                rows: [{cells: [{elements: []}, {elements: []}]}],
+                rows: [
+                    {
+                        cells: [
+                            {elements: [{type: "Paragraph", elements: []}]},
+                            {elements: [{type: "Paragraph", elements: []}]},
+                        ],
+                    },
+                ],
             },
         ],
     });
@@ -2648,8 +2643,6 @@ test("whitespace between table cells is ignored", () => {
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -2657,9 +2650,7 @@ test("whitespace between table cells is ignored", () => {
                                 elements: [
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "Cell 1", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "Cell 1"}],
                                     },
                                     {
                                         type: "Code",
@@ -2670,7 +2661,6 @@ test("whitespace between table cells is ignored", () => {
                                                     {
                                                         type: "Text",
                                                         text: "<td>Cell 2</td>",
-                                                        marks: undefined,
                                                     },
                                                 ],
                                             },
@@ -2678,7 +2668,7 @@ test("whitespace between table cells is ignored", () => {
                                     },
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -3620,7 +3610,7 @@ describe("inline HTML media elements", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Here is a video: "}],
+                    elements: [{type: "Text", text: "Here is a video:"}],
                 },
                 {type: "File", id: fileId},
             ],
@@ -3635,7 +3625,7 @@ describe("inline HTML media elements", () => {
                 {type: "File", id: fileId},
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: " and some text"}],
+                    elements: [{type: "Text", text: "and some text"}],
                 },
             ],
         });
@@ -3933,7 +3923,7 @@ test("link to document preview URL parses as Preview", () => {
         elements: [
             {
                 type: "Preview",
-                target: {type: "Document", id: documentId},
+                reference: {type: "Document", id: documentId},
             },
         ],
     });
@@ -3941,13 +3931,60 @@ test("link to document preview URL parses as Preview", () => {
 
 test("link to channel preview URL parses as Preview", () => {
     const channelId = generateId<ChannelId>();
+
     expect(
         parseApiContentFromMarkdown(`[General](https://alpine.inc/channel/${channelId}/preview)`),
     ).toEqual({
         elements: [
             {
                 type: "Preview",
-                target: {type: "Channel", id: channelId},
+                reference: {type: "Channel", id: channelId},
+            },
+        ],
+    });
+});
+
+test("link to channel preview URL with comment mark parses as Preview", () => {
+    const channelId = generateId<ChannelId>();
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    expect(
+        parseApiContentFromMarkdown(
+            `<mark data-comment="${threadId}">[General](https://alpine.inc/channel/${channelId}/preview)</mark>`,
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                reference: {type: "Channel", id: channelId},
+                marks: [{type: "Comment", thread: {id: threadId}}],
+            },
+        ],
+    });
+});
+
+test("link to channel preview URL with comment marks parses as Preview", () => {
+    const channelId = generateId<ChannelId>();
+
+    const [threadId1, threadId2] = (() => {
+        const threadAId = generateId<DocumentCommentThreadId>();
+        const threadBId = generateId<DocumentCommentThreadId>();
+        return threadAId < threadBId ? [threadAId, threadBId] : [threadBId, threadAId];
+    })();
+
+    expect(
+        parseApiContentFromMarkdown(
+            `<mark data-comment="${threadId1}"><mark data-comment="${threadId2}">[General](https://alpine.inc/channel/${channelId}/preview)</mark></mark>`,
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                reference: {type: "Channel", id: channelId},
+                marks: [
+                    {type: "Comment", thread: {id: threadId1}},
+                    {type: "Comment", thread: {id: threadId2}},
+                ],
             },
         ],
     });
@@ -3963,7 +4000,7 @@ test("HTML <a> tag inside <div> with preview URL parses as Preview", () => {
         elements: [
             {
                 type: "Preview",
-                target: {type: "Document", id: documentId},
+                reference: {type: "Document", id: documentId},
             },
         ],
     });
@@ -3991,7 +4028,7 @@ test("Preview throws when used in quote blocks", () => {
         Array.from(
             intoApiContentParagraphBlockElement({
                 type: "Preview",
-                target: {type: "Document", id: generateId<DocumentId>()},
+                reference: {type: "Document", id: generateId<DocumentId>()},
             }),
         ),
     ).toThrow("Previews aren\u2019t supported in quote blocks");

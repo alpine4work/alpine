@@ -34,6 +34,9 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
     /** The time at which the thread was created. */
     createdTime: Schema.date,
 
+    /** The time zone the thread was created in. */
+    createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
+
     /**
      * When all instances of a comment thread's mark are removed from a document we
      * save a content snippet to the comment thread object so we know what the comment

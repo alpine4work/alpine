@@ -89,26 +89,9 @@ export async function exportDocumentContent({
             return entityData.task.displayStatus.value;
         },
         getFileIfExists: fileId => {
-            const fileRef = content.references.fileById?.get(fileId);
-            if (!fileRef) return undefined;
-
-            const file = getFileRegistry(spaceId).getFileStore(fileRef).getSnapshot();
-            const preview = file.preview;
-
-            const size =
-                preview !== null &&
-                preview.type === "Image" &&
-                preview.size !== "Error" &&
-                preview.size !== "Processing" &&
-                preview.size !== undefined
-                    ? preview.size
-                    : undefined;
-
-            return {
-                contentType: file.contentType,
-                contentLength: file.contentLength,
-                size,
-            };
+            const fileReference = content.references.fileById?.get(fileId);
+            if (!fileReference) return undefined;
+            return getFileRegistry(spaceId).getFileStore(fileReference).getSnapshot();
         },
     });
 

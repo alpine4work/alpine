@@ -6,9 +6,9 @@ import {
     ApiContentPreviewBlockElementResponse,
     ApiMessageContentPayloadFileResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {FileEntityId, isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -25,10 +25,7 @@ export async function resolveFilesForApiResponse(
 ): Promise<Array<ApiMessageContentPayloadFileResponse>> {
     const results: Array<{
         element: ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse;
-        file?: {
-            contentType: FileContentType;
-            size?: {width: number | null; height: number; scale?: number} | null;
-        };
+        file?: FileModelData;
     }> = [];
 
     for (const fileId of fileIds) {
@@ -55,11 +52,13 @@ export async function resolveFilesForApiResponse(
                 contentLength: fileItem.contentLength,
             },
             file: {
+                id: fileItem.fileId,
+                spaceId: fileItem.spaceId,
                 contentType: fileItem.contentType,
-                size:
-                    fileItem.preview?.type === "Image" && typeof fileItem.preview.size === "object"
-                        ? fileItem.preview.size
-                        : null,
+                contentLength: fileItem.contentLength,
+                isUploading: fileItem.isUploading,
+                alternative: fileItem.alternative,
+                preview: fileItem.preview,
             },
         });
     }
@@ -109,6 +108,7 @@ function resolveFileEntityIdToPreview(
             return {
                 type: "Preview",
                 target: {type: "Document", id: entityIdObject.documentId},
+                // NOCOMMIT: What the hell??
                 title: "Document",
             };
         case "Channel":

@@ -95,11 +95,14 @@ export class DurableObjectStorageCollection<Key extends string, Value> {
 
     public async list(
         storage: DurableObjectStorageInterface,
-        options: Omit<DurableObjectListOptions, "prefix" | "allowConcurrency"> = {},
+        options: Omit<DurableObjectListOptions, "allowConcurrency"> = {},
     ): Promise<Map<Key, Value>> {
         const actualMap = await storage.list<Value>({
             ...options,
-            prefix: `${this.prefix}_`,
+            prefix:
+                typeof options.prefix !== "string"
+                    ? `${this.prefix}_`
+                    : `${this.prefix}_${options.prefix}`,
             allowConcurrency: true,
         });
 

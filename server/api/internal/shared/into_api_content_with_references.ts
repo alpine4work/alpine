@@ -10,13 +10,13 @@ import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {
     ApiContentMarkdownIntoOptionsWithoutKeys,
-    ApiContentResponseWithoutKeys,
     intoApiContent,
 } from "~/shared/api/content/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
@@ -274,6 +274,7 @@ export async function intoApiContentWithReferencesAndReturnReferences<
                 return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
             }
 
+            // NOCOMMIT: Add author name to post title?
             return prepareApiMentionTitle(
                 entityId,
                 entityResult.entity.initialData,
@@ -291,22 +292,7 @@ export async function intoApiContentWithReferencesAndReturnReferences<
         getFileIfExists: fileId => {
             const fileRef = fileById.get(fileId);
             if (!fileRef) return undefined;
-
-            const preview = fileRef.file.initialData.preview;
-            const size =
-                preview !== null &&
-                preview.type === "Image" &&
-                preview.size !== "Error" &&
-                preview.size !== "Processing" &&
-                preview.size !== undefined
-                    ? preview.size
-                    : undefined;
-
-            return {
-                contentType: fileRef.file.initialData.contentType,
-                contentLength: fileRef.file.initialData.contentLength,
-                size,
-            };
+            return fileRef.file.initialData;
         },
     };
 

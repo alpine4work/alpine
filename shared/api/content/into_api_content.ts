@@ -1,27 +1,36 @@
 import {Mark, Node} from "prosemirror-model";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/markdown/get_api_mention_reference_noun.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {
+    ApiContentBlockElementResponseWithOptionalKeys,
+    ApiContentCheckListBlockElementItemResponseWithOptionalKeys,
+    ApiContentFileBlockElementResponseWithOptionalKeys,
+    ApiContentListBlockElementItemResponseWithOptionalKeys,
+    ApiContentListBlockElementResponseWithOptionalKeys,
+    ApiContentParagraphBlockElementResponseWithOptionalKeys,
+    ApiContentPreviewBlockElementResponseWithOptionalKeys,
+    ApiContentResponseWithOptionalKeys,
+    ApiContentResponseWithoutKeys,
+    ApiContentTableBlockElementCellResponseWithOptionalKeys,
+    ApiContentTableBlockElementRowResponseWithOptionalKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
-    ApiContentFileBlockElementResponse,
-    ApiContentInlineElementHighlightMarkColor,
+    ApiContentCommentMark,
+    ApiContentHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
-    ApiContentListBlockElementResponse,
-    ApiContentParagraphBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
-    ApiContentTableBlockElementCellResponse,
-    ApiContentTableBlockElementRowResponse,
-    ApiMentionTargetResponse,
+    ApiMentionReferenceResponse,
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
-    ApiPreviewTargetResponse,
+    ApiPreviewReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -33,18 +42,14 @@ import {
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
-import {
-    FileEntityIdObject,
-    isFileEntityId,
-    parseFileEntityId,
-} from "~/shared/files/file_entity_id.js";
+import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileModelData} from "~/shared/files/file_model.js";
+import {FilePreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
@@ -65,13 +70,7 @@ export type ApiContentMarkdownIntoOptions = {
     readonly getSearchTaskEntityDisplayStatusIfExists: (
         taskId: TaskId,
     ) => TaskDisplayStatus | undefined;
-    readonly getFileIfExists: (fileId: FileId) =>
-        | {
-              contentType: FileContentType;
-              contentLength: number;
-              size?: {width: number | null; height: number};
-          }
-        | undefined;
+    readonly getFileIfExists: (fileId: FileId) => FileModelData | undefined;
     readonly encoder: ApiContentKeyEncoder;
     readonly posOffset?: number;
 };
@@ -84,91 +83,14 @@ export type ApiContentMarkdownIntoOptionsWithoutKeys = Replace<
     }
 >;
 
-type ApiContentMarkdownIntoOptionsForConversion =
-    | ApiContentMarkdownIntoOptions
-    | ApiContentMarkdownIntoOptionsWithoutKeys;
-
-type ApiContentMarkdownIntoContext = {
-    readonly rootNode: Node;
-    readonly posOffset: number;
-    readonly encoder: ApiContentKeyEncoder | undefined;
-};
-
-// `ApiContentResponse` includes resolved response-only fields such as mention
-// titles, task display status, file metadata, and content keys on addressable text
-// containers. API callers use those keys to create document comment target ranges
-// with `{key, index}`.
-//
-// Those keys are not just opaque ids. They encode the source entity/version and
-// the ProseMirror position of the block or code line. They are only meaningful
-// when we are returning content for a known API entity at a known version, such as
-// `GET /documents/{id}`, `PATCH /documents/{id}`, `GET /tasks/{id}`, or a document
-// comment snippet. Those callers pass an `encoder` and use the generated
-// `ApiContentResponse`.
-//
-// API content is also a general conversion/printing intermediate for flows that
-// never send positions back to the API. Current no-key flows include:
-//
-// - `client/web/documents/internal/export_document_content.ts`, which converts a
-//   local document to API content only so it can print Markdown/HTML export.
-// - Notion import conversion code, which uses API content as an intermediate
-//   representation while converting imported Markdown/CSV data into ProseMirror
-//   documents.
-// - `server/agents/internal/print_api_content_to_agent_markdown.ts` and its
-//   frontmatter wrapper, which need response-shaped mentions to produce agent
-//   links but never read content keys.
-// - Agent Markdown and shared converter tests, which build literal response
-//   content fixtures with no backing API entity/version.
-//
-// For those flows, requiring keys would force them to invent fake entity/version
-// provenance. That would make the type checker happy while implying the content
-// can be used for stable position mapping, which it cannot.
-//
-// This helper is the type-level mirror of the no-entity-context overload: keep the
-// response shape and recursively remove content keys. If a caller needs comment
-// ranges or any other stable position mapping, it should pass an `encoder` instead
-// of using this keyless shape. The conditional type preserves primitives, walks
-// arrays and objects, and strips `key` wherever the generated response type
-// declares one.
-type ApiContentWithoutKeys<Value> = Value extends JsonScalarValue | undefined
-    ? Value
-    : Value extends ReadonlyArray<infer Item>
-      ? ReadonlyArray<ApiContentWithoutKeys<Item>>
-      : Value extends {readonly key?: string}
-        ? Omit<{readonly [Key in keyof Value]: ApiContentWithoutKeys<Value[Key]>}, "key">
-        : Value extends object
-          ? {readonly [Key in keyof Value]: ApiContentWithoutKeys<Value[Key]>}
-          : Value;
-
-export type ApiContentResponseWithoutKeys = ApiContentWithoutKeys<ApiContentResponse>;
-
-type ApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
-    ? Value
-    : Value extends ReadonlyArray<infer Item>
-      ? ReadonlyArray<ApiContentWithOptionalKeys<Item>>
-      : Value extends {readonly key: infer Key}
-        ? Omit<{readonly [K in keyof Value]: ApiContentWithOptionalKeys<Value[K]>}, "key"> & {
-              readonly key?: Key;
-          }
-        : Value extends object
-          ? {readonly [K in keyof Value]: ApiContentWithOptionalKeys<Value[K]>}
-          : Value;
-
-type ApiContentResponseWithOptionalKeys = ApiContentWithOptionalKeys<ApiContentResponse>;
-type ApiContentBlockElementResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentBlockElementResponse>;
-type ApiContentParagraphBlockElementResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentParagraphBlockElementResponse>;
-type ApiContentListBlockElementResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentListBlockElementResponse>;
-type ApiContentListBlockElementItemResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentListBlockElementItemResponse>;
-type ApiContentCheckListBlockElementItemResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentCheckListBlockElementItemResponse>;
-type ApiContentTableBlockElementCellResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentTableBlockElementCellResponse>;
-type ApiContentTableBlockElementRowResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;
+type ApiContentMarkdownIntoContext = Replace<
+    ApiContentMarkdownIntoOptions,
+    {
+        readonly rootNode: Node;
+        readonly posOffset: number;
+        readonly encoder: ApiContentKeyEncoder | undefined;
+    }
+>;
 
 /**
  * Converts content with required entity context and guarantees content keys on
@@ -188,21 +110,21 @@ export function intoApiContent(
 ): ApiContentResponseWithoutKeys;
 export function intoApiContent(
     node: Node,
-    options: ApiContentMarkdownIntoOptionsForConversion,
+    options: ApiContentMarkdownIntoOptions | ApiContentMarkdownIntoOptionsWithoutKeys,
 ): ApiContentResponseWithoutKeys | ApiContentResponse {
     assert(node.type.name === "doc");
     const posOffset = options.posOffset ?? 0;
     assert(posOffset >= 0);
+
     const context: ApiContentMarkdownIntoContext = {
+        ...options,
         rootNode: node,
         posOffset,
         encoder: options.encoder,
     };
 
     const apiContent: ApiContentResponseWithOptionalKeys = {
-        elements: Array.from(
-            intoApiContentBlockElements(node.content.content, options, context, posOffset),
-        ),
+        elements: Array.from(intoApiContentBlockElements(context, node.content.content, posOffset)),
     };
 
     if (context.encoder !== undefined) {
@@ -246,9 +168,8 @@ type ApiContentListBlockElementPhantomWorkingItem = {
  * absolute positions for keyed text containers.
  */
 function* intoApiContentBlockElements(
-    nodes: ReadonlyArray<Node>,
-    options: ApiContentMarkdownIntoOptionsForConversion,
     context: ApiContentMarkdownIntoContext,
+    nodes: ReadonlyArray<Node>,
     startPos: number,
 ): IterableIterator<ApiContentBlockElementResponseWithOptionalKeys> {
     let nodeIndex = 0;
@@ -311,7 +232,7 @@ function* intoApiContentBlockElements(
                     });
                 }
 
-                yield* intoApiContentListBlockElements(items, options, context);
+                yield* intoApiContentListBlockElements(context, items);
                 break;
             }
             case "fileRow": {
@@ -320,8 +241,8 @@ function* intoApiContentBlockElements(
                     items: Array<{
                         width: number;
                         element:
-                            | ApiContentFileBlockElementResponse
-                            | ApiContentPreviewBlockElementResponse;
+                            | ApiContentFileBlockElementResponseWithOptionalKeys
+                            | ApiContentPreviewBlockElementResponseWithOptionalKeys;
                     }>;
                 }> = [];
 
@@ -333,14 +254,18 @@ function* intoApiContentBlockElements(
                     const fileRowNode = nodes[nodeIndex]!;
                     if (fileRowNode.type.name !== "fileRow") break;
                     nodeIndex++;
-                    nodePos += fileRowNode.nodeSize;
+                    nodePos++;
 
-                    const rowElements = fileRowNode.content.content.map(child =>
-                        intoApiContentFileOrPreviewElement(child, options),
-                    );
+                    const rowElements = fileRowNode.content.content.map(child => {
+                        const element = intoApiContentFileOrPreviewElement(context, child, nodePos);
+                        nodePos += child.nodeSize;
+                        return element;
+                    });
+
+                    nodePos++;
 
                     if (rowElements.length > 0) {
-                        const widths = computeApiContentFileRowWidths(rowElements, options);
+                        const widths = computeApiContentFileRowWidths(rowElements, context);
                         rows.push({
                             items: rowElements.map((element, i) => ({
                                 width: widths[i]!,
@@ -366,7 +291,7 @@ function* intoApiContentBlockElements(
                 break;
             }
             default:
-                yield intoApiContentBlockElement(typeName, node, currentNodePos, options, context);
+                yield intoApiContentBlockElement(context, typeName, node, currentNodePos);
                 break;
         }
     }
@@ -376,9 +301,8 @@ function* intoApiContentBlockElements(
  * Converts the normalized list item tree into API list block elements.
  */
 function* intoApiContentListBlockElements(
-    items: Array<ApiContentListBlockElementWorkingItem>,
-    options: ApiContentMarkdownIntoOptionsForConversion,
     context: ApiContentMarkdownIntoContext,
+    items: Array<ApiContentListBlockElementWorkingItem>,
 ): IterableIterator<ApiContentListBlockElementResponseWithOptionalKeys> {
     let lastElement:
         | {
@@ -404,12 +328,7 @@ function* intoApiContentListBlockElements(
         const elements: Array<ApiContentParagraphBlockElementResponseWithOptionalKeys> =
             item.node !== null
                 ? Array.from(
-                      intoApiContentBlockElements(
-                          item.node.content.content,
-                          options,
-                          context,
-                          item.pos + 1,
-                      ),
+                      intoApiContentBlockElements(context, item.node.content.content, item.pos + 1),
                       element => {
                           if (element.type !== "Paragraph") {
                               throw new InternalError(
@@ -436,7 +355,7 @@ function* intoApiContentListBlockElements(
 
         const nestedListElements =
             item.items.length > 0
-                ? Array.from(intoApiContentListBlockElements(item.items, options, context))
+                ? Array.from(intoApiContentListBlockElements(context, item.items))
                 : undefined;
 
         switch (typeName) {
@@ -444,7 +363,7 @@ function* intoApiContentListBlockElements(
             case "unorderedListItem": {
                 const elementItem: ApiContentListBlockElementItemResponseWithOptionalKeys = {
                     elements,
-                    nestedListElements,
+                    ...(nestedListElements !== undefined ? {nestedListElements} : {}),
                 };
 
                 if (lastElement?.type === "UnorderedList") {
@@ -462,7 +381,7 @@ function* intoApiContentListBlockElements(
             case "orderedListItem": {
                 const elementItem: ApiContentListBlockElementItemResponseWithOptionalKeys = {
                     elements,
-                    nestedListElements,
+                    ...(nestedListElements !== undefined ? {nestedListElements} : {}),
                 };
 
                 const itemOrderStart = item.node?.attrs.orderStart ?? undefined;
@@ -478,7 +397,7 @@ function* intoApiContentListBlockElements(
 
                     lastElement = {
                         type: "OrderedList",
-                        orderStart: itemOrderStart,
+                        ...(itemOrderStart !== undefined ? {orderStart: itemOrderStart} : {}),
                         items: [elementItem],
                     };
                 }
@@ -488,7 +407,7 @@ function* intoApiContentListBlockElements(
                 const elementItem: ApiContentCheckListBlockElementItemResponseWithOptionalKeys = {
                     checked: item.node?.attrs.checked ?? false,
                     elements,
-                    nestedListElements,
+                    ...(nestedListElements !== undefined ? {nestedListElements} : {}),
                 };
 
                 if (lastElement?.type === "CheckList") {
@@ -512,18 +431,17 @@ function* intoApiContentListBlockElements(
 }
 
 function intoApiContentBlockElement(
+    context: ApiContentMarkdownIntoContext,
     typeName: Exclude<
         ContentBlockNodeTypeName,
         "unorderedListItem" | "orderedListItem" | "checkListItem" | "fileRow"
     >,
     node: Node,
     nodePos: number,
-    options: ApiContentMarkdownIntoOptionsForConversion,
-    context: ApiContentMarkdownIntoContext,
 ): ApiContentBlockElementResponseWithOptionalKeys {
     switch (typeName) {
         case "paragraph": {
-            const elements = intoApiContentInlineElements(node.content.content, options);
+            const elements = intoApiContentInlineElements(context, node.content.content);
             const key = maybeEncodeApiContentKey(context, nodePos, node);
 
             return {
@@ -536,12 +454,7 @@ function intoApiContentBlockElement(
             return {
                 type: "Quote",
                 elements: Array.from(
-                    intoApiContentBlockElements(
-                        node.content.content,
-                        options,
-                        context,
-                        nodePos + 1,
-                    ),
+                    intoApiContentBlockElements(context, node.content.content, nodePos + 1),
                     element => {
                         switch (element.type) {
                             case "Paragraph":
@@ -571,18 +484,23 @@ function intoApiContentBlockElement(
             };
         }
         case "heading": {
-            const elements = intoApiContentInlineElements(node.content.content, options);
+            const elements = intoApiContentInlineElements(context, node.content.content);
             const key = maybeEncodeApiContentKey(context, nodePos, node);
 
             return {
                 type: "Heading",
-                level: clampHeadingLevel(node.attrs.level),
                 ...(key !== undefined ? {key} : {}),
+                level: clampHeadingLevel(node.attrs.level),
                 elements,
             };
         }
         case "divider": {
-            return {type: "Divider"};
+            const key = maybeEncodeApiContentKey(context, nodePos, node);
+
+            return {
+                type: "Divider",
+                ...(key !== undefined ? {key} : {}),
+            };
         }
         case "table": {
             let columnWidth = 2;
@@ -609,9 +527,8 @@ function intoApiContentBlockElement(
                                 return {
                                     elements: Array.from(
                                         intoApiContentBlockElements(
-                                            cellNode.content.content,
-                                            options,
                                             context,
+                                            cellNode.content.content,
                                             currentCellPos + 1,
                                         ),
                                         element => {
@@ -650,8 +567,8 @@ function intoApiContentBlockElement(
             return {
                 type: "Table",
                 width: node.attrs.tableWidth,
-                hasHeaderRow: node.attrs.hasHeaderRow === true ? true : undefined,
-                hasHeaderColumn: node.attrs.hasHeaderColumn === true ? true : undefined,
+                ...(node.attrs.hasHeaderRow === true ? {hasHeaderRow: true} : {}),
+                ...(node.attrs.hasHeaderColumn === true ? {hasHeaderColumn: true} : {}),
                 columns: createArrayWithLength(columnWidth, index => ({
                     width: node.attrs.columnWidths[index] ?? 1,
                 })),
@@ -674,23 +591,25 @@ function intoApiContentBlockElement(
                     const elements = lineNode.content.content.map(textNode => {
                         assert(textNode.type.name === "text");
 
+                        // Code block text can carry formatting marks, but nested Code marks are not
+                        // representable.
+                        const marks =
+                            textNode.marks.length > 0
+                                ? textNode.marks.map(mark => {
+                                      const apiMark = intoApiContentInlineElementMark(mark);
+                                      if (apiMark.type === "Code") {
+                                          throw new InternalError(
+                                              quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
+                                          );
+                                      }
+                                      return apiMark;
+                                  })
+                                : undefined;
+
                         return {
                             type: "Text" as const,
                             text: textNode.text!,
-                            // Code block text can carry formatting marks, but nested Code marks are not
-                            // representable.
-                            marks:
-                                textNode.marks.length > 0
-                                    ? textNode.marks.map(mark => {
-                                          const apiMark = intoApiContentInlineElementMark(mark);
-                                          if (apiMark.type === "Code") {
-                                              throw new InternalError(
-                                                  quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
-                                              );
-                                          }
-                                          return apiMark;
-                                      })
-                                    : undefined,
+                            ...(marks !== undefined ? {marks} : {}),
                         };
                     });
 
@@ -705,7 +624,8 @@ function intoApiContentBlockElement(
         }
         case "fileFloat": {
             const fileChild = assertExists(node.content.content[0]);
-            const element = intoApiContentFileOrPreviewElement(fileChild, options);
+            // NOCOMMIT: Test `findApiContentRanges()` with this
+            const element = intoApiContentFileOrPreviewElement(context, fileChild, nodePos + 1);
             const direction = node.attrs.direction;
             assert(typeof direction === "string");
             return {
@@ -716,7 +636,8 @@ function intoApiContentBlockElement(
         }
         case "fileRowTable": {
             const fileChild = assertExists(node.content.content[0]);
-            return intoApiContentFileOrPreviewElement(fileChild, options);
+            // NOCOMMIT: Test `findApiContentRanges()` with this
+            return intoApiContentFileOrPreviewElement(context, fileChild, nodePos + 1);
         }
         default:
             throw exhaustive(typeName);
@@ -733,6 +654,8 @@ function maybeEncodeApiContentKey(
     pos: number,
     node: Node,
 ): ApiContentKey | undefined {
+    // Dev + test only validation: make sure `pos` correctly points to `node` in
+    // `rootNode`. Defends against accidental blunders where we pass in the wrong pos.
     if (process.env.NODE_ENV !== "production") {
         // Stream content may encode an offset position, but the ProseMirror node still
         // lives at the local position inside this root node.
@@ -838,157 +761,236 @@ function assertApiContentCheckListBlockElementItemHasKeys(
 }
 
 function intoApiContentFileOrPreviewElement(
-    fileNode: Node,
-    options: ApiContentMarkdownIntoOptionsForConversion,
-): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
-    const fileId: string | null = fileNode.attrs.fileId;
+    context: ApiContentMarkdownIntoContext,
+    node: Node,
+    nodePos: number,
+):
+    | ApiContentFileBlockElementResponseWithOptionalKeys
+    | ApiContentPreviewBlockElementResponseWithOptionalKeys {
+    const key = maybeEncodeApiContentKey(context, nodePos, node);
+
+    const marks =
+        node.marks.length > 0
+            ? normalizeApiContentInlineElementMarks(
+                  node.marks.map((mark): ApiContentCommentMark => {
+                      assert(mark.type.name === "comment");
+
+                      return {
+                          type: "Comment",
+                          thread: {id: mark.attrs.commentThreadId},
+                      };
+                  }),
+              )
+            : undefined;
+
+    const fileId: string | null = node.attrs.fileId;
     if (fileId === null) {
         return {
             type: "File",
+            // NOCOMMIT: Test with unknown file id?
+            ...(key !== undefined ? {key} : {}),
             id: unknownFileId,
             contentType: "application/octet-stream",
             contentLength: 0,
+            ...(marks !== undefined ? {marks} : {}),
         };
     }
 
     if (isFileEntityId(fileId)) {
         const entityIdObject = parseFileEntityId(fileId);
 
-        const target = fileEntityIdObjectToPreviewTarget(entityIdObject, options);
-
         const title =
-            options.getSearchEntityMentionTitleIfExists(fileId) ??
-            `Unknown ${getApiMentionTargetNoun(entityIdObject.type)}`;
+            context.getSearchEntityMentionTitleIfExists(fileId) ??
+            `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
-        return {type: "Preview", target, title};
+        let reference: ApiPreviewReferenceResponse;
+
+        switch (entityIdObject.type) {
+            case "Channel": {
+                reference = {
+                    type: "Channel",
+                    id: entityIdObject.channelId,
+                    title,
+                };
+                break;
+            }
+            case "Chat": {
+                reference = {
+                    type: "Chat",
+                    id: entityIdObject.chatId,
+                    title,
+                };
+                break;
+            }
+            case "Document": {
+                reference = {
+                    type: "Document",
+                    id: entityIdObject.documentId,
+                    title,
+                };
+                break;
+            }
+            case "Post": {
+                reference = {
+                    type: "Post",
+                    id: entityIdObject.postId,
+                    title,
+                };
+                break;
+            }
+            case "Task": {
+                reference = {
+                    type: "Task",
+                    id: entityIdObject.taskId,
+                    title,
+                    status: intoApiTaskStatus(
+                        context.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
+                            "Closed",
+                    ),
+                };
+                break;
+            }
+            case "TaskCollection": {
+                reference = {
+                    type: "TaskCollection",
+                    id: entityIdObject.collectionId,
+                    title,
+                };
+                break;
+            }
+            case "Site": {
+                reference = {
+                    type: "Site",
+                    id: entityIdObject.siteId,
+                    title,
+                };
+                break;
+            }
+            default:
+                throw exhaustive(entityIdObject);
+        }
+
+        return {
+            type: "Preview",
+            ...(key !== undefined ? {key} : {}),
+            reference,
+            ...(marks !== undefined ? {marks} : {}),
+        };
     }
 
     assert(isId<FileId>(fileId));
-    const file = options.getFileIfExists(fileId);
+    const file = context.getFileIfExists(fileId);
     return {
         type: "File",
+        ...(key !== undefined ? {key} : {}),
         id: fileId,
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,
+        ...(marks !== undefined ? {marks} : {}),
     };
 }
 
-function fileEntityIdObjectToPreviewTarget(
-    entityIdObject: FileEntityIdObject,
-    options: ApiContentMarkdownIntoOptionsForConversion,
-): ApiPreviewTargetResponse {
-    switch (entityIdObject.type) {
-        case "Channel":
-            return {type: "Channel", id: entityIdObject.channelId};
-        case "Chat":
-            return {type: "Chat", id: entityIdObject.chatId};
-        case "Document":
-            return {type: "Document", id: entityIdObject.documentId};
-        case "Post":
-            return {type: "Post", id: entityIdObject.postId};
-        case "Site":
-            return {type: "Site", id: entityIdObject.siteId};
-        case "Task":
-            return {
-                type: "Task",
-                id: entityIdObject.taskId,
-                status: intoApiTaskStatus(
-                    options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
-                        "Closed",
-                ),
-            };
-        case "TaskCollection":
-            return {type: "TaskCollection", id: entityIdObject.collectionId};
-        default:
-            throw exhaustive(entityIdObject);
-    }
-}
-
 function intoApiContentInlineElements(
+    context: ApiContentMarkdownIntoContext,
     nodes: ReadonlyArray<Node>,
-    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ReadonlyArray<ApiContentInlineElementResponse> {
-    return nodes.map(node => intoApiContentInlineElement(node, options));
+    return nodes.map(node => intoApiContentInlineElement(context, node));
 }
 
 function intoApiContentInlineElement(
+    context: ApiContentMarkdownIntoContext,
     node: Node,
-    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ApiContentInlineElementResponse {
     const typeName = node.type.name as ContentInlineNodeTypeName;
 
     switch (typeName) {
         case "text": {
+            const marks =
+                node.marks.length > 0 ? intoApiContentInlineElementMarks(node.marks) : undefined;
+
             return {
                 type: "Text",
                 text: node.text!,
-                marks:
-                    node.marks.length > 0
-                        ? intoApiContentInlineElementMarks(node.marks)
-                        : undefined,
+                ...(marks !== undefined ? {marks} : {}),
             };
         }
         case "break": {
+            const marks =
+                node.marks.length > 0 ? intoApiContentInlineElementMarks(node.marks) : undefined;
+
             return {
                 type: "Break",
-                marks:
-                    node.marks.length > 0
-                        ? intoApiContentInlineElementMarks(node.marks)
-                        : undefined,
+                ...(marks !== undefined ? {marks} : {}),
             };
         }
         case "mention": {
             const mention: ContentMention = node.attrs.mention;
 
             if (mention.type === "Account") {
+                const title =
+                    context.getAccountMentionTitleIfExists(mention.accountId, {isShort: false}) ??
+                    "Unknown";
+                const shortName =
+                    context.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
+                    title;
+
+                const marks =
+                    node.marks.length > 0
+                        ? intoApiContentInlineElementMarks(node.marks)
+                        : undefined;
+
                 return {
                     type: "Mention",
-                    target: {
+                    reference: {
                         type: "Account",
                         id: mention.accountId,
+                        title,
+                        shortName,
                     },
-                    title:
-                        options.getAccountMentionTitleIfExists(mention.accountId, mention) ??
-                        "Unknown",
-                    isAccountShortName: mention.isShort,
-                    marks:
-                        node.marks.length > 0
-                            ? intoApiContentInlineElementMarks(node.marks)
-                            : undefined,
+                    ...(mention.isShort ? {isAccountShortName: true} : {}),
+                    ...(marks !== undefined ? {marks} : {}),
                 };
             } else {
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
-                let target: ApiMentionTargetResponse;
+                const title =
+                    context.getSearchEntityMentionTitleIfExists(mention.entityId) ??
+                    `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
+
+                let reference: ApiMentionReferenceResponse;
 
                 switch (entityIdObject.type) {
                     case "Document": {
-                        target = {
+                        reference = {
                             type: "Document",
                             id: entityIdObject.documentId,
+                            title,
                         };
                         break;
                     }
                     case "Channel": {
-                        target = {
+                        reference = {
                             type: "Channel",
                             id: entityIdObject.channelId,
+                            title,
                         };
                         break;
                     }
                     case "Chat": {
-                        target = {
+                        reference = {
                             type: "Chat",
                             id: entityIdObject.chatId,
+                            title,
                         };
                         break;
                     }
                     case "Task": {
-                        target = {
+                        reference = {
                             type: "Task",
                             id: entityIdObject.taskId,
+                            title,
                             status: intoApiTaskStatus(
-                                options.getSearchTaskEntityDisplayStatusIfExists(
+                                context.getSearchTaskEntityDisplayStatusIfExists(
                                     entityIdObject.taskId,
                                     // Default deleted tasks and private tasks to `Closed`.
                                 ) ?? "Closed",
@@ -997,23 +999,26 @@ function intoApiContentInlineElement(
                         break;
                     }
                     case "TaskCollection": {
-                        target = {
+                        reference = {
                             type: "TaskCollection",
                             id: entityIdObject.collectionId,
+                            title,
                         };
                         break;
                     }
                     case "Post": {
-                        target = {
+                        reference = {
                             type: "Post",
                             id: entityIdObject.postId,
+                            title,
                         };
                         break;
                     }
                     case "Site": {
-                        target = {
+                        reference = {
                             type: "Site",
                             id: entityIdObject.siteId,
+                            title,
                         };
                         break;
                     }
@@ -1021,16 +1026,15 @@ function intoApiContentInlineElement(
                         throw exhaustive(entityIdObject);
                 }
 
+                const marks =
+                    node.marks.length > 0
+                        ? intoApiContentInlineElementMarks(node.marks)
+                        : undefined;
+
                 return {
                     type: "Mention",
-                    target,
-                    title:
-                        options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
-                        `Unknown ${getApiMentionTargetNoun(target.type)}`,
-                    marks:
-                        node.marks.length > 0
-                            ? intoApiContentInlineElementMarks(node.marks)
-                            : undefined,
+                    reference,
+                    ...(marks !== undefined ? {marks} : {}),
                 };
             }
         }
@@ -1041,8 +1045,8 @@ function intoApiContentInlineElement(
 
 function intoApiContentInlineElementMarks(
     marks: ReadonlyArray<Mark>,
-): ReadonlyArray<ApiContentInlineElementMark> {
-    return marks.map(intoApiContentInlineElementMark);
+): ReadonlyArray<ApiContentInlineElementMark> | undefined {
+    return normalizeApiContentInlineElementMarks(marks.map(intoApiContentInlineElementMark));
 }
 
 function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMark {
@@ -1069,7 +1073,7 @@ function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMar
         case "comment": {
             return {
                 type: "Comment",
-                threadId: mark.attrs.commentThreadId,
+                thread: {id: mark.attrs.commentThreadId},
             };
         }
         default:
@@ -1100,7 +1104,7 @@ function intoApiContentSnippetInlineElementMark(
 
 export function intoApiContentInlineElementHighlightMarkColor(
     color: HighlightColor,
-): ApiContentInlineElementHighlightMarkColor {
+): ApiContentHighlightMarkColor {
     switch (color) {
         case HighlightColor.Red:
             return "Red";

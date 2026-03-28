@@ -34,7 +34,7 @@ import {
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_messaging.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
@@ -272,7 +272,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}/mention": {
+    "/tasks/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -285,13 +285,11 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Task",
-                            id: pathParameters.id,
-                            status: intoApiTaskStatus(displayStatus),
-                        },
+                    reference: {
+                        type: "Task",
+                        id: pathParameters.id,
                         title,
+                        status: intoApiTaskStatus(displayStatus),
                     },
                 },
             };
@@ -327,7 +325,7 @@ export const apiTasksPaths: Pick<
     "/tasks/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getTaskCommentPayloadsFromEnd(context, {
                           taskId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -348,7 +346,7 @@ export const apiTasksPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;
@@ -669,7 +667,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/task-collections/{id}/mention": {
+    "/task-collections/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -682,11 +680,9 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "TaskCollection",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "TaskCollection",
+                        id: pathParameters.id,
                         title,
                     },
                 },

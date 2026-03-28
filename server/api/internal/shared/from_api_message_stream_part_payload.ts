@@ -1,5 +1,5 @@
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {printApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
+import {printApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
@@ -25,7 +25,7 @@ export function fromApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Read",
-                            targetPath: printApiMentionTarget(payload.call.target),
+                            targetPath: printApiMentionReference(payload.call.reference),
                         },
                     };
                 }
@@ -43,7 +43,7 @@ export function fromApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Create",
-                            target: payload.call.target,
+                            target: payload.call.reference,
                         },
                     };
                 }

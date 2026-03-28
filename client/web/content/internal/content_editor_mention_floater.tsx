@@ -319,12 +319,14 @@ export function ContentEditorMentionFloater({
         saveAccountMention: (accountData: AccountModelData) => {
             const view = assertExists(viewRef.current);
 
+            const accountShortName = getAccountShortNameWithoutFullNameTooltip(accountData);
+
             // If the account's short name is not ambiguous when searching all account names
             // then we will insert a short mention by default. The user can undo (cmd-z) to get
             // the long version of the mention.
             const isShortNameAmbiguous = allAccountsFuse
                 ? allAccountsFuse
-                      .search(getAccountShortNameWithoutFullNameTooltip(accountData))
+                      .search(accountShortName)
                       .filter(
                           result =>
                               !result.item.botId &&
@@ -340,7 +342,13 @@ export function ContentEditorMentionFloater({
                 // Only use short name for a non-ambiguous name on desktop. Since on mobile the
                 // quick undo capability doesn't really exist. Instead the user may tap delete to
                 // get a short name.
-                isShort: !isBot && platform !== "mobile" && !isShortNameAmbiguous,
+                isShort:
+                    !isBot &&
+                    platform !== "mobile" &&
+                    !isShortNameAmbiguous &&
+                    // Make sure the name can be shortened. If it can't be shortened then marking the
+                    // mention as short can be confusing in other parts of our system.
+                    accountShortName !== accountData.name,
             };
 
             let transaction = updateContentEditorReferences(

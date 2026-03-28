@@ -163,7 +163,7 @@ function createCellInlineElements(
             return [
                 {
                     type: "Mention",
-                    target: {type: "Document", id: documentId},
+                    reference: {type: "Document", id: documentId},
                 },
             ];
         }

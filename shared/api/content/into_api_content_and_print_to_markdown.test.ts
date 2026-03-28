@@ -356,8 +356,10 @@ const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
     },
     getSearchTaskEntityDisplayStatusIfExists: () => undefined,
     getFileIfExists: () => ({
-        contentType: "image/png",
-        contentLength: 1024,
+        type: "Image",
+        isProcessing: true,
+        size: "Processing",
+        placeholder: "Processing",
     }),
 };
 
@@ -576,7 +578,7 @@ test("preview of a document entity", () => {
             elements: [
                 {
                     type: "Preview",
-                    target: {type: "Document", id: testDocumentId},
+                    reference: {type: "Document", id: testDocumentId},
                     title: "My Document",
                 },
             ],
@@ -601,7 +603,7 @@ test("fileFloat with preview entity", () => {
                     side: "Left",
                     element: {
                         type: "Preview",
-                        target: {type: "Channel", id: testChannelId},
+                        reference: {type: "Channel", id: testChannelId},
                         title: "General",
                     },
                 },
@@ -641,7 +643,7 @@ test("file gallery with mixed files and previews", () => {
                                     width: 0.662162,
                                     element: {
                                         type: "Preview",
-                                        target: {
+                                        reference: {
                                             type: "Document",
                                             id: testDocumentId,
                                         },

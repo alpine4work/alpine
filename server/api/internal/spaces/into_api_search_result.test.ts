@@ -2,6 +2,7 @@ import {intoApiSearchResult} from "~/server/api/internal/spaces/into_api_search_
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
@@ -46,10 +47,47 @@ describe("intoApiSearchResult", () => {
             );
 
             expect(result).toEqual({
-                type: "Account",
-                id: accountId,
                 title: "Test User",
                 bodyMatch: null,
+                type: "Account",
+                id: accountId,
+                shortName: "Test",
+            });
+        });
+
+        test("converts bot AccountModel to API Account result", () => {
+            const accountModel = new AccountModel({
+                id: accountId,
+                botId: generateId<BotId>(),
+                name: "Test Bot",
+                version: 1,
+                avatar: null,
+                nameVersion: 1,
+                reactionCharacter: null,
+                space: {
+                    version: 1,
+                    addedTime: new Date(),
+                    state: {type: "Active", activatedTime: new Date()},
+                    role: "Member",
+                },
+            });
+
+            const result = intoApiSearchResult(
+                new SearchEntityResultModel({
+                    model: accountModel,
+                    score: 1.0,
+                    bodyTextSnippet: [],
+                    parsedFilter: null,
+                }),
+            );
+
+            expect(result).toEqual({
+                title: "Test Bot",
+                bodyMatch: null,
+                type: "Account",
+                id: accountId,
+                shortName: "Test",
+                bot: {id: accountModel.botId},
             });
         });
     });

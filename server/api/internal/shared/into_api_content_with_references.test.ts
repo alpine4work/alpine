@@ -4,7 +4,7 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {ApiContentKeyDecoder, ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyDecoder, ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,

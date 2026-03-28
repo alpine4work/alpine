@@ -45,6 +45,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         ":helpers_core",
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@types/escape-html",
         "//:node_modules/@types/functional-red-black-tree",
         "//:node_modules/@types/jest",
@@ -56,6 +57,7 @@ ts_project(
         "//:node_modules/functional-red-black-tree",
         "//:node_modules/grapheme-splitter",
         "//:node_modules/html-tags",
+        "//:node_modules/htmlparser2",
         "//:node_modules/tough-cookie",
         "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/remove-accents",

@@ -1,11 +1,11 @@
+import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
+import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
-    ApiContentResponse,
-    ApiDocumentCommentThreadResponse,
+    ApiDocumentThreadResponse,
     ApiMessageResponse,
     ApiPostResponse,
     ApiTaskCollection,
@@ -17,6 +17,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -90,8 +91,13 @@ export class ApiClientMock implements ApiClient {
 
     constructor() {
         afterEach(() => {
-            this.assertAllMocksUsed();
-            this.reset();
+            try {
+                this.assertAllMocksUsed();
+            } finally {
+                // Reset even if the above assert throws so we don't poison future tests with old
+                // config.
+                this.reset();
+            }
         });
     }
 
@@ -104,6 +110,10 @@ export class ApiClientMock implements ApiClient {
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["get"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("GET", path, response, params);
@@ -115,6 +125,10 @@ export class ApiClientMock implements ApiClient {
     mockPut<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["put"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("PUT", path, response, params);
@@ -126,6 +140,10 @@ export class ApiClientMock implements ApiClient {
     mockPost<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["post"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("POST", path, response, params);
@@ -137,6 +155,10 @@ export class ApiClientMock implements ApiClient {
     mockDelete<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["delete"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("DELETE", path, response, params);
@@ -148,6 +170,10 @@ export class ApiClientMock implements ApiClient {
     mockPatch<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["patch"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("PATCH", path, response, params);
@@ -162,7 +188,16 @@ export class ApiClientMock implements ApiClient {
         this.spyConfigs.push({method, path});
     }
 
-    private addMock(method: HttpMethod, path: string, response: MockResponseConfig, params?: any) {
+    private addMock(
+        method: HttpMethod,
+        path: string,
+        response: MockResponseConfig,
+        // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
+        params?: any,
+    ) {
         const mockConfig = this.findMatchingMock(method, path, params);
         if (mockConfig) {
             mockConfig.responses.push(response);
@@ -275,8 +310,14 @@ export class ApiClientMock implements ApiClient {
             }
 
             // If matcher has params, they must match exactly
-            if (config.matcher.params !== undefined) {
-                return isDeepEqual(config.matcher.params, params);
+            //
+            // We use `jsonStableStringify()` instead of `isDeepEqual()` to use JSON deep
+            // equality semantics. For example ignoring `undefined` properties on objects.
+            if (
+                config.matcher.params !== undefined &&
+                jsonStableStringify(config.matcher.params) !== jsonStableStringify(params)
+            ) {
+                return false;
             }
 
             // No params specified in matcher, so any params are acceptable
@@ -351,18 +392,20 @@ export class ApiClientMock implements ApiClient {
         }).length;
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetChatMessagesList(
         spaceId: SpaceId,
         chatId: ChatId,
         responseData: {
             totalMessageCount?: number;
             nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
+            messages?: ReadonlyArray<ApiMessageResponse>;
         },
         // If you don't provide this, it'll match any page info in the order that you call
         // the mock.
         pageInfo?: {
-            from?: "start" | "end";
+            from?: "Start" | "End";
             // undefined means the query is starting at the begining of the list of comments
             cursor: number | undefined;
             limit: number;
@@ -394,22 +437,20 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
         responseData: Partial<{
             creatorId: AccountId;
             title: string;
-            content: ApiContentResponse;
+            content: ApiContentResponseWithOptionalKeys;
             version: number;
         }>,
     ): void {
         documentId ??= generateId<DocumentId>();
         spaceId ??= generateId<SpaceId>();
-        const defaultContent = createApiContentResponseWithSingleParagraph(
-            "mock-document",
-            "Test Document Content",
-        );
 
         this.mockGet(
             "/documents/{id}",
@@ -418,7 +459,12 @@ export class ApiClientMock implements ApiClient {
                     document: {
                         id: documentId,
                         title: responseData.title ?? "Test Document",
-                        content: responseData.content ?? defaultContent,
+                        content: addKeysToApiContentForTest(
+                            responseData.content ??
+                                createApiContentResponseWithSingleParagraph(
+                                    "Test Document Content",
+                                ),
+                        ),
                         version: responseData.version ?? 1,
                     },
                     spaceId,
@@ -428,26 +474,42 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocumentThread(
         spaceId: SpaceId,
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
-        responseData: Partial<Omit<ApiDocumentCommentThreadResponse, "id">>,
+        responseData: Partial<
+            Replace<
+                Omit<ApiDocumentThreadResponse, "id">,
+                {documentContentSnippet: ApiContentResponseWithOptionalKeys}
+            >
+        >,
     ): void {
         this.mockGet(
             "/documents/{id}/threads/{threadId}",
             {
                 data: {
                     spaceId,
-                    commentThread: {
+                    thread: {
                         id: commentThreadId,
-                        createdTime: responseData.createdTime ?? serializeDateString(new Date()),
-                        isResolved: responseData.isResolved ?? false,
-                        commentCount: responseData.commentCount ?? 0,
-                        documentContentSnippet: responseData.documentContentSnippet ?? {
-                            elements: [],
+                        document: responseData.document ?? {
+                            id: documentId,
+                            reference: {
+                                title: "Test Document",
+                            },
                         },
-                        firstCommentAuthor: responseData.firstCommentAuthor ?? null,
+                        isResolved: responseData.isResolved ?? false,
+                        totalMessageCount: responseData.totalMessageCount ?? 0,
+                        firstMessage: responseData.firstMessage ?? {
+                            author: createApiAccountMock({}),
+                            createdTime: serializeDateString(new Date()),
+                            createdTimeZone: defaultTimeZone,
+                        },
+                        documentContentSnippet: addKeysToApiContentForTest(
+                            responseData.documentContentSnippet ?? {elements: []},
+                        ),
                     },
                 },
             },
@@ -455,6 +517,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocumentCommentsList(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -497,17 +561,17 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetPost(
         spaceId: SpaceId,
         postId: PostId,
-        responseData: Partial<Omit<ApiPostResponse, "id">>,
+        responseData: Partial<
+            Replace<Omit<ApiPostResponse, "id">, {content: ApiContentResponseWithOptionalKeys}>
+        >,
     ): void {
         postId ??= generateId<PostId>();
         spaceId ??= generateId<SpaceId>();
-        const defaultContent = createApiContentResponseWithSingleParagraph(
-            "mock-post",
-            "Test Post Content",
-        );
 
         this.mockGet(
             "/posts/{id}",
@@ -517,10 +581,12 @@ export class ApiClientMock implements ApiClient {
                         id: postId,
                         author: responseData.author ?? createApiAccountMock({}),
                         createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
-                        content: responseData.content ?? defaultContent,
-                        contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
+                        content: addKeysToApiContentForTest(
+                            responseData.content ??
+                                createApiContentResponseWithSingleParagraph("Test Post Content"),
+                        ),
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),
-                        ...responseData,
+                        reference: responseData.reference ?? {title: "Test Post Content Preview"},
                     },
                     spaceId,
                 },
@@ -529,6 +595,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetPostCommentsList(
         spaceId: SpaceId,
         postId: PostId,
@@ -572,6 +640,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTask(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -591,9 +661,8 @@ export class ApiClientMock implements ApiClient {
                         collections: responseData.collections ?? [],
                         notes: responseData.notes ?? {
                             version: 0,
-                            content: createApiContentResponseWithSingleParagraph(
-                                "mock-task",
-                                "Test Task Content",
+                            content: addKeysToApiContentForTest(
+                                createApiContentResponseWithSingleParagraph("Test Task Content"),
                             ),
                         },
                         ...responseData,
@@ -605,6 +674,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCommentsList(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -646,6 +717,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCollection(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
@@ -666,6 +739,8 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCollectionTasks(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
@@ -706,20 +781,14 @@ export class ApiClientMock implements ApiClient {
  * that need to satisfy the public response shape.
  */
 function createApiContentResponseWithSingleParagraph(
-    keyPrefix: string,
     text: string,
-): ApiContentResponse {
+): ApiContentResponseWithOptionalKeys {
     return {
         elements: [
             {
                 type: "Paragraph",
-                key: createMockApiContentKey(keyPrefix),
                 elements: [{type: "Text", text}],
             },
         ],
     };
-}
-
-function createMockApiContentKey(entityId: string): ApiContentKey {
-    return new ApiContentKeyEncoder({entityId, version: 0}).encode({pos: 0, nodeSize: 0});
 }

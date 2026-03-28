@@ -28,7 +28,7 @@ import {renderTaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_t
 import {renderTaskCollectionChipBase} from "~/client/web/tasks/task_collection_chip_base_html.js";
 import {renderTaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar_html.js";
 import {renderTaskPriorityIcon} from "~/client/web/tasks/task_priority_icon_html.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";

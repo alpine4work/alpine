@@ -6,6 +6,7 @@ ts_project(
         "//:node_modules/@types/supertest",
         "//:node_modules/supertest",
         "//server/api/internal/test_helpers",
+        "//shared/api/markdown/test_helpers",
         "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",

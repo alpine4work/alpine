@@ -3,8 +3,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {getAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {putAgentLocalDocumentContent} from "~/server/agents/bots/internal/link_references/agent_local_document_content_collection.js";
 import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/bots/internal/link_references/create_agent_document_pages_and_get_first_page.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
+import {addKeysToApiContentForTest} from "~/shared/api/markdown/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
@@ -17,32 +16,21 @@ afterEach(async () => {
 
 describe("createDocumentPagesAndGetFirstPage", () => {
     const documentId = generateId<DocumentId>();
-    const mockEntityId = "Document:mock";
-    const mockApiContentKeyEncoder = new ApiContentKeyEncoder({entityId: mockEntityId, version: 0});
-    let nextMockApiContentKeyPos = 0;
 
     function createParagraphElement(text: string) {
         return {
             type: "Paragraph" as const,
-            key: createMockApiContentKey(),
             elements: [{type: "Text" as const, text}],
         };
     }
 
-    function createMockApiContentKey(): ApiContentKey {
-        return mockApiContentKeyEncoder.encode({
-            pos: nextMockApiContentKeyPos++,
-            nodeSize: 0,
-        });
-    }
-
     test("creates single page for short document", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponse = addKeysToApiContentForTest({
             elements: [
                 createParagraphElement("Short paragraph 1."),
                 createParagraphElement("Short paragraph 2."),
             ],
-        };
+        });
 
         const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
             title: "Test Document",
@@ -101,13 +89,13 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     });
 
     test("creates multiple pages for long document", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponse = addKeysToApiContentForTest({
             elements: [
                 createParagraphElement("a".repeat(12000)), // Page 1
                 createParagraphElement("a".repeat(18000)), // Page 2
                 createParagraphElement("a".repeat(27000)), // Page 3
             ],
-        };
+        });
 
         const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
             title: "Long Document",
@@ -174,13 +162,13 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     });
 
     test("creates multiple pages for long document with exponential page size growth", async () => {
-        const content: ApiContentResponse = {
+        const content: ApiContentResponse = addKeysToApiContentForTest({
             elements: [
                 createParagraphElement("a".repeat(6000)), // Page 1
                 createParagraphElement("a".repeat(6000)), // Page 2
                 createParagraphElement("a".repeat(6000)), // Page 3
             ],
-        };
+        });
 
         const documentKey = await putAgentLocalDocumentContent(storage, documentId, {
             title: "Long Document",

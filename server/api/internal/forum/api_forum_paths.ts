@@ -3,13 +3,13 @@ import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferencesAndReturnReferences,
     intoApiMessageContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
-import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {createPost} from "~/server/forum/data/create_post.js";
@@ -26,15 +26,17 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {ApiChannelPreview} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
+import {getPostContentSnippet} from "~/shared/forum/get_post_content_snippet.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
@@ -99,33 +101,69 @@ export const apiForumPaths: Pick<
                     ? serializeDateString(lastPost.createdTime)
                     : null;
 
+            const channel: ApiChannelPreview = {
+                id: pathParameters.id,
+                name: postsResult.channelName,
+            };
+
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
+            const posts = await runAllPromises(
+                postsResult.posts.map(async post => {
+                    const [author, {content: contentSnippet, references}] = await runAllPromises([
+                        getApiAccount(referencesContext, postsResult.spaceId, post.authorId),
+                        intoApiContentWithReferencesAndReturnReferences(
+                            referencesContext,
+                            postsResult.spaceId,
+                            FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: post.postId,
+                            }),
+                            // NOCOMMIT: Test that we snip correctly
+                            getPostContentSnippet(post.content, {
+                                platform: "desktop",
+                                routeLayout: "wide",
+                            }),
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${post.postId}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
+                        ),
+                    ]);
+
+                    return {
+                        id: post.postId,
+                        author,
+                        createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
+                        channel,
+                        contentSnippet,
+                        reference: {
+                            // NOCOMMIT: Title should include account name?
+                            title: createPostSearchEntityTitle(
+                                postsResult.channelName,
+                                post.content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+                            ),
+                        },
+                    };
+                }),
+            );
+
             return {
                 content: {
                     spaceId: postsResult.spaceId,
+                    channel,
                     nextCursor,
-                    posts: await runAllPromises(
-                        postsResult.posts.map(async post => ({
-                            id: post.postId,
-                            author: await getApiAccount(
-                                context,
-                                postsResult.spaceId,
-                                post.authorId,
-                                {consistency: "StrongWithinCache"},
-                            ),
-                            createdTime: serializeDateString(post.createdTime),
-                            createdTimeZone: post.createdTimeZone,
-                            channel: {
-                                id: pathParameters.id,
-                                name: postsResult.channelName,
-                            },
-                        })),
-                    ),
+                    posts,
                 },
             };
         },
     },
 
-    "/channels/{id}/mention": {
+    "/channels/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -138,11 +176,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Channel",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Channel",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -152,16 +188,16 @@ export const apiForumPaths: Pick<
 
     "/posts": {
         post: async (context, {requestBody}) => {
-            const channelId = requestBody.channelId;
+            const channelId = requestBody.post.channel.id;
             const postId = generateId<PostId>();
 
             const content = assertPostContent(
-                fromApiContent(PostContentProsemirrorSchema, requestBody.content),
+                fromApiContent(PostContentProsemirrorSchema, requestBody.post.content),
             );
 
             // Attach files referenced in the content to the post before creating the post so
             // there's no race where a reader sees the post before its files are attached.
-            const fileIds = extractFileIdsFromApiContent(requestBody.content);
+            const fileIds = extractFileIdsFromApiContent(requestBody.post.content);
             fileIds.delete(unknownFileId);
             if (fileIds.size > 0) {
                 await runAllPromises(
@@ -180,9 +216,9 @@ export const apiForumPaths: Pick<
                 createPost(context, {
                     id: postId,
                     channelId,
-                    createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
+                    createdTimeZone: requestBody.post.createdTimeZone ?? defaultTimeZone,
                     content,
-                    consistency: "Strong",
+                    consistency: "StrongWithinCache",
                 }),
                 getApiAccount(
                     referencesContext,
@@ -212,19 +248,22 @@ export const apiForumPaths: Pick<
                     spaceId: post.spaceId,
                     post: {
                         id: post.id,
+                        author,
                         createdTime: serializeDateString(post.createdTime),
                         createdTimeZone: post.createdTimeZone,
                         channel: {
                             id: channelId,
                             name: post.channelName,
                         },
-                        author,
                         content: contentWithReferences,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channelName,
-                            content,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(references),
-                        ),
+                        reference: {
+                            // NOCOMMIT: Title should include account name?
+                            title: createPostSearchEntityTitle(
+                                post.channelName,
+                                content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+                            ),
+                        },
                     },
                 },
             };
@@ -233,16 +272,16 @@ export const apiForumPaths: Pick<
 
     "/posts/{id}": {
         get: async (context, {pathParameters}) => {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
             const post = await getPostContentWithCustomReferencesAndChannelPreview(
                 context,
                 pathParameters.id,
                 async (context, spaceId, post) => {
                     const [author, {content, references}] = await runAllPromises([
-                        getApiAccount(context, spaceId, post.authorId, {
-                            consistency: "StrongWithinCache",
-                        }),
+                        getApiAccount(referencesContext, spaceId, post.authorId),
                         intoApiContentWithReferencesAndReturnReferences(
-                            context,
+                            referencesContext,
                             spaceId,
                             FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
                             post.content,
@@ -278,20 +317,91 @@ export const apiForumPaths: Pick<
                             name: post.channel.name,
                         },
                         content: post.content.content,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channel.name,
-                            post.content.originalContent,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(
-                                post.content.references,
+                        reference: {
+                            // NOCOMMIT: Title should include account name?
+                            title: createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
                             ),
-                        ),
+                        },
                     },
                 },
             };
         },
     },
 
-    "/posts/{id}/mention": {
+    // NOCOMMIT: Test!
+    "/posts/{id}/preview": {
+        get: async (context, {pathParameters}) => {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
+            const post = await getPostContentWithCustomReferencesAndChannelPreview(
+                context,
+                pathParameters.id,
+                async (context, spaceId, post) => {
+                    const [author, {content: contentSnippet, references}] = await runAllPromises([
+                        getApiAccount(referencesContext, spaceId, post.authorId),
+                        intoApiContentWithReferencesAndReturnReferences(
+                            referencesContext,
+                            spaceId,
+                            FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
+                            // NOCOMMIT: Test that we snip correctly
+                            getPostContentSnippet(post.content, {
+                                platform: "desktop",
+                                routeLayout: "wide",
+                            }),
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${pathParameters.id}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
+                        ),
+                    ]);
+
+                    return {
+                        author,
+                        originalContent: post.content,
+                        contentSnippet,
+                        references,
+                    };
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId: post.spaceId,
+                    post: {
+                        id: pathParameters.id,
+                        author: post.content.author,
+                        createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
+                        channel: {
+                            id: post.channel.id,
+                            name: post.channel.name,
+                        },
+                        contentSnippet: post.content.contentSnippet,
+                        reference: {
+                            // NOCOMMIT: Title should include account name?
+                            title: createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
+                            ),
+                        },
+                    },
+                },
+            };
+        },
+    },
+
+    "/posts/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -304,11 +414,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Post",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Post",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -345,7 +453,7 @@ export const apiForumPaths: Pick<
     "/posts/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getPostCommentPayloadsFromEnd(context, {
                           postId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -366,7 +474,7 @@ export const apiForumPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;
@@ -414,7 +522,9 @@ export const apiForumPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
-            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const fileIds = (requestBody.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
             const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
 
             // Attach files before creating the message, matching the app client flow. The

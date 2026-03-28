@@ -5,10 +5,13 @@ ts_project(
     testonly = True,
     visibility = ["//server/agents:__subpackages__"],
     deps = [
+        "//:node_modules/@types/json-stable-stringify",
+        "//:node_modules/json-stable-stringify",
         "//:node_modules/openapi-typescript-helpers",
         "//server/agents/api",
         "//shared/accounts",
         "//shared/api/content",
+        "//shared/api/markdown/test_helpers",
         "//shared/api/specification",
         "//shared/context",
         "//shared/error",

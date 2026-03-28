@@ -53,6 +53,24 @@ export const contentInlineNodeTypeNames = {
 };
 
 /**
+ * Name of all leaf nodes for any kind of content in our system.
+ *
+ * May include node names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
+ *
+ * Useful for writing code that operates on any kind of content.
+ */
+export type ContentLeafNodeTypeName = keyof typeof contentLeafNodeTypeNames;
+
+export const contentLeafNodeTypeNames = {
+    text: true,
+    break: true,
+    mention: true,
+    divider: true,
+    file: true,
+};
+
+/**
  * Name of all textblock node types for any kind of content in our system.
  *
  * May include node names that don't exist in the `shared/content` package but do
@@ -146,6 +164,10 @@ export function assertContentTypeNamesCoverProsemirrorSchema(schema: Prosemirror
 
         if (type.isInline) {
             assert(hasOwnProperty(contentInlineNodeTypeNames, type.name));
+        }
+
+        if (type.isLeaf) {
+            assert(hasOwnProperty(contentLeafNodeTypeNames, type.name));
         }
 
         if (type.isTextblock) {

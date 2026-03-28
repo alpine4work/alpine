@@ -19,7 +19,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -549,7 +549,7 @@ test("can\u2019t read document content for non-existent document", async () => {
     });
 });
 
-describe("/documents/{id}/mention", () => {
+describe("/documents/{id}/reference", () => {
     test("can read document mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -563,7 +563,7 @@ describe("/documents/{id}/mention", () => {
         });
 
         expect(
-            await server.GET(`/documents/${document.id}/mention`, {
+            await server.GET(`/documents/${document.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -571,11 +571,9 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Document",
-                        id: document.id,
-                    },
+                reference: {
+                    type: "Document",
+                    id: document.id,
                     title: "Test Document Title",
                 },
             },
@@ -593,7 +591,7 @@ describe("/documents/{id}/mention", () => {
         const document = await TestDocument.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/documents/${document.id}/mention`, {
+            await server.GET(`/documents/${document.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -617,7 +615,7 @@ describe("/documents/{id}/mention", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/documents/${generateId<DocumentId>()}/mention`, {
+            await server.GET(`/documents/${generateId<DocumentId>()}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -643,7 +641,7 @@ describe("/documents/{id}/mention", () => {
         const apiKey = await bot.createApiKey({type: "Document", documentId: document.id});
 
         expect(
-            await server.GET(`/documents/${document.id}/mention`, {
+            await server.GET(`/documents/${document.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -651,11 +649,9 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Document",
-                        id: document.id,
-                    },
+                reference: {
+                    type: "Document",
+                    id: document.id,
                     title: "Scoped Document",
                 },
             },
@@ -752,7 +748,7 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: false,
                     commentCount: 1,
@@ -768,7 +764,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },
@@ -988,7 +984,7 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: false,
                     commentCount: 1,
@@ -1004,7 +1000,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },
@@ -1104,7 +1100,7 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: true,
                     commentCount: 1,
@@ -1120,7 +1116,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },
@@ -1198,7 +1194,7 @@ describe("comment threads", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                commentThread: expect.objectContaining({
+                thread: expect.objectContaining({
                     id: commentThread.id,
                     isResolved: true,
                     commentCount: 1,
@@ -1214,7 +1210,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },

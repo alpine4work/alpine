@@ -6,10 +6,9 @@ import {
     computeFileRowLayout,
     fileRowMaxFileCount,
     minAspectRatioIfNotSingleFileRow,
-} from "~/shared/content/compute_file_row_widths.js";
+} from "~/shared/content/compute_file_row_layout.js";
 import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
 import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
-
 import {Platform} from "~/shared/design/core/platform.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -32,12 +31,6 @@ const letterPaperAspectRatio = 17 / 22;
  * use case.
  */
 const maxAspectRatioIfNotSingleFileRow = minAspectRatioIfNotSingleFileRow ** -1;
-
-// Round numbers to 3 decimal places so we sending less data over the network in
-// our generated HTML.
-function round3(n: number) {
-    return Math.round(n * 10 ** 3) / 10 ** 3;
-}
 
 /**
  * Layout the files in a file row. Uses the [Cassowary algorithm][1] (specifically
@@ -313,9 +306,9 @@ export function computeContentFileFloatLayout(
     solver.updateVariables();
 
     return {
-        width: round3(widthVariable.value()),
+        width: widthVariable.value(),
         widthFr: 1,
-        height: round3(heightVariable.value()),
+        height: heightVariable.value(),
     };
 }
 
@@ -393,5 +386,5 @@ function getFileOrFileEntityPreviewSize(
         return {width: null, height};
     }
 
-    return getFilePreviewSize(file);
+    return getFilePreviewSize(file?.preview ?? undefined);
 }

@@ -1,26 +1,26 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {intoApiContentParagraphBlockElement} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentCheckListBlockElementItem,
     ApiContentFileBlockElement,
+    ApiContentHighlightMarkColor,
     ApiContentInlineElement,
-    ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentListBlockElementItem,
     ApiContentMentionInlineElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElementCellBlockElement,
-    ApiPreviewTarget,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -119,20 +119,34 @@ export function* fromApiContentBlockElements(
                         // Clamp indent to max allowed value
                         const clampedIndent = Math.min(indent, maxContentListItemIndentation);
 
-                        if (item.elements.length > 0) {
-                            const attrs: {indent: number; checked?: boolean; orderStart?: number} =
-                                {indent: clampedIndent};
+                        const attrs: {indent: number; checked?: boolean; orderStart?: number} = {
+                            indent: clampedIndent,
+                        };
 
-                            if (typeName === "checkListItem") {
-                                attrs.checked = assertCheckListItem(item).checked;
+                        if (typeName === "checkListItem") {
+                            attrs.checked = assertCheckListItem(item).checked;
+                        }
+
+                        // Only set orderStart for the first ordered list item. Subsequent items
+                        // auto-increment naturally.
+                        if (element.type === "OrderedList" && itemIndex === 0) {
+                            attrs.orderStart = element.orderStart;
+                        }
+
+                        if (item.elements.length === 0) {
+                            if (
+                                element.type !== "UnorderedList" ||
+                                item.nestedListElements === undefined ||
+                                item.nestedListElements.every(
+                                    nestedElement => nestedElement.items.length === 0,
+                                )
+                            ) {
+                                yield schema.nodes[typeName]!.create(
+                                    attrs,
+                                    schema.nodes.paragraph!.create(),
+                                );
                             }
-
-                            // Only set orderStart for the first ordered list item. Subsequent items
-                            // auto-increment naturally.
-                            if (element.type === "OrderedList" && itemIndex === 0) {
-                                attrs.orderStart = element.orderStart;
-                            }
-
+                        } else {
                             yield schema.nodes[typeName]!.create(
                                 attrs,
                                 Array.from(fromApiContentBlockElements(schema, item.elements)),
@@ -189,6 +203,39 @@ export function* fromApiContentBlockElements(
                 break;
             }
             case "Table": {
+                const rows = element.rows.map(row => {
+                    const cells = row.cells.map(cell => {
+                        const cellContent = Array.from(
+                            fromApiContentTableCellBlockElements(schema, cell.elements),
+                        );
+
+                        // Table cells require at least one block element (tableBlock+) If the cell is
+                        // empty, create an empty paragraph
+                        if (cellContent.length === 0) {
+                            cellContent.push(schema.nodes.paragraph!.create());
+                        }
+
+                        return schema.nodes.tableCell!.create(null, cellContent);
+                    });
+
+                    while (cells.length < 2) {
+                        cells.push(
+                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                        );
+                    }
+
+                    return schema.nodes.tableRow!.create(null, cells);
+                });
+
+                if (rows.length < 1) {
+                    rows.push(
+                        schema.nodes.tableRow!.create(null, [
+                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                        ]),
+                    );
+                }
+
                 yield schema.nodes.table!.create(
                     {
                         tableWidth: element.width,
@@ -196,37 +243,23 @@ export function* fromApiContentBlockElements(
                         hasHeaderRow: element.hasHeaderRow,
                         hasHeaderColumn: element.hasHeaderColumn,
                     },
-                    element.rows.map(row => {
-                        return schema.nodes.tableRow!.create(
-                            null,
-                            row.cells.map(cell => {
-                                const cellContent = Array.from(
-                                    fromApiContentTableCellBlockElements(schema, cell.elements),
-                                );
-
-                                // Table cells require at least one block element (tableBlock+) If the cell is
-                                // empty, create an empty paragraph
-                                if (cellContent.length === 0) {
-                                    cellContent.push(schema.nodes.paragraph!.create());
-                                }
-
-                                return schema.nodes.tableCell!.create(null, cellContent);
-                            }),
-                        );
-                    }),
+                    rows,
                 );
                 break;
             }
             case "Code": {
-                yield schema.nodes.codeBlock!.create(
-                    {language: element.language},
-                    element.lines.map(line => {
-                        return schema.nodes.codeBlockLine!.create(
-                            null,
-                            fromApiContentInlineElements(schema, line.elements),
-                        );
-                    }),
-                );
+                const lines = element.lines.map(line => {
+                    return schema.nodes.codeBlockLine!.create(
+                        null,
+                        fromApiContentInlineElements(schema, line.elements),
+                    );
+                });
+
+                if (lines.length < 1) {
+                    lines.push(schema.nodes.codeBlockLine!.create());
+                }
+
+                yield schema.nodes.codeBlock!.create({language: element.language}, lines);
                 break;
             }
             case "File":
@@ -289,20 +322,30 @@ function fromApiContentFileOrPreviewElement(
     element: ApiContentFileBlockElement | ApiContentPreviewBlockElement,
 ): Node {
     switch (element.type) {
-        case "File":
-            return schema.nodes.file!.create({
-                fileId: element.id === unknownFileId ? null : element.id,
-            });
-        case "Preview":
-            return schema.nodes.file!.create({
-                fileId: previewTargetToFileEntityId(element.target),
-            });
+        case "File": {
+            const marks = normalizeApiContentInlineElementMarks(element.marks);
+
+            return schema.nodes.file!.create(
+                {fileId: element.id === unknownFileId ? null : element.id},
+                undefined,
+                marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
+            );
+        }
+        case "Preview": {
+            const marks = normalizeApiContentInlineElementMarks(element.marks);
+
+            return schema.nodes.file!.create(
+                {fileId: previewReferenceToFileEntityId(element.reference)},
+                undefined,
+                marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
+            );
+        }
         default:
             throw exhaustive(element);
     }
 }
 
-function previewTargetToFileEntityId(target: ApiPreviewTarget): string {
+function previewReferenceToFileEntityId(target: ApiPreviewReference): string {
     // Construct a FileEntityId (`Type:id`) from the preview target.
     switch (target.type) {
         case "Channel":
@@ -322,17 +365,17 @@ function fromApiContentInlineElements(
     schema: ProsemirrorSchema,
     elements: ReadonlyArray<ApiContentInlineElement>,
 ): ReadonlyArray<Node> {
-    return elements.map(element => fromApiContentInlineElement(schema, element));
+    return filterMapArray(elements, element => {
+        if (element.type === "Text" && element.text === "") return;
+        return fromApiContentInlineElement(schema, element);
+    });
 }
 
 function fromApiContentInlineElement(
     schema: ProsemirrorSchema,
     element: ApiContentInlineElement,
 ): Node {
-    const marks =
-        element.marks !== undefined
-            ? fromApiContentInlineElementMarks(schema, element.marks)
-            : undefined;
+    const marks = fromApiContentInlineElementMarks(schema, element.marks);
 
     switch (element.type) {
         case "Text": {
@@ -354,41 +397,49 @@ function fromApiContentMentionInlineElement(
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
-    const mentionTarget = element.target;
+    const mentionReference = element.reference;
     let mention: ContentMention;
 
-    if (mentionTarget.type === "Account") {
+    if (mentionReference.type === "Account") {
         mention = {
             type: "Account",
-            accountId: mentionTarget.id,
+            accountId: mentionReference.id,
             isShort: element.isAccountShortName ?? false,
         };
     } else {
         let entityId: SearchMentionEntityId;
 
-        switch (mentionTarget.type) {
+        switch (mentionReference.type) {
             case "Document": {
-                entityId = `Document:${mentionTarget.id}`;
+                entityId = `Document:${mentionReference.id}`;
                 break;
             }
             case "Channel": {
-                entityId = `Channel:${mentionTarget.id}`;
+                entityId = `Channel:${mentionReference.id}`;
+                break;
+            }
+            case "Chat": {
+                entityId = `Chat:${mentionReference.id}`;
                 break;
             }
             case "Task": {
-                entityId = `Task:${mentionTarget.id}`;
+                entityId = `Task:${mentionReference.id}`;
                 break;
             }
             case "TaskCollection": {
-                entityId = `TaskCollection:${mentionTarget.id}`;
+                entityId = `TaskCollection:${mentionReference.id}`;
                 break;
             }
             case "Post": {
-                entityId = `Post:${mentionTarget.id}`;
+                entityId = `Post:${mentionReference.id}`;
+                break;
+            }
+            case "Site": {
+                entityId = `Site:${mentionReference.id}`;
                 break;
             }
             default:
-                throw new InternalError("Couldn\u2019t parse mention target path");
+                throw exhaustive(mentionReference);
         }
 
         mention = {
@@ -402,8 +453,10 @@ function fromApiContentMentionInlineElement(
 
 function fromApiContentInlineElementMarks(
     schema: ProsemirrorSchema,
-    marks: ReadonlyArray<ApiContentInlineElementMark>,
-): ReadonlyArray<Mark> {
+    marks: ReadonlyArray<ApiContentInlineElementMark> | undefined,
+): ReadonlyArray<Mark> | undefined {
+    marks = normalizeApiContentInlineElementMarks(marks);
+    if (marks === undefined) return undefined;
     return filterMapArray(marks, mark => fromApiContentInlineElementMark(schema, mark));
 }
 
@@ -433,7 +486,7 @@ function fromApiContentInlineElementMark(
         case "Comment": {
             if (!schema.marks.comment) return;
 
-            return schema.marks.comment.create({commentThreadId: mark.threadId});
+            return schema.marks.comment.create({commentThreadId: mark.thread.id});
         }
         default:
             throw exhaustive(mark);
@@ -441,7 +494,7 @@ function fromApiContentInlineElementMark(
 }
 
 export function fromApiContentInlineElementHighlightMarkColor(
-    color: ApiContentInlineElementHighlightMarkColor,
+    color: ApiContentHighlightMarkColor,
 ): HighlightColor {
     switch (color) {
         case "Red":

@@ -1,11 +1,13 @@
 import escapeHtml from "escape-html";
 import {
     BlockContent,
+    Html,
     List,
     ListItem,
     Paragraph,
     PhrasingContent,
     Root,
+    RootContent,
     TableCell,
     TableRow,
 } from "mdast";
@@ -16,31 +18,35 @@ import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_api_checklist_block_element_item.js";
-import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/markdown/get_api_mention_reference_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
-import {ApiNotMentionPathObject} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentCodeMark,
+    ApiContentFileBlockElement,
+    ApiContentFileGalleryBlockElementRow,
+    ApiContentHighlightMarkColor,
     ApiContentInlineElement,
-    ApiContentInlineElementCodeMark,
-    ApiContentInlineElementHighlightMarkColor,
-    ApiContentInlineElementLinkMark,
     ApiContentInlineElementMark,
+    ApiContentLinkMark,
     ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
+    ApiContentPreviewBlockElement,
     ApiContentTableBlockElement,
-    ApiMentionTarget,
-    ApiPreviewTarget,
+    ApiMentionReference,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 
 declare module "mdast" {
     export interface EmphasisData {
@@ -51,21 +57,28 @@ declare module "mdast" {
 
     export interface LinkData {
         mentionElement?: ApiContentMentionInlineElement;
+        mentionReference?: ApiMentionReference;
+    }
+
+    export interface ImageData {
+        fileElement?: ApiContentFileBlockElement;
+        previewElement?: ApiContentPreviewBlockElement;
     }
 
     export interface HtmlData {
         expectedOpenHtml?: string;
         expectedCloseHtml?: string;
+        fileElement?: ApiContentFileBlockElement;
+        previewElement?: ApiContentPreviewBlockElement;
+        fileGalleryElementRow?: ApiContentFileGalleryBlockElementRow;
+        fileOrPreviewElementByUrl?: Map<
+            string,
+            ApiContentFileBlockElement | ApiContentPreviewBlockElement
+        >;
     }
 }
 
 export type ApiContentMarkdownPrinterOptions = {
-    /**
-     * If `true` then we don't add the `data-width` and `data-column-widths` attributes
-     * to tables.
-     */
-    readonly withoutTableWidth?: boolean;
-
     /**
      * If `true` then we convert comment marks to simple `<comment>` tags.
      *
@@ -76,10 +89,10 @@ export type ApiContentMarkdownPrinterOptions = {
      * becomes
      *
      * ```html
-     * <comment>commented text</comment>
+     * <comment id="1234567890">commented text</comment>
      * ```
      */
-    readonly withSimpleCommentMarkHtml?: boolean;
+    readonly withCommentTagHtml?: boolean;
 };
 
 type ApiContentInternalMarkdownPrinterOptions = ApiContentMarkdownPrinterOptions & {
@@ -101,7 +114,7 @@ function actuallyPrintApiContentToMarkdown(
     return printMarkdownTree(root);
 }
 
-export function printMarkdownTree(root: Root): string {
+export function printMarkdownTree(root: Root | RootContent): string {
     return toMarkdown(root, {
         bullet: "-",
         rule: "-",
@@ -118,7 +131,10 @@ export function printMarkdownTree(root: Root): string {
             // NOTE(calebmer, 2025-08-08): We don't currently support math symbols in content
             // but we might want to support math in the future. So make sure we escape `$` and
             // `$$` to reserve them.
-            mathToMarkdown(),
+            //
+            // We disable single dollar syntax so dollar signs like $4.2 in text don't need to
+            // be escaped.
+            mathToMarkdown({singleDollarTextMath: false}),
             // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
             // Markdown but we want to reserve the syntax so we have the ability to use
             // frontmatter in the future.
@@ -137,14 +153,14 @@ function printApiContentToMarkdown(
         type: "root",
         children:
             // If the first element in our content is a divider then we serialize it using the
-            // HTML syntax `<hr/>` so the divider isn't confused with frontmatter. Ignore
+            // HTML syntax `<hr />` so the divider isn't confused with frontmatter. Ignore
             // leading empty lists since they don't print any markdown and are stripped by
             // normalization during round trips.
             firstPrintableBlockElementIndex !== -1 &&
             content.elements[firstPrintableBlockElementIndex]!.type === "Divider"
                 ? Array.from(
                       concatIterables(
-                          [{type: "html", value: "<hr/>"}],
+                          [{type: "html", value: "<hr />"}],
                           printApiContentBlockElementsToMarkdown(
                               content.elements.slice(firstPrintableBlockElementIndex + 1),
                               options,
@@ -254,36 +270,21 @@ function* printApiContentBlockElementToMarkdown(
             yield {
                 type: "list",
                 ...orderedAttributes,
-                children: element.items.map(item => {
+                children: element.items.map((item, index) => {
                     const children = Array.from(
                         concatIterables(
                             printApiContentBlockElementsToMarkdown(
-                                // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
-                                // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
-                                // way.
-                                //
-                                // So while unordered phantom lists look like:
-                                //
-                                // ```markdown
-                                // -   -   - item at 3rd level in a phantom unordered list
-                                // ```
-                                //
-                                // Checklists and ordered phantom lists get an empty paragraph and look like:
-                                //
-                                // ```markdown
-                                // 1. <p></p>
-                                //
-                                // - Mixed types with phantoms
-                                //
-                                // OR
-                                //
-                                // [ ] <p></p>
-                                //
-                                // - Mixed types with phantoms
-                                // ```
-                                item.elements.length > 0 || element.type === "UnorderedList"
+                                item.elements.length > 0
                                     ? item.elements
-                                    : [{type: "Paragraph", elements: []}],
+                                    : element.type !== "CheckList" &&
+                                        (item.nestedListElements === undefined ||
+                                            item.nestedListElements.every(
+                                                nestedElement => nestedElement.items.length === 0,
+                                            ))
+                                      ? emptyArray
+                                      : element.type !== "UnorderedList" || index > 0
+                                        ? [{type: "Paragraph", elements: []}]
+                                        : emptyArray,
                                 options,
                             ),
                             item.nestedListElements
@@ -369,33 +370,88 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "File": {
-            const fileUrl = printFileUrl(element.id);
+            const fileUrl = printApiFileContentUrl(element.id);
             if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
-                // Web safe images (and files with unknown content type) use markdown image syntax.
-                yield {
-                    type: "paragraph",
-                    children: [{type: "image", url: fileUrl, alt: null}],
-                };
-            } else {
-                // Video, audio, PDF, etc. use their HTML representations so they render correctly
-                // when exported to HTML. CommonMark treats `<video>`, `<audio>`, and `<object>` as
-                // inline HTML (not block-level), so the parser handles extracting them from
-                // paragraphs into block-level file elements.
-                yield {
-                    type: "html",
-                    value: fileToHtml(fileUrl, element.contentType),
-                };
-            }
+                const children: Array<PhrasingContent> = [
+                    // Web safe images (and files with unknown content type) use markdown image syntax.
+                    {type: "image", url: fileUrl, alt: null, data: {fileElement: element}},
+                ];
 
+                if (element.marks) {
+                    for (const mark of reverseIterable(element.marks)) {
+                        children.unshift({
+                            type: "html",
+                            value: options.withCommentTagHtml
+                                ? `<comment id="${mark.thread.id}">`
+                                : `<mark data-comment="${mark.thread.id}">`,
+                        });
+
+                        children.push({
+                            type: "html",
+                            value: options.withCommentTagHtml ? "</comment>" : "</mark>",
+                        });
+                    }
+                }
+
+                yield {type: "paragraph", children};
+            } else {
+                const htmlNode: Html = {
+                    type: "html",
+                    value: printApiContentFileBlockElementToMarkdown(fileUrl, element.contentType),
+                    data: {fileElement: element},
+                };
+
+                let children: Array<PhrasingContent> | undefined;
+
+                if (element.marks) {
+                    for (const mark of reverseIterable(element.marks)) {
+                        children ??= [htmlNode];
+
+                        children.unshift({
+                            type: "html",
+                            value: options.withCommentTagHtml
+                                ? `<comment id="${mark.thread.id}">`
+                                : `<mark data-comment="${mark.thread.id}">`,
+                        });
+
+                        children.push({
+                            type: "html",
+                            value: options.withCommentTagHtml ? "</comment>" : "</mark>",
+                        });
+                    }
+                }
+
+                yield children ? {type: "paragraph", children} : htmlNode;
+            }
             break;
         }
         case "Preview": {
-            const previewUrl = printPreviewTargetUrl(element.target);
-            const title = element.title?.trim() ? element.title : "";
-            yield {
-                type: "paragraph",
-                children: [{type: "image", url: previewUrl, alt: title}],
-            };
+            const children: Array<PhrasingContent> = [
+                {
+                    type: "image",
+                    url: printApiPreviewReferenceToPreviewUrl(element.reference),
+                    alt: printApiMentionReferenceToMentionLinkLabel(element.reference),
+                    data: {previewElement: element},
+                },
+            ];
+
+            if (element.marks) {
+                for (const mark of reverseIterable(element.marks)) {
+                    children.unshift({
+                        type: "html",
+                        value: options.withCommentTagHtml
+                            ? `<comment id="${mark.thread.id}">`
+                            : `<mark data-comment="${mark.thread.id}">`,
+                    });
+
+                    children.push({
+                        type: "html",
+                        value: options.withCommentTagHtml ? "</comment>" : "</mark>",
+                    });
+                }
+            }
+
+            yield {type: "paragraph", children};
             break;
         }
         case "FileGallery": {
@@ -438,22 +494,50 @@ function* printApiContentBlockElementToMarkdown(
                 }
 
                 for (let i = 0; i < row.items.length; i++) {
-                    const item = assertExists(row.items[i]);
+                    const item = row.items[i]!;
                     const widthPercent = assertExists(widthPercents[i]);
 
-                    lines.push(fileOrPreviewToHtml(item.element, `flex: 0 0 ${widthPercent}%`));
+                    let html = printApiContentFileOrPreviewBlockElementToMarkdown(
+                        item.element,
+                        `flex: 0 0 ${widthPercent}%`,
+                    );
+
+                    if (item.element.marks) {
+                        for (const mark of reverseIterable(item.element.marks)) {
+                            html = options.withCommentTagHtml
+                                ? `<comment id="${mark.thread.id}">${html}</comment>`
+                                : `<mark data-comment="${mark.thread.id}">${html}</mark>`;
+                        }
+                    }
+
+                    lines.push(html);
                 }
                 lines.push(`</div>`);
-                yield {type: "html", value: lines.join("\n")};
+                yield {type: "html", value: lines.join("\n"), data: {fileGalleryElementRow: row}};
             }
             break;
         }
         case "FileFloat": {
             const side = element.side === "Right" ? "right" : "left";
             const style = `float: ${side}; clear: both`;
+
+            let html = printApiContentFileOrPreviewBlockElementToMarkdown(element.element);
+
+            if (element.element.marks) {
+                for (const mark of reverseIterable(element.element.marks)) {
+                    html = options.withCommentTagHtml
+                        ? `<comment id="${mark.thread.id}">${html}</comment>`
+                        : `<mark data-comment="${mark.thread.id}">${html}</mark>`;
+                }
+            }
+
             yield {
                 type: "html",
-                value: `<div style="${style}">${fileOrPreviewToHtml(element.element)}</div>`,
+                value: `<div style="${style}">\n${html}\n</div>`,
+                data:
+                    element.element.type === "Preview"
+                        ? {previewElement: element.element}
+                        : {fileElement: element.element},
             };
             break;
         }
@@ -468,13 +552,17 @@ function* printApiContentBlockElementToMarkdown(
  * web-safe content types in `<img>`, `<video>`, and `<audio>` tags. Everything
  * else falls back to `<object>`.
  */
-function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr = ""): string {
+function printApiContentFileBlockElementToMarkdown(
+    fileUrl: string,
+    contentType: string | undefined,
+    styleAttr = "",
+): string {
     const escapedUrl = escapeHtml(fileUrl);
 
     // If the file is a web safe image then use an `<img>` element. Files with unknown
     // content type also use `<img>` as the default.
     if (!contentType || isWebSafeImageContentType(contentType)) {
-        return `<img src="${escapedUrl}"${styleAttr}/>`;
+        return `<img src="${escapedUrl}"${styleAttr} />`;
     }
 
     // If the file is web safe video then use a `<video>` element. `video/mp4` is not
@@ -483,7 +571,7 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
     if (isWebSafeVideoContentType(contentType) || contentType === "video/mp4") {
-        return `<video controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></video>`;
+        return `<video type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></video>`;
     }
 
     // If the file is web safe audio then use an `<audio>` element. `audio/mp4` is not
@@ -492,29 +580,33 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
     if (isWebSafeAudioContentType(contentType) || contentType === "audio/mp4") {
-        return `<audio controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></audio>`;
+        return `<audio type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></audio>`;
     }
 
     // Otherwise, fallback to an `<object>` element.
-    return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}/>`;
+    return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}></object>`;
 }
 
-function fileOrPreviewToHtml(
+function printApiContentFileOrPreviewBlockElementToMarkdown(
     element:
         | {readonly type: "File"; readonly id: string; readonly contentType?: string}
-        | {readonly type: "Preview"; readonly target: ApiPreviewTarget; readonly title?: string},
+        | {readonly type: "Preview"; readonly reference: ApiPreviewReference},
     style?: string,
 ): string {
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
     switch (element.type) {
         case "File": {
-            const fileUrl = printFileUrl(element.id);
-            return fileToHtml(fileUrl, element.contentType, styleAttr);
+            const fileUrl = printApiFileContentUrl(element.id);
+            return printApiContentFileBlockElementToMarkdown(
+                fileUrl,
+                element.contentType,
+                styleAttr,
+            );
         }
         case "Preview": {
-            const previewUrl = printPreviewTargetUrl(element.target);
-            const title = element.title?.trim() ? element.title : "";
-            return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr}/>`;
+            const previewUrl = printApiPreviewReferenceToPreviewUrl(element.reference);
+            const title = element.reference.title?.trim() ? element.reference.title : "";
+            return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr} />`;
         }
         default:
             throw exhaustive(element);
@@ -601,7 +693,7 @@ function printApiContentCodeBlockElementToMarkdown(
                         html += "</mark>";
                         break;
                     case "Comment": {
-                        html += options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
+                        html += options.withCommentTagHtml ? "</comment>" : "</mark>";
                         break;
                     }
                     default:
@@ -635,9 +727,9 @@ function printApiContentCodeBlockElementToMarkdown(
                         break;
                     }
                     case "Comment": {
-                        html += options.withSimpleCommentMarkHtml
-                            ? "<comment>"
-                            : `<mark data-comment="${mark.threadId}">`;
+                        html += options.withCommentTagHtml
+                            ? `<comment id="${mark.thread.id}">`
+                            : `<mark data-comment="${mark.thread.id}">`;
                         break;
                     }
                     default:
@@ -670,7 +762,7 @@ function printApiContentCodeBlockElementToMarkdown(
                     html += "</mark>";
                     break;
                 case "Comment":
-                    html += options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
+                    html += options.withCommentTagHtml ? "</comment>" : "</mark>";
                     break;
                 default:
                     throw exhaustive(mark);
@@ -704,10 +796,30 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
     // Simple GFM tables don't support a header column.
     if (element.hasHeaderColumn) return null;
 
+    // We can't configure table or column width for simple GFM tables. So unfortunately
+    // we fall back to HTML `<table>`s. This is quite a bummer but the alternatives are
+    // difficult for agents and developers to work with. (e.g. Including a
+    // `<span hidden>` in the table or a wrapper `<div>` that carries
+    // `data-column-widths` is inconsistent with how we handle column widths for
+    // `<table>`s.)
+    //
+    // Also, as we add more customizations to tables we'll just see more bail-out cases
+    // to HTML `<table>` so we may live in a future where most tables need to be HTML
+    // `<table>`s anyway.
+    if (element.width !== 1 || element.columns.some(column => column.width !== 1)) return null;
+
+    let columnCount: number | null = null;
     const rows: Array<TableRow> = [];
 
     for (let rowIndex = 0; rowIndex < Math.max(1, element.rows.length); rowIndex++) {
         const row = element.rows[rowIndex] ?? {cells: []};
+
+        if (columnCount === null) {
+            columnCount = row.cells.length;
+        } else if (columnCount !== row.cells.length) {
+            // Can't print table with uneven number of cells to GFM table.
+            return null;
+        }
 
         const cells: Array<TableCell> = [];
         rows.push({type: "tableRow", children: cells});
@@ -758,38 +870,12 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         }
     }
 
-    // Add a `<span>` to the last cell of the table with information about the table's
-    // width and the table's column widths. This is needed for reconstructing the input
-    // content but unfortunately is not very aesthetic.
-    if (
-        !options.withoutTableWidth &&
-        (element.width !== 1 || element.columns.some(column => column.width !== 1))
-    ) {
-        let html = "<span hidden";
-
-        if (element.width !== 1) {
-            html += ` data-width="${escapeHtml(JSON.stringify(element.width))}"`;
-        }
-
-        if (element.columns.some(column => column.width !== 1)) {
-            html += ` data-column-widths="${escapeHtml(
-                JSON.stringify(element.columns.map(column => column.width)).slice(1, -1),
-            )}"`;
-        }
-
-        html += "/>";
-
-        const lastRow = rows[rows.length - 1];
-        if (lastRow !== undefined) {
-            const lastCell = lastRow.children[lastRow.children.length - 1];
-            if (lastCell !== undefined) {
-                lastCell.children.push({type: "html", value: html});
-            }
-        }
-    }
-
     return {
         type: "table",
+        align: createArrayWithLength(
+            Math.max(columnCount ?? element.columns.length, 2),
+            () => null,
+        ),
         children: rows,
     };
 }
@@ -809,16 +895,14 @@ function* printApiContentTableBlockElementToMarkdown(
 
     let tableTagHtml = "<table";
 
-    if (!options.withoutTableWidth) {
-        if (element.width !== 1) {
-            tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
-        }
+    if (element.width !== 1) {
+        tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
+    }
 
-        if (element.columns.some(column => column.width !== 1)) {
-            tableTagHtml += ` data-column-widths="${JSON.stringify(
-                element.columns.map(column => column.width),
-            ).slice(1, -1)}"`;
-        }
+    if (element.columns.some(column => column.width !== 1)) {
+        tableTagHtml += ` data-column-widths="${JSON.stringify(
+            element.columns.map(column => column.width),
+        ).slice(1, -1)}"`;
     }
 
     tableTagHtml += ">";
@@ -968,7 +1052,7 @@ function printApiContentInlineElementsToMarkdown(
 
         // `mdast` struggles to parse breaks at the end of block content. So if this is the
         // last inline element (or all elements afterwards are breaks) then force breaks to
-        // be output as HTML (`<br/>`).
+        // be output as HTML (`<br>`).
         if (
             element.type === "Break" &&
             elements.slice(index + 1).every(element => element.type === "Break")
@@ -993,12 +1077,12 @@ function printApiContentInlineElementsToMarkdown(
                     nextContent.type === "strong" ||
                     nextContent.type === "delete")
             ) {
-                lastContent = contents[contents.length - 1] = {type: "html", value: "<br/>"};
+                lastContent = contents[contents.length - 1] = {type: "html", value: "<br />"};
 
                 for (let i = contents.length - 2; i >= 0; i--) {
                     const lastContent = contents[i]!;
                     if (lastContent.type !== "break") break;
-                    contents[i] = {type: "html", value: "<br/>"};
+                    contents[i] = {type: "html", value: "<br />"};
                 }
             }
 
@@ -1242,9 +1326,7 @@ function* printApiContentInlineElementToMarkdown(
     switch (element.type) {
         case "Text": {
             let hasCodeMark = false;
-            let marks:
-                | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-                | undefined;
+            let marks: Array<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined;
 
             const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
@@ -1294,9 +1376,7 @@ function* printApiContentInlineElementToMarkdown(
         }
         case "Break": {
             let hasCodeMark = false;
-            let marks:
-                | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-                | undefined;
+            let marks: Array<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined;
 
             const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
@@ -1322,8 +1402,8 @@ function* printApiContentInlineElementToMarkdown(
                 yield* printApiContentInlineElementMarksToMarkdown(
                     marks,
                     hasCodeMark
-                        ? {type: "html", value: "<code><br/></code>"}
-                        : {type: "html", value: "<br/>"},
+                        ? {type: "html", value: "<code><br /></code>"}
+                        : {type: "html", value: "<br />"},
                     options,
                 );
             }
@@ -1331,10 +1411,8 @@ function* printApiContentInlineElementToMarkdown(
         }
         case "Mention": {
             let hasCodeMark = false;
-            let linkMark: ApiContentInlineElementLinkMark | undefined;
-            let marks:
-                | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-                | undefined;
+            let linkMark: ApiContentLinkMark | undefined;
+            let marks: Array<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined;
 
             const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
@@ -1350,23 +1428,20 @@ function* printApiContentInlineElementToMarkdown(
                 }
             }
 
-            const mentionTarget = element.target;
-
-            const title =
-                element.title ??
-                (mentionTarget.type === "Account"
-                    ? "Unknown"
-                    : `Unknown ${getApiMentionTargetNoun(mentionTarget.type)}`);
-
-            const targetUrl = printApiMentionPathToMentionLinkUrl(mentionTarget, {
-                isAccountShortName: element.isAccountShortName,
-            });
-
             const childContent: Array<PhrasingContent> = [
                 {
                     type: "link",
-                    url: targetUrl,
-                    children: [{type: "text", value: title}],
+                    url: printApiMentionReferenceToMentionUrl(element.reference, {
+                        isAccountShortName: element.isAccountShortName,
+                    }),
+                    children: [
+                        {
+                            type: "text",
+                            value: printApiMentionReferenceToMentionLinkLabel(element.reference, {
+                                isAccountShortName: element.isAccountShortName,
+                            }),
+                        },
+                    ],
                     data: {mentionElement: element},
                 },
             ];
@@ -1411,33 +1486,50 @@ function* printApiContentInlineElementToMarkdown(
     }
 }
 
-export function printApiMentionPathToMentionLinkUrl(
-    target: ApiMentionTarget,
+export function printApiMentionReferenceToMentionLinkLabel(
+    reference: ApiMentionReference,
+    {isAccountShortName = false}: {isAccountShortName?: boolean} = {},
+): string {
+    if (reference.type === "Account" && isAccountShortName && reference.shortName !== undefined) {
+        return reference.shortName;
+    }
+
+    const title =
+        reference.title ??
+        (reference.type === "Account"
+            ? "Unknown"
+            : `Unknown ${getApiMentionReferenceNoun(reference.type)}`);
+
+    return title;
+}
+
+export function printApiMentionReferenceToMentionUrl(
+    reference: ApiMentionReference,
     {isAccountShortName}: {isAccountShortName: boolean | undefined},
 ) {
-    switch (target.type) {
+    switch (reference.type) {
         case "Account": {
-            return `https://alpine.inc/mention/${target.id}${isAccountShortName ? "?short" : ""}`;
+            return `https://alpine.inc/mention/${reference.id}${isAccountShortName ? "?short" : ""}`;
         }
         case "Channel":
-            return `https://alpine.inc/channel/${target.id}?mention`;
+            return `https://alpine.inc/channel/${reference.id}?mention`;
         case "Chat":
-            return `https://alpine.inc/chat/${target.id}?mention`;
+            return `https://alpine.inc/chat/${reference.id}?mention`;
         case "Document":
-            return `https://alpine.inc/doc/${target.id}?mention`;
+            return `https://alpine.inc/doc/${reference.id}?mention`;
         case "Post":
-            return `https://alpine.inc/post/${target.id}?mention`;
+            return `https://alpine.inc/post/${reference.id}?mention`;
         case "Site":
             // TODO(#sites-api): This differs from the App! The question that we need to answer
             // is: "Should a Site API mention reroute the caller to the first entity in the
             // site?". Probably not
-            return `https://alpine.inc/site/${target.id}?mention`;
+            return `https://alpine.inc/site/${reference.id}?mention`;
         case "Task":
-            return `https://alpine.inc/task/${target.id}?mention`;
+            return `https://alpine.inc/task/${reference.id}?mention`;
         case "TaskCollection":
-            return `https://alpine.inc/task-collection/${target.id}?mention`;
+            return `https://alpine.inc/task-collection/${reference.id}?mention`;
         default:
-            throw exhaustive(target);
+            throw exhaustive(reference);
     }
 }
 
@@ -1445,30 +1537,31 @@ export function printApiMentionPathToMentionLinkUrl(
 // points to our app which would render a custom previewer, but `<img>`, `<video>`,
 // `<audio>`, and `<object>` tags need the raw file content to work. This should
 // serve the file bytes directly (or redirect to a signed URL).
-function printFileUrl(fileId: string): string {
+export function printApiFileContentUrl(fileId: string): string {
     return `https://alpine.inc/file/${fileId}/content`;
 }
 
-function printPreviewTargetUrl(target: ApiPreviewTarget): string {
-    switch (target.type) {
+export function printApiPreviewReferenceToPreviewUrl(reference: ApiPreviewReference): string {
+    // TODO(#sites): Add Site to PreviewTarget.
+    switch (reference.type) {
         case "Channel":
             // TODO: Implement /preview endpoints that generate a PNG or similar image for each
             // previewable entity. Can also serve as OpenGraph images.
-            return `https://alpine.inc/channel/${target.id}/preview`;
+            return `https://alpine.inc/channel/${reference.id}/preview`;
         case "Chat":
-            return `https://alpine.inc/chat/${target.id}/preview`;
+            return `https://alpine.inc/chat/${reference.id}/preview`;
         case "Document":
-            return `https://alpine.inc/doc/${target.id}/preview`;
+            return `https://alpine.inc/doc/${reference.id}/preview`;
         case "Post":
-            return `https://alpine.inc/post/${target.id}/preview`;
-        case "Site":
-            return `https://alpine.inc/site/${target.id}/preview`;
+            return `https://alpine.inc/post/${reference.id}/preview`;
         case "Task":
-            return `https://alpine.inc/task/${target.id}/preview`;
+            return `https://alpine.inc/task/${reference.id}/preview`;
         case "TaskCollection":
-            return `https://alpine.inc/task-collection/${target.id}/preview`;
+            return `https://alpine.inc/task-collection/${reference.id}/preview`;
+        case "Site":
+            return `https://alpine.inc/site/${reference.id}/preview`;
         default:
-            throw exhaustive(target);
+            throw exhaustive(reference);
     }
 }
 
@@ -1522,37 +1615,8 @@ function isWebSafeVideoContentType(contentType: string): boolean {
     return contentType === "video/webm";
 }
 
-export function printAppUrlFromApiNotMentionPath(
-    targetPathObject: ApiNotMentionPathObject,
-): string {
-    switch (targetPathObject.type) {
-        case "ChatMessages":
-            return `https://alpine.inc/chat/${targetPathObject.id}`;
-        case "ChatMessage":
-            return `https://alpine.inc/chat/${targetPathObject.id}?message=${targetPathObject.index}`;
-        case "DocumentComment":
-            return `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}&comment=${targetPathObject.index}`;
-        case "DocumentCommentThread":
-        case "DocumentCommentThreadComments":
-            return `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}`;
-        case "PostComment":
-            return `https://alpine.inc/post/${targetPathObject.id}?comment=${targetPathObject.index}`;
-        case "PostComments":
-            // Redirect to the post itself. This is mentionable.
-            return `https://alpine.inc/post/${targetPathObject.id}?mention`;
-        case "TaskComment":
-            return `https://alpine.inc/task/${targetPathObject.id}?comment=${targetPathObject.index}`;
-        case "TaskComments":
-            return `https://alpine.inc/task/${targetPathObject.id}`;
-        default:
-            throw exhaustive(targetPathObject);
-    }
-}
-
 function* printApiContentInlineElementMarksToMarkdown(
-    marks:
-        | ReadonlyArray<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-        | undefined,
+    marks: ReadonlyArray<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined,
     content: PhrasingContent | Array<PhrasingContent>,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<PhrasingContent> {
@@ -1564,7 +1628,7 @@ function* printApiContentInlineElementMarksToMarkdown(
         return;
     }
 
-    let mentionishMark: ApiContentInlineElementLinkMark | undefined;
+    let mentionishMark: ApiContentLinkMark | undefined;
 
     for (const mark of marks) {
         if (mark.type !== "Link") continue;
@@ -1608,7 +1672,7 @@ function* printApiContentInlineElementMarksToMarkdown(
 
     function* wrappedPrintApiContentInlineElementMarkToMarkdown(
         content: Iterable<PhrasingContent>,
-        mark: Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>,
+        mark: Exclude<ApiContentInlineElementMark, ApiContentCodeMark>,
     ): IterableIterator<PhrasingContent> {
         yield* printApiContentInlineElementMarkToMarkdown(content, mark, options);
     }
@@ -1616,7 +1680,7 @@ function* printApiContentInlineElementMarksToMarkdown(
 
 function* printApiContentInlineElementMarkToMarkdown(
     content: Iterable<PhrasingContent>,
-    mark: Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>,
+    mark: Exclude<ApiContentInlineElementMark, ApiContentCodeMark>,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<PhrasingContent> {
     switch (mark.type) {
@@ -1652,10 +1716,10 @@ function* printApiContentInlineElementMarkToMarkdown(
             break;
         }
         case "Comment": {
-            const openHtml = options.withSimpleCommentMarkHtml
-                ? "<comment>"
-                : `<mark data-comment="${mark.threadId}">`;
-            const closeHtml = options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
+            const openHtml = options.withCommentTagHtml
+                ? `<comment id="${mark.thread.id}">`
+                : `<mark data-comment="${mark.thread.id}">`;
+            const closeHtml = options.withCommentTagHtml ? "</comment>" : "</mark>";
 
             yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
             yield* content;
@@ -1667,9 +1731,7 @@ function* printApiContentInlineElementMarkToMarkdown(
     }
 }
 
-function printApiContentInlineElementHighlightMarkColor(
-    color: ApiContentInlineElementHighlightMarkColor,
-) {
+function printApiContentInlineElementHighlightMarkColor(color: ApiContentHighlightMarkColor) {
     switch (color) {
         case "Red":
             return "red";
@@ -1689,8 +1751,8 @@ function printApiContentInlineElementHighlightMarkColor(
 /**
  * If the list has an orderStart of 1, we inject an empty html `span` element into
  * the list content so that something like `1. ` becomes
- * `1. <span data-start="1"/>` or `1. first item` becomes
- * `1. <span data-start="1"/>first item`.
+ * `1. <span data-start="1"></span>` or `1. first item` becomes
+ * `1. <span data-start="1"></span>first item`.
  *
  * This ensures that we maintain the orderStart value from the original content and
  * can parse it back into the exact same content later. See the note below for more
@@ -1798,7 +1860,7 @@ function addOrderedStartSpanToFirstItemInOrderedListIfNeeded(listContent: List):
     function insertSpanIntoContent(content: ListItem | Paragraph) {
         content.children.unshift({
             type: "html",
-            value: `<span data-start=\u201D${listContent.start}\u201D/>`,
+            value: `<span data-start=\u201D${listContent.start}\u201D></span>`,
         });
     }
 }

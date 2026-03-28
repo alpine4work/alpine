@@ -4,6 +4,7 @@ import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_acce
 import {ChannelPostsIndex} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {DynamoIndexCursor, DynamoIndexPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoBackfillResult, RynamoIndexQueryResult} from "~/shared/dynamo/rynamo_types.js";
+import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -71,6 +72,8 @@ export async function getChannelPostContents(
         authorId: AccountId;
         createdTime: Date;
         createdTimeZone: TimeZone;
+        contentVersion: number;
+        content: PostContent;
     }>;
     hasNextPage: boolean;
 }> {
@@ -100,6 +103,8 @@ export async function getChannelPostContents(
             authorId: item.authorId,
             createdTime: item.createdTime,
             createdTimeZone: item.createdTimeZone,
+            contentVersion: item.contentUpdate?.mappings.length ?? 0,
+            content: item.content,
         })),
         hasNextPage: items.length > limit,
     };

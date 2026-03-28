@@ -1,15 +1,42 @@
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
-export type ApiMessageRoomTarget = ApiSpecification.components["schemas"]["MessageRoomTarget"];
+export type ApiMessageRoomReference =
+    ApiSpecification.components["schemas"]["MessageRoomReference"];
 
-export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
+export type ApiAccountReference = ApiSpecification.components["schemas"]["AccountReference"];
 
-export type ApiMentionTargetResponse =
-    ApiSpecification.components["schemas"]["MentionTarget_Response"];
+export type ApiAccountReferenceResponse =
+    ApiSpecification.components["schemas"]["AccountReference_Response"];
 
-export type ApiMention = ApiSpecification.components["schemas"]["Mention"];
+export type ApiChannelReference = ApiSpecification.components["schemas"]["ChannelReference"];
 
-export type ApiMentionResponse = ApiSpecification.components["schemas"]["Mention_Response"];
+export type ApiChannelReferenceResponse =
+    ApiSpecification.components["schemas"]["ChannelReference_Response"];
+
+export type ApiChatReference = ApiSpecification.components["schemas"]["ChatReference"];
+
+export type ApiChatReferenceResponse =
+    ApiSpecification.components["schemas"]["ChatReference_Response"];
+
+export type ApiDocumentReference = ApiSpecification.components["schemas"]["DocumentReference"];
+
+export type ApiDocumentReferenceResponse =
+    ApiSpecification.components["schemas"]["DocumentReference_Response"];
+
+export type ApiPostReference = ApiSpecification.components["schemas"]["PostReference"];
+
+export type ApiPostReferenceResponse =
+    ApiSpecification.components["schemas"]["PostReference_Response"];
+
+export type ApiTaskReference = ApiSpecification.components["schemas"]["TaskReference"];
+
+export type ApiTaskReferenceResponse =
+    ApiSpecification.components["schemas"]["TaskReference_Response"];
+
+export type ApiMentionReference = ApiSpecification.components["schemas"]["MentionReference"];
+
+export type ApiMentionReferenceResponse =
+    ApiSpecification.components["schemas"]["MentionReference_Response"];
 
 export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 
@@ -40,6 +67,9 @@ export type ApiContentOrderedListBlockElementResponse =
 
 export type ApiContentCheckListBlockElement =
     ApiSpecification.components["schemas"]["ContentCheckListBlockElement"];
+
+export type ApiContentCheckListBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElement_Response"];
 
 export type ApiContentListBlockElement =
     ApiSpecification.components["schemas"]["ContentListBlockElement"];
@@ -80,11 +110,17 @@ export type ApiContentHeadingBlockElementResponse =
 export type ApiContentDividerBlockElement =
     ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
 
+export type ApiContentDividerBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentDividerBlockElement_Response"];
+
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
 
 export type ApiContentTableBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElement_Response"];
+
+export type ApiContentTableBlockElementRow =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementRow"];
 
 export type ApiContentTableBlockElementRowResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Response"];
@@ -103,6 +139,15 @@ export type ApiContentTableBlockElementCellBlockElementResponse =
 
 export type ApiContentCodeBlockElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElement"];
+
+export type ApiContentCodeBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElement_Response"];
+
+export type ApiContentCodeBlockElementLine =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine"];
+
+export type ApiContentCodeBlockElementLineResponse =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_Response"];
 
 export type ApiContentCodeBlockElementTextInlineElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElementTextInlineElement"];
@@ -146,10 +191,10 @@ export type ApiContentFileFloatBlockElement =
 export type ApiContentFileFloatBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_Response"];
 
-export type ApiPreviewTarget = ApiSpecification.components["schemas"]["PreviewTarget"];
+export type ApiPreviewReference = ApiSpecification.components["schemas"]["PreviewReference"];
 
-export type ApiPreviewTargetResponse =
-    ApiSpecification.components["schemas"]["PreviewTarget_Response"];
+export type ApiPreviewReferenceResponse =
+    ApiSpecification.components["schemas"]["PreviewReference_Response"];
 
 export type ApiContentInlineElement =
     ApiSpecification.components["schemas"]["ContentInlineElement"];
@@ -172,20 +217,17 @@ export type ApiContentMentionInlineElementResponse =
 export type ApiContentInlineElementMark =
     ApiSpecification.components["schemas"]["ContentInlineElementMark"];
 
-export type ApiContentInlineElementCodeMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementCodeMark"];
+export type ApiContentCodeMark = ApiSpecification.components["schemas"]["ContentCodeMark"];
 
-export type ApiContentInlineElementLinkMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementLinkMark"];
+export type ApiContentLinkMark = ApiSpecification.components["schemas"]["ContentLinkMark"];
 
-export type ApiContentInlineElementHighlightMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementHighlightMark"];
+export type ApiContentHighlightMark =
+    ApiSpecification.components["schemas"]["ContentHighlightMark"];
 
-export type ApiContentInlineElementHighlightMarkColor =
-    ApiSpecification.components["schemas"]["ContentInlineElementHighlightMarkColor"];
+export type ApiContentHighlightMarkColor =
+    ApiSpecification.components["schemas"]["ContentHighlightMarkColor"];
 
-export type ApiContentInlineElementCommentMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementCommentMark"];
+export type ApiContentCommentMark = ApiSpecification.components["schemas"]["ContentCommentMark"];
 
 export type ApiAccount = ApiSpecification.components["schemas"]["Account"];
 
@@ -193,8 +235,12 @@ export type ApiAccountWithoutSpace = ApiSpecification.components["schemas"]["Acc
 
 export type ApiChat = ApiSpecification.components["schemas"]["Chat"];
 
-export type ApiDocumentCommentThreadResponse =
-    ApiSpecification.components["schemas"]["DocumentCommentThread_Response"];
+export type ApiDirectChat = ApiSpecification.components["schemas"]["DirectChat"];
+
+export type ApiRoomChat = ApiSpecification.components["schemas"]["RoomChat"];
+
+export type ApiDocumentThreadResponse =
+    ApiSpecification.components["schemas"]["DocumentThread_Response"];
 
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
@@ -204,9 +250,13 @@ export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskN
 
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
+export type ApiChannelPreview = ApiSpecification.components["schemas"]["ChannelPreview"];
+
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
 
 export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];
+
+export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["PostPreview_Response"];
 
 export type ApiMessagePayloadResponse =
     ApiSpecification.components["schemas"]["MessagePayload_Response"];
@@ -241,6 +291,12 @@ export type ApiMessageStreamPartPayload =
 export type ApiMessageStreamPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
 
+export type ApiMessageStreamContentPartPayload =
+    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload"];
+
+export type ApiMessageStreamContentPartPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload_Response"];
+
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
@@ -274,17 +330,17 @@ export type ApiBotWebhookRequestBody =
 
 export type ApiBotWebhookEvent = ApiBotWebhookRequestBody["event"];
 
-export type ApiBotWebhookNewMessageEvent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEvent"];
+export type ApiBotWebhookCreatedMessageEvent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEvent"];
 
-export type ApiBotWebhookNewMessageEventParent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventParent"];
+export type ApiBotWebhookCreatedMessageEventParent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventParent"];
 
-export type ApiBotWebhookNewMessageEventMessageParent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventMessageParent"];
+export type ApiBotWebhookCreatedMessageEventMessageParent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventMessageParent"];
 
-export type ApiBotWebhookNewMessageEventPostParent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventPostParent"];
+export type ApiBotWebhookCreatedMessageEventPostParent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventPostParent"];
 
 export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
 
@@ -294,11 +350,11 @@ export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"]
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
 
-export type ApiMessageStreamToolCallPartCreateCallTarget =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallTarget"];
+export type ApiMessageStreamToolCallPartCreateCallReference =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference"];
 
-export type ApiMessageStreamToolCallPartCreateCallTargetResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallTarget_Response"];
+export type ApiMessageStreamToolCallPartCreateCallReferenceResponse =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
 
 export type ApiGetDocumentResponse =
     ApiSpecification.components["responses"]["GetDocument"]["content"]["application/json"];
