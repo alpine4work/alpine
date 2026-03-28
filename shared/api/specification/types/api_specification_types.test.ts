@@ -15,13 +15,22 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
+import {ApiTargetResponse} from "~/shared/api/specification/types/api_target_response.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 
-test("all search results are assignable to `ApiTarget`", () => {
-    assertAssignableTypes<ApiSearchResult, ApiTarget>();
+test("all `ApiTargetResponse` are assignable to `ApiTarget`", () => {
+    assertAssignableTypes<ApiTargetResponse, ApiTarget>();
 });
 
-test("Create tool call target is assignable to ApiMentionTarget", () => {
+test("all search results are assignable to `ApiTargetResponse`", () => {
+    assertAssignableTypes<ApiSearchResult, ApiTargetResponse>();
+});
+
+test("all mention targets are assignable to `ApiTargetResponse`", () => {
+    assertAssignableTypes<ApiMentionTargetResponse, ApiTargetResponse>();
+});
+
+test("create tool call target is assignable to ApiMentionTarget", () => {
     assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallTarget, ApiMentionTarget>();
 });
 

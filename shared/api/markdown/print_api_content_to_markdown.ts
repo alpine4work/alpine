@@ -69,12 +69,6 @@ export type ApiContentMarkdownPrinterOptions = {
     readonly spaceId: SpaceId;
 
     /**
-     * If `true` then we don't add the `data-width` and `data-column-widths` attributes
-     * to tables.
-     */
-    readonly withoutTableWidth?: boolean;
-
-    /**
      * If `true` then we convert comment marks to simple `<comment>` tags.
      *
      * ```html
@@ -683,6 +677,18 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
     // Simple GFM tables don't support a header column.
     if (element.hasHeaderColumn) return null;
 
+    // We can't configure table or column width for simple GFM tables. So unfortunately
+    // we fall back to HTML `<table>`s. This is quite a bummer but the alternatives are
+    // difficult for agents and developers to work with. (e.g. Including a
+    // `<span hidden>` in the table or a wrapper `<div>` that carries
+    // `data-column-widths` is inconsistent with how we handle column widths for
+    // `<table>`s.)
+    //
+    // Also, as we add more customizations to tables we'll just see more bail-out cases
+    // to HTML `<table>` so we may live in a future where most tables need to be HTML
+    // `<table>`s anyway.
+    if (element.width !== 1 || element.columns.some(column => column.width !== 1)) return null;
+
     const rows: Array<TableRow> = [];
 
     for (let rowIndex = 0; rowIndex < Math.max(1, element.rows.length); rowIndex++) {
@@ -737,36 +743,6 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         }
     }
 
-    // Add a `<span>` to the last cell of the table with information about the table's
-    // width and the table's column widths. This is needed for reconstructing the input
-    // content but unfortunately is not very aesthetic.
-    if (
-        !options.withoutTableWidth &&
-        (element.width !== 1 || element.columns.some(column => column.width !== 1))
-    ) {
-        let html = "<span hidden";
-
-        if (element.width !== 1) {
-            html += ` data-width="${escapeHtml(JSON.stringify(element.width))}"`;
-        }
-
-        if (element.columns.some(column => column.width !== 1)) {
-            html += ` data-column-widths="${escapeHtml(
-                JSON.stringify(element.columns.map(column => column.width)).slice(1, -1),
-            )}"`;
-        }
-
-        html += "/>";
-
-        const lastRow = rows[rows.length - 1];
-        if (lastRow !== undefined) {
-            const lastCell = lastRow.children[lastRow.children.length - 1];
-            if (lastCell !== undefined) {
-                lastCell.children.push({type: "html", value: html});
-            }
-        }
-    }
-
     return {
         type: "table",
         children: rows,
@@ -788,16 +764,14 @@ function* printApiContentTableBlockElementToMarkdown(
 
     let tableTagHtml = "<table";
 
-    if (!options.withoutTableWidth) {
-        if (element.width !== 1) {
-            tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
-        }
+    if (element.width !== 1) {
+        tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
+    }
 
-        if (element.columns.some(column => column.width !== 1)) {
-            tableTagHtml += ` data-column-widths="${JSON.stringify(
-                element.columns.map(column => column.width),
-            ).slice(1, -1)}"`;
-        }
+    if (element.columns.some(column => column.width !== 1)) {
+        tableTagHtml += ` data-column-widths="${JSON.stringify(
+            element.columns.map(column => column.width),
+        ).slice(1, -1)}"`;
     }
 
     tableTagHtml += ">";
@@ -1251,7 +1225,7 @@ function* printApiContentInlineElementToMarkdown(
             const mentionTarget = element.target;
 
             const title =
-                element.title ??
+                element.target.title ??
                 (mentionTarget.type === "Account"
                     ? "Unknown"
                     : `Unknown ${getApiMentionTargetNoun(mentionTarget.type)}`);

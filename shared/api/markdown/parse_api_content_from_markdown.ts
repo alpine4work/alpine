@@ -1639,8 +1639,6 @@ function* parseApiContentBlockElementFromMarkdown(
         }
         case "table": {
             let columnCount = 0;
-            let width: number | null = null;
-            let columnWidths: Array<number> | null = null;
 
             const rows = content.children.map(row => {
                 columnCount = Math.max(columnCount, row.children.length);
@@ -1652,14 +1650,6 @@ function* parseApiContentBlockElementFromMarkdown(
                                 cell.children,
                                 definitions,
                                 options,
-                                {
-                                    onSpanDataWidth: newWidth => {
-                                        width = newWidth;
-                                    },
-                                    onSpanDataColumnWidths: newColumnWidths => {
-                                        columnWidths = newColumnWidths;
-                                    },
-                                },
                             ),
                         );
 
@@ -1681,10 +1671,8 @@ function* parseApiContentBlockElementFromMarkdown(
 
             yield {
                 type: "Table",
-                width: width ?? 1,
-                columns: createArrayWithLength(columnCount, columnIndex => ({
-                    width: columnWidths?.[columnIndex] ?? 1,
-                })),
+                width: 1,
+                columns: createArrayWithLength(columnCount, () => ({width: 1})),
                 hasHeaderRow: true,
                 hasHeaderColumn: undefined,
                 rows,
@@ -2032,10 +2020,6 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     options: ApiContentMarkdownParserOptions,
-    callbacks?: {
-        onSpanDataWidth?: (width: number | null) => void;
-        onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
-    },
 ): IterableIterator<ApiContentInlineElement> {
     let lastElement: ApiContentInlineElement | undefined;
 
@@ -2044,7 +2028,6 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
         definitions,
         new ApiContentInlineElementsMarkdownParserMarkStack(),
         options,
-        callbacks,
     )) {
         // Merge any adjacent text elements with the same marks.
         if (
@@ -2122,10 +2105,6 @@ function* parseApiContentInlineElementsFromMarkdown(
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
     options: ApiContentMarkdownParserOptions,
-    callbacks?: {
-        onSpanDataWidth?: (width: number | null) => void;
-        onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
-    },
 ): IterableIterator<ApiContentInlineElement> {
     let index = 0;
 
@@ -2151,7 +2130,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2166,7 +2144,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2193,7 +2170,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2208,7 +2184,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2235,7 +2210,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2250,7 +2224,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2276,7 +2249,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2286,7 +2258,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                         definitions,
                         markStack,
                         options,
-                        callbacks,
                     );
                     markStack.pop();
 
@@ -2296,7 +2267,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             definitions,
                             markStack,
                             options,
-                            callbacks,
                         );
                     }
 
@@ -2306,13 +2276,7 @@ function* parseApiContentInlineElementsFromMarkdown(
             }
         }
 
-        yield* parseApiContentInlineElementFromMarkdown(
-            content,
-            definitions,
-            markStack,
-            options,
-            callbacks,
-        );
+        yield* parseApiContentInlineElementFromMarkdown(content, definitions, markStack, options);
 
         index += 1;
     }
@@ -2323,12 +2287,6 @@ function* parseApiContentInlineElementFromMarkdown(
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
     options: ApiContentMarkdownParserOptions,
-    callbacks:
-        | {
-              onSpanDataWidth?: (width: number | null) => void;
-              onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
-          }
-        | undefined,
 ): IterableIterator<ApiContentInlineElement> {
     switch (content.type) {
         case "strong": {
@@ -2478,11 +2436,6 @@ function* parseApiContentInlineElementFromMarkdown(
                 dataComment: string | null;
             } | null = null;
 
-            let spanTagState: {
-                workingWidth: string | null;
-                workingColumnWidths: string | null;
-            } | null = null;
-
             const tokenizer = new HtmlTokenizer(
                 {},
                 {
@@ -2521,13 +2474,6 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                             case "code": {
                                 markStack.pushForHtmlTag(tagName, {type: "Code"});
-                                break;
-                            }
-                            case "span": {
-                                spanTagState = {
-                                    workingWidth: null,
-                                    workingColumnWidths: null,
-                                };
                                 break;
                             }
                             case "table":
@@ -2589,10 +2535,6 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                             markTagState = null;
                         }
-
-                        if (spanTagState !== null) {
-                            spanTagState = null;
-                        }
                     },
                     onclosetag: (start, end) => {
                         const tagName = content.value.slice(start, end).toLowerCase();
@@ -2643,14 +2585,6 @@ function* parseApiContentInlineElementFromMarkdown(
                                 markTagState.dataComment = "";
                             }
                         }
-
-                        if (spanTagState !== null) {
-                            if (attributeName === "data-width") {
-                                spanTagState.workingWidth = "";
-                            } else if (attributeName === "data-column-widths") {
-                                spanTagState.workingColumnWidths = "";
-                            }
-                        }
                     },
                     onattribdata: (start, end) => {
                         const attributeData = content.value.slice(start, end);
@@ -2665,14 +2599,6 @@ function* parseApiContentInlineElementFromMarkdown(
 
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.dataComment += attributeData;
-                        }
-
-                        if (typeof spanTagState?.workingWidth === "string") {
-                            spanTagState.workingWidth += attributeData;
-                        }
-
-                        if (typeof spanTagState?.workingColumnWidths === "string") {
-                            spanTagState.workingColumnWidths += attributeData;
                         }
                     },
                     onattribentity: codepoint => {
@@ -2689,14 +2615,6 @@ function* parseApiContentInlineElementFromMarkdown(
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.dataComment += attributeData;
                         }
-
-                        if (typeof spanTagState?.workingWidth === "string") {
-                            spanTagState.workingWidth += attributeData;
-                        }
-
-                        if (typeof spanTagState?.workingColumnWidths === "string") {
-                            spanTagState.workingColumnWidths += attributeData;
-                        }
                     },
                     onattribend: () => {
                         if (anchorTagState?.phase === "<a href>") {
@@ -2709,39 +2627,6 @@ function* parseApiContentInlineElementFromMarkdown(
 
                         if (markTagState?.phase === "<mark data-comment>") {
                             markTagState.phase = "<mark>";
-                        }
-
-                        // Try to parse `data-width` attribute.
-                        if (typeof spanTagState?.workingWidth === "string") {
-                            let width: number | null = parseFloat(spanTagState.workingWidth ?? "");
-                            if (isNaN(width)) width = null;
-
-                            callbacks?.onSpanDataWidth?.(width);
-
-                            spanTagState.workingWidth = null;
-                        }
-
-                        // Try to parse `data-column-widths` attribute.
-                        if (typeof spanTagState?.workingColumnWidths === "string") {
-                            let columnWidths: Array<number> | null;
-                            try {
-                                columnWidths = JSON.parse(`[${spanTagState.workingColumnWidths}]`);
-
-                                if (
-                                    !Array.isArray(columnWidths) ||
-                                    columnWidths.some(
-                                        columnWidth => typeof columnWidth !== "number",
-                                    )
-                                ) {
-                                    columnWidths = null;
-                                }
-                            } catch {
-                                columnWidths = null;
-                            }
-
-                            callbacks?.onSpanDataColumnWidths?.(columnWidths);
-
-                            spanTagState.workingColumnWidths = null;
                         }
                     },
 

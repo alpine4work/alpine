@@ -86,7 +86,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/AccountMentionTarget"
+                                                $ref: "#/components/schemas/AccountTarget"
                                             title:
                                                 type: string
 
@@ -253,7 +253,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/ChatMentionTarget"
+                                                $ref: "#/components/schemas/ChatTarget"
                                             title:
                                                 type: string
 
@@ -483,7 +483,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/DocumentMentionTarget"
+                                                $ref: "#/components/schemas/DocumentTarget"
                                             title:
                                                 type: string
 
@@ -719,7 +719,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/ChannelMentionTarget"
+                                                $ref: "#/components/schemas/ChannelTarget"
                                             title:
                                                 type: string
 
@@ -1000,7 +1000,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/TaskMentionTarget"
+                                                $ref: "#/components/schemas/TaskTarget"
                                             title:
                                                 type: string
 
@@ -1180,7 +1180,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                                                $ref: "#/components/schemas/TaskCollectionTarget"
                                             title:
                                                 type: string
 
@@ -1526,14 +1526,10 @@ components:
             pattern: ^{{idRegExp}}$
 
         # =========================================================================== #
-        #                               Mention targets                               #
+        #                                   Targets                                   #
         # =========================================================================== #
 
-        # TODO: Rename *MentionTarget to *Target. These are shared between
-        # mentions and previews, so "Mention" in the name is misleading.
-        # Skip Accounts (no account previews)
-
-        AccountMentionTarget:
+        AccountTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1542,8 +1538,31 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+                botId:
+                    $ref: "#/components/schemas/BotId"
 
-        ChannelMentionTarget:
+        AccountTarget_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                title:
+                    type: string
+                # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
+                botId:
+                    $ref: "#/components/schemas/BotId"
+
+        ChannelTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1552,8 +1571,26 @@ components:
                     const: Channel
                 id:
                     $ref: "#/components/schemas/ChannelId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
 
-        ChatMentionTarget:
+        ChannelTarget_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                title:
+                    type: string
+
+        ChatTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1562,8 +1599,26 @@ components:
                     const: Chat
                 id:
                     $ref: "#/components/schemas/ChatId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
 
-        DocumentMentionTarget:
+        ChatTarget_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                title:
+                    type: string
+
+        DocumentTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1572,8 +1627,26 @@ components:
                     const: Document
                 id:
                     $ref: "#/components/schemas/DocumentId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
 
-        PostMentionTarget:
+        DocumentTarget_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+
+        PostTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1582,8 +1655,26 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
 
-        TaskMentionTarget:
+        PostTarget_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+                title:
+                    type: string
+
+        TaskTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1592,20 +1683,30 @@ components:
                     const: Task
                 id:
                     $ref: "#/components/schemas/TaskId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
 
-        TaskMentionTarget_Response:
+        TaskTarget_Response:
             type: object
-            required: [type, id, status]
+            required: [type, id, title, status]
             additionalProperties: false
             properties:
                 type:
                     const: Task
                 id:
                     $ref: "#/components/schemas/TaskId"
+                title:
+                    type: string
                 status:
                     $ref: "#/components/schemas/TaskStatus"
 
-        TaskCollectionMentionTarget:
+        TaskCollectionTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1614,44 +1715,62 @@ components:
                     const: TaskCollection
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+
+        TaskCollectionTarget_Response:
+            type: object
+            required: [type, id, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                title:
+                    type: string
 
         MentionTarget:
             oneOf:
-                - $ref: "#/components/schemas/AccountMentionTarget"
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/AccountTarget"
+                - $ref: "#/components/schemas/ChannelTarget"
+                - $ref: "#/components/schemas/ChatTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountMentionTarget"
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Account: "#/components/schemas/AccountTarget"
+                    Channel: "#/components/schemas/ChannelTarget"
+                    Chat: "#/components/schemas/ChatTarget"
+                    Document: "#/components/schemas/DocumentTarget"
+                    Post: "#/components/schemas/PostTarget"
+                    Task: "#/components/schemas/TaskTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
 
         PreviewTarget:
             oneOf:
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/ChannelTarget"
+                - $ref: "#/components/schemas/ChatTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Channel: "#/components/schemas/ChannelTarget"
+                    Chat: "#/components/schemas/ChatTarget"
+                    Document: "#/components/schemas/DocumentTarget"
+                    Post: "#/components/schemas/PostTarget"
+                    Task: "#/components/schemas/TaskTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -2151,36 +2270,11 @@ components:
             properties:
                 type:
                     const: Mention
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
-                isAccountShortName:
-                    type: boolean
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentInlineElementMark"
-
-        ContentMentionInlineElement_Response:
-            type: object
-            required: [type, target, title]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Mention
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
                 # TODO(calebmer, #public-api): Document that `title` is loaded using the search
                 # index so may be stale by up to 90s! (60s for slow document reindexing + 10s
                 # for OpenSearch refresh interval. Say 90s to give us enough buffer.)
-                title:
-                    type: string
-                    minLength: 1
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
                 isAccountShortName:
                     type: boolean
                 marks:
@@ -2197,22 +2291,6 @@ components:
             properties:
                 target:
                     $ref: "#/components/schemas/MentionTarget"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
-
-        Mention_Response:
-            type: object
-            required: [target, title]
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
-                title:
-                    type: string
 
         ContentInlineElementMark:
             oneOf:
@@ -2895,17 +2973,17 @@ components:
 
         MessageStreamToolCallPartCreateCallTarget:
             oneOf:
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Document: "#/components/schemas/DocumentTarget"
+                    Post: "#/components/schemas/PostTarget"
+                    Task: "#/components/schemas/TaskTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
 
         # =========================================================================== #
         #                                  Webhooks                                   #
@@ -3146,6 +3224,9 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
+                # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
+                botId:
+                    $ref: "#/components/schemas/BotId"
 
         SearchChannelResult:
             type: object
@@ -3228,9 +3309,7 @@ components:
                 title:
                     const: null
                 bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: DocumentMessage
                 id:
@@ -3273,9 +3352,7 @@ components:
                 title:
                     const: null
                 bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: PostMessage
                 id:
@@ -3316,9 +3393,7 @@ components:
                 title:
                     const: null
                 bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: TaskMessage
                 id:

@@ -64,7 +64,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/AccountMentionTarget"
+                                                $ref: "#/components/schemas/AccountTarget_Response"
                                             title:
                                                 type: string
                 default:
@@ -255,7 +255,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/ChatMentionTarget"
+                                                $ref: "#/components/schemas/ChatTarget_Response"
                                             title:
                                                 type: string
                 default:
@@ -517,7 +517,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/DocumentMentionTarget"
+                                                $ref: "#/components/schemas/DocumentTarget_Response"
                                             title:
                                                 type: string
                 default:
@@ -782,7 +782,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/ChannelMentionTarget"
+                                                $ref: "#/components/schemas/ChannelTarget_Response"
                                             title:
                                                 type: string
                 default:
@@ -1086,7 +1086,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/TaskMentionTarget_Response"
+                                                $ref: "#/components/schemas/TaskTarget_Response"
                                             title:
                                                 type: string
                 default:
@@ -1291,7 +1291,7 @@ paths:
                                         additionalProperties: false
                                         properties:
                                             target:
-                                                $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                                                $ref: "#/components/schemas/TaskCollectionTarget_Response"
                                             title:
                                                 type: string
                 default:
@@ -1616,7 +1616,7 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-        AccountMentionTarget:
+        AccountTarget:
             type: object
             required:
                 - type
@@ -1627,7 +1627,27 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
-        ChannelMentionTarget:
+                title:
+                    type: string
+                botId:
+                    $ref: "#/components/schemas/BotId"
+        AccountTarget_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                title:
+                    type: string
+                botId:
+                    $ref: "#/components/schemas/BotId"
+        ChannelTarget:
             type: object
             required:
                 - type
@@ -1638,7 +1658,23 @@ components:
                     const: Channel
                 id:
                     $ref: "#/components/schemas/ChannelId"
-        ChatMentionTarget:
+                title:
+                    type: string
+        ChannelTarget_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                title:
+                    type: string
+        ChatTarget:
             type: object
             required:
                 - type
@@ -1649,7 +1685,23 @@ components:
                     const: Chat
                 id:
                     $ref: "#/components/schemas/ChatId"
-        DocumentMentionTarget:
+                title:
+                    type: string
+        ChatTarget_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                title:
+                    type: string
+        DocumentTarget:
             type: object
             required:
                 - type
@@ -1660,7 +1712,23 @@ components:
                     const: Document
                 id:
                     $ref: "#/components/schemas/DocumentId"
-        PostMentionTarget:
+                title:
+                    type: string
+        DocumentTarget_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+        PostTarget:
             type: object
             required:
                 - type
@@ -1671,7 +1739,23 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
-        TaskMentionTarget:
+                title:
+                    type: string
+        PostTarget_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+                title:
+                    type: string
+        TaskTarget:
             type: object
             required:
                 - type
@@ -1682,11 +1766,16 @@ components:
                     const: Task
                 id:
                     $ref: "#/components/schemas/TaskId"
-        TaskMentionTarget_Response:
+                title:
+                    type: string
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+        TaskTarget_Response:
             type: object
             required:
                 - type
                 - id
+                - title
                 - status
             additionalProperties: false
             properties:
@@ -1694,9 +1783,11 @@ components:
                     const: Task
                 id:
                     $ref: "#/components/schemas/TaskId"
+                title:
+                    type: string
                 status:
                     $ref: "#/components/schemas/TaskStatus"
-        TaskCollectionMentionTarget:
+        TaskCollectionTarget:
             type: object
             required:
                 - type
@@ -1707,42 +1798,58 @@ components:
                     const: TaskCollection
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
+                title:
+                    type: string
+        TaskCollectionTarget_Response:
+            type: object
+            required:
+                - type
+                - id
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                title:
+                    type: string
         MentionTarget:
             oneOf:
-                - $ref: "#/components/schemas/AccountMentionTarget"
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/AccountTarget"
+                - $ref: "#/components/schemas/ChannelTarget"
+                - $ref: "#/components/schemas/ChatTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountMentionTarget"
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Account: "#/components/schemas/AccountTarget"
+                    Channel: "#/components/schemas/ChannelTarget"
+                    Chat: "#/components/schemas/ChatTarget"
+                    Document: "#/components/schemas/DocumentTarget"
+                    Post: "#/components/schemas/PostTarget"
+                    Task: "#/components/schemas/TaskTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
         PreviewTarget:
             oneOf:
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/ChannelTarget"
+                - $ref: "#/components/schemas/ChatTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Channel: "#/components/schemas/ChannelTarget"
+                    Chat: "#/components/schemas/ChatTarget"
+                    Document: "#/components/schemas/DocumentTarget"
+                    Post: "#/components/schemas/PostTarget"
+                    Task: "#/components/schemas/TaskTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
         Content:
             type: object
             additionalProperties: false
@@ -2412,29 +2519,6 @@ components:
                     const: Mention
                 target:
                     $ref: "#/components/schemas/MentionTarget"
-                title:
-                    type: string
-                isAccountShortName:
-                    type: boolean
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentInlineElementMark"
-        ContentMentionInlineElement_Response:
-            type: object
-            required:
-                - type
-                - target
-                - title
-            additionalProperties: false
-            properties:
-                type:
-                    const: Mention
-                target:
-                    $ref: "#/components/schemas/MentionTarget_Response"
-                title:
-                    type: string
-                    minLength: 1
                 isAccountShortName:
                     type: boolean
                 marks:
@@ -2449,19 +2533,6 @@ components:
             properties:
                 target:
                     $ref: "#/components/schemas/MentionTarget"
-                title:
-                    type: string
-        Mention_Response:
-            type: object
-            required:
-                - target
-                - title
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/MentionTarget_Response"
-                title:
-                    type: string
         ContentInlineElementMark:
             oneOf:
                 - $ref: "#/components/schemas/ContentInlineElementBoldMark"
@@ -3179,17 +3250,17 @@ components:
                     $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget"
         MessageStreamToolCallPartCreateCallTarget:
             oneOf:
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Document: "#/components/schemas/DocumentTarget"
+                    Post: "#/components/schemas/PostTarget"
+                    Task: "#/components/schemas/TaskTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
         BotWebhookEvent:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
@@ -3436,6 +3507,8 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
+                botId:
+                    $ref: "#/components/schemas/BotId"
         SearchChannelResult:
             type: object
             required:
@@ -3538,9 +3611,7 @@ components:
                 title:
                     const: null
                 bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: DocumentMessage
                 id:
@@ -3592,9 +3663,7 @@ components:
                 title:
                     const: null
                 bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: PostMessage
                 id:
@@ -3644,9 +3713,7 @@ components:
                 title:
                     const: null
                 bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: TaskMessage
                 id:
@@ -3699,40 +3766,40 @@ components:
                     type: string
         MentionTarget_Response:
             oneOf:
-                - $ref: "#/components/schemas/AccountMentionTarget"
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget_Response"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/AccountTarget_Response"
+                - $ref: "#/components/schemas/ChannelTarget_Response"
+                - $ref: "#/components/schemas/ChatTarget_Response"
+                - $ref: "#/components/schemas/DocumentTarget_Response"
+                - $ref: "#/components/schemas/PostTarget_Response"
+                - $ref: "#/components/schemas/TaskTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionTarget_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountMentionTarget"
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Account: "#/components/schemas/AccountTarget_Response"
+                    Channel: "#/components/schemas/ChannelTarget_Response"
+                    Chat: "#/components/schemas/ChatTarget_Response"
+                    Document: "#/components/schemas/DocumentTarget_Response"
+                    Post: "#/components/schemas/PostTarget_Response"
+                    Task: "#/components/schemas/TaskTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget_Response"
         PreviewTarget_Response:
             oneOf:
-                - $ref: "#/components/schemas/ChannelMentionTarget"
-                - $ref: "#/components/schemas/ChatMentionTarget"
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget_Response"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/ChannelTarget_Response"
+                - $ref: "#/components/schemas/ChatTarget_Response"
+                - $ref: "#/components/schemas/DocumentTarget_Response"
+                - $ref: "#/components/schemas/PostTarget_Response"
+                - $ref: "#/components/schemas/TaskTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionTarget_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Channel: "#/components/schemas/ChannelMentionTarget"
-                    Chat: "#/components/schemas/ChatMentionTarget"
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Channel: "#/components/schemas/ChannelTarget_Response"
+                    Chat: "#/components/schemas/ChatTarget_Response"
+                    Document: "#/components/schemas/DocumentTarget_Response"
+                    Post: "#/components/schemas/PostTarget_Response"
+                    Task: "#/components/schemas/TaskTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget_Response"
         ContentBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
@@ -3821,17 +3888,6 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement_Response"
                             Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
-        ContentInlineElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentTextInlineElement"
-                - $ref: "#/components/schemas/ContentBreakInlineElement"
-                - $ref: "#/components/schemas/ContentMentionInlineElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Text: "#/components/schemas/ContentTextInlineElement"
-                    Break: "#/components/schemas/ContentBreakInlineElement"
-                    Mention: "#/components/schemas/ContentMentionInlineElement_Response"
         MessageContentPayloadParent_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
@@ -3843,17 +3899,17 @@ components:
                     Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
         MessageStreamToolCallPartCreateCallTarget_Response:
             oneOf:
-                - $ref: "#/components/schemas/DocumentMentionTarget"
-                - $ref: "#/components/schemas/PostMentionTarget"
-                - $ref: "#/components/schemas/TaskMentionTarget_Response"
-                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                - $ref: "#/components/schemas/DocumentTarget_Response"
+                - $ref: "#/components/schemas/PostTarget_Response"
+                - $ref: "#/components/schemas/TaskTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionTarget_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Document: "#/components/schemas/DocumentMentionTarget"
-                    Post: "#/components/schemas/PostMentionTarget"
-                    Task: "#/components/schemas/TaskMentionTarget_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+                    Document: "#/components/schemas/DocumentTarget_Response"
+                    Post: "#/components/schemas/PostTarget_Response"
+                    Task: "#/components/schemas/TaskTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget_Response"
         Content_Response:
             type: object
             additionalProperties: false
@@ -3864,37 +3920,6 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentBlockElement_Response"
-        ContentParagraphBlockElement_Response:
-            type: object
-            required:
-                - type
-                - elements
-            additionalProperties: false
-            properties:
-                type:
-                    const: Paragraph
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
-        ContentHeadingBlockElement_Response:
-            type: object
-            required:
-                - type
-                - level
-                - elements
-            additionalProperties: false
-            properties:
-                type:
-                    const: Heading
-                level:
-                    type: integer
-                    minimum: 1
-                    maximum: 3
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
         ContentTableBlockElementCell_Response:
             type: object
             required:
@@ -3919,6 +3944,31 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRow_Response"
+        ContentMentionInlineElement_Response:
+            type: object
+            required:
+                - type
+                - target
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget_Response"
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+        Mention_Response:
+            type: object
+            required:
+                - target
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/MentionTarget_Response"
         MessageContentPayload_Response:
             type: object
             required:
@@ -3981,50 +4031,6 @@ components:
                     $ref: "#/components/schemas/MentionTarget_Response"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
-        ContentListBlockElementItem_Response:
-            type: object
-            required:
-                - elements
-            additionalProperties: false
-            properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentCheckListBlockElementItem_Response:
-            type: object
-            required:
-                - checked
-                - elements
-            additionalProperties: false
-            properties:
-                checked:
-                    type: boolean
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentQuoteBlockElementBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
         ContentTableBlockElementRow_Response:
             type: object
             required:
@@ -4036,6 +4042,17 @@ components:
                     minItems: 2
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCell_Response"
+        ContentInlineElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentTextInlineElement"
+                - $ref: "#/components/schemas/ContentBreakInlineElement"
+                - $ref: "#/components/schemas/ContentMentionInlineElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/ContentTextInlineElement"
+                    Break: "#/components/schemas/ContentBreakInlineElement"
+                    Mention: "#/components/schemas/ContentMentionInlineElement_Response"
         Document_Response:
             type: object
             required:
@@ -4214,52 +4231,7 @@ components:
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
                     NewPost: "#/components/schemas/BotWebhookNewPostEvent"
-        ContentUnorderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: UnorderedList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentOrderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: OrderedList
-                orderStart:
-                    type: integer
-                    minimum: 1
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentCheckListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: CheckList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
-        ContentQuoteBlockElement_Response:
+        ContentParagraphBlockElement_Response:
             type: object
             required:
                 - type
@@ -4267,12 +4239,29 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: Quote
+                    const: Paragraph
                 elements:
                     type: array
-                    minItems: 1
                     items:
-                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+        ContentHeadingBlockElement_Response:
+            type: object
+            required:
+                - type
+                - level
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
         ContentTableBlockElement_Response:
             type: object
             required:
@@ -4349,14 +4338,47 @@ components:
                     const: ToolCall
                 call:
                     $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
-        ContentListBlockElement_Response:
+        ContentListBlockElementItem_Response:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentCheckListBlockElementItem_Response:
+            type: object
+            required:
+                - checked
+                - elements
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentQuoteBlockElementBlockElement_Response:
             oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
             discriminator:
                 propertyName: type
                 mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
@@ -4380,3 +4402,73 @@ components:
                     format: date-time
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload_Response"
+        ContentUnorderedListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: UnorderedList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentOrderedListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: OrderedList
+                orderStart:
+                    type: integer
+                    minimum: 1
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentCheckListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
+        ContentQuoteBlockElement_Response:
+            type: object
+            required:
+                - type
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
+        ContentListBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
