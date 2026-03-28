@@ -443,21 +443,21 @@ async function parseTextIntoMarkdownParts(
                     // This link looks like a mention, let's add the correct link to the Markdown tree
                     // before parsing into content.
                     if (!/[a-zA-Z0-9]+:/.test(childNode.url)) {
-                        let url = childNode.url;
+                        let path = childNode.url;
 
                         // Add a leading slash in case the LLM forgot to add one.
-                        if (!url.startsWith("/")) url = `/${url}`;
+                        if (!path.startsWith("/")) path = `/${path}`;
 
                         // Remove the hash part of the URL before resolving. Just like in an actual web
                         // server! The hash part is only visible to the client, it's not visible to the
                         // server. So it doesn't change server resolution.
-                        url = url.replace(/#.*$/, "");
+                        path = path.replace(/#.*$/, "");
 
                         // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
                         // mentionable, `pageLink` will be null. We need to build a plain link for non
                         // mentionable content and we also need to swap the label so something more user
                         // friendly (`mentionLabel`).
-                        const pageLink = await storage.pageLinkByPath.get(url);
+                        const pageLink = await storage.pageLinkByPath.get(path);
 
                         if (!pageLink) return;
 

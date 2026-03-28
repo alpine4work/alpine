@@ -172,7 +172,6 @@ async function traverseApiContentMarkdownNode(
 
                 if (actualPageKey === undefined) {
                     await storage.pageLinkByPath.put(pageLinkPath, pageLink);
-                    await storage.lastPageLinkPathByKey.put(pageKey, pageLinkPath);
                 }
 
                 const originalPageLinkLabel = printAgentWebPageLinkLabel(pageLink);

@@ -53,7 +53,6 @@ function createAgentWebSessionStorageCollection<
 const storage: AgentWebSessionStorage = {
     mutex: new Mutex(),
     pageLinkByPath: createAgentWebSessionStorageCollection(),
-    lastPageLinkPathByKey: createAgentWebSessionStorageCollection(),
     urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
     dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
     documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),

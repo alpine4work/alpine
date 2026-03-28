@@ -46,7 +46,7 @@ function createAgentWebSessionStorageCollection<
 const storage: AgentWebSessionStorage = {
     mutex: new Mutex(),
     pageLinkByPath: createAgentWebSessionStorageCollection(),
-    lastPageLinkPathByKey: createAgentWebSessionStorageCollection(),
+    urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
     dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
     documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
     documentCommentThreadIdByNumber: createAgentWebSessionStorageCollection(),
@@ -58,6 +58,7 @@ test("streams plain text message when update is called once at the end", async (
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The");
@@ -129,6 +130,7 @@ test("streams plan text message when update is called once every token", async (
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The");
@@ -237,6 +239,7 @@ test("streams plan text message when update is called once every few tokens", as
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The");
@@ -291,6 +294,7 @@ test("streams bold inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -442,6 +446,7 @@ test("streams italic formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -593,6 +598,7 @@ test("streams italic formatting correctly (with underscores)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -744,6 +750,7 @@ test("streams bold + italic inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -895,6 +902,7 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1046,6 +1054,7 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1197,6 +1206,7 @@ test("streams bold inline formatting with newline before termination", async () 
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1334,6 +1344,7 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1461,6 +1472,7 @@ test("streams bold HTML inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1612,6 +1624,7 @@ test("streams bold HTML inline formatting with newline before termination", asyn
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1749,6 +1762,7 @@ test("streams partial bold HTML inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -1928,6 +1942,7 @@ test("empty paragraphs with updates in weird places", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "<p");
@@ -1977,6 +1992,7 @@ test("can stream simple unordered list", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "-");
@@ -2077,6 +2093,7 @@ test("streams strike inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -2228,6 +2245,7 @@ test("does not apply strikethrough with single tilde", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -2355,6 +2373,7 @@ test("does not apply strikethrough to statistics with tilde", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "Did you know that");
@@ -2458,6 +2477,7 @@ test("does not apply strikethrough with multiple single tildes", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "Values range from");
@@ -2561,6 +2581,7 @@ test("streams inline code formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -2736,6 +2757,7 @@ test("streams link formatting correctly (with reference)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -2875,6 +2897,7 @@ test("streams link formatting correctly character by character (without referenc
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -3038,6 +3061,7 @@ test("streams link formatting correctly character by character (with reference)"
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "The quick");
@@ -3213,6 +3237,7 @@ test("streams missing link reference formatting correctly (without reference)", 
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "test: ");
@@ -3353,6 +3378,7 @@ test("streams missing link URL formatting correctly (without reference)", async 
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "test: ");
@@ -3485,6 +3511,7 @@ test("streams code block correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
         spaceId,
+        documentId: null,
     });
 
     message.pushText(null, "foo\n\n");
@@ -3605,6 +3632,7 @@ describe("headers", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "foo\n\n");
@@ -3724,6 +3752,7 @@ describe("headers", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "foo\n\n");
@@ -3863,6 +3892,7 @@ describe("headers", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "foo\n\n");
@@ -3926,6 +3956,7 @@ describe("headers", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "foo\n\n");
@@ -3987,6 +4018,7 @@ describe("headers", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "#");
@@ -4030,6 +4062,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -4136,6 +4169,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -4343,6 +4377,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -4505,6 +4540,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -4594,6 +4630,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "5. Fifth item\n\n");
@@ -4655,6 +4692,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -4737,6 +4775,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -4915,6 +4954,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "- Unordered item\n\n");
@@ -4960,6 +5000,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n");
@@ -5002,6 +5043,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First item\n\n2. Second item\n\n3. Third item\n\n");
@@ -5091,6 +5133,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First level\n\n");
@@ -5201,6 +5244,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. Parent item\n\n");
@@ -5267,6 +5311,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. Level 1\n\n");
@@ -5341,6 +5386,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. Parent item\n\n");
@@ -5411,6 +5457,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. Parent\n\n");
@@ -5600,6 +5647,7 @@ describe("ordered list continuation", () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
             spaceId,
+            documentId: null,
         });
 
         message.pushText(null, "1. First parent\n\n");
