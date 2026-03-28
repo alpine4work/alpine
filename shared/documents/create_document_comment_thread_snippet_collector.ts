@@ -1,6 +1,5 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {cutContent} from "~/shared/content/cut_content.js";
-import {expandContentSnippetPosToWholeTextBlocks} from "~/shared/content/expand_content_snippet_pos_to_whole_text_blocks.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -8,20 +7,6 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
-
-export type DocumentCommentThreadSnippet = {
-    /**
-     * The snippet content cut from the document.
-     */
-    node: Node;
-
-    /**
-     * Add this to a position inside `node` to get the corresponding position in the
-     * source document. Positions only map exactly for content in whole text blocks, so
-     * use the `wholeTextBlocks` collector option when you need this mapping.
-     */
-    posOffset: number;
-};
 
 /**
  * Creates a function that will incrementally collect snippets from a document for
@@ -37,15 +22,6 @@ export type DocumentCommentThreadSnippet = {
  */
 export function createDocumentCommentThreadSnippetCollector(
     commentThreadIds: Iterable<DocumentCommentThreadId>,
-    options?: {
-        /**
-         * Expand each snippet so it only contains whole text blocks instead of cutting
-         * blocks mid content to meet the target line count. Use this when positions inside
-         * the snippet need to map back to the document through `posOffset`, such as for
-         * API content keys.
-         */
-        wholeTextBlocks?: boolean;
-    },
 ) {
     const commentThreadIdSet = new Set(commentThreadIds);
 
@@ -72,25 +48,18 @@ export function createDocumentCommentThreadSnippetCollector(
         };
     });
 
-    return (doc: DocumentContent): Map<DocumentCommentThreadId, DocumentCommentThreadSnippet> => {
+    return (doc: DocumentContent): Map<DocumentCommentThreadId, Node> => {
         const resolvedPosByCommentThreadId = getResolvedPosByCommentThreadId(new Map(), doc);
 
         return new Map(
             mapIterable(resolvedPosByCommentThreadId, ([commentThreadId, resolvedPos]) => {
                 // Enough lines to fill a document comment thread preview component.
-                let snippetPos = getContentSnippetPos(resolvedPos, {linesAbove: 2, linesBelow: 8});
+                const snippetPos = getContentSnippetPos(resolvedPos, {
+                    linesAbove: 2,
+                    linesBelow: 8,
+                });
 
-                if (options?.wholeTextBlocks) {
-                    snippetPos = expandContentSnippetPosToWholeTextBlocks(doc, snippetPos);
-                }
-
-                return [
-                    commentThreadId,
-                    {
-                        node: cutContent(doc, snippetPos.from, snippetPos.to),
-                        posOffset: snippetPos.from - doc.resolve(snippetPos.from).depth,
-                    },
-                ];
+                return [commentThreadId, cutContent(doc, snippetPos.from, snippetPos.to)];
             }),
         );
     };

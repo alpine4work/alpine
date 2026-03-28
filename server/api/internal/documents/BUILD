@@ -22,7 +22,7 @@ ts_project(
         "//server/search/data/index",
         "//shared/access",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",

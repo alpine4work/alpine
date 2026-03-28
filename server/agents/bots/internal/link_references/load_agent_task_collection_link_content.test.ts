@@ -5,6 +5,10 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {AgentTaskCollectionLink} from "~/server/agents/bots/internal/link_references/agent_link.js";
 import {loadAgentTaskCollectionLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_task_collection_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
+import {
+    ApiTaskCollection,
+    ApiTaskWithoutNotes,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -18,6 +22,56 @@ afterEach(async () => {
 
 const tracer = new TracerContextModule(testTracer);
 const tracerRoot = tracer.getRoot();
+
+function mockGetTaskCollection(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    collectionId: TaskCollectionId,
+    responseData: Partial<Omit<ApiTaskCollection, "id">>,
+): void {
+    api.mockGet("/task-collections/{id}", {
+        params: {path: {id: collectionId}},
+        data: {
+            spaceId,
+            collection: {
+                id: collectionId,
+                name: responseData.name ?? "Test Task Collection",
+            },
+        },
+    });
+}
+
+function mockGetTaskCollectionTasks(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    collectionId: TaskCollectionId,
+    responseData: {
+        totalTaskCount?: number;
+        nextCursor?: string | null;
+        tasks?: Array<ApiTaskWithoutNotes>;
+    },
+    queryParams?: {
+        limit?: number;
+        cursor?: string | null;
+        status?: Array<"Open" | "Closed">;
+    },
+): void {
+    const params = queryParams
+        ? {
+              path: {id: collectionId},
+              query: queryParams,
+          }
+        : "Any";
+
+    api.mockGet("/task-collections/{id}/tasks", {
+        params,
+        data: {
+            spaceId,
+            nextCursor: responseData.nextCursor ?? null,
+            tasks: responseData.tasks ?? [],
+        },
+    });
+}
 
 describe("loadAgentTaskCollectionLinkContent", () => {
     const spaceId = generateId<SpaceId>();
@@ -37,11 +91,11 @@ describe("loadAgentTaskCollectionLinkContent", () => {
     test("loads task collection with open active and inactive tasks", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Sprint Tasks",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [
                 {
                     id: generateId(),
@@ -90,11 +144,11 @@ See [here for Closed tasks](/task-collection/sprint-tasks-closed-tasks) in this 
     test("loads task collection with tasks including all metadata", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Detailed Tasks",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [
                 {
                     id: generateId(),
@@ -158,11 +212,11 @@ These are the Open tasks in the Detailed Tasks collection. See \
     test("loads task collection with only closed tasks", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Completed Work",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [
                 {
                     id: generateId(),
@@ -214,11 +268,11 @@ These are the Closed tasks in the Completed Work collection. See \
     test("loads task collection with all statuses", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "All Tasks",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [
                 {
                     id: generateId(),
@@ -266,11 +320,11 @@ These are all of the tasks in the All Tasks collection.
     test("loads task collection with open task filter but no open tasks", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Empty Collection",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [],
             nextCursor: null,
         });
@@ -299,11 +353,11 @@ There aren\u2019t any Open tasks in the Empty Collection collection.
     test("loads empty task collection", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Empty Collection",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [],
             nextCursor: null,
         });
@@ -332,11 +386,11 @@ There aren\u2019t any Open tasks in the Empty Collection collection.
     test("loads open tasks only when statuses filter is empty", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Sprint Tasks",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [
                 {
                     id: generateId(),
@@ -385,11 +439,11 @@ See [here for Closed tasks](/task-collection/sprint-tasks-closed-tasks) in this 
     test("loads task collection with empty statuses filter but no open tasks", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        client.mockGetTaskCollection(spaceId, collectionId, {
+        mockGetTaskCollection(client, spaceId, collectionId, {
             name: "Empty Collection",
         });
 
-        client.mockGetTaskCollectionTasks(spaceId, collectionId, {
+        mockGetTaskCollectionTasks(client, spaceId, collectionId, {
             tasks: [],
             nextCursor: null,
         });

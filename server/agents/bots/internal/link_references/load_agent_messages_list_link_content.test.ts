@@ -1,17 +1,24 @@
 /* eslint-disable cyberworlds/string-quotes */
+
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentPaginatedMessagesListLink} from "~/server/agents/bots/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
+import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
+    ApiContentResponse,
+    ApiDocumentThreadResponse,
+    ApiMessageResponse,
+    ApiTaskResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertDateString} from "~/shared/helpers/date/date_string.js";
+import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -37,22 +44,15 @@ const conversationState = {
     startTime: conversationStartDate,
     timeZone: defaultTimeZone,
 } as const;
-const mockEntityId = "Message:mock";
-const mockApiContentKeyEncoder = new ApiContentKeyEncoder({entityId: mockEntityId, version: 0});
 
 // Helper to create sample content
 function createSampleContent(...texts: Array<string>): ApiContentResponse {
-    return {
-        elements: texts.map((text, pos) => ({
+    return addKeysToApiContentForTest({
+        elements: texts.map(text => ({
             type: "Paragraph",
-            key: createMockApiContentKey(pos),
             elements: [{type: "Text", text}],
         })),
-    };
-}
-
-function createMockApiContentKey(pos: number): ApiContentKey {
-    return mockApiContentKeyEncoder.encode({pos, nodeSize: 0});
+    });
 }
 
 async function loadAgentMessagesListLinkContent(
@@ -60,6 +60,154 @@ async function loadAgentMessagesListLinkContent(
 ) {
     const {messagesContent} = await actuallyLoadAgentMessagesListLinkContent(options);
     return messagesContent;
+}
+
+function mockGetChatMessagesList(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    chatId: ChatId,
+    responseData: {
+        totalMessageCount?: number;
+        nextCursor?: number | null;
+        messages?: ReadonlyArray<ApiMessageResponse>;
+    },
+): void {
+    api.mockGet("/chats/{id}/messages", {
+        params: "Any",
+        data: {
+            spaceId,
+            totalMessageCount: 0,
+            nextCursor: null,
+            messages: [],
+            ...responseData,
+        },
+    });
+}
+
+function mockGetDocumentThread(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    documentId: DocumentId,
+    threadId: DocumentCommentThreadId,
+    responseData: Partial<{
+        document: ApiDocumentThreadResponse["document"];
+        isResolved: boolean;
+        totalMessageCount: number;
+        firstMessage: ApiDocumentThreadResponse["firstMessage"];
+        documentContentSnippet: ApiContentResponseWithOptionalKeys;
+    }> &
+        Record<string, unknown>,
+): void {
+    api.mockGet("/documents/{id}/threads/{threadId}", {
+        params: {path: {id: documentId, threadId}},
+        data: {
+            spaceId,
+            thread: {
+                id: threadId,
+                document: responseData.document ?? {
+                    id: documentId,
+                    reference: {
+                        title: "Test Document",
+                    },
+                },
+                isResolved: responseData.isResolved ?? false,
+                totalMessageCount: responseData.totalMessageCount ?? 0,
+                firstMessage: responseData.firstMessage ?? {
+                    author: createApiAccountMock({}),
+                    createdTime: serializeDateString(new Date()),
+                    createdTimeZone: defaultTimeZone,
+                },
+                documentContentSnippet: addKeysToApiContentForTest(
+                    responseData.documentContentSnippet ?? {elements: []},
+                ),
+            },
+        },
+    });
+}
+
+function mockGetDocumentCommentsList(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    documentId: DocumentId,
+    threadId: DocumentCommentThreadId,
+    responseData: {
+        totalMessageCount?: number;
+        nextCursor?: number | null;
+        messages?: Array<ApiMessageResponse>;
+    },
+): void {
+    api.mockGet("/documents/{id}/threads/{threadId}/messages", {
+        params: "Any",
+        data: {
+            spaceId,
+            totalMessageCount: 0,
+            nextCursor: null,
+            messages: [],
+            ...responseData,
+        },
+    });
+}
+
+function mockGetTask(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    taskId: TaskId,
+    responseData: Partial<Omit<ApiTaskResponse, "id">>,
+): void {
+    api.mockGet("/tasks/{id}", {
+        params: {path: {id: taskId}},
+        data: {
+            spaceId,
+            task: {
+                id: taskId,
+                status: responseData.status ?? {type: "Open", isActive: true},
+                title: responseData.title ?? "Test Task",
+                collections: responseData.collections ?? [],
+                notes: responseData.notes ?? {
+                    version: 0,
+                    content: addKeysToApiContentForTest(
+                        createApiContentResponseWithSingleParagraph("Test Task Content"),
+                    ),
+                },
+                ...responseData,
+            },
+        },
+    });
+}
+
+function mockGetTaskCommentsList(
+    api: ApiClientMock,
+    spaceId: SpaceId,
+    taskId: TaskId,
+    responseData: {
+        totalMessageCount?: number;
+        nextCursor?: number | null;
+        messages?: Array<ApiMessageResponse>;
+    },
+): void {
+    api.mockGet("/tasks/{id}/messages", {
+        params: "Any",
+        data: {
+            spaceId,
+            totalMessageCount: 0,
+            nextCursor: null,
+            messages: [],
+            ...responseData,
+        },
+    });
+}
+
+function createApiContentResponseWithSingleParagraph(
+    text: string,
+): ApiContentResponseWithOptionalKeys {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text}],
+            },
+        ],
+    };
 }
 
 describe("loadAgentMessagesListLinkContent", () => {
@@ -85,7 +233,7 @@ describe("loadAgentMessagesListLinkContent", () => {
         test("loads chat messages list with one member", async () => {
             const chatId = generateId<ChatId>();
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -137,7 +285,7 @@ Hello!
         test("loads chat messages list with two members", async () => {
             const chatId = generateId<ChatId>();
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -210,7 +358,7 @@ Hello hello!
                 name: "David",
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 4,
                 nextCursor: null,
                 messages: [
@@ -309,7 +457,7 @@ Hello David!
         const documentId = generateId<DocumentId>();
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+        mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
             totalMessageCount: 1,
             nextCursor: null,
             messages: [
@@ -379,7 +527,7 @@ Thanks Alice!
     test("loads task comments list", async () => {
         const taskId = generateId<TaskId>();
 
-        client.mockGetTaskCommentsList(spaceId, taskId, {
+        mockGetTaskCommentsList(client, spaceId, taskId, {
             totalMessageCount: 1,
             nextCursor: null,
             messages: [
@@ -451,7 +599,7 @@ Started implementation!
                 name: "Bob",
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -469,7 +617,7 @@ Started implementation!
                 ],
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 2,
                 nextCursor: null,
                 messages: [
@@ -541,7 +689,7 @@ I'm doing great, thanks!
                 name: "Bob",
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -559,7 +707,7 @@ I'm doing great, thanks!
                 ],
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 2,
                 nextCursor: null,
                 messages: [
@@ -627,7 +775,7 @@ ${"Hi Alice, how are you?".repeat(200)}
                 name: "Alice",
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 2,
                 nextCursor: null,
                 messages: [
@@ -707,7 +855,7 @@ Second message
                 });
             }
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: messages.length,
                 nextCursor: null,
                 messages,
@@ -764,7 +912,7 @@ ${"Long message content.".repeat(200)}
                 });
             }
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 2,
                 nextCursor: null,
                 messages: [
@@ -795,7 +943,7 @@ ${"Long message content.".repeat(200)}
                 ],
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: messages.length,
                 nextCursor: null,
                 messages,
@@ -855,7 +1003,7 @@ ${"Long message content.".repeat(100)}
                 });
             }
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: 2,
                 nextCursor: null,
                 messages: [
@@ -884,7 +1032,7 @@ ${"Long message content.".repeat(100)}
                 ],
             });
 
-            client.mockGetChatMessagesList(spaceId, chatId, {
+            mockGetChatMessagesList(client, spaceId, chatId, {
                 totalMessageCount: messages.length,
                 nextCursor: null,
                 messages,
@@ -932,12 +1080,15 @@ ${"Long message content.".repeat(100)}
                 name: "Alice",
             });
 
-            client.mockGetDocument(spaceId, documentId, {
+            mockApiGetDocument(client, {
+                spaceId,
+                documentId,
+                version: 1,
                 title: "Code Review",
                 content: createSampleContent("Review this code."),
             });
 
-            client.mockGetDocumentThread(spaceId, documentId, commentThreadId, {
+            mockGetDocumentThread(client, spaceId, documentId, commentThreadId, {
                 createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
                 isResolved: false,
                 commentCount: 0,
@@ -978,7 +1129,7 @@ ${"Long message content.".repeat(100)}
                 },
             });
 
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+            mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1054,12 +1205,15 @@ Thanks Alice!
                 name: "Alice",
             });
 
-            client.mockGetDocument(spaceId, documentId, {
+            mockApiGetDocument(client, {
+                spaceId,
+                documentId,
+                version: 1,
                 title: "Code Review",
                 content: createSampleContent("Review this code."),
             });
 
-            client.mockGetDocumentThread(spaceId, documentId, commentThreadId, {
+            mockGetDocumentThread(client, spaceId, documentId, commentThreadId, {
                 createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
                 isResolved: false,
                 commentCount: 0,
@@ -1156,7 +1310,7 @@ Thanks Alice!
                 },
             });
 
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+            mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1230,12 +1384,15 @@ Thanks Alice!
                 name: "Alice",
             });
 
-            client.mockGetDocument(spaceId, documentId, {
+            mockApiGetDocument(client, {
+                spaceId,
+                documentId,
+                version: 1,
                 title: "Code Review",
                 content: createSampleContent("Review this code."),
             });
 
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+            mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1304,19 +1461,22 @@ Thanks Alice!
             const documentId = generateId<DocumentId>();
             const commentThreadId = generateId<DocumentCommentThreadId>();
 
-            client.mockGetDocument(spaceId, documentId, {
+            mockApiGetDocument(client, {
+                spaceId,
+                documentId,
+                version: 1,
                 title: "Resources Doc",
                 content: createSampleContent("Links to resources."),
             });
 
-            client.mockGetDocumentThread(spaceId, documentId, commentThreadId, {
+            mockGetDocumentThread(client, spaceId, documentId, commentThreadId, {
                 createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
                 isResolved: false,
                 commentCount: 0,
                 documentContentSnippet: {elements: []},
             });
 
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+            mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1371,7 +1531,7 @@ Good stuff!
                 name: "Alice",
             });
 
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+            mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1428,7 +1588,7 @@ First comment.
                 name: "Alice",
             });
 
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+            mockGetDocumentCommentsList(client, spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1486,11 +1646,11 @@ ${"Long comment.".repeat(100)}
                 name: "Alice",
             });
 
-            client.mockGetTask(spaceId, taskId, {
+            mockGetTask(client, spaceId, taskId, {
                 title: "Implement Feature X",
             });
 
-            client.mockGetTaskCommentsList(spaceId, taskId, {
+            mockGetTaskCommentsList(client, spaceId, taskId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1545,7 +1705,7 @@ Started working on this!
                 name: "Alice",
             });
 
-            client.mockGetTaskCommentsList(spaceId, taskId, {
+            mockGetTaskCommentsList(client, spaceId, taskId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1600,11 +1760,11 @@ Making progress!
                 name: "Alice",
             });
 
-            client.mockGetTask(spaceId, taskId, {
+            mockGetTask(client, spaceId, taskId, {
                 title: "Implement Feature X",
             });
 
-            client.mockGetTaskCommentsList(spaceId, taskId, {
+            mockGetTaskCommentsList(client, spaceId, taskId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [
@@ -1659,7 +1819,7 @@ Investigating the issue.
                 name: "Alice",
             });
 
-            client.mockGetTaskCommentsList(spaceId, taskId, {
+            mockGetTaskCommentsList(client, spaceId, taskId, {
                 totalMessageCount: 1,
                 nextCursor: null,
                 messages: [

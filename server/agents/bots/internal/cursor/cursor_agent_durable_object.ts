@@ -21,6 +21,7 @@ import {
     agentPaginationTokenLimitGrowthFactor,
     cursorAgentInitializeMessagesTokenLimit,
 } from "~/server/agents/bots/internal/agent_limits.js";
+import {AgentMessageStream} from "~/server/agents/bots/internal/agent_message_stream.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {AgentConversationState} from "~/server/agents/bots/internal/conversation/agent_conversation_store.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
@@ -46,7 +47,6 @@ import {
 } from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {
     ApiMessageRoomPath,
     printApiMessageRoomPath,
@@ -54,12 +54,11 @@ import {
 import {
     ApiContentBlockElement,
     ApiContentTextInlineElement,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
-    ErrorBase,
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
@@ -115,7 +114,7 @@ type CursorCloudAgent = {
     readonly spaceId: SpaceId;
     readonly botId: BotId;
     readonly botAccountId: AccountId;
-    readonly room: ApiMessageRoomTarget;
+    readonly room: ApiMessageRoomReference;
     readonly startTime: Date;
     readonly timeZone: TimeZone;
     readonly launchMessageIndex: number;
@@ -403,10 +402,7 @@ async function withCursorAgentMessageStreamSession<Value>(
         } catch (error) {
             // If an error was thrown then update the stream with the error message.
 
-            const displayMessage =
-                error instanceof ErrorBase
-                    ? (error.displayMessage ?? defaultErrorDisplayMessage)
-                    : defaultErrorDisplayMessage;
+            const displayMessage = getErrorDisplayMessage(error);
 
             await createStreamPart({
                 type: "Content",
@@ -1275,6 +1271,8 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
 
         // We use `AgentMessageStream` even though there's no streaming so we parse content
         // from LLMs consistently across all our agents.
+        //
+        // NOCOMMIT: Use `parseApiContentFromAgentWebMarkdown()` here instead.
         const summaryMessageStream = new AgentMessageStream({
             spaceId: agent.spaceId,
             getTargetPathIfExists: async () => null,

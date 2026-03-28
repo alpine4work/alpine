@@ -1335,7 +1335,7 @@ the last tricky part because document position and visual line are not the same 
 wraps
             `,
             {
-                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}#short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-10-06T14:18:00-04:00")},

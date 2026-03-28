@@ -5,13 +5,13 @@ import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
-import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {
     FileDocumentAuthorizer,
     broadcastPutDocumentCommentStreamPart,
@@ -30,17 +30,15 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {
     fromApiContent,
     fromApiContentToDocumentChildNodes,
-} from "~/shared/api/content/from_api_content.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {
-    ApiContent,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/content/closed_source/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -120,22 +118,19 @@ export const apiDocumentsPaths: Pick<
                     creatorId: creator?.id,
                     consistency,
                 }),
-                intoApiContentWithReferences(
-                    context.dynamo.unexpectStrongReadConsistency(),
+                intoApiContentWithReferences(context, {
                     spaceId,
-                    FileDocumentAuthorizer.bind({
+                    fileAuthorizer: FileDocumentAuthorizer.bind({
                         type: "Document",
                         documentId,
                     }),
-                    documentContent,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Document:${documentId}`,
-                            // All documents are created with version 0
-                            version: 0,
-                        }),
-                    },
-                ),
+                    content: documentContent,
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Document:${documentId}`,
+                        // All documents are created with version 0
+                        version: 0,
+                    }),
+                }),
             ]);
 
             return {
@@ -167,21 +162,18 @@ export const apiDocumentsPaths: Pick<
                         creator: document.creator.id ? {id: document.creator.id} : undefined,
                         version: document.version,
                         title: getDocumentContentTitleWithoutFallback(document.content),
-                        content: await intoApiContentWithReferences(
-                            context,
-                            document.spaceId,
-                            FileDocumentAuthorizer.bind({
+                        content: await intoApiContentWithReferences(context, {
+                            spaceId: document.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            document.content,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Document:${pathParameters.id}`,
-                                    version: document.version,
-                                }),
-                            },
-                        ),
+                            content: document.content,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Document:${pathParameters.id}`,
+                                version: document.version,
+                            }),
+                        }),
                     },
                 },
             };
@@ -240,28 +232,25 @@ export const apiDocumentsPaths: Pick<
                         creator: responseBody.creatorId ? {id: responseBody.creatorId} : undefined,
                         version: responseBody.newVersion,
                         title: getDocumentContentTitleWithoutFallback(responseBody.newContent),
-                        content: await intoApiContentWithReferences(
-                            context,
-                            responseBody.spaceId,
-                            FileDocumentAuthorizer.bind({
+                        content: await intoApiContentWithReferences(context, {
+                            spaceId: responseBody.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            responseBody.newContent,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Document:${pathParameters.id}`,
-                                    version: responseBody.newVersion,
-                                }),
-                            },
-                        ),
+                            content: responseBody.newContent,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Document:${pathParameters.id}`,
+                                version: responseBody.newVersion,
+                            }),
+                        }),
                     },
                 },
             };
         },
     },
 
-    "/documents/{id}/mention": {
+    "/documents/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -274,11 +263,9 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Document",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Document",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -288,88 +275,145 @@ export const apiDocumentsPaths: Pick<
 
     "/documents/{id}/threads/{threadId}": {
         get: async (context, {pathParameters}) => {
-            const options = {consistency: "StrongWithinCache"} as const;
-
-            const [commentThread, documentContent] = await runAllPromises([
+            const [commentThread, document] = await runAllPromises([
                 getDocumentCommentThreadContent(
                     context,
-                    {
-                        documentId: pathParameters.id,
-                        commentThreadId: pathParameters.threadId,
-                    },
-                    options,
+                    {documentId: pathParameters.id, commentThreadId: pathParameters.threadId},
+                    {consistency: "StrongWithinCache"},
                 ),
-                getDocumentContent(context, pathParameters.id, options),
+                getDocumentContent(context, pathParameters.id, {consistency: "StrongWithinCache"}),
             ]);
 
-            const firstCommentAuthor = commentThread.firstCommentAuthorId
-                ? await getApiAccount(
-                      context.dynamo.unexpectStrongReadConsistency(),
-                      commentThread.spaceId,
-                      commentThread.firstCommentAuthorId,
-                  )
-                : null;
-
-            const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector(
-                [pathParameters.threadId],
-                // Whole text blocks so every block in the snippet gets a content key that matches
-                // the key for the same block in the full document content.
-                {wholeTextBlocks: true},
-            )(documentContent.content);
-
-            const commentThreadSnippet = contentSnippetByCommentThreadId.get(
-                pathParameters.threadId,
-            );
-
-            let contentSnippet: ApiContentResponse | null = null;
-            if (commentThreadSnippet) {
-                contentSnippet = await intoApiContentWithReferences(
-                    context,
+            const [firstCommentAuthor, markedPreview, documentContent] = await runAllPromises([
+                getApiAccount(
+                    context.dynamo.unexpectStrongReadConsistency(),
                     commentThread.spaceId,
-                    FileDocumentAuthorizer.bind({
-                        type: "Document",
-                        documentId: pathParameters.id,
-                    }),
-                    commentThreadSnippet.node,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Document:${pathParameters.id}`,
-                            version: documentContent.version,
-                        }),
-                        posOffset: commentThreadSnippet.posOffset,
-                    },
-                );
-            } else if (commentThread.fallbackContentSnippet) {
-                contentSnippet = await intoApiContentWithReferences(
-                    context,
-                    commentThread.spaceId,
-                    FileDocumentAuthorizer.bind({
-                        type: "Document",
-                        documentId: pathParameters.id,
-                    }),
-                    commentThread.fallbackContentSnippet.node,
-                    {
-                        // The fallback snippet was saved from an older version of the document, so encode
-                        // its keys with that version. The keys identify blocks within the snippet but
-                        // can't be resolved against the current document content.
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Document:${pathParameters.id}`,
+                    commentThread.firstCommentAuthorId,
+                ),
+                (async () => {
+                    const contentSnippetByCommentThreadId =
+                        createDocumentCommentThreadSnippetCollector([pathParameters.threadId])(
+                            document.content,
+                        );
+
+                    const commentThreadSnippet = contentSnippetByCommentThreadId.get(
+                        pathParameters.threadId,
+                    );
+
+                    let markedPreview: {
+                        version: number;
+                        contentSnippet: ApiContentResponseWithoutKeys;
+                    } | null = null;
+
+                    if (commentThreadSnippet) {
+                        const contentSnippet = await intoApiContentWithReferences(context, {
+                            spaceId: commentThread.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
+                                type: "Document",
+                                documentId: pathParameters.id,
+                            }),
+                            // NOCOMMIT: Test that we see other comment marks in the content in this case.
+                            content: commentThreadSnippet,
+                            // Because this is a content snippet, we won't be able to encode keys that match
+                            // the source content. So don't include any keys in the content type.
+                            contentKeyEncoder: null,
+                        });
+
+                        markedPreview = {
+                            version: document.version,
+                            contentSnippet,
+                        };
+                    } else if (commentThread.fallbackContentSnippet) {
+                        const contentSnippet = await intoApiContentWithReferences(context, {
+                            spaceId: commentThread.spaceId,
+                            fileAuthorizer: FileDocumentAuthorizer.bind({
+                                type: "Document",
+                                documentId: pathParameters.id,
+                            }),
+                            // NOCOMMIT: Test that we see other comment marks in the content in this case.
+                            content: commentThread.fallbackContentSnippet.node,
+                            // Because this is a content snippet, we won't be able to encode keys that match
+                            // the source content. So don't include any keys in the content type.
+                            contentKeyEncoder: null,
+                        });
+
+                        markedPreview = {
                             version: commentThread.fallbackContentSnippet.version,
-                        }),
-                    },
-                );
-            }
+                            contentSnippet,
+                        };
+                    }
+
+                    return markedPreview;
+                })(),
+                intoApiContentWithReferences(context, {
+                    spaceId: document.spaceId,
+                    fileAuthorizer: FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId: pathParameters.id,
+                    }),
+                    content: document.content,
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Document:${pathParameters.id}`,
+                        version: document.version,
+                    }),
+                }),
+            ]);
 
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    commentThread: {
-                        id: commentThread.id,
-                        createdTime: serializeDateString(commentThread.createdTime),
+                    thread: {
+                        id: pathParameters.threadId,
                         isResolved: commentThread.isResolved,
-                        commentCount: commentThread.commentCount,
-                        firstCommentAuthor,
-                        documentContentSnippet: contentSnippet ?? {elements: []},
+                        totalMessageCount: commentThread.commentCount,
+                        firstMessage: {
+                            author: firstCommentAuthor,
+                            createdTime: serializeDateString(commentThread.createdTime),
+                            createdTimeZone: commentThread.createdTimeZone,
+                        },
+                        marked: {
+                            preview: markedPreview ?? {version: 0, contentSnippet: {elements: []}},
+                        },
+                    },
+                    document: {
+                        id: pathParameters.id,
+                        creator: document.creator.id ? {id: document.creator.id} : undefined,
+                        version: document.version,
+                        title: getDocumentContentTitleWithoutFallback(document.content),
+                        content: documentContent,
+                    },
+                },
+            };
+        },
+    },
+
+    // NOCOMMIT: Tests for this endpoint
+    "/documents/{id}/threads/{threadId}/preview": {
+        get: async (context, {pathParameters}) => {
+            const commentThread = await getDocumentCommentThreadContent(
+                context,
+                {documentId: pathParameters.id, commentThreadId: pathParameters.threadId},
+                {consistency: "StrongWithinCache"},
+            );
+
+            const firstCommentAuthor = await getApiAccount(
+                context.dynamo.unexpectStrongReadConsistency(),
+                commentThread.spaceId,
+                commentThread.firstCommentAuthorId,
+            );
+
+            return {
+                content: {
+                    spaceId: commentThread.spaceId,
+                    thread: {
+                        id: pathParameters.threadId,
+                        isResolved: commentThread.isResolved,
+                        totalMessageCount: commentThread.commentCount,
+                        firstMessage: {
+                            author: firstCommentAuthor,
+                            createdTime: serializeDateString(commentThread.createdTime),
+                            createdTimeZone: commentThread.createdTimeZone,
+                        },
                     },
                 },
             };
@@ -390,6 +434,11 @@ export const apiDocumentsPaths: Pick<
                     spaceId: message.spaceId,
                     message: await intoApiMessage(context, {
                         spaceId: message.spaceId,
+                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${pathParameters.index}`,
+                        fileAuthorizer: FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId: pathParameters.id,
+                        }),
                         message,
                         intoContentPayloadParent: createIntoApiDocumentCommentContentPayloadParent(
                             context,
@@ -397,7 +446,6 @@ export const apiDocumentsPaths: Pick<
                             pathParameters.id,
                             pathParameters.threadId,
                         ),
-                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${pathParameters.index}`,
                     }),
                 },
             };
@@ -407,7 +455,7 @@ export const apiDocumentsPaths: Pick<
     "/documents/{id}/threads/{threadId}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getDocumentCommentPayloadsFromEnd(context, {
                           documentId: pathParameters.id,
                           commentThreadId: pathParameters.threadId,
@@ -430,7 +478,7 @@ export const apiDocumentsPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;
@@ -456,6 +504,11 @@ export const apiDocumentsPaths: Pick<
                         comments.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${message.index}`,
+                                fileAuthorizer: FileDocumentAuthorizer.bind({
+                                    type: "DocumentComments",
+                                    documentId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiDocumentCommentContentPayloadParent(
@@ -464,7 +517,6 @@ export const apiDocumentsPaths: Pick<
                                         pathParameters.id,
                                         pathParameters.threadId,
                                     ),
-                                entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${message.index}`,
                             }),
                         ),
                     ),
@@ -480,7 +532,9 @@ export const apiDocumentsPaths: Pick<
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
 
-            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const fileIds = (requestBody.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
             const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
 
             // Attach files before creating the message, matching the app client flow. The
@@ -560,6 +614,11 @@ export const apiDocumentsPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${index}`,
+                        fileAuthorizer: FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -577,7 +636,6 @@ export const apiDocumentsPaths: Pick<
                             pathParameters.id,
                             pathParameters.threadId,
                         ),
-                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${index}`,
                     }),
                 },
             };

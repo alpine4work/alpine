@@ -24,7 +24,7 @@ import {
 import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -59,7 +59,7 @@ export type AgentWebhookRequest = {
     readonly botId: BotId;
     readonly botAccountId: AccountId;
     readonly event: ApiBotWebhookEvent;
-    readonly room: ApiMessageRoomTarget;
+    readonly room: ApiMessageRoomReference;
 };
 
 export type ConversationStateRequest = {

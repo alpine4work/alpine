@@ -1,5 +1,6 @@
 import {actuallyGetOrCreateChatForAccounts} from "~/server/chat/data/internal/actually_get_or_create_chat_for_accounts.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -15,9 +16,11 @@ export async function getOrCreateChatForAccounts(
     {
         spaceId,
         otherAccountIds,
+        consistency,
     }: {
         spaceId: SpaceId;
         otherAccountIds: ReadonlyArray<AccountId>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<ChatId> {
     const {chatId} = await actuallyGetOrCreateChatForAccounts(context, {
@@ -25,6 +28,7 @@ export async function getOrCreateChatForAccounts(
         actorAccountId: context.actor.getPossiblyBotAccountId(),
         otherAccountIds,
         initialSharedChatsPromise: null,
+        consistency,
     });
 
     return chatId;

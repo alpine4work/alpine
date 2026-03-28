@@ -508,27 +508,27 @@ inline mention link.** Mentions make the demo feel like a real, connected worksp
 names feel like a screenshot, mentions feel like a product. Use them in document bodies, post
 bodies, chat messages, and task notes.
 
-The URL shape is `https://alpine.inc/{entityPath}?mention`. The `?mention` query parameter tells the
+The URL shape is `https://alpine.inc/{entityPath}#mention`. The `#mention` query parameter tells the
 renderer to display the link as an inline mention chip rather than a plain hyperlink. The link text
 in the markdown is a fallback label; the UI replaces it with the real entity name at render time.
 
-**Account mentions use `?mention=short` by default**, which renders the person's first name only
-(e.g. "Mason" instead of "Mason Clay"). Use plain `?mention` only when you specifically want the
+**Account mentions use `#mention=short` by default**, which renders the person's first name only
+(e.g. "Mason" instead of "Mason Clay"). Use plain `#mention` only when you specifically want the
 full name.
 
 | Entity   | URL path                       |
 | -------- | ------------------------------ |
-| Account  | `/mention/{accountId}?short`   |
-| Document | `/doc/{documentId}?mention`    |
-| Channel  | `/channel/{channelId}?mention` |
-| Task     | `/task/{taskId}?mention`       |
+| Account  | `/mention/{accountId}#short`   |
+| Document | `/doc/{documentId}#mention`    |
+| Channel  | `/channel/{channelId}#mention` |
+| Task     | `/task/{taskId}#mention`       |
 
 Because the `markdown` tag doesn't support interpolation (see Style & authoring tips), build a
 helper and use placeholder + `.replace()`:
 
 ```ts
 const mentionUrl = (session: {account: {id: string}}) =>
-    `https://alpine.inc/mention/${session.account.id}?short`;
+    `https://alpine.inc/mention/${session.account.id}#short`;
 
 const body = markdown`
 [Mason](MASON_MENTION) is leading the redesign. [Elle](ELLE_MENTION) is scoping SSO.
@@ -540,7 +540,7 @@ const body = markdown`
 For document mentions:
 
 ```ts
-const docMentionUrl = `https://alpine.inc/doc/${document.id}?mention`;
+const docMentionUrl = `https://alpine.inc/doc/${document.id}#mention`;
 
 const body = markdown`
 Full context in the [FY2026 Q2 Update](DOC_MENTION).
@@ -878,7 +878,7 @@ Handy knobs:
     ```ts
     markdown`
     Check the [Q2 Update](Q2_UPDATE_MENTION_URL) for context.
-    `.replace("Q2_UPDATE_MENTION_URL", `${spaceUrl}/documents/${doc.id}?mention`);
+    `.replace("Q2_UPDATE_MENTION_URL", `${spaceUrl}/documents/${doc.id}#mention`);
     ```
     The `admin/scenarios` code uses `Mustache.render()` for this, but Mustache is not a dependency
     of the scalable demos package — use `.replace()` instead.

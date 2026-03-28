@@ -188,7 +188,13 @@ import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId, isId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    ChatId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
@@ -2871,6 +2877,42 @@ function prepareChatSearchEntityTitleForResult(
     return prepareSearchDirectChatEntityTitleForResult(actorType, media);
 }
 
+export async function getSearchDirectChatEntityTitleAndMedia(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    chatId: ChatId,
+    accountIds: ReadonlySet<AccountId>,
+) {
+    const sortedAccountIds = sortSearchDirectChatEntityAccountIds(chatId, accountIds);
+
+    const media = await prepareAccountOrAccountPileMediaForResult(
+        context,
+        spaceId,
+        {
+            type: "AccountPile",
+            previewAccountIds: sortedAccountIds.slice(
+                0,
+                // Add 1 to make sure we can filter out the actor account and still have enough
+                // accounts to render a nice looking pile.
+                searchChatEntityResultTitlePreviewAccountCount + 1,
+            ),
+            accountCount: accountIds.size,
+        },
+        {consistency: "StrongWithinCache"},
+    );
+
+    let title: string;
+
+    if (media.type !== "AccountPile") {
+        assert(media.type === "Account");
+        title = media.account.initialData.name;
+    } else {
+        title = prepareSearchDirectChatEntityTitleForResult(context.actor.type, media);
+    }
+
+    return {title, media, sortedAccountIds};
+}
+
 type SearchEntityModelBaseResult =
     | (SearchEntityModelDataWithAccount & {
           isPrivate: false;
@@ -3077,36 +3119,12 @@ async function fallbackGetSearchEntityBaseIfPossible(
                     // This matches the behavior of `getChatSearchEntity()`.
                     if (chat.definition.accountIds.size <= 2) return null;
 
-                    const media = await prepareAccountOrAccountPileMediaForResult(
+                    const {title, media} = await getSearchDirectChatEntityTitleAndMedia(
                         context,
-                        spaceId,
-                        {
-                            type: "AccountPile",
-                            previewAccountIds: sortSearchDirectChatEntityAccountIds(
-                                entityIdObject.chatId,
-                                chat.definition.accountIds,
-                            ).slice(
-                                0,
-                                // Add 1 to make sure we can filter out the actor account and still have enough
-                                // accounts to render a nice looking pile.
-                                searchChatEntityResultTitlePreviewAccountCount + 1,
-                            ),
-                            accountCount: chat.definition.accountIds.size,
-                        },
-                        {consistency: "StrongWithinCache"},
+                        chat.spaceId,
+                        entityIdObject.chatId,
+                        chat.definition.accountIds,
                     );
-
-                    let title: string;
-
-                    if (media.type !== "AccountPile") {
-                        assert(media.type === "Account");
-                        title = media.account.initialData.name;
-                    } else {
-                        title = prepareSearchDirectChatEntityTitleForResult(
-                            context.actor.type,
-                            media,
-                        );
-                    }
 
                     return {
                         isPrivate: false,
@@ -3198,6 +3216,9 @@ async function fallbackGetSearchEntityBaseIfPossible(
                 ),
             ]);
 
+            // NOCOMMIT: Post mention titles returned by the API should include the author name
+            // I think. Since that's how post mention will render in the UI. That means putting
+            // the author name in the search result title too?
             const title = createPostSearchEntityTitleWithAlreadySnippedContent(
                 post.channel.name,
                 postContentTitleSnippet,

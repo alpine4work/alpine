@@ -40,7 +40,7 @@ export async function* runCommentsQuery(
         }) => AsyncIterable<CommentQueryItem | CommentQueryStreamItem | CommentQueryStreamPartItem>;
     },
 ): AsyncIterableIterator<MessageItem> {
-    assert(startIndex <= endIndex);
+    if (startIndex > endIndex) return;
 
     let uncachedStartIndex = startIndex;
     let uncachedEndIndex = endIndex;

@@ -14,7 +14,7 @@ ts_project(
         "//server/spaces/test_helpers",
         "//server/tokens",
         "//shared/agents",
-        "//shared/api/markdown",
+        "//shared/api/content",
         "//shared/api/specification",
         "//shared/error",
         "//shared/helpers",

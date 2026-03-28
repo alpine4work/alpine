@@ -17,10 +17,10 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {
-    ApiMentionTargetPath,
-    parseApiMentionTarget,
+    ApiMentionReferencePath,
+    parseApiMentionReference,
 } from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -148,12 +148,12 @@ function renderMessageStreamNonContentPart(
     }
 }
 
-function getApiMentionPathContentMention(targetPath: ApiMentionTargetPath): ContentMention {
-    const mentionTarget = parseApiMentionTarget(targetPath);
+function getApiMentionPathContentMention(targetPath: ApiMentionReferencePath): ContentMention {
+    const mentionTarget = parseApiMentionReference(targetPath);
     return getApiMentionContentMention(mentionTarget);
 }
 
-function getApiMentionContentMention(target: ApiMentionTarget): ContentMention {
+function getApiMentionContentMention(target: ApiMentionReference): ContentMention {
     switch (target.type) {
         case "Account": {
             return {

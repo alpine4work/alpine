@@ -30,7 +30,7 @@ export type FileEntityId =
     | `Post:${PostId}`
     | `Site:${SiteId}`;
 
-export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
+export const FileEntityIdSchema = Schema.stringAs<FileEntityId>();
 
 export const FileIdOrFileEntityIdSchema = Schema.string.validation(
     "Is `FileId` or `FileEntityId`",

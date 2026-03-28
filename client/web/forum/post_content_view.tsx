@@ -72,6 +72,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
+import {getPostContentSnippet} from "~/shared/forum/get_post_content_snippet.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
@@ -229,16 +230,7 @@ export function PostContentView({
         if (isPostView) {
             return null;
         } else {
-            let contentSnippet = getContentSnippet(
-                post.content.doc.resolve(0),
-                {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 12 : 16},
-                {
-                    // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
-                    // be slightly more aggressive than the default grapheme count (which counts the
-                    // "l" character which is narrower) since we render the entire snippet.
-                    maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
-                },
-            );
+            let contentSnippet = getPostContentSnippet(post.content.doc, {platform, routeLayout});
 
             contentSnippet = assertExists(
                 contentSnippet.type.createAndFill(

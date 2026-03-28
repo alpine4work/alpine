@@ -2,7 +2,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "tasks",
-    test_deps = ["//shared/tasks/test_helpers", "//shared/test_helpers"],
+    test_deps = [
+        "//:node_modules/fast-check",
+        "//shared/tasks/test_helpers",
+        "//shared/test_helpers",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@internationalized/date",

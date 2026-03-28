@@ -1,4 +1,4 @@
-import {ApiMentionTargetPath} from "~/shared/api/specification/parse_api_path.js";
+import {ApiMentionReferencePath} from "~/shared/api/specification/parse_api_path.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -282,9 +282,9 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     Read: Schema.object({
         type: Schema.value("Read"),
         // TODO(calebmer, #api-path-destruction): This shouldn't be a `targetPath` string
-        // but rather a `target` object like `Create`. We may be able to get rid of
-        // `ApiMentionTargetPath` after doing this.
-        targetPath: Schema.string as Schema<ApiMentionTargetPath>,
+        // but rather a `reference` object like `Create`. We may be able to get rid of
+        // `ApiMentionReferencePath` after doing this.
+        targetPath: Schema.stringAs<ApiMentionReferencePath>(),
     }),
     Search: Schema.object({
         type: Schema.value("Search"),
@@ -292,6 +292,7 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     }),
     Create: Schema.object({
         type: Schema.value("Create"),
+        // NOCOMMIT: Rename to `reference`?
         target: Schema.union({
             Document: Schema.object({
                 type: Schema.value("Document"),

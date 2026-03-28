@@ -103,6 +103,25 @@ function validate(specification: JsonValue) {
                             addError(quote`Object property ${key} must be \`camelCase\``);
                         }
                     }
+
+                    // Make sure that the properties in `required` are listed in the same order as
+                    // `properties`.
+                    if (isReadonlyArray(value.required)) {
+                        const requiredPropertyKeys = value.required;
+                        const requiredPropertyKeysSet = new Set(requiredPropertyKeys);
+                        const requiredPropertyKeysInPropertiesOrder = Object.keys(
+                            value.properties,
+                        ).filter(propertyKey => requiredPropertyKeysSet.has(propertyKey));
+
+                        if (
+                            !isDeepEqual(
+                                requiredPropertyKeys,
+                                requiredPropertyKeysInPropertiesOrder,
+                            )
+                        ) {
+                            addError(quote`\`required\` fields must match \`properties\` order`);
+                        }
+                    }
                 }
             }
 
@@ -265,12 +284,13 @@ function validate(specification: JsonValue) {
                 }
 
                 // Rule: Schema names should be `PascalCase` since it's a type name. Or
-                // `PascalCase_Specialization`.
+                // `PascalCase` followed by any number of `_Specialization` suffixes (e.g.
+                // `Content_Response_WithoutKeys`).
                 if (
                     path[0] === "components" &&
                     path[1] === "schemas" &&
                     path.length === 2 &&
-                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)?$/.test(key)
+                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)*$/.test(key)
                 ) {
                     errors.push(
                         quote`Schema name ${key} must be \`PascalCase\` (path: ${printPath()})`,
@@ -496,6 +516,15 @@ test("can validate invalid specification", () => {
                         type: {const: "Code"},
                     },
                 },
+                InvalidRequiredOrder: {
+                    type: "object",
+                    required: ["second", "first"],
+                    additionalProperties: false,
+                    properties: {
+                        first: {type: "string"},
+                        second: {type: "string"},
+                    },
+                },
             },
         },
     };
@@ -520,5 +549,6 @@ test("can validate invalid specification", () => {
         "`discriminator`\u2019s `mapping` `#/components/schemas/CodeBlockElement` doesn\u2019t have a required `type` property (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/Code`)",
         "`discriminator`\u2019s `oneOf` `$ref`s must match `discriminator`\u2019s `mapping`s (path: `#/components/schemas/InvalidBlockElement3`)",
         "`oneOf` schemas must either have a `discriminator` or represent `Value | null` (path: `#/components/schemas/InvalidPrimitiveUnion`)",
+        "`required` fields must match `properties` order (path: `#/components/schemas/InvalidRequiredOrder`)",
     ]);
 });

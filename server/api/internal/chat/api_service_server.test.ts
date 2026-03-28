@@ -9,7 +9,7 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {generateApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -679,6 +679,43 @@ test("validates response with schema in tests", async () => {
         },
     });
 });
+
+test.each(["top-level", "nested", "array", "union"])(
+    "validates response object property order in tests (%s)",
+    async testPropertyOrder => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const chat = await TestChat.get(session1, session2);
+        const message = await chat.sendMessage(session1, "Hello, world!");
+
+        expect(
+            await server.GET(
+                `/chats/${chat.id}/messages/${message.index}?test-property-order=${testPropertyOrder}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            ),
+        ).toEqual({
+            status: 500,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message:
+                        "An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc",
+                    stack: expect.stringMatching(
+                        /^InternalError: Response schema validation failed: must list `.+` before `.+`\n/,
+                    ),
+                    retry: {
+                        able: true,
+                    },
+                },
+            },
+        });
+    },
+);
 
 test("path param that doesn\u2019t match pattern", async () => {
     const space = await TestSpace.create(context);

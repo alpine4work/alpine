@@ -30,6 +30,10 @@ export class TemporaryDurableObjectStorage implements DurableObjectTransactionIn
         return this._storage.remove({key, value: undefined});
     }
 
+    public async deleteAll(): Promise<void> {
+        this._storage.clear();
+    }
+
     public async list<T = unknown>({
         start,
         startAfter,

@@ -14,7 +14,7 @@ ts_project(
     deps = [
         "//server/api/internal/shared",
         "//server/files/data",
-        "//shared/api/content",
+        "//shared/api/content/closed_source",
         "//shared/id",
     ],
 )

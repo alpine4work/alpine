@@ -21,8 +21,12 @@ import {TaskQueryPriorityFilterOperationEditor} from "~/client/web/tasks/interna
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryTitleFilterOperationEditor} from "~/client/web/tasks/internal/task_query_title_filter_operation_editor.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryFilter,
+    isTaskQueryFilterCreatorAccountOperation,
+} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
 export function TaskQueryFilterEditor({
@@ -151,9 +155,10 @@ export function TaskQueryFilterEditor({
                             shouldHideMissingAccountItem={true}
                             filterReferences={filterReferences}
                             operation={filter.operation}
-                            onOperationChange={(operation, options) =>
-                                onFilterChange({...filter, operation}, options)
-                            }
+                            onOperationChange={(operation, options) => {
+                                assert(isTaskQueryFilterCreatorAccountOperation(operation));
+                                onFilterChange({...filter, operation}, options);
+                            }}
                         />
                     }
                     onFilterRemove={onFilterRemove}

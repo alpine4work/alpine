@@ -34,7 +34,7 @@ patchedDependencies:
     hash: ylo6ppuxbnnn5eh5o4zhyyzoeq
     path: admin/patches/@cloudflare__workers-types@4.20241112.0.patch
   '@cloudsnorkel/cdk-github-runners@0.14.1':
-    hash: qyaojzwpswpwigfmqgpllyrxfm
+    hash: hvgstpzwsl2eqzrkzevbloif2a
     path: admin/patches/@cloudsnorkel__cdk-github-runners@0.14.1.patch
   '@dnd-kit/core@6.0.8':
     hash: 7phbxv4pzfr6sphz6gpqy6mxeu
@@ -142,7 +142,7 @@ patchedDependencies:
     hash: wkqkvugwhsvjvwdram2habj464
     path: admin/patches/mdast-util-gfm-table@2.0.0.patch
   mdast-util-to-markdown@2.1.2:
-    hash: cedwq4nopic5y2gqnyx7d4wjya
+    hash: kslkzovfsmigcvypkrmgxtcdn4
     path: admin/patches/mdast-util-to-markdown@2.1.2.patch
   media-query-parser@2.0.2:
     hash: saj64dz6s226nfs27aiqrqatfi
@@ -265,7 +265,7 @@ importers:
         version: 4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)
       '@cloudsnorkel/cdk-github-runners':
         specifier: 0.14.1
-        version: 0.14.1(patch_hash=qyaojzwpswpwigfmqgpllyrxfm)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)
+        version: 0.14.1(patch_hash=hvgstpzwsl2eqzrkzevbloif2a)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)
       '@codemirror/lang-sql':
         specifier: ^6.7.0
         version: 6.7.0(@codemirror/view@6.28.6)
@@ -953,6 +953,9 @@ importers:
       lezer-elixir:
         specifier: ^1.1.2
         version: 1.1.2
+      lmdb:
+        specifier: ^3.5.6
+        version: 3.5.6
       looks-same:
         specifier: 9.0.1
         version: 9.0.1
@@ -976,7 +979,7 @@ importers:
         version: 3.0.0(supports-color@10.2.2)
       mdast-util-to-markdown:
         specifier: ^2.1.2
-        version: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+        version: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       media-query-parser:
         specifier: 2.0.2
         version: 2.0.2(patch_hash=saj64dz6s226nfs27aiqrqatfi)
@@ -2540,6 +2543,9 @@ packages:
   '@giphy/js-util@5.2.0':
     resolution: {integrity: sha512-Qt7pGh2cqiNmXLeWAgb459wK8+BuMLtIxTfg4ZksnPHPsLthiHT9hhzs2QhqUh7Pp/HOq+Cbv2etGDfnq+xiKA==}
 
+  '@harperfast/extended-iterable@1.0.3':
+    resolution: {integrity: sha512-sSAYhQca3rDWtQUHSAPeO7axFIUJOI6hn1gjRC5APVE1a90tuyT8f5WIgRsFhhWA7htNkju2veB9eWL6YHi/Lw==}
+
   '@humanwhocodes/config-array@0.11.14':
     resolution: {integrity: sha512-3T8LkOmg45BV5FICb15QQMsyUSWrQ8AygVfC7ZG32zOalnqrilm018ZVCw0eapXux8FtA33q8PSRSstjee3jSg==}
     engines: {node: '>=10.10.0'}
@@ -2829,6 +2835,41 @@ packages:
   '@lezer/yaml@1.0.3':
     resolution: {integrity: sha512-GuBLekbw9jDBDhGur82nuwkxKQ+a3W5H0GfaAthDXcAu+XdpS43VlnxA9E9hllkpSP5ellRDKjLLj7Lu9Wr6xA==}
 
+  '@lmdb/lmdb-darwin-arm64@3.5.6':
+    resolution: {integrity: sha512-mY5FG4TjPAkY4P0w+OhHaUka5mDh2TX2WKYIwuKzJ1zeW3VvRgxdam/lGJTquI+bthTx5CSHDW+BAQCnNAzkEA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@lmdb/lmdb-darwin-x64@3.5.6':
+    resolution: {integrity: sha512-foa+pwitysO8k+xhs7psBFfTKnVgR69NlZRRTHaFVDqphh7AdGpLeyRzKw/ofatr/sN6TiHRRW6mmop0ZrrppQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@lmdb/lmdb-linux-arm64@3.5.6':
+    resolution: {integrity: sha512-HmiyFFdJa38s1heCMSooSPaBSFTHJ3C+ERPp28xAPlDX1YiALJVOgbry065nXd8Y7KISWjnw05zpG1RX8IfftA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@lmdb/lmdb-linux-arm@3.5.6':
+    resolution: {integrity: sha512-QR4YRyR5h5Z8eGXrNQjiyo2NNDfqi3tCc9dQG5Is1blCt+qWw1ZoBWhlWAr5d+jshkifMIJjVHzHGKbkKzF8Tw==}
+    cpu: [arm]
+    os: [linux]
+
+  '@lmdb/lmdb-linux-x64@3.5.6':
+    resolution: {integrity: sha512-ADzCuCF2cTNiX9kDScqcz1fjnAkxPpQNneV3KFTdV3wWtVlI2sTGzySoMTgDpinkMMFj1NTJlxA6XR8fwc4hlA==}
+    cpu: [x64]
+    os: [linux]
+
+  '@lmdb/lmdb-win32-arm64@3.5.6':
+    resolution: {integrity: sha512-J7A9aEQsQiv0TYtBGL7NDIPp2lOS8nnl+zm4sWZm1xlsTTaQ4PgD096Adzdrk27rw3UxCkDXdCUa4ax41oztBQ==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@lmdb/lmdb-win32-x64@3.5.6':
+    resolution: {integrity: sha512-1g7G0knRX2iV/voDu54yxrGqw5Dk0w2oIYb7dgJq8IkOi+m7wbD8Q3QpPFjh0C01G58S88dqGn03len6UPCXsg==}
+    cpu: [x64]
+    os: [win32]
+
   '@lume/kiwi@0.4.3':
     resolution: {integrity: sha512-+D9x9lwfYOpUVUc5GW8FBuU9X+PKaHzhBKBx/LyzO9onvr1izwIzFcn4SgQR71R66HT3ohT+5ky4aHZeQ5MhNQ==}
 
@@ -2957,6 +2998,36 @@ packages:
 
   '@module-federation/webpack-bundler-runtime@0.22.0':
     resolution: {integrity: sha512-aM8gCqXu+/4wBmJtVeMeeMN5guw3chf+2i6HajKtQv7SJfxV/f4IyNQJUeUQu9HfiAZHjqtMV5Lvq/Lvh8LdyA==}
+
+  '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
+    resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@msgpackr-extract/msgpackr-extract-darwin-x64@3.0.4':
+    resolution: {integrity: sha512-zExlW9zUJKZH/tOtVMttwjKa4Xm/3KcNjnE3dPN92uCktwavMxpgCA3MoJK/DOnTWsQgo224OaST27/mPNAf+w==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@msgpackr-extract/msgpackr-extract-linux-arm64@3.0.4':
+    resolution: {integrity: sha512-dgX0P/9wGPJeHFBG+ZmhgE6bmtMt7NP5CRBGyyktpopdk/mW4POnrpQsSLtKI1dwpc+pPLuXHDh6vvskyQE/sw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@msgpackr-extract/msgpackr-extract-linux-arm@3.0.4':
+    resolution: {integrity: sha512-Tg3yX65f5GbtXLkrYEHE5oibZG9epyYWas7FogTTEJeDEF9JlXJzKgXaNhT3UXlTOeA+AfZpYZYZ0uPj7Cfquw==}
+    cpu: [arm]
+    os: [linux]
+
+  '@msgpackr-extract/msgpackr-extract-linux-x64@3.0.4':
+    resolution: {integrity: sha512-8TNXMEjJc3QEy7R/x1INhgiU+XakDAFUzBhaz7+Rbrs8NH5UQeHQxxmzsSBJGyV6I1jW79undiQm8tOI+D+8FQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
+    resolution: {integrity: sha512-CmCXPQrkbwExx3j946/PtHWHbYJiCRBRDl4BlkRQcJB/YOwQxJRTpoo7aTsortjgoJ1x7opzTSxn7C+ASSLVjQ==}
+    cpu: [x64]
+    os: [win32]
 
   '@napi-rs/wasm-runtime@1.0.7':
     resolution: {integrity: sha512-SeDnOO0Tk7Okiq6DbXmmBODgOAb9dp9gjlphokTUxmt8U3liIP1ZsozBahH69j/RJv+Rfs6IwUKHTgQYJ/HBAw==}
@@ -7698,6 +7769,10 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
+  lmdb@3.5.6:
+    resolution: {integrity: sha512-j3uE8ReKNyUWDjhfEFSJqE/1DLtfTR5Z8yFzVHvBjAk37wNg7HdScjcv8ttPHRvrdgPQMPWxFFI0SsdBzI5lBw==}
+    hasBin: true
+
   loader-runner@4.3.1:
     resolution: {integrity: sha512-IWqP2SCPhyVFTBtRcgMHdzlf9ul25NwaFx4wCEH/KjAXuuHY4yNjvPXsBokp8jCB936PyWRaPKUNh8NvylLp2Q==}
     engines: {node: '>=6.11.5'}
@@ -8229,6 +8304,13 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
+  msgpackr-extract@3.0.4:
+    resolution: {integrity: sha512-4kmO/MdyUIkLIvTPr8VHLil4AtoKIoniWPIEk5+CDy0xnWC84azhSFmuJ7PxZdsYtiP5kEeQsORAVIeMgxT+Hw==}
+    hasBin: true
+
+  msgpackr@1.12.1:
+    resolution: {integrity: sha512-4EUH9tQHnMmEgzW/MdAP0KIfa1T9AF+htl0ffe2n5vb2EKn9y2co8ccpgWko6S52Jy1PQZKwRnx5/KkYjtd9MQ==}
+
   murmurhash@2.0.1:
     resolution: {integrity: sha512-5vQEh3y+DG/lMPM0mCGPDnyV8chYg/g7rl6v3Gd8WMF9S429ox3Xk8qrk174kWhG767KQMqqxLD1WnGd77hiew==}
 
@@ -8286,6 +8368,9 @@ packages:
     resolution: {integrity: sha512-zsFhmbkAzwhTft6nd3VxcG0cvJsT70rL+BIGHWVq5fi6MwGrHwzqKaxXE+Hl2GmnGItnDKPPkO5/LQqjVkIdFg==}
     engines: {node: '>=10'}
 
+  node-addon-api@6.1.0:
+    resolution: {integrity: sha512-+eawOlIgy680F0kBzPUNFhMZGtJ1YmqM6l4+Crf4IkImjYrO/mqPwRMh352g23uIaQKFItcQ64I7KMaJxHgAVA==}
+
   node-cron@3.0.3:
     resolution: {integrity: sha512-dOal67//nohNgYWb+nWmg5dkFdIwDm8EpeGYMekPMrngV3637lqnX0lbUcCtgibHTz6SEz7DAIjKvKDFYCnO1A==}
     engines: {node: '>=6.0.0'}
@@ -8293,6 +8378,10 @@ packages:
   node-forge@1.3.1:
     resolution: {integrity: sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==}
     engines: {node: '>= 6.13.0'}
+
+  node-gyp-build-optional-packages@5.2.2:
+    resolution: {integrity: sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw==}
+    hasBin: true
 
   node-gyp-build@4.6.0:
     resolution: {integrity: sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==}
@@ -8483,6 +8572,9 @@ packages:
   ora@8.2.0:
     resolution: {integrity: sha512-weP+BZ8MVNnlCm8c0Qdc1WSWq4Qn7I+9CJGm7Qali6g44e/PUzbjNqJX5NJ9ljlNMosfJvg1fKEGILklK9cwnw==}
     engines: {node: '>=18'}
+
+  ordered-binary@1.6.1:
+    resolution: {integrity: sha512-QkCdPooczexPLiXIrbVOPYkR3VO3T6v2OyKRkR1Xbhpy7/LAVXwahnRCgRp78Oe/Ehf0C/HATAxfSr6eA1oX+w==}
 
   orderedmap@2.0.0:
     resolution: {integrity: sha512-buf4PoAMlh45b8a8gsGy/X6w279TSqkyAS0C0wdTSJwFSU+ljQFJON5I8NfjLHoCXwpSROIo2wr0g33T+kQshQ==}
@@ -10082,6 +10174,9 @@ packages:
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
+
+  weak-lru-cache@1.2.2:
+    resolution: {integrity: sha512-DEAoo25RfSYMuTGc9vPJzZcZullwIqRDSI9LOy+fkCJPi6hykCnfKaXTuPBDuXAUcqHXyOgFtHNp/kB2FjYHbw==}
 
   web-encoding@1.1.5:
     resolution: {integrity: sha512-HYLeVCdJ0+lBYV2FvNZmv3HJ2Nt0QYXqZojk3d9FJOLkwnuhzM9tmamh8d7HPM8QqjKH8DeHkFTx+CFlWpZZDA==}
@@ -11913,7 +12008,7 @@ snapshots:
 
   '@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)': {}
 
-  '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=qyaojzwpswpwigfmqgpllyrxfm)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)':
+  '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=hvgstpzwsl2eqzrkzevbloif2a)(aws-cdk-lib@2.189.1(constructs@10.1.143))(constructs@10.1.143)':
     dependencies:
       aws-cdk-lib: 2.189.1(constructs@10.1.143)
       constructs: 10.1.143
@@ -12387,6 +12482,8 @@ snapshots:
       '@giphy/js-types': 5.1.0
       uuid: 9.0.1
 
+  '@harperfast/extended-iterable@1.0.3': {}
+
   '@humanwhocodes/config-array@0.11.14(supports-color@10.2.2)':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
@@ -12846,6 +12943,27 @@ snapshots:
       '@lezer/highlight': 1.2.0
       '@lezer/lr': 1.4.1
 
+  '@lmdb/lmdb-darwin-arm64@3.5.6':
+    optional: true
+
+  '@lmdb/lmdb-darwin-x64@3.5.6':
+    optional: true
+
+  '@lmdb/lmdb-linux-arm64@3.5.6':
+    optional: true
+
+  '@lmdb/lmdb-linux-arm@3.5.6':
+    optional: true
+
+  '@lmdb/lmdb-linux-x64@3.5.6':
+    optional: true
+
+  '@lmdb/lmdb-win32-arm64@3.5.6':
+    optional: true
+
+  '@lmdb/lmdb-win32-x64@3.5.6':
+    optional: true
+
   '@lume/kiwi@0.4.3': {}
 
   '@mdx-js/mdx@3.1.1(supports-color@10.2.2)':
@@ -13032,6 +13150,24 @@ snapshots:
     dependencies:
       '@module-federation/runtime': 0.22.0
       '@module-federation/sdk': 0.22.0
+
+  '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
+    optional: true
+
+  '@msgpackr-extract/msgpackr-extract-darwin-x64@3.0.4':
+    optional: true
+
+  '@msgpackr-extract/msgpackr-extract-linux-arm64@3.0.4':
+    optional: true
+
+  '@msgpackr-extract/msgpackr-extract-linux-arm@3.0.4':
+    optional: true
+
+  '@msgpackr-extract/msgpackr-extract-linux-x64@3.0.4':
+    optional: true
+
+  '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
+    optional: true
 
   '@napi-rs/wasm-runtime@1.0.7':
     dependencies:
@@ -14406,7 +14542,7 @@ snapshots:
       react-refresh: 0.18.0
       remotion: 4.0.443(react-dom@19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0))(react@19.2.0)
       source-map: 0.7.3
-      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.21.5))
+      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.25.10))
       webpack: 5.105.0(esbuild@0.25.10)
     transitivePeerDependencies:
       - '@swc/core'
@@ -19069,6 +19205,23 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
+  lmdb@3.5.6:
+    dependencies:
+      '@harperfast/extended-iterable': 1.0.3
+      msgpackr: 1.12.1
+      node-addon-api: 6.1.0
+      node-gyp-build-optional-packages: 5.2.2
+      ordered-binary: 1.6.1
+      weak-lru-cache: 1.2.2
+    optionalDependencies:
+      '@lmdb/lmdb-darwin-arm64': 3.5.6
+      '@lmdb/lmdb-darwin-x64': 3.5.6
+      '@lmdb/lmdb-linux-arm': 3.5.6
+      '@lmdb/lmdb-linux-arm64': 3.5.6
+      '@lmdb/lmdb-linux-x64': 3.5.6
+      '@lmdb/lmdb-win32-arm64': 3.5.6
+      '@lmdb/lmdb-win32-x64': 3.5.6
+
   loader-runner@4.3.1: {}
 
   loader-utils@2.0.2:
@@ -19242,7 +19395,7 @@ snapshots:
       devlop: 1.1.0
       escape-string-regexp: 5.0.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       micromark-extension-frontmatter: 2.0.0
     transitivePeerDependencies:
       - supports-color
@@ -19260,7 +19413,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       micromark-util-normalize-identifier: 2.0.0
     transitivePeerDependencies:
       - supports-color
@@ -19269,7 +19422,7 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.3
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19279,7 +19432,7 @@ snapshots:
       devlop: 1.1.0
       markdown-table: 3.0.4
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19288,7 +19441,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19300,7 +19453,7 @@ snapshots:
       mdast-util-gfm-strikethrough: 2.0.0(patch_hash=vncctalgpqfc6n6ssnlvkondw4)(supports-color@10.2.2)
       mdast-util-gfm-table: 2.0.0(patch_hash=wkqkvugwhsvjvwdram2habj464)(supports-color@10.2.2)
       mdast-util-gfm-task-list-item: 2.0.0(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19311,7 +19464,7 @@ snapshots:
       devlop: 1.1.0
       longest-streak: 3.0.1
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       unist-util-remove-position: 5.0.0
     transitivePeerDependencies:
       - supports-color
@@ -19323,7 +19476,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19336,7 +19489,7 @@ snapshots:
       ccount: 2.0.1
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       parse-entities: 4.0.0
       stringify-entities: 4.0.3
       unist-util-stringify-position: 4.0.0
@@ -19350,7 +19503,7 @@ snapshots:
       mdast-util-mdx-expression: 2.0.1(supports-color@10.2.2)
       mdast-util-mdx-jsx: 3.2.0(supports-color@10.2.2)
       mdast-util-mdxjs-esm: 2.0.1(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19361,7 +19514,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       mdast-util-from-markdown: 2.0.0(patch_hash=tbhowsz5xuqgvuutx4xlivemd4)(supports-color@10.2.2)
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
     transitivePeerDependencies:
       - supports-color
 
@@ -19382,7 +19535,7 @@ snapshots:
       unist-util-visit: 5.0.0
       vfile: 6.0.3
 
-  mdast-util-to-markdown@2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya):
+  mdast-util-to-markdown@2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4):
     dependencies:
       '@types/mdast': 4.0.3
       '@types/unist': 3.0.2
@@ -19907,6 +20060,22 @@ snapshots:
 
   ms@2.1.3: {}
 
+  msgpackr-extract@3.0.4:
+    dependencies:
+      node-gyp-build-optional-packages: 5.2.2
+    optionalDependencies:
+      '@msgpackr-extract/msgpackr-extract-darwin-arm64': 3.0.4
+      '@msgpackr-extract/msgpackr-extract-darwin-x64': 3.0.4
+      '@msgpackr-extract/msgpackr-extract-linux-arm': 3.0.4
+      '@msgpackr-extract/msgpackr-extract-linux-arm64': 3.0.4
+      '@msgpackr-extract/msgpackr-extract-linux-x64': 3.0.4
+      '@msgpackr-extract/msgpackr-extract-win32-x64': 3.0.4
+    optional: true
+
+  msgpackr@1.12.1:
+    optionalDependencies:
+      msgpackr-extract: 3.0.4
+
   murmurhash@2.0.1: {}
 
   mustache@4.2.0: {}
@@ -19943,11 +20112,17 @@ snapshots:
     dependencies:
       semver: 7.7.1
 
+  node-addon-api@6.1.0: {}
+
   node-cron@3.0.3:
     dependencies:
       uuid: 8.3.2
 
   node-forge@1.3.1: {}
+
+  node-gyp-build-optional-packages@5.2.2:
+    dependencies:
+      detect-libc: 2.0.3
 
   node-gyp-build@4.6.0: {}
 
@@ -20181,6 +20356,8 @@ snapshots:
       stdin-discarder: 0.2.2
       string-width: 7.2.0
       strip-ansi: 7.1.0
+
+  ordered-binary@1.6.1: {}
 
   orderedmap@2.0.0: {}
 
@@ -20963,7 +21140,7 @@ snapshots:
   remark-stringify@11.0.0:
     dependencies:
       '@types/mdast': 4.0.3
-      mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
+      mdast-util-to-markdown: 2.1.2(patch_hash=kslkzovfsmigcvypkrmgxtcdn4)
       unified: 11.0.5
 
   remotion@4.0.443(react-dom@19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0))(react@19.2.0):
@@ -21546,9 +21723,9 @@ snapshots:
 
   strnum@1.0.5: {}
 
-  style-loader@4.0.0(webpack@5.105.0(esbuild@0.21.5)):
+  style-loader@4.0.0(webpack@5.105.0(esbuild@0.25.10)):
     dependencies:
-      webpack: 5.105.0(esbuild@0.21.5)
+      webpack: 5.105.0(esbuild@0.25.10)
 
   style-mod@4.1.2: {}
 
@@ -21642,23 +21819,13 @@ snapshots:
       mkdirp: 1.0.4
       yallist: 4.0.0
 
-  terser-webpack-plugin@5.4.0(esbuild@0.21.5)(webpack@5.105.0(esbuild@0.21.5)):
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.31
-      jest-worker: 27.5.1
-      schema-utils: 4.3.3
-      terser: 5.31.6
-      webpack: 5.105.0(esbuild@0.21.5)
-    optionalDependencies:
-      esbuild: 0.21.5
-
   terser-webpack-plugin@5.4.0(esbuild@0.25.10)(webpack@5.105.0(esbuild@0.21.5)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.31.6
-      webpack: 5.105.0(esbuild@0.21.5)
+      webpack: 5.105.0(esbuild@0.25.10)
     optionalDependencies:
       esbuild: 0.25.10
 
@@ -22086,6 +22253,8 @@ snapshots:
     dependencies:
       defaults: 1.0.4
 
+  weak-lru-cache@1.2.2: {}
+
   web-encoding@1.1.5:
     dependencies:
       util: 0.12.5
@@ -22109,38 +22278,6 @@ snapshots:
   webidl-conversions@7.0.0: {}
 
   webpack-sources@3.3.4: {}
-
-  webpack@5.105.0(esbuild@0.21.5):
-    dependencies:
-      '@types/eslint-scope': 3.7.7
-      '@types/estree': 1.0.8
-      '@types/json-schema': 7.0.15
-      '@webassemblyjs/ast': 1.14.1
-      '@webassemblyjs/wasm-edit': 1.14.1
-      '@webassemblyjs/wasm-parser': 1.14.1
-      acorn: 8.16.0
-      acorn-import-phases: 1.0.4(acorn@8.16.0)
-      browserslist: 4.28.2
-      chrome-trace-event: 1.0.4
-      enhanced-resolve: 5.20.1
-      es-module-lexer: 2.0.0
-      eslint-scope: 5.1.1
-      events: 3.3.0
-      glob-to-regexp: 0.4.1
-      graceful-fs: 4.2.11
-      json-parse-even-better-errors: 2.3.1
-      loader-runner: 4.3.1
-      mime-types: 2.1.35
-      neo-async: 2.6.2
-      schema-utils: 4.3.3
-      tapable: 2.3.2
-      terser-webpack-plugin: 5.4.0(esbuild@0.21.5)(webpack@5.105.0(esbuild@0.21.5))
-      watchpack: 2.5.1
-      webpack-sources: 3.3.4
-    transitivePeerDependencies:
-      - '@swc/core'
-      - esbuild
-      - uglify-js
 
   webpack@5.105.0(esbuild@0.25.10):
     dependencies:

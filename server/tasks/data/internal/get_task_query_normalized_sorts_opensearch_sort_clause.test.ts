@@ -21,6 +21,10 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    decodeApiTaskQueryCursor,
+    encodeApiTaskQueryCursor,
+} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -29,7 +33,10 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
+import {
+    TaskQuerySortCursor,
+    compareTaskQuerySortCursors,
+} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
@@ -170,14 +177,14 @@ async function testQueryWithNormalizedSorts(
             return compareTaskQuerySortCursors(sorts, cursor1, cursor2);
         });
 
+    const sortedCursors1 = sortedTasks1.map(task => ({
+        id: task.id,
+        cursor: getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task),
+    }));
+
     // Make sure our JavaScript filter implementation for `TaskIndexDoc` matches the
     // OpenSearch filter implementation.
-    expect(
-        sortedTasks1.map(task => ({
-            id: task.id,
-            cursor: getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task),
-        })),
-    ).toEqual(
+    expect(sortedCursors1).toEqual(
         expectedSortedTasks1.map(task => ({
             id: task.id,
             cursor: getTaskQueryNormalizedSortCursorForIndexDoc(sorts, task),
@@ -197,6 +204,14 @@ async function testQueryWithNormalizedSorts(
             cursor: getTaskQueryNormalizedSortCursorForModel(sorts, task),
         })),
     );
+
+    // Make sure our API cursor encoding/decoding round trip works. Every cursor should
+    // have a corresponding string representation and vice-versa.
+    expect(
+        sortedCursors1.map(({cursor}) =>
+            decodeApiTaskQueryCursor(sorts, encodeApiTaskQueryCursor(sorts, cursor)),
+        ),
+    ).toEqual(sortedCursors1.map(({cursor}) => cursor));
 
     return sortedTasks1.map(({id}) => id);
 }

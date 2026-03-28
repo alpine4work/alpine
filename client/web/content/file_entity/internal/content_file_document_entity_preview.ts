@@ -13,7 +13,7 @@ import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_regis
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

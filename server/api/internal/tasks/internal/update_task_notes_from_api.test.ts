@@ -6,7 +6,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
@@ -145,7 +145,7 @@ describe("updateTaskNotesFromApi()", () => {
                             {
                                 type: "FileFloat",
                                 side: "Left",
-                                element: {type: "File", id: unknownFileId},
+                                element: {type: "File", file: {id: unknownFileId}},
                             },
                         ],
                     },
@@ -172,7 +172,7 @@ describe("updateTaskNotesFromApi()", () => {
                         {
                             type: "FileFloat",
                             side: "Left",
-                            element: {type: "File", id: unknownFileId},
+                            element: {type: "File", file: {id: unknownFileId}},
                         },
                     ],
                 },

@@ -40,7 +40,7 @@ export async function* runMessagesQuery(
         }) => AsyncIterable<MessageQueryItem | MessageQueryStreamItem | MessageQueryStreamPartItem>;
     },
 ): AsyncIterableIterator<MessageItem> {
-    assert(startIndex <= endIndex);
+    if (startIndex > endIndex) return;
 
     let uncachedStartIndex = startIndex;
     let uncachedEndIndex = endIndex;

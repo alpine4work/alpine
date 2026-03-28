@@ -5,7 +5,7 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {searchAlpineForAgent} from "~/server/agents/bots/internal/tools/search_alpine_for_agent.js";
 import {
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -39,7 +39,7 @@ const request = {
     spaceId,
     apiClient,
     // Default room for tests that don't care about filtering
-    room: cast<ApiMessageRoomTarget>({type: "Chat", id: generateId()}),
+    room: cast<ApiMessageRoomReference>({type: "Chat", id: generateId()}),
 } as const;
 
 afterEach(async () => {
@@ -48,7 +48,7 @@ afterEach(async () => {
 
 describe("searchAlpineForAgent", () => {
     test("returns \u2018No results found\u2019 when results array is empty", async () => {
-        apiClient.mockGet("/spaces/{id}/search", {data: {results: []}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results: []}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "test query"),
@@ -141,7 +141,7 @@ describe("searchAlpineForAgent", () => {
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -273,7 +273,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -325,11 +325,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -374,11 +374,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -432,11 +432,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Post", id: currentPostId}),
+            room: cast<ApiMessageRoomReference>({type: "Post", id: currentPostId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -490,11 +490,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Task", id: currentTaskId}),
+            room: cast<ApiMessageRoomReference>({type: "Task", id: currentTaskId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -552,11 +552,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({
+            room: cast<ApiMessageRoomReference>({
                 type: "DocumentCommentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
@@ -607,11 +607,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -701,11 +701,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({
+            room: cast<ApiMessageRoomReference>({
                 type: "DocumentCommentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
@@ -761,11 +761,11 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -819,7 +819,7 @@ The following search results matched the keyword search but did not match any sp
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),
@@ -882,7 +882,7 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             },
         ];
 
-        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+        apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results}});
 
         const result = await storage.transaction(async transaction =>
             searchAlpineForAgent(testTracer, transaction, request, "query"),

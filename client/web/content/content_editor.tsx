@@ -1,3 +1,4 @@
+import {parseDate} from "@internationalized/date";
 import classNames from "classnames";
 import {ListBullets, ListChecks, ListNumbers} from "phosphor-react";
 import {closeHistory, history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
@@ -180,7 +181,6 @@ import {
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {formatDateInOriginalFormat} from "~/shared/content/content_editor_date_format.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentReferencedIdsForSlice,
@@ -226,6 +226,7 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {printCalendarDateInOriginalFormat} from "~/shared/helpers/date/parse_calendar_dates.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
@@ -5355,12 +5356,19 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                           Date picker handlers                             *
     \* ========================================================================== */
 
-    function handleDatePickerChange(newDateString: string) {
+    function handleDatePickerChange(
+        // TODO(calebmer): Can we make `newDateString` a `CalendarDate` instead? So we
+        // aren't passing around a loosely typed string.
+        newDateString: string,
+    ) {
         if (!datePickerState) return;
         const view = viewRef.current;
         if (!view) return;
 
-        const newText = formatDateInOriginalFormat(newDateString, datePickerState.match.format);
+        const newText = printCalendarDateInOriginalFormat(
+            parseDate(newDateString),
+            datePickerState.match.format,
+        );
         const {from, to} = datePickerState.match;
 
         // Re-focus the editor first so ProseMirror can accept the selection change. Focus

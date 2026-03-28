@@ -29,7 +29,7 @@ import {
     FileChatEntityModel,
     FileChatEntityModelSchema,
 } from "~/shared/chat/file_chat_entity_model_schema.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";

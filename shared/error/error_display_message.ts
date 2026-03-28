@@ -64,6 +64,16 @@ export function errorDisplayMessage(
     return message as any as ErrorDisplayMessage;
 }
 
+/**
+ * Combine two `ErrorDisplayMessage`s together.
+ */
+export function concatErrorDisplayMessages(
+    message1: ErrorDisplayMessage,
+    message2: ErrorDisplayMessage,
+): ErrorDisplayMessage {
+    return [...message1, ...message2] as any as ErrorDisplayMessage;
+}
+
 function isErrorDisplayMessage(
     value: string | number | ErrorDisplayMessageLinkSegment | ErrorDisplayMessage,
 ): value is ErrorDisplayMessage {

@@ -27,7 +27,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const spaceId = space.id;
     const accountId = accounts.cassCade.account.id;
     const mentionUrl = (accountSession: {account: {id: string}}) =>
-        `https://alpine.inc/mention/${accountSession.account.id}?short`;
+        `https://alpine.inc/mention/${accountSession.account.id}#short`;
 
     // ── Active project tasks Cass is driving this week ────────────────── These three
     // are the top of Cass's suggested list. Each is a `layout: "Project"` task with

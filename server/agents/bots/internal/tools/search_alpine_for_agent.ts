@@ -8,9 +8,9 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/bots/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/bots/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.js";
 import {
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiSearchChatMessageResult,
     ApiSearchDocumentMessageResult,
     ApiSearchPostMessageResult,
@@ -42,7 +42,7 @@ export async function searchAlpineForAgent(
             query: {query, limit: agentSearchResultLimit},
         },
     });
-    if (!data || data.results.length === 0) return "No results found";
+    if (!data || data.results.length === 0) return "No results found.";
 
     const results = data.results.filter(
         result => !isApiSearchResultInConversationState(request.room, result),
@@ -372,7 +372,7 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
 //
 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
 function isApiSearchResultInConversationState(
-    currentMessageRoom: ApiMessageRoomTarget,
+    currentMessageRoom: ApiMessageRoomReference,
     result: ApiSearchResult,
 ): boolean {
     const resultMessageRoomPath = intoApiMessageRoomPathFromPathIfPossible(result);
@@ -396,7 +396,7 @@ function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<
 
 function intoApiMessageRoomPathFromPathIfPossible(
     apiPath: ApiSearchResult,
-): ApiMessageRoomTarget | null {
+): ApiMessageRoomReference | null {
     switch (apiPath.type) {
         case "Account":
         case "Channel":

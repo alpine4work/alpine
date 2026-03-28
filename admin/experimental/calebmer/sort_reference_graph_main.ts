@@ -41,6 +41,10 @@ type BabelIdentifier = BabelNode & {
 type BabelFunctionDeclaration = BabelNode & {
     readonly type: "FunctionDeclaration";
     readonly id: BabelIdentifier | null;
+    readonly params: ReadonlyArray<BabelNode>;
+    readonly body: BabelNode;
+    readonly returnType?: BabelNode | null;
+    readonly typeParameters?: BabelNode | null;
 };
 
 type BabelVariableDeclaration = BabelNode & {
@@ -163,23 +167,31 @@ export function sortTypescriptReferenceGraphSource(
         );
     }
 
-    const referencedVariableNamesByValueName = new Map<string, Array<string>>();
+    const referencedVariableNamesBeforeValueName = new Map<string, Array<string>>();
     for (const declaration of valueDeclarations) {
-        referencedVariableNamesByValueName.set(
+        referencedVariableNamesBeforeValueName.set(
             declaration.name,
-            collectReferencedValueNames({
-                rootNode: declaration.declarationNode,
+            collectReferencedVariableNamesBeforeValue({
+                declaration,
                 valueNames: variableNames,
             }),
         );
     }
 
-    const referencedTypeNamesByValueName = new Map<string, Array<string>>();
+    const referencedTypeNamesBeforeValueName = new Map<string, Array<string>>();
+    const referencedTypeNamesAfterValueName = new Map<string, Array<string>>();
     for (const declaration of valueDeclarations) {
-        referencedTypeNamesByValueName.set(
+        referencedTypeNamesBeforeValueName.set(
             declaration.name,
-            collectReferencedTypeNames({
-                rootNode: declaration.declarationNode,
+            collectReferencedTypeNamesBeforeValue({
+                declaration,
+                typeNames,
+            }),
+        );
+        referencedTypeNamesAfterValueName.set(
+            declaration.name,
+            collectReferencedTypeNamesAfterValue({
+                declaration,
                 typeNames,
             }),
         );
@@ -215,9 +227,10 @@ export function sortTypescriptReferenceGraphSource(
             visitingValueNames,
             valueByName,
             variableByName,
-            referencedVariableNamesByValueName,
+            referencedVariableNamesBeforeValueName,
             typeByName,
-            referencedTypeNamesByValueName,
+            referencedTypeNamesBeforeValueName,
+            referencedTypeNamesAfterValueName,
             referencedTypeNamesByTypeName,
         });
     }
@@ -255,8 +268,10 @@ export function sortTypescriptReferenceGraphSource(
 
     return [
         source.slice(0, headerEnd),
-        ...orderedDeclarations.map(
-            declaration => declarationChunkByKey.get(getDeclarationKey(declaration))!,
+        joinDeclarationChunks(
+            orderedDeclarations.map(
+                declaration => declarationChunkByKey.get(getDeclarationKey(declaration))!,
+            ),
         ),
         source.slice(declarations[declarations.length - 1]!.chunkEnd),
     ].join("");
@@ -566,9 +581,10 @@ function emitValueDeclaration({
     visitingValueNames,
     valueByName,
     variableByName,
-    referencedVariableNamesByValueName,
+    referencedVariableNamesBeforeValueName,
     typeByName,
-    referencedTypeNamesByValueName,
+    referencedTypeNamesBeforeValueName,
+    referencedTypeNamesAfterValueName,
     referencedTypeNamesByTypeName,
 }: {
     valueName: string;
@@ -578,9 +594,10 @@ function emitValueDeclaration({
     visitingValueNames: Set<string>;
     valueByName: ReadonlyMap<string, SortableDeclaration>;
     variableByName: ReadonlyMap<string, SortableDeclaration>;
-    referencedVariableNamesByValueName: ReadonlyMap<string, ReadonlyArray<string>>;
+    referencedVariableNamesBeforeValueName: ReadonlyMap<string, ReadonlyArray<string>>;
     typeByName: ReadonlyMap<string, SortableDeclaration>;
-    referencedTypeNamesByValueName: ReadonlyMap<string, ReadonlyArray<string>>;
+    referencedTypeNamesBeforeValueName: ReadonlyMap<string, ReadonlyArray<string>>;
+    referencedTypeNamesAfterValueName: ReadonlyMap<string, ReadonlyArray<string>>;
     referencedTypeNamesByTypeName: ReadonlyMap<string, ReadonlyArray<string>>;
 }) {
     if (emittedValueNames.has(valueName)) return;
@@ -588,7 +605,7 @@ function emitValueDeclaration({
 
     visitingValueNames.add(valueName);
 
-    for (const typeName of referencedTypeNamesByValueName.get(valueName) ?? []) {
+    for (const typeName of referencedTypeNamesBeforeValueName.get(valueName) ?? []) {
         emitTypeDeclarations({
             orderedDeclarations,
             emittedTypeNames,
@@ -598,7 +615,8 @@ function emitValueDeclaration({
         });
     }
 
-    for (const referencedVariableName of referencedVariableNamesByValueName.get(valueName) ?? []) {
+    for (const referencedVariableName of referencedVariableNamesBeforeValueName.get(valueName) ??
+        []) {
         emitVariableDeclaration({
             variableName: referencedVariableName,
             orderedDeclarations,
@@ -606,9 +624,9 @@ function emitValueDeclaration({
             emittedTypeNames,
             visitingValueNames,
             variableByName,
-            referencedVariableNamesByValueName,
+            referencedVariableNamesBeforeValueName,
             typeByName,
-            referencedTypeNamesByValueName,
+            referencedTypeNamesBeforeValueName,
             referencedTypeNamesByTypeName,
         });
     }
@@ -616,6 +634,16 @@ function emitValueDeclaration({
     visitingValueNames.delete(valueName);
     emittedValueNames.add(valueName);
     orderedDeclarations.push(valueByName.get(valueName)!);
+
+    for (const typeName of referencedTypeNamesAfterValueName.get(valueName) ?? []) {
+        emitTypeDeclarations({
+            orderedDeclarations,
+            emittedTypeNames,
+            typeByName,
+            referencedTypeNamesByTypeName,
+            typeName,
+        });
+    }
 }
 
 function emitVariableDeclaration({
@@ -625,9 +653,9 @@ function emitVariableDeclaration({
     emittedTypeNames,
     visitingValueNames,
     variableByName,
-    referencedVariableNamesByValueName,
+    referencedVariableNamesBeforeValueName,
     typeByName,
-    referencedTypeNamesByValueName,
+    referencedTypeNamesBeforeValueName,
     referencedTypeNamesByTypeName,
 }: {
     variableName: string;
@@ -636,9 +664,9 @@ function emitVariableDeclaration({
     emittedTypeNames: Set<string>;
     visitingValueNames: Set<string>;
     variableByName: ReadonlyMap<string, SortableDeclaration>;
-    referencedVariableNamesByValueName: ReadonlyMap<string, ReadonlyArray<string>>;
+    referencedVariableNamesBeforeValueName: ReadonlyMap<string, ReadonlyArray<string>>;
     typeByName: ReadonlyMap<string, SortableDeclaration>;
-    referencedTypeNamesByValueName: ReadonlyMap<string, ReadonlyArray<string>>;
+    referencedTypeNamesBeforeValueName: ReadonlyMap<string, ReadonlyArray<string>>;
     referencedTypeNamesByTypeName: ReadonlyMap<string, ReadonlyArray<string>>;
 }) {
     if (emittedValueNames.has(variableName)) return;
@@ -646,7 +674,7 @@ function emitVariableDeclaration({
 
     visitingValueNames.add(variableName);
 
-    for (const typeName of referencedTypeNamesByValueName.get(variableName) ?? []) {
+    for (const typeName of referencedTypeNamesBeforeValueName.get(variableName) ?? []) {
         emitTypeDeclarations({
             orderedDeclarations,
             emittedTypeNames,
@@ -656,7 +684,7 @@ function emitVariableDeclaration({
         });
     }
 
-    for (const referencedVariableName of referencedVariableNamesByValueName.get(variableName) ??
+    for (const referencedVariableName of referencedVariableNamesBeforeValueName.get(variableName) ??
         []) {
         emitVariableDeclaration({
             variableName: referencedVariableName,
@@ -665,9 +693,9 @@ function emitVariableDeclaration({
             emittedTypeNames,
             visitingValueNames,
             variableByName,
-            referencedVariableNamesByValueName,
+            referencedVariableNamesBeforeValueName,
             typeByName,
-            referencedTypeNamesByValueName,
+            referencedTypeNamesBeforeValueName,
             referencedTypeNamesByTypeName,
         });
     }
@@ -706,6 +734,61 @@ function emitTypeDeclarations({
     }
 }
 
+function collectReferencedVariableNamesBeforeValue({
+    declaration,
+    valueNames,
+}: {
+    declaration: SortableDeclaration;
+    valueNames: ReadonlySet<string>;
+}): Array<string> {
+    if (isExportedFunctionDeclaration(declaration)) {
+        return collectReferencedValueNamesFromNodes({
+            rootNodes: getFunctionSignatureRootNodes(declaration.declarationNode),
+            valueNames,
+        });
+    }
+
+    return collectReferencedValueNames({
+        rootNode: declaration.declarationNode,
+        valueNames,
+    });
+}
+
+function collectReferencedTypeNamesBeforeValue({
+    declaration,
+    typeNames,
+}: {
+    declaration: SortableDeclaration;
+    typeNames: ReadonlySet<string>;
+}): Array<string> {
+    if (isExportedFunctionDeclaration(declaration)) {
+        return collectReferencedTypeNamesFromNodes({
+            rootNodes: getFunctionSignatureRootNodes(declaration.declarationNode),
+            typeNames,
+        });
+    }
+
+    return collectReferencedTypeNames({
+        rootNode: declaration.declarationNode,
+        typeNames,
+    });
+}
+
+function collectReferencedTypeNamesAfterValue({
+    declaration,
+    typeNames,
+}: {
+    declaration: SortableDeclaration;
+    typeNames: ReadonlySet<string>;
+}): Array<string> {
+    if (!isExportedFunctionDeclaration(declaration)) return [];
+
+    return collectReferencedTypeNamesFromNodes({
+        rootNodes: getFunctionBodyRootNodes(declaration.declarationNode),
+        typeNames,
+    });
+}
+
 function collectReferencedValueNames({
     rootNode,
     valueNames,
@@ -713,8 +796,21 @@ function collectReferencedValueNames({
     rootNode: BabelNode;
     valueNames: ReadonlySet<string>;
 }): Array<string> {
+    return collectReferencedValueNamesFromNodes({
+        rootNodes: [rootNode],
+        valueNames,
+    });
+}
+
+function collectReferencedValueNamesFromNodes({
+    rootNodes,
+    valueNames,
+}: {
+    rootNodes: ReadonlyArray<BabelNode>;
+    valueNames: ReadonlySet<string>;
+}): Array<string> {
     return collectOrderedUniqueNames({
-        rootNode,
+        rootNodes,
         names: valueNames,
         matcher(context) {
             const {node} = context;
@@ -733,8 +829,21 @@ function collectReferencedTypeNames({
     rootNode: BabelNode;
     typeNames: ReadonlySet<string>;
 }): Array<string> {
+    return collectReferencedTypeNamesFromNodes({
+        rootNodes: [rootNode],
+        typeNames,
+    });
+}
+
+function collectReferencedTypeNamesFromNodes({
+    rootNodes,
+    typeNames,
+}: {
+    rootNodes: ReadonlyArray<BabelNode>;
+    typeNames: ReadonlySet<string>;
+}): Array<string> {
     return collectOrderedUniqueNames({
-        rootNode,
+        rootNodes,
         names: typeNames,
         matcher({node}) {
             switch (node.type) {
@@ -752,35 +861,65 @@ function collectReferencedTypeNames({
 }
 
 function collectOrderedUniqueNames({
-    rootNode,
+    rootNodes,
     names,
     matcher,
 }: {
-    rootNode: BabelNode;
+    rootNodes: ReadonlyArray<BabelNode>;
     names: ReadonlySet<string>;
     matcher: (context: WalkContext) => string | null;
 }): Array<string> {
     const orderedNames: Array<{readonly name: string; readonly start: number}> = [];
     const seenNames = new Set<string>();
 
-    walkNode(rootNode, {
-        onNode(context) {
-            const matchedName = matcher(context);
-            if (matchedName === null) return;
-            if (!names.has(matchedName)) return;
-            if (seenNames.has(matchedName)) return;
+    for (const rootNode of rootNodes) {
+        walkNode(rootNode, {
+            onNode(context) {
+                const matchedName = matcher(context);
+                if (matchedName === null) return;
+                if (!names.has(matchedName)) return;
+                if (seenNames.has(matchedName)) return;
 
-            seenNames.add(matchedName);
-            orderedNames.push({
-                name: matchedName,
-                start: context.node.start ?? -1,
-            });
-        },
-    });
+                seenNames.add(matchedName);
+                orderedNames.push({
+                    name: matchedName,
+                    start: context.node.start ?? -1,
+                });
+            },
+        });
+    }
 
     orderedNames.sort((name1, name2) => name1.start - name2.start);
 
     return orderedNames.map(({name}) => name);
+}
+
+function getFunctionSignatureRootNodes(
+    functionDeclarationNode: BabelFunctionDeclaration,
+): Array<BabelNode> {
+    return [
+        ...(functionDeclarationNode.typeParameters === undefined ||
+        functionDeclarationNode.typeParameters === null
+            ? []
+            : [functionDeclarationNode.typeParameters]),
+        ...functionDeclarationNode.params,
+        ...(functionDeclarationNode.returnType === undefined ||
+        functionDeclarationNode.returnType === null
+            ? []
+            : [functionDeclarationNode.returnType]),
+    ];
+}
+
+function getFunctionBodyRootNodes(
+    functionDeclarationNode: BabelFunctionDeclaration,
+): Array<BabelNode> {
+    return [functionDeclarationNode.body];
+}
+
+function isExportedFunctionDeclaration(
+    declaration: SortableDeclaration,
+): declaration is SortableDeclaration & {readonly declarationNode: BabelFunctionDeclaration} {
+    return declaration.isExported && isFunctionDeclaration(declaration.declarationNode);
 }
 
 function walkNode(
@@ -856,6 +995,20 @@ function getIdentifierName(node: BabelNode): string | null {
         return (node as BabelIdentifier).name;
     }
     return null;
+}
+
+function joinDeclarationChunks(chunks: ReadonlyArray<string>): string {
+    let source = "";
+
+    for (const chunk of chunks) {
+        if (source.length > 0 && !source.endsWith("\n") && !chunk.startsWith("\n")) {
+            source += "\n\n";
+        }
+
+        source += chunk;
+    }
+
+    return source;
 }
 
 function getDeclarationKey(declaration: SortableDeclaration): string {

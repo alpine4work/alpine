@@ -4,7 +4,10 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {ApiContentKeyDecoder, ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {
+    ApiContentKeyDecoder,
+    ApiContentKeyEncoder,
+} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
@@ -47,13 +50,12 @@ describe("intoApiContentWithReferences", () => {
             ),
         );
 
-        const result = await intoApiContentWithReferences(
-            session.action(),
-            space.id,
-            "AssertHasNoFiles",
+        const result = await intoApiContentWithReferences(session.action(), {
+            spaceId: space.id,
+            fileAuthorizer: "AssertHasNoFiles",
             content,
-            {encoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 17})},
-        );
+            contentKeyEncoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 17}),
+        });
 
         expect(result).toMatchObject({
             elements: [
@@ -93,44 +95,6 @@ describe("intoApiContentWithReferences", () => {
         ]);
     });
 
-    test("omits keys when no version is provided", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const content = assertDocumentContent(
-            schema.node(
-                "doc",
-                {
-                    accessPolicy: {
-                        type: "Local",
-                        accountGrantById: new Map([
-                            [session.account.id, {level: "Manage", generation: 0}],
-                        ]),
-                        defaultGrant: null,
-                        urlGrant: null,
-                    },
-                },
-                [schema.node("title"), schema.node("paragraph", {}, [schema.text("Hello")])],
-            ),
-        );
-
-        const result = await intoApiContentWithReferences(
-            session.action(),
-            space.id,
-            "AssertHasNoFiles",
-            content,
-        );
-
-        expect(result).toEqual({
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [{type: "Text", text: "Hello"}],
-                },
-            ],
-        });
-    });
-
     test("returns loaded mention references alongside keyed content", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -165,13 +129,12 @@ describe("intoApiContentWithReferences", () => {
             ),
         );
 
-        const result = await intoApiContentWithReferencesAndReturnReferences(
-            session.action(),
-            space.id,
-            "AssertHasNoFiles",
+        const result = await intoApiContentWithReferencesAndReturnReferences(session.action(), {
+            spaceId: space.id,
+            fileAuthorizer: "AssertHasNoFiles",
             content,
-            {encoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 23})},
-        );
+            contentKeyEncoder: new ApiContentKeyEncoder({entityId: documentEntityId, version: 23}),
+        });
 
         expect(result.content).toEqual({
             elements: [
@@ -181,9 +144,12 @@ describe("intoApiContentWithReferences", () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {type: "Account", id: session.account.id},
-                            title: "Alice Smith",
-                            isAccountShortName: false,
+                            reference: {
+                                type: "Account",
+                                id: session.account.id,
+                                title: "Alice Smith",
+                                shortName: "Alice",
+                            },
                         },
                     ],
                 },

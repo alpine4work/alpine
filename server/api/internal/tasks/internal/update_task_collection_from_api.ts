@@ -1,9 +1,8 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
-import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
-import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
-import {intoApiThemeColor} from "~/shared/api/content/into_api_theme_color.js";
+import {fromApiThemeColor} from "~/shared/api/content/closed_source/from_api_theme_color.js";
+import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -47,7 +46,6 @@ export async function updateTaskCollectionFromApi(
     const consistency = "StrongWithinCache" as const;
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
-    await validateApiActor(context, {spaceId, actorId});
     const actor = createApiTaskActor({actorId, botAccountId});
 
     const initialCollection = await context.tasks.getCollection(spaceId, collectionId, {

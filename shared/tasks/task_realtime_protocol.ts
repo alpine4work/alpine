@@ -104,7 +104,7 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
     originClientId: Schema.id<TaskRealtimeClientId>().nullable(),
 });
 
-const TaskQuerySortCursorSchema = Schema.array(
+export const TaskQuerySortCursorSchema = Schema.array(
     Schema.unknown(),
 ) as any as Schema<TaskQuerySortCursor>;
 

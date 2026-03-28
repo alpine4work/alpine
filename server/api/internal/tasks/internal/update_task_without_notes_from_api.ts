@@ -1,48 +1,54 @@
-import {CalendarDate, parseDate} from "@internationalized/date";
+import {parseDate} from "@internationalized/date";
+import {findSpans} from "unicode-default-word-boundary";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createApiTaskActor} from "~/server/api/internal/tasks/internal/create_api_task_actor.js";
 import {fromApiTaskLayout} from "~/server/api/internal/tasks/internal/from_api_task_layout.js";
-import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
+import {resolveApiTaskMovesInCollection} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_collection.js";
+import {resolveApiTaskMovesInParent} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_parent.js";
+import {
+    ApiTaskResolvedMove,
+    ApiTaskUnresolvedMove,
+} from "~/server/api/internal/tasks/internal/resolve_api_task_moves_in_scope.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
+import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {diff} from "~/shared/helpers/diff/diff.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskLayout} from "~/shared/tasks/task_layout.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
 
-type TaskPatch = ApiSpecification.components["schemas"]["TaskPatch"];
-type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
-type ApiTaskPriority = NonNullable<ApiSpecification.components["schemas"]["Task"]["priority"]>;
+export type ApiTaskIdPatch = {
+    readonly id: TaskId;
+    readonly patch: ApiTaskPatch;
+};
 
 /**
- * The mutable, API-shaped view of task fields we track while folding a PATCH
- * request down into one final intended task state.
+ * A scope tasks move within: one collection's tasks or one parent's subtasks.
  */
-type TaskPatchState = {
-    title: string;
-    assigneeId: AccountId | null;
-    status: ApiTaskStatus;
-    dueDate: CalendarDate | null;
-    priority: ApiTaskPriority | null;
-    layout: TaskLayout | null;
-    parentTaskId: TaskId | null;
-    collectionIds: Set<TaskCollectionId>;
-};
+type ApiTaskMoveScope =
+    | {type: "Collection"; collectionId: TaskCollectionId; moves: Array<ApiTaskUnresolvedMove>}
+    | {type: "Parent"; parentTaskId: TaskId; moves: Array<ApiTaskUnresolvedMove>};
 
 /**
  * Applies API task metadata patches, commits the resulting task actions, and
@@ -63,328 +69,706 @@ export async function updateTaskWithoutNotesFromApi(
         spaceId: SpaceId;
         taskId: TaskId;
         actorId?: AccountId;
-        patches: ReadonlyArray<TaskPatch>;
+        patches: ReadonlyArray<ApiTaskPatch>;
     },
-): Promise<TaskModel> {
-    const consistency = "StrongWithinCache" as const;
-    const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+): Promise<{
+    updatedTask: TaskModel;
+    updateEvent: TaskRealtimeUpdateEvent;
+}> {
+    const result = await updateTasksWithoutNotesFromApi(context, {
+        spaceId,
+        actorId,
+        patches: patches.map(patch => ({id: taskId, patch})),
+    });
+
+    return {updatedTask: assertExists(result.updatedTasks[0]), updateEvent: result.updateEvent};
+}
+
+/**
+ * Applies patches to multiple tasks in request order and commits every generated
+ * action in one transaction.
+ */
+export async function updateTasksWithoutNotesFromApi(
+    context: ApiServiceBotActionContext,
+    {
+        spaceId,
+        actorId,
+        patches,
+    }: {
+        spaceId: SpaceId;
+        actorId?: AccountId;
+        patches: ReadonlyArray<ApiTaskIdPatch>;
+    },
+): Promise<{
+    updatedTasks: ReadonlyArray<TaskModel>;
+    updateEvent: TaskRealtimeUpdateEvent;
+}> {
     const botAccountId = context.actor.getBotAccountId();
-    await validateApiActor(context, {spaceId, actorId});
-    const actor = createApiTaskActor({actorId, botAccountId});
+    const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const timeZone = defaultTimeZone;
 
-    const initialTask = await context.tasks.getTaskWithoutDependencies(spaceId, taskId, {
-        consistency,
-    });
+    const actor = createApiTaskActor({actorId, botAccountId});
 
-    const initialState = createTaskWithoutNotesPatchState(initialTask);
-    const finalState = applyTaskWithoutNotesPatches(initialState, patches);
+    const taskIds = Array.from(new Set(patches.map(({id}) => id)));
 
-    if (
-        finalState.status.type === "Open" &&
-        finalState.status.isActive &&
-        finalState.assigneeId === null
-    ) {
-        // Match task creation and product behavior by auto-assigning the bot when the
-        // caller requests an active task without an assignee.
-        finalState.assigneeId = botAccountId;
+    // TODO(calebmer): An optimization that would be pretty nice here is if we move
+    // notes loading into `TaskRealtimeService`. Currently we have to load the data for
+    // bot authorization twice. Once here in `ApiService` and again in
+    // `TaskRealtimeService`. If we pushed task notes loading into
+    // `TaskRealtimeService` then we could leverage `ContextCache` to only load the bot
+    // authorization data once.
+    const result = await context.tasks.loadQueries(
+        // NOCOMMIT: What happens if task exists but in a different space? We should throw
+        // some kind of error.
+        spaceId,
+        {
+            queries: [],
+            taskIds,
+            collectionIds: [],
+        },
+        {consistency: "StrongWithinCache"},
+    );
+
+    // If the task is not found or you don't have permission to access the task then
+    // `loadQueries()` will throw an error.
+    //
+    // NOCOMMIT: Test not found and permission denied errors from the task update
+    // endpoint
+    const backfillAuthorizedTaskById = new Map<TaskId, TaskModel>();
+
+    for (const backfillTask of result.updateEvent.backfillTasks) {
+        if (backfillTask.type === "Authorized") {
+            backfillAuthorizedTaskById.set(backfillTask.task.id, backfillTask.task);
+        }
     }
 
-    const actions = createTaskWithoutNotesPatchActions({
-        taskId,
-        initialTask,
-        initialState,
-        finalState,
-        clock,
-        botAccountId,
-        actor,
-        timeZone,
-    });
+    const initialTasks = taskIds.map(taskId =>
+        assertExists(backfillAuthorizedTaskById.get(taskId)),
+    );
 
-    if (actions.length === 0) return initialTask;
+    // `MoveInParent` moves within the parent established by preceding patches for the
+    // same task. Resolve those destinations before preparing moves.
+    const parentTaskIdByTaskId = new Map(
+        initialTasks.map(task => [task.id, task.getParent()?.taskId ?? null]),
+    );
 
-    const taskSortableAccountsPromise = loadTaskSortableAccountsForActions(context, {
-        spaceId,
-        initialTask,
-        actions,
-        consistency,
-    });
+    // Group the move patches by the scope they move within. Each scope resolves its
+    // moves together so moves to the same destination land in patch order and tied
+    // destinations are re-keyed exactly once.
+    const moveScopeByKey = new Map<string, ApiTaskMoveScope>();
 
-    const [, taskSortableAccountById] = await runAllPromises([
-        commitTaskActionTransaction(context, spaceId, actions, {
-            consistency,
-            waitForProcessing: true,
-        }),
-        taskSortableAccountsPromise,
-    ]);
-
-    return applyActionsToTaskModel(initialTask, actions, taskSortableAccountById);
-}
-
-/**
- * Captures the current task fields that can be updated through the API patch
- * surface.
- */
-function createTaskWithoutNotesPatchState(task: TaskModel): TaskPatchState {
-    return {
-        title: task.getTitle().getText(),
-        assigneeId: task.getAssignee()?.assignee.accountId ?? null,
-        status: intoApiTaskStatus(task.getDisplayStatus()),
-        dueDate: task.getDueDate(),
-        priority: task.getPriority(),
-        layout: task.getLayout(),
-        parentTaskId: task.getParent()?.taskId ?? null,
-        collectionIds: new Set(
-            task
-                .getCollections()
-                .getArray()
-                .map(({collectionId}) => collectionId),
-        ),
-    };
-}
-
-/**
- * Applies the patch list in request order to compute the final intended task state
- * before any task actions are generated.
- */
-function applyTaskWithoutNotesPatches(
-    initialState: TaskPatchState,
-    patches: ReadonlyArray<TaskPatch>,
-): TaskPatchState {
-    const state: TaskPatchState = {
-        ...initialState,
-        collectionIds: new Set(initialState.collectionIds),
-    };
-
-    for (const patch of patches) {
+    patches.forEach(({id, patch}, patchIndex) => {
         switch (patch.type) {
-            case "SetTitle":
-                state.title = patch.title;
+            case "SetParent": {
+                parentTaskIdByTaskId.set(id, patch.parent?.task.id ?? null);
                 break;
-            case "SetAssignee":
-                state.assigneeId = patch.assignee;
-                if (
-                    patch.assignee === null &&
-                    state.status.type === "Open" &&
-                    state.status.isActive
-                ) {
-                    state.status = {type: "Open", isActive: false};
+            }
+            case "MoveInCollection": {
+                const moveScope = getOrSetDefaultMapValue(
+                    moveScopeByKey,
+                    JSON.stringify(["Collection", patch.collectionId]),
+                    (): ApiTaskMoveScope => ({
+                        type: "Collection",
+                        collectionId: patch.collectionId,
+                        moves: [],
+                    }),
+                );
+
+                moveScope.moves.push({patchIndex, taskId: id, position: patch.position});
+                break;
+            }
+            case "MoveInParent": {
+                const parentTaskId = parentTaskIdByTaskId.get(id);
+
+                // Without a parent there's no scope to move within. Generating actions for this
+                // patch below throws the request error.
+                if (parentTaskId == null) break;
+
+                const moveScope = getOrSetDefaultMapValue(
+                    moveScopeByKey,
+                    JSON.stringify(["Parent", parentTaskId]),
+                    (): ApiTaskMoveScope => ({type: "Parent", parentTaskId, moves: []}),
+                );
+
+                moveScope.moves.push({patchIndex, taskId: id, position: patch.position});
+                break;
+            }
+            default:
+                break;
+        }
+    });
+
+    const resolvedMoveMaps = await runAllPromises(
+        Array.from(moveScopeByKey.values(), moveScope => {
+            switch (moveScope.type) {
+                case "Collection": {
+                    return resolveApiTaskMovesInCollection(
+                        context,
+                        spaceId,
+                        moveScope.collectionId,
+                        moveScope.moves,
+                    );
+                }
+                case "Parent": {
+                    return resolveApiTaskMovesInParent(
+                        context,
+                        spaceId,
+                        moveScope.parentTaskId,
+                        moveScope.moves,
+                    );
+                }
+                default:
+                    throw exhaustive(moveScope);
+            }
+        }),
+    );
+
+    const resolvedMoveByPatchIndex = new Map<number, ApiTaskResolvedMove>();
+
+    for (const resolvedMoveMap of resolvedMoveMaps) {
+        for (const [patchIndex, resolvedMove] of resolvedMoveMap) {
+            resolvedMoveByPatchIndex.set(patchIndex, resolvedMove);
+        }
+    }
+
+    // Make sure all times we generate are higher than the times in the tasks we're
+    // updating. That includes tasks that were tied with a move destination since we
+    // update their positions too.
+    {
+        for (const initialTask of initialTasks) initialTask.tick(clock);
+
+        for (const resolvedMove of resolvedMoveByPatchIndex.values()) {
+            for (const tiedTaskUpdate of resolvedMove.tiedTaskUpdates) {
+                tiedTaskUpdate.task.tick(clock);
+            }
+        }
+    }
+
+    const stateByTaskId = new Map(
+        initialTasks.map(initialTask => [
+            initialTask.id,
+            {
+                title: initialTask.getTitle(),
+                assigneeId: initialTask.getAssignee()?.assignee.accountId ?? null,
+                parentTaskId: initialTask.getParent()?.taskId ?? null,
+                collectionIds: new Set(
+                    initialTask
+                        .getCollections()
+                        .getArray()
+                        .map(({collectionId}) => collectionId),
+                ),
+                lastCollectionOrderKey: initialTask.getCollections().getLastOrderKey(),
+            },
+        ]),
+    );
+    const actions: Array<TaskUpdateTaskAction> = [];
+
+    for (let patchIndex = 0; patchIndex < patches.length; patchIndex++) {
+        const {id: taskId, patch} = patches[patchIndex]!;
+        const state = assertExists(stateByTaskId.get(taskId));
+
+        switch (patch.type) {
+            case "SetTitle": {
+                const titleUpdates: Array<{from: number; to: number; text: string}> = [];
+
+                const oldTokens = Array.from(findSpans(state.title.getText()), ({text}) => text);
+                const newTokens = Array.from(findSpans(patch.title), ({text}) => text);
+
+                const changes = diff(oldTokens, newTokens, {equals: (a, b) => a === b});
+
+                let pendingHunk: {
+                    from: number;
+                    removedLength: number;
+                    added: string;
+                } | null = null;
+
+                let oldPos = 0;
+                let posDifference = 0;
+
+                for (const change of changes) {
+                    switch (change.type) {
+                        case "Added": {
+                            pendingHunk ??= {
+                                from: oldPos + posDifference,
+                                removedLength: 0,
+                                added: "",
+                            };
+
+                            pendingHunk.added += change.newToken;
+                            posDifference += change.newToken.length;
+                            break;
+                        }
+                        case "Removed": {
+                            pendingHunk ??= {
+                                from: oldPos + posDifference,
+                                removedLength: 0,
+                                added: "",
+                            };
+
+                            pendingHunk.removedLength += change.oldToken.length;
+                            posDifference -= change.oldToken.length;
+                            oldPos += change.oldToken.length;
+                            break;
+                        }
+                        case "Equal": {
+                            if (pendingHunk !== null) {
+                                titleUpdates.push({
+                                    from: pendingHunk.from,
+                                    to: pendingHunk.from + pendingHunk.removedLength,
+                                    text: pendingHunk.added,
+                                });
+                                pendingHunk = null;
+                            }
+
+                            oldPos += change.oldToken.length;
+                            break;
+                        }
+                        default:
+                            throw exhaustive(change);
+                    }
+                }
+
+                if (pendingHunk !== null) {
+                    titleUpdates.push({
+                        from: pendingHunk.from,
+                        to: pendingHunk.from + pendingHunk.removedLength,
+                        text: pendingHunk.added,
+                    });
+                    pendingHunk = null;
+                }
+
+                if (titleUpdates.length === 0) break;
+
+                const titleUpdate = state.title.replaceMany(
+                    randomlyGenerateTaskTitleClientId(),
+                    titleUpdates,
+                );
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "UpdateTitle", titleUpdate: titleUpdate.raw},
+                });
+
+                state.title = titleUpdate.newTitle;
+                break;
+            }
+            case "SetAssignee": {
+                const assigneeId = patch.assignee?.id ?? null;
+                const time = clock.now();
+
+                actions.push({
+                    type: "UpdateTask",
+                    time,
+                    actor,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee:
+                            assigneeId !== null
+                                ? {
+                                      assigneeId,
+                                      assignerId: botAccountId,
+                                      assignedTime: new TaskFilterableTime({
+                                          absoluteTime: time,
+                                          setterTimeZone: timeZone,
+                                      }),
+                                  }
+                                : null,
+
+                        // Remember: updating the assignee resets the assignee status register. This is the
+                        // desired behavior as that's what happens in the product when you change the
+                        // assignee.
+                    },
+                });
+
+                state.assigneeId = assigneeId;
+                break;
+            }
+            case "SetStatus": {
+                switch (patch.status.type) {
+                    case "Closed": {
+                        const time = clock.now();
+
+                        actions.push({
+                            type: "UpdateTask",
+                            time,
+                            actor,
+                            taskId,
+                            taskAction: {
+                                type: "UpdateStatus",
+                                status: {
+                                    type: "Closed",
+                                    closerId: botAccountId,
+                                    closedTime: new TaskFilterableTime({
+                                        absoluteTime: time,
+                                        setterTimeZone: timeZone,
+                                    }),
+                                },
+                            },
+                        });
+                        break;
+                    }
+                    case "Open": {
+                        if (!patch.status.isActive) {
+                            const time = clock.now();
+
+                            actions.push({
+                                type: "UpdateTask",
+                                time,
+                                actor,
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateStatus",
+                                    status: {type: "Open"},
+                                },
+                            });
+                        } else {
+                            // A task can't be active unless it has an assignee. So if the task doesn't
+                            // currently have an assignee, assign it to the bot. This is what the UI will do.
+                            // If you try to mark an unassigned task as active it will assign you to the task.
+                            if (state.assigneeId === null) {
+                                const time1 = clock.now();
+
+                                actions.push({
+                                    type: "UpdateTask",
+                                    time: time1,
+                                    actor,
+                                    taskId,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: {
+                                            assigneeId: botAccountId,
+                                            assignerId: botAccountId,
+                                            assignedTime: new TaskFilterableTime({
+                                                absoluteTime: time1,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
+                                    },
+                                });
+
+                                state.assigneeId = botAccountId;
+                            }
+
+                            const time2 = clock.now();
+
+                            actions.push({
+                                type: "UpdateTask",
+                                time: time2,
+                                actor,
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateStatus",
+                                    status: {type: "Open"},
+                                    assigneeStatus: {
+                                        type: "Active",
+                                        activatedTime: new TaskFilterableTime({
+                                            absoluteTime: time2,
+                                            setterTimeZone: timeZone,
+                                        }),
+                                    },
+                                },
+                            });
+                        }
+                        break;
+                    }
+                    default:
+                        throw exhaustive(patch.status);
                 }
                 break;
-            case "SetStatus":
-                state.status = patch.status;
+            }
+            case "SetDue": {
+                const dueDate = patch.due ? parseDate(patch.due.date) : null;
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "UpdateDueDate", dueDate},
+                });
                 break;
-            case "SetDueDate":
-                state.dueDate = patch.due ? parseDate(patch.due.date) : null;
+            }
+            case "SetPriority": {
+                const priority = patch.priority?.type ?? null;
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "UpdatePriority", priority},
+                });
                 break;
-            case "SetPriority":
-                state.priority = patch.priority;
+            }
+            case "SetLayout": {
+                const layout = fromApiTaskLayout(patch.layout);
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "UpdateLayout", layout},
+                });
                 break;
-            case "SetLayout":
-                state.layout = fromApiTaskLayout(patch.layout);
+            }
+            case "SetParent": {
+                const parentTaskId = patch.parent?.task.id ?? null;
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "UpdateParentTaskId", parentTaskId},
+                });
+
+                state.parentTaskId = parentTaskId;
                 break;
-            case "SetParent":
-                state.parentTaskId = patch.parent?.task.id ?? null;
+            }
+            case "AddCollection": {
+                const collectionId = patch.item.collection.id;
+                const orderKey = generateOrderKeyBetween(state.lastCollectionOrderKey, null);
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "AddCollection", collectionId, orderKey},
+                });
+
+                state.lastCollectionOrderKey = orderKey;
+                state.collectionIds.add(collectionId);
                 break;
-            case "AddCollection":
-                state.collectionIds.add(patch.item.collection.id);
+            }
+            case "RemoveCollection": {
+                const collectionId = patch.collectionId;
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    actor,
+                    taskId,
+                    taskAction: {type: "RemoveCollection", collectionId},
+                });
+
+                state.collectionIds.delete(collectionId);
                 break;
-            case "RemoveCollection":
-                state.collectionIds.delete(patch.collectionId);
+            }
+            case "MoveInCollection": {
+                const {collectionId} = patch;
+
+                if (!state.collectionIds.has(collectionId)) {
+                    throw new InvalidArgumentError(
+                        "Trying to move task when it\u2019s not in collection",
+                        {
+                            displayMessage: errorDisplayMessage`The task isn\u2019t in the collection you\u2019re moving it within. Try again after adding the task to the collection with an \`AddCollection\` patch.`,
+                        },
+                    );
+                }
+
+                const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
+
+                for (const update of createApiTaskMovePositionUpdates(
+                    taskId,
+                    resolvedMove,
+                    clock,
+                )) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: update.time,
+                        actor,
+                        taskId: update.taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId,
+                            position: update.position,
+                        },
+                    });
+                }
                 break;
+            }
+            case "MoveInParent": {
+                if (state.parentTaskId === null) {
+                    throw new InvalidArgumentError("Trying to move a task without a parent", {
+                        displayMessage: errorDisplayMessage`The task doesn\u2019t have a parent to move within. Try again after setting the task\u2019s parent with a \`SetParent\` patch.`,
+                    });
+                }
+
+                const resolvedMove = assertExists(resolvedMoveByPatchIndex.get(patchIndex));
+
+                for (const update of createApiTaskMovePositionUpdates(
+                    taskId,
+                    resolvedMove,
+                    clock,
+                )) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: update.time,
+                        actor,
+                        taskId: update.taskId,
+                        taskAction: {
+                            type: "UpdateParentPosition",
+                            parentPosition: update.position,
+                        },
+                    });
+                }
+                break;
+            }
             default:
                 throw exhaustive(patch);
         }
     }
 
-    return state;
+    if (actions.length === 0) return {updatedTasks: initialTasks, updateEvent: result.updateEvent};
+
+    // The update event we loaded above only backfills the task's references from
+    // before the patch. Load any parent task, collections, or assignee account the
+    // patch newly references so the API response can include their data.
+    const newParentTaskIds = filterMapArray(actions, (action): TaskId | undefined => {
+        if (action.type !== "UpdateTask") return;
+        if (action.taskAction.type !== "UpdateParentTaskId") return;
+        if (action.taskAction.parentTaskId === null) return;
+        return action.taskAction.parentTaskId;
+    });
+
+    const newCollectionIds = filterMapArray(actions, (action): TaskCollectionId | undefined => {
+        if (action.type !== "UpdateTask") return;
+        if (action.taskAction.type !== "AddCollection") return;
+        return action.taskAction.collectionId;
+    });
+
+    const newAssigneeIds = new Set<AccountId>();
+    for (const initialTask of initialTasks) {
+        const initialAssigneeId = initialTask.getAssignee()?.assignee.accountId ?? null;
+        const assigneeId = assertExists(stateByTaskId.get(initialTask.id)).assigneeId;
+
+        if (assigneeId !== null && assigneeId !== initialAssigneeId) {
+            newAssigneeIds.add(assigneeId);
+        }
+    }
+
+    const [, taskSortableAccountById, newReferencesResult, newAssigneeAccounts] =
+        await runAllPromises([
+            commitTaskActionTransaction(context, spaceId, actions, {
+                consistency: "StrongWithinCache",
+                // Very important! For the API to have read-after-write consistency we need to wait
+                // until our actions have been sent to every `TaskRealtimeService`. Then future
+                // reads against `TaskRealtimeService` will return the data we wrote.
+                waitForProcessing: true,
+            }),
+            // We're loading references so eventual consistency is ok.
+            loadTaskSortableAccountsForActions(context.dynamo.unexpectStrongReadConsistency(), {
+                spaceId,
+                initialTasks,
+                actions,
+            }),
+            newParentTaskIds.length > 0 || newCollectionIds.length > 0
+                ? context.tasks.loadQueries(
+                      spaceId,
+                      {
+                          queries: [],
+                          taskIds: Array.from(new Set(newParentTaskIds)),
+                          collectionIds: Array.from(new Set(newCollectionIds)),
+                      },
+                      {consistency: "StrongWithinCache"},
+                  )
+                : null,
+            runAllPromises(
+                Array.from(newAssigneeIds, assigneeId =>
+                    getAccount(context.dynamo.unexpectStrongReadConsistency(), spaceId, assigneeId),
+                ),
+            ),
+        ]);
+
+    // Move patches may also update other tasks that share a position. Apply every
+    // action targeting a requested task to that task's response model.
+    const updatedTasks = initialTasks.map(initialTask =>
+        applyActionsToTaskModel(
+            initialTask,
+            actions.filter(action => action.taskId === initialTask.id),
+            taskSortableAccountById,
+        ),
+    );
+
+    let updateEvent = result.updateEvent;
+
+    updateEvent = {
+        ...updateEvent,
+
+        backfillTasks: [
+            ...updateEvent.backfillTasks,
+            ...(newReferencesResult?.updateEvent.backfillTasks ?? []),
+            ...updatedTasks.map(task => ({type: "Authorized" as const, task})),
+        ],
+
+        backfillCollections:
+            newReferencesResult === null
+                ? updateEvent.backfillCollections
+                : [
+                      ...updateEvent.backfillCollections,
+                      ...newReferencesResult.updateEvent.backfillCollections,
+                  ],
+
+        referencedAccounts:
+            newReferencesResult === null && newAssigneeAccounts.length === 0
+                ? updateEvent.referencedAccounts
+                : [
+                      ...updateEvent.referencedAccounts,
+                      ...(newReferencesResult?.updateEvent.referencedAccounts ?? []),
+                      ...newAssigneeAccounts,
+                  ],
+    };
+
+    return {
+        updatedTasks,
+        updateEvent,
+    };
 }
 
 /**
- * Converts the before-and-after patch state into the normalized set of task
- * actions needed to realize the update.
+ * Converts a resolved move into the position updates to commit: the moved task's
+ * new position followed by re-keys for the tasks that shared a `TaskPosition` with
+ * a move destination.
  */
-function createTaskWithoutNotesPatchActions({
-    taskId,
-    initialTask,
-    initialState,
-    finalState,
-    clock,
-    botAccountId,
-    actor,
-    timeZone,
-}: {
-    taskId: TaskId;
-    initialTask: TaskModel;
-    initialState: TaskPatchState;
-    finalState: TaskPatchState;
-    clock: HybridLogicalClock;
-    botAccountId: AccountId;
-    actor: TaskActor;
-    timeZone: typeof defaultTimeZone;
-}): Array<TaskAction> {
-    const actions: Array<TaskAction> = [];
+function createApiTaskMovePositionUpdates(
+    taskId: TaskId,
+    resolvedMove: ApiTaskResolvedMove,
+    clock: HybridLogicalClock,
+): Array<{taskId: TaskId; time: HybridLogicalTime; position: TaskPosition}> {
+    const time = clock.now();
 
-    const pushTaskAction = (
-        taskAction: Extract<TaskAction, {readonly type: "UpdateTask"}>["taskAction"],
-        time = clock.now(),
-    ) => {
-        actions.push({type: "UpdateTask", time, actor, taskId, taskAction});
-    };
+    let position: TaskPosition;
 
-    if (finalState.title !== initialState.title) {
-        const titleUpdate = initialTask
-            .getTitle()
-            .replace(
-                randomlyGenerateTaskTitleClientId(),
-                0,
-                initialState.title.length,
-                finalState.title,
-            );
-        pushTaskAction({type: "UpdateTitle", titleUpdate: titleUpdate.raw});
-    }
-
-    if (!isDueDateEqual(initialState.dueDate, finalState.dueDate)) {
-        pushTaskAction({
-            type: "UpdateDueDate",
-            dueDate: finalState.dueDate,
-        });
-    }
-
-    if (finalState.priority !== initialState.priority) {
-        pushTaskAction({
-            type: "UpdatePriority",
-            priority: finalState.priority,
-        });
-    }
-
-    if (finalState.layout !== initialState.layout) {
-        pushTaskAction({
-            type: "UpdateLayout",
-            layout: finalState.layout,
-        });
-    }
-
-    if (finalState.parentTaskId !== initialState.parentTaskId) {
-        pushTaskAction({
-            type: "UpdateParentTaskId",
-            parentTaskId: finalState.parentTaskId,
-        });
-    }
-
-    const initialIsClosed = initialState.status.type === "Closed";
-    const finalIsClosed = finalState.status.type === "Closed";
-    const initialIsActive = initialState.status.type === "Open" && initialState.status.isActive;
-    const finalIsActive = finalState.status.type === "Open" && finalState.status.isActive;
-
-    if (finalIsClosed) {
-        if (!initialIsClosed) {
-            const time = clock.now();
-            pushTaskAction(
-                {
-                    type: "UpdateStatus",
-                    status: {
-                        type: "Closed",
-                        closerId: botAccountId,
-                        closedTime: new TaskFilterableTime({
-                            absoluteTime: time,
-                            setterTimeZone: timeZone,
-                        }),
-                    },
-                },
-                time,
-            );
+    switch (resolvedMove.position.type) {
+        case "FreshOrderTime": {
+            // A fresh `orderTime` with the initial `orderKey` sorts below every existing
+            // position. Reusing the action time keeps later moves in the same batch sorted
+            // below earlier ones.
+            position = {orderTime: time, orderKey: initialOrderKey};
+            break;
         }
-    } else if (initialIsClosed) {
-        pushTaskAction({
-            type: "UpdateStatus",
-            status: {type: "Open"},
-        });
-    }
-
-    if (initialState.assigneeId !== finalState.assigneeId) {
-        const time = clock.now();
-        pushTaskAction(
-            {
-                type: "UpdateAssignee",
-                assignee:
-                    finalState.assigneeId !== null
-                        ? {
-                              assigneeId: finalState.assigneeId,
-                              assignerId: botAccountId,
-                              assignedTime: new TaskFilterableTime({
-                                  absoluteTime: time,
-                                  setterTimeZone: timeZone,
-                              }),
-                          }
-                        : null,
-                assigneeStatus:
-                    finalState.assigneeId !== null && finalIsActive
-                        ? {
-                              type: "Active",
-                              activatedTime: new TaskFilterableTime({
-                                  absoluteTime: time,
-                                  setterTimeZone: timeZone,
-                              }),
-                          }
-                        : undefined,
-            },
-            time,
-        );
-    } else if (finalIsActive !== initialIsActive) {
-        const time = clock.now();
-        pushTaskAction(
-            finalIsActive
-                ? {
-                      type: "UpdateAssigneeStatus",
-                      assigneeStatus: {
-                          type: "Active",
-                          activatedTime: new TaskFilterableTime({
-                              absoluteTime: time,
-                              setterTimeZone: timeZone,
-                          }),
-                      },
-                  }
-                : {
-                      type: "UpdateAssigneeStatus",
-                      assigneeStatus: {type: "Inactive"},
-                  },
-            time,
-        );
-    }
-
-    const initialCollectionIds = initialState.collectionIds;
-    const finalCollectionIds = finalState.collectionIds;
-
-    for (const collectionId of initialCollectionIds) {
-        if (!finalCollectionIds.has(collectionId)) {
-            pushTaskAction({
-                type: "RemoveCollection",
-                collectionId,
-            });
+        case "Assigned": {
+            position = resolvedMove.position.position;
+            break;
         }
+        default:
+            throw exhaustive(resolvedMove.position);
     }
 
-    const collectionIdsToAdd = Array.from(finalCollectionIds).filter(
-        collectionId => !initialCollectionIds.has(collectionId),
-    );
-
-    if (collectionIdsToAdd.length > 0) {
-        const orderKeys = generateOrderKeysBetween(
-            initialTask.getCollections().getLastOrderKey(),
-            null,
-            collectionIdsToAdd.length,
-        );
-        for (let i = 0; i < collectionIdsToAdd.length; i++) {
-            pushTaskAction({
-                type: "AddCollection",
-                collectionId: assertExists(collectionIdsToAdd[i]),
-                orderKey: assertExists(orderKeys[i]),
-            });
-        }
-    }
-
-    return actions;
+    return [
+        {taskId, time, position},
+        ...resolvedMove.tiedTaskUpdates.map(tiedTaskUpdate => ({
+            taskId: tiedTaskUpdate.task.id,
+            time: clock.now(),
+            position: tiedTaskUpdate.position,
+        })),
+    ];
 }
 
 /**
@@ -393,17 +777,15 @@ function createTaskWithoutNotesPatchActions({
  */
 function applyActionsToTaskModel(
     initialTask: TaskModel,
-    actions: ReadonlyArray<TaskAction>,
+    actions: ReadonlyArray<TaskUpdateTaskAction>,
     taskSortableAccountById: ReadonlyMap<AccountId, TaskSortableAccount>,
 ): TaskModel {
     let updatedTask = initialTask;
     for (const action of actions) {
-        assert(action.type === "UpdateTask");
         updatedTask = updatedTask.applyAction(action, accountId =>
             assertExists(taskSortableAccountById.get(accountId)),
         );
     }
-
     return updatedTask;
 }
 
@@ -415,14 +797,12 @@ async function loadTaskSortableAccountsForActions(
     context: ApiServiceBotActionContext,
     {
         spaceId,
-        initialTask,
+        initialTasks,
         actions,
-        consistency,
     }: {
         spaceId: SpaceId;
-        initialTask: TaskModel;
+        initialTasks: ReadonlyArray<TaskModel>;
         actions: ReadonlyArray<TaskAction>;
-        consistency: "StrongWithinCache";
     },
 ): Promise<Map<AccountId, TaskSortableAccount>> {
     const accountIds = new Set<AccountId>();
@@ -430,11 +810,13 @@ async function loadTaskSortableAccountsForActions(
         collectReferencedIdsFromTaskAction(accountIds, new Set(), action);
     }
 
-    // Seed the lookup from the task's embedded sortable accounts so we only fetch
+    // Seed the lookup from the tasks' embedded sortable accounts so we only fetch
     // accounts newly introduced by this patch batch.
     const taskSortableAccountById = new Map<AccountId, TaskSortableAccount>();
-    for (const taskSortableAccount of getTaskSortableAccountsFromTask(initialTask)) {
-        taskSortableAccountById.set(taskSortableAccount.accountId, taskSortableAccount);
+    for (const initialTask of initialTasks) {
+        for (const taskSortableAccount of getTaskSortableAccountsFromTask(initialTask)) {
+            taskSortableAccountById.set(taskSortableAccount.accountId, taskSortableAccount);
+        }
     }
 
     const missingAccountIds = [...accountIds].filter(
@@ -442,17 +824,19 @@ async function loadTaskSortableAccountsForActions(
     );
 
     const missingAccounts = await runAllPromises(
-        missingAccountIds.map(accountId => getAccount(context, spaceId, accountId, {consistency})),
+        missingAccountIds.map(accountId => getAccount(context, spaceId, accountId)),
     );
 
     // `TaskModel.applyAction()` needs sortable account payloads, not bare account IDs,
     // so load and cache any referenced accounts that weren't already present on the
     // task.
     for (let i = 0; i < missingAccountIds.length; i++) {
-        taskSortableAccountById.set(assertExists(missingAccountIds[i]), {
-            accountId: assertExists(missingAccountIds[i]),
-            workingAccountName: assertExists(missingAccounts[i]).initialData.name,
-            workingAccountNameVersion: assertExists(missingAccounts[i]).initialData.nameVersion,
+        const missingAccount = missingAccounts[i]!;
+
+        taskSortableAccountById.set(missingAccount.id, {
+            accountId: missingAccount.id,
+            workingAccountName: missingAccount.initialData.name,
+            workingAccountNameVersion: missingAccount.initialData.nameVersion,
         });
     }
 
@@ -476,12 +860,4 @@ function getTaskSortableAccountsFromTask(task: TaskModel): Array<TaskSortableAcc
     }
 
     return taskSortableAccounts;
-}
-
-/**
- * Compares due dates by value so we only emit a due date action when the API patch
- * actually changes the date.
- */
-function isDueDateEqual(dueDate1: CalendarDate | null, dueDate2: CalendarDate | null) {
-    return dueDate1?.toString() === dueDate2?.toString();
 }

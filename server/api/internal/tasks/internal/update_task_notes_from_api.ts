@@ -2,10 +2,10 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -72,18 +72,15 @@ export async function updateTaskNotesFromApi(
         spaceId: responseBody.spaceId,
         notes: {
             version: responseBody.newVersion,
-            content: await intoApiContentWithReferences(
-                context,
-                responseBody.spaceId,
-                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                responseBody.newContent,
-                {
-                    encoder: new ApiContentKeyEncoder({
-                        entityId: `Task:${taskId}`,
-                        version: responseBody.newVersion,
-                    }),
-                },
-            ),
+            content: await intoApiContentWithReferences(context, {
+                spaceId: responseBody.spaceId,
+                fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                content: responseBody.newContent,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Task:${taskId}`,
+                    version: responseBody.newVersion,
+                }),
+            }),
         },
     };
 }

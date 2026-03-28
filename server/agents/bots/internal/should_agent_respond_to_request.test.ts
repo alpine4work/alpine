@@ -108,6 +108,7 @@ describe("shouldAgentRespondToRequest", () => {
         const chatId = generateId<ChatId>();
 
         apiClient.mockGet("/chats/{id}", {
+            params: "Any",
             data: {
                 spaceId: generateId<SpaceId>(),
                 chat: {
@@ -193,6 +194,7 @@ describe("shouldAgentRespondToRequest", () => {
             const chatId = generateId<ChatId>();
 
             apiClient.mockGet("/chats/{id}", {
+                params: "Any",
                 data: {
                     spaceId: generateId<SpaceId>(),
                     chat: {
@@ -242,6 +244,7 @@ describe("shouldAgentRespondToRequest", () => {
             const chatId = generateId<ChatId>();
 
             apiClient.mockGet("/chats/{id}", {
+                params: "Any",
                 data: {
                     spaceId: generateId<SpaceId>(),
                     chat: {

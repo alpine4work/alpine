@@ -105,15 +105,15 @@ syncs later.
         title: "Q2 Product Roadmap",
         body: Mustache.render(
             markdown`
-In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
+In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}#mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 
 | Project                  | DRI                                                                       | Priority <span hidden data-column-widths="4,3,2"/> |
 | ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------- |
-| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}?mention)        | <mark class="highlight-blue">Low</mark>            |
-| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}?mention) | <mark class="highlight-red">High</mark>            |
-| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark>       |
+| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}#mention)        | <mark class="highlight-blue">Low</mark>            |
+| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}#mention) | <mark class="highlight-red">High</mark>            |
+| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}#mention)          | <mark class="highlight-orange">Medium</mark>       |
             `,
             {
                 spaceUrl: `https://alpine.inc/home/${space.id}`,

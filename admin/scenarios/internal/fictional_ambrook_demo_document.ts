@@ -107,7 +107,7 @@ Goals:
 
         body: Mustache.render(
             markdown`
-In our [Q1 Product Roadmap](https://alpine.inc/doc/{{otherDocumentId}}?mention) we focused on small
+In our [Q1 Product Roadmap](https://alpine.inc/doc/{{otherDocumentId}}#mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 

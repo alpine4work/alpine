@@ -36,6 +36,20 @@ describe("custom separator", () => {
     );
 });
 
+describe("apostrophe s", () => {
+    const cases = [
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {input: "Rose's document", output: "roses-document"},
+        {input: "Rose\u2019s document", output: "roses-document"},
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {input: "it's ready", output: "its-ready"},
+    ];
+
+    test.each(cases)("converts `$input` to `$output`", ({input, output}) => {
+        expect(convertToUrlPathnameSlug(input)).toBe(output);
+    });
+});
+
 describe("allowed characters", () => {
     test("preserves explicitly allowed characters", () => {
         expect(

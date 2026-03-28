@@ -1166,14 +1166,16 @@ test("pagination cursor is maintained even if the underlying item moves", async 
         TestTask.create(session),
     ]);
 
-    await task1.updatePriority(session, "Low");
-    await task2.updatePriority(session, "Low");
-    await task3.updatePriority(session, "Medium");
-    await task4.updatePriority(session, "Medium");
-    await task5.updatePriority(session, "High");
-    await task6.updatePriority(session, "High");
-    await task7.updatePriority(session, "Urgent");
-    await task8.updatePriority(session, "Urgent");
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
 
     const server = new TestTaskRealtimeServer(context);
     await server.wait();
@@ -1264,14 +1266,16 @@ test("pagination cursor is maintained even if the underlying item moves and inde
         TestTask.create(session),
     ]);
 
-    await task1.updatePriority(session, "Low");
-    await task2.updatePriority(session, "Low");
-    await task3.updatePriority(session, "Medium");
-    await task4.updatePriority(session, "Medium");
-    await task5.updatePriority(session, "High");
-    await task6.updatePriority(session, "High");
-    await task7.updatePriority(session, "Urgent");
-    await task8.updatePriority(session, "Urgent");
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
 
     const server = new TestTaskRealtimeServer(context);
     await server.wait();
@@ -2116,14 +2120,16 @@ test("load gets task that\u2019s ahead of actions when it\u2019s fresh", async (
         TestTask.create(session),
     ]);
 
-    await task1.updatePriority(session, "Low");
-    await task2.updatePriority(session, "Low");
-    await task3.updatePriority(session, "Medium");
-    await task4.updatePriority(session, "Medium");
-    await task5.updatePriority(session, "High");
-    await task6.updatePriority(session, "High");
-    await task7.updatePriority(session, "Urgent");
-    await task8.updatePriority(session, "Urgent");
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
 
     await server.wait();
     server.pauseApplyActionTransactions();
@@ -2240,14 +2246,16 @@ test("load gets old task at old position that\u2019s ahead of actions when alrea
         TestTask.create(session),
     ]);
 
-    await task1.updatePriority(session, "Low");
-    await task2.updatePriority(session, "Low");
-    await task3.updatePriority(session, "Medium");
-    await task4.updatePriority(session, "Medium");
-    await task5.updatePriority(session, "High");
-    await task6.updatePriority(session, "High");
-    await task7.updatePriority(session, "Urgent");
-    await task8.updatePriority(session, "Urgent");
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
 
     await runAllPromises([
         waitForIndexActionTransactionsWithoutClearingActionHistory(context),
@@ -7642,5 +7650,627 @@ test("tasks reorder when assigner account name changes", async () => {
                 }),
             }),
         ],
+    });
+});
+
+test("expensively loading after a null cursor only loads additional needed tasks", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 6}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 3})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 3).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 5,
+            afterCursor: null,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 5).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(2);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 4,
+            afterCursor: null,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 4).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(2);
+});
+
+test("expensively loading after a cursor immediately returns when the query is fully loaded", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 4}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 10})).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises(tasks.map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 10,
+            afterCursor: await tasks[1]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises(tasks.slice(2).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+});
+
+test("expensively loading after an unloaded cursor catches up a small query", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 30}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 5})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 5).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 3,
+            afterCursor: await tasks[19]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(20, 23).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(2);
+});
+
+test("expensively loading after an unloaded cursor catches up a large query", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 1001}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 5,
+            afterCursor: await tasks[990]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(991, 996).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(6);
+});
+
+test("expensively loading after a loaded cursor reuses the loaded range when it covers the limit", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 10}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 8})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 8).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 4,
+            afterCursor: await tasks[2]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(3, 7).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+});
+
+test("expensively loading after a loaded cursor loads only the missing limit", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 10}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 5})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 5).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 5,
+            afterCursor: await tasks[2]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(3, 8).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(2);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 1,
+            afterCursor: await tasks[7]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(8, 9).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(3);
+});
+
+test("expensively loading after the task before the loaded boundary does not load", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 5}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 3})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 3).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 1,
+            afterCursor: await tasks[1]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(2, 3).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+});
+
+test("expensively loading after the loaded boundary loads the next task", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 5}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 3})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 3).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 1,
+            afterCursor: await tasks[2]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(3, 4).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(2);
+});
+
+test("expensively loading after the task just beyond the loaded boundary excludes that cursor", async () => {
+    const space = await TestSpace.create(context);
+    const {getCount} = queryTaskIndexTestCounter.recordForTest(space.id);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 6}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    expect(await server.loadQuery(session, {limit: 3})).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 3).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 1,
+            afterCursor: await tasks[3]!.getIndexDoc(),
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(4, 5).map(task => task.getIndexDoc())),
+    });
+    expect(getCount()).toEqual(2);
+});
+
+test("expensively loading after cursors supports the basic pagination pattern", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const tasks = await runAllPromises(Array.from({length: 8}, () => TestTask.create(session)));
+    const server = new TestTaskRealtimeServer(context);
+
+    await server.wait();
+
+    const page1 = await server.expensivelyLoadQueryAfterCursor(session, {
+        limit: 3,
+        afterCursor: null,
+    });
+    expect(page1).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(0, 3).map(task => task.getIndexDoc())),
+    });
+
+    const page2 = await server.expensivelyLoadQueryAfterCursor(session, {
+        limit: 3,
+        afterCursor: assertExists(page1.tasks[2]),
+    });
+    expect(page2).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises(tasks.slice(3, 6).map(task => task.getIndexDoc())),
+    });
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 3,
+            afterCursor: assertExists(page2.tasks[2]),
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises(tasks.slice(6, 8).map(task => task.getIndexDoc())),
+    });
+});
+
+test("expensively loading after an old cursor for a task moved much lower", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+    const sorts = normalizeTaskQuerySorts([{type: "Priority", direction: "Descending"}]);
+    const server = new TestTaskRealtimeServer(context);
+
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
+    await server.wait();
+
+    const oldTask6IndexDoc = await task6.getIndexDoc();
+    const afterCursor = getTaskQueryNormalizedSortCursorForIndexDoc(sorts, oldTask6IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 4,
+            sorts,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task8.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+        ]),
+    });
+
+    await task6.updatePriority(session, "Low");
+    await server.wait();
+
+    expect(await task6.getIndexDoc()).not.toEqual(oldTask6IndexDoc);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 3,
+            sorts,
+            afterCursor,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+        ]),
+    });
+});
+
+test("expensively loading after an old cursor for a task moved a little lower", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+    const sorts = normalizeTaskQuerySorts([{type: "Priority", direction: "Descending"}]);
+    const server = new TestTaskRealtimeServer(context);
+
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
+    await server.wait();
+
+    const oldTask5IndexDoc = await task5.getIndexDoc();
+    const afterCursor = getTaskQueryNormalizedSortCursorForIndexDoc(sorts, oldTask5IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 3,
+            sorts,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task8.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+
+    await task5.updatePriority(session, "Medium");
+    await server.wait();
+
+    expect(await task5.getIndexDoc()).not.toEqual(oldTask5IndexDoc);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 4,
+            sorts,
+            afterCursor,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+        ]),
+    });
+});
+
+test("expensively loading after an old cursor for a task moved much higher", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+    const sorts = normalizeTaskQuerySorts([{type: "Priority", direction: "Descending"}]);
+    const server = new TestTaskRealtimeServer(context);
+
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
+    await server.wait();
+
+    const oldTask3IndexDoc = await task3.getIndexDoc();
+    const afterCursor = getTaskQueryNormalizedSortCursorForIndexDoc(sorts, oldTask3IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 5,
+            sorts,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task8.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    await task3.updatePriority(session, "Urgent");
+    await server.wait();
+
+    expect(await task3.getIndexDoc()).not.toEqual(oldTask3IndexDoc);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 3,
+            sorts,
+            afterCursor,
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task4.getIndexDoc(),
+            task1.getIndexDoc(),
+            task2.getIndexDoc(),
+        ]),
+    });
+});
+
+test("expensively loading after an old cursor for a task moved a little higher", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const [task1, task2, task3, task4, task5, task6, task7, task8] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+    const sorts = normalizeTaskQuerySorts([{type: "Priority", direction: "Descending"}]);
+    const server = new TestTaskRealtimeServer(context);
+
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Low"),
+        task3.updatePriority(session, "Medium"),
+        task4.updatePriority(session, "Medium"),
+        task5.updatePriority(session, "High"),
+        task6.updatePriority(session, "High"),
+        task7.updatePriority(session, "Urgent"),
+        task8.updatePriority(session, "Urgent"),
+    ]);
+    await server.wait();
+
+    const oldTask4IndexDoc = await task4.getIndexDoc();
+    const afterCursor = getTaskQueryNormalizedSortCursorForIndexDoc(sorts, oldTask4IndexDoc);
+
+    expect(
+        await server.loadQuery(session, {
+            limit: 6,
+            sorts,
+        }),
+    ).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task7.getIndexDoc(),
+            task8.getIndexDoc(),
+            task5.getIndexDoc(),
+            task6.getIndexDoc(),
+            task3.getIndexDoc(),
+            task4.getIndexDoc(),
+        ]),
+    });
+
+    await task4.updatePriority(session, "High");
+    await server.wait();
+
+    expect(await task4.getIndexDoc()).not.toEqual(oldTask4IndexDoc);
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 3,
+            sorts,
+            afterCursor,
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([task1.getIndexDoc(), task2.getIndexDoc()]),
+    });
+});
+
+test("expensively loading after an old cursor can return the moved task again", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const [task1, task2, task3, task4, task5] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+    ]);
+    const sorts = normalizeTaskQuerySorts([{type: "Priority", direction: "Descending"}]);
+    const server = new TestTaskRealtimeServer(context);
+
+    await runAllPromises([
+        task1.updatePriority(session, "Low"),
+        task2.updatePriority(session, "Medium"),
+        task3.updatePriority(session, "High"),
+        task4.updatePriority(session, "Urgent"),
+        task5.updatePriority(session, "Urgent"),
+    ]);
+    await server.wait();
+
+    const firstPage = await server.loadQuery(session, {
+        limit: 3,
+        sorts,
+    });
+    const afterCursor = getTaskQueryNormalizedSortCursorForIndexDoc(
+        sorts,
+        assertExists(firstPage.tasks[2]),
+    );
+
+    expect(firstPage).toEqual({
+        hasMoreTasks: true,
+        tasks: await runAllPromises([
+            task4.getIndexDoc(),
+            task5.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
+    });
+
+    await task3.updatePriority(session, "Low");
+    await server.wait();
+
+    expect(
+        await server.expensivelyLoadQueryAfterCursor(session, {
+            limit: 3,
+            sorts,
+            afterCursor,
+        }),
+    ).toEqual({
+        hasMoreTasks: false,
+        tasks: await runAllPromises([
+            task2.getIndexDoc(),
+            task1.getIndexDoc(),
+            task3.getIndexDoc(),
+        ]),
     });
 });

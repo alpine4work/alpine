@@ -7,7 +7,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 

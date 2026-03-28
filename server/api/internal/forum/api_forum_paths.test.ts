@@ -11,7 +11,7 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
@@ -26,6 +26,11 @@ const context = createTestContext({
     forumInjection,
     notificationsInjection: {
         archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
+    },
+    // Preview file elements resolve their titles through the search index. Returning
+    // `null` makes every preview render with an "Unknown" title.
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async () => null,
     },
 });
 
@@ -140,7 +145,7 @@ test("can\u2019t read channel information for non-existent channel", async () =>
     });
 });
 
-describe("/channels/{id}/mention", () => {
+describe("/channels/{id}/reference", () => {
     test("can read channel mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -154,7 +159,7 @@ describe("/channels/{id}/mention", () => {
         });
 
         expect(
-            await server.GET(`/channels/${channel.id}/mention`, {
+            await server.GET(`/channels/${channel.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -162,11 +167,9 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Channel",
-                        id: channel.id,
-                    },
+                reference: {
+                    type: "Channel",
+                    id: channel.id,
                     title: "Test Channel Name",
                 },
             },
@@ -184,7 +187,7 @@ describe("/channels/{id}/mention", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/channels/${channel.id}/mention`, {
+            await server.GET(`/channels/${channel.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -208,7 +211,7 @@ describe("/channels/{id}/mention", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/channels/${generateId<ChannelId>()}/mention`, {
+            await server.GET(`/channels/${generateId<ChannelId>()}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -248,6 +251,10 @@ describe("/channels/{id}/posts", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
+                channel: {
+                    id: channel.id,
+                    name: "Test Channel",
+                },
                 posts: [
                     {
                         id: post3.id,
@@ -261,6 +268,15 @@ describe("/channels/{id}/posts", () => {
                             id: channel.id,
                             name: "Test Channel",
                         },
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Third post content."}],
+                                },
+                            ],
+                        },
+                        reference: {title: "in Test Channel: Third post content"},
                     },
                     {
                         id: post2.id,
@@ -274,6 +290,15 @@ describe("/channels/{id}/posts", () => {
                             id: channel.id,
                             name: "Test Channel",
                         },
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second post content."}],
+                                },
+                            ],
+                        },
+                        reference: {title: "in Test Channel: Second post content"},
                     },
                 ],
                 nextCursor: expect.any(String),
@@ -298,6 +323,10 @@ describe("/channels/{id}/posts", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
+                channel: {
+                    id: channel.id,
+                    name: "Test Channel",
+                },
                 posts: [
                     {
                         id: post1.id,
@@ -311,6 +340,15 @@ describe("/channels/{id}/posts", () => {
                             id: channel.id,
                             name: "Test Channel",
                         },
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "First post content."}],
+                                },
+                            ],
+                        },
+                        reference: {title: "in Test Channel: First post content"},
                     },
                 ],
                 nextCursor: null,
@@ -390,6 +428,9 @@ test("can read post information", async () => {
                         }),
                     ]),
                 }),
+                reference: {
+                    title: "in Test Channel: This is a test post content",
+                },
             }),
         }),
     });
@@ -485,7 +526,7 @@ test("can\u2019t read post information for non-existent post", async () => {
     });
 });
 
-describe("/posts/{id}/mention", () => {
+describe("/posts/{id}/reference", () => {
     test("can read post mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Bob", role: "Admin"});
@@ -500,7 +541,7 @@ describe("/posts/{id}/mention", () => {
         const post = await channel.createPost(session, "This is post content for mention.");
 
         expect(
-            await server.GET(`/posts/${post.id}/mention`, {
+            await server.GET(`/posts/${post.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -508,11 +549,9 @@ describe("/posts/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Post",
-                        id: post.id,
-                    },
+                reference: {
+                    type: "Post",
+                    id: post.id,
                     title: "Bob in Test Channel: This is post content for mention",
                 },
             },
@@ -530,7 +569,7 @@ describe("/posts/{id}/mention", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
         const post = await channel.createPost(session2, "Private post content");
 
-        const response = await server.GET(`/posts/${post.id}/mention`, {
+        const response = await server.GET(`/posts/${post.id}/reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -545,7 +584,7 @@ describe("/posts/{id}/mention", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
 
-        const response = await server.GET(`/posts/${generateId<PostId>()}/mention`, {
+        const response = await server.GET(`/posts/${generateId<PostId>()}/reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -566,7 +605,7 @@ describe("/posts/{id}/mention", () => {
         const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
 
         expect(
-            await server.GET(`/posts/${post.id}/mention`, {
+            await server.GET(`/posts/${post.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -574,11 +613,9 @@ describe("/posts/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Post",
-                        id: post.id,
-                    },
+                reference: {
+                    type: "Post",
+                    id: post.id,
                     title: "Bob in Scoped Channel: Scoped post content",
                 },
             },
@@ -651,14 +688,17 @@ describe("post creation", () => {
         const response = await server.POST("/posts", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                channelId: channel.id,
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [{type: "Text", text: "This is my new post!"}],
-                        },
-                    ],
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "This is my new post!"}],
+                            },
+                        ],
+                    },
                 },
             },
         });
@@ -671,8 +711,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -701,7 +741,7 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    contentPreview: "in Test Channel: This is my new post!",
+                    reference: {title: "in Test Channel: This is my new post!"},
                 },
             },
         });
@@ -722,33 +762,36 @@ describe("post creation", () => {
         const response = await server.POST("/posts", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                channelId: channel.id,
-                content: {
-                    elements: [
-                        {
-                            type: "Heading",
-                            level: 1,
-                            elements: [{type: "Text", text: "Important Announcement"}],
-                        },
-                        {
-                            type: "Paragraph",
-                            elements: [
-                                {type: "Text", text: "This is "},
-                                {
-                                    type: "Text",
-                                    text: "bold",
-                                    marks: [{type: "Bold"}],
-                                },
-                                {type: "Text", text: " and "},
-                                {
-                                    type: "Text",
-                                    text: "italic",
-                                    marks: [{type: "Italic"}],
-                                },
-                                {type: "Text", text: " text."},
-                            ],
-                        },
-                    ],
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Important Announcement"}],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "This is "},
+                                    {
+                                        type: "Text",
+                                        text: "bold",
+                                        marks: [{type: "Bold"}],
+                                    },
+                                    {type: "Text", text: " and "},
+                                    {
+                                        type: "Text",
+                                        text: "italic",
+                                        marks: [{type: "Italic"}],
+                                    },
+                                    {type: "Text", text: " text."},
+                                ],
+                            },
+                        ],
+                    },
                 },
             },
         });
@@ -761,8 +804,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -801,7 +844,7 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    contentPreview: "in Rich Content Channel: Important Announcement",
+                    reference: {title: "in Rich Content Channel: Important Announcement"},
                 },
             },
         });
@@ -821,14 +864,17 @@ describe("post creation", () => {
             await server.POST("/posts", {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
-                    channelId: channel.id,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Unauthorized post"}],
-                            },
-                        ],
+                    spaceId: space.id,
+                    post: {
+                        channel: {id: channel.id},
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Unauthorized post"}],
+                                },
+                            ],
+                        },
                     },
                 },
             }),
@@ -855,14 +901,17 @@ describe("post creation", () => {
             await server.POST("/posts", {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
-                    channelId: generateId<ChannelId>(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Post to nowhere"}],
-                            },
-                        ],
+                    spaceId: space.id,
+                    post: {
+                        channel: {id: generateId<ChannelId>()},
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Post to nowhere"}],
+                                },
+                            ],
+                        },
                     },
                 },
             }),
@@ -891,14 +940,17 @@ describe("post creation", () => {
             await server.POST("/posts", {
                 headers: {},
                 body: {
-                    channelId: channel.id,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Unauthorized post"}],
-                            },
-                        ],
+                    spaceId: space.id,
+                    post: {
+                        channel: {id: channel.id},
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Unauthorized post"}],
+                                },
+                            ],
+                        },
                     },
                 },
             }),
@@ -928,9 +980,12 @@ describe("post creation", () => {
         const response = await server.POST("/posts", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                channelId: channel.id,
-                content: {
-                    elements: [{type: "Paragraph", elements: []}],
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [{type: "Paragraph", elements: []}],
+                    },
                 },
             },
         });
@@ -943,8 +998,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -966,7 +1021,7 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    contentPreview: "in Test Channel:",
+                    reference: {title: "in Test Channel:"},
                     createdTime: expect.any(String),
                     createdTimeZone: defaultTimeZone,
                 },
@@ -1210,14 +1265,17 @@ test("can create post with file attachment", async () => {
     const response = await server.POST("/posts", {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
-            channelId: channel.id,
-            content: {
-                elements: [
-                    {
-                        type: "File",
-                        id: file.id,
-                    },
-                ],
+            spaceId: space.id,
+            post: {
+                channel: {id: channel.id},
+                content: {
+                    elements: [
+                        {
+                            type: "File",
+                            id: file.id,
+                        },
+                    ],
+                },
             },
         },
     });
@@ -1303,7 +1361,7 @@ test("can create post comment with file attachments", async () => {
                     {type: "Paragraph", elements: [{type: "Text", text: "Comment with file"}]},
                 ],
             },
-            files: [{element: {type: "File", id: file.id}}],
+            files: [{element: {type: "File", file: {id: file.id}}}],
         },
     });
 
@@ -1319,9 +1377,11 @@ test("can create post comment with file attachments", async () => {
                             width: 1,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                     ],
@@ -1383,7 +1443,7 @@ test("post comment with preview entity returns Preview in files", async () => {
                     {type: "Paragraph", elements: [{type: "Text", text: "Comment with preview"}]},
                 ],
             },
-            files: [{element: {type: "Preview", target: {type: "Document", id: documentId}}}],
+            files: [{element: {type: "Preview", reference: {type: "Document", id: documentId}}}],
         },
     });
 
@@ -1399,8 +1459,11 @@ test("post comment with preview entity returns Preview in files", async () => {
                             width: 1,
                             element: {
                                 type: "Preview",
-                                target: {type: "Document", id: documentId},
-                                title: "Document",
+                                reference: {
+                                    type: "Document",
+                                    id: documentId,
+                                    title: "Unknown document",
+                                },
                             },
                         }),
                     ],
@@ -1437,9 +1500,9 @@ test("post comment with files and previews returns both", async () => {
                 ],
             },
             files: [
-                {element: {type: "File", id: file.id}},
+                {element: {type: "File", file: {id: file.id}}},
                 {
-                    element: {type: "Preview", target: {type: "Document", id: documentId}},
+                    element: {type: "Preview", reference: {type: "Document", id: documentId}},
                 },
             ],
         },
@@ -1454,7 +1517,7 @@ test("post comment with files and previews returns both", async () => {
                     files: [
                         expect.objectContaining({
                             rowIndex: 0,
-                            width: 0.380763,
+                            width: 0.38,
                             element: {
                                 type: "File",
                                 id: file.id,
@@ -1464,11 +1527,14 @@ test("post comment with files and previews returns both", async () => {
                         }),
                         expect.objectContaining({
                             rowIndex: 0,
-                            width: 0.619237,
+                            width: 0.62,
                             element: {
                                 type: "Preview",
-                                target: {type: "Document", id: documentId},
-                                title: "Document",
+                                reference: {
+                                    type: "Document",
+                                    id: documentId,
+                                    title: "Unknown document",
+                                },
                             },
                         }),
                     ],
@@ -1494,7 +1560,7 @@ test("post comment with invalid file object returns 400", async () => {
             content: {
                 elements: [{type: "Paragraph", elements: [{type: "Text", text: "Bad file"}]}],
             },
-            files: [{element: {type: "File", id: "not-a-valid-id"}}],
+            files: [{element: {type: "File", file: {id: "not-a-valid-id"}}}],
         },
     });
 

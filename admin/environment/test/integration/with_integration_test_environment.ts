@@ -88,6 +88,11 @@ export type TestServices = {
     waitForBaseUrl(): Promise<string>;
 
     /**
+     * Get the base URL for `ApiService`.
+     */
+    getApiServiceBaseUrl(): string;
+
+    /**
      * Wait for `JobQueueService` to process all the jobs on the SQS job queue.
      */
     waitForSqsProcessJobs(): Promise<void>;
@@ -149,6 +154,7 @@ export async function withIntegrationTestEnvironment<Value>(
     options: {
         undeclaredOutputsDirectoryPath: string;
         createTemporaryDirectoryPath: () => Promise<string>;
+        shouldStartAgentService?: boolean;
     },
     action: (context: TestActualContext, services: TestServices) => Promise<Value>,
 ): Promise<Value> {
@@ -230,9 +236,11 @@ export function actuallyCreateIntegrationTestEnvironment(
     {
         undeclaredOutputsDirectoryPath,
         createTemporaryDirectoryPath,
+        shouldStartAgentService = true,
     }: {
         undeclaredOutputsDirectoryPath: string;
         createTemporaryDirectoryPath: () => Promise<string>;
+        shouldStartAgentService?: boolean;
     },
 ): {
     context: TestActualContext;
@@ -310,6 +318,7 @@ export function actuallyCreateIntegrationTestEnvironment(
 
         agentServicePort = null;
         taskRealtimeServicePort = null;
+        apiServicePort = null;
         appServiceTokenAgent = null;
         jobQueueServiceTokenAgent = null;
         mockChatGptUnscopedApiKeyPath = null;
@@ -407,6 +416,7 @@ export function actuallyCreateIntegrationTestEnvironment(
 
     let taskRealtimeServicePort: number | null = null;
     let agentServicePort: number | null = null;
+    let apiServicePort: number | null = null;
     let appServiceTokenAgent: TokenAgent<TokenAgentAppServicePrivateSide> | null = null;
     let jobQueueServiceTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | null = null;
     let mockChatGptUnscopedApiKeyPath: string | null = null;
@@ -548,7 +558,7 @@ export function actuallyCreateIntegrationTestEnvironment(
             newTaskRealtimeServicePort,
             appServicePort,
             fileProcessorServicePort,
-            apiServicePort,
+            newApiServicePort,
             newAgentServicePort,
             [newAppServiceTokenAgent, newJobQueueServiceTokenAgent],
         ] = await runAllPromises([
@@ -594,21 +604,26 @@ export function actuallyCreateIntegrationTestEnvironment(
                     }),
                 ]),
             ),
-            fs.mkdir(agentsD1LocalDataPath, {recursive: true}).then(async () => {
-                const agentsD1LocalDataTarPath = joinPath(
-                    runfilesPath,
-                    "cyberworlds/server/agents/bots/agents_d1_local_data.tar.gz",
-                );
+            ...(shouldStartAgentService
+                ? [
+                      fs.mkdir(agentsD1LocalDataPath, {recursive: true}).then(async () => {
+                          const agentsD1LocalDataTarPath = joinPath(
+                              runfilesPath,
+                              "cyberworlds/server/agents/bots/agents_d1_local_data.tar.gz",
+                          );
 
-                await runProcess(
-                    "tar",
-                    ["-xzf", agentsD1LocalDataTarPath, "-C", agentsD1LocalDataPath],
-                    {cwd: agentsD1LocalDataPath},
-                );
-            }),
+                          await runProcess(
+                              "tar",
+                              ["-xzf", agentsD1LocalDataTarPath, "-C", agentsD1LocalDataPath],
+                              {cwd: agentsD1LocalDataPath},
+                          );
+                      }),
+                  ]
+                : []),
         ]);
         taskRealtimeServicePort = newTaskRealtimeServicePort;
         agentServicePort = newAgentServicePort;
+        apiServicePort = newApiServicePort;
         appServiceTokenAgent = newAppServiceTokenAgent;
         jobQueueServiceTokenAgent = newJobQueueServiceTokenAgent;
 
@@ -906,30 +921,32 @@ export function actuallyCreateIntegrationTestEnvironment(
         apiServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
         apiServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
-        agentServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/server/agents/bots/agents.sh"),
-            [
-                `--port=${agentServicePort}`,
-                `--cacheLocalDataPath=${agentsCacheLocalDataPath}`,
-                `--durableObjectsLocalDataPath=${agentsDurableObjectsLocalDataPath}`,
-                `--d1LocalDataPath=${agentsD1LocalDataPath}`,
-                `--apiServiceUrl=http://localhost:${apiServicePort}`,
-                `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
-                `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
-                // We have an empty D1 database prebuilt with all migrations applied so we
-                // shouldn't need to run them again.
-                "--withoutD1Migrations",
-            ],
-            {
-                env: process.env,
-                stdio: ["ignore", "pipe", "pipe"],
-            },
-        );
+        if (shouldStartAgentService) {
+            agentServiceSubprocess = spawn(
+                joinPath(runfilesPath, "cyberworlds/server/agents/bots/agents.sh"),
+                [
+                    `--port=${agentServicePort}`,
+                    `--cacheLocalDataPath=${agentsCacheLocalDataPath}`,
+                    `--durableObjectsLocalDataPath=${agentsDurableObjectsLocalDataPath}`,
+                    `--d1LocalDataPath=${agentsD1LocalDataPath}`,
+                    `--apiServiceUrl=http://localhost:${apiServicePort}`,
+                    `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
+                    `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
+                    // We have an empty D1 database prebuilt with all migrations applied so we
+                    // shouldn't need to run them again.
+                    "--withoutD1Migrations",
+                ],
+                {
+                    env: process.env,
+                    stdio: ["ignore", "pipe", "pipe"],
+                },
+            );
 
-        // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
-        // write data to stdout/stderr.
-        agentServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
-        agentServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+            // For whatever reason, `inherit` doesn't work in Playwright? Manually write data
+            // to stdout/stderr.
+            agentServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
+            agentServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+        }
 
         await runAllPromises([
             waitForProcessSpawn(appServiceSubprocess),
@@ -942,7 +959,7 @@ export function actuallyCreateIntegrationTestEnvironment(
             }),
             waitForProcessSpawn(fileProcessorServiceSubprocess),
             waitForProcessSpawn(apiServiceSubprocess),
-            waitForProcessSpawn(agentServiceSubprocess),
+            ...(agentServiceSubprocess ? [waitForProcessSpawn(agentServiceSubprocess)] : []),
         ]);
 
         await runAllPromises([
@@ -970,11 +987,17 @@ export function actuallyCreateIntegrationTestEnvironment(
                     debug("`ApiService` is ready");
                 },
             ),
-            waitForServiceHttpServer(agentServicePort, "AgentService", agentServiceSubprocess).then(
-                () => {
-                    debug("`AgentService` is ready");
-                },
-            ),
+            ...(agentServiceSubprocess
+                ? [
+                      waitForServiceHttpServer(
+                          agentServicePort,
+                          "AgentService",
+                          agentServiceSubprocess,
+                      ).then(() => {
+                          debug("`AgentService` is ready");
+                      }),
+                  ]
+                : []),
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
@@ -1036,6 +1059,12 @@ export function actuallyCreateIntegrationTestEnvironment(
             waitForBaseUrl: async () => {
                 const edgeServicePort = await edgeServicePortPromise;
                 return `http://localhost:${edgeServicePort}`;
+            },
+            getApiServiceBaseUrl: () => {
+                if (apiServicePort === null)
+                    throw new InternalError("Test services haven\u2019t initialized");
+
+                return `http://localhost:${apiServicePort}`;
             },
             waitForSqsProcessJobs: () => {
                 return context.waitForSqsProcessJobs();

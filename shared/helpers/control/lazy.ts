@@ -11,6 +11,21 @@ import {Result} from "~/shared/helpers/control/result.js";
  * It is safe to treat a lazy value as an immutable value. For the purposes of
  * React rendering or otherwise. Laziness can be thought of an implementation
  * detail for improved efficiency of an otherwise immutable pointer.
+ *
+ * Never introduce a `wasCalled()` method or similar on this class. Since that
+ * breaks the "immutable value" contract because a `wasCalled()` flag would observe
+ * mutable state. If you want to check if `Lazy` has been initialize try:
+ *
+ * ```ts
+ * let wasCalled = false;
+ *
+ * const lazy = new Lazy(() => {
+ *     wasCalled = true;
+ *     // ...
+ * });
+ * ```
+ *
+ * Since this makes the mutable state explicit.
  */
 export class Lazy<Value> {
     private _result: Result<Value> | null;

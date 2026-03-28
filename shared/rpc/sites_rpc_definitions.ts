@@ -176,9 +176,9 @@ export const moveSiteEntry = defineRpc({
                 type: Schema.value("SideBarSection"),
                 id: Schema.id<SiteSideBarSectionId>(),
                 newPosition: Schema.object({
-                    parentId: Schema.string as Schema<
+                    parentId: Schema.stringAs<
                         SiteSideBarContainerId | SiteSideBarSectionContainerId
-                    >,
+                    >(),
                     orderKey: OrderKeySchema,
                 }),
             }),
