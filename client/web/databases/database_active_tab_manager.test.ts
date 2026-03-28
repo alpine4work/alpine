@@ -49,10 +49,8 @@ async function executeSql(
     conn: DatabaseConnection,
     sql: string,
 ): Promise<Array<Record<string, unknown>>> {
-    const result = await conn.call("executeAction", {
-        action: {name: "rawSql" as const, input: {sql}},
-    });
-    return (result.result as any).output.rows;
+    const result = await conn.executeAction("rawSql", {sql});
+    return result.rows as Array<Record<string, unknown>>;
 }
 
 // ---------------------------------------------------------------------------
