@@ -90,10 +90,30 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "none",
         run(db) {
-            sql`SELECT * FROM _alpine_tables`.selectAllUnknown(db);
-            sql`SELECT * FROM _alpine_fields`.selectAllUnknown(db);
-            sql`SELECT * FROM _alpine_views`.selectAllUnknown(db);
-            sql`SELECT * FROM _alpine_view_fields`.selectAllUnknown(db);
+            sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+            `.selectAllUnknown(db);
+            sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_fields
+            `.selectAllUnknown(db);
+            sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_views
+            `.selectAllUnknown(db);
+            sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_view_fields
+            `.selectAllUnknown(db);
             return {};
         },
     }),
@@ -108,45 +128,87 @@ export const databaseActions = {
         writeLevel: "schema+data",
         run(db, {name}) {
             const existingTableNames = new Set(
-                sql`SELECT table_name FROM _alpine_tables`
+                sql`
+                    SELECT
+                        table_name
+                    FROM
+                        _alpine_tables
+                `
                     .selectAll(db, {tableName: Schema.string.originalPropertyKey("table_name")})
                     .map(row => row.tableName),
             );
             const tableName = formatUniqueSqlName(name, existingTableNames);
             const tableId = generateChronologicalId<DatabaseTableId>();
 
-            sql`INSERT INTO _alpine_tables (id, name, table_name) VALUES (${tableId}, ${name}, ${tableName})`.exec(
-                db,
-            );
+            sql`
+                INSERT INTO
+                    _alpine_tables (id, name, table_name)
+                VALUES
+                    (
+                        ${tableId},
+                        ${name},
+                        ${tableName}
+                    )
+            `.exec(db);
 
             const fieldType = serializeDatabaseFieldType({type: "plainText"});
             const fieldId = generateChronologicalId<DatabaseFieldId>();
-            sql`INSERT INTO _alpine_fields (id, table_id, name, column_name, type)
-                VALUES (${fieldId}, ${tableId}, ${"Name"}, ${"name"}, ${fieldType})`.exec(db);
+            sql`
+                INSERT INTO
+                    _alpine_fields (id, table_id, name, column_name, type)
+                VALUES
+                    (
+                        ${fieldId},
+                        ${tableId},
+                        ${"Name"},
+                        ${"name"},
+                        ${fieldType}
+                    )
+            `.exec(db);
 
             const sqliteType = alpineFieldTypeToSqliteType("plainText");
             const nameCheck = checkConstraintForColumn("name", sqliteType, true);
 
-            sql`CREATE TABLE ${sql.identifier(tableName)} (
-                _id TEXT PRIMARY KEY DEFAULT (generate_id()),
-                _created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                name ${sql.raw(sqliteType)}_alpine_${sql.raw(fieldId)} NOT NULL DEFAULT '',
-                CHECK(is_id(_id)),
-                CHECK(datetime(_created_at) IS NOT NULL),
-                ${nameCheck}
-            ) WITHOUT ROWID`.exec(db);
+            sql`
+                CREATE TABLE ${sql.identifier(tableName)} (
+                    _id TEXT PRIMARY KEY DEFAULT (generate_id ()),
+                    _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+                    name ${sql.raw(sqliteType)}_alpine_${sql.raw(fieldId)} NOT NULL DEFAULT '',
+                    CHECK (is_id (_id)),
+                    CHECK (DATETIME(_created_at) IS NOT NULL),
+                    ${nameCheck}
+                ) WITHOUT ROWID
+            `.exec(db);
 
-            sql`CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(tableName)}(_created_at)`.exec(
-                db,
-            );
+            sql`
+                CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
+                    tableName,
+                )} (_created_at)
+            `.exec(db);
 
             const viewId = generateChronologicalId<DatabaseViewId>();
-            sql`INSERT INTO _alpine_views (id, table_id, name) VALUES (${viewId}, ${tableId}, ${"Grid view"})`.exec(
-                db,
-            );
+            sql`
+                INSERT INTO
+                    _alpine_views (id, table_id, name)
+                VALUES
+                    (
+                        ${viewId},
+                        ${tableId},
+                        ${"Grid view"}
+                    )
+            `.exec(db);
 
-            sql`INSERT INTO _alpine_view_fields (view_id, field_id, position, width)
-                VALUES (${viewId}, ${fieldId}, ${0}, ${200})`.exec(db);
+            sql`
+                INSERT INTO
+                    _alpine_view_fields (view_id, field_id, position, width)
+                VALUES
+                    (
+                        ${viewId},
+                        ${fieldId},
+                        ${0},
+                        ${200}
+                    )
+            `.exec(db);
 
             return {tableId, tableName, viewId};
         },
@@ -165,10 +227,14 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run(db) {
-            const rows = sql`SELECT * FROM _alpine_tables ORDER BY id`.selectAll(
-                db,
-                alpineTableConfig,
-            );
+            const rows = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                ORDER BY
+                    id
+            `.selectAll(db, alpineTableConfig);
             const tables = new Map<DatabaseTableId, {name: string; tableName: string}>();
             for (const row of rows) {
                 tables.set(row.id, {name: row.name, tableName: row.tableName});
@@ -200,46 +266,78 @@ export const databaseActions = {
             let tableName: string;
 
             // Try to resolve as a table ID first.
-            const tableResult =
-                sql`SELECT * FROM _alpine_tables WHERE id = ${tableOrViewId}`.selectOneOrNone(
-                    db,
-                    alpineTableConfig,
-                );
+            const tableResult = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${tableOrViewId}
+            `.selectOneOrNone(db, alpineTableConfig);
 
             if (tableResult !== null) {
                 tableId = tableResult.id;
                 tableName = tableResult.tableName;
 
                 // Pick the first view for this table.
-                const view =
-                    sql`SELECT * FROM _alpine_views WHERE table_id = ${tableId} ORDER BY id LIMIT 1`.selectOne(
-                        db,
-                        alpineViewConfig,
-                    );
+                const view = sql`
+                    SELECT
+                        *
+                    FROM
+                        _alpine_views
+                    WHERE
+                        table_id = ${tableId}
+                    ORDER BY
+                        id
+                    LIMIT
+                        1
+                `.selectOne(db, alpineViewConfig);
                 viewId = view.id;
             } else {
                 // Try as a view ID.
-                const view = sql`SELECT * FROM _alpine_views WHERE id = ${tableOrViewId}`.selectOne(
-                    db,
-                    alpineViewConfig,
-                );
+                const view = sql`
+                    SELECT
+                        *
+                    FROM
+                        _alpine_views
+                    WHERE
+                        id = ${tableOrViewId}
+                `.selectOne(db, alpineViewConfig);
                 viewId = view.id;
                 tableId = view.tableId;
 
-                const table = sql`SELECT * FROM _alpine_tables WHERE id = ${tableId}`.selectOne(
-                    db,
-                    alpineTableConfig,
-                );
+                const table = sql`
+                    SELECT
+                        *
+                    FROM
+                        _alpine_tables
+                    WHERE
+                        id = ${tableId}
+                `.selectOne(db, alpineTableConfig);
                 tableName = table.tableName;
             }
 
-            const fields = sql`SELECT f.id, f.name, f.column_name, vf.width
-                FROM _alpine_view_fields vf
-                JOIN _alpine_fields f ON f.id = vf.field_id
-                WHERE vf.view_id = ${viewId}
-                ORDER BY vf.position`.selectAll(db, alpineViewFieldConfig);
+            const fields = sql`
+                SELECT
+                    f.id,
+                    f.name,
+                    f.column_name,
+                    vf.width
+                FROM
+                    _alpine_view_fields vf
+                    JOIN _alpine_fields f ON f.id = vf.field_id
+                WHERE
+                    vf.view_id = ${viewId}
+                ORDER BY
+                    vf.position
+            `.selectAll(db, alpineViewFieldConfig);
 
-            const rows = sql`SELECT * FROM ${sql.identifier(tableName)}`.selectAllUnknown(db);
+            const rows = sql`
+                SELECT
+                    *
+                FROM
+                    ${sql.identifier(tableName)}
+            `.selectAllUnknown(db);
             return {tableId, viewId, tableName, fields, rows};
         },
     }),
@@ -253,18 +351,31 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "data",
         run(db, {fieldId, rowId, value}) {
-            const field =
-                sql`SELECT id, table_id, column_name FROM _alpine_fields WHERE id = ${fieldId}`.selectOne(
-                    db,
-                    alpineFieldConfig,
-                );
-            const table = sql`SELECT * FROM _alpine_tables WHERE id = ${field.tableId}`.selectOne(
-                db,
-                alpineTableConfig,
-            );
-            sql`UPDATE ${sql.identifier(table.tableName)} SET ${sql.identifier(field.columnName)} = ${value} WHERE _id = ${rowId}`.exec(
-                db,
-            );
+            const field = sql`
+                SELECT
+                    id,
+                    table_id,
+                    column_name
+                FROM
+                    _alpine_fields
+                WHERE
+                    id = ${fieldId}
+            `.selectOne(db, alpineFieldConfig);
+            const table = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${field.tableId}
+            `.selectOne(db, alpineTableConfig);
+            sql`
+                UPDATE ${sql.identifier(table.tableName)}
+                SET
+                    ${sql.identifier(field.columnName)} = ${value}
+                WHERE
+                    _id = ${rowId}
+            `.exec(db);
             return {};
         },
     }),
@@ -279,37 +390,73 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "schema+data",
         run(db, {fieldId, tableId, viewId, name}) {
-            const table = sql`SELECT * FROM _alpine_tables WHERE id = ${tableId}`.selectOne(
-                db,
-                alpineTableConfig,
-            );
+            const table = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${tableId}
+            `.selectOne(db, alpineTableConfig);
 
             const existingColumnNames = new Set(
-                sql`SELECT column_name FROM _alpine_fields WHERE table_id = ${tableId}`
+                sql`
+                    SELECT
+                        column_name
+                    FROM
+                        _alpine_fields
+                    WHERE
+                        table_id = ${tableId}
+                `
                     .selectAll(db, {columnName: Schema.string.originalPropertyKey("column_name")})
                     .map(row => row.columnName),
             );
             const columnName = formatUniqueSqlName(name, existingColumnNames);
             const fieldType = serializeDatabaseFieldType({type: "plainText"});
 
-            sql`INSERT INTO _alpine_fields (id, table_id, name, column_name, type)
-                VALUES (${fieldId}, ${tableId}, ${name}, ${columnName}, ${fieldType})`.exec(db);
+            sql`
+                INSERT INTO
+                    _alpine_fields (id, table_id, name, column_name, type)
+                VALUES
+                    (
+                        ${fieldId},
+                        ${tableId},
+                        ${name},
+                        ${columnName},
+                        ${fieldType}
+                    )
+            `.exec(db);
 
             const sqliteType = alpineFieldTypeToSqliteType("plainText");
             const check = checkConstraintForColumn(columnName, sqliteType, true);
 
-            sql`ALTER TABLE ${sql.identifier(table.tableName)}
-                ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(fieldId)} NOT NULL DEFAULT ''
-                ${check}`.exec(db);
+            sql`
+                ALTER TABLE ${sql.identifier(table.tableName)}
+                ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
+                    fieldId,
+                )} NOT NULL DEFAULT '' ${check}
+            `.exec(db);
 
-            const maxPos =
-                sql`SELECT MAX(position) FROM _alpine_view_fields WHERE view_id = ${viewId}`.selectValue(
-                    db,
-                    Schema.integer.nullable(),
-                );
+            const maxPos = sql`
+                SELECT
+                    MAX(position)
+                FROM
+                    _alpine_view_fields
+                WHERE
+                    view_id = ${viewId}
+            `.selectValue(db, Schema.integer.nullable());
 
-            sql`INSERT INTO _alpine_view_fields (view_id, field_id, position, width)
-                VALUES (${viewId}, ${fieldId}, ${(maxPos ?? -1) + 1}, ${200})`.exec(db);
+            sql`
+                INSERT INTO
+                    _alpine_view_fields (view_id, field_id, position, width)
+                VALUES
+                    (
+                        ${viewId},
+                        ${fieldId},
+                        ${(maxPos ?? -1) + 1},
+                        ${200}
+                    )
+            `.exec(db);
 
             return {};
         },

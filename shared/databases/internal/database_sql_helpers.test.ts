@@ -65,24 +65,26 @@ describe("alpineFieldTypeToSqliteType", () => {
 
 describe("checkConstraintForColumn", () => {
     test("TEXT NOT NULL", () => {
-        expect(checkConstraintForColumn("col", "TEXT", true)).toBe("CHECK(typeof(col) = 'text')");
+        expect(checkConstraintForColumn("col", "TEXT", true).query).toBe(
+            "CHECK ( TYPEOF(\"col\") = 'text' )",
+        );
     });
 
     test("TEXT nullable", () => {
-        expect(checkConstraintForColumn("col", "TEXT", false)).toBe(
-            "CHECK(typeof(col) = 'text' OR col IS NULL)",
+        expect(checkConstraintForColumn("col", "TEXT", false).query).toBe(
+            'CHECK ( TYPEOF("col") = \'text\' OR "col" IS NULL )',
         );
     });
 
     test("REAL NOT NULL", () => {
-        expect(checkConstraintForColumn("col", "REAL", true)).toBe(
-            "CHECK(typeof(col) IN ('real', 'integer'))",
+        expect(checkConstraintForColumn("col", "REAL", true).query).toBe(
+            "CHECK ( TYPEOF(\"col\") IN ('real', 'integer') )",
         );
     });
 
     test("INTEGER NOT NULL", () => {
-        expect(checkConstraintForColumn("col", "INTEGER", true)).toBe(
-            "CHECK(typeof(col) = 'integer')",
+        expect(checkConstraintForColumn("col", "INTEGER", true).query).toBe(
+            "CHECK ( TYPEOF(\"col\") = 'integer' )",
         );
     });
 });

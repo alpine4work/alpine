@@ -70,16 +70,43 @@ export function checkConstraintForColumn(
     switch (sqliteType) {
         case "TEXT":
             return notNull
-                ? sql`CHECK(typeof(${col}) = 'text')`
-                : sql`CHECK(typeof(${col}) = 'text' OR ${col} IS NULL)`;
+                ? sql`
+                      CHECK (
+                          TYPEOF(${col}) = 'text'
+                      )
+                  `
+                : sql`
+                      CHECK (
+                          TYPEOF(${col}) = 'text'
+                          OR ${col} IS NULL
+                      )
+                  `;
         case "REAL":
             return notNull
-                ? sql`CHECK(typeof(${col}) IN ('real', 'integer'))`
-                : sql`CHECK(typeof(${col}) IN ('real', 'integer') OR ${col} IS NULL)`;
+                ? sql`
+                      CHECK (
+                          TYPEOF(${col}) IN ('real', 'integer')
+                      )
+                  `
+                : sql`
+                      CHECK (
+                          TYPEOF(${col}) IN ('real', 'integer')
+                          OR ${col} IS NULL
+                      )
+                  `;
         case "INTEGER":
             return notNull
-                ? sql`CHECK(typeof(${col}) = 'integer')`
-                : sql`CHECK(typeof(${col}) = 'integer' OR ${col} IS NULL)`;
+                ? sql`
+                      CHECK (
+                          TYPEOF(${col}) = 'integer'
+                      )
+                  `
+                : sql`
+                      CHECK (
+                          TYPEOF(${col}) = 'integer'
+                          OR ${col} IS NULL
+                      )
+                  `;
         default:
             assert(false, `unsupported SQLite type: ${sqliteType}`);
     }

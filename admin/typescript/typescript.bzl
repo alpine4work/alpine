@@ -295,6 +295,8 @@ def ts_lint_and_format_test(
         data = _dedupe_labels(srcs + [
             "//:prettier.config.cjs",
             "//:.prettierignore",
+            "//:node_modules/prettier-plugin-embed",
+            "//:node_modules/prettier-plugin-sql",
         ]),
         size = "small",
         tags = ["prettier", "dev-check"] + tags,

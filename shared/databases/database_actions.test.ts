@@ -29,10 +29,20 @@ describe("createTable", () => {
         expect(isId(tableId)).toBe(true);
         expect(tableName).toBe("tasks");
 
-        const tables = sql`SELECT * FROM _alpine_tables`.selectAllUnknown(db);
+        const tables = sql`
+            SELECT
+                *
+            FROM
+                _alpine_tables
+        `.selectAllUnknown(db);
         expect(tables).toMatchObject([{id: tableId, name: "Tasks", table_name: "tasks"}]);
 
-        const fields = sql`SELECT * FROM _alpine_fields`.selectAllUnknown(db);
+        const fields = sql`
+            SELECT
+                *
+            FROM
+                _alpine_fields
+        `.selectAllUnknown(db);
         expect(fields).toMatchObject([
             {
                 table_id: tableId,
@@ -48,8 +58,18 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "Tasks"});
 
-        sql`INSERT INTO ${sql.identifier(tableName)} (name) VALUES ('Do laundry')`.exec(db);
-        const rows = sql`SELECT * FROM ${sql.identifier(tableName)}`.selectAllUnknown(db);
+        sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} (name)
+            VALUES
+                ('Do laundry')
+        `.exec(db);
+        const rows = sql`
+            SELECT
+                *
+            FROM
+                ${sql.identifier(tableName)}
+        `.selectAllUnknown(db);
 
         expect(isId(rows[0]!._id as string)).toBe(true);
         expect(rows).toMatchObject([{name: "Do laundry"}]);
@@ -60,10 +80,26 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
-        sql`INSERT INTO ${sql.identifier(tableName)} (name) VALUES ('a')`.exec(db);
-        sql`INSERT INTO ${sql.identifier(tableName)} (name) VALUES ('b')`.exec(db);
-        const rows =
-            sql`SELECT _id FROM ${sql.identifier(tableName)} ORDER BY _id`.selectAllUnknown(db);
+        sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} (name)
+            VALUES
+                ('a')
+        `.exec(db);
+        sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} (name)
+            VALUES
+                ('b')
+        `.exec(db);
+        const rows = sql`
+            SELECT
+                _id
+            FROM
+                ${sql.identifier(tableName)}
+            ORDER BY
+                _id
+        `.selectAllUnknown(db);
 
         expect(rows).toHaveLength(2);
         expect(isId(rows[0]!._id as string)).toBe(true);
@@ -75,8 +111,18 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
-        sql`INSERT INTO ${sql.identifier(tableName)} (name) VALUES ('x')`.exec(db);
-        const createdAt = sql`SELECT _created_at FROM ${sql.identifier(tableName)}`.selectOne(db, {
+        sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} (name)
+            VALUES
+                ('x')
+        `.exec(db);
+        const createdAt = sql`
+            SELECT
+                _created_at
+            FROM
+                ${sql.identifier(tableName)}
+        `.selectOne(db, {
             createdAt: Schema.string.originalPropertyKey("_created_at"),
         }).createdAt;
 
@@ -89,9 +135,12 @@ describe("createTable", () => {
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
         expect(() => {
-            sql`INSERT INTO ${sql.identifier(tableName)} (_created_at, name) VALUES ('not-a-date', 'x')`.exec(
-                db,
-            );
+            sql`
+                INSERT INTO
+                    ${sql.identifier(tableName)} (_created_at, name)
+                VALUES
+                    ('not-a-date', 'x')
+            `.exec(db);
         }).toThrow("CHECK");
     });
 
@@ -99,8 +148,17 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
-        sql`INSERT INTO ${sql.identifier(tableName)} DEFAULT VALUES`.exec(db);
-        const name = sql`SELECT name FROM ${sql.identifier(tableName)}`.selectOne(db, {
+        sql`
+            INSERT INTO
+                ${sql.identifier(tableName)} DEFAULT
+            VALUES
+        `.exec(db);
+        const name = sql`
+            SELECT
+                name
+            FROM
+                ${sql.identifier(tableName)}
+        `.selectOne(db, {
             name: Schema.string,
         }).name;
         expect(name).toBe("");
@@ -111,9 +169,12 @@ describe("createTable", () => {
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
         expect(() => {
-            sql`INSERT INTO ${sql.identifier(tableName)} (name) VALUES (${sql.raw("x'00'")})`.exec(
-                db,
-            );
+            sql`
+                INSERT INTO
+                    ${sql.identifier(tableName)} (name)
+                VALUES
+                    (${sql.raw("x'00'")})
+            `.exec(db);
         }).toThrow("CHECK");
     });
 
@@ -121,7 +182,7 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
-        const colInfo = sql`PRAGMA table_info(${sql.identifier(tableName)})`.selectAllUnknown(db);
+        const colInfo = sql`PRAGMA table_info (${sql.identifier(tableName)})`.selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
         expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}$/);
@@ -140,7 +201,7 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableName} = databaseActions.createTable.run(db, {name: "T"});
 
-        const indexes = sql`PRAGMA index_list(${sql.identifier(tableName)})`.selectAllUnknown(db);
+        const indexes = sql`PRAGMA index_list (${sql.identifier(tableName)})`.selectAllUnknown(db);
 
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
@@ -150,9 +211,14 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableId} = databaseActions.createTable.run(db, {name: "Tasks"});
 
-        const views = sql`SELECT * FROM _alpine_views WHERE table_id = ${tableId}`.selectAllUnknown(
-            db,
-        );
+        const views = sql`
+            SELECT
+                *
+            FROM
+                _alpine_views
+            WHERE
+                table_id = ${tableId}
+        `.selectAllUnknown(db);
 
         expect(views).toMatchObject([{table_id: tableId, name: "Grid view"}]);
         db.close();
@@ -170,8 +236,14 @@ describe("createTable", () => {
         const db = await createDb();
         const {viewId} = databaseActions.createTable.run(db, {name: "Tasks"});
 
-        const viewFields =
-            sql`SELECT * FROM _alpine_view_fields WHERE view_id = ${viewId}`.selectAllUnknown(db);
+        const viewFields = sql`
+            SELECT
+                *
+            FROM
+                _alpine_view_fields
+            WHERE
+                view_id = ${viewId}
+        `.selectAllUnknown(db);
 
         expect(viewFields).toMatchObject([{view_id: viewId, position: 0, width: 200}]);
         db.close();
@@ -182,21 +254,36 @@ describe("createTable", () => {
         const first = databaseActions.createTable.run(db, {name: "Tasks"});
         const second = databaseActions.createTable.run(db, {name: "Projects"});
 
-        const views = sql`SELECT * FROM _alpine_views ORDER BY id`.selectAllUnknown(db);
+        const views = sql`
+            SELECT
+                *
+            FROM
+                _alpine_views
+            ORDER BY
+                id
+        `.selectAllUnknown(db);
 
         expect(views).toMatchObject([
             {table_id: first.tableId, name: "Grid view"},
             {table_id: second.tableId, name: "Grid view"},
         ]);
 
-        const firstFields =
-            sql`SELECT * FROM _alpine_view_fields WHERE view_id = ${first.viewId}`.selectAllUnknown(
-                db,
-            );
-        const secondFields =
-            sql`SELECT * FROM _alpine_view_fields WHERE view_id = ${second.viewId}`.selectAllUnknown(
-                db,
-            );
+        const firstFields = sql`
+            SELECT
+                *
+            FROM
+                _alpine_view_fields
+            WHERE
+                view_id = ${first.viewId}
+        `.selectAllUnknown(db);
+        const secondFields = sql`
+            SELECT
+                *
+            FROM
+                _alpine_view_fields
+            WHERE
+                view_id = ${second.viewId}
+        `.selectAllUnknown(db);
 
         expect(firstFields).toHaveLength(1);
         expect(secondFields).toHaveLength(1);

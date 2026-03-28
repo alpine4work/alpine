@@ -60,7 +60,12 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema();
             const db = server.unsafeGetDbForTests();
 
-            expect(sql`SELECT 1 + 1`.selectValue(db, Schema.integer)).toBe(2);
+            expect(
+                sql`
+                    SELECT
+                        1 + 1
+                `.selectValue(db, Schema.integer),
+            ).toBe(2);
 
             server.close();
         });
@@ -114,8 +119,22 @@ describe("DatabaseServer", () => {
             db.exec("INSERT INTO a VALUES (1)");
             db.exec("INSERT INTO b VALUES (10, 1)");
 
-            expect(sql`SELECT COUNT(*) FROM a`.selectValue(db, Schema.integer)).toBe(1);
-            expect(sql`SELECT COUNT(*) FROM b`.selectValue(db, Schema.integer)).toBe(1);
+            expect(
+                sql`
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        a
+                `.selectValue(db, Schema.integer),
+            ).toBe(1);
+            expect(
+                sql`
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        b
+                `.selectValue(db, Schema.integer),
+            ).toBe(1);
 
             server.close();
         });
@@ -334,11 +353,17 @@ describe("DatabaseServer", () => {
             // Get each table's root page (SQLite's rootpage is
             // 1-based; our storage is 0-based).
             const db = server.unsafeGetDbForTests();
-            const schema =
-                sql`SELECT name, rootpage FROM sqlite_schema WHERE type = 'table' ORDER BY name`.selectAll(
-                    db,
-                    {name: Schema.string, rootpage: Schema.integer},
-                );
+            const schema = sql`
+                SELECT
+                    name,
+                    rootpage
+                FROM
+                    sqlite_schema
+                WHERE
+                    type = 'table'
+                ORDER BY
+                    name
+            `.selectAll(db, {name: Schema.string, rootpage: Schema.integer});
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(`SELECT * FROM "${name}"`, {allowWrites: "none"});
@@ -1127,10 +1152,20 @@ describe("DatabaseServer", () => {
             );
 
             expect(
-                sql`SELECT id FROM t1`.selectValue(server1.unsafeGetDbForTests(), Schema.integer),
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        t1
+                `.selectValue(server1.unsafeGetDbForTests(), Schema.integer),
             ).toBe(1);
             expect(
-                sql`SELECT id FROM t2`.selectValue(server2.unsafeGetDbForTests(), Schema.integer),
+                sql`
+                    SELECT
+                        id
+                    FROM
+                        t2
+                `.selectValue(server2.unsafeGetDbForTests(), Schema.integer),
             ).toBe(2);
 
             server1.close();

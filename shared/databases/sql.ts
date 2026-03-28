@@ -136,7 +136,7 @@ function sql(strings: TemplateStringsArray, ...values: Array<BindableValue | Sql
             }
         }
     }
-    return new SqlQuery(query, bind);
+    return new SqlQuery(query.replace(/\s+/g, " ").trim(), bind);
 }
 
 /**

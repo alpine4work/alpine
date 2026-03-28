@@ -24,12 +24,27 @@ afterEach(() => {
 
 describe("sql tagged template", () => {
     test("interpolates bind parameters as ?", () => {
-        const q = sql`SELECT * FROM t WHERE id = ${1}`;
+        const q = sql`
+            SELECT
+                *
+            FROM
+                t
+            WHERE
+                id = ${1}
+        `;
         expect(q).toMatchObject({query: "SELECT * FROM t WHERE id = ?", bind: [1]});
     });
 
     test("handles multiple bind parameters", () => {
-        const q = sql`SELECT * FROM t WHERE id = ${1} AND name = ${"alice"}`;
+        const q = sql`
+            SELECT
+                *
+            FROM
+                t
+            WHERE
+                id = ${1}
+                AND name = ${"alice"}
+        `;
         expect(q).toMatchObject({
             query: "SELECT * FROM t WHERE id = ? AND name = ?",
             bind: [1, "alice"],
@@ -37,16 +52,27 @@ describe("sql tagged template", () => {
     });
 
     test("handles no interpolations", () => {
-        const q = sql`SELECT 1`;
+        const q = sql`
+            SELECT
+                1
+        `;
         expect(q).toMatchObject({query: "SELECT 1", bind: []});
     });
 
     test("returns a SqlQuery instance", () => {
-        expect(sql`SELECT 1`).toBeInstanceOf(SqlQuery);
+        expect(sql`
+            SELECT
+                1
+        `).toBeInstanceOf(SqlQuery);
     });
 
     test("inlines SqlQuery values verbatim", () => {
-        const q = sql`SELECT * FROM t ${sql.raw("ORDER BY id DESC")}`;
+        const q = sql`
+            SELECT
+                *
+            FROM
+                t ${sql.raw("ORDER BY id DESC")}
+        `;
         expect(q).toMatchObject({
             query: "SELECT * FROM t ORDER BY id DESC",
             bind: [],
@@ -54,8 +80,22 @@ describe("sql tagged template", () => {
     });
 
     test("inlines subquery and merges bindings", () => {
-        const sub = sql`SELECT id FROM other WHERE x = ${42}`;
-        const q = sql`SELECT * FROM t WHERE id IN (${sub})`;
+        const sub = sql`
+            SELECT
+                id
+            FROM
+                other
+            WHERE
+                x = ${42}
+        `;
+        const q = sql`
+            SELECT
+                *
+            FROM
+                t
+            WHERE
+                id IN (${sub})
+        `;
         expect(q).toMatchObject({
             query: "SELECT * FROM t WHERE id IN (SELECT id FROM other WHERE x = ?)",
             bind: [42],
@@ -63,7 +103,14 @@ describe("sql tagged template", () => {
     });
 
     test("mixes raw and bound values", () => {
-        const q = sql`SELECT * FROM ${sql.identifier("t")} WHERE id = ${1}`;
+        const q = sql`
+            SELECT
+                *
+            FROM
+                ${sql.identifier("t")}
+            WHERE
+                id = ${1}
+        `;
         expect(q).toMatchObject({
             query: 'SELECT * FROM "t" WHERE id = ?',
             bind: [1],
@@ -111,7 +158,15 @@ describe("sql.raw execution", () => {
 
 describe(".all", () => {
     test("returns all matching rows", () => {
-        const rows = sql`SELECT id, name FROM t ORDER BY id`.selectAll(db, {
+        const rows = sql`
+            SELECT
+                id,
+                name
+            FROM
+                t
+            ORDER BY
+                id
+        `.selectAll(db, {
             id: Schema.integer,
             name: Schema.string,
         });
@@ -123,14 +178,28 @@ describe(".all", () => {
     });
 
     test("returns empty array when no rows match", () => {
-        const rows = sql`SELECT id FROM t WHERE id = ${999}`.selectAll(db, {
+        const rows = sql`
+            SELECT
+                id
+            FROM
+                t
+            WHERE
+                id = ${999}
+        `.selectAll(db, {
             id: Schema.integer,
         });
         expect(rows).toEqual([]);
     });
 
     test("binds parameters correctly", () => {
-        const rows = sql`SELECT name FROM t WHERE score > ${15}`.selectAll(db, {
+        const rows = sql`
+            SELECT
+                name
+            FROM
+                t
+            WHERE
+                score > ${15}
+        `.selectAll(db, {
             name: Schema.string,
         });
         expect(rows).toEqual([{name: "bob"}, {name: "carol"}]);
@@ -139,7 +208,14 @@ describe(".all", () => {
 
 describe(".one", () => {
     test("returns the single matching row", () => {
-        const row = sql`SELECT name FROM t WHERE id = ${1}`.selectOne(db, {
+        const row = sql`
+            SELECT
+                name
+            FROM
+                t
+            WHERE
+                id = ${1}
+        `.selectOne(db, {
             name: Schema.string,
         });
         expect(row).toEqual({name: "alice"});
@@ -147,7 +223,14 @@ describe(".one", () => {
 
     test("asserts when zero rows returned", () => {
         expect(() =>
-            sql`SELECT name FROM t WHERE id = ${999}`.selectOne(db, {
+            sql`
+                SELECT
+                    name
+                FROM
+                    t
+                WHERE
+                    id = ${999}
+            `.selectOne(db, {
                 name: Schema.string,
             }),
         ).toThrow("Expected 1 row, got 0");
@@ -155,7 +238,12 @@ describe(".one", () => {
 
     test("asserts when multiple rows returned", () => {
         expect(() =>
-            sql`SELECT name FROM t`.selectOne(db, {
+            sql`
+                SELECT
+                    name
+                FROM
+                    t
+            `.selectOne(db, {
                 name: Schema.string,
             }),
         ).toThrow("Expected 1 row, got 3");
@@ -164,14 +252,28 @@ describe(".one", () => {
 
 describe(".oneOrNone", () => {
     test("returns the row when one matches", () => {
-        const row = sql`SELECT name FROM t WHERE id = ${2}`.selectOneOrNone(db, {
+        const row = sql`
+            SELECT
+                name
+            FROM
+                t
+            WHERE
+                id = ${2}
+        `.selectOneOrNone(db, {
             name: Schema.string,
         });
         expect(row).toEqual({name: "bob"});
     });
 
     test("returns null when no rows match", () => {
-        const row = sql`SELECT name FROM t WHERE id = ${999}`.selectOneOrNone(db, {
+        const row = sql`
+            SELECT
+                name
+            FROM
+                t
+            WHERE
+                id = ${999}
+        `.selectOneOrNone(db, {
             name: Schema.string,
         });
         expect(row).toBeNull();
@@ -179,7 +281,12 @@ describe(".oneOrNone", () => {
 
     test("asserts when multiple rows returned", () => {
         expect(() =>
-            sql`SELECT name FROM t`.selectOneOrNone(db, {
+            sql`
+                SELECT
+                    name
+                FROM
+                    t
+            `.selectOneOrNone(db, {
                 name: Schema.string,
             }),
         ).toThrow("Expected at most 1 row, got 3");
@@ -188,44 +295,101 @@ describe(".oneOrNone", () => {
 
 describe(".value", () => {
     test("returns a single scalar", () => {
-        expect(sql`SELECT 1 + 1`.selectValue(db, Schema.integer)).toBe(2);
+        expect(
+            sql`
+                SELECT
+                    1 + 1
+            `.selectValue(db, Schema.integer),
+        ).toBe(2);
     });
 
     test("binds parameters", () => {
-        expect(sql`SELECT score FROM t WHERE id = ${2}`.selectValue(db, Schema.integer)).toBe(20);
+        expect(
+            sql`
+                SELECT
+                    score
+                FROM
+                    t
+                WHERE
+                    id = ${2}
+            `.selectValue(db, Schema.integer),
+        ).toBe(20);
     });
 
     test("asserts when zero rows returned", () => {
         expect(() =>
-            sql`SELECT id FROM t WHERE id = ${999}`.selectValue(db, Schema.integer),
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+                WHERE
+                    id = ${999}
+            `.selectValue(db, Schema.integer),
         ).toThrow("Expected 1 row, got 0");
     });
 
     test("asserts when multiple rows returned", () => {
-        expect(() => sql`SELECT id FROM t`.selectValue(db, Schema.integer)).toThrow(
-            "Expected 1 row, got 3",
-        );
+        expect(() =>
+            sql`
+                SELECT
+                    id
+                FROM
+                    t
+            `.selectValue(db, Schema.integer),
+        ).toThrow("Expected 1 row, got 3");
     });
 
     test("asserts when multiple columns returned", () => {
         expect(() =>
-            sql`SELECT id, name FROM t WHERE id = ${1}`.selectValue(db, Schema.integer),
+            sql`
+                SELECT
+                    id,
+                    name
+                FROM
+                    t
+                WHERE
+                    id = ${1}
+            `.selectValue(db, Schema.integer),
         ).toThrow("Expected 1 column, got 2");
     });
 });
 
 describe(".exec", () => {
     test("executes DDL", () => {
-        sql`CREATE TABLE t2(x INTEGER)`.exec(db);
-        const rows = sql`SELECT name FROM sqlite_schema WHERE name = ${"t2"}`.selectAll(db, {
+        sql`CREATE TABLE t2 (x INTEGER)`.exec(db);
+        const rows = sql`
+            SELECT
+                name
+            FROM
+                sqlite_schema
+            WHERE
+                name = ${"t2"}
+        `.selectAll(db, {
             name: Schema.string,
         });
         expect(rows).toEqual([{name: "t2"}]);
     });
 
     test("executes INSERT with bindings", () => {
-        sql`INSERT INTO t VALUES(${4}, ${"dave"}, ${40})`.exec(db);
-        const row = sql`SELECT name FROM t WHERE id = ${4}`.selectOne(db, {
+        sql`
+            INSERT INTO
+                t
+            VALUES
+                (
+                    ${4},
+                    ${"dave"},
+                    ${40}
+                )
+        `.exec(db);
+        const row = sql`
+            SELECT
+                name
+            FROM
+                t
+            WHERE
+                id = ${4}
+        `.selectOne(db, {
             name: Schema.string,
         });
         expect(row).toEqual({name: "dave"});

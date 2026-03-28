@@ -275,6 +275,8 @@
         "playwright-core": "1.46.0",
         "postcss": "^8.4.41",
         "prettier": "^3.7.4",
+        "prettier-plugin-embed": "^0.4.15",
+        "prettier-plugin-sql": "^0.18.1",
         "pretty-bytes": "^6.1.1",
         "pretty-ms": "^7.0.1",
         "proper-lockfile": "^4.1.2",
@@ -520,6 +522,16 @@
             "@react-aria/datepicker": {
                 "dependencies": {
                     "@react-aria/ssr": "^3.8.0"
+                }
+            },
+            "prettier-plugin-embed": {
+                "dependencies": {
+                    "prettier": "^3.0.0"
+                }
+            },
+            "prettier-plugin-sql": {
+                "dependencies": {
+                    "prettier": "^3.0.0"
                 }
             },
             "@remix-run/dev": {

@@ -128,10 +128,12 @@ export class DatabaseServer {
         runSqliteMigrations(this.db);
 
         // Seed a default table for new databases.
-        const tableCount = sql`SELECT COUNT(*) FROM _alpine_tables`.selectValue(
-            this.db,
-            Schema.integer,
-        );
+        const tableCount = sql`
+            SELECT
+                COUNT(*)
+            FROM
+                _alpine_tables
+        `.selectValue(this.db, Schema.integer);
         if (tableCount === 0) {
             databaseActions.createTable.run(this.db, {name: "Table"});
         }
