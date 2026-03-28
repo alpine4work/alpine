@@ -341,10 +341,11 @@ function DatabaseGridViewHeaderRow({
     }, [addingField !== null]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <Box display="flex" backgroundColor="grey-5">
+        <Box display="flex" borderBottom="grey-5-translucent">
             {fields.map(field => (
                 <Box
                     key={field.columnName}
+                    backgroundColor="grey-0"
                     color="grey-80"
                     fontSize="75"
                     fontStyle="truncate-semi-bold"
@@ -360,7 +361,7 @@ function DatabaseGridViewHeaderRow({
                 </Box>
             ))}
             {addingField !== null && (
-                <Box style={{width: 200, minWidth: 200, maxWidth: 200}}>
+                <Box style={{width: 200, minWidth: 200, maxWidth: 200}} backgroundColor="grey-0">
                     <input
                         ref={inputRef}
                         value={addingField}
@@ -401,6 +402,7 @@ function DatabaseGridViewHeaderRow({
                 justifyContent="center"
                 width="8"
                 flexShrink="0"
+                backgroundColor="grey-0"
             >
                 <IconButton
                     description="Add field"
@@ -411,6 +413,7 @@ function DatabaseGridViewHeaderRow({
                     <Plus />
                 </IconButton>
             </Box>
+            <Box backgroundColor="grey-0" flexGrow="1" />
         </Box>
     );
 }
@@ -437,7 +440,7 @@ function DatabaseGridViewDataRow({
     showGhostCell: boolean;
 }) {
     return (
-        <Box display="flex" borderBottom="grey-10">
+        <Box display="flex" borderBottom="grey-5">
             {fields.map(field => {
                 const isSelected =
                     selection != null &&
@@ -462,11 +465,7 @@ function DatabaseGridViewDataRow({
                 );
             })}
             {showGhostCell && (
-                <Box
-                    fontSize="75"
-                    padding="2"
-                    style={{width: 200, minWidth: 200, maxWidth: 200}}
-                />
+                <Box fontSize="75" padding="2" style={{width: 200, minWidth: 200, maxWidth: 200}} />
             )}
         </Box>
     );
@@ -543,9 +542,7 @@ function DatabaseGridViewCell({
                     marginTop: isFirstRow ? undefined : -1,
                     marginBottom: -1,
                     marginRight: -1,
-                    ...(shouldShowBorder
-                        ? {zIndex: 1, position: "relative" as const}
-                        : undefined),
+                    ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
                 }}
                 onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
             >
