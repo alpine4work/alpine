@@ -4,14 +4,18 @@ import {
     AgentWebSessionStorage,
     AgentWebSessionStorageCollection,
 } from "~/server/agents/web/agent_web_session_storage.js";
+import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
+import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
+    BotId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
@@ -27,6 +31,9 @@ const threadId2 = generateId<DocumentCommentThreadId>();
 const threadId3 = generateId<DocumentCommentThreadId>();
 const threadId4 = generateId<DocumentCommentThreadId>();
 const threadId5 = generateId<DocumentCommentThreadId>();
+const calebAccountId = generateId<AccountId>();
+const chatGptAccountId = generateId<AccountId>();
+const chatGptBotId = generateId<BotId>();
 
 const exampleUrl = `https://example.com/${generateId()}/${generateId()}/${generateId()}`;
 const exampleTruncatedUrl = exampleUrl.slice(0, 40) + "…" + exampleUrl.slice(-10);
@@ -64,7 +71,7 @@ function createAgentWebSessionStorageCollection<
 
 const storage: AgentWebSessionStorage = {
     mutex: new Mutex(),
-    pageKeyByLinkPath: createAgentWebSessionStorageCollection(),
+    pageLinkByPath: createAgentWebSessionStorageCollection(),
     lastPageLinkPathByKey: createAgentWebSessionStorageCollection(),
     dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
     documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
@@ -164,6 +171,114 @@ Review [Fix auth (Open)](/task/fix-auth) today
         },
         markdown: `\
 See [Product Spec](/document/product-spec) and [Product Spec](/document/product-spec-2)
+`,
+    },
+    {
+        name: "human account mention element",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Hello "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: calebAccountId,
+                                title: "Caleb Meredith",
+                                shortName: "Caleb",
+                            },
+                        },
+                        {type: "Text", text: "!"},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Hello [Caleb Meredith](/human/caleb-meredith)!
+`,
+    },
+    {
+        name: "human short account mention element",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Hello "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: calebAccountId,
+                                title: "Caleb Meredith",
+                                shortName: "Caleb",
+                            },
+                            isAccountShortName: true,
+                        },
+                        {type: "Text", text: "!"},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Hello [Caleb](/human/caleb-meredith)!
+`,
+    },
+    {
+        name: "bot account mention element",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Hello "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: chatGptAccountId,
+                                title: "ChatGPT",
+                                shortName: "ChatGPT",
+                                botId: chatGptBotId,
+                            },
+                        },
+                        {type: "Text", text: "!"},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Hello [ChatGPT](/bot/chatgpt)!
+`,
+    },
+    {
+        name: "bot short account mention element",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Hello "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: chatGptAccountId,
+                                title: "ChatGPT",
+                                shortName: "ChatGPT",
+                                botId: chatGptBotId,
+                            },
+                            isAccountShortName: true,
+                        },
+                        {type: "Text", text: "!"},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Hello [ChatGPT](/bot/chatgpt#short)!
 `,
     },
     {
@@ -1128,6 +1243,24 @@ for (const {name, content: expectedContent, markdown: expectedMarkdown} of testC
             );
 
             expect(actualMarkdown).toEqual(expectedMarkdown);
+        });
+
+        test("parses agent web markdown back to content", async () => {
+            const actualMarkdown = await printApiContentToAgentWebMarkdown(
+                storage,
+                expectedContent,
+                {spaceId, documentId},
+            );
+
+            const actualContent = await parseApiContentFromAgentWebMarkdown(
+                storage,
+                actualMarkdown,
+                {spaceId},
+            );
+
+            expect(normalizeApiContent(actualContent)).toEqual(
+                normalizeApiContent(expectedContent),
+            );
         });
     });
 }

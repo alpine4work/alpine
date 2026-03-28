@@ -363,11 +363,12 @@ function normalizeApiContentInlineElements(
         }
 
         if (element.type === "Mention") {
-            // The mention title is only sometimes included as a convenience. It isn't
-            // essential to the mention element.
-            if (hasOwnProperty(element, "title")) {
-                delete element.title;
-            }
+            // Cleanup response properties that aren't compared when determining content
+            // equality.
+            if (hasOwnProperty(element.target, "title")) delete element.target.title;
+            if (hasOwnProperty(element.target, "shortName")) delete element.target.shortName;
+            if (hasOwnProperty(element.target, "botId")) delete element.target.botId;
+            if (hasOwnProperty(element.target, "status")) delete element.target.status;
 
             // `isAccountShortName` can only be true for account targets. Otherwise set to
             // undefined.

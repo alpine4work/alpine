@@ -153,28 +153,59 @@ async function traverseApiContentMarkdownNode(
 
             return storage.mutex.withLock(async () => {
                 const pageLink = createApiTargetAgentWebPageLink(mentionElement.target);
+
                 const pageKey = printAgentWebPageKey(pageLink);
 
                 let dedupeNumber = 1;
                 let pageLinkPath = printAgentWebPageLinkPath(pageLink, dedupeNumber);
 
-                let actualPageKey = await storage.pageKeyByLinkPath.get(pageLinkPath);
+                let actualPageKey = await storage.pageLinkByPath.get(pageLinkPath);
 
-                while (actualPageKey !== undefined && actualPageKey !== pageKey) {
+                while (
+                    actualPageKey !== undefined &&
+                    printAgentWebPageKey(actualPageKey) !== pageKey
+                ) {
                     dedupeNumber++;
                     pageLinkPath = printAgentWebPageLinkPath(pageLink, dedupeNumber);
-                    actualPageKey = await storage.pageKeyByLinkPath.get(pageLinkPath);
+                    actualPageKey = await storage.pageLinkByPath.get(pageLinkPath);
                 }
 
                 if (actualPageKey === undefined) {
-                    await storage.pageKeyByLinkPath.put(pageLinkPath, pageKey);
+                    await storage.pageLinkByPath.put(pageLinkPath, pageLink);
                     await storage.lastPageLinkPathByKey.put(pageKey, pageLinkPath);
+                }
+
+                const originalPageLinkLabel = printAgentWebPageLinkLabel(pageLink);
+
+                // We encode the fact that this is a short account mention by using a label that's
+                // different from what you'd expect when printing `pageLink`.
+                const pageLinkLabel =
+                    mentionElement.target.type === "Account" && mentionElement.isAccountShortName
+                        ? mentionElement.target.shortName
+                        : originalPageLinkLabel;
+
+                // If we weren't able to encode the fact that this is a short account mention by
+                // using the short account name in the label, then add a hash part to the path.
+                // When resolving the path we should ignore the hash part (which mirrors web server
+                // behavior, the hash part isn't sent to the server it's only visible on the
+                // client).
+                //
+                // We shouldn't see this much in practice because the client shouldn't set
+                // `isAccountShortName` if the short name is identical to the long name.
+                //
+                // NOCOMMIT: Make sure the `read` tool throws away the hash part.
+                if (
+                    mentionElement.target.type === "Account" &&
+                    mentionElement.isAccountShortName &&
+                    mentionElement.target.shortName === originalPageLinkLabel
+                ) {
+                    pageLinkPath += "#short";
                 }
 
                 return {
                     type: "link",
                     url: pageLinkPath,
-                    children: [{type: "text", value: printAgentWebPageLinkLabel(pageLink)}],
+                    children: [{type: "text", value: pageLinkLabel}],
                 };
             });
         }

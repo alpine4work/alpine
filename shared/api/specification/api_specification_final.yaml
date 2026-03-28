@@ -1629,6 +1629,8 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
         AccountTarget_Response:
@@ -1637,6 +1639,7 @@ components:
                 - type
                 - id
                 - title
+                - shortName
             additionalProperties: false
             properties:
                 type:
@@ -1645,6 +1648,8 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
         ChannelTarget:
@@ -2700,9 +2705,7 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
                 shortName:
-                    type: string
-                    minLength: 1
-                    maxLength: 50
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
                 space:

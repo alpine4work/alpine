@@ -1,19 +1,13 @@
 import {BlockContent, DefinitionContent, Parent, Root} from "mdast";
+import {AgentWebPageKeyObject} from "~/server/agents/web/agent_web_page_key.js";
+import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {
-    printApiMentionTargetToMentionLinkUrl,
-    printAppUrlFromApiNotMentionPath,
-} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiPath,
-    isApiMentionTargetPath,
-    isApiNotMentionTargetPath,
-    parseApiMentionTarget,
-    parseApiNotMentionTarget,
-} from "~/shared/api/specification/parse_api_path.js";
+import {printApiMentionTargetToMentionLinkUrl} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentBlockElement,
     ApiMessageStreamPartPayload,
@@ -21,11 +15,10 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-// NOCOMMIT: Delete this and replace with `AgentWebMarkdownStreamParser`
 
 export type AgentMessageStreamPart = {
     readonly index: number;
@@ -35,14 +28,10 @@ export type AgentMessageStreamPart = {
 /**
  * Manages message streaming for agents. You stream text into this class with
  * `pushText()` and you turn that text into parts with `update()`.
- *
- * NOTE(calebmer): This class would make more sense in `//server/agents/bots` since
- * it's specifically geared for LLM stream processing but we want to have access to
- * this class for the tests in this file.
  */
-export class AgentMessageStream {
+export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null> {
+    private readonly _storage: AgentWebSessionStorage;
     private readonly _spaceId: SpaceId;
-    private readonly _getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
 
     private _textState: {
         // When you call `pushText()` you must pass in a `TracerSpan`. This is the latest
@@ -53,21 +42,15 @@ export class AgentMessageStream {
         // for the ChatGPT agent at least). For the ChatGPT agent we want the content part
         // span to be a child of the "OpenAI output item message" span created by
         // `open_ai_client.ts`.
-        latestSpan: TracerSpan;
+        latestSpan: Span;
         text: string;
     } | null = null;
 
     private _parts: Array<AgentMessageStreamPart> = [];
 
-    constructor({
-        spaceId,
-        getTargetPathIfExists,
-    }: {
-        spaceId: SpaceId;
-        getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
-    }) {
+    constructor({storage, spaceId}: {storage: AgentWebSessionStorage; spaceId: SpaceId}) {
+        this._storage = storage;
         this._spaceId = spaceId;
-        this._getTargetPathIfExists = getTargetPathIfExists;
     }
 
     /**
@@ -82,7 +65,7 @@ export class AgentMessageStream {
      * Adds some text to the message. The text will be parsed into content later by
      * `update()` which is called with some throttling.
      */
-    public pushText(span: TracerSpan, text: string) {
+    public pushText(span: Span, text: string) {
         if (this._textState === null) {
             this._textState = {
                 latestSpan: span,
@@ -108,10 +91,10 @@ export class AgentMessageStream {
      * You may pass in `newParts` to add non-content parts to the stream.
      */
     public async update(
-        updateSpan: TracerSpan,
+        updateSpan: Span,
         newPartPayloads: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>> = [],
-    ): Promise<Array<{span: TracerSpan; part: AgentMessageStreamPart}>> {
-        const putParts: Array<{span: TracerSpan; part: AgentMessageStreamPart}> = [];
+    ): Promise<Array<{span: Span; part: AgentMessageStreamPart}>> {
+        const putParts: Array<{span: Span; part: AgentMessageStreamPart}> = [];
 
         const markdownParts = await this._parseTextIntoMarkdownParts();
         if (markdownParts.length > 0) {
@@ -184,7 +167,7 @@ export class AgentMessageStream {
                     };
 
                     // We only need to update the last part if it actually changed.
-                    if (!isDeepEqual(this._parts[this._parts.length - 1], firstPart)) {
+                    if (!isDeepEqual(this._parts[this._parts.length - 1]!, firstPart)) {
                         putParts.push({span: textSpan, part: firstPart});
                         this._parts[this._parts.length - 1] = firstPart;
                     }
@@ -341,37 +324,38 @@ export class AgentMessageStream {
 
                 if (childNode.type === "link") {
                     promiseWaiter.waitUntil(async () => {
-                        // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
-                        // mentionable, `targetPath` will be null. We need to build a plain link for non
-                        // mentionable content and we also need to swap the label so something more user
-                        // friendly (`mentionLabel`).
-                        const targetPath = await this._getTargetPathIfExists(childNode.url);
+                        // This link looks like a mention, let's add the correct link to the Markdown tree
+                        // before parsing into content.
+                        if (childNode.url.startsWith("/") || !/[a-zA-Z0-9]+:/.test(childNode.url)) {
+                            let url = childNode.url;
 
-                        if (!targetPath) return null;
+                            // Add a leading slash in case the LLM forgot to add one.
+                            if (!url.startsWith("/")) url = `/${url}`;
 
-                        if (isApiMentionTargetPath(targetPath)) {
-                            const mentionTarget = parseApiMentionTarget(targetPath);
+                            // Remove the hash part of the URL before resolving. Just like in an actual web
+                            // server! The hash part is only visible to the client, it's not visible to the
+                            // server. So it doesn't change server resolution.
+                            url = url.replace(/#.*$/, "");
 
-                            node.children[index] = {
-                                type: "link",
-                                url: printApiMentionTargetToMentionLinkUrl(mentionTarget, {
-                                    spaceId: this._spaceId,
-                                    isAccountShortName: undefined,
-                                }),
-                                children: childNode.children,
-                                position: childNode.position,
-                            };
-                        } else {
-                            // If it's not mentionable, we'll create a direct link to the content. For exampe,
-                            // the link to a chat message will look someting like
-                            // `/chats/${chatId}?message=${messageIndex}
-                            assert(isApiNotMentionTargetPath(targetPath));
-                            const targetPathObject = parseApiNotMentionTarget(targetPath);
+                            // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
+                            // mentionable, `pageLink` will be null. We need to build a plain link for non
+                            // mentionable content and we also need to swap the label so something more user
+                            // friendly (`mentionLabel`).
+                            const pageLink = await this._storage.pageLinkByPath.get(url);
+
+                            if (!pageLink) return;
 
                             node.children[index] = {
                                 type: "link",
-                                url: printAppUrlFromApiNotMentionPath(targetPathObject, {
+                                url: printAgentWebPageKeyToLinkUrl(pageLink, {
                                     spaceId: this._spaceId,
+                                    isAccountShortName:
+                                        pageLink.type === "Account"
+                                            ? url.endsWith("#short") ||
+                                              printMarkdownPhrasingContentText(
+                                                  childNode.children,
+                                              ) !== printAgentWebPageLinkLabel(pageLink)
+                                            : undefined,
                                 }),
                                 children: childNode.children,
                                 position: childNode.position,
@@ -581,6 +565,7 @@ function getPreviousListOrderStartFromPreviousBlockContent(
 
     return undefined;
 }
+
 /*
  * The message stream parts is a 2D array of Content (Array<Array<ApiMessageStreamPartPayload>>).
  * This function looks backward from the stream parts until either:
@@ -675,4 +660,28 @@ function getListStartAndPreviousNumberOfItemsInListIfExists<
         numberOfItemsInList,
         previousListOrderStart,
     };
+}
+
+function printAgentWebPageKeyToLinkUrl(
+    key: AgentWebPageKeyObject,
+    options: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
+): string {
+    switch (key.type) {
+        case "Account":
+        case "Channel":
+        case "Document":
+        case "Task":
+        case "TaskCollection":
+            return printApiMentionTargetToMentionLinkUrl(key, options);
+        case "ChatMessages":
+            return printApiMentionTargetToMentionLinkUrl({type: "Chat", id: key.id}, options);
+        case "PostMessages":
+            return printApiMentionTargetToMentionLinkUrl({type: "Post", id: key.id}, options);
+        case "DocumentMessages":
+            return `https://alpine.inc/s/${options.spaceId}/documents/${key.id}?comments=${key.threadId}`;
+        case "TaskMessages":
+            return printApiMentionTargetToMentionLinkUrl({type: "Task", id: key.id}, options);
+        default:
+            throw exhaustive(key);
+    }
 }

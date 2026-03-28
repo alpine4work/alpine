@@ -18,7 +18,6 @@ import {toMarkdown} from "mdast-util-to-markdown";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_api_checklist_block_element_item.js";
 import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
-import {ApiNotMentionPathObject} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -605,17 +604,9 @@ function printApiContentCodeBlockElementToMarkdown(
                         break;
                     }
                     case "Comment": {
-<<<<<<< HEAD
-                        html += options.withSimpleCommentMarkHtml
-                            ? "<comment>"
-                            : `<mark data-comment="${mark.threadId}">`;
-=======
                         html += options.withCommentTagHtml
-                            ? // eslint-disable-next-line cyberworlds/string-quotes
-                              `<comment id="${mark.threadId}">`
-                            : // eslint-disable-next-line cyberworlds/string-quotes
-                              `<mark data-comment="${mark.threadId}">`;
->>>>>>> 6deb03513 (Add comment mark printing)
+                            ? `<comment id="${mark.threadId}">`
+                            : `<mark data-comment="${mark.threadId}">`;
                         break;
                     }
                     default:
@@ -1239,7 +1230,7 @@ function* printApiContentInlineElementToMarkdown(
                     ? "Unknown"
                     : `Unknown ${getApiMentionTargetNoun(mentionTarget.type)}`);
 
-            const targetUrl = printApiMentionPathToMentionLinkUrl(mentionTarget, {
+            const targetUrl = printApiMentionTargetToMentionLinkUrl(mentionTarget, {
                 spaceId: options.spaceId,
                 isAccountShortName: element.isAccountShortName,
             });
@@ -1293,7 +1284,7 @@ function* printApiContentInlineElementToMarkdown(
     }
 }
 
-export function printApiMentionPathToMentionLinkUrl(
+export function printApiMentionTargetToMentionLinkUrl(
     target: ApiMentionTarget,
     {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
 ) {
@@ -1398,34 +1389,6 @@ function isWebSafeAudioContentType(contentType: string): boolean {
  */
 function isWebSafeVideoContentType(contentType: string): boolean {
     return contentType === "video/webm";
-}
-
-export function printAppUrlFromApiNotMentionPath(
-    targetPathObject: ApiNotMentionPathObject,
-    {spaceId}: {spaceId: SpaceId},
-): string {
-    switch (targetPathObject.type) {
-        case "ChatMessages":
-            return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.id}`;
-        case "ChatMessage":
-            return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.id}?message=${targetPathObject.index}`;
-        case "DocumentComment":
-            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.id}?comments=${targetPathObject.threadId}&comment=${targetPathObject.index}`;
-        case "DocumentCommentThread":
-        case "DocumentCommentThreadComments":
-            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.id}?comments=${targetPathObject.threadId}`;
-        case "PostComment":
-            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.id}?comment=${targetPathObject.index}`;
-        case "PostComments":
-            // Redirect to the post itself. This is mentionable.
-            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.id}?mention`;
-        case "TaskComment":
-            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.id}?comment=${targetPathObject.index}`;
-        case "TaskComments":
-            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.id}?comments=show`;
-        default:
-            throw exhaustive(targetPathObject);
-    }
 }
 
 function* printApiContentInlineElementMarksToMarkdown(

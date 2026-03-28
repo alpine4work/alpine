@@ -1,4 +1,5 @@
 import {AgentWebPageKey} from "~/server/agents/web/agent_web_page_key.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 
@@ -9,7 +10,7 @@ export interface AgentWebSessionStorage {
     readonly mutex: Mutex;
 
     // NOCOMMIT: Document
-    readonly pageKeyByLinkPath: AgentWebSessionStorageCollection<string, AgentWebPageKey>;
+    readonly pageLinkByPath: AgentWebSessionStorageCollection<string, AgentWebPageLink>;
 
     // NOCOMMIT: Document
     readonly lastPageLinkPathByKey: AgentWebSessionStorageCollection<AgentWebPageKey, string>;

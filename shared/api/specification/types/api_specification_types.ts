@@ -2026,6 +2026,7 @@ export namespace ApiSpecification {
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
                 readonly title?: string;
+                readonly shortName?: components["schemas"]["LabelString"];
                 readonly botId?: components["schemas"]["BotId"];
             };
             readonly AccountTarget_Response: {
@@ -2036,6 +2037,7 @@ export namespace ApiSpecification {
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
                 readonly title: string;
+                readonly shortName: components["schemas"]["LabelString"];
                 readonly botId?: components["schemas"]["BotId"];
             };
             readonly ChannelTarget: {
@@ -2668,7 +2670,7 @@ export namespace ApiSpecification {
             readonly Account: {
                 readonly id: components["schemas"]["AccountId"];
                 readonly name: components["schemas"]["LabelString"];
-                readonly shortName: string;
+                readonly shortName: components["schemas"]["LabelString"];
                 readonly botId?: components["schemas"]["BotId"];
                 readonly space: {
                     /** @enum {string} */

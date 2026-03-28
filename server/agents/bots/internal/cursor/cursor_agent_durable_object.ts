@@ -1261,6 +1261,8 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
 
         // We use `AgentMessageStream` even though there's no streaming so we parse content
         // from LLMs consistently across all our agents.
+        //
+        // NOCOMMIT: Use `parseApiContentFromAgentWebMarkdown()` here instead.
         const summaryMessageStream = new AgentMessageStream({
             spaceId: agent.spaceId,
             getTargetPathIfExists: async () => null,

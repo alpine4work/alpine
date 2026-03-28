@@ -72,6 +72,7 @@ import {
 
 export type ApiContentMarkdownParserOptions = {
     readonly spaceId: SpaceId | null;
+
     /**
      * When true, image markdown (`![alt](url)`) is converted to text with a Link mark,
      * allowing file processing to detect and handle them. When false (default), images

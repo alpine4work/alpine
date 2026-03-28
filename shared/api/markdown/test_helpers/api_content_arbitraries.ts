@@ -3,7 +3,7 @@ import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     isSimpleApiContentTableBlockElementForTest,
-    printApiMentionPathToMentionLinkUrl,
+    printApiMentionTargetToMentionLinkUrl,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
@@ -130,7 +130,7 @@ const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElemen
                 arbitrary: fc
                     .tuple(ApiMentionTargetArbitrary, fc.boolean())
                     .map(([targetPathObject, isAccountShortName]) =>
-                        printApiMentionPathToMentionLinkUrl(targetPathObject, {
+                        printApiMentionTargetToMentionLinkUrl(targetPathObject, {
                             spaceId: arbitrarySpaceId,
                             isAccountShortName,
                         }),

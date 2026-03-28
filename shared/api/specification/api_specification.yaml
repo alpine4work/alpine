@@ -1544,21 +1544,26 @@ components:
                 # `ContentMentionInlineElement_Response` (which will always have a title).
                 title:
                     type: string
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
 
         AccountTarget_Response:
             type: object
-            required: [type, id, title]
+            required: [type, id, title, shortName]
             additionalProperties: false
             properties:
                 type:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
+                # NOCOMMIT: Make sure `title` is the long name in mentions
                 title:
                     type: string
                 # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
 
@@ -2455,9 +2460,7 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
                 shortName:
-                    type: string
-                    minLength: 1
-                    maxLength: 50
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
                 space:
