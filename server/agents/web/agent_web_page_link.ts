@@ -23,6 +23,7 @@ export type AgentWebPageLink =
           readonly type: "Account";
           readonly id: AccountId;
           readonly title: string;
+          readonly shortName: string;
           readonly botId?: BotId;
       }
     | {

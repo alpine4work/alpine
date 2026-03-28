@@ -6,6 +6,7 @@ import {
     ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -19,17 +20,38 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  * `isDeepEqual()` check) then the two `ApiContent`s are considered to be
  * equivalent.
  */
-export function normalizeApiContent<Content extends ApiContent>(content: Content): Content {
+export function normalizeApiContent(content: ApiContent): ApiContent {
     return produce(content, content => {
-        normalizeApiContentBlockElements(content.elements);
+        normalizeApiContentBlockElements(content.elements, {isResponse: false});
     });
 }
 
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
-    normalizeApiContentBlockElements(content.elements);
+    normalizeApiContentBlockElements(content.elements, {isResponse: false});
 }
 
-function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
+/**
+ * If two `ApiContentResponse` objects normalize to the same object (based on an
+ * `isDeepEqual()` check) then the two `ApiContentResponse`s are considered to be
+ * equivalent.
+ *
+ * Does not clean response-only properties. `normalizeApiContent()` will clean
+ * response-only properties.
+ */
+export function normalizeApiContentResponse(content: ApiContentResponse): ApiContentResponse {
+    return produce(content, content => {
+        normalizeApiContentBlockElements(content.elements, {isResponse: true});
+    });
+}
+
+type ApiContentNormalizationOptions = {
+    readonly isResponse: boolean;
+};
+
+function normalizeApiContentBlockElements(
+    elements: Draft<ReadonlyArray<ApiContentBlockElement>>,
+    options: ApiContentNormalizationOptions,
+) {
     let index = 0;
     while (index < elements.length) {
         const element = elements[index]!;
@@ -184,15 +206,18 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
             }
         }
 
-        normalizeApiContentBlockElement(elements[index]!);
+        normalizeApiContentBlockElement(elements[index]!, options);
         index++;
     }
 }
 
-function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>) {
+function normalizeApiContentBlockElement(
+    element: Draft<ApiContentBlockElement>,
+    options: ApiContentNormalizationOptions,
+) {
     switch (element.type) {
         case "Paragraph": {
-            normalizeApiContentInlineElements(element.elements);
+            normalizeApiContentInlineElements(element.elements, options);
             break;
         }
         case "UnorderedList":
@@ -200,7 +225,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
         case "CheckList": {
             for (const item of element.items) {
                 if (item.elements.length > 0) {
-                    normalizeApiContentBlockElements(item.elements);
+                    normalizeApiContentBlockElements(item.elements, options);
                 } else if (element.type !== "UnorderedList") {
                     // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
                     // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
@@ -229,7 +254,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 }
 
                 if (item.nestedListElements !== undefined) {
-                    normalizeApiContentBlockElements(item.nestedListElements);
+                    normalizeApiContentBlockElements(item.nestedListElements, options);
 
                     if (item.nestedListElements.length === 0) {
                         item.nestedListElements = undefined;
@@ -239,11 +264,11 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             break;
         }
         case "Quote": {
-            normalizeApiContentBlockElements(element.elements);
+            normalizeApiContentBlockElements(element.elements, options);
             break;
         }
         case "Heading": {
-            normalizeApiContentInlineElements(element.elements);
+            normalizeApiContentInlineElements(element.elements, options);
             break;
         }
         case "Divider": {
@@ -255,7 +280,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 element.lines.push({elements: []});
             } else {
                 for (const line of element.lines) {
-                    normalizeApiContentInlineElements(line.elements);
+                    normalizeApiContentInlineElements(line.elements, options);
                 }
             }
             break;
@@ -278,7 +303,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 columnCount = Math.max(columnCount, row.cells.length);
 
                 for (const cell of row.cells) {
-                    normalizeApiContentBlockElements(cell.elements);
+                    normalizeApiContentBlockElements(cell.elements, options);
 
                     // A single empty paragraph is the default for empty cells. Remove it since the
                     // parser will recreate it.
@@ -308,23 +333,25 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             break;
         }
         case "File": {
-            // `contentType` and `contentLength` are response-only metadata that don't survive
-            // the markdown round trip. Strip them so that content with and without metadata
-            // normalizes to the same form.
-            if (hasOwnProperty(element, "contentType")) delete element.contentType;
-            if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+            if (!options.isResponse) {
+                // `contentType` and `contentLength` are response-only metadata that don't survive
+                // the markdown round trip. Strip them so that content with and without metadata
+                // normalizes to the same form.
+                if (hasOwnProperty(element, "contentType")) delete element.contentType;
+                if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+            }
             break;
         }
         case "Preview": {
-            // The preview title is only sometimes included as a convenience. It isn't
-            // essential to the preview element.
-            if (hasOwnProperty(element, "title")) {
-                delete element.title;
+            if (!options.isResponse) {
+                // The preview title is only sometimes included as a convenience. It isn't
+                // essential to the preview element.
+                if (hasOwnProperty(element, "title")) delete element.title;
             }
             break;
         }
         case "FileFloat": {
-            normalizeApiContentBlockElement(element.element);
+            normalizeApiContentBlockElement(element.element, options);
             break;
         }
         case "FileGallery": {
@@ -336,8 +363,8 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             // items, `contentType` on File elements).
             for (const row of element.rows) {
                 for (const item of row.items) {
-                    if (hasOwnProperty(item, "width")) delete item.width;
-                    normalizeApiContentBlockElement(item.element);
+                    if (!options.isResponse && hasOwnProperty(item, "width")) delete item.width;
+                    normalizeApiContentBlockElement(item.element, options);
                 }
             }
             break;
@@ -349,6 +376,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
 
 function normalizeApiContentInlineElements(
     elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
+    options: ApiContentNormalizationOptions,
 ) {
     let index = 0;
     let lastElement: Draft<ApiContentInlineElement> | undefined;
@@ -363,12 +391,14 @@ function normalizeApiContentInlineElements(
         }
 
         if (element.type === "Mention") {
-            // Cleanup response properties that aren't compared when determining content
-            // equality.
-            if (hasOwnProperty(element.target, "title")) delete element.target.title;
-            if (hasOwnProperty(element.target, "shortName")) delete element.target.shortName;
-            if (hasOwnProperty(element.target, "botId")) delete element.target.botId;
-            if (hasOwnProperty(element.target, "status")) delete element.target.status;
+            if (!options.isResponse) {
+                // Cleanup response properties that aren't compared when determining content
+                // equality.
+                if (hasOwnProperty(element.target, "title")) delete element.target.title;
+                if (hasOwnProperty(element.target, "shortName")) delete element.target.shortName;
+                if (hasOwnProperty(element.target, "botId")) delete element.target.botId;
+                if (hasOwnProperty(element.target, "status")) delete element.target.status;
+            }
 
             // `isAccountShortName` can only be true for account targets. Otherwise set to
             // undefined.

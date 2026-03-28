@@ -15,7 +15,7 @@ import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durab
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 
@@ -44,6 +44,7 @@ function createAgentWebSessionStorageCollection<
 }
 
 const storage: AgentWebSessionStorage = {
+    spaceId,
     mutex: new Mutex(),
     pageLinkByPath: createAgentWebSessionStorageCollection(),
     urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
@@ -57,7 +58,6 @@ const storage: AgentWebSessionStorage = {
 test("streams plain text message when update is called once at the end", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -129,7 +129,6 @@ test("streams plain text message when update is called once at the end", async (
 test("streams plan text message when update is called once every token", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -238,7 +237,6 @@ test("streams plan text message when update is called once every token", async (
 test("streams plan text message when update is called once every few tokens", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -293,7 +291,6 @@ test("streams plan text message when update is called once every few tokens", as
 test("streams bold inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -445,7 +442,6 @@ test("streams bold inline formatting correctly", async () => {
 test("streams italic formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -597,7 +593,6 @@ test("streams italic formatting correctly", async () => {
 test("streams italic formatting correctly (with underscores)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -749,7 +744,6 @@ test("streams italic formatting correctly (with underscores)", async () => {
 test("streams bold + italic inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -901,7 +895,6 @@ test("streams bold + italic inline formatting correctly", async () => {
 test("streams bold + italic inline formatting correctly with extra asterisk", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1053,7 +1046,6 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
 test("streams bold + italic inline formatting correctly with two extra asterisks", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1205,7 +1197,6 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
 test("streams bold inline formatting with newline before termination", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1343,7 +1334,6 @@ test("streams bold inline formatting with newline before termination", async () 
 test("streams lone asterisk correctly (that looks like caveat)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1471,7 +1461,6 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
 test("streams bold HTML inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1623,7 +1612,6 @@ test("streams bold HTML inline formatting correctly", async () => {
 test("streams bold HTML inline formatting with newline before termination", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1761,7 +1749,6 @@ test("streams bold HTML inline formatting with newline before termination", asyn
 test("streams partial bold HTML inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1941,7 +1928,6 @@ test("streams partial bold HTML inline formatting correctly", async () => {
 test("empty paragraphs with updates in weird places", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -1991,7 +1977,6 @@ test("empty paragraphs with updates in weird places", async () => {
 test("can stream simple unordered list", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2092,7 +2077,6 @@ test("can stream simple unordered list", async () => {
 test("streams strike inline formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2244,7 +2228,6 @@ test("streams strike inline formatting correctly", async () => {
 test("does not apply strikethrough with single tilde", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2372,7 +2355,6 @@ test("does not apply strikethrough with single tilde", async () => {
 test("does not apply strikethrough to statistics with tilde", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2476,7 +2458,6 @@ test("does not apply strikethrough to statistics with tilde", async () => {
 test("does not apply strikethrough with multiple single tildes", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2580,7 +2561,6 @@ test("does not apply strikethrough with multiple single tildes", async () => {
 test("streams inline code formatting correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2751,12 +2731,11 @@ test("streams link formatting correctly (with reference)", async () => {
                 },
             ],
         },
-        {spaceId, documentId: null},
+        {documentId: null},
     );
 
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -2850,7 +2829,11 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                             ],
                         },
@@ -2878,7 +2861,185 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
+                                },
+                                {
+                                    type: "Text",
+                                    text: " lazy dog.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
+test("streams link formatting correctly (with active task reference)", async () => {
+    const taskId = generateId<TaskId>();
+
+    await printApiContentToAgentWebMarkdown(
+        storage,
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Task",
+                                id: taskId,
+                                title: "Brown Fox Jumps Over The",
+                                status: {type: "Open", isActive: true},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        {documentId: null},
+    );
+
+    const message = new AgentWebMarkdownStreamParser({
+        storage,
+        documentId: null,
+    });
+
+    message.pushText(null, "The quick");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " [brown");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick brown",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " fox jumps");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick brown fox jumps",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " over the (Open)](/task/brown-fox-jumps-over-the)");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Mention",
+                                    target: {
+                                        type: "Task",
+                                        id: taskId,
+                                        title: "Brown Fox Jumps Over The",
+                                        status: {type: "Open", isActive: true},
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " lazy dog.");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Mention",
+                                    target: {
+                                        type: "Task",
+                                        id: taskId,
+                                        title: "Brown Fox Jumps Over The",
+                                        status: {type: "Open", isActive: true},
+                                    },
                                 },
                                 {
                                     type: "Text",
@@ -2896,7 +3057,6 @@ test("streams link formatting correctly (with reference)", async () => {
 test("streams link formatting correctly character by character (without reference)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -3033,6 +3193,346 @@ test("streams link formatting correctly character by character (without referenc
     ]);
 });
 
+test("streams link formatting correctly for link that looks like mention", async () => {
+    const documentId = generateId<DocumentId>();
+
+    const message = new AgentWebMarkdownStreamParser({
+        storage,
+        documentId: null,
+    });
+
+    message.pushText(null, "The quick");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " [brown");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick brown",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " fox jumps");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick brown fox jumps",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(
+        null,
+        ` over the](https://alpine.inc/s/${spaceId}/documents/${documentId}?mention)`,
+    );
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "brown fox jumps over the",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " lazy dog.");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "brown fox jumps over the",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " lazy dog.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
+test("streams link formatting correctly for truncated link that looks like mention", async () => {
+    const documentId = generateId<DocumentId>();
+
+    const truncatedUrl = `https://alpine.inc/s/${spaceId.slice(0, -7)}…${documentId.slice(-2)}?mention`;
+
+    expect(
+        await printApiContentToAgentWebMarkdown(
+            storage,
+            {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "brown fox jumps over the",
+                                marks: [
+                                    {
+                                        type: "Link",
+                                        url: `https://alpine.inc/s/${spaceId}/documents/${documentId}?mention`,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            {documentId: null},
+        ),
+    ).toEqual(
+        // eslint-disable-next-line cyberworlds/string-quotes
+        `<a href="${truncatedUrl}">brown fox jumps over the</a>\n`,
+    );
+
+    const message = new AgentWebMarkdownStreamParser({
+        storage,
+        documentId: null,
+    });
+
+    message.pushText(null, "The quick");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " [brown");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick brown",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " fox jumps");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick brown fox jumps",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, ` over the](${truncatedUrl})`);
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "brown fox jumps over the",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(null, " lazy dog.");
+
+    expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "brown fox jumps over the",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/s/${spaceId}/documents/${documentId}`,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " lazy dog.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
 test("streams link formatting correctly character by character (with reference)", async () => {
     const documentId = generateId<DocumentId>();
 
@@ -3055,12 +3555,11 @@ test("streams link formatting correctly character by character (with reference)"
                 },
             ],
         },
-        {spaceId, documentId: null},
+        {documentId: null},
     );
 
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -3190,7 +3689,11 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                             ],
                         },
@@ -3218,7 +3721,11 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                                 {
                                     type: "Text",
@@ -3236,7 +3743,6 @@ test("streams link formatting correctly character by character (with reference)"
 test("streams missing link reference formatting correctly (without reference)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -3377,7 +3883,6 @@ test("streams missing link reference formatting correctly (without reference)", 
 test("streams missing link URL formatting correctly (without reference)", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -3510,7 +4015,6 @@ test("streams missing link URL formatting correctly (without reference)", async 
 test("streams code block correctly", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId,
         documentId: null,
     });
 
@@ -3631,7 +4135,6 @@ describe("headers", () => {
     test("streams headers correctly", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -3751,7 +4254,6 @@ describe("headers", () => {
     test("streams headers correctly when depth starts at 2", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -3891,7 +4393,6 @@ describe("headers", () => {
     test("doesn\u2019t add header if no space after #", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -3955,7 +4456,6 @@ describe("headers", () => {
     test("doesn\u2019t add header to inline #", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4017,7 +4517,6 @@ describe("headers", () => {
     test("streams header when a chunk is just a single #", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4061,7 +4560,6 @@ describe("ordered list continuation", () => {
     test("simple ordered list", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4168,7 +4666,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list items that continue from previous items without explicit start", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4376,7 +4873,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list with explicit start number when restarting numbering", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4539,7 +5035,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list with explicit start number when skipping numbers", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4629,7 +5124,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list starting at non-1 value with explicit start", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4691,7 +5185,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list after non-list content", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4774,7 +5267,6 @@ describe("ordered list continuation", () => {
     test("sets orderStart to explicit value if the list is not contiguous", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4953,7 +5445,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list after unordered list", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -4999,7 +5490,6 @@ describe("ordered list continuation", () => {
     test("streams ordered list that restarts at non-1 value after previous list", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5042,7 +5532,6 @@ describe("ordered list continuation", () => {
     test("streams multiple consecutive ordered list items in single update", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5132,7 +5621,6 @@ describe("ordered list continuation", () => {
     test("streams simple nested ordered list", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5243,7 +5731,6 @@ describe("ordered list continuation", () => {
     test("streams nested ordered list with multiple nested items", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5310,7 +5797,6 @@ describe("ordered list continuation", () => {
     test("streams deeply nested ordered lists", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5385,7 +5871,6 @@ describe("ordered list continuation", () => {
     test("streams nested ordered list with non-1 start", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5456,7 +5941,6 @@ describe("ordered list continuation", () => {
     test("streams nested ordered list incrementally", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 
@@ -5646,7 +6130,6 @@ describe("ordered list continuation", () => {
     test("streams mixed parent and nested ordered list items", async () => {
         const message = new AgentWebMarkdownStreamParser({
             storage,
-            spaceId,
             documentId: null,
         });
 

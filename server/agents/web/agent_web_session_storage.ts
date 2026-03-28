@@ -1,6 +1,6 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Storage for web data that persists across an agent session.
@@ -34,6 +34,11 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
  * implementation.
  */
 export interface AgentWebSessionStorage {
+    /**
+     * The space this session is operating in.
+     */
+    readonly spaceId: SpaceId;
+
     /**
      * When we have a session storage object we assume we have exclusive access to the
      * underlying storage. However, we may still execute JavaScript code concurrently

@@ -8,7 +8,10 @@ import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
-import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
+import {
+    normalizeApiContent,
+    normalizeApiContentResponse,
+} from "~/shared/api/markdown/normalize_api_content.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -71,6 +74,7 @@ function createAgentWebSessionStorageCollection<
 }
 
 const storage: AgentWebSessionStorage = {
+    spaceId,
     mutex: new Mutex(),
     pageLinkByPath: createAgentWebSessionStorageCollection(),
     urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
@@ -140,6 +144,95 @@ const testCases: Array<{
         },
         markdown: `\
 Review [Fix auth (Open)](/task/fix-auth) today
+`,
+    },
+    {
+        name: "mention element with italic mark",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Review ", marks: [{type: "Italic"}]},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Task",
+                                id: taskId,
+                                title: "Fix auth",
+                                status: {type: "Open", isActive: true},
+                            },
+                            marks: [{type: "Italic"}],
+                        },
+                        {type: "Text", text: " today", marks: [{type: "Italic"}]},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+*Review [Fix auth (Open)](/task/fix-auth) today*
+`,
+    },
+    {
+        name: "mention element with code mark",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Review ", marks: [{type: "Code"}]},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Task",
+                                id: taskId,
+                                title: "Fix auth",
+                                status: {type: "Open", isActive: true},
+                            },
+                            marks: [{type: "Code"}],
+                        },
+                        {type: "Text", text: " today", marks: [{type: "Code"}]},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+\`Review \`<code>[Fix auth (Open)](/task/fix-auth)</code>\` today\`
+`,
+    },
+    {
+        name: "mention element with link mark",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "Review ",
+                            marks: [{type: "Link", url: "https://example.com"}],
+                        },
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Task",
+                                id: taskId,
+                                title: "Fix auth",
+                                status: {type: "Open", isActive: true},
+                            },
+                            marks: [{type: "Link", url: "https://example.com"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " today",
+                            marks: [{type: "Link", url: "https://example.com"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+[Review ](https://example.com)<a href="https://example.com">[Fix auth (Open)](/task/fix-auth)</a>[ today](https://example.com)
 `,
     },
     {
@@ -284,7 +377,74 @@ Hello [ChatGPT](/bot/chatgpt#short)!
 `,
     },
     {
-        name: "link marks",
+        name: "link mark without truncation",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Visit "},
+                        {
+                            type: "Text",
+                            text: "example",
+                            marks: [{type: "Link", url: "https://example.com"}],
+                        },
+                        {type: "Text", text: " for more"},
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Visit [example](https://example.com) for more
+`,
+    },
+    {
+        name: "link mark without truncation mixed between text and code block",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Visit "},
+                        {
+                            type: "Text",
+                            text: "example",
+                            marks: [{type: "Link", url: "https://example.com"}],
+                        },
+                        {type: "Text", text: " for more"},
+                    ],
+                },
+                {
+                    type: "Code",
+                    language: "text",
+                    lines: [
+                        {
+                            elements: [
+                                {type: "Text", text: "Visit "},
+                                {
+                                    type: "Text",
+                                    text: "example",
+                                    marks: [{type: "Link", url: "https://example.com"}],
+                                },
+                                {type: "Text", text: " for more"},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Visit [example](https://example.com) for more
+
+<pre>
+<code class="language-text">
+Visit <a href="https://example.com">example</a> for more
+</code>
+</pre>
+`,
+    },
+    {
+        name: "link mark",
         content: {
             elements: [
                 {
@@ -559,6 +719,51 @@ Visit <a href="${exampleUrl.slice(0, 40)}…alpine.inc">https://example.com</a> 
 <pre>
 <code class="language-html">
 Visit <a href="${exampleUrl.slice(0, 40)}…alpine.inc">https://example.com</a> for more
+</code>
+</pre>
+`,
+    },
+    {
+        name: "link mark mixed between text and code block",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Visit "},
+                        {
+                            type: "Text",
+                            text: "example",
+                            marks: [{type: "Link", url: exampleUrl}],
+                        },
+                        {type: "Text", text: " for more"},
+                    ],
+                },
+                {
+                    type: "Code",
+                    language: "text",
+                    lines: [
+                        {
+                            elements: [
+                                {type: "Text", text: "Visit "},
+                                {
+                                    type: "Text",
+                                    text: "example",
+                                    marks: [{type: "Link", url: exampleUrl}],
+                                },
+                                {type: "Text", text: " for more"},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Visit [example](${exampleTruncatedUrl}) for more
+
+<pre>
+<code class="language-text">
+Visit <a href="${exampleTruncatedUrl}">example</a> for more
 </code>
 </pre>
 `,
@@ -1233,6 +1438,73 @@ Value
 `,
     },
     {
+        name: "comment transformation mixed with code blocks",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Test: "},
+                        {
+                            type: "Text",
+                            text: "one",
+                            marks: [{type: "Comment", threadId: threadId1}],
+                        },
+                        {type: "Text", text: " "},
+                        {
+                            type: "Text",
+                            text: "two",
+                            marks: [{type: "Comment", threadId: threadId2}],
+                        },
+                    ],
+                },
+                {
+                    type: "Code",
+                    language: "html",
+                    lines: [
+                        {
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "three",
+                                    marks: [{type: "Comment", threadId: threadId3}],
+                                },
+                                {type: "Text", text: " "},
+                                {
+                                    type: "Text",
+                                    text: "four",
+                                    marks: [{type: "Comment", threadId: threadId4}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Test: "},
+                        {
+                            type: "Text",
+                            text: "five",
+                            marks: [{type: "Comment", threadId: threadId5}],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+Test: <comment id="1">one</comment> <comment id="2">two</comment>
+
+<pre>
+<code class="language-html">
+<comment id="3">three</comment> <comment id="4">four</comment>
+</code>
+</pre>
+
+Test: <comment id="5">five</comment>
+`,
+    },
+    {
         name: "unfinished escaped HTML tag at content end",
         content: {
             elements: [
@@ -1250,7 +1522,6 @@ Value
 `,
     },
     {
-        only: "NOCOMMIT",
         name: "unfinished HTML tag inside code block",
         content: {
             elements: [
@@ -1286,7 +1557,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
                 expectedContent,
-                {spaceId, documentId: contextDocumentId},
+                {documentId: contextDocumentId},
             );
 
             expect(actualMarkdown).toEqual(expectedMarkdown);
@@ -1298,17 +1569,17 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
                 expectedContent,
-                {spaceId, documentId: contextDocumentId},
+                {documentId: contextDocumentId},
             );
 
             const actualContent = await parseApiContentFromAgentWebMarkdown(
                 storage,
                 actualMarkdown,
-                {spaceId, documentId: contextDocumentId},
+                {documentId: contextDocumentId},
             );
 
-            expect(normalizeApiContent(actualContent)).toEqual(
-                normalizeApiContent(expectedContent),
+            expect(normalizeApiContentResponse(actualContent)).toEqual(
+                normalizeApiContentResponse(expectedContent),
             );
         });
     });

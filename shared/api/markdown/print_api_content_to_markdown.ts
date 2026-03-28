@@ -1222,24 +1222,14 @@ function* printApiContentInlineElementToMarkdown(
                 }
             }
 
-            const mentionTarget = element.target;
-
-            const title =
-                element.target.title ??
-                (mentionTarget.type === "Account"
-                    ? "Unknown"
-                    : `Unknown ${getApiMentionTargetNoun(mentionTarget.type)}`);
-
-            const targetUrl = printApiMentionTargetToMentionLinkUrl(mentionTarget, {
-                spaceId: options.spaceId,
-                isAccountShortName: element.isAccountShortName,
-            });
-
             const childContent: Array<PhrasingContent> = [
                 {
                     type: "link",
-                    url: targetUrl,
-                    children: [{type: "text", value: title}],
+                    url: printApiMentionTargetToMentionLinkUrl(element.target, {
+                        spaceId: options.spaceId,
+                        isAccountShortName: element.isAccountShortName,
+                    }),
+                    children: printApiMentionTargetToMentionLinkLabel(element.target),
                     data: {mentionElement: element},
                 },
             ];
@@ -1282,6 +1272,16 @@ function* printApiContentInlineElementToMarkdown(
         default:
             throw exhaustive(element);
     }
+}
+
+export function printApiMentionTargetToMentionLinkLabel(
+    target: ApiMentionTarget,
+): Array<PhrasingContent> {
+    const title =
+        target.title ??
+        (target.type === "Account" ? "Unknown" : `Unknown ${getApiMentionTargetNoun(target.type)}`);
+
+    return [{type: "text", value: title}];
 }
 
 export function printApiMentionTargetToMentionLinkUrl(

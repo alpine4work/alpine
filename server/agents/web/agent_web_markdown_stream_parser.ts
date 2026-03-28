@@ -4,14 +4,21 @@ import {BlockContent, DefinitionContent, Html, Parent, Root} from "mdast";
 import {AgentWebPageKeyObject} from "~/server/agents/web/agent_web_page_key.js";
 import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     parseApiContentFromMarkdownTree,
+    parseApiMentionTargetIfPossible,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {printApiMentionTargetToMentionLinkUrl} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {
+    printApiMentionTargetToMentionLinkLabel,
+    printApiMentionTargetToMentionLinkUrl,
+} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentBlockElement,
+    ApiContentResponse,
+    ApiMessageStreamContentPartPayloadResponse,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -24,9 +31,11 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-export type AgentMessageStreamPart = {
+export type AgentWebMarkdownStreamPart = {
     readonly index: number;
-    readonly payload: ApiMessageStreamPartPayload;
+    readonly payload:
+        | Exclude<ApiMessageStreamPartPayload, {type: "Content"}>
+        | ApiMessageStreamContentPartPayloadResponse;
 };
 
 /**
@@ -35,7 +44,6 @@ export type AgentMessageStreamPart = {
  */
 export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null> {
     private readonly _storage: AgentWebSessionStorage;
-    private readonly _spaceId: SpaceId;
     private readonly _documentId: DocumentId | null;
 
     private _firstHeadingDepth: number | null = null;
@@ -53,19 +61,16 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
         text: string;
     } | null = null;
 
-    private _parts: Array<AgentMessageStreamPart> = [];
+    private _parts: Array<AgentWebMarkdownStreamPart> = [];
 
     constructor({
         storage,
-        spaceId,
         documentId,
     }: {
         storage: AgentWebSessionStorage;
-        spaceId: SpaceId;
         documentId: DocumentId | null;
     }) {
         this._storage = storage;
-        this._spaceId = spaceId;
         this._documentId = documentId;
     }
 
@@ -109,12 +114,11 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
     public async update(
         updateSpan: Span,
         newPartPayloads: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>> = [],
-    ): Promise<Array<{span: Span; part: AgentMessageStreamPart}>> {
-        const putParts: Array<{span: Span; part: AgentMessageStreamPart}> = [];
+    ): Promise<Array<{span: Span; part: AgentWebMarkdownStreamPart}>> {
+        const putParts: Array<{span: Span; part: AgentWebMarkdownStreamPart}> = [];
 
         const {firstHeadingDepth, markdownParts} = await parseTextIntoMarkdownParts(
             this._storage,
-            this._spaceId,
             this._documentId,
             this._firstHeadingDepth,
             this._textState,
@@ -133,8 +137,12 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                 const getFirstPartContent = () => {
                     return parseApiContentFromMarkdownTree(
                         {type: "root", children: firstMarkdownPart},
-                        {spaceId: this._spaceId},
-                    );
+                        {spaceId: this._storage.spaceId},
+                        // In our Markdown `parseTextIntoMarkdownParts()` pre-processing we make sure to
+                        // provide enough information that our parse function can return
+                        // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
+                        // `ApiContentMentionInlineElementResponse` object).
+                    ) as ApiContentResponse;
                 };
 
                 if (
@@ -169,7 +177,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                     // element
                     removeOrderStartFromOrderedListItemsIfNeeded(firstMarkdownPart, undefined);
 
-                    const firstPart: AgentMessageStreamPart = {
+                    const firstPart: AgentWebMarkdownStreamPart = {
                         index: this._parts.length,
                         payload: {type: "Content", content: getFirstPartContent()},
                     };
@@ -185,7 +193,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                         streamParts: this._parts,
                     });
 
-                    const firstPart: AgentMessageStreamPart = {
+                    const firstPart: AgentWebMarkdownStreamPart = {
                         index: this._parts.length - 1,
                         payload: {type: "Content", content: getFirstPartContent()},
                     };
@@ -251,10 +259,14 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
 
                 const partContent = parseApiContentFromMarkdownTree(
                     {type: "root", children: markdownPart},
-                    {spaceId: this._spaceId},
-                );
+                    {spaceId: this._storage.spaceId},
+                    // In our Markdown `parseTextIntoMarkdownParts()` pre-processing we make sure to
+                    // provide enough information that our parse function can return
+                    // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
+                    // `ApiContentMentionInlineElementResponse` object).
+                ) as ApiContentResponse;
 
-                const part: AgentMessageStreamPart = {
+                const part: AgentWebMarkdownStreamPart = {
                     index: this._parts.length,
                     payload: {type: "Content", content: partContent},
                 };
@@ -285,7 +297,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                 // replaced by the next `pushText()` + `update()` call.
                 assert(newPartPayload.type !== "Content");
 
-                const part: AgentMessageStreamPart = {
+                const part: AgentWebMarkdownStreamPart = {
                     index: this._parts.length,
                     payload: newPartPayload,
                 };
@@ -301,7 +313,6 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
 
 async function parseTextIntoMarkdownParts(
     storage: AgentWebSessionStorage,
-    spaceId: SpaceId,
     documentId: DocumentId | null,
     firstHeadingDepth: number | null,
     textState: {text: string} | null,
@@ -404,7 +415,7 @@ async function parseTextIntoMarkdownParts(
             const childNode = node.children[index]!;
 
             if (childNode.type === "html") {
-                const promise = traverseMarkdownHtmlNode(storage, spaceId, documentId, childNode);
+                const promise = traverseMarkdownHtmlNode(storage, documentId, childNode);
 
                 promiseWaiter.waitUntil(async () => {
                     node.children[index] = await promise;
@@ -430,14 +441,30 @@ async function parseTextIntoMarkdownParts(
 
             if (childNode.type === "link") {
                 promiseWaiter.waitUntil(async () => {
-                    // If this isn't a relative mention link, it may be a truncated URL. Let's try
-                    // looking it up.
                     if (!childNode.url.startsWith("/")) {
-                        const url = await storage.urlByTruncatedUrl.get(childNode.url);
-                        if (url !== undefined) {
-                            childNode.url = url;
-                            return;
+                        // If this isn't a relative mention link, it may be a truncated URL. Let's try
+                        // looking it up.
+                        let urlString =
+                            (await storage.urlByTruncatedUrl.get(childNode.url)) ?? childNode.url;
+
+                        // Try parsing URL.
+                        let url: URL | undefined;
+                        try {
+                            url = new URL(urlString);
+                        } catch {
+                            // Noop
                         }
+
+                        // If the LLM output a URL that can be parsed as a mention then remove the
+                        // `mention` search param! The LLM is only allowed to create mentions via the agent
+                        // web markdown syntax. We can't allow the LLM to create mentions this way since we
+                        // won't be able to create a response mention object with `title`.
+                        if (url && parseApiMentionTargetIfPossible(storage.spaceId, url)) {
+                            url.searchParams.delete("mention");
+                            urlString = url.toString();
+                        }
+
+                        childNode.url = urlString;
                     }
 
                     // This link looks like a mention, let's add the correct link to the Markdown tree
@@ -461,20 +488,53 @@ async function parseTextIntoMarkdownParts(
 
                         if (!pageLink) return;
 
-                        node.children[index] = {
-                            type: "link",
-                            url: printAgentWebPageKeyToLinkUrl(pageLink, {
-                                spaceId,
-                                isAccountShortName:
+                        const mentionTargetResult =
+                            createAgentWebPageLinkApiMentionTargetIfPossible(
+                                storage.spaceId,
+                                pageLink,
+                            );
+
+                        switch (mentionTargetResult.type) {
+                            case "Url": {
+                                node.children[index] = {
+                                    type: "link",
+                                    url: mentionTargetResult.url,
+                                    children: childNode.children,
+                                    position: childNode.position,
+                                };
+                                break;
+                            }
+                            case "MentionTarget": {
+                                const isAccountShortName =
                                     pageLink.type === "Account"
                                         ? childNode.url.endsWith("#short") ||
                                           printMarkdownPhrasingContentText(childNode.children) !==
                                               printAgentWebPageLinkLabel(pageLink)
-                                        : undefined,
-                            }),
-                            children: childNode.children,
-                            position: childNode.position,
-                        };
+                                        : undefined;
+
+                                node.children[index] = {
+                                    type: "link",
+                                    url: printApiMentionTargetToMentionLinkUrl(
+                                        mentionTargetResult.target,
+                                        {spaceId: storage.spaceId, isAccountShortName},
+                                    ),
+                                    children: printApiMentionTargetToMentionLinkLabel(
+                                        mentionTargetResult.target,
+                                    ),
+                                    position: childNode.position,
+                                    data: {
+                                        mentionElement: {
+                                            type: "Mention",
+                                            target: mentionTargetResult.target,
+                                            isAccountShortName,
+                                        },
+                                    },
+                                };
+                                break;
+                            }
+                            default:
+                                throw exhaustive(mentionTargetResult);
+                        }
                     }
                 });
             }
@@ -497,7 +557,6 @@ async function parseTextIntoMarkdownParts(
 
 async function traverseMarkdownHtmlNode(
     storage: AgentWebSessionStorage,
-    spaceId: SpaceId,
     documentId: DocumentId | null,
     node: Html,
 ): Promise<Html> {
@@ -855,7 +914,7 @@ function removeOrderStartFromOrderedListItemsIfNeeded(
         | {
               type: "AgentMessageStreamPart";
               previousPartIndex: number;
-              streamParts: Array<AgentMessageStreamPart>;
+              streamParts: Array<AgentWebMarkdownStreamPart>;
           }
         | undefined,
 ) {
@@ -927,7 +986,7 @@ function getPreviousListItemNumberFromPreviousPart(
         | {
               type: "AgentMessageStreamPart";
               previousPartIndex: number;
-              streamParts: Array<AgentMessageStreamPart>;
+              streamParts: Array<AgentWebMarkdownStreamPart>;
           }
         | undefined,
 ): number | undefined {
@@ -987,7 +1046,7 @@ function getPreviousListOrderStartFromPreviousAgentMessageStreamPart({
     streamParts,
 }: {
     previousPartIndex: number;
-    streamParts: Array<AgentMessageStreamPart>;
+    streamParts: Array<AgentWebMarkdownStreamPart>;
 }): number | undefined {
     let numberOfItemsInPreviousList = 0;
     let previousListOrderStart: number | undefined = undefined;

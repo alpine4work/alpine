@@ -2365,6 +2365,15 @@ function* parseApiContentInlineElementFromMarkdown(
             break;
         }
         case "link": {
+            // If a mention element was already parsed for us then use that.
+            if (content.data?.mentionElement) {
+                yield {
+                    ...content.data?.mentionElement,
+                    marks: markStack.getMarks(),
+                };
+                break;
+            }
+
             // Try parsing URL.
             let url: URL | undefined;
             try {
@@ -2760,7 +2769,10 @@ function* parseApiContentInlineElementFromMarkdown(
     }
 }
 
-function parseApiMentionTargetIfPossible(spaceId: SpaceId, url: URL): ApiMentionTarget | null {
+export function parseApiMentionTargetIfPossible(
+    spaceId: SpaceId,
+    url: URL,
+): ApiMentionTarget | null {
     const isMentionUrl =
         url?.protocol === "https:" &&
         url.host === "alpine.inc" &&

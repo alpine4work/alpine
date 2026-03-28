@@ -7,7 +7,7 @@ import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
-import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentResponseArbitrary,
     apiContentArbitrarySpaceId,
@@ -51,6 +51,7 @@ function createAgentWebSessionStorageCollection<
 }
 
 const storage: AgentWebSessionStorage = {
+    spaceId: apiContentArbitrarySpaceId,
     mutex: new Mutex(),
     pageLinkByPath: createAgentWebSessionStorageCollection(),
     urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
@@ -67,20 +68,18 @@ test("can parse exact same content that was printed", async () => {
             const documentId = generateId<DocumentId>();
 
             const markdown = await printApiContentToAgentWebMarkdown(storage, content, {
-                spaceId: apiContentArbitrarySpaceId,
                 documentId,
             });
 
             expect(
                 // Unlike `parseApiContentFromMarkdown()`, we don't expect
                 // `parseApiContentFromAgentWebMarkdown()` to return normalized content.
-                normalizeApiContent(
+                normalizeApiContentResponse(
                     await parseApiContentFromAgentWebMarkdown(storage, markdown, {
-                        spaceId: apiContentArbitrarySpaceId,
                         documentId,
                     }),
                 ),
-            ).toEqual(normalizeApiContent(content));
+            ).toEqual(normalizeApiContentResponse(content));
         }),
         {
             // Run until we reach our 10s timeout.

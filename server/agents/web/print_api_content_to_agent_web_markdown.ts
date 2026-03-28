@@ -21,47 +21,36 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-
-export type ApiContentAgentWebMarkdownPrinterOptions = {
-    /**
-     * The `SpaceId` of the content we're printing. The `SpaceId` is added to generated
-     * mention links.
-     */
-    readonly spaceId: SpaceId;
-
-    /**
-     * If we are printing a document then this is the `DocumentId`. This is required if
-     * we find comment marks in the content otherwise we'll throw.
-     */
-    readonly documentId: DocumentId | null;
-};
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 
 type ApiContentAgentWebMarkdownPrinterState = {
+    readonly documentId: DocumentId | null;
     lastDocumentCommentThreadNumber: number | null;
 };
 
 export async function printApiContentToAgentWebMarkdown(
     storage: AgentWebSessionStorage,
     content: ApiContentResponse,
-    options: ApiContentAgentWebMarkdownPrinterOptions,
+    options?: {documentId?: DocumentId | null},
 ) {
     const markdownTree = await printApiContentToAgentWebMarkdownTree(storage, content, options);
     return printMarkdownTree(markdownTree);
 }
 
-async function printApiContentToAgentWebMarkdownTree(
+export async function printApiContentToAgentWebMarkdownTree(
     storage: AgentWebSessionStorage,
     content: ApiContentResponse,
-    options: ApiContentAgentWebMarkdownPrinterOptions,
+    {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
 ) {
     const state: ApiContentAgentWebMarkdownPrinterState = {
+        documentId,
         lastDocumentCommentThreadNumber: null,
     };
 
     const node = printApiContentToMarkdownTree(content, {
-        spaceId: options.spaceId,
+        spaceId: storage.spaceId,
         withCommentTagHtml: true,
     });
 
@@ -69,12 +58,7 @@ async function printApiContentToAgentWebMarkdownTree(
 
     const newChildNodes = await runAllPromises(
         node.children.map(async childNode => {
-            const newChildNode = await traverseApiContentMarkdownNode(
-                storage,
-                childNode,
-                options,
-                state,
-            );
+            const newChildNode = await traverseApiContentMarkdownNode(storage, childNode, state);
             hasAnyChildNodeChanged ||= newChildNode !== childNode;
             return newChildNode;
         }),
@@ -92,7 +76,6 @@ async function printApiContentToAgentWebMarkdownTree(
 async function traverseApiContentMarkdownNode(
     storage: AgentWebSessionStorage,
     node: RootContent,
-    options: ApiContentAgentWebMarkdownPrinterOptions,
     state: ApiContentAgentWebMarkdownPrinterState,
 ): Promise<RootContent> {
     // Traverse children first. This gives us our best chance at deterministically
@@ -106,7 +89,6 @@ async function traverseApiContentMarkdownNode(
                 const newChildNode = await traverseApiContentMarkdownNode(
                     storage,
                     childNode,
-                    options,
                     state,
                 );
                 hasAnyChildNodeChanged ||= newChildNode !== childNode;
@@ -133,7 +115,7 @@ async function traverseApiContentMarkdownNode(
             return {...node, depth: newDepth};
         }
         case "html": {
-            return traverseApiContentMarkdownHtmlNode(storage, node, options, state);
+            return traverseApiContentMarkdownHtmlNode(storage, node, state);
         }
         case "link": {
             // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g. a chat
@@ -216,7 +198,6 @@ async function traverseApiContentMarkdownNode(
 async function traverseApiContentMarkdownHtmlNode(
     storage: AgentWebSessionStorage,
     node: Html,
-    {documentId}: ApiContentAgentWebMarkdownPrinterOptions,
     state: ApiContentAgentWebMarkdownPrinterState,
 ): Promise<Html> {
     let anchorTagState: {
@@ -292,6 +273,8 @@ async function traverseApiContentMarkdownHtmlNode(
 
                 if (commentTagState) {
                     if (commentTagState.id?.data) {
+                        const {documentId} = state;
+
                         // Safe since `printApiContentToMarkdown()` should only print `data-comment` if
                         // with a valid `DocumentCommentThreadId`.
                         const commentThreadId = assertId<DocumentCommentThreadId>(
@@ -657,19 +640,30 @@ async function traverseApiContentMarkdownHtmlNode(
 function printAgentWebMarkdownUrl(storage: AgentWebSessionStorage, url: string): Promise<string> {
     return storage.mutex.withLock(async () => {
         const truncatedUrl = truncateUrlForAgentWebMarkdown(url);
+        if (url === truncatedUrl) return url;
 
-        const dedupeNumber =
-            (await storage.dedupeNumberByTruncatedUrlAndUrl.list({prefix: `${truncatedUrl} `}))
-                .size + 1;
+        const urlsForTruncatedUrl = await storage.dedupeNumberByTruncatedUrlAndUrl.list({
+            prefix: `${truncatedUrl} `,
+        });
 
-        await storage.dedupeNumberByTruncatedUrlAndUrl.put(`${truncatedUrl} ${url}`, dedupeNumber);
+        let dedupeNumber = urlsForTruncatedUrl.get(`${truncatedUrl} ${url}`);
+        const hadDedupeNumber = dedupeNumber !== undefined;
+
+        if (dedupeNumber === undefined) {
+            dedupeNumber = urlsForTruncatedUrl.size + 1;
+
+            await storage.dedupeNumberByTruncatedUrlAndUrl.put(
+                `${truncatedUrl} ${url}`,
+                dedupeNumber,
+            );
+        }
 
         const actualTruncatedUrl = addDedupeNumberToTruncatedAgentWebMarkdownUrl(
             truncatedUrl,
             dedupeNumber,
         );
 
-        await storage.urlByTruncatedUrl.put(actualTruncatedUrl, url);
+        if (!hadDedupeNumber) await storage.urlByTruncatedUrl.put(actualTruncatedUrl, url);
 
         return actualTruncatedUrl;
     });

@@ -3056,6 +3056,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
+                readonly shortName: components["schemas"]["LabelString"];
                 readonly botId?: components["schemas"]["BotId"];
             };
             readonly SearchChannelResult: {

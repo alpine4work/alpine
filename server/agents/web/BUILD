@@ -18,6 +18,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/mdast",
         "//:node_modules/htmlparser2",
+        "//server/agents/api",
         "//shared/api/markdown",
         "//shared/api/specification",
         "//shared/error",

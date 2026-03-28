@@ -1,30 +1,25 @@
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
+    ApiContentBlockElementResponse,
+    ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-
-export type ApiContentAgentWebMarkdownParserOptions = {
-    readonly spaceId: SpaceId;
-    readonly documentId: DocumentId | null;
-};
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 
 export async function parseApiContentFromAgentWebMarkdown(
     storage: AgentWebSessionStorage,
     markdown: string,
-    options: ApiContentAgentWebMarkdownParserOptions,
-): Promise<ApiContent> {
+    {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
+): Promise<ApiContentResponse> {
     const parser = new AgentWebMarkdownStreamParser({
         storage,
-        spaceId: options.spaceId,
-        documentId: options.documentId,
+        documentId,
     });
 
     parser.pushText(null, markdown);
 
-    const elements: Array<ApiContentBlockElement> = [];
+    const elements: Array<ApiContentBlockElementResponse> = [];
 
     for (const {part} of await parser.update(null)) {
         // We only push text so there should be only content parts.

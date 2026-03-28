@@ -3498,6 +3498,7 @@ components:
                 - bodyMatch
                 - type
                 - id
+                - shortName
             additionalProperties: false
             properties:
                 title:
@@ -3510,6 +3511,8 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
         SearchChannelResult:

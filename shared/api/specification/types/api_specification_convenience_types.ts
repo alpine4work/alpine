@@ -234,6 +234,12 @@ export type ApiMessageStreamPartPayload =
 export type ApiMessageStreamPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
 
+export type ApiMessageStreamContentPartPayload =
+    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload"];
+
+export type ApiMessageStreamContentPartPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload_Response"];
+
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
