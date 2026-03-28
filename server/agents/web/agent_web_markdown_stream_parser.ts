@@ -33,6 +33,8 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
     private readonly _storage: AgentWebSessionStorage;
     private readonly _spaceId: SpaceId;
 
+    private _firstHeadingDepth: number | null = null;
+
     private _textState: {
         // When you call `pushText()` you must pass in a `TracerSpan`. This is the latest
         // span passed into `pushText()`. The `putApiMessageStreamPart()` call for this
@@ -96,7 +98,14 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
     ): Promise<Array<{span: Span; part: AgentMessageStreamPart}>> {
         const putParts: Array<{span: Span; part: AgentMessageStreamPart}> = [];
 
-        const markdownParts = await this._parseTextIntoMarkdownParts();
+        const {firstHeadingDepth, markdownParts} = await parseTextIntoMarkdownParts(
+            this._storage,
+            this._spaceId,
+            this._firstHeadingDepth,
+            this._textState,
+        );
+        this._firstHeadingDepth = firstHeadingDepth;
+
         if (markdownParts.length > 0) {
             assert(this._textState !== null);
             const {latestSpan: textSpan, text: originalText} = this._textState;
@@ -273,109 +282,135 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
 
         return putParts;
     }
+}
 
-    private async _parseTextIntoMarkdownParts(): Promise<ReadonlyArray<Array<BlockContent>>> {
-        const textState = this._textState;
-        if (textState === null) return emptyArray;
+async function parseTextIntoMarkdownParts(
+    storage: AgentWebSessionStorage,
+    spaceId: SpaceId,
+    firstHeadingDepth: number | null,
+    textState: {text: string} | null,
+): Promise<{
+    firstHeadingDepth: number | null;
+    markdownParts: ReadonlyArray<Array<BlockContent>>;
+}> {
+    if (textState === null) return {firstHeadingDepth, markdownParts: emptyArray};
 
-        let text = textState.text;
-        if (text.length === 0) return emptyArray;
+    let text = textState.text;
+    if (text.length === 0) return {firstHeadingDepth, markdownParts: emptyArray};
 
-        // If the text ends with an incomplete HTML tag then remove it from the text.
-        // Expect to get the rest of our HTML tag later from the LLM.
-        const incompleteHtmlTagMatch = text.match(
-            // eslint-disable-next-line no-control-regex
-            /<\/?[a-zA-Z][a-zA-Z0-9-]*[\x00-\x3D\x3F-\x7F]*$/,
-        );
-        if (incompleteHtmlTagMatch) {
-            text = text.slice(0, -incompleteHtmlTagMatch[0].length);
-        }
+    // If the text ends with an incomplete HTML tag then remove it from the text.
+    // Expect to get the rest of our HTML tag later from the LLM.
+    const incompleteHtmlTagMatch = text.match(
+        // eslint-disable-next-line no-control-regex
+        /<\/?[a-zA-Z][a-zA-Z0-9-]*[\x00-\x3D\x3F-\x7F]*$/,
+    );
+    if (incompleteHtmlTagMatch) {
+        text = text.slice(0, -incompleteHtmlTagMatch[0].length);
+    }
 
-        const markdownRoot = parseMarkdownTree(text, {
-            // TODO(ifitzsimmons, #ai): remove this mdast patch Allow parsing
-            // `Check out [My Document][]` as a link even if there is no definition for
-            // `My Document`. We'll figure out the right link in our code.
-            allowUndefinedLinkReferenceIdentifiers: true,
-            // Allow parsing `The quick **brown fox` as bold from `**` to the end of the text.
-            // Since while streaming Markdown we have to wait for the ending `**`.
-            allowAttentionWithoutClose: true,
-            // Allow parsing ``The quick `brown fox`` as bold from `` ` `` to the end of the
-            // text. Since while streaming Markdown we have to wait for the ending `` ` ``.
-            allowCodeTextWithoutClose: true,
-            // Allow parsing `The quick [brown fox` and discard link characters so it's
-            // interpreted as `The quick brown fox`.
-            allowLabelWithoutClose: true,
-            // Allow parsing `The quick [brown fox](/some-path-` and discard link characters so
-            // it's interpreted as `The quick brown fox`.
-            allowResourceWithoutClose: true,
-        });
+    const markdownRoot = parseMarkdownTree(text, {
+        // TODO(ifitzsimmons, #ai): remove this mdast patch Allow parsing
+        // `Check out [My Document][]` as a link even if there is no definition for
+        // `My Document`. We'll figure out the right link in our code.
+        allowUndefinedLinkReferenceIdentifiers: true,
+        // Allow parsing `The quick **brown fox` as bold from `**` to the end of the text.
+        // Since while streaming Markdown we have to wait for the ending `**`.
+        allowAttentionWithoutClose: true,
+        // Allow parsing ``The quick `brown fox`` as bold from `` ` `` to the end of the
+        // text. Since while streaming Markdown we have to wait for the ending `` ` ``.
+        allowCodeTextWithoutClose: true,
+        // Allow parsing `The quick [brown fox` and discard link characters so it's
+        // interpreted as `The quick brown fox`.
+        allowLabelWithoutClose: true,
+        // Allow parsing `The quick [brown fox](/some-path-` and discard link characters so
+        // it's interpreted as `The quick brown fox`.
+        allowResourceWithoutClose: true,
+    });
 
-        const promiseWaiter = new PromiseWaiter();
+    const promiseWaiter = new PromiseWaiter();
 
-        // Loop through our Markdown content. All of our internal links are stored as
-        // shorthand link representations. So for a Document titled "Dinosaurs are cool",
-        // the markdown link looks like "[Dinosaurs are cool](document/dinosaurs-are-cool)"
-        // We do this for token efficiency and also to give the LLM more context about the
-        // linked content. When streaming these links back to the client, we need to
-        // replace the shorthand link with the actual link to the internal entity.
-        const traverse = (node: Parent) => {
-            for (let index = 0; index < node.children.length; index++) {
-                const childNode = node.children[index]!;
+    // Loop through our Markdown content. All of our internal links are stored as
+    // shorthand link representations. So for a Document titled "Dinosaurs are cool",
+    // the markdown link looks like "[Dinosaurs are cool](document/dinosaurs-are-cool)"
+    // We do this for token efficiency and also to give the LLM more context about the
+    // linked content. When streaming these links back to the client, we need to
+    // replace the shorthand link with the actual link to the internal entity.
+    const traverse = (node: Parent) => {
+        for (let index = 0; index < node.children.length; index++) {
+            const childNode = node.children[index]!;
 
-                if (childNode.type === "link") {
-                    promiseWaiter.waitUntil(async () => {
-                        // This link looks like a mention, let's add the correct link to the Markdown tree
-                        // before parsing into content.
-                        if (childNode.url.startsWith("/") || !/[a-zA-Z0-9]+:/.test(childNode.url)) {
-                            let url = childNode.url;
+            // We increment headings by 1 for agent web Markdown. So decrement them back by 1.
+            if (childNode.type === "heading") {
+                firstHeadingDepth ??= childNode.depth;
 
-                            // Add a leading slash in case the LLM forgot to add one.
-                            if (!url.startsWith("/")) url = `/${url}`;
-
-                            // Remove the hash part of the URL before resolving. Just like in an actual web
-                            // server! The hash part is only visible to the client, it's not visible to the
-                            // server. So it doesn't change server resolution.
-                            url = url.replace(/#.*$/, "");
-
-                            // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
-                            // mentionable, `pageLink` will be null. We need to build a plain link for non
-                            // mentionable content and we also need to swap the label so something more user
-                            // friendly (`mentionLabel`).
-                            const pageLink = await this._storage.pageLinkByPath.get(url);
-
-                            if (!pageLink) return;
-
-                            node.children[index] = {
-                                type: "link",
-                                url: printAgentWebPageKeyToLinkUrl(pageLink, {
-                                    spaceId: this._spaceId,
-                                    isAccountShortName:
-                                        pageLink.type === "Account"
-                                            ? url.endsWith("#short") ||
-                                              printMarkdownPhrasingContentText(
-                                                  childNode.children,
-                                              ) !== printAgentWebPageLinkLabel(pageLink)
-                                            : undefined,
-                                }),
-                                children: childNode.children,
-                                position: childNode.position,
-                            };
-                        }
-                    });
-                }
-
-                if ("children" in childNode) {
-                    traverse(childNode);
+                // If an agent outputs a heading 1 then we won't decrement future headings. We
+                // assume the agent doesn't understand that we reserve heading 1 for entity titles.
+                // So we leave the heading levels as defined by the agent.
+                //
+                // However, if an agent is copying heading styles its already seen (and so starts
+                // at level 2) then we need to decrement the heading level to match our
+                // `printApiContentToaGentWebMarkdown()` behavior making sure we correctly parse
+                // back content we showed to the agent.
+                if (firstHeadingDepth !== 1) {
+                    childNode.depth = Math.max(1, childNode.depth - 1) as 1 | 2 | 3 | 4 | 5 | 6;
                 }
             }
-        };
 
-        traverse(markdownRoot);
+            if (childNode.type === "link") {
+                promiseWaiter.waitUntil(async () => {
+                    // This link looks like a mention, let's add the correct link to the Markdown tree
+                    // before parsing into content.
+                    if (childNode.url.startsWith("/") || !/[a-zA-Z0-9]+:/.test(childNode.url)) {
+                        let url = childNode.url;
 
-        await promiseWaiter.wait();
+                        // Add a leading slash in case the LLM forgot to add one.
+                        if (!url.startsWith("/")) url = `/${url}`;
 
-        return Array.from(splitMarkdownTreeIntoParts(markdownRoot));
-    }
+                        // Remove the hash part of the URL before resolving. Just like in an actual web
+                        // server! The hash part is only visible to the client, it's not visible to the
+                        // server. So it doesn't change server resolution.
+                        url = url.replace(/#.*$/, "");
+
+                        // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
+                        // mentionable, `pageLink` will be null. We need to build a plain link for non
+                        // mentionable content and we also need to swap the label so something more user
+                        // friendly (`mentionLabel`).
+                        const pageLink = await storage.pageLinkByPath.get(url);
+
+                        if (!pageLink) return;
+
+                        node.children[index] = {
+                            type: "link",
+                            url: printAgentWebPageKeyToLinkUrl(pageLink, {
+                                spaceId,
+                                isAccountShortName:
+                                    pageLink.type === "Account"
+                                        ? url.endsWith("#short") ||
+                                          printMarkdownPhrasingContentText(childNode.children) !==
+                                              printAgentWebPageLinkLabel(pageLink)
+                                        : undefined,
+                            }),
+                            children: childNode.children,
+                            position: childNode.position,
+                        };
+                    }
+                });
+            }
+
+            if ("children" in childNode) {
+                traverse(childNode);
+            }
+        }
+    };
+
+    traverse(markdownRoot);
+
+    await promiseWaiter.wait();
+
+    return {
+        firstHeadingDepth,
+        markdownParts: Array.from(splitMarkdownTreeIntoParts(markdownRoot)),
+    };
 }
 
 function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockContent>> {

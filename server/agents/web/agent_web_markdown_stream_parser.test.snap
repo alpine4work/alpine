@@ -1,0 +1,929 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`streams plain text message when update is called once at the end 1`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy dog.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+  {
+    "index": 2,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Hello, world!",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plain text message when update is called once at the end 2`] = `[]`;
+
+exports[`streams plain text message when update is called once at the end 3`] = `
+[
+  {
+    "index": 3,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy dog.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+  {
+    "index": 4,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+  {
+    "index": 5,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Hello, world!",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plain text message when update is called once at the end 4`] = `[]`;
+
+exports[`streams plan text message when update is called once every few tokens 1`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every few tokens 2`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every few tokens 3`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy dog.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every few tokens 4`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bib",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every few tokens 5`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every few tokens 6`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+  {
+    "index": 2,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Hello, world!",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every few tokens 7`] = `[]`;
+
+exports[`streams plan text message when update is called once every token 1`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 2`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 3`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 4`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 5`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 6`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 7`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 8`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 9`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy dog",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 10`] = `
+[
+  {
+    "index": 0,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "The quick brown fox jumps over the lazy dog.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 11`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 12`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 13`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 14`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 15`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 16`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 17`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bib",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 18`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 19`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 20`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 21`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 22`] = `
+[
+  {
+    "index": 1,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Lorem ipsum dolor sit amet. Praesent bibendum vitae lectus at maximus.",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 23`] = `
+[
+  {
+    "index": 2,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Hello,",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 24`] = `
+[
+  {
+    "index": 2,
+    "payload": {
+      "content": {
+        "elements": [
+          {
+            "elements": [
+              {
+                "marks": undefined,
+                "text": "Hello, world!",
+                "type": "Text",
+              },
+            ],
+            "type": "Paragraph",
+          },
+        ],
+      },
+      "type": "Content",
+    },
+  },
+]
+`;
+
+exports[`streams plan text message when update is called once every token 25`] = `[]`;

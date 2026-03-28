@@ -123,10 +123,10 @@ async function traverseApiContentMarkdownNode(
         }
     }
 
-    // Headings from `ApiContent` should always start at level 2. That way we can add
-    // level 1 headings elsewhere in the agent context (e.g. document titles) without
-    // fear of conflict.
     switch (node.type) {
+        // Headings from `ApiContent` should always start at level 2. That way we can add
+        // level 1 headings elsewhere in the agent context (e.g. document titles) without
+        // fear of conflict.
         case "heading": {
             assert(node.depth <= 3);
             const newDepth = (node.depth + 1) as 2 | 3 | 4;

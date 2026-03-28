@@ -1,3 +1,9 @@
+// To update snapshots run:
+//
+// ```
+// bazel run //server/agents/web:agent_web_markdown_stream_parser_test -- --updateSnapshot
+// ```
+
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
 import {
     AgentWebSessionStorage,
@@ -3706,6 +3712,145 @@ describe("headers", () => {
                                 type: "Heading",
                                 level: 3,
                                 elements: [{type: "Text", text: "But heading 3 is the coolest"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams headers correctly when depth starts at 2", async () => {
+        const message = new AgentWebMarkdownStreamParser({
+            storage,
+            spaceId,
+        });
+
+        message.pushText(null, "foo\n\n");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "foo"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(null, "bar\n\n");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "bar"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(null, "## Heading 1");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Heading 1"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(null, " is cool");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Heading 1 is cool"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(null, "\n\n");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([]);
+
+        message.pushText(null, "### heading 2 is cooler");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 2,
+                                elements: [{type: "Text", text: "heading 2 is cooler"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(null, "\n\n#### But heading 3 is the coolest");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 4,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 3,
+                                elements: [{type: "Text", text: "But heading 3 is the coolest"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(null, "\n\n# Trying heading 1");
+
+        expect(await message.update(null).then(items => items.map(item => item.part))).toEqual([
+            {
+                index: 5,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Trying heading 1"}],
                             },
                         ],
                     },
