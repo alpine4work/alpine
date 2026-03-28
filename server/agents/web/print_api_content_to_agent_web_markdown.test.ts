@@ -57,6 +57,8 @@ const storage: AgentWebSessionStorage = {
     pageKeyByLinkPath: createAgentWebSessionStorageCollection(),
     lastPageLinkPathByKey: createAgentWebSessionStorageCollection(),
     dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
+    tableWidthByTruncatedWidth: createAgentWebSessionStorageCollection(),
+    tableColumnWidthsByTruncatedColumnWidths: createAgentWebSessionStorageCollection(),
 };
 
 const testCases: Array<{
@@ -430,6 +432,558 @@ Visit <a href="${exampleUrl.slice(0, 40)}…alpine.inc">https://example.com</a> 
 Visit <a href="${exampleUrl.slice(0, 40)}…alpine.inc">https://example.com</a> for more
 </code>
 </pre>
+`,
+    },
+    {
+        name: "table width and column widths are truncated",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1.5524444444444445,
+                    columns: [
+                        {width: 1},
+                        {width: 1.1848341232227486},
+                        {width: 1.6666666666666667},
+                        {width: 1},
+                        {width: 0.6666666666666667},
+                    ],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<table data-width="1.55" data-column-widths="1,1.18,1.67,1,0.67">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+    },
+    {
+        name: "table column widths increase fraction digits for small values",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    columns: [{width: 0.00123}, {width: 0.00124}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<table data-column-widths="0.00123,0.00124">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+    },
+    {
+        name: "table width and column widths deduplication (identical widths reused)",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1.2341,
+                    columns: [{width: 9.8761}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Table",
+                    width: 1.2341,
+                    columns: [{width: 9.8761}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<table data-width="1.23" data-column-widths="9.88,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<table data-width="1.23" data-column-widths="9.88,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+    },
+    {
+        name: "table width and column widths deduplication (2 copies)",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1.2341,
+                    columns: [{width: 9.8761}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Table",
+                    width: 1.2342,
+                    columns: [{width: 9.8762}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<table data-width="1.23" data-column-widths="9.88,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<table data-width="1.234" data-column-widths="9.876,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+    },
+    {
+        name: "table width and column widths deduplication (5 copies)",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1.2341,
+                    columns: [{width: 9.8761}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Table",
+                    width: 1.2342,
+                    columns: [{width: 9.8762}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Table",
+                    width: 1.2343,
+                    columns: [{width: 9.8763}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Table",
+                    width: 1.2344,
+                    columns: [{width: 9.8764}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Table",
+                    width: 1.2345,
+                    columns: [{width: 9.8765}, {width: 0}],
+                    hasHeaderRow: false,
+                    hasHeaderColumn: true,
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Label"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Value"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<table data-width="1.23" data-column-widths="9.88,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<table data-width="1.234" data-column-widths="9.876,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<table data-width="1.2343" data-column-widths="9.8763,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<table data-width="1.2344" data-column-widths="9.8764,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<table data-width="1.2345" data-column-widths="9.877,0">
+<tbody>
+<tr>
+<th>
+
+Label
+
+</th>
+<td>
+
+Value
+
+</td>
+</tr>
+</tbody>
+</table>
 `,
     },
 ];

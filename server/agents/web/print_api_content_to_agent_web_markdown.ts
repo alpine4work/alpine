@@ -227,14 +227,20 @@ async function traverseApiContentMarkdownHtmlNode(
                             endIndex: tableTagState.dataWidth.data.endIndex,
                             string: storage.mutex.withLock(async () => {
                                 let fractionDigits = 2;
-                                let truncatedWidth = width.toFixed(fractionDigits);
+                                let truncatedWidth = toFixedWithoutTrailingZeros(
+                                    width,
+                                    fractionDigits,
+                                );
 
                                 let expectedWidth =
                                     await storage.tableWidthByTruncatedWidth.get(truncatedWidth);
 
                                 while (expectedWidth !== undefined && expectedWidth !== width) {
                                     fractionDigits++;
-                                    truncatedWidth = width.toFixed(fractionDigits);
+                                    truncatedWidth = toFixedWithoutTrailingZeros(
+                                        width,
+                                        fractionDigits,
+                                    );
 
                                     expectedWidth =
                                         await storage.tableWidthByTruncatedWidth.get(
@@ -302,11 +308,13 @@ async function traverseApiContentMarkdownHtmlNode(
                                         -Math.floor(Math.log10(maxDifference)),
                                     );
 
-                                    fractionDigits = maxDifferenceLeadingZeros + 2;
+                                    fractionDigits = Math.max(2, maxDifferenceLeadingZeros + 1);
                                 }
 
                                 let truncatedColumnWidths = columnWidths
-                                    .map(width => width.toFixed(fractionDigits))
+                                    .map(width =>
+                                        toFixedWithoutTrailingZeros(width, fractionDigits),
+                                    )
                                     .join(",");
 
                                 let expectedColumnWidths =
@@ -321,7 +329,9 @@ async function traverseApiContentMarkdownHtmlNode(
                                     fractionDigits++;
 
                                     truncatedColumnWidths = columnWidths
-                                        .map(width => width.toFixed(fractionDigits))
+                                        .map(width =>
+                                            toFixedWithoutTrailingZeros(width, fractionDigits),
+                                        )
                                         .join(",");
 
                                     expectedColumnWidths =
@@ -526,4 +536,23 @@ function addDedupeNumberToTruncatedAgentWebMarkdownUrl(
     } else {
         return `${truncatedUrl}#${dedupeNumber}`;
     }
+}
+
+function toFixedWithoutTrailingZeros(value: number, fractionDigits: number): string {
+    const string = value.toFixed(fractionDigits);
+
+    let endIndex = string.length;
+
+    for (let i = string.length - 1; i >= 0; i--) {
+        if (string[i] !== "0") {
+            endIndex = i + 1;
+            break;
+        }
+    }
+
+    if (string[endIndex - 1] === ".") endIndex--;
+
+    if (endIndex === 0) return "0";
+
+    return string.slice(0, endIndex);
 }
