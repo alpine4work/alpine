@@ -340,8 +340,10 @@ function DatabaseGridViewLoadMoreSentinel({query}: {query: DatabaseQuery}) {
     const isLoadingMore = useStore(query.isLoadingMoreStore);
 
     useEffect(() => {
-        void query.loadMore();
-    }, [query]);
+        if (!isLoadingMore) {
+            void query.loadMore();
+        }
+    }, [query, isLoadingMore]);
 
     return (
         <Box
