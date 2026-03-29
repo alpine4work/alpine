@@ -7,7 +7,7 @@ import {
     checkConstraintForColumn,
     formatUniqueSqlName,
 } from "~/shared/databases/internal/database_sql_helpers.js";
-import {sql} from "~/shared/databases/sql.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
@@ -404,8 +404,62 @@ export const databaseActions = {
         },
     }),
 
-    getViewRows: defineDatabaseAction({
-        input: Schema.object({tableOrViewId: Schema.string}),
+    getViewRowsPageCursor: defineDatabaseAction({
+        input: Schema.object({
+            tableOrViewId: Schema.string,
+            afterCursor: Schema.id<DatabaseRowId>().nullable(),
+            limit: Schema.integer,
+        }),
+        output: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            viewId: Schema.id<DatabaseViewId>(),
+            tableName: Schema.string,
+            endCursor: Schema.id<DatabaseRowId>().nullable(),
+        }),
+        writeLevel: "none",
+        run(db, {tableOrViewId, afterCursor, limit}) {
+            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+
+            const query =
+                afterCursor != null
+                    ? sql`
+                          SELECT
+                              _id
+                          FROM
+                              ${sql.identifier(tableName)}
+                          WHERE
+                              _id > ${afterCursor}
+                          ORDER BY
+                              _id
+                          LIMIT
+                              ${limit}
+                      `
+                    : sql`
+                          SELECT
+                              _id
+                          FROM
+                              ${sql.identifier(tableName)}
+                          ORDER BY
+                              _id
+                          LIMIT
+                              ${limit}
+                      `;
+
+            const rows = query.selectAll(db, {
+                id: Schema.id<DatabaseRowId>().originalPropertyKey("_id"),
+            });
+            const endCursor = rows.length === limit ? rows[rows.length - 1]!.id : null;
+
+            return {tableId, viewId, tableName, endCursor};
+        },
+    }),
+
+    getViewRowsPage: defineDatabaseAction({
+        input: Schema.object({
+            tableOrViewId: Schema.string,
+            afterCursor: Schema.id<DatabaseRowId>().nullable(),
+            endCursor: Schema.id<DatabaseRowId>().nullable(),
+        }),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
@@ -413,14 +467,37 @@ export const databaseActions = {
             rows: Schema.array(Schema.unknown()),
         }),
         writeLevel: "none",
-        run(db, {tableOrViewId}) {
+        run(db, {tableOrViewId, afterCursor, endCursor}) {
             const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+
+            let whereClause: SqlQuery;
+            if (afterCursor != null && endCursor != null) {
+                whereClause = sql`
+                    WHERE
+                        _id > ${afterCursor}
+                        AND _id <= ${endCursor}
+                `;
+            } else if (afterCursor != null) {
+                whereClause = sql`
+                    WHERE
+                        _id > ${afterCursor}
+                `;
+            } else if (endCursor != null) {
+                whereClause = sql`
+                    WHERE
+                        _id <= ${endCursor}
+                `;
+            } else {
+                whereClause = sql.raw("");
+            }
 
             const rows = sql`
                 SELECT
                     *
                 FROM
-                    ${sql.identifier(tableName)}
+                    ${sql.identifier(tableName)} ${whereClause}
+                ORDER BY
+                    _id
             `.selectAllUnknown(db);
 
             return {tableId, viewId, tableName, rows};

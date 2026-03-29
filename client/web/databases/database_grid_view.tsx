@@ -11,12 +11,14 @@ import {
     useState,
 } from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -31,13 +33,6 @@ import type {
     DatabaseTableId,
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
-
-type DatabaseGridViewField = {
-    readonly id: DatabaseFieldId;
-    readonly name: string;
-    readonly columnName: string;
-    readonly width: number;
-};
 
 const alwaysRenderHeader: ReadonlyArray<number> = [0];
 
@@ -97,6 +92,13 @@ function selectionReducer(
 
 // -- Main component -----------------------------------------------------------
 
+export type DatabaseGridViewField = {
+    readonly id: DatabaseFieldId;
+    readonly name: string;
+    readonly columnName: string;
+    readonly width: number;
+};
+
 /**
  * Renders database rows in an editable virtualized grid
  * with a sticky header. Uses view field metadata for
@@ -106,15 +108,15 @@ export function DatabaseGridView({
     tableId,
     viewId,
     fields,
-    rows: rawRows,
+    query,
 }: {
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
     fields: ReadonlyArray<DatabaseGridViewField>;
-    rows: ReadonlyArray<unknown>;
+    query: DatabaseQuery;
 }) {
     const conn = useDatabaseConnection();
-    const rows = rawRows as ReadonlyArray<Record<string, unknown>>;
+    const tree = useStore(query.treeStore);
     const [selection, dispatch] = useReducer(selectionReducer, null);
     const [addingField, setAddingField] = useState<string | null>(null);
 
@@ -134,6 +136,8 @@ export function DatabaseGridView({
         return map;
     }, [optimisticFields]);
 
+    const rowCount = tree.getItemCount();
+
     const moveSelection = useEvent((deltaRow: number, deltaField: number) => {
         if (selection == null) return;
 
@@ -143,7 +147,7 @@ export function DatabaseGridView({
         if (virtualIndex == null || fieldIndex == null) return;
 
         const rowIndex = virtualIndex - 1;
-        const nextRowIndex = Math.max(0, Math.min(rows.length - 1, rowIndex + deltaRow));
+        const nextRowIndex = Math.max(0, Math.min(rowCount - 1, rowIndex + deltaRow));
         const nextFieldIndex = Math.max(
             0,
             Math.min(optimisticFields.length - 1, fieldIndex + deltaField),
@@ -151,9 +155,10 @@ export function DatabaseGridView({
 
         if (nextRowIndex === rowIndex && nextFieldIndex === fieldIndex) return;
 
+        const nextRow = tree.getItem(nextRowIndex);
         dispatch({
             type: "select",
-            rowId: rows[nextRowIndex]!._id as DatabaseRowId,
+            rowId: nextRow._id as DatabaseRowId,
             fieldId: optimisticFields[nextFieldIndex]!.id,
         });
     });
@@ -196,6 +201,9 @@ export function DatabaseGridView({
         if (selectedRowId == null) return;
         scrollViewRef.current?.scrollToKeyIfExists(selectedRowId, {withAnchor: false});
     }, [selectedRowId]);
+
+    const needsMore = useStore(query.needsMoreStore);
+    const itemCount = rowCount + 1 + (needsMore ? 1 : 0);
 
     const renderItem: Memo<(index: number) => VirtualizedScrollViewItem> = useMemo(
         () =>
@@ -266,7 +274,16 @@ export function DatabaseGridView({
                     };
                 }
 
-                const row = rows[index - 1]!;
+                // Load-more sentinel at the end.
+                if (needsMore && index === rowCount + 1) {
+                    return {
+                        key: "load-more",
+                        minHeight: 32,
+                        node: <DatabaseGridViewLoadMoreSentinel query={query} />,
+                    };
+                }
+
+                const row = tree.getItem(index - 1);
                 assert(typeof row._id === "string", "expected row to have a string _id");
                 const rowId = row._id as DatabaseRowId;
                 return {
@@ -288,7 +305,10 @@ export function DatabaseGridView({
             },
         [
             optimisticFields,
-            rows,
+            tree,
+            rowCount,
+            needsMore,
+            query,
             selection,
             addingField,
             conn,
@@ -304,13 +324,36 @@ export function DatabaseGridView({
             <Box flexGrow="1" overflow="hidden">
                 <VirtualizedScrollView
                     ref={scrollViewRef}
-                    itemCount={rows.length + 1}
+                    itemCount={itemCount}
                     bufferedItemHeight={32}
                     renderItem={renderItem}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderHeader}
                 />
             </Box>
         </GlobalKeyDownEvent>
+    );
+}
+
+// -- Load-more sentinel -------------------------------------------------------
+
+function DatabaseGridViewLoadMoreSentinel({query}: {query: DatabaseQuery}) {
+    const isLoadingMore = useStore(query.isLoadingMoreStore);
+
+    useEffect(() => {
+        void query.loadMore();
+    }, [query]);
+
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            fontSize="75"
+            color="grey-50"
+            padding="2"
+        >
+            {isLoadingMore ? "Loading..." : null}
+        </Box>
     );
 }
 

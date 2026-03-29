@@ -1,10 +1,12 @@
 import {redirect} from "@remix-run/node";
-import {useMemo} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
+import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseGridView} from "~/client/web/databases/database_grid_view.js";
+import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -15,14 +17,20 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
     type DatabaseActionInput,
+    type DatabaseActionOutput,
+    type LoaderDatabaseActionResult,
     LoaderDatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
+import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     schema: LoaderDatabaseActionResultSchema,
-    rows: LoaderDatabaseActionResultSchema,
+    firstPage: Schema.object({
+        endCursor: Schema.id<DatabaseRowId>().nullable(),
+        pageResult: LoaderDatabaseActionResultSchema,
+    }),
 });
 
 export {LoaderSchema as ViewLoaderSchema};
@@ -36,12 +44,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
     await getDatabase(context, databaseId);
 
     const tableOrViewId = params.tableOrViewId!;
-    const actionInput = {tableOrViewId};
 
-    const [schemaResult, rowsResult] = await runAllPromises([
-        fetchDatabaseAction(context, databaseId, {name: "getViewSchema", input: actionInput}),
-        fetchDatabaseAction(context, databaseId, {name: "getViewRows", input: actionInput}),
-    ]);
+    // Fetch schema first — needed for the redirect check.
+    const schemaResult = await fetchDatabaseAction(context, databaseId, {
+        name: "getViewSchema",
+        input: {tableOrViewId},
+    });
 
     // If the user navigated with a table ID, redirect to
     // the resolved view ID for a canonical URL. Uses a
@@ -52,18 +60,41 @@ export async function loader({request, params, context: unauthenticatedContext}:
         return redirect(url.pathname + url.search);
     }
 
+    // Discover the cursor for the first page then fetch
+    // the page rows.
+    const cursorResult = await fetchDatabaseAction(context, databaseId, {
+        name: "getViewRowsPageCursor",
+        input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
+    });
+
+    const pageResult = await fetchDatabaseAction(context, databaseId, {
+        name: "getViewRowsPage",
+        input: {
+            tableOrViewId,
+            afterCursor: null,
+            endCursor: cursorResult.result.endCursor,
+        },
+    });
+
     return jsonWithSchema(LoaderSchema, {
         schema: {
             name: "getViewSchema",
-            input: actionInput,
+            input: {tableOrViewId},
             output: schemaResult.result,
             readPages: schemaResult.readPages,
         },
-        rows: {
-            name: "getViewRows",
-            input: actionInput,
-            output: rowsResult.result,
-            readPages: rowsResult.readPages,
+        firstPage: {
+            endCursor: cursorResult.result.endCursor,
+            pageResult: {
+                name: "getViewRowsPage",
+                input: {
+                    tableOrViewId,
+                    afterCursor: null,
+                    endCursor: cursorResult.result.endCursor,
+                },
+                output: pageResult.result,
+                readPages: pageResult.readPages,
+            },
         },
     });
 }
@@ -78,13 +109,18 @@ export default function DatabaseViewRoute() {
         input,
         initialData: loaderData.schema,
     });
-    const rowsResult = useReactiveDatabaseAction({
-        name: "getViewRows",
-        input,
-        initialData: loaderData.rows,
-    });
 
-    if (schemaResult == null || rowsResult == null) {
+    const conn = useDatabaseConnection();
+    const query = useDatabaseQuery(
+        conn,
+        tableOrViewId,
+        loaderData.firstPage as {
+            endCursor: DatabaseRowId | null;
+            pageResult: LoaderDatabaseActionResult<"getViewRowsPage">;
+        },
+    );
+
+    if (schemaResult == null) {
         return (
             <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
                 Loading...
@@ -105,26 +141,47 @@ export default function DatabaseViewRoute() {
             </pre>
         );
     }
-    if (!rowsResult.ok) {
-        return (
-            <pre
-                className={sprinkles({
-                    fontSize: "75",
-                    fontStyle: "code",
-                    color: "red-60",
-                    padding: "2",
-                })}
-            >
-                {rowsResult.error}
-            </pre>
-        );
-    }
     return (
         <DatabaseGridView
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
             fields={schemaResult.value.fields}
-            rows={rowsResult.value.rows}
+            query={query}
         />
     );
+}
+
+/**
+ * Creates and manages a `DatabaseQuery` instance tied to
+ * the current connection and view. The query is created
+ * synchronously in state so initial data is available on
+ * the first render; reactive subscriptions start in an
+ * effect once the connection is ready.
+ */
+function useDatabaseQuery(
+    conn: ReturnType<typeof useDatabaseConnection>,
+    tableOrViewId: string,
+    firstPage: {
+        endCursor: DatabaseRowId | null;
+        pageResult: LoaderDatabaseActionResult<"getViewRowsPage">;
+    },
+): DatabaseQuery {
+    const [query] = useState(() => {
+        const output = firstPage.pageResult.output as DatabaseActionOutput<"getViewRowsPage">;
+        return new DatabaseQuery({
+            tableOrViewId,
+            initialPage: {
+                endCursor: firstPage.endCursor,
+                rows: output.rows,
+            },
+        });
+    });
+
+    useEffect(() => {
+        if (conn == null) return;
+        query.listen({conn, readPages: firstPage.pageResult.readPages});
+        return () => query.dispose();
+    }, [query, conn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return query;
 }

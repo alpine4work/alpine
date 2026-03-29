@@ -52,3 +52,9 @@ export const pageAccessFlagWrite = 2;
  * stale page indexes for the client to delete.
  */
 export const cacheUpdateStalePageLimit = 1000;
+
+/**
+ * Number of rows fetched per page when loading a
+ * database view with cursor-based pagination.
+ */
+export const databaseViewTargetRowsPerPage = 100;
