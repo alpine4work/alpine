@@ -548,6 +548,71 @@ export const databaseActions = {
             return {};
         },
     }),
+
+    renameField: defineDatabaseAction({
+        input: Schema.object({
+            fieldId: Schema.id<DatabaseFieldId>(),
+            name: Schema.string,
+        }),
+        output: Schema.object({}),
+        writeLevel: "schema+data",
+        run(db, {fieldId, name}) {
+            const field = sql`
+                SELECT
+                    id,
+                    table_id,
+                    column_name
+                FROM
+                    _alpine_fields
+                WHERE
+                    id = ${fieldId}
+            `.selectOne(db, alpineFieldConfig);
+
+            const table = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${field.tableId}
+            `.selectOne(db, alpineTableConfig);
+
+            const existingColumnNames = new Set(
+                sql`
+                    SELECT
+                        column_name
+                    FROM
+                        _alpine_fields
+                    WHERE
+                        table_id = ${field.tableId}
+                        AND id != ${fieldId}
+                `
+                    .selectAll(db, {
+                        columnName: Schema.string.originalPropertyKey("column_name"),
+                    })
+                    .map(row => row.columnName),
+            );
+            const newColumnName = formatUniqueSqlName(name, existingColumnNames);
+
+            sql`
+                UPDATE _alpine_fields
+                SET
+                    name = ${name},
+                    column_name = ${newColumnName}
+                WHERE
+                    id = ${fieldId}
+            `.exec(db);
+
+            sql`
+                ALTER TABLE ${sql.identifier(table.tableName)}
+                RENAME COLUMN ${sql.identifier(field.columnName)} TO ${sql.identifier(
+                    newColumnName,
+                )}
+            `.exec(db);
+
+            return {};
+        },
+    }),
 };
 
 // -- Derived types -----------------------------------------------------------

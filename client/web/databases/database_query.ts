@@ -1,5 +1,5 @@
 import type {
-    DatabaseConnection,
+    DatabaseWorkerConnection,
     ReactiveActionHandle,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
@@ -38,7 +38,7 @@ export class DatabaseQuery {
     private readonly tableOrViewId: string;
     private readonly pages: Array<PageState> = [];
     private readonly _initialEndCursor: DatabaseRowId | null;
-    private conn: DatabaseConnection | null = null;
+    private conn: DatabaseWorkerConnection | null = null;
     private _disposed = false;
 
     readonly treeStore: ValueStore<VirtualizedTree<number, DatabaseQueryPage, DatabaseQueryRow>>;
@@ -73,7 +73,7 @@ export class DatabaseQuery {
      * from SSR data and begins watching the initial page.
      */
     listen(options: {
-        conn: DatabaseConnection;
+        conn: DatabaseWorkerConnection;
         readPages?: ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>;
     }): void {
         this.conn = options.conn;

@@ -115,7 +115,7 @@ type DatabaseConnectionCall = <K extends string & keyof typeof tabToWorkerDataba
     input: Omit<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["inputSchema"]>, "databaseId">,
 ) => Promise<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["outputSchema"]>>;
 
-export interface DatabaseConnection {
+export interface DatabaseWorkerConnection {
     call: DatabaseConnectionCall;
     executeAction<N extends DatabaseActionName>(
         name: N,
@@ -448,7 +448,7 @@ export class DatabaseActiveTabManager {
         },
     ) {}
 
-    async connect(): Promise<DatabaseConnection> {
+    async connect(): Promise<DatabaseWorkerConnection> {
         const isLeader = await this.tryAcquireLeaderLock();
         const conn = isLeader ? await this.connectAsLeader() : await this.connectAsFollower();
         this.raw = {...conn, isLeader};
