@@ -3,27 +3,21 @@ import {
     type ActiveTabPort,
     type ActiveTabWorkerHandle,
     DatabaseActiveTabManager,
-    type DatabaseConnection,
+    type DatabaseWorkerConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
+import {CancelledError} from "~/shared/error/error.js";
 import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {
-    DatabaseConnection,
+    DatabaseWorkerConnection,
     ReactiveActionHandle,
     ReactiveActionResult,
 } from "~/client/web/databases/database_active_tab_manager.js";
 
-/**
- * Connect to the shared client-side SQLite database.
- * Handles multi-tab coordination transparently: one
- * tab becomes the leader (runs SQLite in a dedicated
- * worker), others proxy queries via MessagePort through
- * the ServiceWorker.
- */
-export async function connectToDatabase(options: {
+type ConnectOptions = {
     databaseId: DatabaseId;
     initialPages?: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>;
     executeActionServer(
@@ -39,7 +33,88 @@ export async function connectToDatabase(options: {
     ): Promise<EnsureCacheIsUpToDateResult>;
     acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
     reportError?(message: string): void;
-}): Promise<DatabaseConnection> {
+};
+
+/**
+ * Creates a database connection synchronously. The
+ * returned `connection` queues all calls until
+ * `connect()` is called, making it safe for SSR where
+ * the actual worker connection only happens client-side.
+ */
+export function createDatabaseConnection(): {
+    connection: DatabaseWorkerConnection;
+    connect(options: ConnectOptions): Promise<void>;
+} {
+    let real: DatabaseWorkerConnection | null = null;
+    let closed = false;
+    const pending: Array<{
+        resolve: (value: unknown) => void;
+        reject: (reason: unknown) => void;
+        fn: (conn: DatabaseWorkerConnection) => Promise<unknown>;
+    }> = [];
+
+    function rejectAllPending() {
+        for (const entry of pending.splice(0)) {
+            entry.reject(new CancelledError("Connection closed before connect"));
+        }
+    }
+
+    function enqueue<T>(fn: (conn: DatabaseWorkerConnection) => Promise<T>): Promise<T> {
+        if (closed) return Promise.reject(new CancelledError("Connection closed"));
+        if (real != null) return fn(real);
+        return new Promise<T>((resolve, reject) => {
+            pending.push({
+                resolve: resolve as (value: unknown) => void,
+                reject,
+                fn,
+            });
+        });
+    }
+
+    function flush(conn: DatabaseWorkerConnection) {
+        for (const entry of pending.splice(0)) {
+            entry.fn(conn).then(entry.resolve, entry.reject);
+        }
+    }
+
+    const connection: DatabaseWorkerConnection = {
+        call(...args) {
+            return enqueue(conn => conn.call(...args));
+        },
+        executeAction(...args) {
+            return enqueue(conn => conn.executeAction(...args));
+        },
+        watchAction(...args) {
+            return enqueue(conn => conn.watchAction(...args));
+        },
+        close() {
+            closed = true;
+            rejectAllPending();
+            real?.close();
+        },
+    };
+
+    async function connect(options: ConnectOptions): Promise<void> {
+        const realConn = await connectToDatabase(options);
+        if (closed) {
+            realConn.close();
+            return;
+        }
+        real = realConn;
+        flush(realConn);
+    }
+
+    return {connection, connect};
+}
+
+/**
+ * Connect to the shared client-side SQLite database.
+ * Handles multi-tab coordination transparently: one
+ * tab becomes the leader (runs SQLite in a dedicated
+ * worker), others proxy queries via MessagePort through
+ * the ServiceWorker.
+ */
+async function connectToDatabase(options: ConnectOptions): Promise<DatabaseWorkerConnection> {
     const manager = new DatabaseActiveTabManager({
         databaseId: options.databaseId,
         locks: navigator.locks,

@@ -454,7 +454,6 @@ function DatabaseGridViewCell({
     const [committedValue, setCommittedValue] = useOptimistic(value == null ? "" : String(value));
 
     const commitValue = useEvent((newValue: string) => {
-        if (conn == null) return;
         if (newValue === committedValue) return;
         startTransition(async () => {
             setCommittedValue(newValue);

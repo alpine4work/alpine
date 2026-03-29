@@ -4,10 +4,7 @@ import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {
-    type DatabaseConnection,
-    connectToDatabase,
-} from "~/client/web/databases/connect_to_database.js";
+import {createDatabaseConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseTablesContext} from "~/client/web/databases/database_tables_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -87,14 +84,15 @@ export default function DatabaseLayoutRoute() {
     const navigate = useNavigate();
     const reporter = useReporter();
     const basePath = `/s/${params.spaceId}/databases/${databaseId}`;
-    const [conn, setConn] = useState<DatabaseConnection | null>(null);
+    const [db] = useState(createDatabaseConnection);
+    const conn = db.connection;
     const initialPagesRef = useRef(pages);
 
     useSearchAffinityViewEntityInteraction(`Database:${databaseId}`);
 
     const events = useEvents({
         handleEvent: (event: DatabaseRealtimeEvent) => {
-            if (event.type === "PagesChanged" && conn !== null) {
+            if (event.type === "PagesChanged") {
                 conn.call("writePagesFromRealtime", {
                     pages: event.pages,
                     mutationId: event.mutationId,
@@ -141,22 +139,32 @@ export default function DatabaseLayoutRoute() {
     });
 
     useEffect(() => {
-        let connection: DatabaseConnection | null = null;
-        (async () => {
-            connection = await connectToDatabase({
-                databaseId,
-                initialPages: initialPagesRef.current,
-                executeActionServer,
-                ensureCacheIsUpToDate,
-                acknowledgePages,
-                reportError,
-            });
-            setConn(connection);
-        })();
+        db.connect({
+            databaseId,
+            initialPages: initialPagesRef.current,
+            executeActionServer,
+            ensureCacheIsUpToDate,
+            acknowledgePages,
+            reportError,
+        }).catch((error: unknown) => {
+            reporter.displayError(
+                "Couldn\u2019t connect to database",
+                error instanceof Error ? error : new InternalError(String(error)),
+            );
+        });
         return () => {
-            connection?.close();
+            conn.close();
         };
-    }, [databaseId, executeActionServer, ensureCacheIsUpToDate, acknowledgePages, reportError]);
+    }, [
+        db,
+        conn,
+        databaseId,
+        reporter,
+        executeActionServer,
+        ensureCacheIsUpToDate,
+        acknowledgePages,
+        reportError,
+    ]);
 
     return (
         <Box

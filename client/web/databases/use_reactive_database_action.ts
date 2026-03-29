@@ -35,7 +35,7 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
     const initialDataRef = useRef(initialData);
 
     useEffect(() => {
-        if (conn == null || input == null) return;
+        if (input == null) return;
 
         const readPages = initialDataRef.current?.readPages;
         if (readPages !== undefined && readPages.size > 0) {

@@ -1,15 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import {createContext, useContext} from "react";
-import type {DatabaseConnection} from "~/client/web/databases/connect_to_database.js";
+import type {DatabaseWorkerConnection} from "~/client/web/databases/connect_to_database.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
-export const DatabaseConnectionContext = createContext<DatabaseConnection | null>(null);
+export const DatabaseConnectionContext = createContext<DatabaseWorkerConnection | null>(null);
 
 /**
  * Returns the database connection from the nearest
- * {@link DatabaseConnectionContext} provider. May be `null`
- * while the connection is still being established.
+ * {@link DatabaseConnectionContext} provider.
  */
-export function useDatabaseConnection(): DatabaseConnection | null {
-    return useContext(DatabaseConnectionContext);
+export function useDatabaseConnection(): DatabaseWorkerConnection {
+    const conn = useContext(DatabaseConnectionContext);
+    assert(
+        conn != null,
+        "useDatabaseConnection must be used within a DatabaseConnectionContext provider",
+    );
+    return conn;
 }

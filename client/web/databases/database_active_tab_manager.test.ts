@@ -11,7 +11,7 @@ import {
     DatabaseActiveTabManager,
     DatabaseActiveTabServiceWorker,
     DatabaseActiveTabWorker,
-    type DatabaseConnection,
+    type DatabaseWorkerConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
@@ -46,7 +46,7 @@ async function createSeededClient(
 }
 
 async function executeSql(
-    conn: DatabaseConnection,
+    conn: DatabaseWorkerConnection,
     sql: string,
 ): Promise<Array<Record<string, unknown>>> {
     const result = await conn.executeAction("rawSql", {sql});

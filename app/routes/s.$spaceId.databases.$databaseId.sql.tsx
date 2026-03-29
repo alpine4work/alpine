@@ -145,7 +145,6 @@ export default function DatabaseSqlRoute() {
                 <Button
                     variant="neutral"
                     onPress={async () => {
-                        if (conn == null) return;
                         setError(null);
                         try {
                             const result = await conn.executeAction("rawSql", {sql: query});
@@ -162,7 +161,7 @@ export default function DatabaseSqlRoute() {
                 <Button
                     variant="quieter"
                     onPress={() => {
-                        if (conn == null || query.trim() === "") return;
+                        if (query.trim() === "") return;
                         setWatches(prev => [
                             ...prev,
                             {id: generateId<DatabaseReactiveActionId>(), sql: query},

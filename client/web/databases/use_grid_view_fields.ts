@@ -75,7 +75,6 @@ export function useGridViewFields({
             return;
         }
         setEditingState(null);
-        if (conn == null) return;
         switch (editingState.type) {
             case "renaming": {
                 const fieldId = editingState.fieldId;
