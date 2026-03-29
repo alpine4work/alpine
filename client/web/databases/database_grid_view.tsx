@@ -219,12 +219,15 @@ export function DatabaseGridView({
                                     <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
-                                        position={
-                                            shouldRenderWithRelativePositioning
+                                        style={{
+                                            position: shouldRenderWithRelativePositioning
                                                 ? "relative"
-                                                : "sticky"
-                                        }
-                                        zIndex="20"
+                                                : "sticky",
+                                            top: shouldRenderWithRelativePositioning
+                                                ? undefined
+                                                : 0,
+                                            zIndex: 2,
+                                        }}
                                     >
                                         <DatabaseGridViewHeaderRow
                                             fields={gridFields.fields}
@@ -386,6 +389,7 @@ function DatabaseGridViewHeaderCell({
             color="grey-80"
             fontSize="75"
             fontStyle="truncate-semi-bold"
+            backgroundColor="grey-0"
             padding={editing ? undefined : "2"}
             textAlign="left"
             style={field.columnStyle}
