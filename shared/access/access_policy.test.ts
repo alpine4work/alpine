@@ -89,7 +89,7 @@ test("access level comparisons are correct", () => {
     }
 });
 
-test("validates access policy updates without default grants", () => {
+describe("validates access policy updates without default grants", () => {
     const accountId1 = generateId<AccountId>();
     const accountId2 = generateId<AccountId>();
     const accountId3 = generateId<AccountId>();
@@ -100,340 +100,368 @@ test("validates access policy updates without default grants", () => {
         urlGrant: null,
     };
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy1,
-            produce(accessPolicy1, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId2, {level: "Manage", generation: 0});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
-    });
-
     const accessPolicy2 = produce(accessPolicy1, accessPolicy => {
         accessPolicy.accountGrantById.set(accountId2, {level: "Manage", generation: 1});
-    });
-
-    expect(validateAccessPolicyUpdate(accountId1, accessPolicy1, accessPolicy2)).toEqual({
-        ok: true,
-    });
-
-    expect(validateAccessPolicyUpdate(accountId1, accessPolicy2, accessPolicy1)).toEqual({
-        ok: true,
-    });
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy2,
-            produce(accessPolicy2, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 0});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
-    });
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy2,
-            produce(accessPolicy2, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     });
 
     const accessPolicy3 = produce(accessPolicy2, accessPolicy => {
         accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 2});
     });
 
-    expect(validateAccessPolicyUpdate(accountId2, accessPolicy2, accessPolicy3)).toEqual({
-        ok: true,
+    test("actor can\u2019t add a manage account at a generation equal to its own", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy1,
+                produce(accessPolicy1, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId2, {level: "Manage", generation: 0});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy2,
+                produce(accessPolicy2, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        });
     });
 
-    expect(validateAccessPolicyUpdate(accountId2, accessPolicy3, accessPolicy2)).toEqual({
-        ok: true,
+    test("actor can add a manage account at a generation greater than its own", () => {
+        expect(validateAccessPolicyUpdate(accountId1, accessPolicy1, accessPolicy2)).toEqual({
+            ok: true,
+        });
+
+        expect(validateAccessPolicyUpdate(accountId2, accessPolicy2, accessPolicy3)).toEqual({
+            ok: true,
+        });
+
+        expect(validateAccessPolicyUpdate(accountId1, accessPolicy2, accessPolicy3)).toEqual({
+            ok: true,
+        });
     });
 
-    expect(validateAccessPolicyUpdate(accountId1, accessPolicy2, accessPolicy3)).toEqual({
-        ok: true,
+    test("actor can remove a manage account at a generation greater than its own", () => {
+        expect(validateAccessPolicyUpdate(accountId1, accessPolicy2, accessPolicy1)).toEqual({
+            ok: true,
+        });
+
+        expect(validateAccessPolicyUpdate(accountId2, accessPolicy3, accessPolicy2)).toEqual({
+            ok: true,
+        });
+
+        expect(validateAccessPolicyUpdate(accountId1, accessPolicy3, accessPolicy2)).toEqual({
+            ok: true,
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId2);
+                }),
+            ),
+        ).toEqual({ok: true});
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId3);
+                }),
+            ),
+        ).toEqual({ok: true});
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId3);
+                }),
+            ),
+        ).toEqual({ok: true});
     });
 
-    expect(validateAccessPolicyUpdate(accountId1, accessPolicy3, accessPolicy2)).toEqual({
-        ok: true,
+    test("actor can remove own access from an access policy", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId2);
+                }),
+            ),
+        ).toEqual({ok: true});
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId3);
+                }),
+            ),
+        ).toEqual({ok: true});
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
-            }),
-        ),
-    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
-            }),
-        ),
-    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
-            }),
-        ),
-    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
-            }),
-        ),
-    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
-            }),
-        ),
-    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
-            }),
-        ),
-    ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy2,
-            produce(accessPolicy2, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId1);
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can\u2019t add a manage account at a generation less than its own", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy2,
+                produce(accessPolicy2, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 0});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        });
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId1);
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can\u2019t change the generation of a manage account at a generation greater than its own", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
+                }),
+            ),
+        ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
+                }),
+            ),
+        ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
+                }),
+            ),
+        ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId1);
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can\u2019t change own manage generation", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 3});
+                }),
+            ),
+        ).toEqual({ok: false, reason: "Can\u2019t change account grant manage generation"});
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId2);
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can\u2019t escalate a manage account at a greater generation in the old policy to a lower generation in the new policy (relative to the actor)", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
+                }),
+            ),
+        ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId2);
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId2);
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId3);
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId3);
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.delete(accountId3);
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy2,
-            produce(accessPolicy2, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId1, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can\u2019t escalate own manage generation in new policy above accounts with manage access at a lower generation in the old policy", () => {
+        // accountId3 (gen 2) can\u2019t escalate self to gen 1 - would violate senior
+        // chain invariant
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
+                }),
+            ),
+        ).toEqual({ok: false, reason: "Can’t change account grant manage generation"});
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId1, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actors can\u2019t remove a manage account at a generation less than their own", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy2,
+                produce(accessPolicy2, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId1);
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId1);
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId1);
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.delete(accountId2);
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId1, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can\u2019t revoke manage access from an account with a generation less than their own", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy2,
+                produce(accessPolicy2, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId1, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId1, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId1, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId2, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId2, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({
-        ok: false,
-        reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+    test("actor can revoke own manage access permission", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId2, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({ok: true});
+
+        expect(
+            validateAccessPolicyUpdate(
+                accountId3,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({ok: true});
     });
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId2, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({ok: true});
+    test("actor can revoke manage access from a manage account at a generation greater than its own", () => {
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId2, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({ok: true});
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId2, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({ok: true});
+        expect(
+            validateAccessPolicyUpdate(
+                accountId1,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({ok: true});
 
-    expect(
-        validateAccessPolicyUpdate(
-            accountId1,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId2,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({ok: true});
-
-    expect(
-        validateAccessPolicyUpdate(
-            accountId3,
-            accessPolicy3,
-            produce(accessPolicy3, accessPolicy => {
-                accessPolicy.accountGrantById.set(accountId3, {level: "Edit"});
-            }),
-        ),
-    ).toEqual({ok: true});
+        expect(
+            validateAccessPolicyUpdate(
+                accountId2,
+                accessPolicy3,
+                produce(accessPolicy3, accessPolicy => {
+                    accessPolicy.accountGrantById.set(accountId3, {level: "Edit"});
+                }),
+            ),
+        ).toEqual({ok: true});
+    });
 });
 
 test("validates access policy updates with default grants", () => {
