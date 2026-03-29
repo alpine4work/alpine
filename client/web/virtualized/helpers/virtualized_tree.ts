@@ -418,6 +418,47 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
+     * Insert some nodes after a specific node in the tree. Node keys must
+     * be unique and shouldn't match the keys of nodes already in the tree.
+     */
+    public insertNodesAfter(
+        afterNodeKey: NodeKey,
+        nodes: ReadonlyArray<Node>,
+    ): VirtualizedTree<NodeKey, Node, Item> {
+        const afterOrderKey = this._orderKeyByNodeKey.get(afterNodeKey);
+        assert(afterOrderKey, "Node with key does not exist in the tree");
+
+        const successorIterator = this._nodeByOrderKey.gt(afterOrderKey);
+        const successorOrderKey = successorIterator.valid ? successorIterator.key! : null;
+
+        const orderKeys = generateOrderKeysBetween(afterOrderKey, successorOrderKey, nodes.length);
+
+        let nodeByOrderKey = this._nodeByOrderKey;
+        let orderKeyByNodeKey = this._orderKeyByNodeKey;
+
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i]!;
+            const nodeKey = this._getNodeKey(node);
+            const orderKey = orderKeys[i]!;
+
+            nodeByOrderKey = nodeByOrderKey.insert(orderKey, node);
+
+            const oldOrderKey = orderKeyByNodeKey.get(nodeKey);
+            assert(!oldOrderKey, "Node with key already exists in the tree");
+            orderKeyByNodeKey = orderKeyByNodeKey.insert(nodeKey, orderKey);
+        }
+
+        return new VirtualizedTree({
+            getNodeKey: this._getNodeKey,
+            getNodeItemCount: this._getNodeItemCount,
+            getNodeItem: this._getNodeItem,
+            nodeByOrderKey,
+            orderKeyByNodeKey,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+        });
+    }
+
+    /**
      * Insert some nodes at the end of the tree. Node keys must be unique and
      * shouldn't match the keys of nodes already in the tree.
      */
