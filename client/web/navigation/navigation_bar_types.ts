@@ -5,7 +5,8 @@ import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherit
 import {
     AccessLevel,
     AccessPolicy,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
@@ -31,9 +32,9 @@ export type NavigationBarShareButtonProps = {
     readonly entityNoun: string;
     readonly entityId: FileEntityId;
     readonly accessLevelText?: Record<AccessLevel, string>;
-    readonly accessPolicy: AccessPolicy;
+    readonly accessPolicy: ResolvedAccessPolicyWithGenerations;
     readonly inherited?: {
-        readonly accessPolicy: AccessPolicyWithoutGenerations;
+        readonly accessPolicy: EffectiveAccessPolicy;
         readonly explanations: InheritedAccessPolicyExplanations;
     };
     readonly onAccessPolicyChange: (

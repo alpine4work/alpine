@@ -70,7 +70,7 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {
     AccessLevel,
-    AccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -79,6 +79,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -150,11 +151,12 @@ export function TaskCollectionView({
     const currentDate = useCurrentDate();
 
     const accessPolicy = useStore(
-        useMemo((): Store<AccessPolicy> => {
+        useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
             // If there's no `collectionSubscription` it means we're creating the collection.
             // When the user creates a collection they get the manage access level.
             if (!collectionSubscription) {
                 return new ConstStore({
+                    type: "Local",
                     accountGrantById: currentAccount
                         ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
                         : emptyMap,
@@ -163,26 +165,48 @@ export function TaskCollectionView({
                 });
             }
 
-            return collectionSubscription.collectionEntryStore.map(collectionEntry => {
-                if (isTaskClientStoreCollectionEntryDeleted(collectionEntry)) {
-                    throw new PermissionDeniedError(
-                        "Current account lost access to task collection (deleted)",
-                        {displayMessage: taskCollectionDeletedErrorDisplayMessage},
-                    );
-                }
+            return collectionSubscription.collectionEntryStore
+                .map(collectionEntry => {
+                    if (isTaskClientStoreCollectionEntryDeleted(collectionEntry)) {
+                        throw new PermissionDeniedError(
+                            "Current account lost access to task collection (deleted)",
+                            {displayMessage: taskCollectionDeletedErrorDisplayMessage},
+                        );
+                    }
 
-                if (!collectionEntry.collection) {
-                    throw new PermissionDeniedError(
-                        "Current account lost access to task collection (policy updated)",
-                        {
-                            displayMessage:
-                                taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
-                        },
-                    );
-                }
+                    if (!collectionEntry.collection) {
+                        throw new PermissionDeniedError(
+                            "Current account lost access to task collection (policy updated)",
+                            {
+                                displayMessage:
+                                    taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                            },
+                        );
+                    }
 
-                return collectionEntry.collection.getAccessPolicy();
-            });
+                    return collectionEntry.collection.getAccessPolicy();
+                })
+                .flatMap(accessPolicy => {
+                    switch (accessPolicy.type) {
+                        case "Local":
+                            return new ConstStore(accessPolicy);
+                        case "Site":
+                            const siteStore =
+                                collectionSubscription.store.getReferencedSiteStoreAndAssertExists(
+                                    accessPolicy.siteId,
+                                );
+
+                            return siteStore.map(
+                                (site): ResolvedAccessPolicyWithGenerations => ({
+                                    ...site.accessPolicy,
+                                    type: "Site",
+                                    siteId: site.id,
+                                }),
+                            );
+                        default:
+                            throw exhaustive(accessPolicy);
+                    }
+                });
         }, [collectionSubscription, currentAccount]),
     );
 

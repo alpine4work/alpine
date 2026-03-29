@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {Node} from "prosemirror-model";
+import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_policy_model_for_server.js";
 import {
     getChatMessagePayload,
     putChatMessageStreamPart,
@@ -23,8 +24,8 @@ import {
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {getFileIfExistsAsSystem} from "~/server/files/data/files_actions.js";
+import {getChannelNameAndDescriptionContentIfExists} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {getChannelNameAndDescriptionContentAndContributors} from "~/server/forum/data/get_channel_name_and_description_content_and_contributors.js";
-import {getChannelPreviewIfExists} from "~/server/forum/data/get_channel_preview.js";
 import {
     getPostContentAndChannelPreview,
     getPostContentAndChannelPreviewIfExists,
@@ -54,6 +55,7 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
+import {getSitePreviewIfExists} from "~/server/sites/data/get_site_preview.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {
     getTaskCollectionFromIndex,
@@ -69,6 +71,7 @@ import {
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
@@ -87,7 +90,7 @@ import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {InternalError, NotFoundError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -98,6 +101,7 @@ import {
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -131,6 +135,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -148,6 +153,7 @@ import {
     printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
 import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
@@ -427,16 +433,23 @@ class SearchEntityReadState {
         });
     }
 
-    public getDocumentTitleIfExists(documentId: DocumentId): Promise<{
+    public async getDocumentTitleIfExists(documentId: DocumentId): Promise<{
         title: string;
-        accessPolicy: AccessPolicy;
+        accessPolicy: AccessPolicyModel;
     } | null> {
         this._recordDependencyId(`Document:${documentId}:Authorization`);
         this._recordDependencyId(`Document:${documentId}:Title`);
 
-        return getDocumentTitleIfExists(this._context, documentId, {
+        const documentTitle = await getDocumentTitleIfExists(this._context, documentId, {
             consistency: "StrongWithinCache",
         });
+
+        if (!documentTitle) return null;
+
+        return {
+            title: documentTitle.title,
+            accessPolicy: await this.getAccessPolicy(documentTitle.accessPolicy),
+        };
     }
 
     public async getDocumentCommentPayload(
@@ -448,7 +461,7 @@ class SearchEntityReadState {
         authorId: AccountId;
         payload: MessagePayload;
         stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
-        documentAccessPolicy: AccessPolicy;
+        documentAccessPolicy: AccessPolicyModel;
     }> {
         this._recordDependencyId(`Document:${documentId}:Authorization`);
         this._recordDependencyId(
@@ -465,35 +478,48 @@ class SearchEntityReadState {
         return {
             ...comment,
             payload: mergeMessageItemStreamIntoPayload(comment),
+            documentAccessPolicy: await this.getAccessPolicy(comment.documentAccessPolicy),
         };
     }
 
-    public getChannelNameAndDescriptionContentAndContributors(channelId: ChannelId): Promise<{
+    public async getChannelNameAndDescriptionContentAndContributors(channelId: ChannelId): Promise<{
         version: number;
         name: string;
         description: MessageContent;
         createdTime: Date;
         creatorId: AccountId | null;
-        accessPolicy: AccessPolicy;
+        accessPolicy: AccessPolicyModel;
         contributionCountByAccountId: ReadonlyMap<AccountId, number>;
     }> {
         this._recordDependencyId(`Channel:${channelId}`);
 
-        return getChannelNameAndDescriptionContentAndContributors(this._context, channelId, {
-            consistency: "StrongWithinCache",
-        });
+        const channel = await getChannelNameAndDescriptionContentAndContributors(
+            this._context,
+            channelId,
+            {
+                consistency: "StrongWithinCache",
+            },
+        );
+
+        return {
+            ...channel,
+            accessPolicy: await this.getAccessPolicy(channel.accessPolicy),
+        };
     }
 
-    public getChannelPreviewIfExists(channelId: ChannelId): Promise<{
+    public async getChannelNameAndAccessPolicyIfExists(channelId: ChannelId): Promise<{
         name: string;
-        accessPolicy: AccessPolicy;
+        accessPolicy: AccessPolicyModel;
     } | null> {
         this._recordDependencyId(`Channel:${channelId}:Authorization`);
         this._recordDependencyId(`Channel:${channelId}:Preview`);
 
-        return getChannelPreviewIfExists(this._context, channelId, {
+        const result = await getChannelNameAndDescriptionContentIfExists(this._context, channelId, {
             consistency: "StrongWithinCache",
         });
+        if (!result) return null;
+
+        return {name: result.name, accessPolicy: await this.getAccessPolicy(result.accessPolicy)};
     }
 
     /**
@@ -563,7 +589,7 @@ class SearchEntityReadState {
         payload: MessagePayload;
         stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
         channelId: ChannelId;
-        channelAccessPolicy: AccessPolicy;
+        channelAccessPolicy: AccessPolicyModel;
     }> {
         this._recordDependencyId(`PostComment:${postId}-${commentIndex}`);
 
@@ -578,6 +604,7 @@ class SearchEntityReadState {
         return {
             ...comment,
             payload: mergeMessageItemStreamIntoPayload(comment),
+            channelAccessPolicy: await this.getAccessPolicy(comment.channelAccessPolicy),
         };
     }
 
@@ -604,12 +631,12 @@ class SearchEntityReadState {
         };
     }
 
-    public getChatDefinitionAndMessagesSummary(chatId: ChatId): Promise<{
+    public async getChatDefinitionAndMessagesSummary(chatId: ChatId): Promise<{
         version: number;
         createdTime: Date;
         definition:
             | {type: "Direct"; accountIds: ReadonlySet<AccountId>}
-            | {type: "Room"; name: string; accessPolicy: AccessPolicy; creatorId: AccountId};
+            | {type: "Room"; name: string; accessPolicy: AccessPolicyModel; creatorId: AccountId};
         messagesSummary: {
             unknownAuthorMessageCount: number;
             messageCountByAuthorId: ReadonlyMap<AccountId, number>;
@@ -617,16 +644,38 @@ class SearchEntityReadState {
     }> {
         this._recordDependencyId(`Chat:${chatId}`);
 
-        return getChatDefinition(this._context, chatId, {
+        const chatDefinition = await getChatDefinition(this._context, chatId, {
             consistency: "StrongWithinCache",
         });
+
+        switch (chatDefinition.definition.type) {
+            case "Direct": {
+                return {
+                    ...chatDefinition,
+                    definition: chatDefinition.definition,
+                };
+            }
+            case "Room": {
+                return {
+                    ...chatDefinition,
+                    definition: {
+                        ...chatDefinition.definition,
+                        accessPolicy: await this.getAccessPolicy(
+                            chatDefinition.definition.accessPolicy,
+                        ),
+                    },
+                };
+            }
+            default:
+                throw exhaustive(chatDefinition.definition);
+        }
     }
 
     public async getChatDefinitionIfExists(
         chatId: ChatId,
     ): Promise<
         | {type: "Direct"; accountIds: ReadonlySet<AccountId>}
-        | {type: "Room"; name: string; accessPolicy: AccessPolicy}
+        | {type: "Room"; name: string; accessPolicy: AccessPolicyModel}
         | null
     > {
         this._recordDependencyId(`Chat:${chatId}:Definition`);
@@ -636,14 +685,27 @@ class SearchEntityReadState {
         });
         if (!result) return null;
 
-        return result.definition;
+        switch (result.definition.type) {
+            case "Direct": {
+                return result.definition;
+            }
+            case "Room": {
+                return {
+                    type: "Room",
+                    name: result.definition.name,
+                    accessPolicy: await this.getAccessPolicy(result.definition.accessPolicy),
+                };
+            }
+            default:
+                throw exhaustive(result.definition);
+        }
     }
 
     public async getChatDefinition(
         chatId: ChatId,
     ): Promise<
         | {type: "Direct"; accountIds: ReadonlySet<AccountId>}
-        | {type: "Room"; name: string; accessPolicy: AccessPolicy}
+        | {type: "Room"; name: string; accessPolicy: AccessPolicyModel}
     > {
         this._recordDependencyId(`Chat:${chatId}:Definition`);
 
@@ -651,7 +713,19 @@ class SearchEntityReadState {
             consistency: "StrongWithinCache",
         });
 
-        return result.definition;
+        switch (result.definition.type) {
+            case "Direct": {
+                return result.definition;
+            }
+            case "Room": {
+                return {
+                    ...result.definition,
+                    accessPolicy: await this.getAccessPolicy(result.definition.accessPolicy),
+                };
+            }
+            default:
+                throw exhaustive(result.definition);
+        }
     }
 
     public async getChatMessagePayload(
@@ -915,6 +989,32 @@ class SearchEntityReadState {
             isDeleted: collection.isDeleted(),
         };
     }
+
+    public getSitePreviewIfExists(siteId: SiteId): Promise<SitePreviewModel | null> {
+        this._recordDependencyId(`Site:${siteId}:Preview`);
+
+        return getSitePreviewIfExists(this._context, siteId, {
+            consistency: "StrongWithinCache",
+        });
+    }
+
+    public async getAccessPolicy(accessPolicy: AccessPolicy): Promise<AccessPolicyModel> {
+        switch (accessPolicy.type) {
+            case "Local": {
+                return new AccessPolicyModel(accessPolicy);
+            }
+            case "Site": {
+                this._recordDependencyId(`Site:${accessPolicy.siteId}:Preview`);
+
+                return new AccessPolicyModel({
+                    type: "Site",
+                    site: await this._context.sitesInjection.getSitePreview(accessPolicy.siteId),
+                });
+            }
+            default:
+                throw exhaustive(accessPolicy);
+        }
+    }
 }
 
 function mergeMessageItemStreamIntoPayload(messageItem: MessageItem): MessagePayload {
@@ -965,11 +1065,12 @@ function mergeMessageItemStreamIntoPayload(messageItem: MessageItem): MessagePay
 }
 
 function getSearchEntityIndexAccessPolicy(
-    accessPolicy: AccessPolicy,
+    accessPolicy: AccessPolicyModel,
 ): SearchEntityIndexAccessPolicy {
+    const resolvedAccessPolicy = unwrapAccessPolicyModelForServer(accessPolicy);
     const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
-        accessPolicy.defaultGrant !== null ? "Space" : null;
-    let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
+        resolvedAccessPolicy.defaultGrant !== null ? "Space" : null;
+    let accountGrantAccountIds = new Set(resolvedAccessPolicy.accountGrantById.keys());
 
     // If we have a space default grant then the individual account grants don't matter
     // for the search entity. Lets exclude them to save space in the index.
@@ -981,7 +1082,7 @@ function getSearchEntityIndexAccessPolicy(
     return {
         accountGrantAccountIds,
         defaultGrantType,
-        urlGrantLevel: accessPolicy.urlGrant?.level ?? null,
+        urlGrantLevel: resolvedAccessPolicy.urlGrant?.level ?? null,
     };
 }
 
@@ -1167,7 +1268,7 @@ async function getSearchMentionEntityIfExists(
     entityId: SearchMentionEntityId,
     seen: ReadonlySet<SearchEntityId>,
 ): Promise<{
-    accessPolicy: AccessPolicy | SearchEntityIndexAccessPolicy;
+    accessPolicy: AccessPolicyModel | SearchEntityIndexAccessPolicy;
     title: string | null;
     getAccountMediaShortName?: (() => string) | null;
 } | null> {
@@ -1180,7 +1281,9 @@ async function getSearchMentionEntityIfExists(
             return {accessPolicy: document.accessPolicy, title: document.title};
         }
         case "Channel": {
-            const channel = await state.getChannelPreviewIfExists(entityIdObject.channelId);
+            const channel = await state.getChannelNameAndAccessPolicyIfExists(
+                entityIdObject.channelId,
+            );
             if (!channel) return null;
             return {accessPolicy: channel.accessPolicy, title: channel.name};
         }
@@ -1222,7 +1325,7 @@ async function getSearchMentionEntityIfExists(
             const task = await state.getTaskTitleIfExists(entityIdObject.taskId);
             if (!task) return null;
 
-            const accessPolicy = getTaskSearchEntityAccessPolicy({
+            const accessPolicy = await getTaskSearchEntityAccessPolicy(state, {
                 ...task,
                 expectedAccessLevel: "View",
             });
@@ -1238,8 +1341,11 @@ async function getSearchMentionEntityIfExists(
                 entityIdObject.collectionId,
             );
             if (!collection) return null;
-            if (collection.isDeleted) return {accessPolicy: collection.accessPolicy, title: null};
-            return {accessPolicy: collection.accessPolicy, title: collection.name};
+
+            const accessPolicy = await state.getAccessPolicy(collection.accessPolicy);
+
+            if (collection.isDeleted) return {accessPolicy, title: null};
+            return {accessPolicy, title: collection.name};
         }
         case "Post": {
             const post = await state.getPostContentTitleSnippetAndChannelIfExists(
@@ -1268,6 +1374,15 @@ async function getSearchMentionEntityIfExists(
                 accessPolicy: post.channel.accessPolicy,
                 title,
                 getAccountMediaShortName: () => getAccountShortNameWithoutFullNameTooltip(author),
+            };
+        }
+        case "Site": {
+            const site = await state.getSitePreviewIfExists(entityIdObject.siteId);
+            if (!site) return null;
+
+            return {
+                accessPolicy: new AccessPolicyModel(site.initialData.accessPolicy),
+                title: site.initialData.name,
             };
         }
         default:
@@ -1337,6 +1452,9 @@ async function actuallyGetSearchEntity(
             return getTaskCollectionSearchEntity(state, idObject.collectionId);
         case "TaskComment":
             return getTaskCommentSearchEntity(state, idObject);
+        case "Site":
+            // TODO(#sites)
+            throw new UnimplementedError("Site search entity not implemented");
         default:
             throw exhaustive(idObject);
     }
@@ -1402,7 +1520,8 @@ async function getDocumentSearchEntity(
 
     await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
-    const accessPolicy = getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy);
+    const documentAccessPolicy = await state.getAccessPolicy(content.attrs.accessPolicy);
+    const accessPolicy = getSearchEntityIndexAccessPolicy(documentAccessPolicy);
 
     const contentReferences = await getSearchContentReferences(
         state,
@@ -2174,37 +2293,51 @@ async function getChatMessageSearchEntity(
     };
 }
 
-function getTaskSearchEntityAccessPolicy({
-    task,
-    referencedTaskById,
-    referencedCollectionById,
-    expectedAccessLevel,
-}: {
-    task: TaskModelForAuthorization;
-    referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
-    referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModelForAuthorization>;
-    expectedAccessLevel: AccessLevel;
-}): SearchEntityIndexAccessPolicy {
+async function getTaskSearchEntityAccessPolicy(
+    state: SearchEntityReadState,
+    {
+        task,
+        referencedTaskById,
+        referencedCollectionById,
+        expectedAccessLevel,
+    }: {
+        task: TaskModelForAuthorization;
+        referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+        referencedCollectionById: ReadonlyMap<
+            TaskCollectionId,
+            TaskCollectionModelForAuthorization
+        >;
+        expectedAccessLevel: AccessLevel;
+    },
+): Promise<SearchEntityIndexAccessPolicy> {
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     const accountGrantAccountIds = new Set<AccountId>();
 
-    const trackAccessPolicy = (accessPolicy: AccessPolicy) => {
-        if (
-            accessPolicy.defaultGrant !== null &&
-            hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
-        ) {
-            if (defaultGrantType === null) {
-                defaultGrantType = "Space";
-            } else {
-                assert(defaultGrantType === "Space");
-            }
-        }
+    const promiseWaiter = new PromiseWaiter();
 
-        for (const [accountId, grant] of accessPolicy.accountGrantById) {
-            if (hasAccessLevel(grant.level, expectedAccessLevel)) {
-                accountGrantAccountIds.add(accountId);
+    const trackAccessPolicy = (rawAccessPolicy: AccessPolicy) => {
+        promiseWaiter.waitUntil(async () => {
+            const accessPolicy = unwrapAccessPolicyModelForServer(
+                await state.getAccessPolicy(rawAccessPolicy),
+            );
+
+            if (
+                accessPolicy.defaultGrant !== null &&
+                hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+            ) {
+                if (defaultGrantType === null) {
+                    defaultGrantType = "Space";
+                } else {
+                    assert(defaultGrantType === "Space");
+                }
             }
-        }
+
+            for (const [accountId, grant] of accessPolicy.accountGrantById) {
+                if (hasAccessLevel(grant.level, expectedAccessLevel)) {
+                    accountGrantAccountIds.add(accountId);
+                }
+            }
+        });
     };
 
     const trackTaskDependencies = (task: TaskModelForAuthorization) => {
@@ -2240,6 +2373,17 @@ function getTaskSearchEntityAccessPolicy({
 
     trackTaskDependencies(task);
 
+    // As we iterate through to track a task's dependencies, we'll make async calls to
+    // fetch the access policy of a task or collection if it belongs to a site and then
+    //
+    // 1. derive the `defaultGrantType`
+    // 2. add the accounts with access to the task or collection to the
+    //    `accountGrantAccountIds` set.
+    //
+    // In order to make those calls in a non-blocking way, we use a
+    // `PromiseWaiter.waitUntil()` to "register" those routines.
+    await promiseWaiter.wait();
+
     // If we have a space default grant then the individual account grants don't matter
     // for the search entity. Lets exclude them to save space in the index.
     if (defaultGrantType !== null) {
@@ -2264,7 +2408,7 @@ async function getTaskSearchEntity(
 
     const {task, referencedTaskById, referencedCollectionById} = taskResult;
 
-    const accessPolicy = getTaskSearchEntityAccessPolicy({
+    const accessPolicy = await getTaskSearchEntityAccessPolicy(state, {
         task,
         referencedTaskById,
         referencedCollectionById,
@@ -2461,7 +2605,8 @@ async function getTaskCollectionSearchEntity(
 
     const collection = await state.getTaskCollection(collectionId);
 
-    const accessPolicy = getSearchEntityIndexAccessPolicy(collection.getAccessPolicy());
+    const accessPolicyModel = await state.getAccessPolicy(collection.getAccessPolicy());
+    const accessPolicy = getSearchEntityIndexAccessPolicy(accessPolicyModel);
 
     const {title, titleVersion, media} = getTaskCollectionSearchEntityBase(collection);
 
@@ -2605,7 +2750,7 @@ async function getTaskCommentSearchEntity(
         );
     }
 
-    const accessPolicy = getTaskSearchEntityAccessPolicy({
+    const accessPolicy = await getTaskSearchEntityAccessPolicy(state, {
         task,
         referencedTaskById: getReferencedTaskById(),
         referencedCollectionById: getReferencedCollectionById(),

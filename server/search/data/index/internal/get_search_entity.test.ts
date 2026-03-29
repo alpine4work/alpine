@@ -669,6 +669,9 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
         // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
         // this test.
     },
+    Site: () => {
+        // TODO(#sites): Add test for site search entity
+    },
 };
 
 for (const testCases of Object.values(testCasesBySearchEntityType)) {

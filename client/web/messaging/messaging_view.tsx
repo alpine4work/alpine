@@ -52,7 +52,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {
-    AccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -304,9 +304,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
         /**
          * Renders as read-only if the user doesn't have `Comment` access in this
-         * `AccessPolicy`.
+         * `EffectiveAccessPolicyWithGenerations`.
          */
-        accessPolicy?: AccessPolicy;
+        accessPolicy?: ResolvedAccessPolicyWithGenerations;
 
         /**
          * Load messages from the start of the list. We expect the implementation of this

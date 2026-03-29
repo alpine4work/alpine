@@ -12,6 +12,7 @@ import {
     useMemo,
     useRef,
 } from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -19,6 +20,7 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {PostListHeader} from "~/client/web/forum/post_list.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageInput} from "~/client/web/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
@@ -29,6 +31,7 @@ import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_m
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     messageInputBottomBarBackgroundSlopBottom,
@@ -105,23 +108,25 @@ export function PostCommentInput(props: {
     >;
 }) {
     const {currentAccount} = useSpaceContext();
+    const siteRegistry = useSiteRegistry();
+    const hasCommentAccessLevel = useStore(
+        useMemo(() => {
+            // Use the `accessPolicy` from `header` if applicable. Because we update the
+            // `channel` in `header` in realtime. Whereas the `channel` preview in the
+            // `PostModel` might not update in realtime.
+            const accessPolicy =
+                props.header?.type === "Channel" &&
+                props.header.channel.id === props.post.channel.id
+                    ? props.header.channel.accessPolicy
+                    : props.post.channel.accessPolicy;
 
-    const hasCommentAccessLevel = useMemo(
-        () =>
-            hasAccessLevel(
-                getAccountAccessLevelAssumingSpaceAccess(
-                    // Use the `accessPolicy` from `header` if applicable. Because we update the
-                    // `channel` in `header` in realtime. Whereas the `channel` preview in the
-                    // `PostModel` might not update in realtime.
-                    props.header?.type === "Channel" &&
-                        props.header.channel.id === props.post.channel.id
-                        ? props.header.channel.accessPolicy
-                        : props.post.channel.accessPolicy,
-                    currentAccount?.id,
+            return createAccessPolicyStore(accessPolicy, siteRegistry).map(accessPolicy =>
+                hasAccessLevel(
+                    getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+                    "Comment",
                 ),
-                "Comment",
-            ),
-        [currentAccount?.id, props.header, props.post.channel.accessPolicy, props.post.channel.id],
+            );
+        }, [props.header, props.post, siteRegistry, currentAccount?.id]),
     );
 
     if (!hasCommentAccessLevel) {

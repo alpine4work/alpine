@@ -1,5 +1,6 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
 import {getAccount} from "~/server/spaces/get_account.js";
@@ -32,11 +33,13 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {
     AccountId,
     BrowserId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -372,6 +375,7 @@ export async function loadTaskRealtimeQueries(
     );
 
     const referencedAccountIds = new Set<AccountId>();
+    const referencedSiteIds = new Set<SiteId>();
 
     const prepareContext = {
         actor,
@@ -385,7 +389,11 @@ export async function loadTaskRealtimeQueries(
         mapIterable(backfillAuthorizedTaskSet, async task => {
             const taskModel = await prepareTaskForClient(task, prepareContext);
 
-            collectReferencedAccountIdsFromTaskModelData(referencedAccountIds, taskModel.rawData);
+            collectReferencedIdsFromTaskModelData(
+                referencedAccountIds,
+                referencedSiteIds,
+                taskModel.rawData,
+            );
 
             return {
                 type: "Authorized" as const,
@@ -406,19 +414,42 @@ export async function loadTaskRealtimeQueries(
     );
 
     const referenceContext = context.dynamo.unexpectStrongReadConsistency();
-    const referencedAccounts = await runAllPromises(
-        mapIterable(referencedAccountIds, accountId =>
-            prepareContext.isSpaceAccessAuthorized
-                ? getAccount(referenceContext, spaceId, accountId, {consistency})
-                : // Granting link access to a task collection means the user is implicitly granting
-                  // access to the names of all referenced accounts.
-                  dangerouslyGetAccountStubIfExistsWithoutAuthorization(
-                      referenceContext,
-                      spaceId,
-                      accountId,
-                  ),
-        ),
+
+    const backfillAuthorizedCollections = Array.from(
+        backfillAuthorizedCollectionSet,
+        collection => {
+            const collectionModel = prepareTaskCollectionForClient(collection);
+            collectReferencedIdsFromTaskCollectionModelData(
+                referencedSiteIds,
+                collectionModel.rawData,
+            );
+            return {
+                type: "Authorized" as const,
+                collection: collectionModel,
+            };
+        },
     );
+
+    const [referencedAccounts, referencedSites] = await runAllPromises([
+        runAllPromises(
+            mapIterable(referencedAccountIds, accountId =>
+                prepareContext.isSpaceAccessAuthorized
+                    ? getAccount(referenceContext, spaceId, accountId, {consistency})
+                    : // Granting link access to a task collection means the user is implicitly granting
+                      // access to the names of all referenced accounts.
+                      dangerouslyGetAccountStubIfExistsWithoutAuthorization(
+                          referenceContext,
+                          spaceId,
+                          accountId,
+                      ),
+            ),
+        ),
+        runAllPromises(
+            mapIterable(referencedSiteIds, siteId =>
+                getSitePreviewIfPossible(referenceContext, siteId, {consistency}),
+            ),
+        ),
+    ]);
 
     return {
         queries: queryOutputs,
@@ -451,12 +482,10 @@ export async function loadTaskRealtimeQueries(
             // fixes the correctness issue without introducing a security flaw. The client
             // already knows the `TaskCollectionId`s so we're not sharing any new information
             // with the client.
-            backfillCollections: Array.from(backfillAuthorizedCollectionSet, collection => ({
-                type: "Authorized",
-                collection: prepareTaskCollectionForClient(collection),
-            })),
+            backfillCollections: backfillAuthorizedCollections,
             defaultAuthorizationStateVersion,
             referencedAccounts: referencedAccounts.filter(isNonNullable),
+            referencedSites,
             originClientId: null,
         },
     };

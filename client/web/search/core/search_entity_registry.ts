@@ -34,6 +34,8 @@ import {ValueStore} from "~/shared/store/value_store.js";
  * `TaskModel` store for the `<TaskDetailView>` to null as it unloads the data.
  * `SearchEntityRegistry`, however, remembers the last data it saw for the task.
  */
+// TODO(#sites): add friend entity for site search entity (site model from site
+// registry)
 export interface SearchEntityRegistryFriend {
     getSearchEntityRegistryFriendStoreIfExists(
         entityId: SearchEntityModelId,

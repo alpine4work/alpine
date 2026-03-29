@@ -27,6 +27,7 @@ test("creates access policy with human accounts from bot scope", async () => {
     const accessPolicy = await createAccessPolicyForContentCreatedByBot(botAction, space.id);
 
     expect(accessPolicy).toStrictEqual({
+        type: "Local",
         accountGrantById: new Map([
             [adminSession.account.id, {level: "Manage", generation: 0}],
             [session2.account.id, {level: "Manage", generation: 0}],
@@ -47,6 +48,7 @@ test("excludes bot accounts from access policy", async () => {
     const accessPolicy = await createAccessPolicyForContentCreatedByBot(botAction, space.id);
 
     expect(accessPolicy).toStrictEqual({
+        type: "Local",
         accountGrantById: new Map([[adminSession.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -72,6 +74,7 @@ test("excludes accounts that are no longer space members", async () => {
 
     // adminSession should still have access
     expect(accessPolicy).toStrictEqual({
+        type: "Local",
         accountGrantById: new Map([[adminSession.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -93,6 +96,7 @@ test("maintains default grant", async () => {
     const accessPolicy = await createAccessPolicyForContentCreatedByBot(botAction, space.id);
 
     expect(accessPolicy).toStrictEqual({
+        type: "Local",
         accountGrantById: new Map([[adminSession.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Manage", generation: 0},
         urlGrant: null,
@@ -112,6 +116,7 @@ test("always sets url grant to null", async () => {
     const accessPolicy = await createAccessPolicyForContentCreatedByBot(botAction, space.id);
 
     expect(accessPolicy).toStrictEqual({
+        type: "Local",
         accountGrantById: new Map([[adminSession.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Manage", generation: 0},
         urlGrant: null,

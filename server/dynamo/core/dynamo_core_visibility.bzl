@@ -21,6 +21,7 @@ DYNAMO_CORE_VISIBILITY = [
     "//server/node",
     "//server/notifications/data",
     "//server/search/data/table",
+    "//server/sites/data",
     "//server/spaces",
     "//server/spell_check",
     "//server/tasks/data",

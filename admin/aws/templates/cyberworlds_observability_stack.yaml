@@ -996,6 +996,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__search_entities__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__sites__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__sites__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__spaces__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__spaces__write_capacity_units
@@ -1183,6 +1187,14 @@ Resources:
                         - Name: dynamodb__table__search_entities__partition__space_task_collections__sort_range_type
                           Type: string
                         - Name: dynamodb__table__search_entities__partition__index_search_entity_embedding_chunks_job__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition__site__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition__realtime__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition__graveyard__sort_range_type
                           Type: string
                         - Name: dynamodb__table__spaces__partition_type
                           Type: string

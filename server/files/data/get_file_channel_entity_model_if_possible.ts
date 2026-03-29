@@ -1,4 +1,6 @@
+import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_policy_model_for_server.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {FileChannelEntityModel} from "~/shared/forum/file_channel_entity_model_schema.js";
@@ -56,12 +58,16 @@ export async function getFileChannelEntityModelIfPossible(
             id: channelId,
             createdTime: channel.model.createdTime,
             name: channel.model.name,
-            isPrivate:
-                !channel.model.accessPolicy.defaultGrant && !channel.model.accessPolicy.urlGrant,
+            isPrivate: isChannelPrivate(channel.model.accessPolicy),
             description: channel.model.description,
             isSubscribed,
             contributorCount: channelContributors?.contributorCount ?? 0,
             topContributors: channelContributors?.topContributors ?? emptyArray,
         },
     };
+
+    function isChannelPrivate(accessPolicy: AccessPolicyModel): boolean {
+        const resolvedAccessPolicy = unwrapAccessPolicyModelForServer(accessPolicy);
+        return !resolvedAccessPolicy.defaultGrant && !resolvedAccessPolicy.urlGrant;
+    }
 }

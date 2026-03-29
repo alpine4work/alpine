@@ -17,8 +17,9 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {pingAnimationClassName} from "~/client/web/styles/styles.js";
 import {
     AccessLevel,
-    AccessPolicy,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    LocalAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
@@ -48,16 +49,18 @@ export function ShareButton({
     entityNoun: string;
     entityId: FileEntityId;
     accessLevelText?: Record<AccessLevel, string>;
-    accessPolicy: AccessPolicy;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
     inherited?: {
-        accessPolicy: AccessPolicyWithoutGenerations;
+        accessPolicy: EffectiveAccessPolicy;
         explanations: InheritedAccessPolicyExplanations;
     };
     onAccessPolicyChange: (
         // The `notification` argument comes first to make it harder for the implementation
         // of this function to ignore the `notification` argument.
         notification: ShareNotification | null,
-        accessPolicy: AccessPolicy,
+        // NOTE(ifitzsimons, 2026-03-07): Adding to, removing from, or changing sites will
+        // be exposed through a different component/button.
+        accessPolicy: LocalAccessPolicy,
     ) => MaybePromise<void>;
     isReadOnly?: boolean;
     withoutEditAccessLevel?: boolean;

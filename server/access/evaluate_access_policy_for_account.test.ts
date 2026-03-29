@@ -5,7 +5,7 @@ import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     AccessLevel,
-    AccessPolicyWithoutGenerations,
+    ResolvedAccessPolicy,
     allAccessLevels,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -61,9 +61,10 @@ function createAccessPolicy({
 }: {
     defaultGrantLevel?: AccessLevel | null;
     urlGrant?: {level: "View"} | null;
-    accountGrantById?: AccessPolicyWithoutGenerations["accountGrantById"];
-}): AccessPolicyWithoutGenerations {
+    accountGrantById?: ResolvedAccessPolicy["accountGrantById"];
+}): ResolvedAccessPolicy {
     return {
+        type: "Local",
         accountGrantById,
         defaultGrant: defaultGrantLevel === null ? null : createAccessGrant(defaultGrantLevel),
         urlGrant,

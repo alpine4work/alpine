@@ -1,5 +1,6 @@
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {SearchEntityRegistryFriend} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/web/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {
@@ -13,6 +14,7 @@ import {
 } from "~/client/web/tasks/core/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
 import {Context} from "~/shared/context/context.js";
@@ -37,6 +39,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -47,6 +50,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
+    SiteId,
     SpaceId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
@@ -61,9 +65,10 @@ import {
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModelData, SearchEntityModelId} from "~/shared/search/search_entity_model.js";
+import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
-import {nullStore} from "~/shared/store/const_store.js";
+import {ConstStore, nullStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {StoreMap} from "~/shared/store/store_map.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -83,7 +88,8 @@ import {
 } from "~/shared/tasks/actions/task_action_model.js";
 import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
 import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
@@ -308,6 +314,7 @@ export type TaskClientReadonlyStore = Pick<
     | "getTaskCountForTest"
     | "getCollectionCountForTest"
     | "accountRegistry"
+    | "siteRegistry"
     | "spaceId"
     | "currentAccountId"
     | "clock"
@@ -317,6 +324,10 @@ export type TaskClientReadonlyStore = Pick<
     | "getCollectionEntryStore"
     | "getTaskAssigneeAccountStore"
     | "getReferencedAccountStoreIfExists"
+    | "getTaskImmediateResolvedAccessPolicy"
+    | "getCollectionResolvedAccessPolicy"
+    | "getReferencedSiteStoreIfExists"
+    | "getReferencedSiteStoreAndAssertExists"
     | "getSubscriptionsStore"
     | "subscribeToBatchUpdate"
     | "waitForCommitTaskActionTransactions"
@@ -344,17 +355,20 @@ export type TaskClientReadonlyStore = Pick<
 export class TaskClientStore implements SearchEntityRegistryFriend {
     private readonly _internal: TaskClientStoreInternal;
     public readonly accountRegistry: AccountRegistry;
+    public readonly siteRegistry: SiteRegistry;
     public readonly spaceId: SpaceId;
     public readonly currentAccountId: AccountId | null;
     public readonly clock: HybridLogicalClock;
 
     constructor({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError,
     }: {
         accountRegistry: AccountRegistry;
+        siteRegistry: SiteRegistry;
         spaceId: SpaceId;
         currentAccountId: AccountId | null;
         onError: (
@@ -365,11 +379,13 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
     }) {
         this._internal = new TaskClientStoreInternal(this, {
             accountRegistry,
+            siteRegistry,
             spaceId,
             currentAccountId,
             onError,
         });
         this.accountRegistry = this._internal.accountRegistry;
+        this.siteRegistry = this._internal.siteRegistry;
         this.spaceId = this._internal.spaceId;
         this.currentAccountId = this._internal.currentAccountId;
         this.clock = this._internal.clock;
@@ -410,6 +426,56 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
 
     public getReferencedAccountStoreIfExists(accountId: AccountId): Store<AccountModelData> | null {
         return this._internal.getReferencedAccountStoreIfExists(accountId);
+    }
+
+    public getReferencedSiteStoreIfExists(siteId: SiteId): Store<SitePreviewModelData> | null {
+        return this._internal.getReferencedSiteStoreIfExists(siteId);
+    }
+
+    public getTaskImmediateResolvedAccessPolicy(
+        task: TaskModel,
+    ): Store<ResolvedAccessPolicyWithGenerations> {
+        const accessPolicy = task.getAccessPolicy();
+
+        switch (accessPolicy.type) {
+            case "Local":
+                return new ConstStore(accessPolicy);
+            case "Site":
+                return assertExists(
+                    this._internal.getReferencedSiteStoreIfExists(accessPolicy.siteId),
+                ).map(site => ({
+                    ...site.accessPolicy,
+                    type: "Site",
+                    siteId: site.id,
+                }));
+            default:
+                throw exhaustive(accessPolicy);
+        }
+    }
+
+    public getCollectionResolvedAccessPolicy(
+        collection: TaskCollectionModel,
+    ): Store<ResolvedAccessPolicyWithGenerations> {
+        const accessPolicy = collection.getAccessPolicy();
+
+        switch (accessPolicy.type) {
+            case "Local":
+                return new ConstStore(accessPolicy);
+            case "Site":
+                return this.getReferencedSiteStoreAndAssertExists(accessPolicy.siteId).map(
+                    site => ({
+                        ...site.accessPolicy,
+                        type: "Site",
+                        siteId: site.id,
+                    }),
+                );
+            default:
+                throw exhaustive(accessPolicy);
+        }
+    }
+
+    public getReferencedSiteStoreAndAssertExists(siteId: SiteId): Store<SitePreviewModelData> {
+        return this._internal.getReferencedSiteStoreAndAssertExists(siteId);
     }
 
     public getSubscriptionsStore() {
@@ -610,6 +676,7 @@ export class TaskClientStoreInternal {
     public readonly external: TaskClientStore;
 
     public readonly accountRegistry: AccountRegistry;
+    public readonly siteRegistry: SiteRegistry;
     public readonly spaceId: SpaceId;
     public readonly currentAccountId: AccountId | null;
     private readonly _onError: (
@@ -717,6 +784,20 @@ export class TaskClientStoreInternal {
     >();
 
     /**
+     * Sites referenced by our tasks.
+     *
+     * We can't rely on `SiteRegistry.weakGetSiteStoreByIdIfExists()` to get a site
+     * referenced by a task. Since the site might be garbage collected.
+     */
+    private readonly _referencedSiteStoreById = new Map<
+        SiteId,
+        {
+            referenceCount: number;
+            store: Store<SitePreviewModelData>;
+        }
+    >();
+
+    /**
      * The various subscriptions our client is currently holding on to.
      */
     private readonly _subscriptionsStore = new ValueStore<TaskClientStoreSubscriptions>({
@@ -755,11 +836,13 @@ export class TaskClientStoreInternal {
         external: TaskClientStore,
         {
             accountRegistry,
+            siteRegistry,
             spaceId,
             currentAccountId,
             onError,
         }: {
             accountRegistry: AccountRegistry;
+            siteRegistry: SiteRegistry;
             spaceId: SpaceId;
             currentAccountId: AccountId | null;
             onError: (
@@ -771,6 +854,7 @@ export class TaskClientStoreInternal {
     ) {
         this.external = external;
         this.accountRegistry = accountRegistry;
+        this.siteRegistry = siteRegistry;
         this.spaceId = spaceId;
         this.currentAccountId = currentAccountId;
         this._onError = onError;
@@ -893,6 +977,14 @@ export class TaskClientStoreInternal {
         return this._referencedAccountStoreById.get(accountId)?.store ?? null;
     }
 
+    public getReferencedSiteStoreIfExists(siteId: SiteId): Store<SitePreviewModelData> | null {
+        return this._referencedSiteStoreById.get(siteId)?.store ?? null;
+    }
+
+    public getReferencedSiteStoreAndAssertExists(siteId: SiteId): Store<SitePreviewModelData> {
+        return assertExists(this.getReferencedSiteStoreIfExists(siteId));
+    }
+
     public retainTaskEntryStore(taskId: TaskId) {
         const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
         taskEntryStore.referenceCount++;
@@ -912,7 +1004,7 @@ export class TaskClientStoreInternal {
             } else {
                 this._taskEntryStoreById.delete(taskId);
                 this._taskEntryStoreByIdStores.get(taskId)?.set(null);
-                this._updateReferencedAccountStores(taskEntryStore.store.getSnapshot(), null);
+                this._updateReferencedTaskStores(taskEntryStore.store.getSnapshot(), null);
             }
         }
     }
@@ -965,6 +1057,10 @@ export class TaskClientStoreInternal {
             } else {
                 this._collectionEntryStoreById.delete(collectionId);
                 this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
+                this._updateReferencedCollectionStores(
+                    collectionEntryStore.store.getSnapshot(),
+                    null,
+                );
             }
         }
     }
@@ -1040,6 +1136,13 @@ export class TaskClientStoreInternal {
         // Incorporate referenced accounts into account store:
         for (const account of event.referencedAccounts) {
             this.accountRegistry.getAndImmediatelyUpdateAccountStore(account);
+        }
+
+        // Incorporate referenced sites into site registry:
+        for (const site of event.referencedSites) {
+            if (!site.ok) continue;
+
+            this.siteRegistry.getAndImmediatelyUpdateSiteStore(site.value);
         }
 
         // Backfill tasks:
@@ -1886,6 +1989,7 @@ export class TaskClientStoreInternal {
                                 // Any authorization state change from the server should override us.
                                 defaultAuthorizationStateVersion: zeroHybridLogicalTime,
                                 referencedAccounts: [],
+                                referencedSites: [],
                                 // Don't pass `this._clientId` in since we don't want to ignore this event.
                                 originClientId: null,
                             },
@@ -2012,7 +2116,7 @@ export class TaskClientStoreInternal {
         }
 
         commitPromise.then(
-            ({extraActions, referencedAccounts}) => {
+            ({extraActions, referencedAccounts, referencedSites}) => {
                 // Between applying an update event and committing our optimistic actions we have a
                 // lot of store updates we want to batch together.
                 batchStoreUpdates(() => {
@@ -2046,6 +2150,7 @@ export class TaskClientStoreInternal {
                             // Any authorization state change from the server should override us.
                             defaultAuthorizationStateVersion: zeroHybridLogicalTime,
                             referencedAccounts,
+                            referencedSites,
                             // Don't pass `this._clientId` in since we don't want to ignore this event.
                             originClientId: null,
                         });
@@ -2412,12 +2517,14 @@ export class TaskClientStoreInternal {
             T & {
                 readonly actions: ReadonlyArray<TaskAction>;
                 readonly referencedAccounts: ReadonlyArray<AccountModel>;
+                readonly referencedSites: ReadonlyArray<Result<SitePreviewModel, unknown>>;
             }
         >,
     ): Promise<
         T & {
             readonly actions: ReadonlyArray<TaskAction>;
             readonly referencedAccounts: ReadonlyArray<AccountModel>;
+            readonly referencedSites: ReadonlyArray<Result<SitePreviewModel, unknown>>;
         }
     > {
         // We don't use `addGlobalLoadingIndicator()` with this promise because it's
@@ -2427,7 +2534,7 @@ export class TaskClientStoreInternal {
             : this._commitTaskActionTransactionMutex.withLock(run);
 
         return promise.then(result => {
-            const {actions, referencedAccounts} = result;
+            const {actions, referencedAccounts, referencedSites} = result;
             let hasUndoStackEntry = false;
 
             assert(this.onQueryLoadedTaskRemove === null);
@@ -2464,6 +2571,7 @@ export class TaskClientStoreInternal {
                     // Any authorization state change from the server should override us.
                     defaultAuthorizationStateVersion: zeroHybridLogicalTime,
                     referencedAccounts,
+                    referencedSites,
                     // Don't pass `this._clientId` in since we don't want to ignore this event.
                     originClientId: null,
                 });
@@ -2521,10 +2629,7 @@ export class TaskClientStoreInternal {
                         this._taskEntryStoreById.delete(taskId);
                         this._taskEntryStoreByIdStores.get(taskId)?.set(null);
 
-                        this._updateReferencedAccountStores(
-                            taskEntryStore.store.getSnapshot(),
-                            null,
-                        );
+                        this._updateReferencedTaskStores(taskEntryStore.store.getSnapshot(), null);
                     }
 
                     for (const collectionId of delayReleaseCollectionEntryStoreIds) {
@@ -2535,6 +2640,11 @@ export class TaskClientStoreInternal {
 
                         this._collectionEntryStoreById.delete(collectionId);
                         this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
+
+                        this._updateReferencedCollectionStores(
+                            collectionEntryStore.store.getSnapshot(),
+                            null,
+                        );
                     }
                 }
 
@@ -4005,7 +4115,7 @@ export class TaskClientStoreInternal {
                         newTaskEntry,
                     });
 
-                    this._updateReferencedAccountStores(oldTaskEntry, newTaskEntry);
+                    this._updateReferencedTaskStores(oldTaskEntry, newTaskEntry);
                 }
 
                 // Update all our collection stores and create new ones when necessary. Listeners
@@ -4074,6 +4184,8 @@ export class TaskClientStoreInternal {
                         oldCollectionEntry,
                         newCollectionEntry,
                     });
+
+                    this._updateReferencedCollectionStores(oldCollectionEntry, newCollectionEntry);
                 }
 
                 // Apply task updates to our subscriptions. This will also update stores within the
@@ -4122,7 +4234,7 @@ export class TaskClientStoreInternal {
                             this._taskEntryStoreById.delete(taskId);
                             this._taskEntryStoreByIdStores.get(taskId)?.set(null);
 
-                            this._updateReferencedAccountStores(
+                            this._updateReferencedTaskStores(
                                 taskEntryStore.store.getSnapshot(),
                                 null,
                             );
@@ -4138,6 +4250,11 @@ export class TaskClientStoreInternal {
 
                             this._collectionEntryStoreById.delete(collectionId);
                             this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
+
+                            this._updateReferencedCollectionStores(
+                                collectionEntryStore.store.getSnapshot(),
+                                null,
+                            );
                         }
                     }
                 }
@@ -4163,7 +4280,7 @@ export class TaskClientStoreInternal {
                             } else {
                                 this._taskEntryStoreById.delete(taskId);
                                 this._taskEntryStoreByIdStores.get(taskId)?.set(null);
-                                this._updateReferencedAccountStores(taskEntry, null);
+                                this._updateReferencedTaskStores(taskEntry, null);
                             }
                         }
                     }
@@ -4188,6 +4305,7 @@ export class TaskClientStoreInternal {
                             } else {
                                 this._collectionEntryStoreById.delete(collectionId);
                                 this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
+                                this._updateReferencedCollectionStores(collectionEntry, null);
                             }
                         }
                     }
@@ -4209,22 +4327,26 @@ export class TaskClientStoreInternal {
         return this._batchUpdateEventEmitter.subscribe(listener);
     }
 
-    private _updateReferencedAccountStores(
+    private _updateReferencedTaskStores(
         oldTaskEntry: TaskClientStoreTaskEntry | null,
         newTaskEntry: TaskClientStoreTaskEntry | null,
     ) {
         const oldReferencedAccountIds = new Set<AccountId>();
+        const oldReferencedSiteIds = new Set<SiteId>();
         if (oldTaskEntry?.task) {
-            collectReferencedAccountIdsFromTaskModelData(
+            collectReferencedIdsFromTaskModelData(
                 oldReferencedAccountIds,
+                oldReferencedSiteIds,
                 oldTaskEntry.task.rawData,
             );
         }
 
         const newReferencedAccountIds = new Set<AccountId>();
+        const newReferencedSiteIds = new Set<SiteId>();
         if (newTaskEntry?.task) {
-            collectReferencedAccountIdsFromTaskModelData(
+            collectReferencedIdsFromTaskModelData(
                 newReferencedAccountIds,
+                newReferencedSiteIds,
                 newTaskEntry.task.rawData,
             );
         }
@@ -4240,6 +4362,20 @@ export class TaskClientStoreInternal {
 
             if (referencedAccountStore.referenceCount === 0) {
                 this._referencedAccountStoreById.delete(oldReferencedAccountId);
+            }
+        }
+
+        for (const oldReferencedSiteId of oldReferencedSiteIds) {
+            if (newReferencedSiteIds.delete(oldReferencedSiteId)) continue;
+
+            const referencedSiteStore = assertExists(
+                this._referencedSiteStoreById.get(oldReferencedSiteId),
+            );
+
+            referencedSiteStore.referenceCount--;
+
+            if (referencedSiteStore.referenceCount === 0) {
+                this._referencedSiteStoreById.delete(oldReferencedSiteId);
             }
         }
 
@@ -4266,6 +4402,89 @@ export class TaskClientStoreInternal {
                 this._referencedAccountStoreById.set(newReferencedAccountId, {
                     referenceCount: 1,
                     store: accountStore,
+                });
+            }
+        }
+
+        for (const newReferencedSiteId of newReferencedSiteIds) {
+            const referencedSiteStore = this._referencedSiteStoreById.get(newReferencedSiteId);
+            if (referencedSiteStore) {
+                referencedSiteStore.referenceCount++;
+            } else {
+                const siteStore =
+                    this.siteRegistry.weakGetSiteStoreByIdIfExists(newReferencedSiteId);
+
+                // It's expected that when a `newTaskEntry` is introduced by the server, the server
+                // has made referenced sites available through `referencedSites`. When
+                // `newTaskEntry` is introduced by the client (through an optimistic update) it's
+                // expected that the site is available since it's rendered somewhere in the UI.
+                if (!siteStore) {
+                    throw new InternalError(
+                        "Couldn\u2019t find `SiteId` referenced by `TaskModel` in `SiteRegistry`",
+                    );
+                }
+
+                this._referencedSiteStoreById.set(newReferencedSiteId, {
+                    referenceCount: 1,
+                    store: siteStore,
+                });
+            }
+        }
+    }
+
+    private _updateReferencedCollectionStores(
+        oldCollectionEntry: TaskClientStoreCollectionEntry | null,
+        newCollectionEntry: TaskClientStoreCollectionEntry | null,
+    ) {
+        const oldReferencedSiteIds = new Set<SiteId>();
+        if (oldCollectionEntry?.collection) {
+            collectReferencedIdsFromTaskCollectionModelData(
+                oldReferencedSiteIds,
+                oldCollectionEntry.collection.rawData,
+            );
+        }
+
+        const newReferencedSiteIds = new Set<SiteId>();
+        if (newCollectionEntry?.collection) {
+            collectReferencedIdsFromTaskCollectionModelData(
+                newReferencedSiteIds,
+                newCollectionEntry.collection.rawData,
+            );
+        }
+
+        for (const oldReferencedSiteId of oldReferencedSiteIds) {
+            if (newReferencedSiteIds.delete(oldReferencedSiteId)) continue;
+
+            const existingStore = assertExists(
+                this._referencedSiteStoreById.get(oldReferencedSiteId),
+            );
+            existingStore.referenceCount--;
+
+            if (existingStore.referenceCount === 0) {
+                this._referencedSiteStoreById.delete(oldReferencedSiteId);
+            }
+        }
+
+        for (const newReferencedSiteId of newReferencedSiteIds) {
+            const existingStore = this._referencedSiteStoreById.get(newReferencedSiteId);
+            if (existingStore) {
+                existingStore.referenceCount++;
+            } else {
+                const store = this.siteRegistry.weakGetSiteStoreByIdIfExists(newReferencedSiteId);
+
+                // It's expected that when a `newTaskEntry` is introduced by the server, the server
+                // has made referenced sites available through `referencedSites`. When
+                // `newTaskEntry` is introduced by the client (through an optimistic update) it's
+                // expected that the site is available since it's rendered somewhere in the UI.
+                if (!store) {
+                    throw new InternalError(
+                        "Couldn\u2019t find `SiteId` referenced by `TaskCollectionModel` in `SiteRegistry`",
+                    );
+                }
+
+                this._referencedSiteStoreById.set(newReferencedSiteId, {
+                    referenceCount: 1,
+                    store,
                 });
             }
         }
@@ -4839,7 +5058,7 @@ export class TaskClientStoreInternal {
                 authorizationState: null,
             };
 
-            this._updateReferencedAccountStores(null, taskEntry);
+            this._updateReferencedTaskStores(null, taskEntry);
 
             taskEntryStore = {
                 referenceCount: 0,
@@ -4946,14 +5165,18 @@ export class TaskClientStoreInternal {
         let collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
 
         if (collectionEntryStore === undefined) {
+            const collectionEntry: TaskClientStoreCollectionEntry = {
+                collection: null,
+                actions: [],
+                optimisticState: null,
+                authorizationState: null,
+            };
+
+            this._updateReferencedCollectionStores(null, collectionEntry);
+
             collectionEntryStore = {
                 referenceCount: 0,
-                store: new ValueStore<TaskClientStoreCollectionEntry>({
-                    collection: null,
-                    actions: [],
-                    optimisticState: null,
-                    authorizationState: null,
-                }),
+                store: new ValueStore<TaskClientStoreCollectionEntry>(collectionEntry),
             };
 
             this._collectionEntryStoreById.set(collectionId, collectionEntryStore);

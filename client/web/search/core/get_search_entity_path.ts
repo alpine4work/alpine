@@ -1,4 +1,5 @@
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
@@ -240,6 +241,10 @@ export function getSearchDynamicEntityPath(
             } else {
                 return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
             }
+        }
+        case "Site": {
+            // TODO(#sites): Implement site search entity path.
+            throw new UnimplementedError("Site search entities aren\u2019t implemented");
         }
         default:
             throw exhaustive(entityId);

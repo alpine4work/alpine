@@ -7,6 +7,7 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
@@ -27,6 +28,7 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -61,6 +63,15 @@ export const commitTaskActionTransaction = defineRpc({
     output: {
         extraActions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+        referencedSites: Schema.array(
+            Schema.result(
+                Schema.object({
+                    ok: Schema.value(true),
+                    value: SitePreviewModel.schema,
+                }),
+                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            ),
+        ),
     },
 });
 
@@ -76,6 +87,15 @@ export const deleteTaskAndAllChildren = defineRpc({
     output: {
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+        referencedSites: Schema.array(
+            Schema.result(
+                Schema.object({
+                    ok: Schema.value(true),
+                    value: SitePreviewModel.schema,
+                }),
+                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            ),
+        ),
     },
 });
 
@@ -92,6 +112,15 @@ export const duplicateTaskAndAllChildren = defineRpc({
     output: {
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+        referencedSites: Schema.array(
+            Schema.result(
+                Schema.object({
+                    ok: Schema.value(true),
+                    value: SitePreviewModel.schema,
+                }),
+                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            ),
+        ),
         taskId: Schema.id<TaskId>(),
     },
 });

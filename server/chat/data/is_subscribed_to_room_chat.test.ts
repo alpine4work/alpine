@@ -57,6 +57,7 @@ test("isSubscribedToRoomChat checks authorization", async () => {
         spaceId: space.id,
         name: "Leadership",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[sessionA.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -77,6 +78,7 @@ test("isSubscribedToRoomChat returns the actor subscription state", async () => 
         spaceId: space.id,
         name: "General",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [sessionA.account.id, {level: "Manage", generation: 0}],
                 [sessionB.account.id, {level: "Edit", generation: 0}],
@@ -102,6 +104,7 @@ test("isSubscribedToRoomChat returns true for implicit subscriptions", async () 
         spaceId: space.id,
         name: "Implicit",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [sessionA.account.id, {level: "Manage", generation: 0}],
                 [sessionB.account.id, {level: "Edit", generation: 0}],
@@ -131,6 +134,7 @@ test("isSubscribedToRoomChat returns true when mentioned", async () => {
         spaceId: space.id,
         name: "Mentions",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [sessionA.account.id, {level: "Manage", generation: 0}],
                 [sessionB.account.id, {level: "Edit", generation: 0}],
@@ -160,6 +164,7 @@ test("isSubscribedToRoomChat prefers explicit unsubscribes over implicit subscri
         spaceId: space.id,
         name: "Announcements",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [sessionA.account.id, {level: "Manage", generation: 0}],
                 [sessionB.account.id, {level: "Edit", generation: 0}],

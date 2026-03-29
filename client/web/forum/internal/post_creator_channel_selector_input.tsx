@@ -32,6 +32,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     colorSchemeVars,
@@ -41,6 +43,7 @@ import {
     sprinkles,
 } from "~/client/web/styles/styles.js";
 import {
+    LocalAccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -51,6 +54,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
@@ -110,6 +114,7 @@ function PostCreatorChannelSelectorInput(
 ) {
     const platform = usePlatform();
     const {space, currentAccount} = useSpaceContext();
+    const siteRegistry = useSiteRegistry();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -197,7 +202,7 @@ function PostCreatorChannelSelectorInput(
                     if (
                         !hasAccessLevel(
                             getAccountAccessLevelAssumingSpaceAccess(
-                                result.channel.accessPolicy,
+                                getAccessPolicySnapshotFromSearchResult(result, siteRegistry),
                                 currentAccount?.id,
                             ),
                             "Edit",
@@ -223,7 +228,7 @@ function PostCreatorChannelSelectorInput(
                           if (
                               !hasAccessLevel(
                                   getAccountAccessLevelAssumingSpaceAccess(
-                                      result.channel.accessPolicy,
+                                      getAccessPolicySnapshotFromSearchResult(result, siteRegistry),
                                       currentAccount?.id,
                                   ),
                                   "Edit",
@@ -245,7 +250,7 @@ function PostCreatorChannelSelectorInput(
                 if (
                     !hasAccessLevel(
                         getAccountAccessLevelAssumingSpaceAccess(
-                            result.channel.accessPolicy,
+                            getAccessPolicySnapshotFromSearchResult(result, siteRegistry),
                             currentAccount?.id,
                         ),
                         "Edit",
@@ -273,7 +278,7 @@ function PostCreatorChannelSelectorInput(
 
             return results;
         }
-    }, [currentAccount?.id, searchByAffinityOutput, searchByKeywordsOutput]);
+    }, [currentAccount?.id, searchByAffinityOutput, searchByKeywordsOutput, siteRegistry]);
 
     const areItemsLoading = !items;
 
@@ -828,4 +833,28 @@ function PostCreatorChannelSelectorListBoxOptionItem({
             )}
         </Box>
     );
+}
+
+/**
+ * Gets the _snapshot_ of the access policy for a channel search result for
+ * rendering in the channel selector input (which is not reactive).
+ *
+ * IMPORTANT: This function is not reactive – do not call it during a React render.
+ */
+function getAccessPolicySnapshotFromSearchResult(
+    result: {
+        channel: ChannelPreviewModel;
+    },
+    siteRegistry: SiteRegistry,
+): LocalAccessPolicy {
+    switch (result.channel.accessPolicy.data.type) {
+        case "Local":
+            return result.channel.accessPolicy.data;
+        case "Site":
+            return siteRegistry
+                .getSiteStore(assertExists(result.channel.accessPolicy.data.site))
+                .getSnapshot().accessPolicy;
+        default:
+            throw exhaustive(result.channel.accessPolicy.data);
+    }
 }

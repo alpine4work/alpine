@@ -4,6 +4,7 @@ import {Step} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
@@ -78,7 +79,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -434,11 +435,16 @@ export async function createDocument(
 
     await authorizeSpaceAccess(context, spaceId);
 
-    await validateAccessPolicyUpdateForServer(context, spaceId, null, content.attrs.accessPolicy, {
-        consistency,
-    });
-
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
+    const effectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
+        context,
+        spaceId,
+        null,
+        accessPolicy,
+        {
+            consistency,
+        },
+    );
 
     const createdTime = new Date();
     const version = 0;
@@ -457,7 +463,7 @@ export async function createDocument(
     // unshares and reshares an imported document. This means if you import a section
     // of documents as private, and choose to share them publicly later, it WILL create
     // feed entries.
-    const hasAddedFeedCandidateEntry = !!accessPolicy.defaultGrant;
+    const hasAddedFeedCandidateEntry = !!effectiveAccessPolicy.defaultGrant;
 
     const creator = {
         id: creatorId,
@@ -614,6 +620,7 @@ export async function duplicateDocument(
     // Build the new document content with the new title and fresh access policy
     const creatorId = context.actor.getAccountId();
     const newAccessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -1398,10 +1405,15 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         return [commentThread.commentThreadId, commentThread];
     };
 
+    // Fetch the site if the document's access policy is a Site type.
+    const accessPolicy = content.attrs.accessPolicy;
+    const siteId = accessPolicy.type === "Site" ? accessPolicy.siteId : null;
+
     const [
         contentReferences,
         referencedCommentThreadById,
         {requestedCommentThreadIds, archivedCommentThreadById},
+        siteById,
     ] = await runAllPromises([
         getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
             context,
@@ -1439,6 +1451,9 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                 archivedCommentThreadById,
             };
         })(),
+        siteId
+            ? context.sitesInjection.getSitePreview(siteId).then(site => new Map([[siteId, site]]))
+            : new Map(),
     ]);
 
     const [actualReferencedCommentThreadById, actualRequestedCommentThreads] = await runAllPromises(
@@ -1511,6 +1526,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                     commentThreadById: commentAuthorizationResult.ok
                         ? new Map(actualReferencedCommentThreadById)
                         : emptyMap,
+                    siteById,
                 },
             },
         }),
@@ -1531,7 +1547,10 @@ export async function getDocumentTitleIfExists(
 ): Promise<{title: string; accessPolicy: AccessPolicy} | null> {
     const documentPreview = await getDocumentPreviewIfExists(context, documentId, options);
     if (!documentPreview) return null;
-    return {title: documentPreview.getTitle(), accessPolicy: documentPreview.accessPolicy};
+    return {
+        title: documentPreview.getTitle(),
+        accessPolicy: documentPreview.accessPolicy,
+    };
 }
 
 /**
@@ -1794,6 +1813,9 @@ export async function getDocumentContentPreviewIfPossible(
                             contentSnippet,
                         )),
                         commentThreadById: emptyMap,
+                        // Content previews don't need sites - they're used for search indexing and
+                        // previews where the full access policy isn't needed.
+                        siteById: emptyMap,
                     },
                 },
             },
@@ -1914,7 +1936,7 @@ export async function getDocumentAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,
     documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicy> {
+): Promise<EffectiveAccessPolicy> {
     const scope = context.actor.getScope();
     if (scope.type !== "Document" || scope.documentId !== documentId) {
         throw new PermissionDeniedError("Can only get access policy for the scoped document");
@@ -1922,9 +1944,12 @@ export async function getDocumentAccessPolicyForBotScope(
 
     const item = await getDocumentItemForAuthorization(context, documentId, options);
 
-    await authorizeSpaceAccess(context, item.spaceId);
+    const [, accessPolicy] = await runAllPromises([
+        authorizeSpaceAccess(context, item.spaceId),
+        intoEffectiveAccessPolicy(context, item.accessPolicy),
+    ]);
 
-    return item.accessPolicy;
+    return accessPolicy;
 }
 
 /**
@@ -2051,6 +2076,9 @@ async function createDocumentCommentThreadModelFromItem(
                       // We strip all comment thread marks except for our own it's redundant to include a
                       // comment thread reference object for ourselves.
                       commentThreadById: new Map(),
+                      // Fallback content snippets don't need sites - they're used for rendering comment
+                      // thread previews where the full access policy isn't needed.
+                      siteById: new Map(),
                   },
               }
             : null,
@@ -2998,22 +3026,24 @@ export async function updateDocumentContent(
             await authorizeDocumentItemAccess(context, internalDocument, "Manage");
         }
 
+        let newEffectiveAccessPolicy: EffectiveAccessPolicy | null = null;
         // Make sure the access policy update is valid and the actor isn't removing access
         // from accounts with a lower manage generation.
         if (hasAccessPolicyChanged) {
-            await validateAccessPolicyUpdateForServer(
+            newEffectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
                 context,
                 internalDocument.spaceId,
                 oldAccessPolicy,
                 newAccessPolicy,
             );
         }
+        newEffectiveAccessPolicy ??= await intoEffectiveAccessPolicy(context, newAccessPolicy);
 
         // Add a feed candidate entry when the document is given a default grant for the
         // first time.
         const oldHasAddedFeedCandidateEntry = internalDocument.hasAddedFeedCandidateEntry;
         const newHasAddedFeedCandidateEntry =
-            oldHasAddedFeedCandidateEntry || !!newAccessPolicy.defaultGrant;
+            oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
 
         const commentThreadItemPromiseById = new Map<
             DocumentCommentThreadId,

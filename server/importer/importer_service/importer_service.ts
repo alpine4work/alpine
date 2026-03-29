@@ -10,6 +10,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
@@ -33,6 +34,7 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -127,6 +129,7 @@ export async function run({
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
     });
 
     await processContext.tracer.withSpan(

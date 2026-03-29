@@ -8,6 +8,7 @@ import {
 } from "~/app/helpers/create_head_meta.js";
 import {newTaskCollectionNamePlaceholder} from "~/client/web/styles/tasks_shared_styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
@@ -45,6 +46,7 @@ function createTestDocument(options: {
     const bodyText = options.bodyText ?? "";
 
     const accessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map(),
         defaultGrant: null,
         urlGrant: options.urlGrant ? {level: "View"} : null,
@@ -74,6 +76,15 @@ function createTestDocument(options: {
     });
 }
 
+function createTestAccessPolicy(options: {urlGrant?: boolean}): AccessPolicyModel {
+    return new AccessPolicyModel({
+        type: "Local",
+        accountGrantById: new Map(),
+        defaultGrant: null,
+        urlGrant: options.urlGrant ? {level: "View"} : null,
+    });
+}
+
 function createTestChannel(options: {
     name?: string;
     descriptionText?: string;
@@ -82,11 +93,7 @@ function createTestChannel(options: {
     const name = options.name ?? "Test Channel";
     const descriptionText = options.descriptionText ?? "";
 
-    const accessPolicy: AccessPolicy = {
-        accountGrantById: new Map(),
-        defaultGrant: null,
-        urlGrant: options.urlGrant ? {level: "View"} : null,
-    };
+    const accessPolicy = createTestAccessPolicy({urlGrant: options.urlGrant});
 
     const descriptionDoc = MessageContentProsemirrorSchema.node("doc", {}, [
         MessageContentProsemirrorSchema.node(
@@ -109,15 +116,11 @@ function createTestChannel(options: {
 
 function createTestTaskCollection(options: {name?: string; urlGrant?: boolean}): {
     name: string;
-    accessPolicy: AccessPolicy;
+    hasUrlGrant: boolean;
 } {
     return {
         name: options.name ?? "",
-        accessPolicy: {
-            accountGrantById: new Map(),
-            defaultGrant: null,
-            urlGrant: options.urlGrant ? {level: "View"} : null,
-        },
+        hasUrlGrant: options.urlGrant ?? false,
     };
 }
 
@@ -198,6 +201,7 @@ describe("getDocumentOgDescription", () => {
             ]),
             searchEntityById: emptyMap,
             commentThreadById: emptyMap,
+            siteById: emptyMap,
         };
 
         const description = getDocumentOgDescription({doc, references});
@@ -241,6 +245,7 @@ describe("getDocumentOgDescription", () => {
                 ],
             ]),
             commentThreadById: emptyMap,
+            siteById: emptyMap,
         };
 
         const description = getDocumentOgDescription({doc, references});
@@ -271,6 +276,7 @@ describe("getDocumentOgDescription", () => {
             accountById: emptyMap,
             searchEntityById: new Map([[entityId, {isPrivate: true as const}]]),
             commentThreadById: emptyMap,
+            siteById: emptyMap,
         };
 
         const description = getDocumentOgDescription({doc, references});
@@ -350,12 +356,6 @@ describe("createHeadMetaForChannel", () => {
         expect(result).toEqual([{title: "My Channel"}]);
     });
 
-    test("returns empty title when channel is null", () => {
-        const result = createHeadMetaForChannel(null);
-
-        expect(result).toEqual([{title: ""}]);
-    });
-
     test("returns OG metadata when channel is publicly shared", () => {
         const channel = createTestChannel({
             name: "Public Channel",
@@ -394,30 +394,16 @@ describe("createHeadMetaForChatRoom", () => {
     test("returns title only when room is not publicly shared", () => {
         const result = createHeadMetaForChatRoom({
             name: "My Room",
-            accessPolicy: {
-                accountGrantById: new Map(),
-                defaultGrant: null,
-                urlGrant: null,
-            },
+            accessPolicy: createTestAccessPolicy({urlGrant: false}),
         });
 
         expect(result).toEqual([{title: "My Room"}]);
     });
 
-    test("returns empty title when room is null", () => {
-        const result = createHeadMetaForChatRoom(null);
-
-        expect(result).toEqual([{title: ""}]);
-    });
-
     test("returns OG metadata when room is publicly shared", () => {
         const result = createHeadMetaForChatRoom({
             name: "Public Room",
-            accessPolicy: {
-                accountGrantById: new Map(),
-                defaultGrant: null,
-                urlGrant: {level: "View"},
-            },
+            accessPolicy: createTestAccessPolicy({urlGrant: true}),
         });
 
         expect(result).toEqual([

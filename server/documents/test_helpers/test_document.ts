@@ -112,6 +112,7 @@ export class TestDocument {
                         {
                             ...options.content.attrs,
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map([
                                     [session.account.id, {level: "Manage", generation: 0}],
                                 ]),
@@ -127,6 +128,7 @@ export class TestDocument {
             let accessPolicy: AccessPolicy;
             if (options.access === "Public") {
                 accessPolicy = {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -135,6 +137,7 @@ export class TestDocument {
                 };
             } else if (options.access === "Private" || options.access === undefined) {
                 accessPolicy = {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),

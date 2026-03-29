@@ -34,6 +34,7 @@ describe("getSpellCheckIgnoredLints", () => {
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "View", generation: 0}],
@@ -57,6 +58,7 @@ describe("getSpellCheckIgnoredLints", () => {
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Comment", generation: 0}],

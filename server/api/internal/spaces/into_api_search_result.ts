@@ -3,6 +3,7 @@ import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -226,6 +227,10 @@ function actuallyIntoApiSearchResult({
                 index: entity.commentIndex,
                 author,
             };
+        }
+        case "Site": {
+            // TODO(#sites): Implement site search entity support
+            throw new UnimplementedError("Site search entity support is not implemented");
         }
         default:
             throw exhaustive(entity);

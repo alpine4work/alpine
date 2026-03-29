@@ -128,6 +128,7 @@ ts_project(
         "//server/notifications/data",
         "//server/remix",
         "//server/rpc",
+        "//server/sites/data",
         "//server/spaces",
         "//server/tasks/router",
         "//server/tracer",

@@ -1,4 +1,5 @@
 import {Mapping} from "prosemirror-transform";
+import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -93,6 +94,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             // and we assume all channels are public within the space. So if we find a channel
                             // with no `accessPolicy` then default to a public access policy.
                             .default({
+                                type: "Local",
                                 accountGrantById: emptyMap,
                                 defaultGrant: {level: "Manage", generation: 0},
                                 urlGrant: null,
@@ -636,6 +638,15 @@ async function createChannelModelFromItem(
         readonly updateLockVersion?: number;
     },
 ): Promise<ChannelModel> {
+    const [references, accessPolicy] = await runAllPromises([
+        getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
+            context,
+            item.spaceId,
+            "AssertHasNoFiles",
+            item.description,
+        ),
+        intoAccessPolicyModel(context, item.accessPolicy),
+    ]);
     return new ChannelModel({
         id: item.channelId,
         spaceId: item.spaceId,
@@ -644,14 +655,9 @@ async function createChannelModelFromItem(
         name: item.name,
         description: {
             doc: item.description,
-            references: await getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
-                context,
-                item.spaceId,
-                "AssertHasNoFiles",
-                item.description,
-            ),
+            references,
         },
-        accessPolicy: item.accessPolicy,
+        accessPolicy,
     });
 }
 

@@ -24,6 +24,7 @@ test("updateRoomChatAccessPolicy updates the access policy and requires manage a
         spaceId: space.id,
         name: "General",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[sessionA.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Edit"},
             urlGrant: null,
@@ -31,6 +32,7 @@ test("updateRoomChatAccessPolicy updates the access policy and requires manage a
     });
 
     const updatedAccessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [sessionA.account.id, {level: "Manage", generation: 0}],
             [sessionB.account.id, {level: "Edit"}],
@@ -53,11 +55,11 @@ test("updateRoomChatAccessPolicy updates the access policy and requires manage a
 
     expect(attributesItem.definition.type).toBe("Room");
     assert(attributesItem.definition.type === "Room");
-    expect(attributesItem.definition.accessPolicy.defaultGrant).toBeNull();
-    expect(attributesItem.definition.accessPolicy.urlGrant).toBeNull();
-    expect(
-        attributesItem.definition.accessPolicy.accountGrantById.get(sessionB.account.id),
-    ).toEqual({level: "Edit"});
+    const accessPolicy = attributesItem.definition.accessPolicy;
+    assert(accessPolicy.type === "Local", "Expected local access policy");
+    expect(accessPolicy.defaultGrant).toBeNull();
+    expect(accessPolicy.urlGrant).toBeNull();
+    expect(accessPolicy.accountGrantById.get(sessionB.account.id)).toEqual({level: "Edit"});
 
     await expect(
         updateRoomChatAccessPolicy(sessionB.action(), {
@@ -76,6 +78,7 @@ test("updateRoomChatAccessPolicy allows url grants", async () => {
         spaceId: space.id,
         name: "General",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -85,6 +88,7 @@ test("updateRoomChatAccessPolicy allows url grants", async () => {
     await updateRoomChatAccessPolicy(session.action(), {
         chatId,
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: {level: "View"},
@@ -100,6 +104,7 @@ test("updateRoomChatAccessPolicy allows url grants", async () => {
 
     expect(attributesItem.definition.type).toBe("Room");
     assert(attributesItem.definition.type === "Room");
+    assert(attributesItem.definition.accessPolicy.type === "Local", "Expected local access policy");
     expect(attributesItem.definition.accessPolicy.urlGrant).toEqual({level: "View"});
 });
 
@@ -113,6 +118,7 @@ test("updateRoomChatAccessPolicy rejects direct chats", async () => {
         updateRoomChatAccessPolicy(sessionA.action(), {
             chatId: chat.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [sessionA.account.id, {level: "Manage", generation: 0}],
                 ]),

@@ -27,7 +27,11 @@ import {
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
-import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
+import {
+    AccessPolicy,
+    AccessPolicyAccountGrant,
+    LocalAccessPolicy,
+} from "~/shared/access/access_policy.js";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -38,6 +42,7 @@ import {
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
@@ -64,6 +69,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
+                            type: "Local",
                             accountGrantById: emptyMap,
                             defaultGrant: {level: "Manage", generation: 0},
                             urlGrant: null,
@@ -117,6 +123,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
+                            type: "Local",
                             accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                                 ...insideSessions.map(
                                     (insideSession): [AccountId, AccessPolicyAccountGrant] => [
@@ -176,8 +183,9 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             revokeInsideSession: async (context, session) => {
                 const currentDocument = await getDocument(context, document.id);
                 const accessPolicy: AccessPolicy = currentDocument.content.doc.attrs.accessPolicy;
+                assert(accessPolicy.type === "Local", "Expected local access policy");
 
-                const newAccessPolicy: AccessPolicy = {
+                const newAccessPolicy: LocalAccessPolicy = {
                     ...accessPolicy,
                     accountGrantById: new Map(
                         filterIterable(

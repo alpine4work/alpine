@@ -59,12 +59,14 @@ export class TestChannel {
         let accessPolicy: AccessPolicy;
         if (access === "Public" || access === undefined) {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: {level: "Manage", generation: 1},
                 urlGrant: null,
             };
         } else if (access === "Private") {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -103,11 +105,11 @@ export class TestChannel {
 
     public readonly access = new TestAccessPolicy({
         get: async () => {
-            const {accessPolicy} = await getChannelPreview(
+            const channel = await getChannelPreview(
                 this.context.systemAction(this.space.id),
                 this.id,
             );
-            return accessPolicy;
+            return channel.accessPolicy.intoAccessPolicy();
         },
         set: async (session, accessPolicy) => {
             await updateChannelAccessPolicy(session.action(), {

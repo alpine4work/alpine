@@ -26,6 +26,7 @@ import {
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
+import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -138,9 +139,13 @@ export default implementRpcs(definitions, {
     getDocumentContentReferences: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, {documentId, referencedIds}) => {
-            const {spaceId} = await authorizeDocumentAccess(context, documentId, "View");
+            const {spaceId, accessPolicy} = await authorizeDocumentAccess(
+                context,
+                documentId,
+                "View",
+            );
 
-            const [references, {commentThreadById, resolvedCommentThreadIds}] =
+            const [references, {commentThreadById, resolvedCommentThreadIds}, siteById] =
                 await runAllPromises([
                     getContentReferences(
                         context,
@@ -157,12 +162,19 @@ export default implementRpcs(definitions, {
                               commentThreadById: new Map<never, never>(),
                               resolvedCommentThreadIds: new Set<never>(),
                           },
+                    (async () => {
+                        if (accessPolicy.type !== "Site") return new Map();
+
+                        const site = await getSitePreview(context, accessPolicy.siteId);
+                        return new Map([[accessPolicy.siteId, site]]);
+                    })(),
                 ]);
 
             return {
                 references: {
                     ...references,
                     commentThreadById,
+                    siteById,
                 },
                 resolvedCommentThreadIds,
             };

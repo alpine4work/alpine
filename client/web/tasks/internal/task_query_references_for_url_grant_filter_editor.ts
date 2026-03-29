@@ -3,16 +3,18 @@ import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/life
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export type TaskQueryReferencesForUrlGrantFilterEditor = {
     readonly accountById: ReadonlyMap<AccountId, AccountModelData>;
     readonly collectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModel>;
+    readonly siteById: ReadonlyMap<SiteId, SitePreviewModelData>;
 };
 
 /**
@@ -46,6 +48,7 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
 
                     const iterator = taskOrder.begin;
                     const accountIds = new Set<AccountId>();
+                    const siteIds = new Set<SiteId>();
                     const collectionIds = new Set<TaskCollectionId>();
 
                     while (iterator.valid) {
@@ -53,8 +56,9 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         const taskEntry = get(query.getLoadedTaskEntryStore(taskId));
 
                         if (taskEntry.task) {
-                            collectReferencedAccountIdsFromTaskModelData(
+                            collectReferencedIdsFromTaskModelData(
                                 accountIds,
+                                siteIds,
                                 taskEntry.task.rawData,
                             );
 
@@ -90,7 +94,16 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         }),
                     );
 
-                    return {accountById, collectionById};
+                    const siteById = new Map<SiteId, SitePreviewModelData>(
+                        filterMapIterable(siteIds, siteId => {
+                            const siteStore = query.store.getReferencedSiteStoreIfExists(siteId);
+                            if (!siteStore) return;
+
+                            return [siteId, get(siteStore)];
+                        }),
+                    );
+
+                    return {accountById, collectionById, siteById};
                 }),
             [query],
         ),
@@ -107,6 +120,7 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
             const collectionById = new Map<TaskCollectionId, TaskCollectionModel>(
                 oldReferences?.collectionById,
             );
+            const siteById = new Map<SiteId, SitePreviewModelData>(oldReferences?.siteById);
 
             for (const [accountId, newAccount] of newReferences.accountById) {
                 const oldAccount = accountById.get(accountId);
@@ -126,7 +140,16 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                 );
             }
 
-            return {accountById, collectionById};
+            for (const [siteId, newSite] of newReferences.siteById) {
+                const oldSite = siteById.get(siteId);
+
+                siteById.set(
+                    siteId,
+                    oldSite ? SitePreviewModel.mergeData(oldSite, newSite) : newSite,
+                );
+            }
+
+            return {accountById, collectionById, siteById};
         },
         [currentReferences],
     );

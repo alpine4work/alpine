@@ -1,4 +1,5 @@
 import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -9,8 +10,10 @@ import {
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {
     AccessLevel,
+    AccessPolicy,
     AccessPolicyUrlGrant,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicy,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -28,10 +31,14 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 export async function evaluateAccessPolicy(
     context: ServerMinimalActionContext,
     spaceId: SpaceId,
-    accessPolicy: AccessPolicyWithoutGenerations,
+    rawAccessPolicy: AccessPolicy | ResolvedAccessPolicy | EffectiveAccessPolicy,
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
+    const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
+        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy)
+        : rawAccessPolicy;
+
     switch (context.actor.type) {
         // Anonymous users ONLY get access through `urlGrant`.
         case "Anonymous": {
@@ -204,9 +211,13 @@ export async function evaluateAccessPolicyForAccount(
     context: ServerMinimalActionContext,
     spaceId: SpaceId,
     accountId: AccountId,
-    accessPolicy: AccessPolicyWithoutGenerations,
+    rawAccessPolicy: AccessPolicy | ResolvedAccessPolicy | EffectiveAccessPolicy,
     expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
+    const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
+        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy)
+        : rawAccessPolicy;
+
     // If there's a `urlGrant` then everyone has access at this level. Even when
     // `accountId` is null or `accountId` does not have space access.
     if (
@@ -255,4 +266,10 @@ export async function evaluateAccessPolicyForAccount(
     }
 
     return false;
+}
+
+function isAccessPolicyOrResolvedAccessPolicy(
+    accessPolicy: AccessPolicy | ResolvedAccessPolicy | EffectiveAccessPolicy,
+): accessPolicy is AccessPolicy | ResolvedAccessPolicy {
+    return "type" in accessPolicy;
 }

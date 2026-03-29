@@ -134,6 +134,7 @@ test("can not connect to a document in a different space", async () => {
 
     const document = await TestDocument.create(session, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -153,6 +154,7 @@ test("can not connect to an existing document durable object in a different spac
 
     const document = await TestDocument.create(session, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -257,6 +259,7 @@ test("will optimistically update the document and then persist later", async () 
     const [session1, session2] = await space.createSessions(2);
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -383,6 +386,7 @@ test("will not batch updates from different accounts when persisting", async () 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -516,6 +520,7 @@ test("will respond optimistically with a comment thread even if it has not been 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -802,6 +807,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -949,6 +955,7 @@ test("will respond optimistically with a comment thread with files even if it ha
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -1355,6 +1362,7 @@ test("when comment threads are added back to the document they will be loaded", 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -1503,6 +1511,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -1744,6 +1753,7 @@ test("can create comments in comment threads", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -2177,6 +2187,7 @@ test("if comment thread is persisting we will wait to create messages but respon
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -2470,6 +2481,7 @@ test("if comment thread update message hasn\u2019t been processed we will wait t
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -2784,6 +2796,7 @@ test("while comment thread is persisting we will respond to comment load request
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3688,6 +3701,7 @@ test("will cleanup comment thread marks if from a different document", async () 
 
     const document1 = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3696,6 +3710,7 @@ test("will cleanup comment thread marks if from a different document", async () 
 
     const document2 = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4087,6 +4102,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4388,6 +4404,7 @@ test("can resolve a comment thread", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4492,6 +4509,7 @@ test("can unresolve a comment thread", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -5751,12 +5769,14 @@ test("can update access policy", async () => {
     );
 
     const accessPolicy1: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
     };
 
     const accessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Comment"},
         urlGrant: null,
@@ -5882,6 +5902,7 @@ test("can\u2019t update access policy unintentionally", async () => {
     );
 
     const accessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Comment"},
         urlGrant: null,
@@ -5949,12 +5970,14 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
     );
 
     const accessPolicy2a: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Comment"},
         urlGrant: null,
     };
 
     const accessPolicy2b: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Edit"},
         urlGrant: null,

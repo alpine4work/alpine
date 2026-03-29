@@ -2,20 +2,57 @@ import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {SitesInjection} from "~/server/context/injection_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {AccessPolicy, allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    AccessPolicy,
+    LocalAccessPolicy,
+    allAccessLevels,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
+
+// Mutable map that tests can configure for site access policies
+const siteAccessPolicies = new Map<SiteId, LocalAccessPolicy>();
+
+const sitesInjection: SitesInjection = {
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return policy;
+    },
+    getSitePreview: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return new SitePreviewModel({
+            id: siteId,
+            spaceId: generateId<SpaceId>(),
+            name: "Test Site",
+            firstEntityId: null,
+            createdTime: new Date(),
+            accessPolicy: policy,
+            version: 1,
+        });
+    },
+};
 
 const context = createTestContext({
     chatInjection,
     forumInjection,
+    sitesInjection,
 });
 
 const account1Id = generateId<AccountId>();
@@ -111,15 +148,20 @@ beforeAll(async () => {
     scenario = await createScenario();
 });
 
+beforeEach(() => {
+    siteAccessPolicies.clear();
+});
+
 type TestCase = {
     name: string;
-    accessPolicy: AccessPolicy;
+    accessPolicy: LocalAccessPolicy;
 };
 
 const testCases: Array<TestCase> = [
     {
         name: "no grants",
         accessPolicy: {
+            type: "Local",
             accountGrantById: emptyMap,
             defaultGrant: null,
             urlGrant: null,
@@ -128,6 +170,7 @@ const testCases: Array<TestCase> = [
     {
         name: "only url grant",
         accessPolicy: {
+            type: "Local",
             accountGrantById: emptyMap,
             defaultGrant: null,
             urlGrant: {level: "View"},
@@ -137,6 +180,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`only default grant at ${accessLevel} access level`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: emptyMap,
                 defaultGrant:
                     accessLevel === "Manage"
@@ -150,6 +194,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`default grant at ${accessLevel} access level and url grant`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: emptyMap,
                 defaultGrant:
                     accessLevel === "Manage"
@@ -162,6 +207,7 @@ const testCases: Array<TestCase> = [
     {
         name: "only one account grant",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[account1Id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -170,6 +216,7 @@ const testCases: Array<TestCase> = [
     {
         name: "only one account grant (other)",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[account2Id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -178,6 +225,7 @@ const testCases: Array<TestCase> = [
     {
         name: "only one removed account grant",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[removedAccountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -186,6 +234,7 @@ const testCases: Array<TestCase> = [
     {
         name: "only one bot account grant",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[bot1AccountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -195,6 +244,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`multiple account grants with one at ${accessLevel} access level`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [account1Id, {level: "Manage", generation: 0}],
                     [
@@ -213,6 +263,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`multiple account grants with one at ${accessLevel} access level (flipped)`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [account2Id, {level: "Manage", generation: 0}],
                     [
@@ -231,6 +282,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`multiple account grants with one removed at ${accessLevel} access level`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [account1Id, {level: "Manage", generation: 0}],
                     [
@@ -249,6 +301,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`multiple account grants with one bot at ${accessLevel} access level`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [account1Id, {level: "Manage", generation: 0}],
                     [
@@ -267,6 +320,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`multiple account grants and one is a bot at ${accessLevel} access level`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [account1Id, {level: "Manage", generation: 0}],
                     [
@@ -285,6 +339,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`one account grant and default grant at ${accessLevel} access level`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1Id, {level: "Manage", generation: 0}]]),
                 defaultGrant:
                     accessLevel === "Manage"
@@ -299,6 +354,7 @@ const testCases: Array<TestCase> = [
             (accessLevel2): TestCase => ({
                 name: quote`multiple account grants with one at ${accessLevel1} access level and default grant at ${accessLevel2} access level`,
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [account1Id, {level: "Manage", generation: 0}],
                         [
@@ -321,6 +377,7 @@ const testCases: Array<TestCase> = [
         (accessLevel): TestCase => ({
             name: quote`multiple account grants with one at ${accessLevel} access level and url grant`,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [account1Id, {level: "Manage", generation: 0}],
                     [
@@ -340,6 +397,7 @@ const testCases: Array<TestCase> = [
             (accessLevel2): TestCase => ({
                 name: quote`multiple account grants with one at ${accessLevel1} access level, default grant at ${accessLevel2} access level, and url grant`,
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [account1Id, {level: "Manage", generation: 0}],
                         [
@@ -813,3 +871,434 @@ for (const {name: accessPolicyName, accessPolicy} of testCases) {
         });
     }
 }
+
+// =============================================================================
+// Site access policy tests
+// =============================================================================
+
+describe("site access policy evaluation", () => {
+    test("site access policy resolves to the site\u2019s local access policy", async () => {
+        const siteId = generateId<SiteId>();
+
+        // Set up site with a specific access policy
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "View"},
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Session 1 has explicit Manage access via account grant
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session1.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(true);
+
+        // Session 2 has View access via default grant
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(true);
+
+        // Session 2 does NOT have Manage access (only View via default)
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(false);
+    });
+
+    test("account grants in site policies grant access", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+                [scenario.session2.account.id, {level: "Edit"}],
+                [scenario.session3.account.id, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Session 1 has Manage access
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session1.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(true);
+
+        // Session 2 has Edit access (and View, which is lower)
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(false);
+
+        // Session 3 only has View access
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session3.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session3.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(false);
+    });
+
+    test("default grants in site policies grant access", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Edit"},
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Session 2 has no explicit grant but gets Edit via default
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.session2.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(false);
+    });
+
+    test("removed accounts don\u2019t get access via site default grant", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Removed session should NOT get access even with Manage default grant
+        expect(
+            await evaluateAccessPolicy(
+                scenario.removedSession.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(false);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.removedSession.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(false);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.removedSession.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(false);
+    });
+
+    test("anonymous users only get access via urlGrant (not defaultGrant)", async () => {
+        const siteId = generateId<SiteId>();
+
+        // Site with default grant but no URL grant
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Anonymous user should NOT get access via default grant
+        expect(
+            await evaluateAccessPolicy(
+                context.anonymousAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(false);
+
+        // Now add URL grant
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: {level: "View"},
+        });
+
+        // Anonymous user should get View access via URL grant
+        expect(
+            await evaluateAccessPolicy(
+                context.anonymousAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(true);
+
+        // But not higher access levels
+        expect(
+            await evaluateAccessPolicy(
+                context.anonymousAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(false);
+    });
+
+    test("system actor from correct space has full access to site policy", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // System actor from the correct space has full access
+        expect(
+            await evaluateAccessPolicy(
+                scenario.space.systemAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(true);
+
+        // System actor from a different space does NOT have access (no URL grant)
+        expect(
+            await evaluateAccessPolicy(
+                scenario.otherSpace.systemAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(false);
+    });
+
+    test("system actor from wrong space only gets urlGrant access", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: {level: "View"},
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // System actor from wrong space only gets View via URL grant
+        expect(
+            await evaluateAccessPolicy(
+                scenario.otherSpace.systemAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.otherSpace.systemAction(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(false);
+    });
+
+    test("bot actors with space scope get default grant access in site policy", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Edit"},
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Bot with space scope should get Edit access via default grant
+        expect(
+            await evaluateAccessPolicy(
+                scenario.bot1Account.action({type: "Space"}),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.bot1Account.action({type: "Space"}),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(false);
+    });
+
+    test("bot actors with account scope inherit account\u2019s site policy access", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+                [scenario.session2.account.id, {level: "Edit"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Bot with account 1 scope gets Manage access
+        expect(
+            await evaluateAccessPolicy(
+                scenario.bot1Account.action({type: "Account", accountId: account1Id}),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(true);
+
+        // Bot with account 2 scope gets Edit access (not Manage)
+        expect(
+            await evaluateAccessPolicy(
+                scenario.bot1Account.action({type: "Account", accountId: account2Id}),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Edit",
+            ),
+        ).toEqual(true);
+        expect(
+            await evaluateAccessPolicy(
+                scenario.bot1Account.action({type: "Account", accountId: account2Id}),
+                scenario.space.id,
+                siteAccessPolicy,
+                "Manage",
+            ),
+        ).toEqual(false);
+    });
+
+    test("other space session doesn\u2019t get site access even with default grant", async () => {
+        const siteId = generateId<SiteId>();
+
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([
+                [scenario.session1.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        const siteAccessPolicy: AccessPolicy = {type: "Site", siteId};
+
+        // Other space session should NOT get access (not a member of this space)
+        expect(
+            await evaluateAccessPolicy(
+                scenario.otherSession.action(),
+                scenario.space.id,
+                siteAccessPolicy,
+                "View",
+            ),
+        ).toEqual(false);
+    });
+});

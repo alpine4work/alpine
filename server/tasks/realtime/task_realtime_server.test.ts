@@ -145,6 +145,7 @@ test("access policy updates are indexed for queries", async () => {
 
     const updatedDoc = await task.getIndexDoc();
     expect(updatedDoc.accessPolicy?.value).toEqual({
+        type: "Local",
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
             [session2.account.id, {level: "View"}],

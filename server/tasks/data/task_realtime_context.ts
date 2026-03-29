@@ -2,6 +2,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {
@@ -43,6 +44,7 @@ export type TaskRealtimeProcessContextModules = {
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
     tasksInjection: TasksInjectionContextModule;
+    sitesInjection: SitesInjectionContextModule;
 };
 
 export type TaskRealtimeActionContext = Context<TaskRealtimeActionContextModules>;

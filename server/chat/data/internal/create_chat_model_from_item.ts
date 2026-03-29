@@ -1,3 +1,4 @@
+import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js";
 import {getChatMessageCount} from "~/server/chat/data/get_chat_message_count.js";
 import {getChatSearchEntityContributorIds} from "~/server/chat/data/get_chat_search_entity_contributor_ids.js";
 import {getRoomChatPreviewAccountIds} from "~/server/chat/data/get_room_chat_preview_account_ids.js";
@@ -87,20 +88,23 @@ export async function createChatModelFromItem(
                 })
                 .slice(0, 2);
 
-            const previewAccounts = await runAllPromises(
-                mapIterable(previewAccountIds, accountId =>
-                    getAccountOrDangerouslyGetStubWithoutAuthorization(
-                        context,
-                        chatItem.attributesItem.spaceId,
-                        accountId,
+            const [previewAccounts, accessPolicy] = await runAllPromises([
+                runAllPromises(
+                    mapIterable(previewAccountIds, accountId =>
+                        getAccountOrDangerouslyGetStubWithoutAuthorization(
+                            context,
+                            chatItem.attributesItem.spaceId,
+                            accountId,
+                        ),
                     ),
                 ),
-            );
+                intoAccessPolicyModel(context, chatItem.attributesItem.definition.accessPolicy),
+            ]);
 
             definition = {
                 type: "Room",
                 name: chatItem.attributesItem.definition.name,
-                accessPolicy: chatItem.attributesItem.definition.accessPolicy,
+                accessPolicy,
                 previewAccounts,
             };
             break;

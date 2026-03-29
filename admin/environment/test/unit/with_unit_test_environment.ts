@@ -28,6 +28,8 @@ import {
     NotificationsInjectionContextModule,
     SearchInjection,
     SearchInjectionContextModule,
+    SitesInjection,
+    SitesInjectionContextModule,
     SpacesInjection,
     SpacesInjectionContextModule,
     TasksInjection,
@@ -292,6 +294,7 @@ export function actuallyCreateUnitTestEnvironment(
         forumInjection?: Partial<ForumInjection>;
         notificationsInjection?: Partial<NotificationsInjection>;
         searchInjection?: Partial<SearchInjection>;
+        sitesInjection?: Partial<SitesInjection>;
         spacesInjection?: Partial<SpacesInjection>;
         tasksInjection?: Partial<TasksInjection>;
     } & (
@@ -647,6 +650,7 @@ export function actuallyCreateUnitTestEnvironment(
             options.notificationsInjection,
         ),
         searchInjection: SearchInjectionContextModule.test(options.searchInjection),
+        sitesInjection: SitesInjectionContextModule.test(options.sitesInjection),
         spacesInjection: SpacesInjectionContextModule.test(options.spacesInjection),
         tasksInjection: TasksInjectionContextModule.test(tasksInjection),
         tasks: new TestTaskContextModule({

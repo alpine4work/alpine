@@ -25,7 +25,7 @@ import {
 } from "~/server/forum/data/post_messaging.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
-import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
+import {AccessPolicyAccountGrant, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -73,6 +73,7 @@ testMessagingImplementation<PostId>(context, {
         await updateChannelAccessPolicy(context, {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     ...insideSessions.map(
                         (insideSession): [AccountId, AccessPolicyAccountGrant] => [
@@ -106,9 +107,14 @@ testMessagingImplementation<PostId>(context, {
             messageNoun: "comment",
             doesInsideViewerSessionHaveRoomAccess: true,
             revokeInsideSession: async (context, session) => {
-                const {accessPolicy} = await getChannelPreview(context, channel.id);
+                const {accessPolicy: accessPolicyModel} = await getChannelPreview(
+                    context,
+                    channel.id,
+                );
+                const accessPolicy = accessPolicyModel.intoAccessPolicy();
+                assert(accessPolicy.type === "Local", "Expected local access policy");
 
-                const newAccessPolicy: AccessPolicy = {
+                const newAccessPolicy: LocalAccessPolicy = {
                     ...accessPolicy,
                     accountGrantById: new Map(
                         filterIterable(

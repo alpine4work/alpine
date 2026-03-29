@@ -35,7 +35,7 @@ function makeRawData({
         name: new LabelStringRegister(name, nameVersion),
         color: new TaskCollectionColorRegister(color, colorVersion),
         accessPolicy: new AccessPolicyRegister(
-            {accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
+            {type: "Local", accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
             [0, 0],
         ),
     };

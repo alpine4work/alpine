@@ -15,6 +15,7 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
@@ -56,6 +57,7 @@ import {notificationsInjection} from "~/server/notifications/data/notifications_
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {
     LogoDevContextModule,
     LogoDevNoopContextModule,
@@ -289,6 +291,7 @@ export async function withDevelopmentEnvironment<Value>(
         forumInjection: new ForumInjectionContextModule(forumInjection),
         notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
         tasks: new TaskContextModule({

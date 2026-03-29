@@ -164,7 +164,9 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {
     AccessPolicy,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    LocalAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -328,8 +330,8 @@ export function TaskDetailView({
 
     const {effectiveAccessPolicy, inheritedAccessPolicy} = useStore(
         useMemo((): Store<{
-            effectiveAccessPolicy: AccessPolicyWithoutGenerations;
-            inheritedAccessPolicy: AccessPolicyWithoutGenerations;
+            effectiveAccessPolicy: EffectiveAccessPolicy;
+            inheritedAccessPolicy: EffectiveAccessPolicy;
         }> => {
             // If there's no task subscription that's because we're creating the task. The task
             // creator always has manage access.
@@ -388,18 +390,48 @@ export function TaskDetailView({
     // task's "effective" access which is based on the task's parent tasks and task
     // collections. `access` determines what the task's effective permissions are.
     const immediateAccessPolicy = useStore(
-        useMemo(
-            () =>
-                taskSubscription?.taskEntryStore.map(
-                    taskEntry =>
-                        taskEntry.task?.getAccessPolicy() ??
-                        createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
-                ) ??
-                new ConstStore(
-                    createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
-                ),
-            [currentAccount, taskSubscription?.taskEntryStore],
-        ),
+        useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
+            if (!taskSubscription) {
+                return new ConstStore({
+                    ...createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
+                    type: "Local",
+                });
+            }
+
+            return taskSubscription.taskEntryStore
+                .map(
+                    (taskEntry): AccessPolicy =>
+                        taskEntry.task?.getAccessPolicy() ?? {
+                            ...createDefaultTaskAccessPolicyForOptionalCurrentAccount(
+                                currentAccount,
+                            ),
+                            type: "Local",
+                        },
+                )
+                .flatMap(accessPolicy => {
+                    switch (accessPolicy.type) {
+                        case "Local":
+                            return new ConstStore(accessPolicy);
+                        case "Site": {
+                            // Site access policy - get site data from store
+                            const siteStore =
+                                taskSubscription.store.getReferencedSiteStoreAndAssertExists(
+                                    accessPolicy.siteId,
+                                );
+
+                            return siteStore.map(
+                                (site): ResolvedAccessPolicyWithGenerations => ({
+                                    ...site.accessPolicy,
+                                    type: "Site",
+                                    siteId: site.id,
+                                }),
+                            );
+                        }
+                        default:
+                            throw exhaustive(accessPolicy);
+                    }
+                });
+        }, [currentAccount, taskSubscription]),
     );
 
     /* ========================================================================= *\
@@ -3380,9 +3412,14 @@ function TaskDetailViewStatusButton({
 
 function createDefaultTaskAccessPolicyForOptionalCurrentAccount(
     currentAccount: AccountModel | null,
-): AccessPolicy {
+): LocalAccessPolicy {
     if (!currentAccount) {
-        return {accountGrantById: emptyMap, defaultGrant: null, urlGrant: null};
+        return {
+            type: "Local",
+            accountGrantById: emptyMap,
+            defaultGrant: null,
+            urlGrant: null,
+        };
     }
 
     return createDefaultTaskAccessPolicy(currentAccount.id);

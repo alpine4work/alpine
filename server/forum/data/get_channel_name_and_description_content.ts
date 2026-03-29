@@ -26,6 +26,27 @@ export async function getChannelNameAndDescriptionContent(
     creatorId: AccountId | null;
     accessPolicy: AccessPolicy;
 }> {
+    const channelItem = await getChannelNameAndDescriptionContentIfExists(context, channelId, {
+        consistency,
+    });
+    if (!channelItem) throw createChannelNotFoundError(channelId);
+
+    return channelItem;
+}
+
+export async function getChannelNameAndDescriptionContentIfExists(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    name: string;
+    description: MessageContent;
+    createdTime: Date;
+    creatorId: AccountId | null;
+    accessPolicy: AccessPolicy;
+} | null> {
     const channelItemPromise = ForumRealtimeTable.getItemIfExists(
         context,
         {
@@ -40,7 +61,8 @@ export async function getChannelNameAndDescriptionContent(
     ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, channelItemPromise);
 
     const channelItem = await channelItemPromise;
-    if (!channelItem) throw createChannelNotFoundError(channelId);
+
+    if (!channelItem) return null;
 
     await authorizeChannelItemAccess(context, channelItem, "View");
 

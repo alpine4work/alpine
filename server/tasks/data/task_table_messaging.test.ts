@@ -82,6 +82,7 @@ testMessagingImplementation<TaskId>(processContext, {
         let count = 0;
 
         await taskCollection.access.set(session, {
+            type: "Local",
             accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                 ...insideSessions.map((insideSession): [AccountId, AccessPolicyAccountGrant] => [
                     insideSession.accountId,

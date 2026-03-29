@@ -144,7 +144,12 @@ test("can\u2019t update collection from a different space", async () => {
                     type: "Create",
                     creatorId: null,
                     name: "Test",
-                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
+                    accessPolicy: {
+                        type: "Local",
+                        accountGrantById: new Map(),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
                 },
             },
         ],

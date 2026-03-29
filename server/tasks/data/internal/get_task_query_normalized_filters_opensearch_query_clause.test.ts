@@ -1596,6 +1596,7 @@ test("can filter by one of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1613,6 +1614,7 @@ test("can filter by one of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1630,6 +1632,7 @@ test("can filter by one of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1647,6 +1650,7 @@ test("can filter by one of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1834,6 +1838,7 @@ test("can filter by all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1851,6 +1856,7 @@ test("can filter by all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1868,6 +1874,7 @@ test("can filter by all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -1885,6 +1892,7 @@ test("can filter by all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2072,6 +2080,7 @@ test("can filter by excludes all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2089,6 +2098,7 @@ test("can filter by excludes all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2106,6 +2116,7 @@ test("can filter by excludes all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2123,6 +2134,7 @@ test("can filter by excludes all of collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2322,6 +2334,7 @@ test("can filter by empty collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2339,6 +2352,7 @@ test("can filter by empty collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2356,6 +2370,7 @@ test("can filter by empty collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2373,6 +2388,7 @@ test("can filter by empty collections", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2497,6 +2513,7 @@ test("can filter against collections without providing collection ids", async ()
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2514,6 +2531,7 @@ test("can filter against collections without providing collection ids", async ()
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2531,6 +2549,7 @@ test("can filter against collections without providing collection ids", async ()
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2548,6 +2567,7 @@ test("can filter against collections without providing collection ids", async ()
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2701,6 +2721,7 @@ test("can merge collection filters in various ways", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2718,6 +2739,7 @@ test("can merge collection filters in various ways", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2735,6 +2757,7 @@ test("can merge collection filters in various ways", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2752,6 +2775,7 @@ test("can merge collection filters in various ways", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -6245,6 +6269,7 @@ test("can filter for a single assigner account", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -6466,6 +6491,7 @@ test("can filter for multiple assigner accounts", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -6654,6 +6680,7 @@ test("can negative filter for a single assigner account", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -6875,6 +6902,7 @@ test("can negative filter for multiple assigner accounts", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -7063,6 +7091,7 @@ test("can filter with empty assigner accounts", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -7248,6 +7277,7 @@ test("can merge assigner filters", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),

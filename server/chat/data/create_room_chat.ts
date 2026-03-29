@@ -25,6 +25,7 @@ export async function createRoomChat(
         chatId = generateId<ChatId>(),
         name,
         accessPolicy = {
+            type: "Local",
             accountGrantById: new Map([
                 [context.actor.getAccountId(), {level: "Manage", generation: 0}],
             ]),
@@ -44,7 +45,12 @@ export async function createRoomChat(
 
     await authorizeSpaceAccess(context, spaceId);
 
-    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);
+    const effectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
+        context,
+        spaceId,
+        null,
+        accessPolicy,
+    );
 
     const createdTime = new Date();
 
@@ -59,7 +65,7 @@ export async function createRoomChat(
             name,
             accessPolicy,
             creatorId: context.actor.getAccountId(),
-            hasAddedFeedCandidateEntry: !!accessPolicy.defaultGrant,
+            hasAddedFeedCandidateEntry: !!effectiveAccessPolicy.defaultGrant,
         },
         accountIdsForDirectOneOnOne: null,
         messagesSummary: {

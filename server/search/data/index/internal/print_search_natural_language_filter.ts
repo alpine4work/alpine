@@ -153,6 +153,8 @@ function printEntityTypes(entityTypes: ReadonlyArray<SearchDynamicEntityIdObject
                 return "task comments";
             case "TaskCollection":
                 return "task collections";
+            case "Site":
+                return "sites";
             default:
                 throw exhaustive(entityType);
         }

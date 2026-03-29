@@ -4,7 +4,10 @@ import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_acce
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
+import {
+    ChannelPreviewItemAuthorizationCache,
+    convertChannelModelToChannelPreviewAttributesItem,
+} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeQueryResult,
@@ -91,18 +94,22 @@ export function getChannelAndMetadataIfPossible(
                 throw new DataLossError("Expected the first query item to be the channel model");
             }
 
+            const channelItemForAuthorization = convertChannelModelToChannelPreviewAttributesItem(
+                channel.model,
+            );
+
             // Save the channel item to our authorization cache in case we try to load it again
             // later.
             ChannelPreviewItemAuthorizationCache.set(
                 context,
                 consistency,
                 channelId,
-                channel.model,
+                channelItemForAuthorization,
             );
 
             const authorizationResult = await authorizeChannelItemAccessIfPossible(
                 context,
-                channel.model,
+                channelItemForAuthorization,
                 "View",
             );
             if (!authorizationResult.ok) return authorizationResult;
@@ -149,14 +156,13 @@ export function getChannelAndMetadataIfPossible(
             () => timeout.clear(),
         );
 
+        const cachePromise = channelPromiseResolver.promise.then(channel =>
+            channel ? convertChannelModelToChannelPreviewAttributesItem(channel) : null,
+        );
+
         // If we're loading the channel, we can use the channel item in our
         // `ChannelPreviewModel` cache to avoid extra fetches.
-        ChannelPreviewItemAuthorizationCache.set(
-            context,
-            consistency,
-            channelId,
-            channelPromiseResolver.promise,
-        );
+        ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, cachePromise);
 
         return promise;
     }

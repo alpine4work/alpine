@@ -24,7 +24,7 @@ import {
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -518,6 +518,10 @@ function intoApiContentInlineElement(
                             id: entityIdObject.postId,
                         };
                         break;
+                    }
+                    case "Site": {
+                        // TODO(#sites): Implement site mentions.
+                        throw new UnimplementedError("Site mentions aren\u2019t implemented");
                     }
                     default:
                         throw exhaustive(entityIdObject);

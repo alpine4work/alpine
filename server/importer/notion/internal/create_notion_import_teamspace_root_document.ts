@@ -143,6 +143,9 @@ export async function createNotionImportTeamspaceRootDocument(
 
     // Create access policy
     const accessPolicy: AccessPolicy = {
+        // TODO(ifitzsimmons, #notion-import-site-integration): This might be a site access
+        // policy depending on the import options.
+        type: "Local",
         accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: isPublic ? {level: "Edit"} : null,
         urlGrant: null,

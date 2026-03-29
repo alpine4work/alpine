@@ -1,13 +1,18 @@
 import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
+import {EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 
+/**
+ * Gets the access policy for a bot based on its scope. Bot access policies are
+ * always local access policies (never site policies) since bots need to evaluate
+ * access directly without further resolution.
+ */
 export async function getBotAccessPolicy(
     context: ServerMinimalBotActionContext,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicyWithoutGenerations> {
+): Promise<EffectiveAccessPolicy> {
     // The scope of access the bot has. For example, if you mention a bot from a forum
     // post then the bot's scope will be `Post` with the corresponding `PostId`. If you
     // mention a bot from a chat then the scope will be `Chat` with the corresponding

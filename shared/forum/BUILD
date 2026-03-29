@@ -8,6 +8,7 @@ ts_project(
         "//:node_modules/compromise",
         "//:node_modules/prosemirror-model",
         "//shared/access",
+        "//shared/access/model",
         "//shared/accounts",
         "//shared/content",
         "//shared/dynamo",

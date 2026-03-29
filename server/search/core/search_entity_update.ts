@@ -14,6 +14,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -167,6 +168,13 @@ const searchEntityUpdateSchemaDescription = {
             commentIndex: Schema.integer,
         }),
         updatableTraits: [],
+    },
+    Site: {
+        schema: Schema.object({
+            type: Schema.value("Site"),
+            siteId: Schema.id<SiteId>(),
+        }),
+        updatableTraits: ["Preview"],
     },
 } as const;
 

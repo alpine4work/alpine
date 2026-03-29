@@ -114,6 +114,7 @@ async function createScenario() {
 
     const chatRoomReadonly = await TestChat.createRoom(a1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[a1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "View"},
             urlGrant: null,

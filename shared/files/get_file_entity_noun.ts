@@ -18,6 +18,8 @@ export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
             return "chat";
         case "Post":
             return "post";
+        case "Site":
+            return "site";
         default:
             throw exhaustive(type);
     }
@@ -43,6 +45,8 @@ export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"
             return "Chat";
         case "Post":
             return "Post";
+        case "Site":
+            return "Site";
         default:
             throw exhaustive(type);
     }

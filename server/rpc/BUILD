@@ -53,6 +53,7 @@ ts_project(
         "//server/spell_check",
         "//server/tasks/data",
         "//server/tokens",
+        "//shared/access/model",
         "//shared/context",
         "//shared/error",
         "//shared/files",

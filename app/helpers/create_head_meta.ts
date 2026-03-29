@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {newTaskCollectionNamePlaceholder} from "~/client/web/styles/tasks_shared_styles.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -9,6 +9,7 @@ import {DocumentContentWithReferences} from "~/shared/documents/document_content
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 type HeadMetaDescriptor = {[key: string]: string};
 
@@ -124,11 +125,26 @@ export function createHeadMetaForDocument(
  * If the channel is publicly shared (has urlGrant), generates OG metadata
  * including title and description extracted from the channel description.
  */
-export function createHeadMetaForChannel(channel: ChannelModel | null): Array<HeadMetaDescriptor> {
+export function createHeadMetaForChannel(channel: ChannelModel): Array<HeadMetaDescriptor> {
     const title = channel?.name ?? "";
     const descriptors: Array<HeadMetaDescriptor> = [{title}];
 
-    if (channel?.accessPolicy.urlGrant) {
+    if (!channel) return descriptors;
+
+    let hasUrlGrant: boolean;
+
+    switch (channel.accessPolicy.data.type) {
+        case "Local":
+            hasUrlGrant = channel.accessPolicy.data.urlGrant !== null;
+            break;
+        case "Site":
+            hasUrlGrant = channel.accessPolicy.data.site.initialData.accessPolicy.urlGrant !== null;
+            break;
+        default:
+            throw exhaustive(channel.accessPolicy.data);
+    }
+
+    if (hasUrlGrant) {
         descriptors.push({property: "og:title", content: `${title} | Alpine`});
         descriptors.push({property: "og:image", content: ogImageUrl});
 
@@ -151,13 +167,28 @@ export function createHeadMetaForChannel(channel: ChannelModel | null): Array<He
  * If the room is publicly shared (has urlGrant), generates OG metadata including
  * the room name as the title.
  */
-export function createHeadMetaForChatRoom(
-    room: {name: string; accessPolicy: AccessPolicy} | null,
-): Array<HeadMetaDescriptor> {
+export function createHeadMetaForChatRoom(room: {
+    name: string;
+    accessPolicy: AccessPolicyModel;
+}): Array<HeadMetaDescriptor> {
     const title = room?.name ?? "";
     const descriptors: Array<HeadMetaDescriptor> = [{title}];
 
-    if (room?.accessPolicy.urlGrant) {
+    if (!room) return descriptors;
+
+    let hasUrlGrant: boolean;
+    switch (room.accessPolicy.data.type) {
+        case "Local":
+            hasUrlGrant = room.accessPolicy.data.urlGrant !== null;
+            break;
+        case "Site":
+            hasUrlGrant = room.accessPolicy.data.site.initialData.accessPolicy.urlGrant !== null;
+            break;
+        default:
+            throw exhaustive(room.accessPolicy.data);
+    }
+
+    if (hasUrlGrant) {
         descriptors.push({property: "og:title", content: `${title} | Alpine`});
         descriptors.push({property: "og:image", content: ogImageUrl});
     }
@@ -201,13 +232,13 @@ export function createHeadMetaForTask(task: {
  * including title and a description.
  */
 export function createHeadMetaForTaskCollection(
-    collection: {name: string; accessPolicy: AccessPolicy} | null,
+    collection: {name: string; hasUrlGrant: boolean} | null,
 ): Array<HeadMetaDescriptor> {
     const title = collection?.name || newTaskCollectionNamePlaceholder;
     const descriptors: Array<HeadMetaDescriptor> = [{title}];
 
     // If the collection is publicly shared (has urlGrant), generate OG metadata.
-    if (collection?.accessPolicy.urlGrant) {
+    if (collection?.hasUrlGrant) {
         descriptors.push({property: "og:title", content: `${title} | Alpine`});
         descriptors.push({property: "og:image", content: ogImageUrl});
     }

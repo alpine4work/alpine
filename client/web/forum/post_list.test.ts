@@ -5,6 +5,7 @@ import {
     PostListWithHeader,
 } from "~/client/web/forum/post_list.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
@@ -33,11 +34,12 @@ const channel = new ChannelPreviewModel({
     createdTime,
     version: 0,
     name: "Test",
-    accessPolicy: {
+    accessPolicy: new AccessPolicyModel({
+        type: "Local",
         accountGrantById: emptyMap,
-        defaultGrant: {level: "Manage", generation: 0},
+        defaultGrant: null,
         urlGrant: null,
-    },
+    }),
 });
 
 const account1 = createTestAccountModel({name: "Test 1"});
@@ -860,11 +862,12 @@ test("can add a channel header at the beginning", () => {
             doc: emptyMessageContent,
             references: emptyContentReferences,
         },
-        accessPolicy: {
+        accessPolicy: new AccessPolicyModel({
+            type: "Local",
             accountGrantById: emptyMap,
-            urlGrant: null,
             defaultGrant: null,
-        },
+            urlGrant: null,
+        }),
     });
 
     let list = PostBasicList.new({type: "Many", hasMorePosts: false, posts: []});

@@ -278,6 +278,9 @@ export async function convertExtractedNotionDataToEntities(
 
                     // Create access policy based on teamspace import option
                     const accessPolicy: AccessPolicy = {
+                        // TODO(ifitzsimmons, #notion-import-site-integration): This might be a site access
+                        // policy depending on the import options.
+                        type: "Local",
                         accountGrantById: new Map([
                             [startedByAccountId, {level: "Manage", generation: 0}],
                         ]),

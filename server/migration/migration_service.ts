@@ -4,6 +4,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
@@ -21,6 +22,7 @@ import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -120,6 +122,7 @@ export async function run({
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 

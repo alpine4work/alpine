@@ -28,7 +28,17 @@ export type ChannelPreviewAttributesItem = {
 );
 
 assertAssignableTypes<ChannelAttributesItem, ChannelPreviewAttributesItem>();
-assertAssignableTypes<ChannelModel, ChannelPreviewAttributesItem>();
+
+// NOTE(ifitzsimmons, 2026-03-06): When we parse the channel attributes item into
+// the model, we turn the access policy into a `AccessPolicyModel`. A channel's
+// access policy can either be its own "Local" policy or its inherited policy from
+// the site. In DynamoDB, we normalize the site policy by storing only the site ID.
+// However, we need the site's access policy to evaluate channel permissions on the
+// server and we need to send the site's access policy to the client.
+assertAssignableTypes<
+    Omit<ChannelModel, "accessPolicy">,
+    Omit<ChannelPreviewAttributesItem, "accessPolicy">
+>();
 
 export const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
     ChannelId,
@@ -38,6 +48,18 @@ export const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
     // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
+
+export function convertChannelModelToChannelPreviewAttributesItem(
+    channel: ChannelModel,
+): ChannelPreviewAttributesItem {
+    return {
+        ...channel,
+        // NOTE(ifitzsimmons, 2026-03-06): If this is a site access policy, we cache it on
+        // load. Turning it back to a vanilla `AccessPolicy` means that we'll fetch the
+        // site access policy from the cache later on when evaluating access.
+        accessPolicy: channel.accessPolicy.intoAccessPolicy(),
+    };
+}
 
 export function getChannelPreviewItemForAuthorizationIfExists(
     context: Context<{

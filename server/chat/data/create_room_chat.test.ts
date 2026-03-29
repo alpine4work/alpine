@@ -66,6 +66,7 @@ test("createRoomChat requires manage access in access policy", async () => {
             spaceId: space.id,
             name: "No Manage",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [sessionB.account.id, {level: "Manage", generation: 0}],
                 ]),
@@ -109,6 +110,7 @@ test("createRoomChat allows urlGrant access policy", async () => {
         spaceId: space.id,
         name: "Public Room",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: {level: "View"},
@@ -125,6 +127,7 @@ test("createRoomChat allows urlGrant access policy", async () => {
         type: "Room",
         name: "Public Room",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: {level: "View"},
@@ -140,6 +143,7 @@ test("authorizeChatAccess respects room chat access policy", async () => {
         spaceId: space.id,
         name: "Private Room",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[sessionA.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,

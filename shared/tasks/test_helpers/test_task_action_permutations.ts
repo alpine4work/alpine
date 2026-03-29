@@ -2088,6 +2088,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2130,6 +2131,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2180,6 +2182,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2232,6 +2235,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2284,6 +2288,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2342,6 +2347,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2386,6 +2392,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2436,6 +2443,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2491,6 +2499,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2571,6 +2580,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2662,6 +2672,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2740,6 +2751,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2839,6 +2851,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2914,6 +2927,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -2957,6 +2971,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -3009,6 +3024,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -3052,6 +3068,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -3104,6 +3121,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -3117,6 +3135,7 @@ const taskActionTestCases: Array<{
                         collectionAction: {
                             type: "UpdateAccessPolicy",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: {level: "View"},
                                 urlGrant: null,
@@ -3129,6 +3148,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collection: {
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: {level: "View"},
                                 urlGrant: null,
@@ -3155,6 +3175,7 @@ const taskActionTestCases: Array<{
                             creatorId: null,
                             name: "Test",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -3168,6 +3189,7 @@ const taskActionTestCases: Array<{
                         collectionAction: {
                             type: "UpdateAccessPolicy",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: {level: "View"},
                                 urlGrant: null,
@@ -3181,6 +3203,7 @@ const taskActionTestCases: Array<{
                         collectionAction: {
                             type: "UpdateAccessPolicy",
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: {level: "Edit"},
                                 urlGrant: null,
@@ -3193,6 +3216,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collection: {
                             accessPolicy: {
+                                type: "Local",
                                 accountGrantById: new Map(),
                                 defaultGrant: {level: "Edit"},
                                 urlGrant: null,

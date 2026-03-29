@@ -38,6 +38,7 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
@@ -80,6 +81,7 @@ import {createServiceOpensearchContextModule} from "~/server/opensearch/create_s
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {getSpaceAccountsCacheForTest} from "~/server/spaces/get_space_accounts_cache_for_test.js";
 import {
     LogoDevContextModule,
@@ -515,6 +517,7 @@ async function createAppService({
         searchInjection: new SearchInjectionContextModule(searchInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
     });
 
     let hasSeededDynamo = false;

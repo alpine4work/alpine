@@ -1,15 +1,21 @@
 import {
     AccessLevel,
-    AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyDefaultGrant,
     AccessPolicyUrlGrant,
+    LocalAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessPolicyManageGeneration,
 } from "~/shared/access/access_policy.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
+// TODO(#sites)
+//
+// - AddToSite
+// - RemoveFromSite
+// - ChangeSite
 export type AccessPolicyAction =
     | {
           readonly type: "AddAccountGrants";
@@ -53,11 +59,16 @@ export type AccessPolicyAction =
           readonly type: "DeleteDefaultGrantAndUrlGrant";
       };
 
+/**
+ * Apply an action to a local access policy to produce a new access policy. This
+ * only works with regular access policies - site access policies are managed
+ * through the site itself.
+ */
 export function reduceAccessPolicy(
     actorAccountId: AccountId,
-    accessPolicy: AccessPolicy,
+    accessPolicy: LocalAccessPolicy | (ResolvedAccessPolicyWithGenerations & {type: "Local"}),
     action: AccessPolicyAction,
-): AccessPolicy {
+): LocalAccessPolicy {
     const actorManageGeneration = getAccountAccessPolicyManageGeneration(
         actorAccountId,
         accessPolicy,

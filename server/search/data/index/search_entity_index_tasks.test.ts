@@ -1206,6 +1206,7 @@ test("will not allow users to view task comments they do not have access to", as
     await privateTask.updateAssignee(creatorSession, assigneeSession);
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -1346,6 +1347,7 @@ test("will not allow users to view task comments they do not have access to afte
     ];
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [commenterSession.account.id, {level: "Comment"}],
@@ -1396,6 +1398,7 @@ test("will not allow users to view task comments they do not have access to afte
     ]);
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [commenterSession.account.id, {level: "View"}],
@@ -1462,6 +1465,7 @@ test("will not allow users to view task comments they do not have access to when
     ];
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
         ]),
@@ -1501,6 +1505,7 @@ test("will not allow users to view task comments they do not have access to when
     ]);
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
         ]),
@@ -2260,6 +2265,7 @@ test("excludes collections account doesn\u2019t have access to when searching", 
 
     await runAllPromises([
         collection5.access.set(session1, {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session3.account.id, {level: "Manage", generation: 1}],
@@ -2268,6 +2274,7 @@ test("excludes collections account doesn\u2019t have access to when searching", 
             urlGrant: null,
         }),
         collection6.access.set(session2, {
+            type: "Local",
             accountGrantById: new Map([
                 [session2.account.id, {level: "Manage", generation: 0}],
                 [session3.account.id, {level: "Manage", generation: 1}],

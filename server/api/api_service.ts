@@ -15,6 +15,7 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
@@ -49,6 +50,7 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     createServiceTaskRealtimeServiceRouter,
@@ -193,6 +195,7 @@ export async function run({
         forumInjection: new ForumInjectionContextModule(forumInjection),
         notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
         languageModel: new LanguageModelContextModule(languageModel),

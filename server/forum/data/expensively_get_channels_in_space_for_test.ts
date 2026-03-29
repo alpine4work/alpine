@@ -1,8 +1,10 @@
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js";
+import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -13,35 +15,31 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * This is only available in test environments.
  */
 export async function expensivelyGetChannelsInSpaceForTest(
-    context: DynamoContext,
+    context: ServerMinimalActionContext,
     spaceId: SpaceId,
 ) {
     assert(process.env.NODE_ENV === "test");
 
-    const expensiveScan = await arrayFromAsyncIterable(
+    const channels = await parallelMapAsyncIterableToArray(
         ForumRealtimeTable.expensiveScan(context, {
             filter: [{partitionType: "Channel", sortRangeType: "Attributes"}],
         }),
+        async item => {
+            if (item.partitionType !== "Channel") return null;
+
+            if (item.sortRangeType !== "Attributes") return null;
+            if (item.spaceId !== spaceId) return null;
+
+            return new ChannelPreviewModel({
+                id: item.channelId,
+                spaceId: item.spaceId,
+                name: item.name,
+                accessPolicy: await intoAccessPolicyModel(context, item.accessPolicy),
+                version: item.updateLockVersion || 0,
+                createdTime: item.createdTime,
+            });
+        },
     );
 
-    const channels: Array<ChannelPreviewModel> = [];
-    for (const item of expensiveScan) {
-        if (item.partitionType === "Channel") {
-            if (item.sortRangeType !== "Attributes") continue;
-            if (item.spaceId !== spaceId) continue;
-
-            channels.push(
-                new ChannelPreviewModel({
-                    id: item.channelId,
-                    spaceId: item.spaceId,
-                    name: item.name,
-                    accessPolicy: item.accessPolicy,
-                    version: item.updateLockVersion || 0,
-                    createdTime: item.createdTime,
-                }),
-            );
-        }
-    }
-
-    return channels;
+    return channels.filter(isNonNullable);
 }

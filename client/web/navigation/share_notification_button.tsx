@@ -7,7 +7,7 @@ import {
     ShareNotificationOverlay,
     ShareNotificationOverlayRef,
 } from "~/client/web/navigation/internal/share_notification_overlay.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -23,7 +23,7 @@ export function ShareNotificationButton({
     children,
 }: {
     accessLevelText?: Record<AccessLevel, string>;
-    accessPolicy: AccessPolicy;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
     excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
     overlayOffsetAlong?: ParsableRemLength;
     onShare: (notification: ShareNotification & {accessLevel: AccessLevel}) => Promise<void>;

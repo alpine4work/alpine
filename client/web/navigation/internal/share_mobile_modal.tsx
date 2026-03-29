@@ -17,9 +17,9 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {backgroundColorVar} from "~/client/web/styles/styles.js";
 import {
     AccessLevel,
-    AccessPolicy,
     AccessPolicyAccountGrant,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -44,9 +44,9 @@ export function ShareMobileModal({
 }: {
     entityNoun: string;
     accessLevelText: Record<AccessLevel, string>;
-    accessPolicy: AccessPolicy;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
     inherited?: {
-        accessPolicy: AccessPolicyWithoutGenerations;
+        accessPolicy: EffectiveAccessPolicy;
         explanations: InheritedAccessPolicyExplanations;
     };
     onAccessPolicyChange: (

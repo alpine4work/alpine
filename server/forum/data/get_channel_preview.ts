@@ -1,3 +1,4 @@
+import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
@@ -5,6 +6,7 @@ import {getChannelPreviewItemForAuthorizationIfExists} from "~/server/forum/data
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
@@ -29,12 +31,10 @@ export async function getChannelPreviewIfPossible(
     );
     if (!channelItem) return null;
 
-    const result = await authorizeChannelItemAccessIfPossible(
-        context,
-        channelItem,
-        "View",
-        options,
-    );
+    const [result, accessPolicy] = await runAllPromises([
+        authorizeChannelItemAccessIfPossible(context, channelItem, "View", options),
+        intoAccessPolicyModel(context, channelItem.accessPolicy),
+    ]);
     if (!result.ok) return result;
 
     return {
@@ -46,7 +46,7 @@ export async function getChannelPreviewIfPossible(
             version:
                 "id" in channelItem ? channelItem.version : (channelItem.updateLockVersion ?? 0),
             name: channelItem.name,
-            accessPolicy: channelItem.accessPolicy,
+            accessPolicy,
         }),
     };
 }

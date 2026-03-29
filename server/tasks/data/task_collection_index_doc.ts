@@ -169,11 +169,16 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
                         collection.rawUndeletedTime,
                     ) > 0),
 
-            accessPolicyAccountGrantIds: Array.from(
-                collection.accessPolicy.value.accountGrantById.keys(),
-            ),
-            accessPolicyDefaultGrantType:
-                collection.accessPolicy.value.defaultGrant !== null ? ("Space" as const) : null,
+            // NOTE(ifitzsimons, 2026-03-05): Task collection search used to be implemented in
+            // the task collection index since search wasn't built at the time. That's also why
+            // `TaskCollectionNameType` is using the `OpensearchIndexSearchAsYouTypeType` type.
+            // This was switched over here:
+            //
+            // https://github.com/cyberworlds/cyberworlds/commit/1e7a5160da869dc4d2c0156e1ec484b67fd13776
+            //
+            // TODO: We should delete these deprecated fields from the index entirely someday.
+            accessPolicyAccountGrantIds: [],
+            accessPolicyDefaultGrantType: null,
         }),
     },
 });

@@ -40,6 +40,7 @@ export function internalDangerouslyCreateChannelTransactionEntries(
                 name: channelName,
                 description: channelDescription,
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([[ownerAccountId, {level: "Manage", generation: 0}]]),
                     defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,

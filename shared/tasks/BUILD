@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/y-prosemirror",
         "//:node_modules/yjs",
         "//shared/access",
+        "//shared/access/model",
         "//shared/accounts",
         "//shared/content",
         "//shared/crdt",

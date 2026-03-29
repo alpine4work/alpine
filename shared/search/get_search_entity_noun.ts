@@ -28,6 +28,8 @@ export function getSearchEntityNoun(type: SearchDynamicEntityType): string {
             return "post";
         case "PostComment":
             return "post comment";
+        case "Site":
+            return "site";
         default:
             throw exhaustive(type);
     }

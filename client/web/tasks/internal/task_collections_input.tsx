@@ -210,10 +210,11 @@ function TaskCollectionsInput(
                     ? createDisplayTaskCollectionsStore({
                           currentAccount,
                           referencesSubscription,
+                          store,
                           collections,
                       })
                     : emptyArrayStore,
-            [collections, currentAccount, referencesSubscription],
+            [collections, currentAccount, referencesSubscription, store],
         ),
     );
 
@@ -411,6 +412,7 @@ function TaskCollectionsInput(
                                     creatorId: currentAccount.id,
                                     name: inputState.value,
                                     accessPolicy: {
+                                        type: "Local",
                                         accountGrantById: new Map([
                                             [currentAccount.id, {level: "Manage", generation: 0}],
                                         ]),
@@ -1104,6 +1106,7 @@ function TaskCollectionsInput(
                                         creatorId: currentAccount.id,
                                         name: inputValue,
                                         accessPolicy: {
+                                            type: "Local",
                                             accountGrantById: new Map([
                                                 [
                                                     currentAccount.id,

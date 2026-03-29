@@ -1,4 +1,5 @@
 import {useMemo, useRef, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/web/content/content_view_with_see_more_toggle.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
@@ -13,12 +14,14 @@ import {ChannelViewSubscribeButton} from "~/client/web/forum/internal/channel_vi
 import {PostFauxInputCreateButton} from "~/client/web/forum/internal/post_faux_input_create_button.js";
 import {PostListHeader} from "~/client/web/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {InlineEditorToolbar} from "~/client/web/messaging/inline_editor_toolbar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {PostShimmer} from "~/client/web/shimmer/post_shimmer.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
@@ -52,14 +55,17 @@ export function ChannelViewHeader({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
+    const siteRegistry = useSiteRegistry();
+    const accessPolicy = useStore(
+        useMemo(
+            () => createAccessPolicyStore(header.channel.accessPolicy, siteRegistry),
+            [header.channel.accessPolicy, siteRegistry],
+        ),
+    );
 
     const accessLevel = useMemo(
-        () =>
-            getAccountAccessLevelAssumingSpaceAccess(
-                header.channel.accessPolicy,
-                currentAccount?.id,
-            ),
-        [header.channel.accessPolicy, currentAccount?.id],
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
     );
 
     let contributors: ChannelContributorsModel | null = null;

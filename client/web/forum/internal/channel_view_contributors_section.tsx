@@ -1,5 +1,6 @@
 import {UserPlus} from "phosphor-react";
 import {useCallback, useMemo, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {accountAvatarPileSizes} from "~/client/web/accounts/account_avatar_pile_size.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
@@ -13,6 +14,7 @@ import {ShareNotificationButton} from "~/client/web/navigation/share_notificatio
 import {ShareNotificationMobileModal} from "~/client/web/navigation/share_notification_mobile_modal.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewMetadataSectionTitleColor,
@@ -57,10 +59,12 @@ export function ChannelViewContributorsSection({
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
+    const siteRegistry = useSiteRegistry();
+    const accessPolicy = useStore(createAccessPolicyStore(channel.accessPolicy, siteRegistry));
 
     const accessLevel = useMemo(
-        () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
-        [channel.accessPolicy, currentAccount?.id],
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
     );
 
     // When we open the `<ShareNotificationOverlay>` we immediately focus the account
@@ -111,8 +115,8 @@ export function ChannelViewContributorsSection({
         // notification. If the user did change the access level then we need to update the
         // channel's access policy with the new accounts.
         if (
-            channel.accessPolicy.defaultGrant &&
-            hasAccessLevel(channel.accessPolicy.defaultGrant.level, accessLevel)
+            accessPolicy.defaultGrant &&
+            hasAccessLevel(accessPolicy.defaultGrant.level, accessLevel)
         ) {
             await sendChannelShareNotification(context, {
                 channelId: channel.id,
@@ -150,7 +154,7 @@ export function ChannelViewContributorsSection({
                 lastAvatar={
                     // You can't invite people unless there's a default grant (so you can reliably send
                     // people a link) or you have manage access.
-                    !channel.accessPolicy.defaultGrant &&
+                    !accessPolicy.defaultGrant &&
                     !hasAccessLevel(accessLevel, "Manage") ? null : platform === "mobile" ? (
                         <IconButton
                             variant="quiet-darken"
@@ -166,7 +170,7 @@ export function ChannelViewContributorsSection({
                     ) : (
                         <ShareNotificationButton
                             accessLevelText={channelAccessLevelText}
-                            accessPolicy={channel.accessPolicy}
+                            accessPolicy={accessPolicy}
                             excludeAccountId={excludeAccountId}
                             overlayOffsetAlong={`-${
                                 parseRemLength(
@@ -194,7 +198,7 @@ export function ChannelViewContributorsSection({
                     {({onCloseWithAnimation}) => (
                         <ShareNotificationMobileModal
                             accessLevelText={channelAccessLevelText}
-                            accessPolicy={channel.accessPolicy}
+                            accessPolicy={accessPolicy}
                             onCloseWithAnimation={onCloseWithAnimation}
                             excludeAccountId={excludeAccountId}
                             onShare={handleShare}

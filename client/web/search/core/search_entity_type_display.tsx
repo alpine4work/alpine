@@ -10,6 +10,7 @@ import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {TaskCommentBrandIcon} from "~/client/web/icons/brand/task_comment_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     SearchDynamicEntityIdObject,
@@ -123,6 +124,10 @@ export function getSearchDynamicEntityTypeDisplay(
         }
         case "TaskComment": {
             return {type, icon: <TaskCommentBrandIcon />, isAccountMediaAuthor: true};
+        }
+        case "Site": {
+            // TODO(#sites): Create a SiteBrandIcon for this entity type
+            throw new UnimplementedError("Site search entities aren\u2019t implemented");
         }
         default:
             throw exhaustive(type);

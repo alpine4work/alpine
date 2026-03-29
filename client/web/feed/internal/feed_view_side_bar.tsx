@@ -576,6 +576,7 @@ function shouldOpenSearchAffinityResultInPeek(result: SearchAffinityEntityResult
         case "Document":
         case "Channel":
         case "TaskCollection":
+        case "Site":
             return false;
         default:
             throw exhaustive(entityType);

@@ -14,6 +14,7 @@ import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable} from "~/client/web/tasks/core/subscribe_to_task_client_store_subscriptions_if_realtime_unavailable.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
@@ -221,6 +222,7 @@ export function TaskRealtimeClientContextProvider({
     const {currentAccount} = useSpaceContext();
 
     const accountRegistry = useAccountRegistry();
+    const siteRegistry = useSiteRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
 
     // We need to hold a strong reference to `Store<AccountModelData>` for the current
@@ -253,6 +255,7 @@ export function TaskRealtimeClientContextProvider({
                 // reinitialize `TaskRealtimeClient` when the account store changes since the
                 // account store doesn't change.
                 accountRegistry,
+                siteRegistry,
                 spaceId,
                 currentAccountId,
                 browserId,

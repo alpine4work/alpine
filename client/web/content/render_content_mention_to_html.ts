@@ -24,6 +24,7 @@ import {truncateContentMentionText} from "~/shared/content/truncate_content_ment
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, addRemLengths} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -143,6 +144,9 @@ export function renderContentMentionToHtml(
                     entityIconWidth = "wide";
                     entityIconSvg = postBrandIconSvg;
                     break;
+                case "Site":
+                    // TODO(#sites): Create a SiteBrandIcon for this entity type
+                    throw new UnimplementedError("Site search entities aren\u2019t implemented");
                 default:
                     throw exhaustive(entityIdObject);
             }

@@ -1,5 +1,6 @@
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {AppContext} from "~/client/web/context/app_context.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
@@ -72,12 +73,14 @@ export class TaskRealtimeClient {
         getContext: () => AppContext,
         {
             accountRegistry,
+            siteRegistry,
             spaceId,
             currentAccountId,
             browserId,
             onDisplayError,
         }: {
             accountRegistry: AccountRegistry;
+            siteRegistry: SiteRegistry;
             spaceId: SpaceId;
             currentAccountId: AccountId | null;
             browserId: BrowserId;
@@ -98,6 +101,7 @@ export class TaskRealtimeClient {
 
         this.store = new TaskClientStore({
             accountRegistry,
+            siteRegistry,
             spaceId,
             currentAccountId,
             onError: options => {

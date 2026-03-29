@@ -29,6 +29,7 @@ ts_project(
         "//server/context",
         "//server/helpers",
         "//server/helpers/node",
+        "//server/sites/data",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

@@ -32,6 +32,7 @@ export async function createChannel(
         name,
         description = emptyMessageContent,
         accessPolicy = {
+            type: "Local",
             accountGrantById: new Map([
                 [context.actor.getAccountId(), {level: "Manage", generation: 0}],
             ]),
@@ -54,7 +55,12 @@ export async function createChannel(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
-    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);
+    const effectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
+        context,
+        spaceId,
+        null,
+        accessPolicy,
+    );
 
     const creatorId = context.actor.getAccountId();
 
@@ -68,7 +74,7 @@ export async function createChannel(
         name,
         description,
         accessPolicy,
-        hasAddedFeedCandidateEntry: !!accessPolicy.defaultGrant,
+        hasAddedFeedCandidateEntry: !!effectiveAccessPolicy.defaultGrant,
     };
 
     const {transactionEntry, getEvent} =
@@ -85,7 +91,7 @@ export async function createChannel(
                 channelId,
                 spaceId,
                 contributionCountByAccountId: new Map([[context.actor.getAccountId(), 1]]),
-                accountIdsWithGrant: Array.from(channelItem.accessPolicy.accountGrantById.keys()),
+                accountIdsWithGrant: Array.from(effectiveAccessPolicy.accountGrantById.keys()),
             },
         ),
         // Automatically subscribe the channel creator to the channel they've just created.

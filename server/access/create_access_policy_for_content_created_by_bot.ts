@@ -3,16 +3,26 @@ import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_act
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
-import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
+import {AccessPolicyAccountGrant, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
+/**
+ * Creates a _Local_ access policy for content created by a bot. For now, bots will
+ * never create content directly within a site. Instead, they'll create content
+ * with the permissions equal to the permissions of their current scope, and a
+ * human will need to add the content to the site.
+ *
+ * Sites themselves are highly organized by nature, so it's unlikely that a bot
+ * will create content and then figure out where to insert it within the site's
+ * tree.
+ */
 export async function createAccessPolicyForContentCreatedByBot(
     context: ServerMinimalBotActionContext,
     spaceId: SpaceId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicy> {
+): Promise<LocalAccessPolicy> {
     const botAccessPolicy = await getBotAccessPolicy(context, options);
 
     const humanAccountIdsWithAccess = (
@@ -62,6 +72,7 @@ export async function createAccessPolicyForContentCreatedByBot(
         : null;
 
     return {
+        type: "Local",
         accountGrantById: accountGrantsByIdForHumansWithAccess,
         defaultGrant,
         urlGrant: null,

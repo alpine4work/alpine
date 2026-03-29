@@ -238,6 +238,10 @@ export default function DocumentRoute() {
         }
     }, [isCreating, searchParams, setSearchParams]);
 
+    // TODO(#sites): Implement an `onAccessPolicyChange` callback that updates the site
+    // chrome if the access policy changes the site (adds a site, removes a site,
+    // changes to a new site).
+
     // Don't update affinity score while creating.
     useSearchAffinityViewEntityInteraction(!isCreating ? `Document:${documentId}` : null);
 

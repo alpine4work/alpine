@@ -1,4 +1,5 @@
 import {shouldRenderPostAsArchivedInInboxChannelPostsEntry} from "~/client/web/inbox/should_render_post_as_archived_in_inbox_channel_posts_entry.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
@@ -17,11 +18,12 @@ const channel = new ChannelPreviewModel({
     version: 0,
     createdTime: new Date(),
     name: "Test Channel",
-    accessPolicy: {
+    accessPolicy: new AccessPolicyModel({
+        type: "Local",
         accountGrantById: emptyMap,
         defaultGrant: {level: "Manage", generation: 0},
         urlGrant: null,
-    },
+    }),
 });
 
 test("returns true when inbox entry is archived (ChannelPosts)", () => {

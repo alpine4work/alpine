@@ -15,6 +15,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -48,7 +49,8 @@ type SearchEntityIdAxes = {
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`
             | `Task:${TaskId}`
-            | `TaskCollection:${TaskCollectionId}`;
+            | `TaskCollection:${TaskCollectionId}`
+            | `Site:${SiteId}`;
         NotAffinity:
             | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}`
             | `Post:${PostId}`
@@ -116,7 +118,7 @@ export const SearchStaticEntityIdSchema = SearchEntityIdSchema.transform<SearchS
     },
 });
 
-type GetSearchEntityIdActualTestMapUnionType<Id extends string> =
+export type GetSearchEntityIdActualTestMapUnionType<Id extends string> =
     Id extends `${infer IdType}:${string}`
         ? Record<IdType, (idRest: string) => boolean>
         : Record<Id, null>;
@@ -134,6 +136,7 @@ const searchEntityIdTestMap: GetSearchEntityIdActualTestMapType<SearchEntityId> 
     TaskCollection: isId,
     DocumentComment: isIdAndIdAndMessageIndex,
     Post: isId,
+    Site: isId,
     PostComment: isIdAndMessageIndex,
     ChatMessage: isIdAndMessageIndex,
     TaskComment: isIdAndMessageIndex,
@@ -187,6 +190,7 @@ const searchDynamicEntityIdTestMap: GetSearchEntityIdTestMapType<SearchDynamicEn
     TaskComment: true,
     Post: true,
     PostComment: true,
+    Site: true,
 };
 
 export type SearchDynamicEntityType = keyof typeof searchDynamicEntityIdTestMap;
@@ -326,7 +330,8 @@ export type SearchMentionEntityId =
     | `Chat:${ChatId}`
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`
-    | `Post:${PostId}`;
+    | `Post:${PostId}`
+    | `Site:${SiteId}`;
 
 export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<SearchMentionEntityId>({
     serialize: id => id,
@@ -365,7 +370,8 @@ export type SearchDynamicEntityIdObject =
     | {readonly type: "ChatMessage"; readonly chatId: ChatId; readonly messageIndex: number}
     | {readonly type: "Task"; readonly taskId: TaskId}
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
-    | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
+    | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number}
+    | {readonly type: "Site"; readonly siteId: SiteId};
 
 export function parseSearchDynamicEntityIdWithoutAccount(
     id: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
@@ -461,6 +467,8 @@ export function printSearchDynamicEntityId(
             return `TaskCollection:${idObject.collectionId}`;
         case "TaskComment":
             return `TaskComment:${idObject.taskId}-${idObject.commentIndex}`;
+        case "Site":
+            return `Site:${idObject.siteId}`;
         default:
             throw exhaustive(idObject);
     }
@@ -474,6 +482,7 @@ const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinity
     Task: true,
     TaskCollection: true,
     TaskPersonal: true,
+    Site: true,
 };
 
 export type SearchAffinityEntityType = keyof typeof searchAffinityEntityIdTestMap;
@@ -511,6 +520,7 @@ const searchMentionEntityIdTestMap: GetSearchMentionEntityIdTestMapType<SearchMe
     Task: true,
     TaskCollection: true,
     Post: true,
+    Site: true,
 };
 
 export type SearchMentionEntityType = keyof typeof searchMentionEntityIdTestMap;

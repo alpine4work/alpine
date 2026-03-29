@@ -2,7 +2,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
+import {
+    ChannelPreviewItemAuthorizationCache,
+    convertChannelModelToChannelPreviewAttributesItem,
+} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
@@ -35,7 +38,9 @@ export async function getChannelIfPossible(
         {consistency},
     );
 
-    const cachedGetPromise = getPromise.then(channel => (channel ? channel.model : null));
+    const cachedGetPromise = getPromise.then(channel =>
+        channel ? convertChannelModelToChannelPreviewAttributesItem(channel.model) : null,
+    );
 
     // Make sure errors thrown by this promise aren't treated as uncaught exceptions.
     // We catch them below when we await `getPromise`.
@@ -48,7 +53,11 @@ export async function getChannelIfPossible(
     const channel = await getPromise;
     if (!channel) return null;
 
-    const result = await authorizeChannelItemAccessIfPossible(context, channel.model, "View");
+    const result = await authorizeChannelItemAccessIfPossible(
+        context,
+        convertChannelModelToChannelPreviewAttributesItem(channel.model),
+        "View",
+    );
     if (!result.ok) return result;
 
     return {ok: true, value: channel};

@@ -1,3 +1,4 @@
+import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {prepareTaskActionForClient} from "~/server/tasks/data/prepare_task_action_for_client.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
@@ -28,15 +29,17 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {
     AccountId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskRealtimeEvent, TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 
 export interface TaskRealtimeUpdateEventConnection {
@@ -342,6 +345,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         }
 
         const accountIds = new Set<AccountId>();
+        const siteIds = new Set<SiteId>();
 
         const prepareContext = {
             actor: connection.actor,
@@ -362,7 +366,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                     );
                     if (action === null) return;
 
-                    collectReferencedAccountIdsFromTaskAction(accountIds, action);
+                    collectReferencedIdsFromTaskAction(accountIds, siteIds, action);
 
                     return action;
                 }),
@@ -373,7 +377,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
 
                     const task = await prepareTaskForClient(unpreparedTask.task, prepareContext);
 
-                    collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
+                    collectReferencedIdsFromTaskModelData(accountIds, siteIds, task.rawData);
 
                     return {
                         type: "Authorized" as const,
@@ -433,9 +437,13 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                     };
                 }
 
+                const collection = prepareTaskCollectionForClient(unpreparedCollection.collection);
+
+                collectReferencedIdsFromTaskCollectionModelData(siteIds, collection.rawData);
+
                 return {
                     type: "Authorized" as const,
-                    collection: prepareTaskCollectionForClient(unpreparedCollection.collection),
+                    collection,
                     authorizationStateVersion: unpreparedCollection.authorizationStateVersion,
                 };
             },
@@ -451,19 +459,24 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             return null;
         }
 
-        // It's important that accounts referenced by `actions` are read with a `Strong`
-        // read consistency so we don't read stale account data after the
-        // `UpdateAccountName` action has been applied. If this event builder was created
-        // when applying actions then `actionReferencedAccountById` will be set with
-        // accounts read with `Strong` consistency.
-        const referencedAccounts = await runAllPromises(
-            Array.from(
-                accountIds,
-                accountId =>
-                    this._actionReferencedAccountById?.get(accountId) ??
-                    getAccount(context, this._spaceId, accountId),
+        const [referencedAccounts, referencedSites] = await runAllPromises([
+            // It's important that accounts referenced by `actions` are read with a `Strong`
+            // read consistency so we don't read stale account data after the
+            // `UpdateAccountName` action has been applied. If this event builder was created
+            // when applying actions then `actionReferencedAccountById` will be set with
+            // accounts read with `Strong` consistency.
+            runAllPromises(
+                Array.from(
+                    accountIds,
+                    accountId =>
+                        this._actionReferencedAccountById?.get(accountId) ??
+                        getAccount(context, this._spaceId, accountId),
+                ),
             ),
-        );
+            runAllPromises(
+                Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+            ),
+        ]);
 
         return {
             type: "Update",
@@ -472,6 +485,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             backfillCollections,
             defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
             referencedAccounts,
+            referencedSites,
             originClientId: this._originClientId,
         };
     }

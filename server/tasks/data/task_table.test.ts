@@ -57,8 +57,8 @@ import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {
     AccessLevel,
-    AccessPolicy,
     AccessPolicyAccountGrant,
+    LocalAccessPolicy,
 } from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
@@ -77,6 +77,7 @@ import {
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -246,6 +247,7 @@ describe("old style", () => {
                     creatorId: session.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -584,6 +586,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -641,6 +644,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
@@ -1386,6 +1390,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -1444,6 +1449,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
@@ -1504,6 +1510,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1552,6 +1559,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1605,6 +1613,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1659,6 +1668,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1679,6 +1689,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -1739,6 +1750,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
@@ -1757,6 +1769,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -1831,6 +1844,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1881,6 +1895,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1938,6 +1953,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -1997,6 +2013,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2056,6 +2073,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
@@ -2116,6 +2134,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -2173,6 +2192,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2198,6 +2218,7 @@ describe("old style", () => {
                         creatorId: null,
                         name: "Test",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
@@ -2224,6 +2245,7 @@ describe("old style", () => {
                         creatorId: session2.account.id,
                         name: "Test",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
@@ -2249,6 +2271,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2270,6 +2293,7 @@ describe("old style", () => {
                         creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
@@ -2296,6 +2320,7 @@ describe("old style", () => {
                         creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             ]),
@@ -2326,6 +2351,7 @@ describe("old style", () => {
                         creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
@@ -2352,6 +2378,7 @@ describe("old style", () => {
                         creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([]),
                             defaultGrant: null,
                             urlGrant: null,
@@ -2375,6 +2402,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2427,6 +2455,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2477,6 +2506,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2516,6 +2546,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2553,6 +2584,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2590,6 +2622,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2627,6 +2660,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -2665,6 +2699,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -2701,6 +2736,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2764,6 +2800,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2832,6 +2869,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2888,6 +2926,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2947,6 +2986,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -2997,6 +3037,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3047,6 +3088,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3095,6 +3137,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3140,6 +3183,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -3186,6 +3230,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -3230,6 +3275,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3284,6 +3330,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3333,6 +3380,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3371,6 +3419,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3409,6 +3458,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3447,6 +3497,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -3486,6 +3537,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -3523,6 +3575,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3577,6 +3630,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3626,6 +3680,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3664,6 +3719,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3702,6 +3758,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3740,6 +3797,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -3779,6 +3837,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -3816,6 +3875,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3834,6 +3894,7 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                             [session3.accountId, {level: "Edit"}],
@@ -3858,6 +3919,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
@@ -3884,6 +3946,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3914,6 +3977,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
@@ -3940,6 +4004,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -3959,6 +4024,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
@@ -3985,6 +4051,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -4004,6 +4071,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
@@ -4030,6 +4098,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -4049,6 +4118,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
@@ -4075,6 +4145,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -4095,6 +4166,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
@@ -4121,6 +4193,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -4140,6 +4213,7 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                             [session3.accountId, {level: "Edit"}],
@@ -4165,6 +4239,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -4185,6 +4260,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session1.accountId, {level: "Edit"}],
                                 [session3.accountId, {level: "Edit"}],
@@ -4206,6 +4282,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([]),
                             defaultGrant: {level: "Edit"},
                             urlGrant: null,
@@ -4223,6 +4300,26 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
+                        accountGrantById: new Map([
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
@@ -4245,6 +4342,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -4264,6 +4362,7 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -4283,6 +4382,7 @@ describe("old style", () => {
                     collectionAction: {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [taskAccount1.accountId, {level: "Manage", generation: 0}],
                                 [taskAccount2.accountId, {level: "Manage", generation: 0}],
@@ -4353,6 +4453,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -4375,6 +4476,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -4406,6 +4508,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -4500,6 +4603,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -4569,6 +4673,7 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
@@ -5356,6 +5461,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "View"}],
@@ -5430,6 +5536,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "Edit"}],
@@ -5502,6 +5609,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "Edit"}],
@@ -5602,6 +5710,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -5886,6 +5995,7 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "Edit"}],
@@ -6011,6 +6121,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
@@ -6646,6 +6757,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -6757,6 +6869,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -6905,6 +7018,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -7123,6 +7237,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -7341,6 +7456,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -7559,6 +7675,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -7777,6 +7894,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -7999,6 +8117,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -8708,6 +8827,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -8948,6 +9068,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -9161,6 +9282,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -9178,6 +9300,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -9287,6 +9410,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -9304,6 +9428,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -9432,6 +9557,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -9449,6 +9575,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -10827,6 +10954,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -10885,6 +11013,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -10945,6 +11074,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -11008,6 +11138,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -11069,6 +11200,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -11139,6 +11271,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -11211,6 +11344,7 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [taskAccount1.accountId, {level: "Manage", generation: 0}],
                         ]),
@@ -15106,6 +15240,7 @@ test("can delete a task and all its children when you have access to the task th
     await task.addCollection(session1, collection);
 
     await collection.access.set(session1, {
+        type: "Local",
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
             [session3.account.id, {level: "Manage", generation: 1}],
@@ -17373,6 +17508,7 @@ test("multiple actions that update collection item count in one transaction and 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -17436,6 +17572,7 @@ test("multiple actions that update collection item count in one transaction and 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -17539,6 +17676,7 @@ test("multiple actions that update collection item count in one transaction and 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -17633,6 +17771,7 @@ test("a collection action and an action that indirectly updates collection task 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -17660,6 +17799,7 @@ test("a collection action and an action that indirectly updates collection task 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -19526,6 +19666,7 @@ test("throws error for users that only have view access when trying to access ta
     const collection = await TestTaskCollection.create(creatorSession);
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -19632,6 +19773,7 @@ test("throws error for users that only have view access when trying to create ta
     await task.addCollection(creatorSession, collection);
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -19725,6 +19867,7 @@ test("throws error for users that only have view access when trying to update ta
     ).resolves.not.toBeNull();
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -19801,6 +19944,7 @@ test("throws error for users that only have view access when trying to delete ta
     const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -19889,6 +20033,7 @@ test("throws error for users that only have view access when trying to get task 
     await task.createComment(creatorSession, "test3");
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -19998,6 +20143,7 @@ test("throws error for users that only have view access when trying to get task 
     await task.createComment(creatorSession, "test3");
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -20105,6 +20251,7 @@ test("returns null for users that only have view access when trying to get initi
     await task.addCollection(creatorSession, collection);
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -20605,6 +20752,7 @@ test("throws error for users that only have view access when trying to get task 
     await task.createComment(manageSession, "test1");
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -20760,6 +20908,7 @@ test("throws error for users without proper access trying to get the Task Owner"
     await task.addCollection(creatorSession, collection);
 
     await collection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -21504,10 +21653,12 @@ test("can\u2019t update a task access policy without manage access", async () =>
     const task = await TestTask.create(session1);
 
     const accessPolicy = await task.access.grant(session1, session2, "Edit");
+    assert(accessPolicy.type === "Local", "Expected local access policy");
     const accountGrantById = new Map(accessPolicy.accountGrantById);
     accountGrantById.set(session3.account.id, {level: "Edit"});
 
-    const newAccessPolicy: AccessPolicy = {
+    const newAccessPolicy: LocalAccessPolicy = {
+        type: "Local",
         accountGrantById,
         defaultGrant: accessPolicy.defaultGrant,
         urlGrant: accessPolicy.urlGrant,
@@ -21528,10 +21679,12 @@ test("can update a task access policy with inherited manage access", async () =>
     await collection.access.grant(session1, session2, "Manage");
 
     const accessPolicy = await task.access.get();
+    assert(accessPolicy.type === "Local", "Expected local access policy");
     const accountGrantById = new Map(accessPolicy.accountGrantById);
     accountGrantById.set(session3.account.id, {level: "View"});
 
-    const newAccessPolicy: AccessPolicy = {
+    const newAccessPolicy: LocalAccessPolicy = {
+        type: "Local",
         accountGrantById,
         defaultGrant: accessPolicy.defaultGrant,
         urlGrant: accessPolicy.urlGrant,
@@ -21539,9 +21692,9 @@ test("can update a task access policy with inherited manage access", async () =>
 
     await task.access.set(session2, newAccessPolicy);
 
-    expect((await task.access.get()).accountGrantById.get(session3.account.id)?.level).toEqual(
-        "View",
-    );
+    const updatedAccessPolicy = await task.access.get();
+    assert(updatedAccessPolicy.type === "Local", "Expected local access policy");
+    expect(updatedAccessPolicy.accountGrantById.get(session3.account.id)?.level).toEqual("View");
 });
 
 test("can\u2019t update a task access policy with no manage grants", async () => {
@@ -21552,7 +21705,8 @@ test("can\u2019t update a task access policy with no manage grants", async () =>
 
     await task.access.grant(session1, session2, "Edit");
 
-    const newAccessPolicy: AccessPolicy = {
+    const newAccessPolicy: LocalAccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [session1.account.id, {level: "Edit"}],
             [session2.account.id, {level: "Edit"}],
@@ -21668,6 +21822,7 @@ test("can only send share notifications when committing an update access policy 
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.account.id, {level: "Manage", generation: 0}],
                             [session2.account.id, {level: "Manage", generation: 1}],
@@ -21730,6 +21885,7 @@ test("can send share notifications for update task access policy actions", async
                 taskAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.account.id, {level: "Manage", generation: 0}],
                             [session2.account.id, {level: "Manage", generation: 1}],
@@ -21777,7 +21933,8 @@ test("can\u2019t create task collection with bot account", async () => {
 
     const {id: botAccountId} = await bot.instantiate(adminSession);
 
-    const accessPolicy: AccessPolicy = {
+    const accessPolicy: LocalAccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [session.account.id, {level: "Manage", generation: 0}],
             [botAccountId, {level: "Manage", generation: 1}],
@@ -21800,7 +21957,8 @@ test("can\u2019t share task collection with bot account", async () => {
 
     const {id: botAccountId} = await bot.instantiate(adminSession);
 
-    const accessPolicy1: AccessPolicy = {
+    const accessPolicy1: LocalAccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -21808,7 +21966,8 @@ test("can\u2019t share task collection with bot account", async () => {
 
     const collection = await TestTaskCollection.create(session, {access: accessPolicy1});
 
-    const invalidAccessPolicy2: AccessPolicy = {
+    const invalidAccessPolicy2: LocalAccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [session.account.id, {level: "Manage", generation: 0}],
             [botAccountId, {level: "Manage", generation: 1}],

@@ -1,6 +1,7 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
+import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {
     FileTaskAuthorizer,
@@ -22,9 +23,9 @@ import {
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
 import * as definitions from "~/shared/rpc/tasks_rpc_definitions.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export default implementRpcs(definitions, {
@@ -44,16 +45,24 @@ export default implementRpcs(definitions, {
             );
 
             const accountIds = new Set<AccountId>();
+            const siteIds = new Set<SiteId>();
 
             for (const action of extraActions) {
-                collectReferencedAccountIdsFromTaskAction(accountIds, action);
+                collectReferencedIdsFromTaskAction(accountIds, siteIds, action);
             }
 
-            const referencedAccounts = await runAllPromises(
-                Array.from(accountIds, accountId => getAccount(context, input.spaceId, accountId)),
-            );
+            const [referencedAccounts, referencedSites] = await runAllPromises([
+                runAllPromises(
+                    Array.from(accountIds, accountId =>
+                        getAccount(context, input.spaceId, accountId),
+                    ),
+                ),
+                runAllPromises(
+                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                ),
+            ]);
 
-            return {extraActions, referencedAccounts};
+            return {extraActions, referencedAccounts, referencedSites};
         },
     },
 
@@ -68,16 +77,22 @@ export default implementRpcs(definitions, {
             );
 
             const accountIds = new Set<AccountId>();
+            const siteIds = new Set<SiteId>();
 
             for (const action of actions) {
-                collectReferencedAccountIdsFromTaskAction(accountIds, action);
+                collectReferencedIdsFromTaskAction(accountIds, siteIds, action);
             }
 
-            const referencedAccounts = await runAllPromises(
-                Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
-            );
+            const [referencedAccounts, referencedSites] = await runAllPromises([
+                runAllPromises(
+                    Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
+                ),
+                runAllPromises(
+                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                ),
+            ]);
 
-            return {actions, referencedAccounts};
+            return {actions, referencedAccounts, referencedSites};
         },
     },
 
@@ -90,16 +105,22 @@ export default implementRpcs(definitions, {
             );
 
             const accountIds = new Set<AccountId>();
+            const siteIds = new Set<SiteId>();
 
             for (const action of actions) {
-                collectReferencedAccountIdsFromTaskAction(accountIds, action);
+                collectReferencedIdsFromTaskAction(accountIds, siteIds, action);
             }
 
-            const referencedAccounts = await runAllPromises(
-                Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
-            );
+            const [referencedAccounts, referencedSites] = await runAllPromises([
+                runAllPromises(
+                    Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
+                ),
+                runAllPromises(
+                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                ),
+            ]);
 
-            return {actions, referencedAccounts, taskId};
+            return {actions, referencedAccounts, referencedSites, taskId};
         },
     },
 

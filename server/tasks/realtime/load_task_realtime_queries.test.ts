@@ -194,6 +194,7 @@ test("loads no queries", async () => {
             backfillTasks: {},
             backfillCollections: {},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 });
@@ -287,6 +288,7 @@ test("loads a query", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -355,6 +357,7 @@ test("loads multiple queries", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session1.get()],
+            referencedSites: [],
         },
     });
 
@@ -392,6 +395,7 @@ test("loads multiple queries", async () => {
                 [collection1.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session2.get(), await session1.get()],
+            referencedSites: [],
         },
     });
 
@@ -442,6 +446,7 @@ test("loads multiple queries", async () => {
                 [collection1.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session2.get(), await session1.get()],
+            referencedSites: [],
         },
     });
 });
@@ -642,6 +647,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -674,6 +680,7 @@ test("queries may have different pagination states", async () => {
             backfillTasks: {},
             backfillCollections: {},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -712,6 +719,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -750,6 +758,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -800,6 +809,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -865,6 +875,7 @@ test("loads referenced parent tasks", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -941,6 +952,7 @@ test("loads referenced collections", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -1016,6 +1028,7 @@ test("loads unauthorized parent tasks", async () => {
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
+            referencedSites: [],
         },
     });
 });
@@ -1111,6 +1124,7 @@ test("loads unauthorized collections", async () => {
             },
             backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
+            referencedSites: [],
         },
     });
 });
@@ -1192,6 +1206,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1231,6 +1246,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1271,6 +1287,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1302,6 +1319,7 @@ test("loads a query as an anonymous actor", async () => {
             backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1344,6 +1362,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection4.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1586,6 +1605,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1625,6 +1645,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1665,6 +1686,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1696,6 +1718,7 @@ test("loads a query as an anonymous actor", async () => {
             backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1738,6 +1761,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection4.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1774,6 +1798,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -1890,6 +1915,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2012,6 +2038,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2051,6 +2078,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2091,6 +2119,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2122,6 +2151,7 @@ test("loads a query as an anonymous actor", async () => {
             backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2164,6 +2194,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection4.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2203,6 +2234,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2241,6 +2273,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2340,6 +2373,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2378,6 +2412,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2476,6 +2511,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2515,6 +2551,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2607,6 +2644,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2665,6 +2703,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2704,6 +2743,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2796,6 +2836,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2873,6 +2914,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2988,6 +3030,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -3195,6 +3238,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                 assigneeSession.get(),
                 assignerSession1.get(),
             ]),
+            referencedSites: [],
         },
     });
 
@@ -3314,6 +3358,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3433,6 +3478,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3562,6 +3608,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                 assigneeSession.get(),
                 assignerSession2.get(),
             ]),
+            referencedSites: [],
         },
     });
 
@@ -3681,6 +3728,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3800,6 +3848,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3906,6 +3955,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([creatorSession.get(), closerSession.get()]),
+            referencedSites: [],
         },
     });
 
@@ -4010,6 +4060,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -4114,6 +4165,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 });

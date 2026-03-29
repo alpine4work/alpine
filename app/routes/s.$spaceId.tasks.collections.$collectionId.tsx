@@ -29,13 +29,13 @@ import {
     authorizeTaskCollectionAccess,
     commitTaskActionTransaction,
 } from "~/server/tasks/data/task_table.js";
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {isThemeColor} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -72,9 +72,9 @@ const LoaderSchema = Schema.object({
         Exists: Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
-            accessPolicy: AccessPolicySchema,
             initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
             initialIsFavorite: Schema.boolean,
+            hasUrlGrant: Schema.boolean,
         }),
     }),
     filterReferences: TaskQueryFilterReferencesSchema,
@@ -85,7 +85,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}})
         collectionState.type === "Exists"
             ? {
                   name: collectionState.initialMetaTitleText,
-                  accessPolicy: collectionState.accessPolicy,
+                  hasUrlGrant: collectionState.hasUrlGrant,
               }
             : null,
     ),
@@ -128,6 +128,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                         creatorId: sessionContext.actor.getAccountId(),
                         name: createSearchParam,
                         accessPolicy: {
+                            type: "Local",
                             accountGrantById: new Map([
                                 [
                                     sessionContext.actor.getAccountId(),
@@ -276,6 +277,32 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ? assertExists(loadQueryResult.queries[0])
         : null;
 
+    const accessPolicy = backfillCollection?.collection.getAccessPolicy() ?? {
+        type: "Local",
+        accountGrantById: new Map(),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
+    let hasUrlGrant: boolean;
+    switch (accessPolicy.type) {
+        case "Local": {
+            hasUrlGrant = accessPolicy.urlGrant !== null;
+            break;
+        }
+        case "Site": {
+            const siteResult = loadQueryResult?.updateEvent.referencedSites.find(
+                site => site.ok && site.value.id === accessPolicy.siteId,
+            );
+            assert(siteResult && siteResult.ok);
+
+            hasUrlGrant = assertExists(siteResult.value).initialData.accessPolicy.urlGrant !== null;
+            break;
+        }
+        default:
+            throw exhaustive(accessPolicy);
+    }
+
     return jsonWithSchema(
         LoaderSchema,
         {
@@ -283,13 +310,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
-                accessPolicy: backfillCollection?.collection.getAccessPolicy() ?? {
-                    accountGrantById: new Map(),
-                    defaultGrant: null,
-                    urlGrant: null,
-                },
                 initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
                 initialIsFavorite: isFavorite,
+                hasUrlGrant,
             },
             filterReferences,
         },

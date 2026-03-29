@@ -7,6 +7,7 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
@@ -133,4 +134,5 @@ export type ServerProcessContextModules = {
     searchInjection: SearchInjectionContextModule;
     spacesInjection: SpacesInjectionContextModule;
     tasksInjection: TasksInjectionContextModule;
+    sitesInjection: SitesInjectionContextModule;
 };

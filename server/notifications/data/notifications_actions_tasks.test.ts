@@ -112,6 +112,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.access.set(scenario.session1, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -240,6 +241,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.access.set(scenario.session1, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -374,6 +376,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.access.set(scenario.session1, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -470,6 +473,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.access.set(scenario.session1, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -615,6 +619,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const collectionInOtherSession = await TestTaskCollection.create(scenario.otherSession);
 
             await collectionInSession1.access.set(scenario.session1, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -625,6 +630,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             });
 
             await collectionInOtherSession.access.set(scenario.otherSession, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.otherSession.account.id, {level: "Manage", generation: 0}],
                     [scenario.sharedSession.account.id, {level: "Edit"}],
@@ -740,6 +746,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const collectionInOtherSession = await TestTaskCollection.create(scenario.otherSession);
 
             await collectionInSession1.access.set(scenario.session1, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -750,6 +757,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             });
 
             await collectionInOtherSession.access.set(scenario.otherSession, {
+                type: "Local",
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.otherSession.account.id, {level: "Manage", generation: 0}],
                 ]),

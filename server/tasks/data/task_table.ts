@@ -4,6 +4,7 @@ import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
@@ -96,7 +97,8 @@ import {
     AccessLevel,
     AccessPolicy,
     AccessPolicyRegister,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicy,
     hasAccessLevel,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -2409,11 +2411,15 @@ class TaskActionTransactionCommitState {
         }
     }
 
-    public async validateAccessPolicyUpdate(
+    public getEffectiveAccessPolicy(accessPolicy: AccessPolicy): Promise<EffectiveAccessPolicy> {
+        return intoEffectiveAccessPolicy(this._context, accessPolicy);
+    }
+
+    public validateAccessPolicyUpdate(
         oldAccessPolicy: AccessPolicy | null,
         newAccessPolicy: AccessPolicy,
-    ) {
-        await validateAccessPolicyUpdateForServer(
+    ): Promise<ResolvedAccessPolicy> {
+        return validateAccessPolicyUpdateForServer(
             this._context,
             this._spaceId,
             oldAccessPolicy,
@@ -3330,10 +3336,11 @@ async function actuallyCommitTaskActionTransaction(
                                           action.time,
                                       );
 
-                                await state.validateAccessPolicyUpdate(
-                                    oldAccessPolicy,
-                                    newAccessPolicy.value,
-                                );
+                                const newResolvedAccessPolicy =
+                                    await state.validateAccessPolicyUpdate(
+                                        oldAccessPolicy,
+                                        newAccessPolicy.value,
+                                    );
 
                                 let newFeed = taskItem.feed;
 
@@ -3341,7 +3348,7 @@ async function actuallyCommitTaskActionTransaction(
                                     (taskItem.feed === null ||
                                         taskItem.feed === "AddedAccountCandidateEntry") &&
                                     // Was this task directly shared via its access policy?
-                                    newAccessPolicy.value.defaultGrant
+                                    newResolvedAccessPolicy.defaultGrant
                                 ) {
                                     newFeed = "AddedCandidateEntry";
                                 }
@@ -3480,6 +3487,11 @@ async function actuallyCommitTaskActionTransaction(
                             );
                         }
 
+                        const newEffectiveAccessPolicy = await state.validateAccessPolicyUpdate(
+                            null,
+                            collectionAction.accessPolicy,
+                        );
+
                         const newCollectionItem: TaskCollectionEssentialAttributesItem = {
                             partitionType: "TaskCollection",
                             sortRangeType: "EssentialAttributes",
@@ -3495,17 +3507,11 @@ async function actuallyCommitTaskActionTransaction(
                                 collectionAction.accessPolicy,
                                 action.time,
                             ),
-                            hasAddedFeedCandidateEntry:
-                                !!collectionAction.accessPolicy.defaultGrant,
+                            hasAddedFeedCandidateEntry: !!newEffectiveAccessPolicy.defaultGrant,
                             taskCount: 0,
                             openTaskCount: 0,
                             lastTaskAddedTime: null,
                         };
-
-                        await state.validateAccessPolicyUpdate(
-                            null,
-                            newCollectionItem.accessPolicy.value,
-                        );
 
                         state.createCollectionItem(newCollectionItem);
 
@@ -3659,16 +3665,17 @@ async function actuallyCommitTaskActionTransaction(
                                     version: action.time,
                                 });
 
-                                await state.validateAccessPolicyUpdate(
-                                    collectionItem.accessPolicy.value,
-                                    newAccessPolicy.value,
-                                );
+                                const newEffectiveAccessPolicy =
+                                    await state.validateAccessPolicyUpdate(
+                                        collectionItem.accessPolicy.value,
+                                        newAccessPolicy.value,
+                                    );
 
                                 const oldHasAddedFeedCandidateEntry =
                                     collectionItem.hasAddedFeedCandidateEntry;
                                 const newHasAddedFeedCandidateEntry =
                                     oldHasAddedFeedCandidateEntry ||
-                                    !!newAccessPolicy.value.defaultGrant;
+                                    !!newEffectiveAccessPolicy.defaultGrant;
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
@@ -5088,8 +5095,10 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
             //
             // Useful if a user is in a personal chat and asking their bot to read their
             // personal tasks.
-            let cheapAccessPolicy: AccessPolicyWithoutGenerations =
-                getTaskItemAccessPolicyWithDefault(taskItem);
+            let cheapAccessPolicy = await intoEffectiveAccessPolicy(
+                context,
+                getTaskItemAccessPolicyWithDefault(taskItem),
+            );
 
             if (taskItem.assigneeId.value) {
                 const newAccountGrantById = new Map(cheapAccessPolicy.accountGrantById);
@@ -5334,7 +5343,10 @@ async function doesTaskItemHaveDefaultGrant(
     await authorizeSpaceAccess(context, taskItem.spaceId);
 
     {
-        const immediateAccessPolicy = getTaskItemAccessPolicyWithDefault(taskItem);
+        const immediateAccessPolicy = await intoEffectiveAccessPolicy(
+            context,
+            getTaskItemAccessPolicyWithDefault(taskItem),
+        );
         if (immediateAccessPolicy.defaultGrant) return true;
     }
 
@@ -5347,7 +5359,12 @@ async function doesTaskItemHaveDefaultGrant(
             // Deleted collections don't grant any access.
             if (isTaskCollectionItemDeleted(collectionItem)) return false;
 
-            return !!collectionItem.accessPolicy.value.defaultGrant;
+            const effectiveAccessPolicy = await intoEffectiveAccessPolicy(
+                context,
+                collectionItem.accessPolicy.value,
+            );
+
+            return !!effectiveAccessPolicy.defaultGrant;
         }),
     );
 
@@ -5383,7 +5400,7 @@ export async function getTaskAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,
     taskId: TaskId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicyWithoutGenerations> {
+): Promise<EffectiveAccessPolicy> {
     const scope = context.actor.getScope();
     if (scope.type !== "Task" || scope.taskId !== taskId) {
         throw new PermissionDeniedError("Can only get access policy for the scoped task");
@@ -5403,7 +5420,7 @@ async function getTaskItemEffectiveAccessPolicyWithoutAuthorization(
     context: ServerMinimalActionContext,
     rootTaskItem: TaskEssentialAttributesItemBase,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicyWithoutGenerations> {
+): Promise<EffectiveAccessPolicy> {
     const accountGrantById = new Map<AccountId, {level: AccessLevel}>();
     let defaultGrant: {level: AccessLevel} | null = null;
     let urlGrant: {level: "View"} | null = null;
@@ -5438,7 +5455,9 @@ async function getTaskItemEffectiveAccessPolicyWithoutAuthorization(
         }
     }
 
-    function addGrants(accessPolicy: AccessPolicy) {
+    async function addGrants(rawAccessPolicy: AccessPolicy) {
+        const accessPolicy = await intoEffectiveAccessPolicy(context, rawAccessPolicy);
+
         for (const [accountId, accountGrant] of accessPolicy.accountGrantById) {
             addAccountGrant(accountId, accountGrant.level);
         }
@@ -5453,7 +5472,7 @@ async function getTaskItemEffectiveAccessPolicyWithoutAuthorization(
     }
 
     async function addTaskGrants(taskItem: TaskEssentialAttributesItemBase) {
-        addGrants(getTaskItemAccessPolicyWithDefault(taskItem));
+        await addGrants(getTaskItemAccessPolicyWithDefault(taskItem));
 
         if (taskItem.assigneeId.value) {
             addAccountGrant(taskItem.assigneeId.value, "Edit");
@@ -5491,7 +5510,7 @@ async function getTaskItemEffectiveAccessPolicyWithoutAuthorization(
 
                     if (isTaskCollectionItemDeleted(collectionItem)) return;
 
-                    addGrants(collectionItem.accessPolicy.value);
+                    await addGrants(collectionItem.accessPolicy.value);
                 }),
             ),
         ]);

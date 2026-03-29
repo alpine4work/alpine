@@ -1,5 +1,6 @@
 import {Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
@@ -20,6 +21,7 @@ import {
 import {PostListView} from "~/client/web/forum/post_list_view.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
@@ -30,6 +32,7 @@ import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewAsidePostFileMaxCount,
@@ -87,6 +90,7 @@ export function ChannelView({
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
     const searchEntityRegistry = useSearchEntityRegistry();
+    const siteRegistry = useSiteRegistry();
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
@@ -131,9 +135,16 @@ export function ChannelView({
     assert(channelItem?.model instanceof ChannelModel);
     const channel = channelItem.model;
 
+    const accessPolicy = useStore(
+        useMemo(
+            () => createAccessPolicyStore(channel.accessPolicy, siteRegistry),
+            [channel.accessPolicy, siteRegistry],
+        ),
+    );
+
     const accessLevel = useMemo(
-        () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
-        [channel.accessPolicy, currentAccount?.id],
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
     );
 
     if (accessLevel === null) {
@@ -257,7 +268,7 @@ export function ChannelView({
         withoutDisappearingTitle: true,
         title: (
             <Box display="flex" alignItems="center" gap={platform === "mobile" ? "1.5" : "2"}>
-                {!channel.accessPolicy.defaultGrant && !channel.accessPolicy.urlGrant && (
+                {!accessPolicy.defaultGrant && !accessPolicy.urlGrant && (
                     // We add a lock icon to private channels because unlike other entities we don't
                     // show the share switch in the navigation bar. Since knowing whether a channel is
                     // public or private is important context, we include a lock to make sure you know
@@ -343,7 +354,7 @@ export function ChannelView({
             ? {
                   entityNoun: "channel",
                   entityId: `Channel:${channelId}`,
-                  accessPolicy: channel.accessPolicy,
+                  accessPolicy,
                   onAccessPolicyChange: async (notification, accessPolicy) => {
                       const event = await updateChannelAccessPolicy(context, {
                           channelId,

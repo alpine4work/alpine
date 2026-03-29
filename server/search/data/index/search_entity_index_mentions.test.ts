@@ -24,6 +24,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {
     createSimplePostContent,
     PostContentProsemirrorSchema as schema,
@@ -245,9 +246,18 @@ const testCaseByEntityType: Record<
             };
         },
     },
+    // TODO(#sites): Implement site mention test case
+    Site: {
+        create: async () => {
+            throw new UnimplementedError("Site mention test case not implemented");
+        },
+    },
 };
 
 for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
+    // TODO(#sites): Implement site mention test case
+    if (entityType === "Site") continue;
+
     describe(`${entityType}`, () => {
         test("can mention non-existent entity in public entity", async () => {
             const space = await TestSpace.create(context);
@@ -571,6 +581,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -639,6 +650,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -697,6 +709,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -708,6 +721,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -766,6 +780,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -777,6 +792,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -838,6 +854,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -850,6 +867,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -908,6 +926,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -920,6 +939,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -979,6 +999,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -991,6 +1012,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -1052,6 +1074,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session3.account.id, {level: "View", generation: 1}],
@@ -1063,6 +1086,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session4.account.id, {level: "View", generation: 1}],
@@ -1123,6 +1147,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "Manage", generation: 1}],
@@ -1134,6 +1159,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -1193,6 +1219,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session3.account.id, {level: "Manage", generation: 1}],
@@ -1204,6 +1231,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session4.account.id, {level: "View", generation: 1}],
@@ -1262,6 +1290,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "Manage", generation: 1}],
@@ -1274,6 +1303,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -1337,6 +1367,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel1 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -1349,6 +1380,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel2 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -1360,6 +1392,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel3 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2059,6 +2092,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel1 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -2071,6 +2105,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel2 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -2082,6 +2117,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel3 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                     ]),

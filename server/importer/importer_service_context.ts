@@ -4,6 +4,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -34,6 +35,7 @@ type ImporterServiceProcessContextModules = {
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
     tasksInjection: TasksInjectionContextModule;
+    sitesInjection: SitesInjectionContextModule;
 };
 
 /**

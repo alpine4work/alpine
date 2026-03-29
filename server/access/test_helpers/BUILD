@@ -8,6 +8,7 @@ ts_project(
         "//server/spaces/test_helpers",
         "//shared/access",
         "//shared/context",
+        "//shared/error",
         "//shared/helpers",
         "//shared/id",
     ],

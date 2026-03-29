@@ -180,6 +180,7 @@ describe("POST /documents", () => {
 
         const collection = await TestTaskCollection.create(session, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,

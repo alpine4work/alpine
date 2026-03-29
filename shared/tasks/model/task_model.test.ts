@@ -198,6 +198,7 @@ describe("getCloneActions", () => {
         const otherManagerId = generateId<AccountId>();
         const editorId = generateId<AccountId>();
         const accessPolicy: AccessPolicy = {
+            type: "Local",
             accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                 [accountId, {level: "Manage", generation: 0}],
                 [otherManagerId, {level: "Manage", generation: 2}],

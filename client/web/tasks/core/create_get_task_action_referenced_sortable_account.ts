@@ -4,9 +4,9 @@ import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
@@ -33,12 +33,23 @@ export function createGetTaskActionReferencedSortableAccount(
     actions: TaskActionMaybeModel | ReadonlyArray<TaskActionMaybeModel>,
 ): (accountId: AccountId) => TaskSortableAccount {
     const actionReferencedAccountIds = new Set<AccountId>();
+    // We don't actually use these here. We need to pass them in to
+    // collectReferencedIdsFromTaskAction to make it happy.
+    const actionReferencedSiteIds = new Set<SiteId>();
 
     if (!isReadonlyArray(actions)) {
-        collectReferencedAccountIdsFromTaskAction(actionReferencedAccountIds, actions);
+        collectReferencedIdsFromTaskAction(
+            actionReferencedAccountIds,
+            actionReferencedSiteIds,
+            actions,
+        );
     } else {
         for (const action of actions) {
-            collectReferencedAccountIdsFromTaskAction(actionReferencedAccountIds, action);
+            collectReferencedIdsFromTaskAction(
+                actionReferencedAccountIds,
+                actionReferencedSiteIds,
+                action,
+            );
         }
     }
 

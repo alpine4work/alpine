@@ -26,6 +26,7 @@ export async function seedTestChannels(
             name: "Test",
             description: emptyMessageContent,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: emptyMap,
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,

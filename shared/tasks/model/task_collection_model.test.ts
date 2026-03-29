@@ -15,6 +15,7 @@ test("merging identical tasks returns a referentially equal value to the first o
         creatorId: null,
         name: "Test",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -25,6 +26,7 @@ test("merging identical tasks returns a referentially equal value to the first o
         creatorId: null,
         name: "Test",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -48,6 +50,7 @@ test("merging tasks returns a referentially equal value to the first one if the 
         creatorId: null,
         name: "Test",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -58,6 +61,7 @@ test("merging tasks returns a referentially equal value to the first one if the 
         creatorId: null,
         name: "Test",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,

@@ -1,16 +1,17 @@
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/web/navigation/internal/get_default_share_overlay_account_input_access_level.js";
-import {AccessLevel, AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
+import {AccessLevel, ResolvedAccessPolicy} from "~/shared/access/access_policy.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-function createAccessPolicyWithoutGenerations({
+function createEffectiveAccessPolicy({
     defaultGrant,
     accountGrantById = [],
 }: {
     defaultGrant?: AccessLevel;
     accountGrantById?: ReadonlyArray<readonly [AccountId, AccessLevel]>;
-}): AccessPolicyWithoutGenerations {
+}): ResolvedAccessPolicy {
     return {
+        type: "Local",
         accountGrantById: new Map(
             accountGrantById.map(([accountId, level]) => [accountId, {level}]),
         ),
@@ -20,8 +21,8 @@ function createAccessPolicyWithoutGenerations({
 }
 
 test("uses inherited default grant level when immediate policy has none", () => {
-    const immediateAccessPolicy = createAccessPolicyWithoutGenerations({});
-    const inheritedAccessPolicy = createAccessPolicyWithoutGenerations({
+    const immediateAccessPolicy = createEffectiveAccessPolicy({});
+    const inheritedAccessPolicy = createEffectiveAccessPolicy({
         defaultGrant: "View",
     });
 
@@ -31,10 +32,10 @@ test("uses inherited default grant level when immediate policy has none", () => 
 });
 
 test("uses max default grant level across immediate and inherited policy", () => {
-    const immediateAccessPolicy = createAccessPolicyWithoutGenerations({
+    const immediateAccessPolicy = createEffectiveAccessPolicy({
         defaultGrant: "Manage",
     });
-    const inheritedAccessPolicy = createAccessPolicyWithoutGenerations({
+    const inheritedAccessPolicy = createEffectiveAccessPolicy({
         defaultGrant: "View",
     });
 
@@ -45,8 +46,8 @@ test("uses max default grant level across immediate and inherited policy", () =>
 
 test("uses inherited account grants when choosing edit default", () => {
     const accountId = generateId<AccountId>();
-    const immediateAccessPolicy = createAccessPolicyWithoutGenerations({});
-    const inheritedAccessPolicy = createAccessPolicyWithoutGenerations({
+    const immediateAccessPolicy = createEffectiveAccessPolicy({});
+    const inheritedAccessPolicy = createEffectiveAccessPolicy({
         accountGrantById: [[accountId, "Edit"]],
     });
 
@@ -57,10 +58,10 @@ test("uses inherited account grants when choosing edit default", () => {
 
 test("does not default to edit when merged account grants become manage", () => {
     const accountId = generateId<AccountId>();
-    const immediateAccessPolicy = createAccessPolicyWithoutGenerations({
+    const immediateAccessPolicy = createEffectiveAccessPolicy({
         accountGrantById: [[accountId, "Manage"]],
     });
-    const inheritedAccessPolicy = createAccessPolicyWithoutGenerations({
+    const inheritedAccessPolicy = createEffectiveAccessPolicy({
         accountGrantById: [[accountId, "Edit"]],
     });
 

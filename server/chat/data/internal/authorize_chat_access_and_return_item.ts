@@ -12,7 +12,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {AccessLevel, AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy, ResolvedAccessPolicy} from "~/shared/access/access_policy.js";
 import {chatPermissionDeniedErrorDisplayMessageByAccessLevel} from "~/shared/chat/chat_error_messages.js";
 import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -96,10 +96,11 @@ export async function authorizeChatAccessAndReturnItemIfPossible(
         case "Bot": {
             const chatItem = await getChatItemForAuthorization(context, chatId, options);
 
-            const accessPolicy: AccessPolicyWithoutGenerations =
+            const accessPolicy: AccessPolicy | ResolvedAccessPolicy =
                 chatItem.attributesItem.definition.type !== "Direct"
                     ? chatItem.attributesItem.definition.accessPolicy
                     : {
+                          type: "Local",
                           accountGrantById: new Map(
                               chatItem.accountItems.map(({accountId}) => [
                                   accountId,

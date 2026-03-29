@@ -1,6 +1,7 @@
 import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
+import {createAccessPolicyStoreFromReferences} from "~/client/web/access/create_access_policy_store.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {
@@ -19,11 +20,16 @@ import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
 import {
     AccessLevel,
+    AccessPolicy,
+    LocalAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
     minAccessLevel,
@@ -47,21 +53,25 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {
+    AccountId,
     DocumentCommentThreadId,
     DocumentId,
+    SiteId,
     SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
-import {nullStore} from "~/shared/store/const_store.js";
+import {ConstStore, nullStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
@@ -122,6 +132,7 @@ export function useDocumentContentEditorWebSocket(
     onClearOurPresenceState: Memo<() => void>;
     onUnclearOurPresenceState: Memo<() => void>;
     content: DocumentContentWithReferences;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
     title: string;
     accessLevel: AccessLevel;
     otherPresenceStateByConnectionId: ImmutableMap<
@@ -149,18 +160,12 @@ export function useDocumentContentEditorWebSocket(
 } {
     const {currentAccount, space} = useSpaceContext();
     const {initialDocument, documentId} = input;
+    const siteRegistry = useSiteRegistry();
 
     assert(
         !initialDocument ||
             (initialDocument.spaceId === space.id && initialDocument.id === documentId),
     );
-
-    const initialAccessLevel = !initialDocument
-        ? "Manage"
-        : getAccountAccessLevelAssumingSpaceAccess(
-              initialDocument.content.doc.attrs.accessPolicy,
-              currentAccount?.id,
-          );
 
     const context = useAppContext();
     const searchEntityRegistry = useSearchEntityRegistry();
@@ -198,7 +203,15 @@ export function useDocumentContentEditorWebSocket(
                         documentId: initialDocument.id,
                         // We perform permission checks separately in `<DocumentContentEditor>`. If we're
                         // on the client and we got to this point it means we must have access somehow.
-                        accessLevel: initialAccessLevel ?? "View",
+                        accessLevel: !initialDocument
+                            ? "Manage"
+                            : (getAccountAccessLevelAssumingSpaceAccess(
+                                  getInitialDocumentResolvedAccessPolicySnapshot(
+                                      initialDocument,
+                                      siteRegistry,
+                                  ),
+                                  currentAccount?.id,
+                              ) ?? "View"),
                         initialState: getInitialDocumentContentEditorState({
                             currentAccountId: currentAccount?.id ?? null,
                             initialVersion: initialDocument.version,
@@ -223,7 +236,15 @@ export function useDocumentContentEditorWebSocket(
                 addGlobalLoadingIndicator: (promise, indicator) =>
                     addGlobalLoadingIndicatorRef.current(promise, indicator),
                 documentId: initialDocument.id,
-                accessLevel: initialAccessLevel ?? "View",
+                accessLevel: !initialDocument
+                    ? "Manage"
+                    : (getAccountAccessLevelAssumingSpaceAccess(
+                          getInitialDocumentResolvedAccessPolicySnapshot(
+                              initialDocument,
+                              siteRegistry,
+                          ),
+                          currentAccount?.id,
+                      ) ?? "View"),
                 initialState: getInitialDocumentContentEditorState({
                     currentAccountId: currentAccount?.id ?? null,
                     initialVersion: initialDocument.version,
@@ -351,22 +372,44 @@ export function useDocumentContentEditorWebSocket(
         [persistedContent],
     );
 
-    const contentWithoutSendableStepsAccessLevel = useMemo(
-        () =>
-            getAccountAccessLevelAssumingSpaceAccess(
+    // Recomputed if the content without sendable steps's access policy was a site and
+    // the site model changed in the store.
+    const contentWithoutSendableStepsAccessLevel = useStore(
+        useMemo(
+            () =>
+                getAccessLevelStore(
+                    contentWithoutSendableSteps.attrs.accessPolicy,
+                    content.references.siteById,
+                    currentAccount?.id,
+                    siteRegistry,
+                ),
+            [
                 contentWithoutSendableSteps.attrs.accessPolicy,
+                content.references.siteById,
+                siteRegistry,
                 currentAccount?.id,
-            ),
-        [contentWithoutSendableSteps.attrs.accessPolicy, currentAccount?.id],
+            ],
+        ),
     );
 
-    const persistedContentAccessLevel = useMemo(
-        () =>
-            getAccountAccessLevelAssumingSpaceAccess(
+    // Recomputed if the persisted content's access policy was a site and the site
+    // model changed in the store.
+    const persistedContentAccessLevel = useStore(
+        useMemo(
+            () =>
+                getAccessLevelStore(
+                    persistedContent.attrs.accessPolicy,
+                    content.references.siteById,
+                    currentAccount?.id,
+                    siteRegistry,
+                ),
+            [
                 persistedContent.attrs.accessPolicy,
                 currentAccount?.id,
-            ),
-        [currentAccount?.id, persistedContent.attrs.accessPolicy],
+                content.references.siteById,
+                siteRegistry,
+            ],
+        ),
     );
 
     const acknowledgedAccessLevel = useMemo(
@@ -379,16 +422,25 @@ export function useDocumentContentEditorWebSocket(
     // level persisted in our database is what we evaluate permission checks with. But
     // it doesn't hurt to optimistically lower the permissions allowed in the UI
     // immediately upon the access policy changing.
+    const accessPolicy = useStore(
+        useMemo(
+            (): Store<ResolvedAccessPolicyWithGenerations> =>
+                createAccessPolicyStoreFromReferences(
+                    content.doc.attrs.accessPolicy,
+                    content.references.siteById,
+                    siteRegistry,
+                ),
+            [content.doc.attrs.accessPolicy, content.references.siteById, siteRegistry],
+        ),
+    );
+
     const accessLevel = useMemo(
         () =>
             minAccessLevel(
                 acknowledgedAccessLevel,
-                getAccountAccessLevelAssumingSpaceAccess(
-                    content.doc.attrs.accessPolicy,
-                    currentAccount?.id,
-                ),
+                getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
             ),
-        [acknowledgedAccessLevel, content.doc.attrs.accessPolicy, currentAccount?.id],
+        [acknowledgedAccessLevel, accessPolicy, currentAccount?.id],
     );
 
     if (accessLevel === null) {
@@ -580,6 +632,7 @@ export function useDocumentContentEditorWebSocket(
             }
         }, [clientState]),
         content,
+        accessPolicy,
         title,
         accessLevel,
         otherPresenceStateByConnectionId: state.extra.otherPresenceStateByConnectionId,
@@ -635,4 +688,50 @@ export function useDocumentContentEditorWebSocket(
         ),
         ensureCreateDocument,
     };
+}
+
+function getAccessLevelStore(
+    accessPolicy: AccessPolicy,
+    siteById: ReadonlyMap<SiteId, SitePreviewModel>,
+    currentAccountId: AccountId | undefined,
+    siteRegistry: SiteRegistry,
+): Store<AccessLevel | null> {
+    switch (accessPolicy.type) {
+        case "Local":
+            return new ConstStore(
+                getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccountId),
+            );
+        case "Site":
+            const site = assertExists(siteById.get(accessPolicy.siteId));
+            return siteRegistry
+                .getSiteStore(site)
+                .map(site =>
+                    getAccountAccessLevelAssumingSpaceAccess(site.accessPolicy, currentAccountId),
+                );
+        default:
+            throw exhaustive(accessPolicy);
+    }
+}
+
+/**
+ * This does not get a "reactive" access policy, hence the name snapshot. This gets
+ * the point-in-time access policy from the site registry (for site access
+ * policies) during a react state transition.
+ */
+function getInitialDocumentResolvedAccessPolicySnapshot(
+    document: DocumentModel,
+    siteRegistry: SiteRegistry,
+): LocalAccessPolicy {
+    const accessPolicy: AccessPolicy = document.content.doc.attrs.accessPolicy;
+    const siteById = document.content.references.siteById;
+
+    switch (accessPolicy.type) {
+        case "Local":
+            return accessPolicy;
+        case "Site": {
+            const site = siteById.get(accessPolicy.siteId);
+            assert(site, "Expected site in references");
+            return siteRegistry.getSiteStore(site).getSnapshot().accessPolicy;
+        }
+    }
 }

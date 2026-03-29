@@ -58,12 +58,14 @@ export class TestTaskCollection {
         let accessPolicy: AccessPolicy;
         if (access === "Public") {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: {level: "Manage", generation: 1},
                 urlGrant: null,
             };
         } else if (access === "Private" || access === undefined) {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,

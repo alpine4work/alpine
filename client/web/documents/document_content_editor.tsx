@@ -332,6 +332,7 @@ export function DocumentContentEditor({
         onClearOurPresenceState,
         onUnclearOurPresenceState,
         content,
+        accessPolicy,
         title,
         accessLevel,
         otherPresenceStateByConnectionId,
@@ -1837,7 +1838,7 @@ export function DocumentContentEditor({
             ? {
                   entityNoun: "document",
                   entityId: `Document:${documentId}`,
-                  accessPolicy: content.doc.attrs.accessPolicy,
+                  accessPolicy,
                   onAccessPolicyChange: (notification, accessPolicy) => {
                       onEditorStateChange(editorState.setAccessPolicy(accessPolicy, notification));
                   },

@@ -170,6 +170,7 @@ function createDummyDocumentContent(title: string): DocumentContent {
             "doc",
             {
                 accessPolicy: cast<AccessPolicy>({
+                    type: "Local",
                     accountGrantById: emptyMap,
                     defaultGrant: null,
                     urlGrant: null,

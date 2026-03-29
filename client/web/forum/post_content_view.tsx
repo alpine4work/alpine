@@ -97,6 +97,7 @@ import {
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 
 export type PostContentViewInitialScroll = {
     readonly type: "File";
@@ -110,7 +111,7 @@ export function PostContentView({
     postEditing,
     shouldShowChannel,
     isPostView,
-    isReadOnly,
+    hasCommentAccessLevel,
     initialScroll,
     jumpState,
     idBase,
@@ -130,7 +131,7 @@ export function PostContentView({
     postEditing: PostEditing;
     shouldShowChannel: boolean;
     isPostView: boolean;
-    isReadOnly: boolean;
+    hasCommentAccessLevel: Store<boolean>;
     initialScroll: PostContentViewInitialScroll | null;
     jumpState: JumpToPostRangeState | null;
     idBase: string;
@@ -155,6 +156,8 @@ export function PostContentView({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
+
+    const isReadOnly = !useStore(hasCommentAccessLevel);
 
     // Update `SearchEntityRegistry` with the post content. Now as the post content
     // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product

@@ -1,10 +1,10 @@
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
 import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 
 /**
- * Get all the `AccountId`s referenced by a task action.
+ * Get all the `AccountId`s and `SiteId`s referenced by a task action.
  *
  * Not all `AccountId`s in `TaskAction` are considered referenced. We only consider
  * `AccountId`s to be referenced if they need to render in the UI (so we need to
@@ -20,8 +20,9 @@ import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js"
  * with `unknownAccountId`. So we skip over any accounts with an unknown
  * `AccountId` in this function.
  */
-export function collectReferencedAccountIdsFromTaskAction(
+export function collectReferencedIdsFromTaskAction(
     accountIds: Set<AccountId>,
+    siteIds: Set<SiteId>,
     action: TaskActionMaybeModel,
 ) {
     switch (action.type) {
@@ -48,6 +49,12 @@ export function collectReferencedAccountIdsFromTaskAction(
                     }
                     return;
                 }
+                case "UpdateAccessPolicy": {
+                    if (action.taskAction.accessPolicy.type === "Site") {
+                        siteIds.add(action.taskAction.accessPolicy.siteId);
+                    }
+                    return;
+                }
                 case "Delete":
                 case "Undelete":
                 case "UpdateParentTaskId":
@@ -62,7 +69,6 @@ export function collectReferencedAccountIdsFromTaskAction(
                 case "UpdateDueDate":
                 case "UpdatePriority":
                 case "UpdateLayout":
-                case "UpdateAccessPolicy":
                 case "UpdateNotepadPagePosition":
                 case "UpdateAssigneeActivePosition": {
                     return;
@@ -73,12 +79,14 @@ export function collectReferencedAccountIdsFromTaskAction(
         }
         case "UpdateCollection": {
             switch (action.collectionAction.type) {
+                case "Create":
                 case "UpdateAccessPolicy": {
-                    // The client doesn't expect access policy accounts to be loaded. We'll load these
-                    // accounts when the sharing modal opens.
+                    if (action.collectionAction.accessPolicy.type === "Site") {
+                        siteIds.add(action.collectionAction.accessPolicy.siteId);
+                    }
+
                     return;
                 }
-                case "Create":
                 case "Delete":
                 case "Undelete":
                 case "UpdateName":

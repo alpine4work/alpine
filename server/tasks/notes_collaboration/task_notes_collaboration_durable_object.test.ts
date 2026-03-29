@@ -544,6 +544,7 @@ test("can backfill task note steps but can\u2019t update if you only have view a
     await task.addCollection(session1, collection);
 
     await collection.access.set(session1, {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "View"},
         urlGrant: null,

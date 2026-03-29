@@ -54,6 +54,7 @@ export function convertDirectChatToRoomChat(
 
         // Everyone in the chat continues to have manage access.
         const accessPolicy: AccessPolicy = {
+            type: "Local",
             accountGrantById: new Map(
                 chatItem.accountItems.map(({accountId}) => [
                     accountId,

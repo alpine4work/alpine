@@ -3558,6 +3558,7 @@ test("counts step count contributions for each account", async () => {
     const document = await TestDocument.create(session1, {
         body: "Starts with some content.",
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3694,6 +3695,7 @@ test("counts step count contributions for each account with alternating cache", 
     const document = await TestDocument.create(session1, {
         body: "Starts with some content.",
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3829,6 +3831,7 @@ test("authorizing document access as session actor is cached", async () => {
     const document = await TestDocument.create(session1, {
         title: "Test Document",
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3892,6 +3895,7 @@ test("authorizing document access as system actor is cached", async () => {
     const document = await TestDocument.create(session1, {
         title: "Test Document",
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3955,6 +3959,7 @@ test("authorizing document access after getting document as session actor is cac
     const document = await TestDocument.create(session1, {
         title: "Test Document",
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4204,6 +4209,7 @@ test("authorizing document access after getting document as system actor is cach
     const document = await TestDocument.create(session1, {
         title: "Test Document",
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4611,6 +4617,7 @@ test("authorization succeeds if session has access to document", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4651,6 +4658,7 @@ test("authorization succeeds at view level when session has view access to docum
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "View"}],
@@ -4699,6 +4707,7 @@ test("authorization succeeds at comment level and below when session has comment
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Comment"}],
@@ -4747,6 +4756,7 @@ test("authorization succeeds at edit level and below when session has edit acces
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Edit"}],
@@ -4795,6 +4805,7 @@ test("authorization succeeds at manage level and below when session has manage a
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Manage", generation: 1}],
@@ -4843,6 +4854,7 @@ test("authorization succeeds at view level when default grant has view access to
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "View"},
             urlGrant: null,
@@ -4888,6 +4900,7 @@ test("authorization succeeds at comment level and below when default grant has v
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Comment"},
             urlGrant: null,
@@ -4933,6 +4946,7 @@ test("authorization succeeds at edit level and below when default grant has view
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Edit"},
             urlGrant: null,
@@ -4978,6 +4992,7 @@ test("authorization succeeds at manage level and below when default grant has vi
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -5025,6 +5040,7 @@ test("authorization fails for session in another space", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -5190,6 +5206,7 @@ test("getting document with comments requires comment access level", async () =>
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Comment"}],
@@ -5635,6 +5652,7 @@ test("getting document with resolved comment thread requires comment access leve
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Comment"}],
@@ -5691,6 +5709,7 @@ test("getting document without comments requires view access level", async () =>
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Comment"}],
@@ -5848,6 +5867,7 @@ test("must have the manage access level on documents you create", async () => {
                 "doc",
                 {
                     accessPolicy: cast<AccessPolicy>({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session1.account.id, {level: "Manage", generation: 0}],
                         ]),
@@ -5868,6 +5888,7 @@ test("must have the manage access level on documents you create", async () => {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
+                            type: "Local",
                             accountGrantById: new Map([
                                 [session2.account.id, {level: "Manage", generation: 0}],
                             ]),
@@ -5889,6 +5910,7 @@ test("must have the manage access level on documents you create", async () => {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
+                            type: "Local",
                             accountGrantById: new Map([[session1.account.id, {level: "Edit"}]]),
                             defaultGrant: null,
                             urlGrant: null,
@@ -5908,6 +5930,7 @@ test("must have the manage access level on documents you create", async () => {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
+                            type: "Local",
                             accountGrantById: emptyMap,
                             defaultGrant: null,
                             urlGrant: null,
@@ -5927,6 +5950,7 @@ test("must have the manage access level on documents you create", async () => {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
+                            type: "Local",
                             accountGrantById: emptyMap,
                             defaultGrant: {level: "Edit"},
                             urlGrant: null,
@@ -5945,6 +5969,7 @@ test("must have the manage access level on documents you create", async () => {
                 "doc",
                 {
                     accessPolicy: cast<AccessPolicy>({
+                        type: "Local",
                         accountGrantById: emptyMap,
                         defaultGrant: {level: "Manage", generation: 0},
                         urlGrant: null,
@@ -5962,6 +5987,7 @@ test("must have edit access to edit a document and can change the document\u2019
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Comment"},
             urlGrant: null,
@@ -6004,12 +6030,30 @@ test("must have edit access to edit a document and can change the document\u2019
             .toJSON(),
     });
 
-    const publicAccessPolicy: AccessPolicy = {
-        accountGrantById: emptyMap,
+    const publicAccessPolicyWithAccountGrant: AccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Manage", generation: 1},
         urlGrant: null,
     };
 
+    await updateDocumentContent(session1.action(), {
+        id: document.id,
+        version: 1,
+        steps: [new DocAttrStep("accessPolicy", publicAccessPolicyWithAccountGrant)],
+        intentionallyUpdateAccessPolicy: {
+            accessPolicy: publicAccessPolicyWithAccountGrant,
+            notification: null,
+        },
+        clientId: generateId(),
+    });
+
+    const publicAccessPolicy: AccessPolicy = {
+        type: "Local",
+        accountGrantById: emptyMap,
+        defaultGrant: {level: "Manage", generation: 1},
+        urlGrant: null,
+    };
     await updateDocumentContent(session1.action(), {
         id: document.id,
         version: 1,
@@ -6019,7 +6063,7 @@ test("must have edit access to edit a document and can change the document\u2019
     });
 
     expect(massageDocument(await document.get())).toEqual({
-        version: 2,
+        version: 3,
         content: schema
             .node("doc", {accessPolicy: publicAccessPolicy}, [
                 schema.node("title", {}, []),
@@ -6030,13 +6074,13 @@ test("must have edit access to edit a document and can change the document\u2019
 
     await updateDocumentContent(session2.action(), {
         id: document.id,
-        version: 2,
+        version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("bar"))],
         clientId: generateId(),
     });
 
     expect(massageDocument(await document.get())).toEqual({
-        version: 3,
+        version: 4,
         content: schema
             .node("doc", {accessPolicy: publicAccessPolicy}, [
                 schema.node("title", {}, []),
@@ -6052,6 +6096,7 @@ test("can\u2019t update access policy unintentionally", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Comment"},
             urlGrant: null,
@@ -6095,6 +6140,7 @@ test("can\u2019t update access policy unintentionally", async () => {
     });
 
     const publicAccessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: emptyMap,
         defaultGrant: {level: "Manage", generation: 0},
         urlGrant: null,
@@ -6147,6 +6193,7 @@ test("can\u2019t update access policy with a mismatched intentional access polic
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Comment"},
             urlGrant: null,
@@ -6190,12 +6237,14 @@ test("can\u2019t update access policy with a mismatched intentional access polic
     });
 
     const publicAccessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: emptyMap,
         defaultGrant: {level: "Manage", generation: 0},
         urlGrant: null,
     };
 
     const otherAccessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
             [session2.account.id, {level: "Manage", generation: 0}],
@@ -6253,6 +6302,7 @@ test("can\u2019t update the access policy without the manage access level", asyn
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Comment"}],
@@ -6299,6 +6349,7 @@ test("can\u2019t update the access policy without the manage access level", asyn
         });
 
         const publicAccessPolicy: AccessPolicy = {
+            type: "Local",
             accountGrantById: emptyMap,
             defaultGrant: {level: "Manage", generation: 0},
             urlGrant: null,
@@ -6353,6 +6404,7 @@ test("can\u2019t update the access policy without the manage access level", asyn
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Edit"}],
@@ -6399,6 +6451,7 @@ test("can\u2019t update the access policy without the manage access level", asyn
         });
 
         const publicAccessPolicy: AccessPolicy = {
+            type: "Local",
             accountGrantById: emptyMap,
             defaultGrant: {level: "Manage", generation: 0},
             urlGrant: null,
@@ -6453,6 +6506,7 @@ test("can\u2019t update the access policy without the manage access level", asyn
 
         const document = await TestDocument.create(session2, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session2.account.id, {level: "Manage", generation: 0}],
                     [session1.account.id, {level: "Manage", generation: 1}],
@@ -6498,8 +6552,9 @@ test("can\u2019t update the access policy without the manage access level", asyn
                 .toJSON(),
         });
 
-        const publicAccessPolicy: AccessPolicy = {
-            accountGrantById: emptyMap,
+        const publicAccessPolicyWithAccountGrant: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[session2.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
         };
@@ -6507,13 +6562,31 @@ test("can\u2019t update the access policy without the manage access level", asyn
         await updateDocumentContent(session2.action(), {
             id: document.id,
             version: 1,
+            steps: [new DocAttrStep("accessPolicy", publicAccessPolicyWithAccountGrant)],
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: publicAccessPolicyWithAccountGrant,
+                notification: null,
+            },
+            clientId: generateId(),
+        });
+
+        const publicAccessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: emptyMap,
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        };
+
+        await updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 2,
             steps: [new DocAttrStep("accessPolicy", publicAccessPolicy)],
             intentionallyUpdateAccessPolicy: {accessPolicy: publicAccessPolicy, notification: null},
             clientId: generateId(),
         });
 
         expect(massageDocument(await document.get())).toEqual({
-            version: 2,
+            version: 3,
             content: schema
                 .node("doc", {accessPolicy: publicAccessPolicy}, [
                     schema.node("title", {}, []),
@@ -6524,13 +6597,13 @@ test("can\u2019t update the access policy without the manage access level", asyn
 
         await updateDocumentContent(session3.action(), {
             id: document.id,
-            version: 2,
+            version: 3,
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         });
 
         expect(massageDocument(await document.get())).toEqual({
-            version: 3,
+            version: 4,
             content: schema
                 .node("doc", {accessPolicy: publicAccessPolicy}, [
                     schema.node("title", {}, []),
@@ -6547,6 +6620,7 @@ test("can\u2019t update the access policy without the manage access level even i
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Edit"}],
@@ -6642,6 +6716,7 @@ test("can handle conflicting access policy changes", async () => {
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 1}],
@@ -6652,6 +6727,7 @@ test("can handle conflicting access policy changes", async () => {
         });
 
         const accessPolicy = await document.access.get();
+        assert(accessPolicy.type === "Local", "Expected local access policy");
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -6770,6 +6846,7 @@ test("can handle conflicting access policy changes", async () => {
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 1}],
@@ -6780,6 +6857,7 @@ test("can handle conflicting access policy changes", async () => {
         });
 
         const accessPolicy = await document.access.get();
+        assert(accessPolicy.type === "Local", "Expected local access policy");
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -6898,6 +6976,7 @@ test("can handle conflicting access policy changes within a single update call",
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 1}],
@@ -6908,6 +6987,7 @@ test("can handle conflicting access policy changes within a single update call",
         });
 
         const accessPolicy = await document.access.get();
+        assert(accessPolicy.type === "Local", "Expected local access policy");
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -7011,6 +7091,7 @@ test("can handle conflicting access policy changes within a single update call",
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 1}],
@@ -7021,6 +7102,7 @@ test("can handle conflicting access policy changes within a single update call",
         });
 
         const accessPolicy = await document.access.get();
+        assert(accessPolicy.type === "Local", "Expected local access policy");
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -7120,6 +7202,7 @@ test("can handle conflicting access policy changes within a single update call",
 
         const document = await TestDocument.create(session1, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 1}],
@@ -7130,6 +7213,7 @@ test("can handle conflicting access policy changes within a single update call",
         });
 
         const accessPolicy = await document.access.get();
+        assert(accessPolicy.type === "Local", "Expected local access policy");
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -7227,6 +7311,7 @@ test("can\u2019t revoke access from account with a lower manage generation", asy
     const [aliceSession, bobSession, carolSession] = await space.createSessions(3);
 
     const accessPolicy1: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[aliceSession.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -7242,6 +7327,7 @@ test("can\u2019t revoke access from account with a lower manage generation", asy
     });
 
     const invalidAccessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [aliceSession.account.id, {level: "Manage", generation: 0}],
             [bobSession.account.id, {level: "Manage", generation: 0}],
@@ -7251,6 +7337,7 @@ test("can\u2019t revoke access from account with a lower manage generation", asy
     };
 
     const accessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [aliceSession.account.id, {level: "Manage", generation: 0}],
             [bobSession.account.id, {level: "Manage", generation: 1}],
@@ -7313,12 +7400,14 @@ test("can\u2019t revoke access from account with a lower manage generation", asy
     });
 
     const invalidAccessPolicy3: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[bobSession.account.id, {level: "Manage", generation: 1}]]),
         defaultGrant: null,
         urlGrant: null,
     };
 
     const accessPolicy3: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [aliceSession.account.id, {level: "Manage", generation: 0}],
             [bobSession.account.id, {level: "Manage", generation: 1}],
@@ -7397,6 +7486,7 @@ test("can\u2019t revoke access from account with a lower manage generation", asy
     });
 
     const invalidAccessPolicy4a: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [bobSession.account.id, {level: "Manage", generation: 1}],
             [carolSession.account.id, {level: "Manage", generation: 2}],
@@ -7406,6 +7496,7 @@ test("can\u2019t revoke access from account with a lower manage generation", asy
     };
 
     const invalidAccessPolicy4b: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [aliceSession.account.id, {level: "Manage", generation: 0}],
             [carolSession.account.id, {level: "Manage", generation: 2}],
@@ -7455,6 +7546,7 @@ test("can\u2019t create document with bot account", async () => {
     const {id: botAccountId} = await bot.instantiate(adminSession);
 
     const accessPolicy1: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [session.account.id, {level: "Manage", generation: 0}],
             [botAccountId, {level: "Manage", generation: 1}],
@@ -7485,6 +7577,7 @@ test("can\u2019t share document with bot account", async () => {
     const {id: botAccountId} = await bot.instantiate(adminSession);
 
     const accessPolicy1: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -7500,6 +7593,7 @@ test("can\u2019t share document with bot account", async () => {
     });
 
     const invalidAccessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([
             [session.account.id, {level: "Manage", generation: 0}],
             [botAccountId, {level: "Manage", generation: 1}],
@@ -7539,6 +7633,7 @@ test("getting a document with optional comments strips comments if the actor onl
 
     const document = await TestDocument.create(editorSession, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [editorSession.account.id, {level: "Manage", generation: 0}],
                 [commenterSession.account.id, {level: "Comment"}],
@@ -8761,6 +8856,7 @@ test("can make updates to comment marks with comment access", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Comment"},
             urlGrant: null,
@@ -9041,6 +9137,7 @@ test("can add comment mark to `file` node in a document with comment access leve
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Comment"}],
@@ -12182,6 +12279,7 @@ describe("Comments", () => {
             const otherSession = await otherSpace.createSession();
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -12236,6 +12334,7 @@ describe("Comments", () => {
             const [session1, session2] = await space.createSessions(2);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -12306,6 +12405,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -12563,6 +12663,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -12736,6 +12837,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -12871,6 +12973,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -12998,6 +13101,7 @@ describe("Comments", () => {
             const otherSession = await otherSpace.createSession();
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -13133,6 +13237,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -13334,6 +13439,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -13517,6 +13623,7 @@ describe("Comments", () => {
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -13701,6 +13808,7 @@ describe("Comments", () => {
                 await space.createSessions(7);
             const document = await TestDocument.create(session1, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -17942,6 +18050,7 @@ describe("idempotence", () => {
         const document = await TestDocument.create(session1);
 
         const newAccessPolicy: AccessPolicy = {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Manage", generation: 1}],
@@ -17967,6 +18076,7 @@ describe("idempotence", () => {
         };
 
         expect((await document.get()).content.doc.attrs.accessPolicy).toEqual({
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -18016,6 +18126,7 @@ describe("idempotence", () => {
         const document = await TestDocument.create(session1, {body: "test"});
 
         const newAccessPolicy: AccessPolicy = {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Manage", generation: 1}],
@@ -18041,6 +18152,7 @@ describe("idempotence", () => {
         };
 
         expect((await document.get()).content.doc.attrs.accessPolicy).toEqual({
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -18622,6 +18734,7 @@ describe("duplicateDocument", () => {
                 "doc",
                 {
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
@@ -18667,6 +18780,7 @@ describe("duplicateDocument", () => {
                 "doc",
                 {
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
@@ -18719,6 +18833,7 @@ describe("duplicateDocument", () => {
                 "doc",
                 {
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
@@ -18764,6 +18879,7 @@ describe("duplicateDocument", () => {
                 "doc",
                 {
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
@@ -18810,6 +18926,7 @@ describe("duplicateDocument", () => {
                 "doc",
                 {
                     accessPolicy: {
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
@@ -18869,6 +18986,7 @@ describe("duplicateDocument", () => {
 
         const newDocument = await getDocument(session2.action(), newDocumentId);
         const newAccessPolicy = newDocument.content.doc.attrs.accessPolicy as AccessPolicy;
+        assert(newAccessPolicy.type === "Local", "Expected local access policy");
 
         // The duplicator should have Manage access
         expect(newAccessPolicy.accountGrantById.get(session2.account.id)?.level).toBe("Manage");

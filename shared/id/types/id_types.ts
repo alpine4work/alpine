@@ -52,3 +52,4 @@ export type BotWebhookEventId = NominalChronologicalIdType<"BotWebhookEvent">;
 export type RpcCallId = NominalRandomIdType<"RpcCall">;
 export type CursorCloudAgentId = NominalRandomIdType<"CursorCloudAgent">;
 export type NotionImportId = NominalRandomIdType<"NotionImport">;
+export type SiteId = NominalRandomIdType<"Site">;

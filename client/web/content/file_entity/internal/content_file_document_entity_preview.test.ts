@@ -49,6 +49,7 @@ function createBasicFileDocumentEntityModel({
             "doc",
             {
                 accessPolicy: cast<AccessPolicy>({
+                    type: "Local",
                     accountGrantById: emptyMap,
                     defaultGrant: null,
                     urlGrant: null,

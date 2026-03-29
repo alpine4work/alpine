@@ -6,6 +6,7 @@ import {
     ChatId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -50,7 +51,8 @@ export type SearchEntityDependencyId =
     | `Task:${TaskId}:Authorization`
     | `Task:${TaskId}:Title`
     | `TaskCollection:${TaskCollectionId}:Authorization`
-    | `TaskCollection:${TaskCollectionId}:Name`;
+    | `TaskCollection:${TaskCollectionId}:Name`
+    | `Site:${SiteId}:Preview`;
 
 type RemoveSearchEntityDependencyIdAttribute<Id> =
     Id extends `${infer IdType}:${infer IdPayload}:${string}` ? `${IdType}:${IdPayload}` : Id;

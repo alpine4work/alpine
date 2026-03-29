@@ -313,12 +313,38 @@ export async function loader({params, context: unauthenticatedContext, request}:
             backfillTask.type === "Authorized" && backfillTask.task.id === taskId,
     );
 
+    const accessPolicy = backfillTask?.task.getAccessPolicy();
+
+    let hasUrlGrant: boolean;
+    if (!accessPolicy) {
+        hasUrlGrant = false;
+    } else {
+        switch (accessPolicy.type) {
+            case "Local": {
+                hasUrlGrant = accessPolicy.urlGrant !== null;
+                break;
+            }
+            case "Site": {
+                const siteResult = loadQueriesOutput?.updateEvent.referencedSites.find(
+                    site => site.ok && site.value.id === accessPolicy.siteId,
+                );
+
+                assert(siteResult && siteResult.ok);
+                hasUrlGrant =
+                    assertExists(siteResult.value).initialData.accessPolicy.urlGrant !== null;
+                break;
+            }
+            default:
+                throw exhaustive(accessPolicy);
+        }
+    }
+
     return jsonWithSchema(
         LoaderSchema,
         {
             key: generateId(),
             initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
-            hasUrlGrant: backfillTask?.task.getAccessPolicy().urlGrant !== null,
+            hasUrlGrant,
             childrenGridViewExpansionState:
                 loadQueriesOutput?.queries[0]?.gridViewExpansionState ?? null,
             notesVersion: task?.notes.version ?? 0,

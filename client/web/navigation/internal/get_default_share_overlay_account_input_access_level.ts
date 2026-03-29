@@ -1,6 +1,7 @@
 import {
     AccessLevel,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicy,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -18,8 +19,8 @@ import {AccountId} from "~/shared/id/types/id_types.js";
  * person who shouldn't be allowed share access.
  */
 export function getDefaultShareOverlyAccountInputAccessLevel(
-    accessPolicy: AccessPolicyWithoutGenerations,
-    inheritedAccessPolicy: AccessPolicyWithoutGenerations | null,
+    accessPolicy: ResolvedAccessPolicy,
+    inheritedAccessPolicy: EffectiveAccessPolicy | null,
 ): AccessLevel {
     const defaultGrantLevel = maxAccessLevel(
         accessPolicy.defaultGrant?.level ?? null,

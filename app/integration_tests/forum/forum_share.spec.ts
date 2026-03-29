@@ -1451,7 +1451,9 @@ test("anonymous users can view channel shared with url grant", async ({
 
     await expect(async () => {
         const preview = await getChannelPreview(space.systemAction(), channel.id);
-        expect(preview.accessPolicy.urlGrant?.level).toBe("View");
+        expect(
+            preview.accessPolicy.data.type === "Local" && preview.accessPolicy.data.urlGrant?.level,
+        ).toBe("View");
     }).toPass({timeout: 5000});
 
     // Doesn't update in realtime so keep reloading until we can see the channel.
@@ -1564,7 +1566,9 @@ test("anonymous users can view mentions in shared channel posts and comments", a
 
     await expect(async () => {
         const preview = await getChannelPreview(space.systemAction(), channel.id);
-        expect(preview.accessPolicy.urlGrant?.level).toBe("View");
+        expect(
+            preview.accessPolicy.data.type === "Local" && preview.accessPolicy.data.urlGrant?.level,
+        ).toBe("View");
     }).toPass({timeout: 5000});
 
     await page.goto(`/s/${space.id}/channels/${channel.id}`);

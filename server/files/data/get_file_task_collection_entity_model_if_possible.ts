@@ -63,7 +63,12 @@ export async function getFileTaskCollectionEntityModelIfPossible(
                     name: new LabelStringRegister("Mock collection", zeroHybridLogicalTime),
                     color: new TaskCollectionColorRegister(null, zeroHybridLogicalTime),
                     accessPolicy: new AccessPolicyRegister(
-                        {accountGrantById: emptyMap, defaultGrant: null, urlGrant: null},
+                        {
+                            type: "Local",
+                            accountGrantById: emptyMap,
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
                         zeroHybridLogicalTime,
                     ),
                 }),

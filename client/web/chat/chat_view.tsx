@@ -1,5 +1,6 @@
 import {ArrowLeft, ArrowSquareOut, Bell, BellRinging, Link as LinkIcon} from "phosphor-react";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/web/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/web/accounts/account_short_name.js";
@@ -25,6 +26,7 @@ import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_aft
 import {Tooltip, defaultTooltipOffset} from "~/client/web/design/tooltip.js";
 import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
@@ -37,6 +39,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/web/styles/chat_shared_styles.js";
 import {postFauxInputCreateButtonInnerButtonHeight} from "~/client/web/styles/forum_shared_styles.js";
@@ -49,6 +52,7 @@ import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {WebSocketClientProcedures} from "~/client/web/web_socket/web_socket_client.js";
 import {
     AccessLevel,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -74,6 +78,8 @@ import {
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
@@ -108,6 +114,7 @@ export function ChatView({
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
     const searchEntityRegistry = useSearchEntityRegistry();
+    const siteRegistry = useSiteRegistry();
 
     const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChannelRealtimeService",
@@ -171,6 +178,25 @@ export function ChatView({
         );
     }, [chat.definition, chat.id, chat.version, searchEntityRegistry]);
 
+    const chatAccessPolicy = useStore(
+        useMemo((): Store<
+            {type: "Direct"} | {type: "Room"; accessPolicy: ResolvedAccessPolicyWithGenerations}
+        > => {
+            switch (chat.definition.type) {
+                case "Direct": {
+                    return new ConstStore({type: "Direct"});
+                }
+                case "Room": {
+                    return createAccessPolicyStore(chat.definition.accessPolicy, siteRegistry).map(
+                        accessPolicy => ({type: "Room", accessPolicy}),
+                    );
+                }
+                default:
+                    throw exhaustive(chat.definition);
+            }
+        }, [chat.definition, siteRegistry]),
+    );
+
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar
@@ -180,9 +206,11 @@ export function ChatView({
                 procedures={procedures}
                 initialIsSubscribed={initialIsSubscribed}
                 initialIsFavorite={initialIsFavorite}
+                chatAccessPolicy={chatAccessPolicy}
             />
             <ChatMessagingView
                 chat={chat}
+                chatAccessPolicy={chatAccessPolicy}
                 isConnected={isConnected}
                 procedures={procedures}
                 subscribeToEvents={subscribeToEvents}
@@ -204,6 +232,7 @@ function ChatViewTopBar({
     procedures,
     initialIsSubscribed,
     initialIsFavorite,
+    chatAccessPolicy,
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
@@ -211,6 +240,9 @@ function ChatViewTopBar({
     procedures: ChatRealtimeWebSocketClientProcedures;
     initialIsSubscribed: boolean | null;
     initialIsFavorite: boolean;
+    chatAccessPolicy:
+        | {type: "Direct"}
+        | {type: "Room"; accessPolicy: ResolvedAccessPolicyWithGenerations};
 }) {
     const context = useAppContext();
     const platform = usePlatform();
@@ -221,19 +253,19 @@ function ChatViewTopBar({
     const navigationState = useNavigationState();
 
     const accessLevel = useMemo((): AccessLevel | null => {
-        switch (chat.definition.type) {
+        switch (chatAccessPolicy.type) {
             case "Direct":
                 return "Manage";
             case "Room": {
                 return getAccountAccessLevelAssumingSpaceAccess(
-                    chat.definition.accessPolicy,
+                    chatAccessPolicy.accessPolicy,
                     currentAccount?.id,
                 );
             }
             default:
-                throw exhaustive(chat.definition);
+                throw exhaustive(chatAccessPolicy);
         }
-    }, [chat.definition, currentAccount?.id]);
+    }, [chatAccessPolicy, currentAccount?.id]);
 
     if (accessLevel === null) {
         throw new PermissionDeniedError("Current account lost access to chat", {
@@ -438,9 +470,9 @@ function ChatViewTopBar({
                             getAllAccounts={() => otherChatAccounts}
                         />
                     )}
-                    {chat.definition.type === "Room" &&
-                        !chat.definition.accessPolicy.defaultGrant &&
-                        !chat.definition.accessPolicy.urlGrant && (
+                    {chatAccessPolicy.type === "Room" &&
+                        !chatAccessPolicy.accessPolicy.defaultGrant &&
+                        !chatAccessPolicy.accessPolicy.urlGrant && (
                             // We add a lock icon to private chats because unlike other entities we don't show
                             // the share switch in the navigation bar. Since knowing whether a chat is public
                             // or private is important context, we include a lock to make sure you know the
@@ -604,14 +636,14 @@ function ChatViewTopBar({
                                 : defaultTooltipOffset
                         }
                         shareButton={
-                            chat.definition.type === "Room" &&
+                            chatAccessPolicy.type === "Room" &&
                             // Don't render the share button if the account doesn't have space access. They
                             // won't be allowed to see the names of accounts in the share dialog.
                             currentAccount
                                 ? {
                                       entityNoun: "chat",
                                       entityId: `Chat:${chat.id}`,
-                                      accessPolicy: chat.definition.accessPolicy,
+                                      accessPolicy: chatAccessPolicy.accessPolicy,
                                       accessLevelText: {
                                           // The text is "can chat" (and not "can message") so that when you press the alt
                                           // key to show "can chat (can't share)" it doesn't grow the dropdown width.
@@ -813,6 +845,7 @@ function ChatMessagingView({
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
     initiallyFocus,
+    chatAccessPolicy,
 }: {
     chat: ChatModel;
     isConnected: boolean;
@@ -824,6 +857,9 @@ function ChatMessagingView({
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
     initiallyFocus?: boolean;
+    chatAccessPolicy:
+        | {type: "Direct"}
+        | {type: "Room"; accessPolicy: ResolvedAccessPolicyWithGenerations};
 }) {
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
@@ -883,7 +919,7 @@ function ChatMessagingView({
                 [chat.id],
             )}
             accessPolicy={
-                chat.definition.type === "Room" ? chat.definition.accessPolicy : undefined
+                chatAccessPolicy.type === "Room" ? chatAccessPolicy.accessPolicy : undefined
             }
             getMessagesFromStart={useCallback(
                 input => getChatMessagesFromStart(context, {...input, chatId: chat.id}),

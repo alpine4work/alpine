@@ -53,15 +53,16 @@ export async function updateRoomChatAccessPolicy(
 
             const oldHasAddedFeedCandidateEntry =
                 attributesItem.definition.hasAddedFeedCandidateEntry;
-            const newHasAddedFeedCandidateEntry =
-                oldHasAddedFeedCandidateEntry || !!accessPolicy.defaultGrant;
 
-            await validateAccessPolicyUpdateForServer(
+            const newEffectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
                 context,
                 attributesItem.spaceId,
                 attributesItem.definition.accessPolicy,
                 accessPolicy,
             );
+
+            const newHasAddedFeedCandidateEntry =
+                oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
 
             const newAttributesItem = await ChatTable.directlyUpdateItem(context, {
                 ...attributesItem,

@@ -28,7 +28,10 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
+import {
+    ServerMinimalActionContext,
+    ServerMinimalBotActionContext,
+} from "~/server/context/server_minimal_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TaskContextModuleActionTransaction} from "~/server/context/task_context_module_base.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
@@ -40,7 +43,8 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {
     AccessLevel,
     AccessPolicy,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    LocalAccessPolicy,
 } from "~/shared/access/access_policy.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
@@ -70,12 +74,14 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 // HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when we
 // try to reference `ContextModuleBase` in `createInjectionContextModule()` if
@@ -97,7 +103,7 @@ export type ChatInjection = {
         context: ServerMinimalBotActionContext,
         chatId: ChatId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicyWithoutGenerations>;
+    ): Promise<EffectiveAccessPolicy>;
 
     authorizeChatAccessIfPossible(
         context: ServerActionContext,
@@ -158,7 +164,7 @@ export type DocumentsInjection = {
         context: ServerMinimalBotActionContext,
         documentId: DocumentId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicy>;
+    ): Promise<EffectiveAccessPolicy>;
 };
 
 export type ForumInjectionContextModule = InstanceType<typeof ForumInjectionContextModule>;
@@ -205,7 +211,7 @@ export type ForumInjection = {
         context: ServerMinimalBotActionContext,
         postId: PostId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicy>;
+    ): Promise<EffectiveAccessPolicy>;
 };
 
 export type NotificationsInjectionContextModule = InstanceType<
@@ -331,6 +337,24 @@ export type SearchInjection = {
     ): Promise<unknown>;
 };
 
+export type SitesInjectionContextModule = InstanceType<typeof SitesInjectionContextModule>;
+export const SitesInjectionContextModule = createInjectionContextModule<SitesInjection>({
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization: true,
+    getSitePreview: true,
+});
+export type SitesInjection = {
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization(
+        context: ServerMinimalActionContext,
+        siteId: SiteId,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<LocalAccessPolicy>;
+    getSitePreview(
+        context: ServerMinimalActionContext,
+        siteId: SiteId,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<SitePreviewModel>;
+};
+
 export type SpacesInjectionContextModule = InstanceType<typeof SpacesInjectionContextModule>;
 
 export const SpacesInjectionContextModule = createInjectionContextModule<SpacesInjection>({
@@ -394,7 +418,7 @@ export type TasksInjection = {
         context: ServerMinimalBotActionContext,
         taskId: TaskId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicyWithoutGenerations>;
+    ): Promise<EffectiveAccessPolicy>;
 };
 
 type ArrayTail<T extends ReadonlyArray<unknown>> = T extends readonly [any, ...infer U] ? U : [];

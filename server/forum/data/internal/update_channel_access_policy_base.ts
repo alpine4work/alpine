@@ -1,3 +1,4 @@
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {
     ServerActionContext,
@@ -18,6 +19,7 @@ import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtim
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
@@ -64,12 +66,15 @@ export async function updateChannelAccessPolicyBase(
                 });
                 if (!channelItem) throw createChannelNotFoundError(channelId);
 
-                await authorizeChannelItemAccess(context, channelItem, "Manage");
-
                 const oldAccessPolicy = channelItem.accessPolicy;
                 const newAccessPolicy = updateAccessPolicy(oldAccessPolicy);
 
-                await validateAccessPolicyUpdateForServer(
+                const [, oldEffectiveAccessPolicy] = await runAllPromises([
+                    authorizeChannelItemAccess(context, channelItem, "Manage"),
+                    intoEffectiveAccessPolicy(context, oldAccessPolicy),
+                ]);
+
+                const newEffectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
                     context,
                     channelItem.spaceId,
                     oldAccessPolicy,
@@ -78,10 +83,14 @@ export async function updateChannelAccessPolicyBase(
 
                 const oldHasAddedFeedCandidateEntry = channelItem.hasAddedFeedCandidateEntry;
                 const newHasAddedFeedCandidateEntry =
-                    oldHasAddedFeedCandidateEntry || !!newAccessPolicy.defaultGrant;
+                    oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
 
-                const oldAccountIdsWithGrant = Array.from(oldAccessPolicy.accountGrantById.keys());
-                const newAccountIdsWithGrant = Array.from(newAccessPolicy.accountGrantById.keys());
+                const oldAccountIdsWithGrant = Array.from(
+                    oldEffectiveAccessPolicy.accountGrantById.keys(),
+                );
+                const newAccountIdsWithGrant = Array.from(
+                    newEffectiveAccessPolicy.accountGrantById.keys(),
+                );
 
                 // If we're adding or removing accounts to the `accessPolicy` then we also want to
                 // update the `Contributors` item. The `Contributors` item includes the granted

@@ -4,6 +4,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -39,6 +40,7 @@ export const allMigrations: {
             chatInjection: ChatInjectionContextModule;
             documentsInjection: DocumentsInjectionContextModule;
             forumInjection: ForumInjectionContextModule;
+            sitesInjection: SitesInjectionContextModule;
             tasksInjection: TasksInjectionContextModule;
         }>,
         options: {segmentIndex: number; totalSegmentCount: number},

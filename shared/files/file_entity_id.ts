@@ -1,4 +1,4 @@
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -12,6 +12,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -28,7 +29,8 @@ export type FileEntityId =
     | `TaskCollection:${TaskCollectionId}`
     | `Channel:${ChannelId}`
     | `Chat:${ChatId}`
-    | `Post:${PostId}`;
+    | `Post:${PostId}`
+    | `Site:${SiteId}`;
 
 export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
 
@@ -52,7 +54,8 @@ export type FileEntityIdObject =
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
     | {readonly type: "Channel"; readonly channelId: ChannelId}
     | {readonly type: "Chat"; readonly chatId: ChatId}
-    | {readonly type: "Post"; readonly postId: PostId};
+    | {readonly type: "Post"; readonly postId: PostId}
+    | {readonly type: "Site"; readonly siteId: SiteId};
 
 /**
  * Parse a `FileEntityId` into a more convenient to use object format.
@@ -94,6 +97,7 @@ const fileEntityIdTestMap: GetFileEntityIdTestMapType<FileEntityId> = {
     Channel: isId,
     Chat: isId,
     Post: isId,
+    Site: isId,
 };
 
 assertEqualTypes<keyof typeof fileEntityIdTestMap, FileEntityIdObject["type"]>();
@@ -148,6 +152,9 @@ export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): s
             return `/s/${spaceId}/chat/${idObject.chatId}`;
         case "Post":
             return `/s/${spaceId}/posts/${idObject.postId}`;
+        case "Site":
+            // TODO(#sites): Implement site file entity id path.
+            throw new UnimplementedError("Site file entities aren\u2019t implemented");
         default:
             throw exhaustive(idObject);
     }

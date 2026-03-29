@@ -49,6 +49,7 @@ test("room chat subscribers include implicit and explicit subscriptions", async 
         spaceId: space.id,
         name: "General",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[sessionA.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Edit"},
             urlGrant: null,

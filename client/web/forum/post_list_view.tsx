@@ -37,6 +37,7 @@ import {
 import {usePostEditing} from "~/client/web/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/web/forum/internal/post_mobile_editor.js";
 import {resolveFlexSizes} from "~/client/web/forum/internal/resolve_flex_sizes.js";
+import {PostCommentView} from "~/client/web/forum/post_comment_view.js";
 import {
     PostContentView,
     PostContentViewInitialScroll,
@@ -56,7 +57,6 @@ import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_loa
 import {useMessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/web/messaging/message_list_message_shimmer.js";
-import {MessageView} from "~/client/web/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/web/messaging/messaging_typing_indicators.js";
 import {MessagingViewPointerToolbar} from "~/client/web/messaging/messaging_view_pointer_toolbar.js";
 import {
@@ -79,6 +79,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {PostShimmer} from "~/client/web/shimmer/post_shimmer.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {feedCreateSectionMinHeight} from "~/client/web/styles/feed_shared_styles.js";
 import {
@@ -104,6 +105,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {
+    LocalAccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -138,6 +140,8 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -387,6 +391,7 @@ function PostListView(
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
+    const siteRegistry = useSiteRegistry();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -1085,16 +1090,26 @@ function PostListView(
 
     const hasCommentAccessLevelByChannel = useMemo(
         () =>
-            new DefaultWeakMap<ChannelPreviewModel, boolean>(channel =>
-                hasAccessLevel(
-                    getAccountAccessLevelAssumingSpaceAccess(
-                        channel.accessPolicy,
-                        currentAccount?.id,
-                    ),
-                    "Comment",
-                ),
-            ),
-        [currentAccount?.id],
+            new DefaultWeakMap<ChannelPreviewModel, Store<boolean>>(channel => {
+                function hasCommentAccessLevel(accessPolicy: LocalAccessPolicy) {
+                    return hasAccessLevel(
+                        getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+                        "Comment",
+                    );
+                }
+
+                switch (channel.accessPolicy.data.type) {
+                    case "Local":
+                        return new ConstStore(hasCommentAccessLevel(channel.accessPolicy.data));
+                    case "Site":
+                        return siteRegistry
+                            .getSiteStore(assertExists(channel.accessPolicy.data.site))
+                            .map(site => hasCommentAccessLevel(site.accessPolicy));
+                    default:
+                        throw exhaustive(channel.accessPolicy.data);
+                }
+            }),
+        [currentAccount?.id, siteRegistry],
     );
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -1224,14 +1239,12 @@ function PostListView(
                                         // Use the `accessPolicy` from `header` if applicable. Because we update the
                                         // `channel` in `header` in realtime. Whereas the `channel` preview in the
                                         // `PostModel` might not update in realtime.
-                                        isReadOnly={
-                                            !hasCommentAccessLevelByChannel.getOrSetDefault(
-                                                header?.type === "Channel" &&
-                                                    header.channel.id === item.post.channel.id
-                                                    ? header.channel
-                                                    : item.post.channel,
-                                            )
-                                        }
+                                        hasCommentAccessLevel={hasCommentAccessLevelByChannel.getOrSetDefault(
+                                            header?.type === "Channel" &&
+                                                header.channel.id === item.post.channel.id
+                                                ? header.channel
+                                                : item.post.channel,
+                                        )}
                                         initialScroll={
                                             index === 0 || (hasHeader && index === 1)
                                                 ? (initialScrollForFirstPost ?? null)
@@ -1328,34 +1341,16 @@ function PostListView(
                         const messageNode =
                             item.type === "LoadedPostComment" ||
                             item.type === "OptimisticPostComment" ? (
-                                <MessageView
-                                    messageNoun="comment"
-                                    message={item.postComment}
+                                <PostCommentView
+                                    item={item}
+                                    previousComment={previousComment}
+                                    nextComment={nextComment}
                                     fileAttachmentTarget={fileAttachmentTargetByPostId.get(
                                         item.post.id,
                                     )}
-                                    isFirstMessage={item.postCommentIndex === 0}
-                                    isLastMessage={isLastComment}
-                                    previousMessage={previousComment}
-                                    nextMessage={nextComment}
-                                    messages={item.postComments}
+                                    isLastComment={isLastComment}
                                     messageEditing={messageEditing}
-                                    // Pass in the post so we can render the `PostRange` content in replies.
-                                    postRoom={item.post}
-                                    jumpState={
-                                        item.postComment &&
-                                        !item.postComment.isOptimistic &&
-                                        jumpToMessageRangeState &&
-                                        jumpToMessageRangeState.options.startIndex <=
-                                            item.postComment.index &&
-                                        item.postComment.index <=
-                                            jumpToMessageRangeState.options.endIndex
-                                            ? jumpToMessageRangeState.messages[
-                                                  item.postComment.index -
-                                                      jumpToMessageRangeState.options.startIndex
-                                              ]!
-                                            : null
-                                    }
+                                    jumpToMessageRangeState={jumpToMessageRangeState}
                                     onJumpToMessageRange={jumpToMessageRange}
                                     onJumpToPostRange={jumpToPostRange}
                                     onReplyToMessage={() => {
@@ -1389,32 +1384,23 @@ function PostListView(
                                     disableExpensiveFeaturesDuringScroll={
                                         disableExpensiveFeaturesDuringScroll
                                     }
-                                    getMessageUrl={messageIndex => {
-                                        return new URL(
-                                            `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
-                                            window.location.href,
-                                        );
-                                    }}
                                     onSetMessageReaction={handleSetMessageReaction}
                                     onDeleteMessageReaction={handleDeleteMessageReaction}
-                                    onUpdateMessagesOptimistically={
+                                    onUpdatePostCommentsOptimistically={
                                         onUpdatePostCommentsOptimistically
                                     }
-                                    roomDisplayedCreatedTime={item.post.createdTime}
                                     // You shouldn't be able to edit, delete, or reply to comments if you don't have
                                     // `Comment` access on the post.
                                     //
                                     // Use the `accessPolicy` from `header` if applicable. Because we update the
                                     // `channel` in `header` in realtime. Whereas the `channel` preview in the
                                     // `PostModel` might not update in realtime.
-                                    isReadOnly={
-                                        !hasCommentAccessLevelByChannel.getOrSetDefault(
-                                            header?.type === "Channel" &&
-                                                header.channel.id === item.post.channel.id
-                                                ? header.channel
-                                                : item.post.channel,
-                                        )
-                                    }
+                                    hasCommentAccessLevel={hasCommentAccessLevelByChannel.getOrSetDefault(
+                                        header?.type === "Channel" &&
+                                            header.channel.id === item.post.channel.id
+                                            ? header.channel
+                                            : item.post.channel,
+                                    )}
                                 />
                             ) : (
                                 <MessageListMessageShimmer

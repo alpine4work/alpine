@@ -2,6 +2,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
@@ -41,6 +42,7 @@ export type ServerMinimalActionContextModules = {
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
     tasksInjection: TasksInjectionContextModule;
+    sitesInjection: SitesInjectionContextModule;
 };
 
 export type ServerMinimalSystemActionContext = Context<ServerMinimalSystemActionContextModules>;

@@ -1,4 +1,7 @@
-import {TaskClientStoreCollectionEntry} from "~/client/web/tasks/core/task_client_store.js";
+import {
+    TaskClientReadonlyStore,
+    TaskClientStoreCollectionEntry,
+} from "~/client/web/tasks/core/task_client_store.js";
 import {getAccountAccessLevelAssumingSpaceAccess} from "~/shared/access/access_policy.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -16,6 +19,7 @@ import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 export function createDisplayTaskCollectionsStore({
     currentAccount,
     referencesSubscription,
+    store,
     collections,
 }: {
     currentAccount: AccountModel | null;
@@ -24,6 +28,7 @@ export function createDisplayTaskCollectionsStore({
             collectionId: TaskCollectionId,
         ): Store<TaskClientStoreCollectionEntry>;
     };
+    store: TaskClientReadonlyStore;
     collections: TaskCollectionSet;
 }): Store<ReadonlyArray<TaskCollectionModel>> {
     return computeStore(get => {
@@ -38,9 +43,8 @@ export function createDisplayTaskCollectionsStore({
             // user changes the collection's access policy it may take a minute or so before
             // the server sends an update marking the collection as unauthorized. We want to
             // hide the collection immediately, though.
-            const accessPolicy = collectionEntry.collection.getAccessPolicy();
             const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
-                accessPolicy,
+                get(store.getCollectionResolvedAccessPolicy(collectionEntry.collection)),
                 currentAccount?.id,
             );
             if (accessLevel === null) return;

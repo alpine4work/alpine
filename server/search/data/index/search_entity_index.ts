@@ -143,6 +143,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnimplementedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -531,11 +532,12 @@ const minEmbeddingChunkTokenCount = 35;
  */
 function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]): boolean {
     switch (type) {
-        // Always index channels and task collections since they're created rarely and will
-        // usually be meaningful even if their search entity doesn't immediately have much
-        // content.
+        // Always index channels, task collections, and sites since they're created rarely
+        // and will usually be meaningful even if their search entity doesn't immediately
+        // have much content.
         case "Chat":
         case "Channel":
+        case "Site":
         case "TaskCollection":
             return true;
 
@@ -2730,6 +2732,9 @@ async function fallbackGetSearchEntityBaseIfPossible(
                 media: {type: "Account", account: postAuthor},
             };
         }
+        case "Site":
+            // TODO(#sites): Implement site search entity support
+            throw new UnimplementedError("Site search entities are not supported");
         default:
             throw exhaustive(entityIdObject);
     }

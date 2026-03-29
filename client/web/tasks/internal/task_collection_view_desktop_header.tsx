@@ -22,12 +22,13 @@ import {
 } from "~/client/web/tasks/internal/task_collection_view_desktop_header_name.js";
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryViewCustomizationBar} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
@@ -100,16 +101,22 @@ function TaskCollectionViewDesktopHeader(
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
 
-    const accessPolicy: AccessPolicy = useMemo(
-        () =>
-            collection?.getAccessPolicy() ?? {
-                accountGrantById: currentAccount
-                    ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
-                    : emptyMap,
-                defaultGrant: null,
-                urlGrant: null,
-            },
-        [collection, currentAccount],
+    const accessPolicy = useStore(
+        useMemo(
+            () =>
+                collectionSubscription?.store && collection
+                    ? collectionSubscription.store.getCollectionResolvedAccessPolicy(collection)
+                    : new ConstStore<ResolvedAccessPolicyWithGenerations>({
+                          type: "Local",
+                          accountGrantById: currentAccount
+                              ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
+                              : emptyMap,
+                          defaultGrant: null,
+                          urlGrant: null,
+                      }),
+
+            [currentAccount, collectionSubscription?.store, collection],
+        ),
     );
 
     return (

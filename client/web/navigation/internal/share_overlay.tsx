@@ -45,13 +45,14 @@ import {
 } from "~/client/web/styles/styles.js";
 import {
     AccessLevel,
-    AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyAccountGrantWithoutGeneration,
     AccessPolicyDefaultGrant,
     AccessPolicyDefaultGrantWithoutGeneration,
     AccessPolicyUrlGrant,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     allAccessLevels,
     hasAccessLevel,
     maxAccessLevel,
@@ -112,9 +113,9 @@ function ShareOverlay(
         entityNoun: string;
         entityId: FileEntityId;
         accessLevelText: Record<AccessLevel, string>;
-        accessPolicy: AccessPolicy;
+        accessPolicy: ResolvedAccessPolicyWithGenerations;
         inherited?: {
-            accessPolicy: AccessPolicyWithoutGenerations;
+            accessPolicy: EffectiveAccessPolicy;
             explanations: InheritedAccessPolicyExplanations;
         };
         onAccessPolicyChange: (
@@ -450,9 +451,9 @@ export function ShareOverlayAccountGrantsScrollView({
     maxHeight,
 }: {
     accessLevelText: Record<AccessLevel, string>;
-    accountGrantById: AccessPolicy["accountGrantById"];
+    accountGrantById: ResolvedAccessPolicyWithGenerations["accountGrantById"];
     inherited: {
-        accountGrantById: AccessPolicyWithoutGenerations["accountGrantById"];
+        accountGrantById: ResolvedAccessPolicy["accountGrantById"];
         explanations: InheritedAccessPolicyExplanations;
     } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
@@ -504,9 +505,9 @@ export function ShareOverlayAccountGrants({
     withHiddenCommentAccessLevel,
 }: {
     accessLevelText: Record<AccessLevel, string>;
-    accountGrantById: AccessPolicy["accountGrantById"];
+    accountGrantById: ResolvedAccessPolicyWithGenerations["accountGrantById"];
     inherited: {
-        accountGrantById: AccessPolicyWithoutGenerations["accountGrantById"];
+        accountGrantById: ResolvedAccessPolicy["accountGrantById"];
         explanations: InheritedAccessPolicyExplanations;
     } | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
@@ -533,7 +534,7 @@ export function ShareOverlayAccountGrants({
     // grants keyed by the initial access policy we saw for the grant.
     const accountGrantByIdByInitialEffectiveAccessLevel = useStateWithDependenciesWithoutDispatch<
         ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrantWithoutGeneration>>,
-        [AccessPolicy["accountGrantById"]]
+        [ResolvedAccessPolicyWithGenerations["accountGrantById"]]
     >(
         ([accountGrantById], previousAccountGrantByIdByInitialEffectiveAccessLevel) => {
             const accountGrantByIdByInitialEffectiveAccessLevel = new Map<

@@ -1,4 +1,6 @@
+import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_policy_model_for_server.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {FileChatEntityModel} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {ErrorBase} from "~/shared/error/error.js";
@@ -37,13 +39,16 @@ export async function getFileChatEntityModelIfPossible(
                     : {
                           type: "Room",
                           name: chat.definition.name,
-                          isPrivate:
-                              !chat.definition.accessPolicy.defaultGrant &&
-                              !chat.definition.accessPolicy.urlGrant,
+                          isPrivate: isChatRoomPrivate(chat.definition.accessPolicy),
                       },
             isSubscribed: initialIsSubscribed ?? false,
             messages: initialMessages,
             otherReferencedMessages: initialOtherReferencedMessages,
         },
     };
+
+    function isChatRoomPrivate(accessPolicy: AccessPolicyModel): boolean {
+        const resolvedAccessPolicy = unwrapAccessPolicyModelForServer(accessPolicy);
+        return !resolvedAccessPolicy.defaultGrant && !resolvedAccessPolicy.urlGrant;
+    }
 }

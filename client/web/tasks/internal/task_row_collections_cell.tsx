@@ -191,10 +191,11 @@ function TaskRowCollectionsCell(
                     ? createDisplayTaskCollectionsStore({
                           currentAccount,
                           referencesSubscription: query,
+                          store,
                           collections,
                       })
                     : emptyArrayStore,
-            [collections, currentAccount, query],
+            [collections, currentAccount, query, store],
         ),
     );
 

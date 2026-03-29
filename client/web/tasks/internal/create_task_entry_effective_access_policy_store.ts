@@ -3,8 +3,7 @@ import {TaskClientStoreTaskEntry} from "~/client/web/tasks/core/task_client_stor
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
 import {
     AccessLevel,
-    AccessPolicy,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -14,13 +13,15 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export function createTaskEffectiveAccessPolicyStore(
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntryStore: Store<TaskClientStoreTaskEntry>,
 ): Store<{
-    effectiveAccessPolicy: AccessPolicyWithoutGenerations;
-    inheritedAccessPolicy: AccessPolicyWithoutGenerations;
+    effectiveAccessPolicy: EffectiveAccessPolicy;
+    inheritedAccessPolicy: EffectiveAccessPolicy;
 }> {
     const store = computeStore(get => {
         const taskEntry = get(taskEntryStore);
@@ -65,14 +66,17 @@ export function createTaskEffectiveAccessLevelStore(
  * A task's effective access policy is the union of the task's own access policy,
  * the task's collections access policy, and the task's parent effective access
  * policy.
+ *
+ * Note: This computes a merged Regular access policy. Site access policies are
+ * resolved by extracting the grants from the underlying entities.
  */
 function computeTaskEffectiveAccessPolicy(
     get: <Value>(store: Store<Value>) => Value,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntry: TaskClientStoreTaskEntry,
 ): {
-    effectiveAccessPolicy: AccessPolicyWithoutGenerations;
-    inheritedAccessPolicy: AccessPolicyWithoutGenerations;
+    effectiveAccessPolicy: EffectiveAccessPolicy;
+    inheritedAccessPolicy: EffectiveAccessPolicy;
 } {
     const accountGrantById = new Map<AccountId, {level: AccessLevel}>();
     let defaultGrant: {level: AccessLevel} | null = null;
@@ -108,7 +112,7 @@ function computeTaskEffectiveAccessPolicy(
         }
     }
 
-    function addGrants(accessPolicy: AccessPolicy) {
+    function addGrants(accessPolicy: EffectiveAccessPolicy) {
         for (const [accountId, accountGrant] of accessPolicy.accountGrantById) {
             addAccountGrant(accountId, accountGrant.level);
         }
@@ -127,7 +131,7 @@ function computeTaskEffectiveAccessPolicy(
         if (taskEntry.task.isDeleted()) return;
 
         if (!isRoot) {
-            addGrants(taskEntry.task.getAccessPolicy());
+            addGrants(getTaskAccessPolicy(taskEntry.task));
         }
 
         const assignee = taskEntry.task.getAssignee();
@@ -157,7 +161,7 @@ function computeTaskEffectiveAccessPolicy(
             if (!collectionEntry.collection) continue;
             if (collectionEntry.collection.isDeleted()) continue;
 
-            addGrants(collectionEntry.collection.getAccessPolicy());
+            addGrants(getCollectionAccessPolicy(collectionEntry.collection));
         }
     }
 
@@ -165,7 +169,7 @@ function computeTaskEffectiveAccessPolicy(
 
     // Clone the access policy into `inheritedAccessPolicy` before we add grants from
     // the root task to get the effective access policy.
-    const inheritedAccessPolicy: AccessPolicyWithoutGenerations = {
+    const inheritedAccessPolicy: EffectiveAccessPolicy = {
         accountGrantById: new Map(
             mapIterable(accountGrantById, ([id, accountGrant]) => [
                 id,
@@ -185,7 +189,7 @@ function computeTaskEffectiveAccessPolicy(
     };
 
     if (taskEntry.task && !taskEntry.task.isDeleted()) {
-        addGrants(taskEntry.task.getAccessPolicy());
+        addGrants(getTaskAccessPolicy(taskEntry.task));
     }
 
     return {
@@ -196,4 +200,12 @@ function computeTaskEffectiveAccessPolicy(
             urlGrant,
         },
     };
+
+    function getTaskAccessPolicy(task: TaskModel): EffectiveAccessPolicy {
+        return get(referencesSubscription.store.getTaskImmediateResolvedAccessPolicy(task));
+    }
+
+    function getCollectionAccessPolicy(collection: TaskCollectionModel): EffectiveAccessPolicy {
+        return get(referencesSubscription.store.getCollectionResolvedAccessPolicy(collection));
+    }
 }

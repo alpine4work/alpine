@@ -86,13 +86,14 @@ import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {
     AccountId,
+    SiteId,
     SpaceId,
     TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {
     TaskAction,
     TaskUpdateAccountNameAction,
@@ -763,8 +764,14 @@ class TaskActionTransactionIndexState {
         } = {},
     ) {
         const referencedAccountIds = new Set<AccountId>();
+        // NOTE(ifitzsimmons, 2026-03-12): we don't currently use these referenced site ids
+        // anywhere. If we want to support task sorting by site, we'll need to collect them
+        // here and implement similar machinery as we do for
+        // `TaskIndexSortableAccountType`. However, that's a lot of complexity and
+        // engineering effort for a feature that I'm not sure our users will actually want.
+        const referencedSiteIds = new Set<SiteId>();
         for (const action of actions) {
-            collectReferencedAccountIdsFromTaskAction(referencedAccountIds, action);
+            collectReferencedIdsFromTaskAction(referencedAccountIds, referencedSiteIds, action);
         }
 
         // Load all referenced accounts so we can inline them in our OpenSearch index.

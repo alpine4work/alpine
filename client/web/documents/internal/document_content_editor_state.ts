@@ -17,6 +17,7 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     MessageContent,
@@ -259,7 +260,7 @@ export function reduceDocumentContentEditorState(
         } else {
             let isLastTransactionIntentionallyUpdatingAccessPolicy = false;
             let lastIntentionallyUpdateAccessPolicy: {
-                accessPolicy: AccessPolicy;
+                accessPolicy: AccessPolicyModel;
                 notification: ShareNotification | null;
             } | null = null;
 
@@ -277,7 +278,7 @@ export function reduceDocumentContentEditorState(
                     } | null = transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
 
                     const intentionallyUpdateAccessPolicy: {
-                        accessPolicy: AccessPolicy;
+                        accessPolicy: AccessPolicyModel;
                         notification: ShareNotification | null;
                     } | null =
                         transaction.getMeta(intentionallyUpdateContentAccessPolicyMetaKey) ?? null;

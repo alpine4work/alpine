@@ -7,7 +7,10 @@ import {ShareSwitchBase} from "~/client/web/navigation/share_switch_base.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {AccessPolicy, AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
+import {
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
+} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -20,9 +23,9 @@ export function ShareSwitch({
     isReadOnly,
 }: {
     entityNoun: string;
-    accessPolicy: AccessPolicy;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
     inherited?: {
-        accessPolicy: AccessPolicyWithoutGenerations;
+        accessPolicy: EffectiveAccessPolicy;
         explanations: InheritedAccessPolicyExplanations;
     };
     onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => MaybePromise<void>;
@@ -63,14 +66,21 @@ export function ShareSwitch({
     // the switch and then it doesn't move for a beat will feel weird.
     const onAccessPolicyChange = (action: AccessPolicyAction) => {
         if (!currentAccount) return;
+        // We can't modify a site's policy through a Site's entity.
+        if (accessPolicy.type !== "Local") return;
 
         const promise = onAccessPolicyChangeFromProps(action);
 
         if (!promise) return;
 
-        setAccessPolicyOptimistically(promise, accessPolicy =>
-            reduceAccessPolicy(currentAccount.id, accessPolicy, action),
-        );
+        setAccessPolicyOptimistically(promise, accessPolicy => {
+            // TODO(#sites): For now, we cannot modify a site's policy directly through one of
+            // its entities. We might eventually expose a button to modify the site's policy if
+            // the current user has Manage access on the site or we may figure out how to
+            // better consolidate a single share UX when looking at an entity within a site.
+            assert(accessPolicy.type === "Local");
+            return reduceAccessPolicy(currentAccount.id, accessPolicy, action);
+        });
 
         addGlobalLoadingIndicator(promise, {type: "Saving"});
 
@@ -89,6 +99,13 @@ export function ShareSwitch({
             ? ("Buildings" as const)
             : ("Lock" as const);
 
+    if (accessPolicy.type === "Site") {
+        // NOTE(ifitzsimons, 2026-03-07): This should be enforced upstream, but we assert
+        // here to make it super clear that the share switch is read-only when looking at a
+        // site entity.
+        assert(isReadOnly);
+    }
+
     return (
         <>
             <ShareSwitchBase
@@ -99,7 +116,7 @@ export function ShareSwitch({
                     if (inherited?.accessPolicy.urlGrant || inherited?.accessPolicy.defaultGrant) {
                         // We can't delete inherited default grants or URL grants since they're not set on
                         // our current entity but rather some referenced entity (e.g. a task collection or
-                        // parent task). Let the user know this.
+                        // parent task or a Site document). Let the user know this.
                         setShowCanNotDeleteInheritedDefaultGrantOrUrlGrantDialog(true);
                         return;
                     }

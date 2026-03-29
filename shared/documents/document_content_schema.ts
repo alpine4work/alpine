@@ -1,7 +1,11 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {
+    AccessPolicy,
+    AccessPolicySchema,
+    LocalAccessPolicy,
+} from "~/shared/access/access_policy.js";
 import {
     ContentSchemaListItemIndentSchema,
     clampListItemIndentation,
@@ -279,7 +283,8 @@ export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProse
  * catastrophic if you treat a private document as public to the space which is why
  * we label this variable as "dangerous".
  */
-export const dangerousLegacyDefaultDocumentAccessPolicy: AccessPolicy = {
+export const dangerousLegacyDefaultDocumentAccessPolicy: LocalAccessPolicy = {
+    type: "Local",
     accountGrantById: emptyMap,
     defaultGrant: {level: "Manage", generation: 0},
     urlGrant: null,
@@ -373,6 +378,7 @@ export function assertDocumentContent(node: Node): DocumentContent {
 
 export function createSimpleDocumentContent(creatorId: AccountId, text: string): DocumentContent {
     const accessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -406,6 +412,7 @@ export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
 export function createEmptyDocumentContent(creatorId: AccountId) {
     const accessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,

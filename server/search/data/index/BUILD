@@ -82,6 +82,7 @@ ts_project(
         "//server/opensearch",
         "//server/search/core",
         "//server/search/data/table",
+        "//server/sites/data",
         "//server/spaces",
         "//server/tasks/data",
         "//server/tokens",

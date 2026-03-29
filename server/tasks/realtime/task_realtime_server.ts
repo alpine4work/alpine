@@ -42,12 +42,13 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
     AccountId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -306,9 +307,19 @@ export class TaskRealtimeServer {
                 );
 
                 const referencedAccountIds = new Set<AccountId>();
+                // NOTE(ifitzsimmons, 2026-03-12): we don't currently use these referenced site ids
+                // anywhere. The reason we collect Account IDs is to put them into
+                // `TaskRealtimeActionHistorySpaceSegment.actionReferencedAccountById` in order to
+                // compute `TaskQuerySortCursor`s. We don't currently plan on sorting by site, so
+                // there's no need to collect the `SitePreviewModel`s of the referenced sites.
+                const referencedSiteIds = new Set<SiteId>();
                 for (const actionTransaction of actionTransactions) {
                     for (const action of actionTransaction.actions) {
-                        collectReferencedAccountIdsFromTaskAction(referencedAccountIds, action);
+                        collectReferencedIdsFromTaskAction(
+                            referencedAccountIds,
+                            referencedSiteIds,
+                            action,
+                        );
                     }
                 }
 
@@ -435,8 +446,14 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, actionTransaction.spaceId);
 
         const referencedAccountIds = new Set<AccountId>();
+        // NOTE(ifitzsimmons, 2026-03-12): we don't currently use these referenced site ids
+        // anywhere. The reason we collect Account IDs is to put them into
+        // `TaskRealtimeActionHistorySpaceSegment.actionReferencedAccountById` in order to
+        // compute `TaskQuerySortCursor`s. We don't currently plan on sorting by site, so
+        // there's no need to collect the `SitePreviewModel`s of the referenced sites.
+        const referencedSiteIds = new Set<SiteId>();
         for (const action of actionTransaction.actions) {
-            collectReferencedAccountIdsFromTaskAction(referencedAccountIds, action);
+            collectReferencedIdsFromTaskAction(referencedAccountIds, referencedSiteIds, action);
         }
 
         const referencedAccounts = await runAllPromises(

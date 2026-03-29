@@ -9,7 +9,7 @@ import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -141,6 +141,10 @@ export async function getFileEntityIfPossible(
                     },
                 }),
             };
+        }
+        case "Site": {
+            // TODO(#sites): Implement site file entity model.
+            throw new UnimplementedError("Site file entities aren\u2019t implemented");
         }
         default:
             throw exhaustive(entityIdObject);

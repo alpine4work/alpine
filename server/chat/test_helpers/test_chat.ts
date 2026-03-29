@@ -115,12 +115,14 @@ export class TestChat extends TestMessageRoomBase {
         let accessPolicy: AccessPolicy;
         if (access === "Public" || access === undefined) {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: {level: "Manage", generation: 1},
                 urlGrant: null,
             };
         } else if (access === "Private") {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,

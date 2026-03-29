@@ -69,11 +69,14 @@ export async function loader({context: unauthenticatedContext, request, params}:
         try {
             const sessionContext = context.actor.authorizeSession();
 
+            // TODO(#sites): We probably want to add a search param if the chat room is being
+            // directly added to a site (create within site).
             const chat = await createRoomChat(sessionContext, {
                 spaceId,
                 chatId,
                 name: createSearchParam,
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [sessionContext.actor.getAccountId(), {level: "Manage", generation: 0}],
                     ]),

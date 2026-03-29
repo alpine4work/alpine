@@ -40,6 +40,7 @@ ts_project(
         "//server/documents/data",
         "//server/forum/data",
         "//server/node",
+        "//server/sites/data",
         "//server/tasks/data",
         "//server/tasks/router",
         "//server/tokens",

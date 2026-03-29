@@ -6,8 +6,10 @@ import {
     AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyUrlGrant,
+    LocalAccessPolicy,
 } from "~/shared/access/access_policy.js";
 import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
@@ -32,7 +34,7 @@ export class TestAccessPolicy {
         session: TestSpaceSession,
         account: AccountId | TestAccount | TestSession,
         level: AccessLevel = "Manage",
-    ): Promise<AccessPolicy> {
+    ): Promise<LocalAccessPolicy> {
         const accountId: AccountId =
             typeof account === "string"
                 ? account
@@ -43,6 +45,12 @@ export class TestAccessPolicy {
                     : account;
 
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const oldAccountGrant = oldAccessPolicy.accountGrantById.get(accountId);
 
@@ -70,8 +78,14 @@ export class TestAccessPolicy {
         session: TestSpaceSession,
         accounts: Iterable<AccountId | TestAccount | TestSession>,
         level: AccessLevel = "Manage",
-    ): Promise<AccessPolicy> {
+    ): Promise<LocalAccessPolicy> {
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const accountGrantById = new Map<
             AccountId,
@@ -106,7 +120,7 @@ export class TestAccessPolicy {
     public async revoke(
         session: TestSpaceSession,
         account: AccountId | TestAccount | TestSession,
-    ): Promise<AccessPolicy> {
+    ): Promise<LocalAccessPolicy> {
         const accountId: AccountId =
             typeof account === "string"
                 ? account
@@ -117,6 +131,12 @@ export class TestAccessPolicy {
                     : account;
 
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
             type: "DeleteAccountGrant",
@@ -131,8 +151,14 @@ export class TestAccessPolicy {
     public async grantDefault(
         session: TestSpaceSession,
         level: AccessLevel = "Manage",
-    ): Promise<AccessPolicy> {
+    ): Promise<LocalAccessPolicy> {
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const newAccessPolicy = reduceAccessPolicy(
             session.account.id,
@@ -153,8 +179,14 @@ export class TestAccessPolicy {
         return newAccessPolicy;
     }
 
-    public async revokeDefault(session: TestSpaceSession): Promise<AccessPolicy> {
+    public async revokeDefault(session: TestSpaceSession): Promise<LocalAccessPolicy> {
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
             type: "DeleteDefaultGrant",
@@ -168,8 +200,14 @@ export class TestAccessPolicy {
     public async grantUrl(
         session: TestSpaceSession,
         level: AccessPolicyUrlGrant["level"] = "View",
-    ): Promise<AccessPolicy> {
+    ): Promise<LocalAccessPolicy> {
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const newAccessPolicy = reduceAccessPolicy(
             session.account.id,
@@ -190,8 +228,14 @@ export class TestAccessPolicy {
         return newAccessPolicy;
     }
 
-    public async revokeUrl(session: TestSpaceSession): Promise<AccessPolicy> {
+    public async revokeUrl(session: TestSpaceSession): Promise<LocalAccessPolicy> {
         const oldAccessPolicy = await this.get();
+
+        if (oldAccessPolicy.type === "Site") {
+            throw new FailedPreconditionError(
+                "Can\u2019t use `TestAccessPolicy` to modify the access policy of an entity in a site",
+            );
+        }
 
         const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
             type: "DeleteUrlGrant",

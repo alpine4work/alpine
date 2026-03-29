@@ -11,6 +11,7 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -154,9 +155,18 @@ const testCaseByEntityType: Record<
             };
         },
     },
+    Site: {
+        create: async () => {
+            // TODO(#sites): Implement tests
+            throw new UnimplementedError("Site mention test case not implemented");
+        },
+    },
 };
 
 for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
+    // TODO(#sites): Implement tests for sites
+    if (entityType === "Site") continue;
+
     test(quote`can render and update ${entityType}`, async ({context: browserContext, page}) => {
         const space = await TestSpace.create(context, {name: "Test Space"});
         const session = await space.createSession();

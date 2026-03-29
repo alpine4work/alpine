@@ -1,4 +1,4 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
@@ -18,7 +18,7 @@ export const ChatModelDefinitionSchema = Schema.union({
     Room: Schema.object({
         type: Schema.value("Room"),
         name: LabelStringSchema,
-        accessPolicy: AccessPolicySchema,
+        accessPolicy: AccessPolicyModel.schema,
         previewAccounts: Schema.array(AccountModel.schema).minLength(1).maxLength(2),
     }),
 });

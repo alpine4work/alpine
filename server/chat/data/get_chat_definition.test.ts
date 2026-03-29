@@ -52,6 +52,7 @@ test("getChatDefinition enforces room chat access policies", async () => {
         spaceId: space.id,
         name: "Leadership",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[sessionA.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
             urlGrant: null,
@@ -104,6 +105,7 @@ test("getChatDefinition allows bots to access room chats within scope", async ()
         spaceId: space.id,
         name: "General",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [sessionA.account.id, {level: "Manage", generation: 0}],
                 [sessionB.account.id, {level: "Manage", generation: 0}],
@@ -152,6 +154,7 @@ test("getChatDefinition rejects bots with too many accounts in scope for room ch
         spaceId: space.id,
         name: "Leadership",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [sessionA.account.id, {level: "Manage", generation: 0}],
                 [sessionB.account.id, {level: "Manage", generation: 0}],
