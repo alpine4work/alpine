@@ -1,7 +1,9 @@
+import type React from "react";
 import {startTransition, useMemo, useOptimistic, useState} from "react";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 
@@ -19,6 +21,7 @@ export type DatabaseGridViewFieldEditing = {
 };
 
 export type DatabaseGridViewFieldWithEditing = DatabaseGridViewField & {
+    readonly columnStyle: React.CSSProperties;
     readonly editing: DatabaseGridViewFieldEditing | null;
 };
 
@@ -117,7 +120,17 @@ export function useGridViewFields({
     });
 
     const baseFields: ReadonlyArray<DatabaseGridViewFieldWithEditing> = useMemo(
-        () => optimisticFields.map(field => ({...field, editing: null})),
+        () =>
+            optimisticFields.map(field => {
+                const widthRem = `${field.width / remPxBySpacingScale.small}rem`;
+                const columnStyle: React.CSSProperties = {
+                    width: widthRem,
+                    minWidth: widthRem,
+                    maxWidth: widthRem,
+                    marginRight: -1,
+                };
+                return {...field, columnStyle, editing: null};
+            }),
         [optimisticFields],
     );
 
@@ -131,7 +144,8 @@ export function useGridViewFields({
                     field.id === fieldId ? {...field, name: editingState.value, editing} : field,
                 );
             }
-            case "adding":
+            case "adding": {
+                const widthRem = `${200 / remPxBySpacingScale.small}rem`;
                 return [
                     ...baseFields,
                     {
@@ -139,9 +153,16 @@ export function useGridViewFields({
                         name: editingState.value,
                         columnName: "__pending__",
                         width: 200,
+                        columnStyle: {
+                            width: widthRem,
+                            minWidth: widthRem,
+                            maxWidth: widthRem,
+                            marginRight: -1,
+                        },
                         editing,
                     },
                 ];
+            }
         }
     }, [baseFields, editingState, editing]);
 

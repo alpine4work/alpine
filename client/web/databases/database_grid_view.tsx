@@ -31,6 +31,8 @@ import {
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import type {Spacing} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {
     DatabaseFieldId,
@@ -40,6 +42,7 @@ import type {
 } from "~/shared/id/types/id_types.js";
 
 const alwaysRenderHeader: ReadonlyArray<number> = [0];
+const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
 
 // -- Selection state ----------------------------------------------------------
 
@@ -195,7 +198,7 @@ export function DatabaseGridView({
                 if (index === 0) {
                     return {
                         key: "header",
-                        minHeight: 32,
+                        minHeight: spacing[gridRowHeight],
                         zIndex: "10",
                         withManualLayout: true,
                         render({ref, offset, shouldRenderWithRelativePositioning}) {
@@ -213,25 +216,22 @@ export function DatabaseGridView({
                                               }
                                     }
                                 >
-                                    <div
+                                    <Box
                                         ref={ref}
-                                        style={{
-                                            position: shouldRenderWithRelativePositioning
+                                        minHeight={gridRowHeight}
+                                        position={
+                                            shouldRenderWithRelativePositioning
                                                 ? "relative"
-                                                : "sticky",
-                                            top: shouldRenderWithRelativePositioning
-                                                ? undefined
-                                                : 0,
-                                            minHeight: 32,
-                                            zIndex: 2,
-                                        }}
+                                                : "sticky"
+                                        }
+                                        zIndex="20"
                                     >
                                         <DatabaseGridViewHeaderRow
                                             fields={gridFields.fields}
                                             onStartAddingField={gridFields.startAddingField}
                                             onStartEditingField={gridFields.startEditingField}
                                         />
-                                    </div>
+                                    </Box>
                                 </div>
                             );
                         },
@@ -242,7 +242,7 @@ export function DatabaseGridView({
                 if (needsMore && index === rowCount + 1) {
                     return {
                         key: "load-more",
-                        minHeight: 32,
+                        minHeight: spacing[gridRowHeight],
                         node: <DatabaseGridViewLoadMoreSentinel query={query} />,
                     };
                 }
@@ -252,7 +252,7 @@ export function DatabaseGridView({
                 const rowId = row._id as DatabaseRowId;
                 return {
                     key: rowId,
-                    minHeight: 32,
+                    minHeight: spacing[gridRowHeight],
                     node: (
                         <DatabaseGridViewDataRow
                             fields={gridFields.fields}
@@ -285,7 +285,7 @@ export function DatabaseGridView({
                 <VirtualizedScrollView
                     ref={scrollViewRef}
                     itemCount={itemCount}
-                    bufferedItemHeight={32}
+                    bufferedItemHeight={spacing[gridRowHeight]}
                     renderItem={renderItem}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderHeader}
                 />
@@ -388,12 +388,7 @@ function DatabaseGridViewHeaderCell({
             fontStyle="truncate-semi-bold"
             padding={editing ? undefined : "2"}
             textAlign="left"
-            style={{
-                width: field.width,
-                minWidth: field.width,
-                maxWidth: field.width,
-                marginRight: -1,
-            }}
+            style={field.columnStyle}
             onDoubleClick={() => onStartEditingField(field.id)}
         >
             {editing ? (
@@ -537,12 +532,9 @@ function DatabaseGridViewCell({
                 color="grey-100"
                 border={shouldShowBorder ? "theme-40-const" : "transparent"}
                 style={{
-                    width: field.width,
-                    minWidth: field.width,
-                    maxWidth: field.width,
+                    ...field.columnStyle,
                     marginTop: isFirstRow ? undefined : -1,
                     marginBottom: -1,
-                    marginRight: -1,
                     ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
                 }}
                 onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
