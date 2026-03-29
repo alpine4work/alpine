@@ -604,9 +604,14 @@ export function applyContentDuplicationVariableValues(
                                 // Don't replace an empty text value. Not setting values is the same as a noop.
                                 if (trimmedValueText.length === 0) break;
 
-                                // Convert our plain mark representation to ProseMirror marks
-                                const marks = value.marks.map(mark => {
+                                // Convert our plain mark representation to ProseMirror marks.
+                                const marks = filterMapArray(value.marks, mark => {
                                     const markType = assertExists(schema.marks[mark.type]);
+
+                                    // Some textblocks (for example `codeBlockLine`) disallow marks such as `code`, so
+                                    // we ignore unsupported marks instead of creating invalid content.
+                                    if (!node.type.allowsMarkType(markType)) return undefined;
+
                                     if (mark.type === "highlight") {
                                         return markType.create({color: mark.color});
                                     }

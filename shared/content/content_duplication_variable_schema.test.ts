@@ -836,6 +836,42 @@ describe("applyContentDuplicationValues", () => {
         expect(codeLine.textContent).toBe("run npm install");
     });
 
+    test("replaces variable in code block when value includes code mark", () => {
+        const doc = createTestDocument([
+            {
+                type: "codeBlock",
+                attrs: {language: "json"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [
+                            {
+                                type: "text",
+                                text: "        \u201CS\u201D: \u201C{{createdTime}}\u201D",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]);
+
+        const values: ContentDuplicationVariableValues = new Map([
+            [
+                "createdTime",
+                {type: "Text", text: "2026-03-18T17:44:32.805Z", marks: [{type: "code"}]},
+            ],
+        ]);
+
+        const result = applyContentDuplicationVariableValues(doc, values);
+
+        const codeBlock = result.child(1);
+        const codeLine = codeBlock.child(0);
+        expect(codeLine.textContent).toBe(
+            "        \u201CS\u201D: \u201C2026-03-18T17:44:32.805Z\u201D",
+        );
+        expect(codeLine.marks).toHaveLength(0);
+    });
+
     test("preserves document structure when replacing", () => {
         const doc = createTestDocument([
             {
