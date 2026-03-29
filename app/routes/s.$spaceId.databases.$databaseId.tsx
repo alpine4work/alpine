@@ -50,7 +50,6 @@ const LoaderSchema = Schema.object({
     ),
 });
 
-export {LoaderSchema as DatabaseLoaderSchema};
 
 export const meta = createMetaFunction(LoaderSchema, ({data}) => [{title: data.databaseName}]);
 

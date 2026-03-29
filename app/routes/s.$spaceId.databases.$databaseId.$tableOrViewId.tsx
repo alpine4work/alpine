@@ -28,7 +28,6 @@ const LoaderSchema = Schema.object({
     }),
 });
 
-export {LoaderSchema as ViewLoaderSchema};
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
