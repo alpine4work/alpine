@@ -12,6 +12,11 @@ import {
 } from "react";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import {
+    type DatabaseGridViewField,
+    type DatabaseGridViewFieldWithEditing,
+    useGridViewFields,
+} from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
@@ -25,20 +30,12 @@ import {
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
-
-type DatabaseGridViewField = {
-    readonly id: DatabaseFieldId;
-    readonly name: string;
-    readonly columnName: string;
-    readonly width: number;
-};
 
 const alwaysRenderHeader: ReadonlyArray<number> = [0];
 
@@ -114,53 +111,26 @@ export function DatabaseGridView({
     fields: ReadonlyArray<DatabaseGridViewField>;
     rows: ReadonlyArray<unknown>;
 }) {
-    const conn = useDatabaseConnection();
     const rows = rawRows as ReadonlyArray<Record<string, unknown>>;
     const [selection, dispatch] = useReducer(selectionReducer, null);
-    const [addingField, setAddingField] = useState<string | null>(null);
-    const [renamingField, setRenamingField] = useState<{
-        fieldId: DatabaseFieldId;
-        value: string;
-    } | null>(null);
 
     const scrollViewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const [optimisticFields, applyOptimisticField] = useOptimistic(
-        fields,
-        (
-            prev,
-            action:
-                | {type: "add"; field: DatabaseGridViewField}
-                | {type: "rename"; fieldId: DatabaseFieldId; name: string},
-        ) => {
-            if (action.type === "add") {
-                return prev.some(f => f.id === action.field.id) ? prev : [...prev, action.field];
-            }
-            return prev.map(f => (f.id === action.fieldId ? {...f, name: action.name} : f));
-        },
-    );
-
-    const fieldIndexById = useMemo(() => {
-        const map = new Map<DatabaseFieldId, number>();
-        for (let i = 0; i < optimisticFields.length; i++) {
-            map.set(optimisticFields[i]!.id, i);
-        }
-        return map;
-    }, [optimisticFields]);
+    const gridFields = useGridViewFields({tableId, viewId, fields});
 
     const moveSelection = useEvent((deltaRow: number, deltaField: number) => {
         if (selection == null) return;
 
         // Virtual index 0 is the header; data rows start at 1.
         const virtualIndex = scrollViewRef.current?.getIndexByKeyIfExists(selection.rowId);
-        const fieldIndex = fieldIndexById.get(selection.fieldId);
+        const fieldIndex = gridFields.fieldIndexById.get(selection.fieldId);
         if (virtualIndex == null || fieldIndex == null) return;
 
         const rowIndex = virtualIndex - 1;
         const nextRowIndex = Math.max(0, Math.min(rows.length - 1, rowIndex + deltaRow));
         const nextFieldIndex = Math.max(
             0,
-            Math.min(optimisticFields.length - 1, fieldIndex + deltaField),
+            Math.min(gridFields.fields.length - 1, fieldIndex + deltaField),
         );
 
         if (nextRowIndex === rowIndex && nextFieldIndex === fieldIndex) return;
@@ -168,7 +138,7 @@ export function DatabaseGridView({
         dispatch({
             type: "select",
             rowId: rows[nextRowIndex]!._id as DatabaseRowId,
-            fieldId: optimisticFields[nextFieldIndex]!.id,
+            fieldId: gridFields.fields[nextFieldIndex]!.id,
         });
     });
 
@@ -249,52 +219,9 @@ export function DatabaseGridView({
                                         }}
                                     >
                                         <DatabaseGridViewHeaderRow
-                                            fields={optimisticFields}
-                                            addingField={addingField}
-                                            onAddingFieldChange={setAddingField}
-                                            renamingField={renamingField}
-                                            onRenamingFieldChange={setRenamingField}
-                                            onRenameField={(
-                                                fieldId: DatabaseFieldId,
-                                                newName: string,
-                                            ) => {
-                                                if (conn == null) return;
-                                                setRenamingField(null);
-                                                startTransition(async () => {
-                                                    applyOptimisticField({
-                                                        type: "rename",
-                                                        fieldId,
-                                                        name: newName,
-                                                    });
-                                                    await conn.executeAction("renameField", {
-                                                        fieldId,
-                                                        name: newName,
-                                                    });
-                                                });
-                                            }}
-                                            onCommitField={(fieldName: string) => {
-                                                if (conn == null) return;
-                                                setAddingField(null);
-                                                startTransition(async () => {
-                                                    const fieldId =
-                                                        generateChronologicalId<DatabaseFieldId>();
-                                                    applyOptimisticField({
-                                                        type: "add",
-                                                        field: {
-                                                            id: fieldId,
-                                                            name: fieldName,
-                                                            columnName: "__pending__",
-                                                            width: 200,
-                                                        },
-                                                    });
-                                                    await conn.executeAction("createField", {
-                                                        fieldId,
-                                                        tableId,
-                                                        viewId,
-                                                        name: fieldName,
-                                                    });
-                                                });
-                                            }}
+                                            fields={gridFields.fields}
+                                            onStartAddingField={gridFields.startAddingField}
+                                            onStartEditingField={gridFields.startEditingField}
                                         />
                                     </div>
                                 </div>
@@ -311,28 +238,23 @@ export function DatabaseGridView({
                     minHeight: 32,
                     node: (
                         <DatabaseGridViewDataRow
-                            fields={optimisticFields}
+                            fields={gridFields.fields}
                             row={row}
                             rowId={rowId}
                             isFirstRow={index === 1}
                             selection={selection}
                             dispatch={dispatch}
                             moveSelection={moveSelection}
-                            showGhostCell={addingField !== null}
                         />
                     ),
                 };
             },
         [
-            optimisticFields,
+            gridFields.fields,
+            gridFields.startAddingField,
+            gridFields.startEditingField,
             rows,
             selection,
-            addingField,
-            renamingField,
-            conn,
-            tableId,
-            viewId,
-            applyOptimisticField,
             moveSelection,
         ],
     );
@@ -356,142 +278,22 @@ export function DatabaseGridView({
 
 function DatabaseGridViewHeaderRow({
     fields,
-    addingField,
-    onAddingFieldChange,
-    renamingField,
-    onRenamingFieldChange,
-    onRenameField,
-    onCommitField,
+    onStartAddingField,
+    onStartEditingField,
 }: {
-    fields: ReadonlyArray<DatabaseGridViewField>;
-    addingField: string | null;
-    onAddingFieldChange: (value: string | null) => void;
-    renamingField: {fieldId: DatabaseFieldId; value: string} | null;
-    onRenamingFieldChange: (value: {fieldId: DatabaseFieldId; value: string} | null) => void;
-    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
-    onCommitField: (name: string) => void;
+    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    onStartAddingField: () => void;
+    onStartEditingField: (fieldId: DatabaseFieldId) => void;
 }) {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const renameInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (addingField !== null) {
-            inputRef.current?.focus();
-        }
-    }, [addingField !== null]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        if (renamingField !== null) {
-            const input = renameInputRef.current;
-            if (input) {
-                input.focus();
-                input.select();
-            }
-        }
-    }, [renamingField?.fieldId]); // eslint-disable-line react-hooks/exhaustive-deps
-
     return (
         <Box display="flex" backgroundColor="grey-5">
-            {fields.map(field => {
-                const isRenaming = renamingField?.fieldId === field.id;
-                return (
-                    <Box
-                        key={field.columnName}
-                        color="grey-80"
-                        fontSize="75"
-                        fontStyle="truncate-semi-bold"
-                        padding={isRenaming ? undefined : "2"}
-                        textAlign="left"
-                        style={{
-                            width: field.width,
-                            minWidth: field.width,
-                            maxWidth: field.width,
-                            marginRight: -1,
-                        }}
-                        onDoubleClick={() =>
-                            onRenamingFieldChange({fieldId: field.id, value: field.name})
-                        }
-                    >
-                        {isRenaming ? (
-                            <input
-                                ref={renameInputRef}
-                                value={renamingField.value}
-                                onChange={e =>
-                                    onRenamingFieldChange({
-                                        fieldId: field.id,
-                                        value: e.currentTarget.value,
-                                    })
-                                }
-                                onBlur={() => {
-                                    if (renamingField.value.trim() !== "") {
-                                        onRenameField(field.id, renamingField.value.trim());
-                                    } else {
-                                        onRenamingFieldChange(null);
-                                    }
-                                }}
-                                onKeyDown={e => {
-                                    if (e.key === "Enter") {
-                                        e.preventDefault();
-                                        if (renamingField.value.trim() !== "") {
-                                            onRenameField(field.id, renamingField.value.trim());
-                                        } else {
-                                            onRenamingFieldChange(null);
-                                        }
-                                    } else if (e.key === "Escape") {
-                                        e.preventDefault();
-                                        onRenamingFieldChange(null);
-                                    }
-                                    e.stopPropagation();
-                                }}
-                                className={sprinkles({
-                                    width: "full",
-                                    padding: "2",
-                                    fontSize: "75",
-                                    color: "grey-80",
-                                })}
-                            />
-                        ) : (
-                            field.name
-                        )}
-                    </Box>
-                );
-            })}
-            {addingField !== null && (
-                <Box style={{width: 200, minWidth: 200, maxWidth: 200}}>
-                    <input
-                        ref={inputRef}
-                        value={addingField}
-                        onChange={e => onAddingFieldChange(e.currentTarget.value)}
-                        onBlur={() => {
-                            if (addingField.trim() !== "") {
-                                onCommitField(addingField.trim());
-                            } else {
-                                onAddingFieldChange(null);
-                            }
-                        }}
-                        onKeyDown={e => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                if (addingField.trim() !== "") {
-                                    onCommitField(addingField.trim());
-                                } else {
-                                    onAddingFieldChange(null);
-                                }
-                            } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                onAddingFieldChange(null);
-                            }
-                            e.stopPropagation();
-                        }}
-                        className={sprinkles({
-                            width: "full",
-                            padding: "2",
-                            fontSize: "75",
-                            color: "grey-80",
-                        })}
-                    />
-                </Box>
-            )}
+            {fields.map(field => (
+                <DatabaseGridViewHeaderCell
+                    key={field.id}
+                    field={field}
+                    onStartEditingField={onStartEditingField}
+                />
+            ))}
             <Box
                 display="flex"
                 alignItems="center"
@@ -503,11 +305,76 @@ function DatabaseGridViewHeaderRow({
                     description="Add field"
                     size="sm"
                     variant="quiet-above-grey-5-background"
-                    onPress={() => onAddingFieldChange("")}
+                    onPress={onStartAddingField}
                 >
                     <Plus />
                 </IconButton>
             </Box>
+        </Box>
+    );
+}
+
+function DatabaseGridViewHeaderCell({
+    field,
+    onStartEditingField,
+}: {
+    field: DatabaseGridViewFieldWithEditing;
+    onStartEditingField: (fieldId: DatabaseFieldId) => void;
+}) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const editing = field.editing;
+
+    useEffect(() => {
+        if (editing != null) {
+            const input = inputRef.current;
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
+    }, [editing != null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return (
+        <Box
+            color="grey-80"
+            fontSize="75"
+            fontStyle="truncate-semi-bold"
+            padding={editing ? undefined : "2"}
+            textAlign="left"
+            style={{
+                width: field.width,
+                minWidth: field.width,
+                maxWidth: field.width,
+                marginRight: -1,
+            }}
+            onDoubleClick={() => onStartEditingField(field.id)}
+        >
+            {editing ? (
+                <input
+                    ref={inputRef}
+                    value={field.name}
+                    onChange={e => editing.updateName(e.currentTarget.value)}
+                    onBlur={() => editing.commit()}
+                    onKeyDown={e => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            editing.commit();
+                        } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            editing.cancel();
+                        }
+                        e.stopPropagation();
+                    }}
+                    className={sprinkles({
+                        width: "full",
+                        padding: "2",
+                        fontSize: "75",
+                        color: "grey-80",
+                    })}
+                />
+            ) : (
+                field.name
+            )}
         </Box>
     );
 }
@@ -522,16 +389,14 @@ function DatabaseGridViewDataRow({
     selection,
     dispatch,
     moveSelection,
-    showGhostCell,
 }: {
-    fields: ReadonlyArray<DatabaseGridViewField>;
+    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     row: Record<string, unknown>;
     rowId: DatabaseRowId;
     isFirstRow: boolean;
     selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
-    showGhostCell: boolean;
 }) {
     return (
         <Box display="flex" borderBottom="grey-10">
@@ -545,7 +410,7 @@ function DatabaseGridViewDataRow({
 
                 return (
                     <DatabaseGridViewCell
-                        key={field.columnName}
+                        key={field.id}
                         field={field}
                         value={row[field.columnName]}
                         rowId={rowId}
@@ -558,9 +423,6 @@ function DatabaseGridViewDataRow({
                     />
                 );
             })}
-            {showGhostCell && (
-                <Box fontSize="75" padding="2" style={{width: 200, minWidth: 200, maxWidth: 200}} />
-            )}
         </Box>
     );
 }
@@ -578,7 +440,7 @@ function DatabaseGridViewCell({
     dispatch,
     moveSelection,
 }: {
-    field: DatabaseGridViewField;
+    field: DatabaseGridViewFieldWithEditing;
     value: unknown;
     rowId: DatabaseRowId;
     isFirstRow: boolean;
