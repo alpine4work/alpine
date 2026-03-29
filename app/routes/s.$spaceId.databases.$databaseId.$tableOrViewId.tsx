@@ -15,21 +15,16 @@ import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action
 import {getDatabase} from "~/server/databases/data/get_database.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {
-    type DatabaseActionInput,
-    type DatabaseActionOutput,
-    type LoaderDatabaseActionResult,
-    LoaderDatabaseActionResultSchema,
-} from "~/shared/databases/database_actions.js";
+import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_actions.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
-    schema: LoaderDatabaseActionResultSchema,
+    schema: LoaderDatabaseActionResultSchemas.getViewSchema,
     firstPage: Schema.object({
         endCursor: Schema.id<DatabaseRowId>().nullable(),
-        pageResult: LoaderDatabaseActionResultSchema,
+        pageResult: LoaderDatabaseActionResultSchemas.getViewRowsPage,
     }),
 });
 
@@ -101,7 +96,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
 export default function DatabaseViewRoute() {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
-    const {tableOrViewId} = loaderData.schema.input as DatabaseActionInput<"getViewSchema">;
+    const {tableOrViewId} = loaderData.schema.input;
     const input = useMemo(() => ({tableOrViewId}), [tableOrViewId]);
 
     const schemaResult = useReactiveDatabaseAction({
@@ -111,14 +106,7 @@ export default function DatabaseViewRoute() {
     });
 
     const conn = useDatabaseConnection();
-    const query = useDatabaseQuery(
-        conn,
-        tableOrViewId,
-        loaderData.firstPage as {
-            endCursor: DatabaseRowId | null;
-            pageResult: LoaderDatabaseActionResult<"getViewRowsPage">;
-        },
-    );
+    const query = useDatabaseQuery(conn, tableOrViewId, loaderData.firstPage);
 
     if (schemaResult == null) {
         return (
@@ -161,18 +149,14 @@ export default function DatabaseViewRoute() {
 function useDatabaseQuery(
     conn: ReturnType<typeof useDatabaseConnection>,
     tableOrViewId: string,
-    firstPage: {
-        endCursor: DatabaseRowId | null;
-        pageResult: LoaderDatabaseActionResult<"getViewRowsPage">;
-    },
+    firstPage: SchemaType<typeof LoaderSchema>["firstPage"],
 ): DatabaseQuery {
     const [query] = useState(() => {
-        const output = firstPage.pageResult.output as DatabaseActionOutput<"getViewRowsPage">;
         return new DatabaseQuery({
             tableOrViewId,
             initialPage: {
                 endCursor: firstPage.endCursor,
-                rows: output.rows,
+                rows: firstPage.pageResult.output.rows,
             },
         });
     });

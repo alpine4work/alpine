@@ -420,32 +420,24 @@ export const databaseActions = {
         run(db, {tableOrViewId, afterCursor, limit}) {
             const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
-            const query =
+            const whereClause =
                 afterCursor != null
                     ? sql`
-                          SELECT
-                              _id
-                          FROM
-                              ${sql.identifier(tableName)}
                           WHERE
                               _id > ${afterCursor}
-                          ORDER BY
-                              _id
-                          LIMIT
-                              ${limit}
                       `
-                    : sql`
-                          SELECT
-                              _id
-                          FROM
-                              ${sql.identifier(tableName)}
-                          ORDER BY
-                              _id
-                          LIMIT
-                              ${limit}
-                      `;
+                    : sql.raw("");
 
-            const rows = query.selectAll(db, {
+            const rows = sql`
+                SELECT
+                    _id
+                FROM
+                    ${sql.identifier(tableName)} ${whereClause}
+                ORDER BY
+                    _id
+                LIMIT
+                    ${limit}
+            `.selectAll(db, {
                 id: Schema.id<DatabaseRowId>().originalPropertyKey("_id"),
             });
             const endCursor = rows.length === limit ? rows[rows.length - 1]!.id : null;
@@ -629,6 +621,27 @@ const readPagesSchema = Schema.map(
 type ReadPages = ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>;
 
 /**
+ * Per-action schemas for loader-serialized action results.
+ * Use a specific variant (e.g.
+ * `LoaderDatabaseActionResultSchemas.getViewRowsPage`) when
+ * the action name is known at compile time to get a
+ * narrower type without casting.
+ */
+export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
+    Object.entries(databaseActions).map(([name, def]) => [
+        name,
+        Schema.object({
+            name: Schema.value(name),
+            input: def.input,
+            output: def.output,
+            readPages: readPagesSchema,
+        }),
+    ]),
+) as {
+    [K in DatabaseActionName]: ObjectSchema<LoaderDatabaseActionResult<K>>;
+};
+
+/**
  * Schema for loader-serialized action results. Includes
  * the action name, input, output, and the pages read
  * during execution. Used to pass initial data from SSR
@@ -636,24 +649,7 @@ type ReadPages = ReadonlyMap<number, {readonly timestamp: number; readonly data:
  */
 export const LoaderDatabaseActionResultSchema = Schema.unionWithKey(
     "name",
-    Object.fromEntries(
-        Object.entries(databaseActions).map(([name, def]) => [
-            name,
-            Schema.object({
-                name: Schema.value(name),
-                input: def.input,
-                output: def.output,
-                readPages: readPagesSchema,
-            }),
-        ]),
-    ) as {
-        [K in DatabaseActionName]: ObjectSchema<{
-            readonly name: K;
-            readonly input: DatabaseActionInput<K>;
-            readonly output: DatabaseActionOutput<K>;
-            readonly readPages: ReadPages;
-        }>;
-    },
+    LoaderDatabaseActionResultSchemas,
 );
 
 export type LoaderDatabaseActionResult<N extends DatabaseActionName = DatabaseActionName> = {

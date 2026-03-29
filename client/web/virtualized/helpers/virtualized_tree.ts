@@ -454,6 +454,27 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
+     * Remove a node by its key. If the node does not exist this method
+     * does nothing and returns the same tree.
+     */
+    public removeNode(nodeKey: NodeKey): VirtualizedTree<NodeKey, Node, Item> {
+        const orderKey = this._orderKeyByNodeKey.get(nodeKey);
+        if (!orderKey) return this;
+
+        const nodeByOrderKey = this._nodeByOrderKey.remove(orderKey);
+        const orderKeyByNodeKey = this._orderKeyByNodeKey.remove(nodeKey);
+
+        return new VirtualizedTree({
+            getNodeKey: this._getNodeKey,
+            getNodeItemCount: this._getNodeItemCount,
+            getNodeItem: this._getNodeItem,
+            nodeByOrderKey,
+            orderKeyByNodeKey,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+        });
+    }
+
+    /**
      * Updates a node at the specified key. If a node for that key does not exist
      * then this method does nothing. If the node's key changes then we will
      * also throw an error.

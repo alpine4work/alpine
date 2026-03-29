@@ -27,6 +27,7 @@ import {
 } from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -101,7 +102,8 @@ export class DatabaseServer {
             },
         });
 
-        this.db = new sqlite3.oo1.DB("/db.sqlite3", "ct", name);
+        this.db = new sqlite3.oo1.DB("/db.sqlite3", "c", name);
+        installTracing(this.db);
 
         capi.sqlite3_set_authorizer(
             this.db.pointer!,

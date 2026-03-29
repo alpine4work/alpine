@@ -35,6 +35,7 @@ import {
     sqliteOpenPragmas,
 } from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
+import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -105,7 +106,8 @@ export class DatabaseClient {
             access: () => false,
         });
 
-        this.db = new sqlite3.oo1.DB("/db.sqlite3", "ct", vfsName);
+        this.db = new sqlite3.oo1.DB("/db.sqlite3", "c", vfsName);
+        installTracing(this.db);
 
         const capi = sqlite3.capi;
         capi.sqlite3_set_authorizer(

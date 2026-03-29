@@ -58,7 +58,7 @@ export class DatabaseQuery {
         this.needsMoreStore = new ValueStore(options.initialPage?.endCursor != null);
         this.isLoadingMoreStore = new ValueStore(false);
 
-        if (options.initialPage) {
+        if (options.initialPage && options.initialPage.rows.length > 0) {
             const page: DatabaseQueryPage = {
                 pageIndex: 0,
                 rows: options.initialPage.rows as ReadonlyArray<Record<string, unknown>>,
@@ -181,12 +181,18 @@ export class DatabaseQuery {
             const result = handle.store.getSnapshot();
             if (!result.ok) return;
             const output = result.value as DatabaseActionOutput<"getViewRowsPage">;
-            const page: DatabaseQueryPage = {
-                pageIndex,
-                rows: output.rows as ReadonlyArray<Record<string, unknown>>,
-            };
+            const rows = output.rows as ReadonlyArray<Record<string, unknown>>;
+            const page: DatabaseQueryPage = {pageIndex, rows};
+
             this.treeStore.set(tree => {
                 const existing = tree.getNodeByKeyIfExists(pageIndex);
+
+                // VirtualizedTree requires nodes to have at
+                // least one item. Remove the node when the
+                // page becomes empty; skip insert for empty.
+                if (rows.length === 0) {
+                    return existing != null ? tree.removeNode(pageIndex) : tree;
+                }
                 if (existing != null) {
                     return tree.updateNode(pageIndex, () => page);
                 }
