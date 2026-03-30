@@ -42,6 +42,7 @@ import type {
     DatabaseTableId,
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 const alwaysRenderHeader: ReadonlyArray<number> = [0];
 const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
@@ -425,6 +426,7 @@ function DatabaseGridViewHeaderCell({
                 <input
                     ref={inputRef}
                     value={field.name}
+                    maxLength={maxLabelStringLength}
                     onChange={e => editing.updateName(e.currentTarget.value)}
                     onBlur={() => editing.commit()}
                     onKeyDown={e => {

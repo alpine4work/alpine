@@ -16,6 +16,7 @@ import type {
     DatabaseTableId,
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 // -- Row schema configs -------------------------------------------------------
@@ -271,7 +272,7 @@ export const databaseActions = {
     }),
 
     createTable: defineDatabaseAction({
-        input: Schema.object({name: Schema.string}),
+        input: Schema.object({name: LabelStringSchema}),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             tableName: Schema.string,
@@ -539,7 +540,7 @@ export const databaseActions = {
             fieldId: Schema.id<DatabaseFieldId>(),
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
-            name: Schema.string,
+            name: LabelStringSchema,
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
@@ -573,7 +574,7 @@ export const databaseActions = {
     renameField: defineDatabaseAction({
         input: Schema.object({
             fieldId: Schema.id<DatabaseFieldId>(),
-            name: Schema.string,
+            name: LabelStringSchema,
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
