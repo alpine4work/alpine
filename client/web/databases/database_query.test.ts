@@ -446,7 +446,112 @@ describe("DatabaseQuery reactive updates", () => {
         await flush();
 
         expect(getTreeItemCount(query)).toBe(0);
-        expect(query.treeStore.getSnapshot().getNodeCount()).toBe(0);
+        // Node stays with 0 items — the watch keeps the
+        // cursor range covered for future inserts.
+        expect(query.treeStore.getSnapshot().getNodeCount()).toBe(1);
+
+        query.dispose();
+    });
+
+    test("open-ended page recovers after all rows deleted", async () => {
+        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        await insertRowsWithIds(mutate, tableName, [100, 200, 300]);
+
+        const query = new DatabaseQuery({
+            tableOrViewId: viewId,
+            _targetRowsPerPage: 10,
+        });
+        query.listen({conn});
+        await query.loadInitialPage();
+
+        expect(getTreeItemCount(query)).toBe(3);
+        // 3 < target → endCursor=null → open-ended
+        expect(query.needsMoreStore.getSnapshot()).toBe(false);
+
+        await deleteRowsWithIds(mutate, tableName, [100, 200, 300]);
+        await flush();
+
+        expect(getTreeItemCount(query)).toBe(0);
+
+        // Insert new rows — watch is still alive so they
+        // appear via the existing subscription.
+        await insertRowsWithIds(mutate, tableName, [400, 500]);
+        await flush();
+
+        expect(getTreeItemCount(query)).toBe(2);
+
+        query.dispose();
+    });
+
+    test("bounded page goes empty then rebalances with neighbor", async () => {
+        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+
+        // 20 rows → page 1 bounded (10 rows), page 2
+        const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
+        await insertRowsWithIds(mutate, tableName, times);
+
+        const query = new DatabaseQuery({
+            tableOrViewId: viewId,
+            _targetRowsPerPage: 10,
+        });
+        query.listen({conn});
+        await query.loadInitialPage();
+        await query.loadMore();
+        await flush();
+
+        expect(getTreeNodeCount(query)).toBe(2);
+        expect(getTreeItemCount(query)).toBe(20);
+
+        // Delete all 10 rows in page 1 (times 100..1000).
+        // Page 1 is bounded — its cursor range should stay
+        // covered so rebalance can merge it with page 2.
+        const page1Times = Array.from({length: 10}, (_, i) => (i + 1) * 100);
+        await deleteRowsWithIds(mutate, tableName, page1Times);
+        await flushWithRebalance();
+
+        // Rebalance merges the empty page with page 2
+        // into a single page.
+        expect(getTreeNodeCount(query)).toBe(1);
+        expect(getTreeItemCount(query)).toBe(10);
+
+        // Rows still ordered
+        const items = getTreeItems(query);
+        const ids = items.map(r => r._id as string);
+        expect(ids).toEqual([...ids].sort());
+
+        query.dispose();
+    });
+
+    test("rows inserted into emptied bounded page range appear", async () => {
+        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+
+        // 20 rows → page 1 bounded (10 rows), page 2
+        const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
+        await insertRowsWithIds(mutate, tableName, times);
+
+        const query = new DatabaseQuery({
+            tableOrViewId: viewId,
+            _targetRowsPerPage: 10,
+        });
+        query.listen({conn});
+        await query.loadInitialPage();
+        await query.loadMore();
+        await flush();
+
+        expect(getTreeNodeCount(query)).toBe(2);
+
+        // Delete all rows from page 1
+        const page1Times = Array.from({length: 10}, (_, i) => (i + 1) * 100);
+        await deleteRowsWithIds(mutate, tableName, page1Times);
+        await flush();
+
+        // Insert new rows within page 1's cursor range.
+        // These should appear because the watch still
+        // covers that range.
+        await insertRowsWithIds(mutate, tableName, [150, 250]);
+        await flush();
+
+        expect(getTreeItemCount(query)).toBe(12);
 
         query.dispose();
     });

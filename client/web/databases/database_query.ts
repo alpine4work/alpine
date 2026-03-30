@@ -5,8 +5,12 @@ import type {
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
 import type {DatabaseActionOutput} from "~/shared/databases/database_actions.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
+import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 type DatabaseQueryPage = {
@@ -48,15 +52,15 @@ export class DatabaseQuery {
     private readonly _mergeThreshold: number;
     private readonly _scheduleRebalance: (cb: () => void) => void;
     private readonly _watches = new Map<number, PageWatch>();
+    private readonly _queue = new PromiseQueue();
     private conn: DatabaseWorkerConnection | null = null;
     private _disposed = false;
     private _nextPageId = 0;
     private _initialPageId: number | null = null;
-    private _rebalancing = false;
     private _rebalanceScheduled = false;
 
     readonly treeStore: ValueStore<VirtualizedTree<number, DatabaseQueryPage, DatabaseQueryRow>>;
-    readonly needsMoreStore: ValueStore<boolean>;
+    readonly needsMoreStore: Store<boolean>;
     readonly isLoadingMoreStore: ValueStore<boolean>;
 
     constructor(options: {
@@ -75,8 +79,15 @@ export class DatabaseQuery {
         this._scheduleRebalance = options._scheduleRebalance ?? defaultScheduleRebalance;
         this.treeStore = new ValueStore(newEmptyTree());
         this._initialEndCursor = options.initialPage?.endCursor ?? null;
-        this.needsMoreStore = new ValueStore(options.initialPage?.endCursor != null);
         this.isLoadingMoreStore = new ValueStore(false);
+
+        // Derived: true when the last node has a bounded
+        // endCursor, meaning more pages can be loaded.
+        this.needsMoreStore = computeStore(get => {
+            const tree = get(this.treeStore);
+            const lastNode = tree.getLastNodeIfExists();
+            return lastNode != null && lastNode.endCursor != null;
+        });
 
         if (options.initialPage && options.initialPage.rows.length > 0) {
             const pageId = this.allocatePageId();
@@ -144,37 +155,35 @@ export class DatabaseQuery {
         if (this._disposed) return;
 
         await this.startWatch(null, cursor.endCursor);
-        this.updateNeedsMore();
     }
 
     /**
-     * Load the next page. No-op if the last page is
-     * open-ended, already loading, or rebalancing.
+     * Load the next page. Enqueued behind any in-flight
+     * rebalance so cursors are stable when we read them.
      */
     async loadMore(): Promise<void> {
-        if (this._disposed || this.conn == null) return;
-        if (this._rebalancing) return;
-        if (this.isLoadingMoreStore.getSnapshot()) return;
-        if (!this.needsMoreStore.getSnapshot()) return;
+        await this._queue.enqueue(async () => {
+            if (this._disposed || this.conn == null) return;
+            if (!this.needsMoreStore.getSnapshot()) return;
 
-        const lastNode = this.treeStore.getSnapshot().getLastNodeIfExists();
-        if (!lastNode || lastNode.endCursor == null) return;
+            const lastNode = this.treeStore.getSnapshot().getLastNodeIfExists();
+            if (!lastNode || lastNode.endCursor == null) return;
 
-        this.isLoadingMoreStore.set(true);
+            this.isLoadingMoreStore.set(true);
 
-        try {
-            const cursor = await this.conn.executeAction("getViewRowsPageCursor", {
-                tableOrViewId: this.tableOrViewId,
-                afterCursor: lastNode.endCursor,
-                limit: this._targetRowsPerPage,
-            });
-            if (this._disposed) return;
+            try {
+                const cursor = await this.conn.executeAction("getViewRowsPageCursor", {
+                    tableOrViewId: this.tableOrViewId,
+                    afterCursor: lastNode.endCursor,
+                    limit: this._targetRowsPerPage,
+                });
+                if (this._disposed) return;
 
-            await this.startWatch(lastNode.endCursor, cursor.endCursor);
-            this.updateNeedsMore();
-        } finally {
-            this.isLoadingMoreStore.set(false);
-        }
+                await this.startWatch(lastNode.endCursor, cursor.endCursor);
+            } finally {
+                this.isLoadingMoreStore.set(false);
+            }
+        });
     }
 
     /**
@@ -190,7 +199,6 @@ export class DatabaseQuery {
         }
         this._watches.clear();
         this.conn = null;
-        this._rebalancing = false;
         this._rebalanceScheduled = false;
         this.isLoadingMoreStore.set(false);
     }
@@ -233,10 +241,6 @@ export class DatabaseQuery {
 
             this.treeStore.set(tree => {
                 const existing = tree.getNodeByKeyIfExists(pageId);
-
-                if (rows.length === 0) {
-                    return existing != null ? tree.removeNode(pageId) : tree;
-                }
                 if (existing != null) {
                     return tree.updateNode(pageId, () => page);
                 }
@@ -244,10 +248,7 @@ export class DatabaseQuery {
             });
 
             // Check rebalance thresholds.
-            if (
-                rows.length >= this._splitThreshold ||
-                (rows.length > 0 && rows.length <= this._mergeThreshold)
-            ) {
+            if (rows.length >= this._splitThreshold || rows.length <= this._mergeThreshold) {
                 this.maybeScheduleRebalance();
             }
         };
@@ -265,97 +266,106 @@ export class DatabaseQuery {
         return pageId;
     }
 
-    private updateNeedsMore(): void {
-        const lastNode = this.treeStore.getSnapshot().getLastNodeIfExists();
-        this.needsMoreStore.set(lastNode != null && lastNode.endCursor != null);
-    }
-
     // -- Rebalancing ---------------------------------------------------------
 
     private maybeScheduleRebalance(): void {
         if (this._rebalanceScheduled) return;
         this._rebalanceScheduled = true;
         this._scheduleRebalance(() => {
-            void this.rebalance();
+            void this._queue.enqueue(() => this.rebalance());
         });
     }
 
     private async rebalance(): Promise<void> {
         this._rebalanceScheduled = false;
         if (this._disposed || this.conn == null) return;
-        this._rebalancing = true;
 
-        try {
-            const pagesToMerge: Array<DatabaseQueryPage> = [];
-            let mergeRowCount = 0;
+        const pagesToMerge: Array<DatabaseQueryPage> = [];
+        let mergeRowCount = 0;
 
-            const flushMerge = async () => {
-                if (pagesToMerge.length < 2) {
-                    pagesToMerge.length = 0;
-                    mergeRowCount = 0;
-                    return;
-                }
-                const afterCursor = pagesToMerge[0]!.afterCursor;
-                const endCursor = pagesToMerge[pagesToMerge.length - 1]!.endCursor;
-                for (const p of pagesToMerge) {
-                    this.tearDownWatch(p.pageId);
-                }
-                this.treeStore.set(t => {
-                    let updated = t;
-                    for (const p of pagesToMerge) {
-                        updated = updated.removeNode(p.pageId);
-                    }
-                    return updated;
-                });
+        const flushMerge = async () => {
+            if (pagesToMerge.length < 2) {
                 pagesToMerge.length = 0;
                 mergeRowCount = 0;
-                await this.startWatch(afterCursor, endCursor);
-            };
-
-            for (const node of this.treeStore.getSnapshot().iterateNodes()) {
-                if (this._disposed) return;
-
-                // Accumulating a merge run?
-                if (mergeRowCount > 0) {
-                    if (mergeRowCount <= this._mergeThreshold) {
-                        // Still too small — consume this page.
-                        pagesToMerge.push(node);
-                        mergeRowCount += node.rows.length;
-                        continue;
-                    }
-                    // Run is big enough — flush before
-                    // processing the current node.
-                    await flushMerge();
-                    if (this._disposed) return;
-                }
-
-                if (node.rows.length >= this._splitThreshold) {
-                    // Split in half.
-                    const midpoint = Math.ceil(node.rows.length / 2);
-                    const midCursor = (node.rows[midpoint - 1] as any)._id as DatabaseRowId;
-
-                    this.tearDownWatch(node.pageId);
-                    this.treeStore.set(t => t.removeNode(node.pageId));
-
-                    await runAllPromises([
-                        this.startWatch(node.afterCursor, midCursor),
-                        this.startWatch(midCursor, node.endCursor),
-                    ]);
-                    if (this._disposed) return;
-                } else if (node.rows.length > 0 && node.rows.length <= this._mergeThreshold) {
-                    // Start a merge run.
-                    pagesToMerge.push(node);
-                    mergeRowCount = node.rows.length;
-                }
+                return;
             }
+            const afterCursor = pagesToMerge[0]!.afterCursor;
+            const endCursor = pagesToMerge[pagesToMerge.length - 1]!.endCursor;
+            for (const p of pagesToMerge) {
+                this.tearDownWatch(p.pageId);
+            }
+            this.treeStore.set(t => {
+                let updated = t;
+                for (const p of pagesToMerge) {
+                    updated = updated.removeNode(p.pageId);
+                }
+                return updated;
+            });
+            pagesToMerge.length = 0;
+            mergeRowCount = 0;
+            await this.startWatch(afterCursor, endCursor);
+        };
 
-            // Flush any trailing merge run.
-            await flushMerge();
+        for (const node of this.treeStore.getSnapshot().iterateNodes()) {
             if (this._disposed) return;
 
-            this.updateNeedsMore();
-        } finally {
-            this._rebalancing = false;
+            // Accumulating a merge run?
+            if (pagesToMerge.length > 0) {
+                if (mergeRowCount <= this._mergeThreshold) {
+                    // Still too small — consume this page.
+                    pagesToMerge.push(node);
+                    mergeRowCount += node.rows.length;
+                    continue;
+                }
+                // Run is big enough — flush before
+                // processing the current node.
+                await flushMerge();
+                if (this._disposed) return;
+            }
+
+            if (node.rows.length >= this._splitThreshold) {
+                // Split in half.
+                const midpoint = Math.ceil(node.rows.length / 2);
+                const midCursor = (node.rows[midpoint - 1] as any)._id as DatabaseRowId;
+
+                this.tearDownWatch(node.pageId);
+                this.treeStore.set(t => t.removeNode(node.pageId));
+
+                await runAllPromises([
+                    this.startWatch(node.afterCursor, midCursor),
+                    this.startWatch(midCursor, node.endCursor),
+                ]);
+                if (this._disposed) return;
+            } else if (node.rows.length <= this._mergeThreshold) {
+                // Start a merge run.
+                pagesToMerge.push(node);
+                mergeRowCount = node.rows.length;
+            }
+        }
+
+        // Flush any trailing merge run.
+        await flushMerge();
+
+        if (process.env.NODE_ENV !== "production") {
+            this.assertCursorContinuity();
+        }
+    }
+
+    /**
+     * Dev-only invariant check: consecutive pages must
+     * have contiguous cursor ranges with no gaps.
+     */
+    private assertCursorContinuity(): void {
+        let prevEndCursor: DatabaseRowId | null | undefined;
+        for (const node of this.treeStore.getSnapshot().iterateNodes()) {
+            if (prevEndCursor !== undefined) {
+                assert(
+                    node.afterCursor === prevEndCursor,
+                    `Cursor gap after rebalance: expected afterCursor ` +
+                        `${String(prevEndCursor)} but got ${String(node.afterCursor)}`,
+                );
+            }
+            prevEndCursor = node.endCursor;
         }
     }
 

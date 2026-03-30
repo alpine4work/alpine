@@ -159,7 +159,6 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
         if (node === null) return 0;
 
         const valueItemCount = this._getNodeItemCount(node.value);
-        assert(valueItemCount > 0, "Node must have at least one item");
 
         // Don't spend memory caching nodes with no subtrees.
         if (node.left === null && node.right === null) return valueItemCount;
