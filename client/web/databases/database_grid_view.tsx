@@ -52,6 +52,7 @@ const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
 type DatabaseGridViewSelection = {
     rowId: DatabaseRowId;
     fieldId: DatabaseFieldId;
+    isActive: boolean;
     isEditing: boolean;
     initialEditValue: string | null;
 } | null;
@@ -63,7 +64,9 @@ type SelectionAction =
     | {type: "clear"}
     | {type: "type"; character: string}
     | {type: "select"; rowId: DatabaseRowId; fieldId: DatabaseFieldId}
-    | {type: "deselect"};
+    | {type: "deselect"}
+    | {type: "focus"}
+    | {type: "focusout"};
 
 function selectionReducer(
     state: DatabaseGridViewSelection,
@@ -74,6 +77,7 @@ function selectionReducer(
             return {
                 rowId: action.rowId,
                 fieldId: action.fieldId,
+                isActive: true,
                 isEditing: true,
                 initialEditValue: null,
             };
@@ -93,11 +97,18 @@ function selectionReducer(
             return {
                 rowId: action.rowId,
                 fieldId: action.fieldId,
+                isActive: true,
                 isEditing: false,
                 initialEditValue: null,
             };
         case "deselect":
             return null;
+        case "focus":
+            if (state == null) return null;
+            return {...state, isActive: true};
+        case "focusout":
+            if (state == null) return null;
+            return {...state, isActive: false};
     }
 }
 
@@ -154,7 +165,7 @@ export function DatabaseGridView({
     });
 
     const handleGlobalKeyDown = useEvent((e: KeyboardEvent) => {
-        if (selection == null || selection.isEditing) return;
+        if (selection == null || !selection.isActive || selection.isEditing) return;
 
         if (e.key === "Enter") {
             e.preventDefault();
@@ -185,6 +196,8 @@ export function DatabaseGridView({
             dispatch({type: "type", character: e.key});
         }
     });
+
+    const visibleSelection = selection?.isActive ? selection : null;
 
     const selectedRowId = selection?.rowId ?? null;
     useEffect(() => {
@@ -267,7 +280,7 @@ export function DatabaseGridView({
                             row={row}
                             rowId={rowId}
                             isFirstRow={index === 1}
-                            selection={selection}
+                            selection={visibleSelection}
                             dispatch={dispatch}
                             moveSelection={moveSelection}
                         />
@@ -284,14 +297,25 @@ export function DatabaseGridView({
             rowCount,
             needsMore,
             query,
-            selection,
+            visibleSelection,
             moveSelection,
         ],
     );
 
     return (
         <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
-            <Box flexGrow="1" overflow="hidden">
+            <Box
+                flexGrow="1"
+                overflow="hidden"
+                onFocus={() => dispatch({type: "focus"})}
+                onBlur={e => {
+                    // Only deactivate if focus moved outside
+                    // the grid entirely (not between children).
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                        dispatch({type: "focusout"});
+                    }
+                }}
+            >
                 <VirtualizedScrollView
                     ref={scrollViewRef}
                     itemCount={itemCount}
@@ -614,7 +638,17 @@ function DatabaseGridViewCell({
     moveSelection: (deltaRow: number, deltaField: number) => void;
 }) {
     const conn = useDatabaseConnection();
+    const cellRef = useRef<HTMLDivElement>(null);
     const [committedValue, setCommittedValue] = useOptimistic(value == null ? "" : String(value));
+
+    // Focus the cell element when it becomes selected
+    // (but not editing, since the editor manages its
+    // own focus).
+    useEffect(() => {
+        if (isSelected && !isEditing) {
+            cellRef.current?.focus();
+        }
+    }, [isSelected, isEditing]);
 
     const commitValue = useEvent((newValue: string) => {
         if (newValue === committedValue) return;
@@ -647,6 +681,8 @@ function DatabaseGridViewCell({
             }
         >
             <Box
+                ref={cellRef}
+                tabIndex={0}
                 fontSize="75"
                 fontStyle="truncate"
                 padding="2"
@@ -658,6 +694,7 @@ function DatabaseGridViewCell({
                     marginBottom: -1,
                     ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
                 }}
+                onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
                 onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
             >
                 {committedValue}
