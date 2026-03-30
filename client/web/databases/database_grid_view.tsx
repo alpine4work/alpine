@@ -1,3 +1,4 @@
+import {useHover} from "@react-aria/interactions";
 import {Plus} from "phosphor-react";
 import {
     type Dispatch,
@@ -10,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {mergeProps} from "react-aria";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
@@ -31,6 +33,8 @@ import {
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import type {Spacing} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {
     DatabaseFieldId,
@@ -40,6 +44,7 @@ import type {
 } from "~/shared/id/types/id_types.js";
 
 const alwaysRenderHeader: ReadonlyArray<number> = [0];
+const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
 
 // -- Selection state ----------------------------------------------------------
 
@@ -195,7 +200,7 @@ export function DatabaseGridView({
                 if (index === 0) {
                     return {
                         key: "header",
-                        minHeight: 32,
+                        minHeight: spacing[gridRowHeight],
                         zIndex: "10",
                         withManualLayout: true,
                         render({ref, offset, shouldRenderWithRelativePositioning}) {
@@ -213,8 +218,9 @@ export function DatabaseGridView({
                                               }
                                     }
                                 >
-                                    <div
+                                    <Box
                                         ref={ref}
+                                        minHeight={gridRowHeight}
                                         style={{
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
@@ -222,7 +228,6 @@ export function DatabaseGridView({
                                             top: shouldRenderWithRelativePositioning
                                                 ? undefined
                                                 : 0,
-                                            minHeight: 32,
                                             zIndex: 2,
                                         }}
                                     >
@@ -230,8 +235,10 @@ export function DatabaseGridView({
                                             fields={gridFields.fields}
                                             onStartAddingField={gridFields.startAddingField}
                                             onStartEditingField={gridFields.startEditingField}
+                                            startResizingField={gridFields.startResizingField}
+                                            resizingState={gridFields.resizingState}
                                         />
-                                    </div>
+                                    </Box>
                                 </div>
                             );
                         },
@@ -242,7 +249,7 @@ export function DatabaseGridView({
                 if (needsMore && index === rowCount + 1) {
                     return {
                         key: "load-more",
-                        minHeight: 32,
+                        minHeight: spacing[gridRowHeight],
                         node: <DatabaseGridViewLoadMoreSentinel query={query} />,
                     };
                 }
@@ -252,7 +259,7 @@ export function DatabaseGridView({
                 const rowId = row._id as DatabaseRowId;
                 return {
                     key: rowId,
-                    minHeight: 32,
+                    minHeight: spacing[gridRowHeight],
                     node: (
                         <DatabaseGridViewDataRow
                             fields={gridFields.fields}
@@ -270,6 +277,8 @@ export function DatabaseGridView({
             gridFields.fields,
             gridFields.startAddingField,
             gridFields.startEditingField,
+            gridFields.startResizingField,
+            gridFields.resizingState,
             tree,
             rowCount,
             needsMore,
@@ -285,7 +294,7 @@ export function DatabaseGridView({
                 <VirtualizedScrollView
                     ref={scrollViewRef}
                     itemCount={itemCount}
-                    bufferedItemHeight={32}
+                    bufferedItemHeight={spacing[gridRowHeight]}
                     renderItem={renderItem}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderHeader}
                 />
@@ -325,10 +334,21 @@ function DatabaseGridViewHeaderRow({
     fields,
     onStartAddingField,
     onStartEditingField,
+    startResizingField,
+    resizingState,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     onStartAddingField: () => void;
     onStartEditingField: (fieldId: DatabaseFieldId) => void;
+    startResizingField: (
+        fieldId: DatabaseFieldId,
+        event: React.PointerEvent,
+    ) => {
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    };
+    resizingState: {readonly fieldId: DatabaseFieldId} | null;
 }) {
     return (
         <Box display="flex" borderBottom="grey-5-translucent">
@@ -337,6 +357,8 @@ function DatabaseGridViewHeaderRow({
                     key={field.id}
                     field={field}
                     onStartEditingField={onStartEditingField}
+                    startResizingField={startResizingField}
+                    isResizingThisField={resizingState?.fieldId === field.id}
                 />
             ))}
             <Box
@@ -364,9 +386,20 @@ function DatabaseGridViewHeaderRow({
 function DatabaseGridViewHeaderCell({
     field,
     onStartEditingField,
+    startResizingField,
+    isResizingThisField,
 }: {
     field: DatabaseGridViewFieldWithEditing;
     onStartEditingField: (fieldId: DatabaseFieldId) => void;
+    startResizingField: (
+        fieldId: DatabaseFieldId,
+        event: React.PointerEvent,
+    ) => {
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    };
+    isResizingThisField: boolean;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
@@ -383,17 +416,9 @@ function DatabaseGridViewHeaderCell({
 
     return (
         <Box
-            color="grey-80"
-            fontSize="75"
-            fontStyle="truncate-semi-bold"
-            padding={editing ? undefined : "2"}
-            textAlign="left"
-            style={{
-                width: field.width,
-                minWidth: field.width,
-                maxWidth: field.width,
-                marginRight: -1,
-            }}
+            backgroundColor="grey-0"
+            position="relative"
+            style={field.columnStyle}
             onDoubleClick={() => onStartEditingField(field.id)}
         >
             {editing ? (
@@ -420,8 +445,97 @@ function DatabaseGridViewHeaderCell({
                     })}
                 />
             ) : (
-                field.name
+                <Box
+                    color="grey-80"
+                    fontSize="75"
+                    fontStyle="truncate-semi-bold"
+                    padding="2"
+                    textAlign="left"
+                >
+                    {field.name}
+                </Box>
             )}
+            <DatabaseGridViewResizeHandle
+                fieldId={field.id}
+                startResizingField={startResizingField}
+                isResizingThisField={isResizingThisField}
+            />
+        </Box>
+    );
+}
+
+// -- Resize handle ------------------------------------------------------------
+
+function DatabaseGridViewResizeHandle({
+    fieldId,
+    startResizingField,
+    isResizingThisField,
+}: {
+    fieldId: DatabaseFieldId;
+    startResizingField: (
+        fieldId: DatabaseFieldId,
+        event: React.PointerEvent,
+    ) => {
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    };
+    isResizingThisField: boolean;
+}) {
+    const {hoverProps, isHovered} = useHover({});
+
+    const [resizeHandlers, setResizeHandlers] = useState<{
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    } | null>(null);
+
+    const isResizing = resizeHandlers != null;
+    const showBar = isHovered || isResizing || isResizingThisField;
+
+    return (
+        <Box
+            position="absolute"
+            top="0"
+            bottom="0"
+            right="-2"
+            width="4"
+            cursor="col-resize"
+            zIndex="10"
+            touchAction="none"
+            {...mergeProps(hoverProps, {
+                onPointerDown(event: React.PointerEvent) {
+                    const handlers = startResizingField(fieldId, event);
+                    setResizeHandlers(handlers);
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                },
+                onPointerMove(event: React.PointerEvent) {
+                    resizeHandlers?.onMove(event.nativeEvent);
+                },
+                onPointerUp(event: React.PointerEvent) {
+                    resizeHandlers?.onRelease(event.nativeEvent);
+                    setResizeHandlers(null);
+                },
+                onPointerCancel() {
+                    resizeHandlers?.onCancel();
+                    setResizeHandlers(null);
+                },
+                onLostPointerCapture() {
+                    resizeHandlers?.onCancel();
+                    setResizeHandlers(null);
+                },
+            })}
+        >
+            <Box
+                position="absolute"
+                top="0"
+                bottom="0"
+                backgroundColor={showBar ? "theme-40-const" : "transparent"}
+                style={{
+                    left: 7,
+                    width: 2,
+                }}
+            />
         </Box>
     );
 }
@@ -537,12 +651,9 @@ function DatabaseGridViewCell({
                 color="grey-100"
                 border={shouldShowBorder ? "theme-40-const" : "transparent"}
                 style={{
-                    width: field.width,
-                    minWidth: field.width,
-                    maxWidth: field.width,
+                    ...field.columnStyle,
                     marginTop: isFirstRow ? undefined : -1,
                     marginBottom: -1,
-                    marginRight: -1,
                     ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
                 }}
                 onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
@@ -593,8 +704,6 @@ function DatabaseGridViewCellEditor({
                     padding: "2",
                     fontSize: "75",
                     color: "grey-100",
-                    // border: "theme-40-const",
-                    // backgroundColor: "grey-0",
                 })}
                 onBlur={() => {
                     commitValue(editValue);

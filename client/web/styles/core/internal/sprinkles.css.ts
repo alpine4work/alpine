@@ -122,6 +122,10 @@ const properties = defineProperties({
             // `cursor: "default"`.
             text: {userSelect: "text", cursor: "auto"},
         },
+        touchAction: {
+            none: "none",
+            auto: "auto",
+        },
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontStyle: mapObjectValues(fontStyles, style => {
             if (!("letterSpacing" in style)) return style;

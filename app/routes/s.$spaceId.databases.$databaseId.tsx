@@ -10,7 +10,7 @@ import {DatabaseTablesContext} from "~/client/web/databases/database_tables_cont
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -136,7 +136,7 @@ export default function DatabaseLayoutRoute() {
         },
     });
 
-    useEffect(() => {
+    const connectDatabase = useEvent(() => {
         db.connect({
             databaseId,
             initialPages: initialPagesRef.current,
@@ -150,19 +150,14 @@ export default function DatabaseLayoutRoute() {
                 error instanceof Error ? error : new InternalError(String(error)),
             );
         });
+    });
+
+    useEffect(() => {
+        connectDatabase();
         return () => {
             conn.close();
         };
-    }, [
-        db,
-        conn,
-        databaseId,
-        reporter,
-        executeActionServer,
-        ensureCacheIsUpToDate,
-        acknowledgePages,
-        reportError,
-    ]);
+    }, [connectDatabase, conn, databaseId]);
 
     return (
         <Box

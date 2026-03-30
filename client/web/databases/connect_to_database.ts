@@ -95,6 +95,11 @@ export function createDatabaseConnection(): {
     };
 
     async function connect(options: ConnectOptions): Promise<void> {
+        // Reset so the connection can be re-used after a close/reconnect
+        // cycle (e.g. React strict-mode effect cleanup then re-run).
+        closed = false;
+        real = null;
+
         const realConn = await connectToDatabase(options);
         if (closed) {
             realConn.close();
