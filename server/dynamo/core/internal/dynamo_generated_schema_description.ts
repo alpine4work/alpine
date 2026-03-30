@@ -158,7 +158,10 @@ export const dynamoGeneratedSchemaDescription: {
                                 "propertySchemaByKey": {
                                     "lastOpenedSpaceId": {
                                         "valueSchema": {
-                                            "type": "Id"
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
                                         },
                                         "optional": true
                                     },
@@ -173,20 +176,26 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "shareActivationHint": {
                                         "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {}
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {}
+                                            }
                                         },
                                         "optional": true
                                     },
                                     "searchEducationHint": {
                                         "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "hasOpenedFeed": {
-                                                    "valueSchema": {
-                                                        "type": "Boolean"
-                                                    },
-                                                    "optional": false
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "hasOpenedFeed": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": false
+                                                    }
                                                 }
                                             }
                                         },
