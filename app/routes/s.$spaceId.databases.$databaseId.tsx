@@ -4,11 +4,13 @@ import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {createDatabaseConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseTablesContext} from "~/client/web/databases/database_tables_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {InputWithAutoGrowingWidth} from "~/client/web/design/input_with_auto_growing_width.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useBrowserId} from "~/client/web/remix/client_info_context.js";
@@ -27,6 +29,8 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {updateDatabaseName} from "~/shared/rpc/databases_rpc_definitions.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
@@ -75,13 +79,20 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 }
 
 export default function DatabaseLayoutRoute() {
-    const {databaseName, tables, pages} = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        databaseName: initialDatabaseName,
+        tables,
+        pages,
+    } = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
+    const context = useAppContext();
     const browserId = useBrowserId();
     const navigate = useNavigate();
     const reporter = useReporter();
     const basePath = `/s/${params.spaceId}/databases/${databaseId}`;
+    const [databaseName, setDatabaseName] = useState(initialDatabaseName);
+    const [editingName, setEditingName] = useState(false);
     const [db] = useState(createDatabaseConnection);
     const conn = db.connection;
     const initialPagesRef = useRef(pages);
@@ -170,9 +181,35 @@ export default function DatabaseLayoutRoute() {
             gap="3"
             padding="4"
         >
-            <Box fontSize="200" fontStyle="semi-bold">
-                {databaseName}
-            </Box>
+            {editingName ? (
+                <DatabaseNameEditor
+                    databaseName={databaseName}
+                    onSave={async (name: string) => {
+                        const trimmed = name.trim();
+                        if (trimmed.length === 0 || trimmed === databaseName) {
+                            setEditingName(false);
+                            return;
+                        }
+                        try {
+                            await updateDatabaseName(context, {databaseId, name: trimmed});
+                            setDatabaseName(trimmed);
+                        } catch (error) {
+                            reporter.displayError("Couldn\u2019t rename database", error);
+                        }
+                        setEditingName(false);
+                    }}
+                    onCancel={() => setEditingName(false)}
+                />
+            ) : (
+                <Box
+                    fontSize="200"
+                    fontStyle="semi-bold"
+                    onDoubleClick={() => setEditingName(true)}
+                    style={{cursor: "text"}}
+                >
+                    {databaseName}
+                </Box>
+            )}
             <Box display="flex" gap="1" flexWrap="wrap">
                 {Array.from(tables, ([tableId, table]) => (
                     <Button
@@ -197,6 +234,57 @@ export default function DatabaseLayoutRoute() {
                     <Outlet />
                 </DatabaseConnectionContext.Provider>
             </DatabaseTablesContext.Provider>
+        </Box>
+    );
+}
+
+function DatabaseNameEditor({
+    databaseName,
+    onSave,
+    onCancel,
+}: {
+    databaseName: string;
+    onSave: (name: string) => void;
+    onCancel: () => void;
+}) {
+    const [name, setName] = useState(databaseName);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const input = inputRef.current;
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, []);
+
+    return (
+        <Box fontSize="200" fontStyle="semi-bold">
+            <InputWithAutoGrowingWidth
+                ref={inputRef}
+                maxLength={maxLabelStringLength}
+                value={name}
+                onChange={event => setName(event.currentTarget.value)}
+                onKeyDown={event => {
+                    switch (event.key) {
+                        case "Enter": {
+                            event.preventDefault();
+                            onSave(name);
+                            break;
+                        }
+                        case "Escape": {
+                            event.preventDefault();
+                            onCancel();
+                            break;
+                        }
+                    }
+                }}
+                onBlur={() => onSave(name)}
+                textStyle={{
+                    fontSize: "inherit",
+                    fontWeight: "inherit",
+                }}
+            />
         </Box>
     );
 }
