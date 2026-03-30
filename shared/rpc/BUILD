@@ -10,6 +10,7 @@ ts_project(
         "//shared/alpha",
         "//shared/bots",
         "//shared/chat",
+        "//shared/databases",
         "//shared/content",
         "//shared/context",
         "//shared/documents",
