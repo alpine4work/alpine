@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "@sqlite",
         "//admin/external_types:sqlite",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

@@ -14,7 +14,7 @@ import {DatabaseDurableObjectConnection} from "~/server/databases/database_durab
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {generateId} from "~/shared/id/id.js";
-import type {BrowserId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import type {BrowserId, DatabaseId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 
 // Cast to `any` because Miniflare's DurableObjectStorage type doesn't
 // include our patched `sql` / `transactionSync` in the upstream .d.ts
@@ -320,6 +320,7 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
+        databaseId: generateId<DatabaseId>(),
         browserId: generateId<BrowserId>(),
         connectionId: generateId<WebSocketConnectionId>(),
         browserPageTracker: new BrowserPageTracker(),
@@ -539,6 +540,7 @@ function createTrackedConnection(
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
+        databaseId: generateId<DatabaseId>(),
         browserId,
         connectionId,
         browserPageTracker: tracker,
