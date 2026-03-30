@@ -154,6 +154,7 @@ function useDatabaseQuery(
             tableOrViewId,
             initialPage: {
                 endCursor: firstPage.endCursor,
+                fieldIndexes: firstPage.pageResult.output.fieldIndexes,
                 rows: firstPage.pageResult.output.rows,
             },
         });

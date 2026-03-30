@@ -1,11 +1,10 @@
 import {useEffect, useRef, useState} from "react";
-import type {ReactiveActionHandle} from "~/client/web/databases/connect_to_database.js";
+import type {DatabaseReactiveActionHandle} from "~/client/web/databases/connect_to_database.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import type {
     DatabaseActionInput,
     DatabaseActionName,
-    DatabaseActionObject,
     DatabaseActionOutput,
     LoaderDatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
@@ -31,7 +30,7 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
 }): Result<DatabaseActionOutput<N>, string> | null {
     const {name, input, initialData} = options;
     const conn = useDatabaseConnection();
-    const [handle, setHandle] = useState<ReactiveActionHandle | null>(null);
+    const [handle, setHandle] = useState<DatabaseReactiveActionHandle<N> | null>(null);
     const initialDataRef = useRef(initialData);
 
     useEffect(() => {
@@ -49,9 +48,9 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
         }
 
         let cancelled = false;
-        let h: ReactiveActionHandle | null = null;
-        (async () => {
-            h = await conn.watchAction({name, input} as DatabaseActionObject);
+        let h: DatabaseReactiveActionHandle<N> | null = null;
+        void (async () => {
+            h = await conn.watchAction(name, input);
             if (!cancelled) setHandle(h);
         })();
         return () => {

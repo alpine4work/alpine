@@ -11,7 +11,6 @@ import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id
 export type DatabaseGridViewField = {
     readonly id: DatabaseFieldId;
     readonly name: string;
-    readonly columnName: string;
     readonly width: number;
 };
 
@@ -115,7 +114,7 @@ export function useGridViewFields({
                 startTransition(async () => {
                     applyOptimisticField({
                         type: "create",
-                        field: {id: addingId, name: trimmed, columnName: "__pending__", width: 200},
+                        field: {id: addingId, name: trimmed, width: 200},
                     });
                     await conn.executeAction("createField", {
                         fieldId: addingId,
@@ -194,7 +193,6 @@ export function useGridViewFields({
                     {
                         id: editingState.id,
                         name: editingState.value,
-                        columnName: "__pending__",
                         width: 200,
                         columnStyle: {
                             width: widthRem,

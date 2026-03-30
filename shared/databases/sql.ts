@@ -101,6 +101,20 @@ class SqlQuery {
         }) as Array<Record<string, unknown>>;
     }
 
+    /**
+     * Execute and return all rows as arrays of values.
+     * Column order matches the SELECT list. Use when
+     * the caller needs positional access rather than
+     * named columns.
+     */
+    selectAllArrays(db: Database): Array<Array<unknown>> {
+        return db.exec(this.query, {
+            returnValue: "resultRows",
+            rowMode: "array",
+            bind: this.bind as Array<BindableValue>,
+        }) as Array<Array<unknown>>;
+    }
+
     /** Execute without returning results (INSERT/UPDATE/DELETE/DDL). */
     exec(db: Database): void {
         db.exec(this.query, {bind: this.bind as Array<BindableValue>});

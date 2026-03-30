@@ -1,20 +1,23 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import type {
+    DatabaseReactiveActionHandle,
+    DatabaseReactiveActionResult,
     DatabaseWorkerConnection,
-    ReactiveActionResult,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {
     DatabaseClient,
     type DatabaseClientConnection,
 } from "~/client/web/databases/database_client.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
+import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import type {
     OpfsDirectoryHandle,
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
 import type {
+    DatabaseActionInput,
     DatabaseActionName,
     DatabaseActionObject,
     DatabaseActionOutput,
@@ -23,7 +26,7 @@ import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants
 import {sqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // ---------------------------------------------------------------------------
@@ -146,18 +149,24 @@ function createTestConnection(client: DatabaseClient): {
 
         async executeAction<N extends DatabaseActionName>(
             name: N,
-            input: any,
+            input: DatabaseActionInput<N>,
         ): Promise<DatabaseActionOutput<N>> {
             return client.executeAction(testClientConn, {name, input} as DatabaseActionObject<N>);
         },
 
-        async watchAction(actionObject: DatabaseActionObject) {
+        async watchAction<N extends DatabaseActionName>(
+            name: N,
+            input: DatabaseActionInput<N>,
+        ): Promise<DatabaseReactiveActionHandle<N>> {
             const id = `test-watch-${watchIdCounter++}`;
-            const store = new ValueStore<ReactiveActionResult>({ok: true, value: {}});
+            const store = new ValueStore<DatabaseReactiveActionResult<N>>({
+                ok: true,
+                value: {} as DatabaseActionOutput<N>,
+            });
 
             const result = await client.registerReactiveAction(
                 id,
-                actionObject,
+                {name, input} as DatabaseActionObject<N>,
                 testClientConn,
                 output => {
                     store.set({ok: true, value: output});
@@ -243,10 +252,10 @@ function getTreeItemCount(query: DatabaseQuery): number {
     return query.treeStore.getSnapshot().getItemCount();
 }
 
-function getTreeItems(query: DatabaseQuery): ReadonlyArray<Record<string, unknown>> {
+function getTreeItems(query: DatabaseQuery): ReadonlyArray<DatabaseQueryRow> {
     const tree = query.treeStore.getSnapshot();
     const count = tree.getItemCount();
-    const items: Array<Record<string, unknown>> = [];
+    const items: Array<DatabaseQueryRow> = [];
     for (let i = 0; i < count; i++) {
         items.push(tree.getItem(i));
     }
@@ -259,13 +268,15 @@ function getTreeItems(query: DatabaseQuery): ReadonlyArray<Record<string, unknow
 
 describe("DatabaseQuery constructor", () => {
     test("with initialPage populates tree and sets needsMore", () => {
+        const fieldIndexes = new Map<DatabaseFieldId, number>([["f1" as DatabaseFieldId, 1]]);
         const query = new DatabaseQuery({
             tableOrViewId: "view-1",
             initialPage: {
                 endCursor: "row-100" as DatabaseRowId,
+                fieldIndexes,
                 rows: [
-                    {_id: "row-1", name: "Task 1"},
-                    {_id: "row-2", name: "Task 2"},
+                    ["row-1", "Task 1"],
+                    ["row-2", "Task 2"],
                 ],
             },
         });
@@ -285,7 +296,11 @@ describe("DatabaseQuery constructor", () => {
     test("with empty rows has empty tree", () => {
         const query = new DatabaseQuery({
             tableOrViewId: "view-1",
-            initialPage: {endCursor: null, rows: []},
+            initialPage: {
+                endCursor: null,
+                fieldIndexes: new Map<DatabaseFieldId, number>(),
+                rows: [],
+            },
         });
 
         expect(getTreeItemCount(query)).toBe(0);
@@ -293,11 +308,13 @@ describe("DatabaseQuery constructor", () => {
     });
 
     test("initialPage with null endCursor sets needsMore false", () => {
+        const fieldIndexes = new Map<DatabaseFieldId, number>([["f1" as DatabaseFieldId, 1]]);
         const query = new DatabaseQuery({
             tableOrViewId: "view-1",
             initialPage: {
                 endCursor: null,
-                rows: [{_id: "row-1", name: "A"}],
+                fieldIndexes,
+                rows: [["row-1", "A"]],
             },
         });
 
@@ -422,7 +439,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         // Get a row ID to delete
         const items = getTreeItems(query);
-        const targetId = items[0]!._id as string;
+        const targetId = items[0]!.getId();
 
         await mutate(`DELETE FROM ${tableName} WHERE _id = '${targetId}'`);
         await flush();
@@ -516,7 +533,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         // Rows still ordered
         const items = getTreeItems(query);
-        const ids = items.map(r => r._id as string);
+        const ids = items.map(r => r.getId());
         expect(ids).toEqual([...ids].sort());
 
         query.dispose();
@@ -674,7 +691,7 @@ describe("DatabaseQuery rebalance — split", () => {
 
         // All rows present in correct order
         const items = getTreeItems(query);
-        const ids = items.map(r => r._id as string);
+        const ids = items.map(r => r.getId());
         const sorted = [...ids].sort();
         expect(ids).toEqual(sorted);
 
@@ -750,7 +767,7 @@ describe("DatabaseQuery rebalance — merge", () => {
 
         // Rows in order
         const items = getTreeItems(query);
-        const ids = items.map(r => r._id as string);
+        const ids = items.map(r => r.getId());
         expect(ids).toEqual([...ids].sort());
 
         query.dispose();
@@ -807,7 +824,7 @@ describe("DatabaseQuery rebalance — merge forward", () => {
 
         // All rows in order
         const items = getTreeItems(query);
-        const ids = items.map(r => r._id as string);
+        const ids = items.map(r => r.getId());
         expect(ids).toEqual([...ids].sort());
 
         query.dispose();
@@ -906,7 +923,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
 
         // All rows still in order
         const items = getTreeItems(query);
-        const ids = items.map(r => r._id as string);
+        const ids = items.map(r => r.getId());
         expect(ids).toEqual([...ids].sort());
 
         query.dispose();

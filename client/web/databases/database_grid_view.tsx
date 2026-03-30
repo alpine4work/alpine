@@ -15,6 +15,7 @@ import {mergeProps} from "react-aria";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
+import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {
     type DatabaseGridViewField,
     type DatabaseGridViewFieldWithEditing,
@@ -35,7 +36,6 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
@@ -147,7 +147,7 @@ export function DatabaseGridView({
         const nextRow = tree.getItem(nextRowIndex);
         dispatch({
             type: "select",
-            rowId: nextRow._id as DatabaseRowId,
+            rowId: nextRow.getId(),
             fieldId: gridFields.fields[nextFieldIndex]!.id,
         });
     });
@@ -255,8 +255,7 @@ export function DatabaseGridView({
                 }
 
                 const row = tree.getItem(index - 1);
-                assert(typeof row._id === "string", "expected row to have a string _id");
-                const rowId = row._id as DatabaseRowId;
+                const rowId = row.getId();
                 return {
                     key: rowId,
                     minHeight: spacing[gridRowHeight],
@@ -552,7 +551,7 @@ function DatabaseGridViewDataRow({
     moveSelection,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
-    row: Record<string, unknown>;
+    row: DatabaseQueryRow;
     rowId: DatabaseRowId;
     isFirstRow: boolean;
     selection: DatabaseGridViewSelection;
@@ -573,7 +572,7 @@ function DatabaseGridViewDataRow({
                     <DatabaseGridViewCell
                         key={field.id}
                         field={field}
-                        value={row[field.columnName]}
+                        value={row.getCellValue(field.id)}
                         rowId={rowId}
                         isFirstRow={isFirstRow}
                         isSelected={isSelected}
